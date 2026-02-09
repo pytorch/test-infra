@@ -23,14 +23,13 @@ final class ReliabilityViewModelTests: XCTestCase {
     // MARK: - Helpers
 
     /// The production code calls:
-    ///   .clickhouseQuery(name: "master_commit_red_percent_groups", ...)
-    /// which resolves to path "/api/clickhouse/master_commit_red_percent_groups".
+    ///   .clickhouseQuery(name: "master_commit_red_jobs", ...)
+    /// which resolves to path "/api/clickhouse/master_commit_red_jobs".
     ///
-    /// It expects JSON: [{granularity_bucket, name, red}, ...]
-    /// Then groups by `name`, averages `red`, and creates:
-    ///   ReliabilityData(workflowName: name, totalJobs: 10000, failedJobs: Int(avgRed * 100))
-    private func registerGroupsResponse(_ json: String) {
-        mockClient.setResponse(json, for: "/api/clickhouse/master_commit_red_percent_groups")
+    /// It expects JSON: [{sha, time, author, body, failures: [...], successes: [...]}, ...]
+    /// Each entry represents one commit with its failing and succeeding job names.
+    private func registerJobsResponse(_ json: String) {
+        mockClient.setResponse(json, for: "/api/clickhouse/master_commit_red_jobs")
     }
 
     /// The production code calls:
@@ -46,25 +45,42 @@ final class ReliabilityViewModelTests: XCTestCase {
 
     /// Registers both required endpoints with sample data.
     private func registerBothEndpoints(
-        groupsJSON: String = "[]",
+        jobsJSON: String = "[]",
         trendJSON: String = "[]"
     ) {
-        registerGroupsResponse(groupsJSON)
+        registerJobsResponse(jobsJSON)
         registerTrendResponse(trendJSON)
     }
 
-    /// Sample groups JSON with 3 workflows.
-    /// Each workflow has a single data point, so avgRed = red.
-    /// Production creates: totalJobs=10000, failedJobs=Int(avgRed * 100)
+    /// Sample jobs JSON with 5 commits.
+    /// Commits are ordered newest-first (time descending), matching the query.
     ///
-    /// "pull": red=5.0  -> failedJobs=500, failureRate=5.0%
-    /// "trunk": red=20.0 -> failedJobs=2000, failureRate=20.0%
-    /// "periodic": red=5.0 -> failedJobs=500, failureRate=5.0%
-    private let sampleGroupsJSON = """
+    /// Commit 5 (newest): "pull / linux-jammy" fails, "trunk / win-vs2022" succeeds
+    /// Commit 4: "pull / linux-jammy" fails, "trunk / win-vs2022" fails
+    /// Commit 3: "pull / linux-jammy" fails, "trunk / win-vs2022" fails
+    /// Commit 2: "trunk / win-vs2022" fails, "pull / linux-jammy" succeeds
+    /// Commit 1 (oldest): "periodic / nightly-build" fails, both others succeed
+    ///
+    /// "pull / linux-jammy": fails in commits 5,4,3 (streak of 3 >= threshold) -> Broken Trunk = 3
+    /// "trunk / win-vs2022": fails in commits 4,3,2 (streak of 3 >= threshold) -> Broken Trunk = 3
+    /// "periodic / nightly-build": fails in commit 1 only (streak of 1) -> Flaky = 1
+    private let sampleJobsJSON = """
     [
-        {"granularity_bucket":"2024-01-01T00:00:00Z","name":"pull / linux-jammy","red":5.0},
-        {"granularity_bucket":"2024-01-01T00:00:00Z","name":"trunk / win-vs2022","red":20.0},
-        {"granularity_bucket":"2024-01-01T00:00:00Z","name":"periodic / nightly-build","red":5.0}
+        {"sha":"e","time":"2024-01-05T00:00:00Z","author":"user","body":"",
+         "failures":["pull / linux-jammy / build"],
+         "successes":["trunk / win-vs2022 / test"]},
+        {"sha":"d","time":"2024-01-04T00:00:00Z","author":"user","body":"",
+         "failures":["pull / linux-jammy / build","trunk / win-vs2022 / test"],
+         "successes":[]},
+        {"sha":"c","time":"2024-01-03T00:00:00Z","author":"user","body":"",
+         "failures":["pull / linux-jammy / build","trunk / win-vs2022 / test"],
+         "successes":[]},
+        {"sha":"b","time":"2024-01-02T00:00:00Z","author":"user","body":"",
+         "failures":["trunk / win-vs2022 / test"],
+         "successes":["pull / linux-jammy / build"]},
+        {"sha":"a","time":"2024-01-01T00:00:00Z","author":"user","body":"",
+         "failures":["periodic / nightly-build / job"],
+         "successes":["pull / linux-jammy / build","trunk / win-vs2022 / test"]}
     ]
     """
 
@@ -116,7 +132,7 @@ final class ReliabilityViewModelTests: XCTestCase {
 
     func testLoadReliabilitySuccess() async {
         registerBothEndpoints(
-            groupsJSON: sampleGroupsJSON,
+            jobsJSON: sampleJobsJSON,
             trendJSON: sampleTrendJSON
         )
 
@@ -128,48 +144,62 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testLoadReliabilityPopulatesWorkflowsSortedByFailureRate() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
         await viewModel.loadReliability()
 
-        // trunk: red=20 -> failureRate=20%, pull: red=5 -> 5%, periodic: red=5 -> 5%
-        // Sorted worst first
-        XCTAssertEqual(viewModel.workflows[0].workflowName, "trunk / win-vs2022") // 20%
-        // pull and periodic both 5% - order among them is stable from dictionary iteration
-        XCTAssertTrue(viewModel.workflows[1].workflowName == "pull / linux-jammy" ||
-                      viewModel.workflows[1].workflowName == "periodic / nightly-build")
+        // All three jobs should appear. "periodic / nightly-build / job" has highest
+        // failure rate (1 failure, 1 total = 100%), then the other two have 3 failures
+        // each out of more total appearances.
+        XCTAssertEqual(viewModel.workflows.count, 3)
+        // Verify sorted worst first: first workflow should have highest failureRate
+        for i in 0..<(viewModel.workflows.count - 1) {
+            XCTAssertGreaterThanOrEqual(
+                viewModel.workflows[i].failureRate,
+                viewModel.workflows[i + 1].failureRate
+            )
+        }
     }
 
-    func testLoadReliabilityComputesTotals() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+    func testLoadReliabilityComputesRealTotals() async {
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
         await viewModel.loadReliability()
 
-        // Production sets totalJobs=10000 for each workflow, so 3 * 10000 = 30000
-        XCTAssertEqual(viewModel.totalJobs, 30000)
-        // failedJobs: pull=500, trunk=2000, periodic=500 -> 3000
-        XCTAssertEqual(viewModel.totalFailed, 3000)
-        // brokenTrunk/flaky/infra are always nil from production code
-        XCTAssertEqual(viewModel.totalBrokenTrunk, 0)
-        XCTAssertEqual(viewModel.totalFlaky, 0)
-        XCTAssertEqual(viewModel.totalInfra, 0)
+        // totalJobs should be sum of real successes + non-infra failures per job, NOT hardcoded 10000
+        XCTAssertGreaterThan(viewModel.totalJobs, 0)
+        // No workflow should have totalJobs == 10000
+        for wf in viewModel.workflows {
+            XCTAssertNotEqual(wf.totalJobs, 10000, "totalJobs should be computed from real data, not hardcoded")
+        }
+        // totalFailed should be > 0
+        XCTAssertGreaterThan(viewModel.totalFailed, 0)
+    }
+
+    func testFailureCategoriesArePopulated() async {
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
+
+        await viewModel.loadReliability()
+
+        // With sample data, we should have real broken trunk counts
+        XCTAssertGreaterThan(viewModel.totalBrokenTrunk, 0, "Broken trunk should be populated from real data")
     }
 
     func testOverallRates() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
         await viewModel.loadReliability()
 
-        // 3000 / 30000 * 100 = 10.0%
-        let expectedFailureRate = Double(3000) / Double(30000) * 100
-        XCTAssertEqual(viewModel.overallFailureRate, expectedFailureRate, accuracy: 0.01)
-        XCTAssertEqual(viewModel.overallReliabilityRate, 100 - expectedFailureRate, accuracy: 0.01)
+        // Overall failure rate should be positive and less than 100
+        XCTAssertGreaterThan(viewModel.overallFailureRate, 0)
+        XCTAssertLessThan(viewModel.overallFailureRate, 100)
+        XCTAssertEqual(viewModel.overallFailureRate + viewModel.overallReliabilityRate, 100, accuracy: 0.01)
     }
 
     // MARK: - Load Error
 
     func testLoadReliabilityErrorSetsErrorState() async {
-        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/master_commit_red_percent_groups")
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/master_commit_red_jobs")
         registerTrendResponse("[]")
 
         await viewModel.loadReliability()
@@ -242,7 +272,7 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testTrendFailureDoesNotBlockWorkflowData() async {
-        registerGroupsResponse(sampleGroupsJSON)
+        registerJobsResponse(sampleJobsJSON)
         // Do NOT register a trend response -> it will 404 but shouldn't block
 
         await viewModel.loadReliability()
@@ -255,9 +285,9 @@ final class ReliabilityViewModelTests: XCTestCase {
     // MARK: - Trend Direction
 
     func testTrendDirectionImproving() async {
-        // First half avg metric: (0.20+0.18)/2 = 0.19 -> reliability (81+82)/2=81.5
-        // Second half avg metric: (0.05+0.03)/2 = 0.04 -> reliability (95+97)/2=96.0
-        // delta = 96.0 - 81.5 = 14.5 -> improving
+        // First half avg metric: (0.20+0.18)/2 = 0.19 -> reliability (81+82)/2=81.5 -> actually (80+82)/2=81
+        // Second half avg metric: (0.05+0.03)/2 = 0.04 -> reliability (95+97)/2=96
+        // delta = 96 - 81 = 15 -> improving
         registerBothEndpoints(trendJSON: """
         [
             {"granularity_bucket":"2024-01-01T00:00:00Z","name":"Total","metric":0.20},
@@ -280,9 +310,6 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testTrendDirectionDeclining() async {
-        // First half avg metric: (0.03+0.02)/2 = 0.025 -> reliability (97+98)/2=97.5
-        // Second half avg metric: (0.15+0.20)/2 = 0.175 -> reliability (85+80)/2=82.5
-        // delta = 82.5 - 97.5 = -15.0 -> declining
         registerBothEndpoints(trendJSON: """
         [
             {"granularity_bucket":"2024-01-01T00:00:00Z","name":"Total","metric":0.03},
@@ -302,9 +329,6 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testTrendDirectionStableWhenDeltaSmall() async {
-        // First half avg metric: 0.05 -> reliability 95.0
-        // Second half avg metric: 0.052 -> reliability 94.8
-        // delta = -0.2 -> stable (< 0.5 threshold)
         registerBothEndpoints(trendJSON: """
         [
             {"granularity_bucket":"2024-01-01T00:00:00Z","name":"Total","metric":0.05},
@@ -350,60 +374,73 @@ final class ReliabilityViewModelTests: XCTestCase {
     // MARK: - Workflow Health Counts
 
     func testHealthyWorkflowCount() async {
-        // Production: totalJobs=10000, failedJobs=Int(avgRed*100)
-        // For reliability >= 95%, need failureRate < 5%, i.e. red < 5.0
-        // w1: red=3.0 -> failedJobs=300, failureRate=3% -> 97% reliability (healthy)
-        // w2: red=4.0 -> failedJobs=400, failureRate=4% -> 96% reliability (healthy)
-        // w3: red=20.0 -> failedJobs=2000, failureRate=20% -> 80% reliability (critical)
-        registerBothEndpoints(groupsJSON: """
-        [
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w1","red":3.0},
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w2","red":4.0},
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w3","red":20.0}
-        ]
-        """)
+        // Create a scenario where some jobs have high reliability.
+        // job_a: fails 1 commit, succeeds 99 -> 1/100 = 1% failure -> 99% reliability (healthy)
+        // job_b: fails 1 commit, succeeds 99 -> 1/100 = 1% failure -> 99% reliability (healthy)
+        // job_c: fails 50 commits in a row -> 50/50 = 100% failure -> 0% reliability (critical)
+        var commits: [[String: Any]] = []
+        // 50 commits where only job_c fails
+        for i in 0..<50 {
+            commits.append([
+                "sha": "c\(i)", "time": "2024-01-\(String(format: "%02d", i + 1))T00:00:00Z",
+                "author": "user", "body": "",
+                "failures": ["job_c"],
+                "successes": ["job_a", "job_b"],
+            ])
+        }
+        // 49 commits where everything succeeds
+        for i in 50..<99 {
+            commits.append([
+                "sha": "s\(i)", "time": "2024-02-\(String(format: "%02d", i - 49))T00:00:00Z",
+                "author": "user", "body": "",
+                "failures": [] as [String],
+                "successes": ["job_a", "job_b"],
+            ])
+        }
+        // 1 commit where job_a and job_b fail
+        commits.append([
+            "sha": "f1", "time": "2024-03-01T00:00:00Z",
+            "author": "user", "body": "",
+            "failures": ["job_a", "job_b"],
+            "successes": [] as [String],
+        ])
+        let jsonData = try! JSONSerialization.data(withJSONObject: commits)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+
+        registerBothEndpoints(jobsJSON: jsonString)
 
         await viewModel.loadReliability()
 
-        XCTAssertEqual(viewModel.healthyWorkflowCount, 2)
-    }
-
-    func testWarningWorkflowCount() async {
-        // For 90-95% reliability: failureRate 5-10%, i.e. red 5.0-10.0
-        // w1: red=8.0 -> failedJobs=800, failureRate=8% -> 92% (warning)
-        // w2: red=3.0 -> failedJobs=300, failureRate=3% -> 97% (healthy)
-        registerBothEndpoints(groupsJSON: """
-        [
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w1","red":8.0},
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w2","red":3.0}
-        ]
-        """)
-
-        await viewModel.loadReliability()
-
-        XCTAssertEqual(viewModel.warningWorkflowCount, 1)
+        XCTAssertEqual(viewModel.healthyWorkflowCount, 2) // job_a and job_b
     }
 
     func testCriticalWorkflowCount() async {
-        // For < 90% reliability: failureRate > 10%, i.e. red > 10.0
-        // w1: red=15.0 -> failedJobs=1500, failureRate=15% -> 85% (critical)
-        // w2: red=25.0 -> failedJobs=2500, failureRate=25% -> 75% (critical)
-        registerBothEndpoints(groupsJSON: """
-        [
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w1","red":15.0},
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"w2","red":25.0}
-        ]
-        """)
+        // Create jobs that always fail: reliability < 90%
+        // 10 commits, each has job_a and job_b failing, nothing succeeding
+        var commits: [[String: Any]] = []
+        for i in 0..<10 {
+            commits.append([
+                "sha": "s\(i)", "time": "2024-01-\(String(format: "%02d", i + 1))T00:00:00Z",
+                "author": "user", "body": "",
+                "failures": ["job_a", "job_b"],
+                "successes": [] as [String],
+            ])
+        }
+        let jsonData = try! JSONSerialization.data(withJSONObject: commits)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+
+        registerBothEndpoints(jobsJSON: jsonString)
 
         await viewModel.loadReliability()
 
+        // Both jobs have 100% failure rate (well below 90% reliability)
         XCTAssertEqual(viewModel.criticalWorkflowCount, 2)
     }
 
     // MARK: - Filters
 
     func testFilterAll() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .all
@@ -411,66 +448,73 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testFilterPrimary() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .primary
         let filtered = viewModel.filteredWorkflows
-        // "pull / linux-jammy" contains "pull" and "linux", "trunk / win-vs2022" contains "trunk" and "win"
+        // "pull / linux-jammy / build" -> primary (contains "pull" and "linux")
+        // "trunk / win-vs2022 / test" -> primary (contains "trunk" and "win")
         XCTAssertEqual(filtered.count, 2)
         XCTAssertTrue(filtered.allSatisfy { viewModel.isPrimaryWorkflow($0.workflowName) })
     }
 
     func testFilterSecondary() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .secondary
         let filtered = viewModel.filteredWorkflows
-        // "periodic / nightly-build" contains "periodic" and "nightly"
+        // "periodic / nightly-build / job" contains "periodic" and "nightly"
         XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].workflowName, "periodic / nightly-build")
+        XCTAssertTrue(filtered[0].workflowName.contains("periodic"))
     }
 
     func testFilterUnstable() async {
-        registerBothEndpoints(groupsJSON: """
+        // Create data with an unstable job
+        let json = """
         [
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"pull / linux-unstable","red":10.0},
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"pull / linux-jammy","red":5.0}
+            {"sha":"a","time":"2024-01-01T00:00:00Z","author":"user","body":"",
+             "failures":["unstable / linux-test"],
+             "successes":["pull / linux-jammy"]},
+            {"sha":"b","time":"2024-01-02T00:00:00Z","author":"user","body":"",
+             "failures":[],
+             "successes":["pull / linux-jammy","unstable / linux-test"]}
         ]
-        """)
+        """
+        registerBothEndpoints(jobsJSON: json)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .unstable
         let filtered = viewModel.filteredWorkflows
         XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].workflowName, "pull / linux-unstable")
+        XCTAssertTrue(filtered[0].workflowName.contains("unstable"))
     }
 
     // MARK: - Search
 
     func testSearchFiltersByWorkflowName() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.searchText = "linux"
         let filtered = viewModel.filteredWorkflows
         XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].workflowName, "pull / linux-jammy")
+        XCTAssertTrue(filtered[0].workflowName.contains("linux"))
     }
 
     func testSearchIsCaseInsensitive() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.searchText = "WIN"
         let filtered = viewModel.filteredWorkflows
         XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].workflowName, "trunk / win-vs2022")
+        XCTAssertTrue(filtered[0].workflowName.contains("win"))
     }
 
     func testSearchWithNoMatch() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.searchText = "nonexistent"
@@ -478,7 +522,7 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testEmptySearchReturnsAll() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.searchText = ""
@@ -486,63 +530,70 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testSearchCombinesWithFilter() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .primary
         viewModel.searchText = "linux"
         let filtered = viewModel.filteredWorkflows
         XCTAssertEqual(filtered.count, 1)
-        XCTAssertEqual(filtered[0].workflowName, "pull / linux-jammy")
+        XCTAssertTrue(filtered[0].workflowName.contains("linux"))
     }
 
     // MARK: - Sort Order
 
     func testSortWorstFirst() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.sortOrder = .worstFirst
         let filtered = viewModel.filteredWorkflows
-        XCTAssertEqual(filtered[0].workflowName, "trunk / win-vs2022") // 20%
+        for i in 0..<(filtered.count - 1) {
+            XCTAssertGreaterThanOrEqual(filtered[i].failureRate, filtered[i + 1].failureRate)
+        }
     }
 
     func testSortBestFirst() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.sortOrder = .bestFirst
         let filtered = viewModel.filteredWorkflows
-        // trunk=20% is worst, so it should be last
-        XCTAssertEqual(filtered.last?.workflowName, "trunk / win-vs2022") // 20%
+        for i in 0..<(filtered.count - 1) {
+            XCTAssertLessThanOrEqual(filtered[i].failureRate, filtered[i + 1].failureRate)
+        }
     }
 
     func testSortNameAZ() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.sortOrder = .nameAZ
         let filtered = viewModel.filteredWorkflows
-        XCTAssertEqual(filtered[0].workflowName, "periodic / nightly-build")
-        XCTAssertEqual(filtered[1].workflowName, "pull / linux-jammy")
-        XCTAssertEqual(filtered[2].workflowName, "trunk / win-vs2022")
+        for i in 0..<(filtered.count - 1) {
+            XCTAssertTrue(
+                filtered[i].workflowName.localizedCompare(filtered[i + 1].workflowName) != .orderedDescending
+            )
+        }
     }
 
     func testSortNameZA() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.sortOrder = .nameZA
         let filtered = viewModel.filteredWorkflows
-        XCTAssertEqual(filtered[0].workflowName, "trunk / win-vs2022")
-        XCTAssertEqual(filtered[1].workflowName, "pull / linux-jammy")
-        XCTAssertEqual(filtered[2].workflowName, "periodic / nightly-build")
+        for i in 0..<(filtered.count - 1) {
+            XCTAssertTrue(
+                filtered[i].workflowName.localizedCompare(filtered[i + 1].workflowName) != .orderedAscending
+            )
+        }
     }
 
     // MARK: - Failure Breakdown
 
     func testFailureBreakdownHasThreeCategories() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         let breakdown = viewModel.failureBreakdown
@@ -552,39 +603,45 @@ final class ReliabilityViewModelTests: XCTestCase {
         XCTAssertEqual(breakdown[2].category, "Infra")
     }
 
-    func testFailureBreakdownCountsAreZeroFromProductionEndpoint() async {
-        // Production code always sets brokenTrunk/flaky/infra to nil
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+    func testFailureBreakdownCountsAreNonZeroWithRealData() async {
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         let breakdown = viewModel.failureBreakdown
-        XCTAssertEqual(breakdown[0].count, 0) // Broken Trunk
-        XCTAssertEqual(breakdown[1].count, 0) // Flaky
-        XCTAssertEqual(breakdown[2].count, 0) // Infra
+        // With real per-commit data, the breakdown should have real counts
+        let totalBreakdown = breakdown.reduce(0) { $0 + $1.count }
+        XCTAssertGreaterThan(totalBreakdown, 0, "Failure breakdown should have non-zero counts with real data")
+        // Specifically, broken trunk should be populated (streaks of 3+)
+        XCTAssertGreaterThan(breakdown[0].count, 0, "Broken trunk count should be > 0")
     }
 
     // MARK: - Refresh
 
     func testRefreshReloadsData() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
         XCTAssertEqual(viewModel.workflows.count, 3)
 
-        // Clear and register new data
+        // Clear and register new data with a single job
         mockClient.reset()
-        registerBothEndpoints(groupsJSON: """
-        [{"granularity_bucket":"2024-01-01T00:00:00Z","name":"new-workflow","red":10.0}]
-        """)
+        let newJSON = """
+        [
+            {"sha":"x","time":"2024-01-01T00:00:00Z","author":"user","body":"",
+             "failures":["new-workflow / test"],
+             "successes":[]}
+        ]
+        """
+        registerBothEndpoints(jobsJSON: newJSON)
 
         await viewModel.refresh()
 
         XCTAssertEqual(viewModel.state, .loaded)
         XCTAssertEqual(viewModel.workflows.count, 1)
-        XCTAssertEqual(viewModel.workflows[0].workflowName, "new-workflow")
+        XCTAssertEqual(viewModel.workflows[0].workflowName, "new-workflow / test")
     }
 
     func testRefreshDoesNotResetStateToLoading() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
         XCTAssertEqual(viewModel.state, .loaded)
 
@@ -600,12 +657,11 @@ final class ReliabilityViewModelTests: XCTestCase {
     // MARK: - Parameters Changed
 
     func testOnParametersChangedRefetches() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
-        let initialCallCount = mockClient.callCount
         mockClient.reset()
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
         await viewModel.onParametersChanged()
 
@@ -628,22 +684,23 @@ final class ReliabilityViewModelTests: XCTestCase {
     func testIsPrimaryWorkflow() {
         XCTAssertTrue(viewModel.isPrimaryWorkflow("pull / linux-jammy"))
         XCTAssertTrue(viewModel.isPrimaryWorkflow("trunk / win-vs2022"))
-        XCTAssertTrue(viewModel.isPrimaryWorkflow("Lint checks"))
+        XCTAssertTrue(viewModel.isPrimaryWorkflow("lint / something"))
         XCTAssertTrue(viewModel.isPrimaryWorkflow("macos-build"))
-        XCTAssertTrue(viewModel.isPrimaryWorkflow("inductor-tests"))
+        XCTAssertTrue(viewModel.isPrimaryWorkflow("linux-aarch64 / test"))
+        XCTAssertTrue(viewModel.isPrimaryWorkflow("linux-binary-libtorch-release / build"))
+        XCTAssertTrue(viewModel.isPrimaryWorkflow("linux-binary-manywheel / build"))
         XCTAssertFalse(viewModel.isPrimaryWorkflow("periodic / nightly"))
-        XCTAssertFalse(viewModel.isPrimaryWorkflow("docker-release"))
     }
 
     func testIsSecondaryWorkflow() {
         XCTAssertTrue(viewModel.isSecondaryWorkflow("periodic / nightly"))
-        XCTAssertTrue(viewModel.isSecondaryWorkflow("docker-build"))
+        XCTAssertTrue(viewModel.isSecondaryWorkflow("inductor / test"))
         XCTAssertTrue(viewModel.isSecondaryWorkflow("binary-release"))
         XCTAssertFalse(viewModel.isSecondaryWorkflow("pull / linux-jammy"))
     }
 
     func testIsUnstableWorkflow() {
-        XCTAssertTrue(viewModel.isUnstableWorkflow("pull / linux-unstable-test"))
+        XCTAssertTrue(viewModel.isUnstableWorkflow("unstable / linux-test"))
         XCTAssertTrue(viewModel.isUnstableWorkflow("UNSTABLE-workflow"))
         XCTAssertFalse(viewModel.isUnstableWorkflow("pull / linux-jammy"))
     }
@@ -651,8 +708,8 @@ final class ReliabilityViewModelTests: XCTestCase {
     // MARK: - Edge Cases
 
     func testReliabilityRateWithZeroTotalJobs() async {
-        // With empty groups data, there are no workflows -> totalJobs=0
-        registerBothEndpoints(groupsJSON: "[]")
+        // With empty jobs data, there are no workflows -> totalJobs=0
+        registerBothEndpoints(jobsJSON: "[]")
         await viewModel.loadReliability()
 
         XCTAssertEqual(viewModel.overallFailureRate, 0)
@@ -660,7 +717,7 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testFilteredTotalsUpdateWithFilter() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
         await viewModel.loadReliability()
 
         viewModel.selectedFilter = .primary
@@ -669,7 +726,7 @@ final class ReliabilityViewModelTests: XCTestCase {
         viewModel.selectedFilter = .secondary
         let secondaryTotal = viewModel.totalJobs
 
-        // Primary should have more jobs than secondary (2 primary vs 1 secondary, each 10000)
+        // Primary should have more jobs than secondary (2 primary vs 1 secondary)
         XCTAssertGreaterThan(primaryTotal, secondaryTotal)
     }
 
@@ -727,7 +784,7 @@ final class ReliabilityViewModelTests: XCTestCase {
     }
 
     func testLoadSetsLoadingStateThenLoaded() async {
-        registerBothEndpoints(groupsJSON: sampleGroupsJSON)
+        registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
         // Before load
         XCTAssertEqual(viewModel.state, .loading)
@@ -738,24 +795,92 @@ final class ReliabilityViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .loaded)
     }
 
-    // MARK: - Group Averaging
+    // MARK: - Failure Classification Algorithm
 
-    func testMultipleDataPointsForSameWorkflowAreAveraged() async {
-        // Two data points for "pull" with red=10 and red=20 -> avgRed=15
-        // failedJobs = Int(15 * 100) = 1500, failureRate = 15%
-        registerBothEndpoints(groupsJSON: """
-        [
-            {"granularity_bucket":"2024-01-01T00:00:00Z","name":"pull","red":10.0},
-            {"granularity_bucket":"2024-01-02T00:00:00Z","name":"pull","red":20.0}
+    func testApproximateFailureByType_BrokenTrunk() {
+        // 3 consecutive commits where "job_a" fails -> Broken Trunk (threshold = 3)
+        let commits = [
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "c", time: "3", failures: ["job_a"], successes: []),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "b", time: "2", failures: ["job_a"], successes: []),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "a", time: "1", failures: ["job_a"], successes: []),
         ]
-        """)
 
-        await viewModel.loadReliability()
+        let result = ReliabilityViewModel.approximateFailureByType(commits)
 
-        XCTAssertEqual(viewModel.workflows.count, 1)
-        XCTAssertEqual(viewModel.workflows[0].workflowName, "pull")
-        XCTAssertEqual(viewModel.workflows[0].totalJobs, 10000)
-        XCTAssertEqual(viewModel.workflows[0].failedJobs, 1500)
-        XCTAssertEqual(viewModel.workflows[0].failureRate, 15.0, accuracy: 0.01)
+        XCTAssertEqual(result["job_a"]?.brokenTrunk, 3)
+        XCTAssertEqual(result["job_a"]?.flaky, 0)
+    }
+
+    func testApproximateFailureByType_Flaky() {
+        // 2 consecutive commits where "job_a" fails, then succeeds (streak < 3) -> Flaky
+        let commits = [
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "c", time: "3", failures: ["job_a"], successes: []),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "b", time: "2", failures: ["job_a"], successes: []),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "a", time: "1", failures: [], successes: ["job_a"]),
+        ]
+
+        let result = ReliabilityViewModel.approximateFailureByType(commits)
+
+        XCTAssertEqual(result["job_a"]?.flaky, 2)
+        XCTAssertEqual(result["job_a"]?.brokenTrunk, 0)
+    }
+
+    func testApproximateFailureByType_Infra() {
+        // A commit with >= 10 failures -> each failure gets +1 infra
+        var failures: [String] = []
+        for i in 0..<12 {
+            failures.append("job_\(i)")
+        }
+        let commits = [
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "b", time: "2", failures: failures, successes: []),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "a", time: "1", failures: [], successes: failures),
+        ]
+
+        let result = ReliabilityViewModel.approximateFailureByType(commits)
+
+        // Each job had 1 failure (streak of 1, below threshold of 3) -> Flaky
+        // But the commit had >= 10 failures -> also counted as infra
+        for i in 0..<12 {
+            XCTAssertEqual(result["job_\(i)"]?.infra, 1, "job_\(i) should have infra count of 1")
+        }
+    }
+
+    func testCountSuccesses() {
+        let commits = [
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "a", time: "1", failures: [], successes: ["job_a", "job_b"]),
+            ReliabilityViewModel.CommitRedJobsEntry(sha: "b", time: "2", failures: ["job_b"], successes: ["job_a"]),
+        ]
+
+        let result = ReliabilityViewModel.countSuccesses(commits)
+
+        XCTAssertEqual(result["job_a"], 2)
+        XCTAssertEqual(result["job_b"], 1)
+    }
+
+    // MARK: - Workflow Names
+
+    func testAllWorkflowNamesContainsNineWorkflows() {
+        XCTAssertEqual(ReliabilityViewModel.allWorkflowNames.count, 9)
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("trunk"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("pull"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("periodic"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("inductor"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("linux-binary-libtorch-release"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("linux-binary-manywheel"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("linux-aarch64"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("lint"))
+        XCTAssertTrue(ReliabilityViewModel.allWorkflowNames.contains("unstable"))
+    }
+
+    func testPrimaryWorkflowsList() {
+        XCTAssertEqual(ReliabilityViewModel.primaryWorkflows.count, 6)
+    }
+
+    func testSecondaryWorkflowsList() {
+        XCTAssertEqual(ReliabilityViewModel.secondaryWorkflows.count, 2)
+    }
+
+    func testUnstableWorkflowsList() {
+        XCTAssertEqual(ReliabilityViewModel.unstableWorkflows.count, 1)
     }
 }

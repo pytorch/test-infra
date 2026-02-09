@@ -30,6 +30,28 @@ final class ReliabilityViewModel: ObservableObject {
 
     private let apiClient: APIClientProtocol
 
+    // MARK: - Workflow Names (matches web source)
+
+    /// Primary workflows as defined in the web reliability page.
+    static let primaryWorkflows = [
+        "lint", "pull", "trunk",
+        "linux-binary-libtorch-release", "linux-binary-manywheel", "linux-aarch64",
+    ]
+    /// Secondary workflows as defined in the web reliability page.
+    static let secondaryWorkflows = ["periodic", "inductor"]
+    /// Unstable workflows as defined in the web reliability page.
+    static let unstableWorkflows = ["unstable"]
+    /// All workflows combined.
+    static let allWorkflowNames: [String] =
+        primaryWorkflows + secondaryWorkflows + unstableWorkflows
+
+    // MARK: - Failure Classification Thresholds (matches web metricUtils)
+
+    /// When N consecutive failures of the same job happen, they are counted as broken trunk.
+    static let brokenTrunkThreshold = 3
+    /// When more than N failures happen in the same commit, they are counted as infra broken.
+    static let outageThreshold = 10
+
     // MARK: - Workflow Filters
 
     enum WorkflowFilter: String, CaseIterable, CustomStringConvertible {
@@ -228,26 +250,39 @@ final class ReliabilityViewModel: ObservableObject {
         await fetchData()
     }
 
-    private struct RedPercentGroupEntry: Decodable {
-        let granularity_bucket: String
-        let name: String
-        let red: Double
+    /// Per-commit job data returned by `master_commit_red_jobs`.
+    /// Each row represents one commit with arrays of failing and succeeding job names.
+    struct CommitRedJobsEntry: Decodable {
+        let sha: String
+        let time: String
+        let author: String
+        let body: String?
+        let failures: [String]
+        let successes: [String]
 
         enum CodingKeys: String, CodingKey {
-            case granularity_bucket, name, red
+            case sha, time, author, body, failures, successes
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            granularity_bucket = try container.decode(String.self, forKey: .granularity_bucket)
-            name = try container.decode(String.self, forKey: .name)
-            if let v = try? container.decode(Double.self, forKey: .red) {
-                red = v
-            } else if let s = try? container.decode(String.self, forKey: .red), let v = Double(s) {
-                red = v
-            } else {
-                red = 0
-            }
+            sha = try container.decode(String.self, forKey: .sha)
+            time = try container.decode(String.self, forKey: .time)
+            author = try container.decodeIfPresent(String.self, forKey: .author) ?? ""
+            body = try container.decodeIfPresent(String.self, forKey: .body)
+            failures = (try? container.decode([String].self, forKey: .failures)) ?? []
+            successes = (try? container.decode([String].self, forKey: .successes)) ?? []
+        }
+
+        /// Memberwise initializer for testing.
+        init(sha: String, time: String, author: String = "", body: String? = nil,
+             failures: [String] = [], successes: [String] = []) {
+            self.sha = sha
+            self.time = time
+            self.author = author
+            self.body = body
+            self.failures = failures
+            self.successes = successes
         }
     }
 
@@ -275,6 +310,88 @@ final class ReliabilityViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Failure Classification (port of web metricUtils)
+
+    /// Failure counts per job, broken down by type.
+    struct FailureCounts {
+        var brokenTrunk: Int = 0
+        var flaky: Int = 0
+        var infra: Int = 0
+
+        var total: Int { brokenTrunk + flaky + infra }
+    }
+
+    /// Port of `approximateFailureByType` from `torchci/lib/metricUtils.ts`.
+    ///
+    /// Walks commits in time-descending order (newest first, as returned by the query).
+    /// Tracks consecutive-failure streaks per job name:
+    /// - streak >= `brokenTrunkThreshold` -> Broken Trunk
+    /// - otherwise -> Test Flake (i.e. "Flaky")
+    /// If a commit has >= `outageThreshold` failures, each failure is also counted as Infra.
+    static func approximateFailureByType(
+        _ commits: [CommitRedJobsEntry],
+        brokenTrunkThreshold: Int = ReliabilityViewModel.brokenTrunkThreshold,
+        outageThreshold: Int = ReliabilityViewModel.outageThreshold
+    ) -> [String: FailureCounts] {
+        var failuresByType: [String: FailureCounts] = [:]
+        // Track consecutive failure streaks per job name
+        var sequentialFailuresCount: [String: Int] = [:]
+
+        for commit in commits {
+            let failuresInCommit = Set(commit.failures.filter { !$0.isEmpty })
+
+            // Increment streak counters for jobs that failed in this commit
+            for failure in failuresInCommit {
+                sequentialFailuresCount[failure, default: 0] += 1
+            }
+
+            // Check which tracked jobs did NOT fail in this commit (streak ended)
+            for (failure, count) in sequentialFailuresCount {
+                guard !failuresInCommit.contains(failure) else {
+                    // If this commit has >= outageThreshold failures, count as infra
+                    if failuresInCommit.count >= outageThreshold {
+                        failuresByType[failure, default: FailureCounts()].infra += 1
+                    }
+                    continue
+                }
+
+                // Streak ended - classify the accumulated count
+                if count > 0 {
+                    if count >= brokenTrunkThreshold {
+                        failuresByType[failure, default: FailureCounts()].brokenTrunk += count
+                    } else {
+                        failuresByType[failure, default: FailureCounts()].flaky += count
+                    }
+                }
+
+                // Reset
+                sequentialFailuresCount[failure] = 0
+            }
+        }
+
+        // Flush remaining streaks
+        for (failure, count) in sequentialFailuresCount where count > 0 {
+            if count >= brokenTrunkThreshold {
+                failuresByType[failure, default: FailureCounts()].brokenTrunk += count
+            } else {
+                failuresByType[failure, default: FailureCounts()].flaky += count
+            }
+        }
+
+        return failuresByType
+    }
+
+    /// Count successes per job name across all commits.
+    static func countSuccesses(_ commits: [CommitRedJobsEntry]) -> [String: Int] {
+        var result: [String: Int] = [:]
+        for commit in commits {
+            for success in Set(commit.successes.filter { !$0.isEmpty }) {
+                result[success, default: 0] += 1
+            }
+        }
+        return result
+    }
+
     private func fetchData() async {
         do {
             let range = TimeRange.presets.first { $0.id == selectedTimeRange }
@@ -282,21 +399,22 @@ final class ReliabilityViewModel: ObservableObject {
             let timeRange = APIEndpoint.timeRange(days: days)
 
             let client = apiClient
-            let workflowNames = ["lint", "pull", "trunk", "linux-aarch64"]
+            let workflowNames = Self.allWorkflowNames
             let granularity = days <= 7 ? "day" : "week"
 
-            async let groupData: [RedPercentGroupEntry] = client.fetch(
+            // Fetch per-commit job-level data (the same query the web uses)
+            async let jobsData: [CommitRedJobsEntry] = client.fetch(
                 .clickhouseQuery(
-                    name: "master_commit_red_percent_groups",
+                    name: "master_commit_red_jobs",
                     parameters: [
                         "startTime": timeRange.startTime,
                         "stopTime": timeRange.stopTime,
-                        "granularity": granularity,
                         "workflowNames": workflowNames,
                     ] as [String: Any]
                 )
             )
 
+            // Fetch trend data for the sparkline (categories: "Total", "Broken trunk", "Flaky")
             async let trendData: [RedPercentTrendEntry] = client.fetch(
                 .clickhouseQuery(
                     name: "master_commit_red_percent",
@@ -309,46 +427,26 @@ final class ReliabilityViewModel: ObservableObject {
                 )
             )
 
-            // Group per-workflow red percentages and average across time buckets
-            let fetchedGroups = try await groupData
-
-            // Fetch trend data (categories: "Total", "Broken trunk", "Flaky")
+            let fetchedJobs = try await jobsData
             let fetchedTrend = (try? await trendData) ?? []
 
-            // Compute average category ratios from trend data so we can distribute
-            // the per-workflow failure counts into broken trunk / flaky / infra.
-            let avgCategory: (String) -> Double = { category in
-                let entries = fetchedTrend.filter { $0.name == category }
-                guard !entries.isEmpty else { return 0 }
-                return entries.map(\.metric).reduce(0, +) / Double(entries.count)
-            }
-            let avgTotal = avgCategory("Total")
-            let avgBrokenTrunk = avgCategory("Broken trunk")
-            let avgFlaky = avgCategory("Flaky")
-            // Infra = total - broken trunk - flaky
-            let avgInfra = max(0, avgTotal - avgBrokenTrunk - avgFlaky)
+            // Classify failures using the same algorithm as the web
+            let failuresByType = Self.approximateFailureByType(fetchedJobs)
+            let successesByJob = Self.countSuccesses(fetchedJobs)
 
-            let brokenTrunkRatio = avgTotal > 0 ? avgBrokenTrunk / avgTotal : 0
-            let flakyRatio = avgTotal > 0 ? avgFlaky / avgTotal : 0
-            let infraRatio = avgTotal > 0 ? avgInfra / avgTotal : 0
-
-            let byName = Dictionary(grouping: fetchedGroups, by: { $0.name })
-            workflows = byName.map { (name, entries) in
-                let avgRed = entries.map(\.red).reduce(0, +) / Double(entries.count)
-                // avgRed is already a percentage (5.0 = 5%). Scale by 100 so
-                // failureRate = failedJobs / totalJobs * 100 yields the correct percentage.
-                let failedScaled = Int(avgRed * 100)
-                // Distribute failures by category ratios from trend data
-                let bt = avgTotal > 0 ? Int(Double(failedScaled) * brokenTrunkRatio) : nil
-                let fl = avgTotal > 0 ? Int(Double(failedScaled) * flakyRatio) : nil
-                let inf = avgTotal > 0 ? Int(Double(failedScaled) * infraRatio) : nil
+            // Build per-job ReliabilityData with real counts
+            workflows = failuresByType.map { (jobName, counts) in
+                let successCount = successesByJob[jobName] ?? 0
+                // Total = successes + non-infra failures (matches web: successCount + failureCount)
+                let failureCount = counts.brokenTrunk + counts.flaky
+                let total = successCount + failureCount
                 return ReliabilityData(
-                    workflowName: name,
-                    totalJobs: 10000,
-                    failedJobs: failedScaled,
-                    brokenTrunk: bt,
-                    flaky: fl,
-                    infra: inf
+                    workflowName: jobName,
+                    totalJobs: total,
+                    failedJobs: failureCount,
+                    brokenTrunk: counts.brokenTrunk,
+                    flaky: counts.flaky,
+                    infra: counts.infra
                 )
             }.sorted { $0.failureRate > $1.failureRate }
 
@@ -373,16 +471,24 @@ final class ReliabilityViewModel: ObservableObject {
 
     // MARK: - Workflow Classification
 
+    /// Checks if a job name belongs to a primary workflow by matching the workflow prefix
+    /// (the part before the first " / ") against the primary workflow name list.
     func isPrimaryWorkflow(_ name: String) -> Bool {
-        let primaryKeywords = ["pull", "trunk", "lint", "linux", "win", "macos", "inductor"]
-        return primaryKeywords.contains { name.lowercased().contains($0) }
+        let lower = name.lowercased()
+        return Self.primaryWorkflows.contains { lower.hasPrefix($0) }
+            || ["pull", "trunk", "lint", "linux", "win", "macos"]
+                .contains { lower.contains($0) }
     }
 
+    /// Checks if a job name belongs to a secondary workflow.
     func isSecondaryWorkflow(_ name: String) -> Bool {
-        let secondaryKeywords = ["periodic", "nightly", "docker", "binary"]
-        return secondaryKeywords.contains { name.lowercased().contains($0) }
+        let lower = name.lowercased()
+        return Self.secondaryWorkflows.contains { lower.hasPrefix($0) }
+            || ["periodic", "inductor", "nightly", "docker", "binary"]
+                .contains { lower.contains($0) }
     }
 
+    /// Checks if a job name belongs to an unstable workflow.
     func isUnstableWorkflow(_ name: String) -> Bool {
         name.lowercased().contains("unstable")
     }
