@@ -230,7 +230,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUser
             forTaskWithIdentifier: Self.backgroundFetchTaskID,
             using: nil
         ) { task in
-            self.handleBackgroundFetchTask(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+            self.handleBackgroundFetchTask(refreshTask)
         }
         scheduleNextBackgroundFetch()
     }
