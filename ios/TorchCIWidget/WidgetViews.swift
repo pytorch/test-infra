@@ -21,24 +21,31 @@ struct SmallWidgetView: View {
         entry.commits.first
     }
 
+    private var hudURL: URL {
+        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+    }
+
     var body: some View {
-        if let commit {
-            VStack(alignment: .leading, spacing: 8) {
-                headerRow
+        Group {
+            if let commit {
+                VStack(alignment: .leading, spacing: 8) {
+                    headerRow
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                commitStatusSection(commit)
+                    commitStatusSection(commit)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                footerRow(commit)
+                    footerRow(commit)
+                }
+            } else if entry.isPlaceholder {
+                placeholderContent
+            } else {
+                errorContent
             }
-        } else if entry.isPlaceholder {
-            placeholderContent
-        } else {
-            errorContent
         }
+        .widgetURL(hudURL)
     }
 
     private var headerRow: some View {
@@ -164,27 +171,36 @@ struct MediumWidgetView: View {
         Array(entry.commits.prefix(3))
     }
 
+    private var hudURL: URL {
+        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+    }
+
     var body: some View {
-        if !commits.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                headerBar
-                    .padding(.bottom, 8)
+        Group {
+            if !commits.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerBar
+                        .padding(.bottom, 8)
 
-                ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
-                    commitRow(commit)
-                    if index < commits.count - 1 {
-                        Divider()
-                            .padding(.vertical, 3)
+                    ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
+                        Link(destination: URL(string: "torchci://commit/\(commit.sha)")!) {
+                            commitRow(commit)
+                        }
+                        if index < commits.count - 1 {
+                            Divider()
+                                .padding(.vertical, 3)
+                        }
                     }
-                }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
+                }
+            } else if entry.isPlaceholder {
+                mediumPlaceholder
+            } else {
+                mediumError
             }
-        } else if entry.isPlaceholder {
-            mediumPlaceholder
-        } else {
-            mediumError
         }
+        .widgetURL(hudURL)
     }
 
     private var headerBar: some View {
@@ -355,30 +371,39 @@ struct LargeWidgetView: View {
         Array(entry.commits.prefix(5))
     }
 
+    private var hudURL: URL {
+        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+    }
+
     var body: some View {
-        if !commits.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                headerSection
-                    .padding(.bottom, 10)
+        Group {
+            if !commits.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerSection
+                        .padding(.bottom, 10)
 
-                summaryBar
-                    .padding(.bottom, 10)
+                    summaryBar
+                        .padding(.bottom, 10)
 
-                ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
-                    largeCommitRow(commit)
-                    if index < commits.count - 1 {
-                        Divider()
-                            .padding(.vertical, 4)
+                    ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
+                        Link(destination: URL(string: "torchci://commit/\(commit.sha)")!) {
+                            largeCommitRow(commit)
+                        }
+                        if index < commits.count - 1 {
+                            Divider()
+                                .padding(.vertical, 4)
+                        }
                     }
-                }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
+                }
+            } else if entry.isPlaceholder {
+                largePlaceholder
+            } else {
+                largeError
             }
-        } else if entry.isPlaceholder {
-            largePlaceholder
-        } else {
-            largeError
         }
+        .widgetURL(hudURL)
     }
 
     private var headerSection: some View {
