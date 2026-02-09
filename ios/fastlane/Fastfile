@@ -128,14 +128,33 @@ platform :ios do
       xcargs: "-allowProvisioningUpdates -authenticationKeyPath '#{ENV["APP_STORE_CONNECT_KEY_PATH"]}' -authenticationKeyID '#{ENV["APP_STORE_CONNECT_KEY_ID"]}' -authenticationKeyIssuerID '#{ENV["APP_STORE_CONNECT_ISSUER_ID"]}'"
     )
 
-    # Upload to TestFlight for external testers
-    upload_to_testflight(
-      api_key: api_key,
-      skip_waiting_for_build_processing: false,
-      distribute_external: true,
-      groups: options[:groups] || ["External Testers"],
-      changelog: options[:changelog] || "Bug fixes and improvements."
-    )
+    # Upload to TestFlight and try external distribution
+    begin
+      upload_to_testflight(
+        api_key: api_key,
+        skip_waiting_for_build_processing: false,
+        distribute_external: true,
+        groups: options[:groups] || ["External Testers"],
+        changelog: options[:changelog] || "Bug fixes and improvements."
+      )
+    rescue => e
+      UI.important("External distribution failed: #{e.message}")
+      UI.important("Build was uploaded but could not be distributed to external testers.")
+      UI.important("You may need to create an 'External Testers' group in App Store Connect")
+      UI.important("or complete Beta App Review for external testing.")
+      # Fall back to internal-only distribution
+      begin
+        upload_to_testflight(
+          api_key: api_key,
+          skip_waiting_for_build_processing: true,
+          distribute_external: false,
+          changelog: options[:changelog] || "Bug fixes and improvements."
+        )
+      rescue => inner_e
+        UI.important("Internal distribution also failed: #{inner_e.message}")
+        UI.important("Build was uploaded to App Store Connect but not distributed.")
+      end
+    end
 
     # Commit the version bump
     commit_version_bump(
@@ -145,7 +164,7 @@ platform :ios do
     )
 
     build_number = get_build_number(xcodeproj: PROJECT)
-    UI.success("Successfully uploaded build #{build_number} to TestFlight for external testers.")
+    UI.success("Uploaded build #{build_number} to TestFlight.")
   end
 
   # ============================================
