@@ -93,6 +93,23 @@ struct ContentView: View {
                 handleDeepLink(link)
             }
         }
+        // iPad keyboard shortcuts: ⌘1-⌘5 for tab switching
+        .background {
+            Group {
+                Button("") { selectedTab = .hud }
+                    .keyboardShortcut("1", modifiers: .command)
+                Button("") { selectedTab = .metrics }
+                    .keyboardShortcut("2", modifiers: .command)
+                Button("") { selectedTab = .benchmarks }
+                    .keyboardShortcut("3", modifiers: .command)
+                Button("") { selectedTab = .tests }
+                    .keyboardShortcut("4", modifiers: .command)
+                Button("") { selectedTab = .devInfra }
+                    .keyboardShortcut("5", modifiers: .command)
+            }
+            .frame(width: 0, height: 0)
+            .opacity(0)
+        }
     }
 
     // MARK: - Deep Link Navigation
