@@ -813,16 +813,7 @@ private struct FailureDetailSheet: View {
     }
 
     private func formatDuration(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let secs = seconds % 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m \(secs)s"
-        } else if minutes > 0 {
-            return "\(minutes)m \(secs)s"
-        } else {
-            return "\(secs)s"
-        }
+        DurationFormatter.format(seconds)
     }
 
     private func calculateStepDuration(started: String, completed: String) -> String {

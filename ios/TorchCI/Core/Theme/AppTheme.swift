@@ -67,6 +67,31 @@ enum AppColors {
     }
 }
 
+// MARK: - Duration Formatting
+enum DurationFormatter {
+    /// Format seconds into a human-readable duration string.
+    /// - Parameter seconds: The duration in seconds.
+    /// - Parameter compact: If true, omits seconds for durations over 1 minute (e.g. "2h 15m").
+    static func format(_ seconds: Int, compact: Bool = false) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let secs = seconds % 60
+        if hours > 0 {
+            if compact {
+                return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
+            }
+            return "\(hours)h \(minutes)m"
+        } else if minutes > 0 {
+            if compact {
+                return "\(minutes)m"
+            }
+            return "\(minutes)m \(secs)s"
+        } else {
+            return "\(secs)s"
+        }
+    }
+}
+
 // MARK: - App Typography
 enum AppTypography {
     static let largeTitle = Font.largeTitle.weight(.bold)
