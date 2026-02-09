@@ -24,6 +24,7 @@ struct TorchCIApp: App {
                 .preferredColorScheme(themeManager.colorScheme)
                 .onAppear {
                     notificationManager.requestAuthorization()
+                    UNUserNotificationCenter.current().setBadgeCount(0, withCompletionHandler: nil)
                 }
                 .onOpenURL { url in
                     // OAuth callbacks are handled by AuthManager directly.
