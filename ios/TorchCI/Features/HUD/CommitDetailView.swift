@@ -571,6 +571,9 @@ struct CommitDetailView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.statusFilter = filter
+                            if filter != .all {
+                                viewModel.expandFilteredWorkflows()
+                            }
                         }
                     } label: {
                         HStack(spacing: 4) {

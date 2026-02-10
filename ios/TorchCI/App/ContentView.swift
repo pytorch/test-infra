@@ -1097,11 +1097,16 @@ struct SharedTorchAgentView: View {
         }
     }
 
+    nonisolated(unsafe) private static let _isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let _relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     private func formattedDate(_ dateString: String) -> String {
-        if let date = ISO8601DateFormatter().date(from: dateString) {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            return formatter.localizedString(for: date, relativeTo: Date())
+        if let date = Self._isoFormatter.date(from: dateString) {
+            return Self._relativeFormatter.localizedString(for: date, relativeTo: Date())
         }
         return dateString
     }

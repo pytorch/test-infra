@@ -878,6 +878,31 @@ final class CommitDetailViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Expand Filtered Workflows
+
+    func testExpandFilteredWorkflowsExpandsMatchingGroups() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "linux-build", conclusion: "failure"),
+            JobJSON(id: 2, name: "b", workflowName: "trunk", jobName: "windows-build", conclusion: "success"),
+            JobJSON(id: 3, name: "c", workflowName: "nightly", jobName: "mac-build", conclusion: "failure"),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        // Collapse all first
+        viewModel.collapseAllWorkflows()
+        XCTAssertTrue(viewModel.expandedWorkflows.isEmpty)
+
+        // Filter to failed and expand filtered
+        viewModel.statusFilter = .failed
+        viewModel.expandFilteredWorkflows()
+
+        // Only pull and nightly should be expanded (they have failures)
+        XCTAssertTrue(viewModel.expandedWorkflows.contains("pull"))
+        XCTAssertTrue(viewModel.expandedWorkflows.contains("nightly"))
+        XCTAssertFalse(viewModel.expandedWorkflows.contains("trunk"))
+    }
+
     // MARK: - Search Filter Clears on Reset
 
     func testSearchFilterClearsOnReset() async {

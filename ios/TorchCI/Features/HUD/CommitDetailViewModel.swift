@@ -321,6 +321,12 @@ final class CommitDetailViewModel: ObservableObject {
         expandedWorkflows = Set(groupedJobs.map { $0.workflowName })
     }
 
+    /// Expand all workflows that have jobs matching the current filters.
+    func expandFilteredWorkflows() {
+        let matching = filteredGroupedJobs.map { $0.workflowName }
+        expandedWorkflows.formUnion(matching)
+    }
+
     func collapseAllWorkflows() {
         expandedWorkflows.removeAll()
     }
