@@ -749,4 +749,181 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.hideUnstable)
         XCTAssertFalse(viewModel.showFailuresOnly)
     }
+
+    // MARK: - Auto-Refresh
+
+    func testStartAutoRefreshSetsTask() async {
+        // Starting auto-refresh should not crash and should leave isAutoRefreshEnabled as true
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+        viewModel.startAutoRefresh()
+        // Allow the task to be created
+        await Task.yield()
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+        // Clean up
+        viewModel.stopAutoRefresh()
+    }
+
+    func testStopAutoRefreshCancelsTask() async {
+        viewModel.startAutoRefresh()
+        await Task.yield()
+
+        viewModel.stopAutoRefresh()
+        await Task.yield()
+
+        // After stopping, isAutoRefreshEnabled remains unchanged (stop only cancels the task)
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        // Starting and stopping again should not crash
+        viewModel.startAutoRefresh()
+        viewModel.stopAutoRefresh()
+    }
+
+    func testToggleAutoRefreshEnables() {
+        // Disable first, then toggle to enable
+        viewModel.isAutoRefreshEnabled = false
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+        // Clean up
+        viewModel.stopAutoRefresh()
+    }
+
+    func testToggleAutoRefreshDisables() {
+        // Starts enabled by default
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+    }
+
+    // MARK: - Repo & Branch Selection State Transitions
+
+    func testSelectRepoCancelsLoadAndClearsData() async {
+        setSuccessfulHUDResponse()
+        await viewModel.loadData()
+        XCTAssertNotNil(viewModel.hudData)
+
+        // Set up response for the new repo (vision)
+        let visionEndpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "vision",
+            branch: "main",
+            page: 1
+        )
+        let json = makeHUDResponseJSON(jobNames: ["build-vision"], rows: [])
+        mockClient.setResponse(json, for: visionEndpoint.path)
+
+        let visionRepo = RepoConfig(owner: "pytorch", name: "vision")
+        viewModel.selectRepo(visionRepo)
+
+        // hudData should be cleared immediately
+        XCTAssertNil(viewModel.hudData)
+        XCTAssertEqual(viewModel.selectedRepo.name, "vision")
+    }
+
+    func testSelectBranchCancelsLoadAndClearsData() async {
+        setSuccessfulHUDResponse()
+        await viewModel.loadData()
+        XCTAssertNotNil(viewModel.hudData)
+
+        // Set up response for the new branch
+        let branchEndpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "nightly",
+            page: 1
+        )
+        let json = makeHUDResponseJSON(jobNames: ["nightly-build"], rows: [])
+        mockClient.setResponse(json, for: branchEndpoint.path)
+
+        viewModel.selectBranch("nightly")
+
+        // hudData should be cleared immediately
+        XCTAssertNil(viewModel.hudData)
+        XCTAssertEqual(viewModel.selectedBranch, "nightly")
+    }
+
+    func testSelectSameRepoDoesNothing() async {
+        setSuccessfulHUDResponse()
+        await viewModel.loadData()
+        XCTAssertNotNil(viewModel.hudData)
+
+        let callCountBefore = mockClient.callCount
+
+        // Select the same repo that's already selected
+        let sameRepo = RepoConfig(owner: "pytorch", name: "pytorch")
+        viewModel.selectRepo(sameRepo)
+
+        // hudData should NOT be cleared and no new API calls should be made
+        XCTAssertNotNil(viewModel.hudData)
+        XCTAssertEqual(mockClient.callCount, callCountBefore)
+    }
+
+    func testSelectSameBranchDoesNothing() async {
+        setSuccessfulHUDResponse()
+        await viewModel.loadData()
+        XCTAssertNotNil(viewModel.hudData)
+
+        let callCountBefore = mockClient.callCount
+
+        // Select the same branch that's already selected
+        viewModel.selectBranch("main")
+
+        // hudData should NOT be cleared and no new API calls should be made
+        XCTAssertNotNil(viewModel.hudData)
+        XCTAssertEqual(mockClient.callCount, callCountBefore)
+    }
+
+    // MARK: - Jobs By Workflow Grouping
+
+    func testJobsByWorkflowGrouping() async {
+        let json = makeHUDResponseJSON(
+            jobNames: [
+                "linux-build / test1",
+                "linux-build / test2",
+                "windows-build / compile",
+                "lint",
+            ],
+            rows: []
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        let groups = viewModel.jobsByWorkflow
+        XCTAssertEqual(groups.count, 3)
+        XCTAssertEqual(groups["linux-build"]?.count, 2)
+        XCTAssertTrue(groups["linux-build"]?.contains("linux-build / test1") ?? false)
+        XCTAssertTrue(groups["linux-build"]?.contains("linux-build / test2") ?? false)
+        XCTAssertEqual(groups["windows-build"]?.count, 1)
+        XCTAssertTrue(groups["windows-build"]?.contains("windows-build / compile") ?? false)
+        // "lint" has no " / " separator, so it falls into "Other"
+        XCTAssertEqual(groups["Other"]?.count, 1)
+        XCTAssertTrue(groups["Other"]?.contains("lint") ?? false)
+    }
+
+    // MARK: - Regex Toggle
+
+    func testRegexToggle() {
+        XCTAssertFalse(viewModel.isRegexEnabled)
+
+        viewModel.toggleRegex()
+        XCTAssertTrue(viewModel.isRegexEnabled)
+
+        viewModel.toggleRegex()
+        XCTAssertFalse(viewModel.isRegexEnabled)
+
+        // Toggle a third time to verify consistency
+        viewModel.toggleRegex()
+        XCTAssertTrue(viewModel.isRegexEnabled)
+    }
 }

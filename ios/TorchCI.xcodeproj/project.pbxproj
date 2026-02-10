@@ -127,6 +127,7 @@
 		990D58508B433271418E5447 /* RunnersViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA066DF4D42546C89FCEBA70 /* RunnersViewModelTests.swift */; };
 		9943BE1388C17CF0B0748703 /* ChatMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E957C44119E72E3D43F3322B /* ChatMessageView.swift */; };
 		9E40316AC15A6E7188A029C7 /* SettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85021368AFC5F72A24E22EF6 /* SettingsViewTests.swift */; };
+		A02C75AD4826BD8929454ED7 /* VLLMMetricsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B80C04E19C98277A66C03C0 /* VLLMMetricsViewModelTests.swift */; };
 		A03E390B9ACB043DAAEF66A0 /* TorchAgentComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91BF69E16DC835979828FCD /* TorchAgentComponentTests.swift */; };
 		A3DEB52EDB309C71521607DD /* TestFileReportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B344873036678E39F47EAFF4 /* TestFileReportViewModel.swift */; };
 		A532C72BB49FBD0BB885341C /* CommitDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33874BFC1961ABBB986443C6 /* CommitDataTests.swift */; };
@@ -255,6 +256,7 @@
 		276799E724AB898121097296 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		27EB8D4FF70326DD10A9F45D /* TorchCI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TorchCI.entitlements; sourceTree = "<group>"; };
 		2953AE35B5173B3B56CD7191 /* ToolUseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolUseView.swift; sourceTree = "<group>"; };
+		2B80C04E19C98277A66C03C0 /* VLLMMetricsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLLMMetricsViewModelTests.swift; sourceTree = "<group>"; };
 		2B983436D7950EF722EDB4E3 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		2EE16C309BBC0312F2993761 /* KPIsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KPIsViewModelTests.swift; sourceTree = "<group>"; };
 		2EF6FE043C76BADE9FFC3C62 /* PaginationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaginationView.swift; sourceTree = "<group>"; };
@@ -661,6 +663,7 @@
 				FCEBAECDD5EEE772ECC95988 /* TorchAOBenchmarkViewModelTests.swift */,
 				694C042DCCF3553FFCFAAA20 /* TTSViewModelTests.swift */,
 				C4DA4F4CD0F3D7C94A24BE2E /* UtilizationViewModelTests.swift */,
+				2B80C04E19C98277A66C03C0 /* VLLMMetricsViewModelTests.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -1227,6 +1230,7 @@
 				2F8BC521E0E8CCF0D992334B /* TorchAgentViewModelTests.swift in Sources */,
 				86519FE3FA0820B2B2E6638B /* UtilizationDataTests.swift in Sources */,
 				3897C3FF4409D2D2B77C66EF /* UtilizationViewModelTests.swift in Sources */,
+				A02C75AD4826BD8929454ED7 /* VLLMMetricsViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1297,7 +1301,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 45;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = N324UX8D9M;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1435,7 +1439,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 45;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = N324UX8D9M;
 				ENABLE_PREVIEWS = YES;

@@ -561,4 +561,352 @@ final class BenchmarkDashboardViewModelTests: XCTestCase {
         XCTAssertEqual(groupData?.data.first?.name, "resnet50")
         XCTAssertEqual(groupData?.data.first?.speedup, 1.45)
     }
+
+    // MARK: - Error Handling & Edge Cases
+
+    func testLoadDataNetworkErrorSetsErrorState() async {
+        // Both endpoints fail with a network error -> state should be .error
+        let networkError = APIError.networkError(
+            NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        )
+        mockClient.setError(networkError, for: "/api/clickhouse/oss_ci_benchmark_llms")
+        mockClient.setError(networkError, for: "/api/benchmark/list_regression_summary_reports")
+
+        await viewModel.loadData()
+
+        if case .error(let message) = viewModel.state {
+            XCTAssertFalse(message.isEmpty, "Error message should not be empty")
+        } else {
+            XCTFail("Expected .error state, got \(viewModel.state)")
+        }
+        XCTAssertTrue(viewModel.timeSeriesData.isEmpty)
+        XCTAssertNil(viewModel.groupData)
+    }
+
+    func testPartialLoadErrorWhenRegressionsFail() async {
+        // Time series endpoint succeeds, regression endpoint fails
+        // The combined fetch will throw because regressionFetch fails.
+        // The fallback calls loadTimeSeriesFromClickHouse (succeeds) and loadRegressions (fails).
+        mockClient.setResponse(
+            BenchmarkDashboardViewModelTests.sampleDataJSON,
+            for: "/api/clickhouse/oss_ci_benchmark_llms"
+        )
+        mockClient.setError(
+            APIError.serverError(500),
+            for: "/api/benchmark/list_regression_summary_reports"
+        )
+
+        await viewModel.loadData()
+
+        // Should still be .loaded because time series data was retrieved
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertFalse(viewModel.timeSeriesData.isEmpty,
+                       "Time series data should be populated despite regression failure")
+        // partialLoadError should be set from the regression failure
+        XCTAssertNotNil(viewModel.partialLoadError,
+                        "partialLoadError should be set when regressions fail")
+        XCTAssertTrue(viewModel.regressionReports.isEmpty,
+                      "Regression reports should be empty when endpoint fails")
+    }
+
+    // MARK: - Statistics Edge Cases
+
+    func testStatisticsWithSingleDataPoint() async {
+        // A single data point: mean == median == value, stddev == 0
+        let singlePointJSON = """
+        [
+            {
+                "workflow_id": 100, "job_id": 1, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 42.0, "actual_geomean": 42.0, "target": 40.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-10T00:00:00.000Z"
+            }
+        ]
+        """
+        registerAllResponses(data: singlePointJSON)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        let stats = viewModel.statistics
+        XCTAssertEqual(stats.mean, 42.0, accuracy: 0.001)
+        XCTAssertEqual(stats.median, 42.0, accuracy: 0.001)
+        XCTAssertEqual(stats.stddev, 0.0, accuracy: 0.001)
+        XCTAssertEqual(stats.min, 42.0)
+        XCTAssertEqual(stats.max, 42.0)
+        XCTAssertEqual(stats.p25, 42.0, accuracy: 0.001)
+        XCTAssertEqual(stats.p75, 42.0, accuracy: 0.001)
+        XCTAssertEqual(stats.p90, 42.0, accuracy: 0.001)
+        XCTAssertEqual(stats.p95, 42.0, accuracy: 0.001)
+    }
+
+    func testStatisticsWithAllSameValues() async {
+        // All identical values: stddev should be exactly 0
+        let sameValuesJSON = """
+        [
+            {
+                "workflow_id": 100, "job_id": 1, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-10T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 101, "job_id": 2, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-11T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 102, "job_id": 3, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-12T00:00:00.000Z"
+            }
+        ]
+        """
+        registerAllResponses(data: sameValuesJSON)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        let stats = viewModel.statistics
+        XCTAssertEqual(stats.mean, 100.0, accuracy: 0.001)
+        XCTAssertEqual(stats.median, 100.0, accuracy: 0.001)
+        XCTAssertEqual(stats.stddev, 0.0, accuracy: 0.001,
+                       "Standard deviation of identical values must be zero")
+        XCTAssertEqual(stats.min, 100.0)
+        XCTAssertEqual(stats.max, 100.0)
+    }
+
+    // MARK: - Performance Trend Detection
+
+    func testPerformanceTrendImproving() async {
+        // Older half has lower values, recent half has significantly higher values (>5% increase)
+        var rows: [[String: Any]] = []
+        for i in 0..<20 {
+            let value: Double = i < 10 ? 100.0 : 120.0  // 20% jump
+            rows.append([
+                "workflow_id": 100 + i,
+                "job_id": i + 1,
+                "model": "add",
+                "backend": "eager",
+                "metric": "throughput",
+                "actual": value,
+                "actual_geomean": value,
+                "target": 90.0,
+                "mode": "inference",
+                "dtype": "float32",
+                "device": "cuda",
+                "arch": "A100",
+                "granularity_bucket": "2025-01-\(String(format: "%02d", i + 1))T00:00:00.000Z"
+            ])
+        }
+        let jsonData = try! JSONSerialization.data(withJSONObject: rows)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+
+        registerAllResponses(data: jsonString)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        XCTAssertEqual(viewModel.performanceTrend, .improving,
+                       "A 20% increase from older to recent values should be detected as improving")
+        XCTAssertEqual(viewModel.performanceTrend.label, "Improving")
+    }
+
+    func testPerformanceTrendRegressing() async {
+        // Older half has higher values, recent half has significantly lower values (>5% decrease)
+        var rows: [[String: Any]] = []
+        for i in 0..<20 {
+            let value: Double = i < 10 ? 120.0 : 100.0  // 16.7% drop
+            rows.append([
+                "workflow_id": 100 + i,
+                "job_id": i + 1,
+                "model": "add",
+                "backend": "eager",
+                "metric": "throughput",
+                "actual": value,
+                "actual_geomean": value,
+                "target": 90.0,
+                "mode": "inference",
+                "dtype": "float32",
+                "device": "cuda",
+                "arch": "A100",
+                "granularity_bucket": "2025-01-\(String(format: "%02d", i + 1))T00:00:00.000Z"
+            ])
+        }
+        let jsonData = try! JSONSerialization.data(withJSONObject: rows)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+
+        registerAllResponses(data: jsonString)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        XCTAssertEqual(viewModel.performanceTrend, .regressing,
+                       "A 16.7% decrease from older to recent values should be detected as regressing")
+        XCTAssertEqual(viewModel.performanceTrend.label, "Regressing")
+    }
+
+    func testPerformanceTrendStable() async {
+        // Values stay within 5% of each other -> stable
+        var rows: [[String: Any]] = []
+        for i in 0..<20 {
+            // Alternate between 100 and 101 (1% variation)
+            let value: Double = i % 2 == 0 ? 100.0 : 101.0
+            rows.append([
+                "workflow_id": 100 + i,
+                "job_id": i + 1,
+                "model": "add",
+                "backend": "eager",
+                "metric": "throughput",
+                "actual": value,
+                "actual_geomean": value,
+                "target": 90.0,
+                "mode": "inference",
+                "dtype": "float32",
+                "device": "cuda",
+                "arch": "A100",
+                "granularity_bucket": "2025-01-\(String(format: "%02d", i + 1))T00:00:00.000Z"
+            ])
+        }
+        let jsonData = try! JSONSerialization.data(withJSONObject: rows)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+
+        registerAllResponses(data: jsonString)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        XCTAssertEqual(viewModel.performanceTrend, .stable,
+                       "Values within 5% should be classified as stable")
+        XCTAssertEqual(viewModel.performanceTrend.label, "Stable")
+    }
+
+    // MARK: - Variance Level Detection
+
+    func testVarianceLevelLow() async {
+        // Coefficient of variation < 5%: values tightly clustered around mean
+        // Values: 100, 101, 100, 101, 100 -> mean ~100.4, stddev ~0.49, CV ~0.49%
+        let lowVarianceJSON = """
+        [
+            {
+                "workflow_id": 100, "job_id": 1, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-01T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 101, "job_id": 2, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 101.0, "actual_geomean": 101.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-02T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 102, "job_id": 3, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-03T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 103, "job_id": 4, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 101.0, "actual_geomean": 101.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-04T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 104, "job_id": 5, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-05T00:00:00.000Z"
+            }
+        ]
+        """
+        registerAllResponses(data: lowVarianceJSON)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        XCTAssertEqual(viewModel.varianceLevel, .low,
+                       "CV < 5% should produce .low variance level")
+        XCTAssertEqual(viewModel.varianceLevel.label, "Low Variance (Stable)")
+    }
+
+    func testVarianceLevelHigh() async {
+        // Coefficient of variation > 15%: widely spread values
+        // Values: 50, 100, 150, 50, 150 -> mean = 100, stddev ~40, CV = 40%
+        let highVarianceJSON = """
+        [
+            {
+                "workflow_id": 100, "job_id": 1, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 50.0, "actual_geomean": 50.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-01T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 101, "job_id": 2, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-02T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 102, "job_id": 3, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 150.0, "actual_geomean": 150.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-03T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 103, "job_id": 4, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 50.0, "actual_geomean": 50.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-04T00:00:00.000Z"
+            },
+            {
+                "workflow_id": 104, "job_id": 5, "model": "add", "backend": "eager",
+                "metric": "throughput", "actual": 150.0, "actual_geomean": 150.0, "target": 90.0,
+                "mode": "inference", "dtype": "float32", "device": "cuda", "arch": "A100",
+                "granularity_bucket": "2025-01-05T00:00:00.000Z"
+            }
+        ]
+        """
+        registerAllResponses(data: highVarianceJSON)
+
+        await viewModel.loadData()
+        viewModel.selectedMetric = "throughput"
+
+        XCTAssertEqual(viewModel.varianceLevel, .high,
+                       "CV > 15% should produce .high variance level")
+        XCTAssertEqual(viewModel.varianceLevel.label, "High Variance (Unstable)")
+    }
+
+    // MARK: - Compiler Benchmark Routing (isCompilerBenchmark)
+
+    func testCompilerBenchmarkRouting() {
+        // compiler_inductor should be recognized as a compiler benchmark
+        let compilerBenchmark = BenchmarkMetadata(
+            id: "compiler_inductor",
+            name: "TorchInductor",
+            description: nil,
+            suites: nil,
+            lastUpdated: nil
+        )
+        let compilerVM = BenchmarkDashboardViewModel(
+            benchmark: compilerBenchmark, apiClient: mockClient
+        )
+        XCTAssertTrue(compilerVM.isCompilerBenchmark,
+                       "compiler_inductor must be identified as a compiler benchmark")
+        XCTAssertTrue(
+            BenchmarkDashboardViewModel.compilerBenchmarkIds.contains(compilerBenchmark.id),
+            "compiler_inductor must be in the compilerBenchmarkIds set"
+        )
+
+        // Verify it has a config entry
+        let config = BenchmarkDashboardViewModel.benchmarkConfig["compiler_inductor"]
+        XCTAssertNotNil(config, "compiler_inductor should have a benchmarkConfig entry")
+        XCTAssertEqual(config?.repo, "pytorch/pytorch")
+
+        // Non-compiler benchmark should NOT be identified as compiler
+        XCTAssertFalse(viewModel.isCompilerBenchmark,
+                        "pytorch_operator_microbenchmark must NOT be a compiler benchmark")
+    }
 }

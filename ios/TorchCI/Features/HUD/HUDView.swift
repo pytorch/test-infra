@@ -134,6 +134,18 @@ struct HUDView: View {
                     repoName: nav.repoName
                 )
             }
+            .background {
+                // Hidden buttons for iPad keyboard shortcuts
+                Button("") { Task { await viewModel.refresh() } }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .hidden()
+                Button("") { viewModel.showFailuresOnly.toggle() }
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+                    .hidden()
+                Button("") { viewModel.hideGreenColumns.toggle() }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
+                    .hidden()
+            }
             .sheet(isPresented: $showingJobDetail) {
                 if let job = selectedJob {
                     NavigationStack {
@@ -197,22 +209,31 @@ struct HUDView: View {
                 Spacer()
             }
 
-            // Show top failure patterns if available
+            // Show top failure patterns if available (tap to filter)
             if !viewModel.failurePatterns.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Top failing jobs:")
+                    Text("Top failing jobs (tap to filter):")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.white.opacity(0.8))
 
                     ForEach(Array(viewModel.failurePatterns.prefix(3).enumerated()), id: \.offset) { _, pattern in
-                        HStack(spacing: 4) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 8))
-                            Text(pattern)
-                                .font(.caption2)
-                                .lineLimit(1)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.searchFilter = pattern
+                                viewModel.showFailuresOnly = true
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 8))
+                                Text(pattern)
+                                    .font(.caption2)
+                                    .lineLimit(1)
+                                    .underline()
+                            }
+                            .foregroundStyle(.white.opacity(0.9))
                         }
-                        .foregroundStyle(.white.opacity(0.9))
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.leading, 30)

@@ -9,6 +9,7 @@ struct BenchmarkChart: View {
     var onPointSelected: ((BenchmarkTimeSeriesPoint?) -> Void)?
 
     @State private var rawSelectedDate: Date?
+    @State private var hiddenSeries: Set<String> = []
 
     // Cached formatters (creating these is expensive in a computed property)
     nonisolated(unsafe) private static let isoFractional: ISO8601DateFormatter = {
@@ -55,8 +56,13 @@ struct BenchmarkChart: View {
         Array(Set(parsedPoints.map(\.model))).sorted()
     }
 
+    private var visiblePoints: [ParsedChartPoint] {
+        if hiddenSeries.isEmpty { return parsedPoints }
+        return parsedPoints.filter { !hiddenSeries.contains($0.model) }
+    }
+
     private var yDomain: ClosedRange<Double> {
-        let values = parsedPoints.map(\.value)
+        let values = visiblePoints.map(\.value)
         guard let minVal = values.min(), let maxVal = values.max() else {
             return 0...1
         }
@@ -79,7 +85,7 @@ struct BenchmarkChart: View {
 
     private var chartView: some View {
         Chart {
-            ForEach(parsedPoints, id: \.id) { point in
+            ForEach(visiblePoints, id: \.id) { point in
                 LineMark(
                     x: .value("Date", point.date),
                     y: .value(metricLabel, point.value)
@@ -188,18 +194,45 @@ struct BenchmarkChart: View {
     @ViewBuilder
     private var legendView: some View {
         if seriesNames.count > 1 {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(seriesNames, id: \.self) { name in
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.tint)
-                                .frame(width: 8, height: 8)
-                            Text(name)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(seriesNames, id: \.self) { name in
+                            let isHidden = hiddenSeries.contains(name)
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    if isHidden {
+                                        hiddenSeries.remove(name)
+                                    } else {
+                                        // Don't hide the last visible series
+                                        if hiddenSeries.count < seriesNames.count - 1 {
+                                            hiddenSeries.insert(name)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(isHidden ? Color.gray.opacity(0.3) : Color.accentColor)
+                                        .frame(width: 8, height: 8)
+                                    Text(name)
+                                        .font(.caption2)
+                                        .foregroundStyle(isHidden ? .tertiary : .secondary)
+                                        .strikethrough(isHidden)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(isHidden ? Color.clear : Color(.tertiarySystemFill))
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
+                }
+                if !hiddenSeries.isEmpty {
+                    Text("Tap legend to show/hide series")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.tertiary)
                 }
             }
         }
@@ -226,7 +259,7 @@ struct BenchmarkChart: View {
     // MARK: - Helpers
 
     private func closestPoint(to date: Date) -> ParsedChartPoint? {
-        parsedPoints.min(by: {
+        visiblePoints.min(by: {
             abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         })
     }

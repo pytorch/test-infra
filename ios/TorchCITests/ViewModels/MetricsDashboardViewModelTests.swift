@@ -420,6 +420,159 @@ final class MetricsDashboardViewModelTests: XCTestCase {
         XCTAssertEqual(sut.workflowTTSSeconds, 5400)
     }
 
+    // MARK: - Error Handling
+
+    func testLoadDataNetworkError() async {
+        // When no responses are registered the mock throws APIError.notFound,
+        // but fetchAllMetrics wraps every call in try? so individual errors
+        // are swallowed. The dashboard still transitions to .loaded with nil
+        // metric values rather than surfacing an error state.
+        // Do NOT call setAllMinimalResponses() — leave all paths unregistered.
+        await sut.loadDashboard()
+
+        XCTAssertEqual(sut.state, .loaded)
+        // Scalar metrics should all be nil because every fetch failed.
+        XCTAssertNil(sut.brokenTrunkPercent)
+        XCTAssertNil(sut.flakyRedPercent)
+        XCTAssertNil(sut.viableStrictLagSeconds)
+        XCTAssertNil(sut.mergeRetryRate)
+        XCTAssertNil(sut.prLandingTimeHours)
+        XCTAssertNil(sut.workflowTTSSeconds)
+        XCTAssertNil(sut.avgQueueTimeSeconds)
+        XCTAssertNil(sut.lastMainPushSeconds)
+        XCTAssertNil(sut.revertsCount)
+        XCTAssertNil(sut.commitsCount)
+        XCTAssertNil(sut.lfRolloverPercent)
+        // Time series should be empty.
+        XCTAssertTrue(sut.redRateSeries.isEmpty)
+        XCTAssertTrue(sut.queueTimeSeries.isEmpty)
+        XCTAssertTrue(sut.disabledTestsSeries.isEmpty)
+    }
+
+    func testLoadDataPartialFailure() async {
+        // Register responses for only a subset of endpoints. The rest will
+        // fail with APIError.notFound, but since all fetches use try? the
+        // dashboard still reaches .loaded. Successfully fetched metrics are
+        // populated while the rest remain nil — a partial load.
+        mockClient.setResponse("""
+        [{"broken_trunk_red": 0.12, "flaky_red": 0.08}]
+        """, for: "/api/clickhouse/master_commit_red_avg")
+
+        mockClient.setResponse("""
+        [{"strict_lag_sec": 7200}]
+        """, for: "/api/clickhouse/strict_lag_sec")
+
+        await sut.loadDashboard()
+
+        XCTAssertEqual(sut.state, .loaded)
+        // The two endpoints we configured should produce values.
+        XCTAssertEqual(sut.brokenTrunkPercent ?? 0, 12.0, accuracy: 0.1)
+        XCTAssertEqual(sut.flakyRedPercent ?? 0, 8.0, accuracy: 0.1)
+        XCTAssertEqual(sut.viableStrictLagSeconds, 7200)
+        // Endpoints we did NOT configure should remain nil.
+        XCTAssertNil(sut.mergeRetryRate)
+        XCTAssertNil(sut.prLandingTimeHours)
+        XCTAssertNil(sut.workflowTTSSeconds)
+        XCTAssertNil(sut.avgQueueTimeSeconds)
+        XCTAssertNil(sut.lastMainPushSeconds)
+        XCTAssertNil(sut.revertsCount)
+        XCTAssertNil(sut.commitsCount)
+        // lastUpdated should still be set even on partial load.
+        XCTAssertNotNil(sut.lastUpdated)
+    }
+
+    // MARK: - Refresh State Transitions
+
+    func testRefreshResetsStateBeforeLoading() async {
+        // First, perform an initial load to reach .loaded.
+        setAllMinimalResponses()
+        await sut.loadDashboard()
+        XCTAssertEqual(sut.state, .loaded)
+
+        // Set a known value so we can verify refresh re-fetches data.
+        mockClient.setResponse("""
+        [{"avg_retry_rate": 3.14}]
+        """, for: "/api/clickhouse/merge_retry_rate")
+
+        // refresh() bypasses the idle guard, so it should re-fetch.
+        await sut.refresh()
+
+        // After refresh completes, state must be .loaded again.
+        XCTAssertEqual(sut.state, .loaded)
+        // The newly configured merge retry rate should be picked up.
+        XCTAssertEqual(sut.mergeRetryRate, 3.14)
+        // lastUpdated should be refreshed (non-nil).
+        XCTAssertNotNil(sut.lastUpdated)
+    }
+
+    // MARK: - Last Updated
+
+    func testLastUpdatedSetAfterLoad() async {
+        XCTAssertNil(sut.lastUpdated, "lastUpdated should be nil before any load")
+
+        setAllMinimalResponses()
+        let before = Date()
+        await sut.loadDashboard()
+        let after = Date()
+
+        XCTAssertNotNil(sut.lastUpdated)
+        // The timestamp should fall between before and after the load call.
+        if let updated = sut.lastUpdated {
+            XCTAssertTrue(updated >= before, "lastUpdated should be at or after the load start")
+            XCTAssertTrue(updated <= after, "lastUpdated should be at or before the load end")
+        }
+    }
+
+    // MARK: - Empty Time Series
+
+    func testEmptyTimeSeriesHandling() async {
+        // All responses are empty arrays — the dashboard should still reach
+        // .loaded with empty series and nil scalar values.
+        setAllMinimalResponses()
+
+        await sut.loadDashboard()
+
+        XCTAssertEqual(sut.state, .loaded)
+        XCTAssertTrue(sut.redRateSeries.isEmpty)
+        XCTAssertTrue(sut.queueTimeSeries.isEmpty)
+        XCTAssertTrue(sut.disabledTestsSeries.isEmpty)
+        // Trends require >= 2 data points, so they should be nil.
+        XCTAssertNil(sut.brokenTrunkTrend)
+        XCTAssertNil(sut.forceMergeFailureTrend)
+        XCTAssertNil(sut.forceMergeImpatienceTrend)
+        // lastUpdated must still be set.
+        XCTAssertNotNil(sut.lastUpdated)
+    }
+
+    // MARK: - Granularity Change
+
+    func testGranularityChangeTriggersReload() async {
+        // Perform initial load.
+        setAllMinimalResponses()
+        await sut.loadDashboard()
+        XCTAssertEqual(sut.state, .loaded)
+
+        let firstUpdated = sut.lastUpdated
+
+        // Change granularity and call onParametersChanged which re-fetches.
+        sut.granularity = .week
+        mockClient.setResponse("""
+        [{"avg_retry_rate": 9.99}]
+        """, for: "/api/clickhouse/merge_retry_rate")
+
+        await sut.onParametersChanged()
+
+        XCTAssertEqual(sut.state, .loaded)
+        XCTAssertEqual(sut.granularity, .week)
+        // The newly configured response should be reflected.
+        XCTAssertEqual(sut.mergeRetryRate, 9.99)
+        // lastUpdated should be refreshed to a new (or equal) timestamp.
+        XCTAssertNotNil(sut.lastUpdated)
+        if let first = firstUpdated, let second = sut.lastUpdated {
+            XCTAssertTrue(second >= first, "lastUpdated should advance after parameter change reload")
+        }
+    }
+
     // MARK: - Helpers
 
     /// Set minimal empty responses for all ClickHouse queries so the dashboard
