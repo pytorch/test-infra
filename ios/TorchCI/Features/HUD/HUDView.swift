@@ -572,6 +572,16 @@ private struct HUDJobDetailView: View {
                 Spacer()
             }
 
+            if HUDJob.isBlockingName(jobName) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.octagon.fill")
+                        .font(.caption)
+                    Text("Viable/Strict Blocking")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.orange)
+            }
+
             if job.isClassified, let annotation = job.failureAnnotation {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.seal.fill")
@@ -670,7 +680,7 @@ private struct HUDJobDetailView: View {
 
     @ViewBuilder
     private var previousRunSection: some View {
-        if let failed = job.failedPreviousRun, failed {
+        if job.failedPreviousRun == true {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHeader(title: "Previous Run")
 
@@ -679,9 +689,36 @@ private struct HUDJobDetailView: View {
                         conclusion: "failure",
                         showLabel: true
                     )
-                    Text("Previous run also failed")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Previous run also failed")
+                            .font(.subheadline.weight(.medium))
+                        Text("This is a known/pre-existing failure, not introduced by this commit.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        } else if job.isFailure && job.failedPreviousRun == false {
+            VStack(alignment: .leading, spacing: 8) {
+                SectionHeader(title: "Previous Run")
+
+                HStack(spacing: 12) {
+                    JobStatusBadge(
+                        conclusion: "success",
+                        showLabel: true
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Previous run succeeded")
+                            .font(.subheadline.weight(.medium))
+                        Text("This is a new failure potentially introduced by this commit.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer()
                 }
                 .padding()
