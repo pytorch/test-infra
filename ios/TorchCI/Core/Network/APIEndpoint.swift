@@ -381,12 +381,16 @@ extension APIEndpoint {
 
 // MARK: - Utilization Endpoints
 extension APIEndpoint {
+    nonisolated(unsafe) private static let dateOnlyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     static func utilizationReport(groupBy: String) -> APIEndpoint {
         // The server expects repo, group_by, granularity, start_time, end_time, parent_group
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        let today = formatter.string(from: Date())
+        let today = dateOnlyFormatter.string(from: Date())
         return APIEndpoint(
             path: "/api/list_util_reports/\(groupBy)",
             queryItems: [
