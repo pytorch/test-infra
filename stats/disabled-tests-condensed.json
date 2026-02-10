@@ -852,51 +852,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_all_gather_into_tensor_coalesced (__main__.CompileTest)": [
-    "146806",
-    "https://github.com/pytorch/pytorch/issues/146806",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_inductor_all_gather_into_tensor_single (__main__.CompileTest)": [
-    "147707",
-    "https://github.com/pytorch/pytorch/issues/147707",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_inductor_all_to_all_single (__main__.CompileTest)": [
-    "147795",
-    "https://github.com/pytorch/pytorch/issues/147795",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_inductor_broadcast (__main__.CompileTest)": [
-    "147816",
-    "https://github.com/pytorch/pytorch/issues/147816",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_inductor_inplace_op_on_view (__main__.CompileTest)": [
-    "147852",
-    "https://github.com/pytorch/pytorch/issues/147852",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_inlined_optimized_graph (__main__.TestTEFuserDynamic)": [
     "156438",
     "https://github.com/pytorch/pytorch/issues/156438",
@@ -1855,15 +1810,6 @@
     "164556",
     "https://github.com/pytorch/pytorch/issues/164556",
     [
-      "rocm"
-    ]
-  ],
-  "test_wait_tensor (__main__.CompileTest)": [
-    "148014",
-    "https://github.com/pytorch/pytorch/issues/148014",
-    [
-      "inductor",
-      "linux",
       "rocm"
     ]
   ],
