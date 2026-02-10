@@ -419,30 +419,9 @@ struct HUDView: View {
                     isLoadingMore: viewModel.isLoadingMore,
                     hasMorePages: viewModel.hasMorePages,
                     loadMoreError: viewModel.loadMoreError,
-                    onJobTap: { job, name in
-                        selectedJob = job
-                        selectedJobName = name
-                        showingJobDetail = true
-                    },
-                    onCommitTap: { row in
-                        let nav = CommitNavigation(
-                            sha: row.sha,
-                            repoOwner: viewModel.selectedRepo.owner,
-                            repoName: viewModel.selectedRepo.name
-                        )
-                        navigationPath.append(nav)
-                    },
                     onCommitRowTap: { row in
                         selectedCommitRow = row
                         showingCommitJobs = true
-                    },
-                    onPRTap: { prNumber in
-                        let nav = PRNavigation(
-                            prNumber: prNumber,
-                            repoOwner: viewModel.selectedRepo.owner,
-                            repoName: viewModel.selectedRepo.name
-                        )
-                        navigationPath.append(nav)
                     },
                     onLoadMore: {
                         viewModel.loadMoreIfNeeded()

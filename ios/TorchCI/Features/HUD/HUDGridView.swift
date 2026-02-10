@@ -9,10 +9,7 @@ struct HUDGridView: View {
     var isLoadingMore: Bool = false
     var hasMorePages: Bool = true
     var loadMoreError: String?
-    var onJobTap: ((HUDJob, String) -> Void)?
-    var onCommitTap: ((HUDRow) -> Void)?
     var onCommitRowTap: ((HUDRow) -> Void)?
-    var onPRTap: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
     var onRetryLoadMore: (() -> Void)?
     var onDismissLoadMoreError: (() -> Void)?
@@ -214,16 +211,22 @@ struct HUDGridView: View {
                                 .padding(.vertical, 2)
                                 .background(Color.orange)
                                 .clipShape(RoundedRectangle(cornerRadius: 3))
+                                .accessibilityLabel("Auto-reverted")
                             }
 
                             if row.isForcedMerge == true {
-                                Text("FM")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .background(row.isForcedMergeWithFailures == true ? Color.orange : AppColors.unstable)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                HStack(spacing: 2) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 7))
+                                    Text("FM")
+                                        .font(.system(size: 8, weight: .bold))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(row.isForcedMergeWithFailures == true ? Color.orange : AppColors.unstable)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                                .accessibilityLabel("Forced merge")
                             }
 
                             if let pr = row.prNumber {
