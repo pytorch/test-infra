@@ -1000,6 +1000,249 @@ final class FailedJobsViewModelTests: XCTestCase {
         XCTAssertEqual(mockClient.callCount, 1)
     }
 
+    // MARK: - Error Handling & Recovery
+
+    func testLoadDataNetworkError() async {
+        // Register an explicit network error for the endpoint the VM will call
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(viewModel.startDate),
+            "stopTime": formatDate(viewModel.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+        mockClient.setError(
+            APIError.networkError(URLError(.notConnectedToInternet)),
+            for: endpoint.path
+        )
+
+        await viewModel.loadData()
+
+        // State must be .error with a meaningful message
+        if case .error(let message) = viewModel.state {
+            XCTAssertFalse(message.isEmpty, "Error message should not be empty")
+        } else {
+            XCTFail("Expected error state but got \(viewModel.state)")
+        }
+        // Jobs should remain empty after a failed load
+        XCTAssertTrue(viewModel.jobs.isEmpty)
+    }
+
+    func testRetryAfterError() async {
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(viewModel.startDate),
+            "stopTime": formatDate(viewModel.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+
+        // First call: simulate a server error
+        mockClient.setError(APIError.serverError(500), for: endpoint.path)
+        await viewModel.loadData()
+
+        if case .error = viewModel.state {
+            // expected
+        } else {
+            XCTFail("Expected error state after first load but got \(viewModel.state)")
+        }
+
+        // Second call: replace the error with a valid response
+        mockClient.errors.removeValue(forKey: endpoint.path)
+        let jobs = [makeFailedJob(id: 1), makeFailedJob(id: 2)]
+        let json = makeResponseJSON(jobs: jobs)
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.jobs.count, 2)
+        // Two loadData calls = 2 recorded calls
+        XCTAssertEqual(mockClient.callCount, 2)
+    }
+
+    func testAnnotationSyncErrorState() async {
+        // Set up initial data so the VM is in a loaded state
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(viewModel.startDate),
+            "stopTime": formatDate(viewModel.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+        let jobs = [makeFailedJob(id: 42)]
+        let json = makeResponseJSON(jobs: jobs)
+        mockClient.setResponse(json, for: endpoint.path)
+        await viewModel.loadData()
+        XCTAssertEqual(viewModel.state, .loaded)
+
+        // Simulate an authenticated user so the backend sync path is taken
+        // We cannot easily set authManager.isAuthenticated; instead we verify
+        // the optimistic local behavior: annotation is applied locally even
+        // when backend sync would fail.
+        viewModel.annotate(jobId: 42, value: .infra)
+
+        // Optimistic local update should have succeeded immediately
+        XCTAssertEqual(viewModel.annotations[42], .infra)
+
+        // Register a sync error for the annotateJobs endpoint that the
+        // fire-and-forget Task would hit
+        let annotateEndpoint = APIEndpoint.annotateJobs(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            annotation: "infra",
+            jobIds: [42]
+        )
+        mockClient.setError(APIError.serverError(503), for: annotateEndpoint.path)
+
+        // The local annotation must still be preserved regardless of sync
+        XCTAssertEqual(viewModel.annotations[42], .infra)
+        // Cached annotation should also persist
+        let cached = testCache.load()
+        XCTAssertEqual(cached[42], "infra")
+    }
+
+    // MARK: - Date Range Boundary
+
+    func testDateRangeBoundary() {
+        // Set a custom date range and verify the view model stores exact boundaries
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let exactStart = startOfDay
+        let exactEnd = calendar.date(byAdding: .day, value: 3, to: startOfDay)!
+
+        viewModel.updateCustomDateRange(start: exactStart, end: exactEnd)
+
+        XCTAssertEqual(viewModel.startDate, exactStart)
+        XCTAssertEqual(viewModel.endDate, exactEnd)
+
+        // The difference should be exactly 3 days
+        let diff = viewModel.endDate.timeIntervalSince(viewModel.startDate)
+        let threeDays: TimeInterval = 3 * 24 * 60 * 60
+        XCTAssertEqual(diff, threeDays, accuracy: 1)
+
+        // Page and jobs should be reset
+        XCTAssertEqual(viewModel.currentPage, 1)
+        XCTAssertTrue(viewModel.jobs.isEmpty)
+
+        // Verify updateTimeRange also computes the correct span
+        viewModel.updateTimeRange(days: 30)
+        let rangeDiff = viewModel.endDate.timeIntervalSince(viewModel.startDate)
+        let thirtyDays: TimeInterval = 30 * 24 * 60 * 60
+        XCTAssertEqual(rangeDiff, thirtyDays, accuracy: 60)
+        XCTAssertEqual(viewModel.timeRangeDays, 30)
+    }
+
+    // MARK: - Refresh Resets State
+
+    func testRefreshResetsState() async {
+        // Pre-populate the view model with stale data
+        let staleJobs = [
+            makeFailedJob(id: 10, jobName: "stale-job-1"),
+            makeFailedJob(id: 11, jobName: "stale-job-2"),
+        ]
+        setJobsDirectly(staleJobs)
+        viewModel.annotations[10] = .brokenTrunk
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.jobs.count, 2)
+
+        // Register a fresh response with different data
+        let freshJobs = [makeFailedJob(id: 50, jobName: "fresh-job")]
+        let json = makeResponseJSON(
+            jobs: freshJobs,
+            annotations: ["50": (annotation: "flaky", jobID: 50)]
+        )
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(viewModel.startDate),
+            "stopTime": formatDate(viewModel.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.refresh()
+
+        // State should reflect the fresh server response
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.jobs.count, 1)
+        XCTAssertEqual(viewModel.jobs.first?.jobId, 50)
+        // Server annotation for job 50 should be loaded
+        XCTAssertEqual(viewModel.annotations[50], .flaky)
+        // refresh() calls loadData() which replaces annotations with
+        // merged server + cache; the old stale job 10 annotation will
+        // persist in cache but the jobs list is fully replaced
+        XCTAssertEqual(mockClient.callCount, 1)
+    }
+
+    // MARK: - Partial Annotation Data
+
+    func testPartialAnnotationData() async {
+        // Three jobs, but only two have server annotations; one is missing
+        let jobs = [
+            makeFailedJob(id: 1, jobName: "job-a"),
+            makeFailedJob(id: 2, jobName: "job-b"),
+            makeFailedJob(id: 3, jobName: "job-c"),
+        ]
+        let json = makeResponseJSON(
+            jobs: jobs,
+            annotations: [
+                "1": (annotation: "broken_trunk", jobID: 1),
+                // job 2 intentionally missing from annotations map
+                "3": (annotation: "flaky", jobID: 3),
+            ]
+        )
+
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(viewModel.startDate),
+            "stopTime": formatDate(viewModel.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.jobs.count, 3)
+
+        // Jobs with server annotations should be classified accordingly
+        XCTAssertEqual(viewModel.annotations[1], .brokenTrunk)
+        XCTAssertEqual(viewModel.annotations[3], .flaky)
+
+        // Job 2 has no annotation; it should fall through to heuristics
+        XCTAssertNil(viewModel.annotations[2])
+        let job2 = jobs[1]
+        XCTAssertEqual(viewModel.classifyFailure(job2), .notAnnotated)
+
+        // Failure counts should reflect the mixed state
+        XCTAssertEqual(viewModel.failureCounts[.all], 3)
+        XCTAssertEqual(viewModel.failureCounts[.brokenTrunk], 1)
+        XCTAssertEqual(viewModel.failureCounts[.flaky], 1)
+        XCTAssertEqual(viewModel.failureCounts[.notAnnotated], 1)
+    }
+
     // MARK: - Date Format Helper
 
     private func formatDate(_ date: Date) -> String {

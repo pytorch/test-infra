@@ -33,6 +33,11 @@ final class PRDetailViewModel: ObservableObject {
     @Published var isBodyExpanded: Bool = false
     @Published var jobFilter: JobFilter = .all
     @Published var jobSearchQuery: String = ""
+    @Published var isAutoRefreshEnabled: Bool = true
+
+    // MARK: - Auto-Refresh
+    private static let autoRefreshInterval: TimeInterval = 60
+    private var autoRefreshTask: Task<Void, Never>?
 
     /// Cached job summary per commit SHA (populated as commits are selected).
     @Published var commitJobSummaries: [String: CommitJobSummary] = [:]
@@ -320,6 +325,33 @@ final class PRDetailViewModel: ObservableObject {
 
     func clearJobSearch() {
         jobSearchQuery = ""
+    }
+
+    func startAutoRefresh() {
+        stopAutoRefresh()
+        guard isAutoRefreshEnabled else { return }
+        autoRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.autoRefreshInterval))
+                guard !Task.isCancelled else { break }
+                guard let self, self.isAutoRefreshEnabled, self.state == .loaded else { continue }
+                await self.refresh()
+            }
+        }
+    }
+
+    func stopAutoRefresh() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = nil
+    }
+
+    func toggleAutoRefresh() {
+        isAutoRefreshEnabled.toggle()
+        if isAutoRefreshEnabled {
+            startAutoRefresh()
+        } else {
+            stopAutoRefresh()
+        }
     }
 
     /// Expand only workflows that have failed jobs, collapse the rest.

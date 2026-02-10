@@ -808,4 +808,101 @@ final class CommitDetailViewModelTests: XCTestCase {
         XCTAssertNotEqual(CommitDetailViewModel.ViewState.loading, .loaded)
         XCTAssertNotEqual(CommitDetailViewModel.ViewState.loading, .error("X"))
     }
+
+    // MARK: - Auto-Refresh
+
+    func testAutoRefreshToggle() async {
+        // Initially enabled
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+    }
+
+    func testAutoRefreshStartStop() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "build", conclusion: "success"),
+        ])
+        setCommitResponse(json)
+
+        await viewModel.loadCommit()
+        XCTAssertEqual(viewModel.state, .loaded)
+
+        // Start auto-refresh while enabled
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+        viewModel.startAutoRefresh()
+
+        // Stop auto-refresh
+        viewModel.stopAutoRefresh()
+
+        // Disable then start -- should be a no-op (guard returns early)
+        viewModel.isAutoRefreshEnabled = false
+        viewModel.startAutoRefresh()
+
+        // Re-enable via toggle -- starts auto-refresh again
+        viewModel.toggleAutoRefresh()
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        // Disable via toggle -- stops auto-refresh
+        viewModel.toggleAutoRefresh()
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+    }
+
+    // MARK: - Status Filter Cancelled
+
+    func testStatusFilterCancelledState() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "build", conclusion: "success"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "test1", conclusion: "cancelled"),
+            JobJSON(id: 3, name: "c", workflowName: "pull", jobName: "test2", conclusion: "canceled"),
+            JobJSON(id: 4, name: "d", workflowName: "pull", jobName: "test3", conclusion: "failure"),
+            JobJSON(id: 5, name: "e", workflowName: "pull", jobName: "test4", conclusion: "timed_out"),
+        ])
+        setCommitResponse(json)
+
+        await viewModel.loadCommit()
+
+        viewModel.statusFilter = .cancelled
+        XCTAssertTrue(viewModel.isFiltering)
+
+        // cancelled, canceled, and timed_out should all match the cancelled filter
+        XCTAssertEqual(viewModel.visibleJobCount, 3)
+
+        let allJobs = viewModel.filteredGroupedJobs.flatMap { $0.jobs }
+        for job in allJobs {
+            let c = job.conclusion?.lowercased()
+            XCTAssertTrue(
+                c == "cancelled" || c == "canceled" || c == "timed_out",
+                "Expected cancelled/canceled/timed_out but got \(c ?? "nil")"
+            )
+        }
+    }
+
+    // MARK: - Search Filter Clears on Reset
+
+    func testSearchFilterClearsOnReset() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "linux-build", conclusion: "success"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "windows-build", conclusion: "success"),
+        ])
+        setCommitResponse(json)
+
+        await viewModel.loadCommit()
+
+        // Apply search and status filter
+        viewModel.jobSearchText = "linux"
+        viewModel.statusFilter = .passed
+        XCTAssertTrue(viewModel.isFiltering)
+        XCTAssertEqual(viewModel.visibleJobCount, 1)
+
+        // Reset filters should clear both search and status filter
+        viewModel.resetFilters()
+        XCTAssertEqual(viewModel.jobSearchText, "")
+        XCTAssertEqual(viewModel.statusFilter, .all)
+        XCTAssertFalse(viewModel.isFiltering)
+        XCTAssertEqual(viewModel.visibleJobCount, 2)
+    }
 }

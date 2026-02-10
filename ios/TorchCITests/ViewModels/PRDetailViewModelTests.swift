@@ -901,4 +901,107 @@ final class PRDetailViewModelTests: XCTestCase {
     func testCommitJobSummaryInitiallyEmpty() {
         XCTAssertTrue(viewModel.commitJobSummaries.isEmpty)
     }
+
+    // MARK: - Auto-Refresh
+
+    func testAutoRefreshToggle() async {
+        // Initially enabled
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+
+        viewModel.toggleAutoRefresh()
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+    }
+
+    func testAutoRefreshStartStop() async {
+        let sha = "bbb2222222222222222222222222222222222222"
+        setPRResponse(makePRResponseJSON())
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+
+        await viewModel.loadPR()
+        XCTAssertEqual(viewModel.state, .loaded)
+
+        // Start auto-refresh while enabled
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+        viewModel.startAutoRefresh()
+
+        // Stop auto-refresh
+        viewModel.stopAutoRefresh()
+
+        // Disable then start -- should be a no-op (guard returns early)
+        viewModel.isAutoRefreshEnabled = false
+        viewModel.startAutoRefresh()
+
+        // Re-enable via toggle -- starts auto-refresh again
+        viewModel.toggleAutoRefresh()
+        XCTAssertTrue(viewModel.isAutoRefreshEnabled)
+
+        // Disable via toggle -- stops auto-refresh
+        viewModel.toggleAutoRefresh()
+        XCTAssertFalse(viewModel.isAutoRefreshEnabled)
+    }
+
+    // MARK: - PR State Color Mapping
+
+    func testPRStateColorMapping() async {
+        let sha = "ccc3333333333333333333333333333333333333"
+
+        // Open -> green (success)
+        setPRResponse(makeFullPRResponseJSON(state: "open"))
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+        await viewModel.loadPR()
+        XCTAssertEqual(viewModel.prStateColor, "success")
+
+        // Closed -> red (failure)
+        setPRResponse(makeFullPRResponseJSON(state: "closed"))
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.prStateColor, "failure")
+
+        // Merged -> purple (unstable)
+        setPRResponse(makeFullPRResponseJSON(state: "merged"))
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.prStateColor, "unstable")
+
+        // Unknown -> neutral
+        setPRResponse(makeFullPRResponseJSON(state: "draft"))
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.prStateColor, "neutral")
+    }
+
+    // MARK: - PR Metadata With Missing Fields
+
+    func testPRMetadataWithMissingFields() async {
+        // PR with no state, no author, no timestamps, no branch info
+        let sha = "bbb2222222222222222222222222222222222222"
+        let json = """
+        {
+            "title": "Minimal PR",
+            "body": "No metadata here.",
+            "shas": [{"sha": "\(sha)", "title": "Lone commit"}]
+        }
+        """
+        setPRResponse(json)
+        setCommitResponse(makeCommitResponseJSON(sha: sha), for: sha)
+
+        await viewModel.loadPR()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertNil(viewModel.prResponse?.state)
+        XCTAssertNil(viewModel.prResponse?.author)
+        XCTAssertNil(viewModel.prResponse?.createdAt)
+        XCTAssertNil(viewModel.prResponse?.updatedAt)
+        XCTAssertNil(viewModel.prResponse?.headRef)
+        XCTAssertNil(viewModel.prResponse?.baseRef)
+        XCTAssertNil(viewModel.prResponse?.branchInfo)
+        XCTAssertFalse(viewModel.hasMetadata)
+        XCTAssertEqual(viewModel.prStateColor, "neutral")
+        XCTAssertEqual(viewModel.prStateIcon, "questionmark.circle")
+        XCTAssertNil(viewModel.createdTimeAgo)
+        XCTAssertNil(viewModel.updatedTimeAgo)
+    }
 }

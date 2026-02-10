@@ -475,8 +475,39 @@ struct CommitDetailView: View {
                 // Status filter chips
                 statusFilterChips
 
-                // Job search bar
-                jobSearchBar
+                // Sort picker + Job search bar
+                HStack(spacing: 8) {
+                    jobSearchBar
+
+                    Menu {
+                        ForEach(CommitDetailViewModel.SortOption.allCases, id: \.self) { option in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    viewModel.sortOption = option
+                                }
+                            } label: {
+                                HStack {
+                                    Text(option.rawValue)
+                                    if viewModel.sortOption == option {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.caption)
+                            Text(viewModel.sortOption.rawValue)
+                                .font(.caption.weight(.medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 9)
+                        .background(viewModel.sortOption != .status ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill))
+                        .foregroundStyle(viewModel.sortOption != .status ? Color.accentColor : .secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
 
                 // Filter results indicator
                 if viewModel.isFiltering {

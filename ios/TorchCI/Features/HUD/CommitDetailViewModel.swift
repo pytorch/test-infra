@@ -29,13 +29,22 @@ final class CommitDetailViewModel: ObservableObject {
         case skipped = "Skipped"
     }
 
+    /// Sort order for jobs within each workflow group.
+    enum SortOption: String, CaseIterable, Equatable {
+        case status = "Status"
+        case duration = "Duration"
+        case name = "Name"
+    }
+
     @Published var state: ViewState = .loading
     @Published var commitResponse: CommitResponse?
     @Published var groupedJobs: [(workflowName: String, jobs: [JobData])] = []
     @Published var expandedWorkflows: Set<String> = []
     @Published var statusFilter: StatusFilter = .all
     @Published var jobSearchText: String = ""
+    @Published var sortOption: SortOption = .status
     @Published var lastRefreshed: Date?
+    @Published var isAutoRefreshEnabled: Bool = true
 
     // MARK: - Auto-Refresh
     private static let autoRefreshInterval: TimeInterval = 60
@@ -99,14 +108,28 @@ final class CommitDetailViewModel: ObservableObject {
 
     // MARK: - Filtered Jobs
 
-    /// Returns grouped jobs filtered by the current status filter and search text.
+    /// Returns grouped jobs filtered by the current status filter and search text,
+    /// then sorted by the selected sort option.
     var filteredGroupedJobs: [(workflowName: String, jobs: [JobData])] {
         groupedJobs.compactMap { group in
             let filtered = group.jobs.filter { job in
                 matchesStatusFilter(job) && matchesSearchText(job)
             }
             if filtered.isEmpty { return nil }
-            return (workflowName: group.workflowName, jobs: filtered)
+            return (workflowName: group.workflowName, jobs: applySortOption(filtered))
+        }
+    }
+
+    private func applySortOption(_ jobs: [JobData]) -> [JobData] {
+        switch sortOption {
+        case .status:
+            return sortJobsByStatus(jobs)
+        case .duration:
+            return jobs.sorted { ($0.durationS ?? 0) > ($1.durationS ?? 0) }
+        case .name:
+            return jobs.sorted {
+                ($0.jobName ?? $0.name ?? "").localizedCaseInsensitiveCompare($1.jobName ?? $1.name ?? "") == .orderedAscending
+            }
         }
     }
 
@@ -117,7 +140,7 @@ final class CommitDetailViewModel: ObservableObject {
 
     /// Whether any filter is actively reducing the job list.
     var isFiltering: Bool {
-        statusFilter != .all || !jobSearchText.isEmpty
+        statusFilter != .all || !jobSearchText.isEmpty || sortOption != .status
     }
 
     private func matchesStatusFilter(_ job: JobData) -> Bool {
@@ -150,6 +173,7 @@ final class CommitDetailViewModel: ObservableObject {
     func clearFilters() {
         statusFilter = .all
         jobSearchText = ""
+        sortOption = .status
     }
 
     // MARK: - Config
@@ -209,11 +233,12 @@ final class CommitDetailViewModel: ObservableObject {
 
     func startAutoRefresh() {
         stopAutoRefresh()
+        guard isAutoRefreshEnabled else { return }
         autoRefreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.autoRefreshInterval))
                 guard !Task.isCancelled else { break }
-                guard let self, self.state == .loaded else { continue }
+                guard let self, self.isAutoRefreshEnabled, self.state == .loaded else { continue }
                 await self.refresh()
             }
         }
@@ -222,6 +247,21 @@ final class CommitDetailViewModel: ObservableObject {
     func stopAutoRefresh() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
+    }
+
+    func toggleAutoRefresh() {
+        isAutoRefreshEnabled.toggle()
+        if isAutoRefreshEnabled {
+            startAutoRefresh()
+        } else {
+            stopAutoRefresh()
+        }
+    }
+
+    func resetFilters() {
+        statusFilter = .all
+        jobSearchText = ""
+        sortOption = .status
     }
 
     // MARK: - Grouping
