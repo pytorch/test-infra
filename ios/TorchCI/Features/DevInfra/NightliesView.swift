@@ -476,6 +476,7 @@ private struct FailedJobRow: View {
             Text(job.name)
                 .font(.subheadline)
                 .lineLimit(2)
+                .textSelection(.enabled)
 
             Spacer(minLength: 8)
 
