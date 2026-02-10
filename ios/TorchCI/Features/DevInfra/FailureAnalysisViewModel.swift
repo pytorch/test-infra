@@ -81,6 +81,7 @@ final class FailureAnalysisViewModel: ObservableObject {
     nonisolated(unsafe) private static let displayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MM/d"
+        f.timeZone = TimeZone(identifier: "UTC")
         return f
     }()
     nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
@@ -153,6 +154,7 @@ final class FailureAnalysisViewModel: ObservableObject {
     nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
         return f
     }()
 

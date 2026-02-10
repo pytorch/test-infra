@@ -549,7 +549,7 @@ final class ClaudeBillingViewModel: ObservableObject {
 
             // Extract unique repo names from the data to use as selectedRepos
             // for the actor query (which requires a non-empty selectedRepos)
-            let repoNames = Array(Set(daily.map(\.repo) + repos.map(\.repo)))
+            let repoNames = Array(Set(daily.map(\.repo) + repos.map(\.repo))).sorted()
 
             // Fetch per-actor data only if we have repos to filter by
             var actors: [ClaudeActorRow] = []
