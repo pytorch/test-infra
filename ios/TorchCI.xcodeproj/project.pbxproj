@@ -174,7 +174,6 @@
 		E346090E6A05D37A9DA5B021 /* AccessibilityIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DCC975009D0BA0BE36C8E05 /* AccessibilityIdentifiers.swift */; };
 		E43A0305515582AE72774C34 /* CostAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EB9A298A218BA3B9CBFE1A7 /* CostAnalysisView.swift */; };
 		E46EE6ADD29817FC8D15CD63 /* CostAnalysisViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E753994D3269DBAA86DFF7 /* CostAnalysisViewModelTests.swift */; };
-		E4F1EE3A1DCECEE64626E5D9 /* CommitRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E160504FB8EFDC8DDA463A /* CommitRowView.swift */; };
 		E50750826A44A66EA175685E /* SpotlightIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F70375DEE13EAF52E281F1 /* SpotlightIndexer.swift */; };
 		E5154CD3DCFBFD27108F8398 /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = 16D3A977E735C06DA278ED28 /* Secrets.plist */; };
 		E587582384CEAE0876EF4957 /* JobDetailViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AAFF068FCEF2B7762C18C2 /* JobDetailViewModelTests.swift */; };
@@ -229,7 +228,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		00E160504FB8EFDC8DDA463A /* CommitRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitRowView.swift; sourceTree = "<group>"; };
 		02FDB1D23C164E5EF4E0E344 /* CommitDetailViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitDetailViewModelTests.swift; sourceTree = "<group>"; };
 		031CFB4B644533BE2F69D49F /* DisabledTestsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisabledTestsViewModel.swift; sourceTree = "<group>"; };
 		03D7C513DDDF1A8AD9C83F80 /* MockAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockAuthManager.swift; sourceTree = "<group>"; };
@@ -613,7 +611,6 @@
 			children = (
 				A7F1611A327CC2372B98571E /* CommitDetailView.swift */,
 				39B8AABEA2404192E9C7BD0B /* CommitDetailViewModel.swift */,
-				00E160504FB8EFDC8DDA463A /* CommitRowView.swift */,
 				22AB3C9237DE4E0545A0033F /* HUDGridView.swift */,
 				1D2351BE59B8EF6696755C80 /* HUDView.swift */,
 				A132996341380BA3365C6E4A /* HUDViewModel.swift */,
@@ -1070,7 +1067,6 @@
 				1BF702F21875FD8CDEE7A5C8 /* CommitData.swift in Sources */,
 				0184F1AFE7EDF7081884402F /* CommitDetailView.swift in Sources */,
 				D5D0CE1A5D8AE67D24B9ED23 /* CommitDetailViewModel.swift in Sources */,
-				E4F1EE3A1DCECEE64626E5D9 /* CommitRowView.swift in Sources */,
 				4F5225192C29C2DC3E59A9C1 /* CompilerBenchmarkView.swift in Sources */,
 				7925458EA5B9B14C46177201 /* CompilerRegressionView.swift in Sources */,
 				5B5545B288F5472B1BCD5A9F /* ContentView.swift in Sources */,
