@@ -58,6 +58,7 @@ targets:
       path: TorchCIWidget/Info.plist
       properties:
         CFBundleDisplayName: TorchCI Widget
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
