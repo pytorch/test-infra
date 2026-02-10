@@ -33,6 +33,7 @@ final class HUDViewModel: ObservableObject {
     @Published var hideUnstable: Bool = false
     @Published var showFailuresOnly: Bool = false
     @Published var showBlockingOnly: Bool = false
+    @Published var hideGreenColumns: Bool = false
     @Published var consecutiveFailures: Int = 0
     @Published var failurePatterns: [String] = []
     @Published var isLoadingMore: Bool = false
@@ -116,6 +117,28 @@ final class HUDViewModel: ObservableObject {
             return indices
         }() : nil
 
+        // Build set of job indices that are all-green (success in every non-empty row)
+        let allGreenIndices: Set<Int>? = hideGreenColumns ? {
+            var indices = Set<Int>()
+            for idx in 0..<allNames.count {
+                var allSuccess = true
+                var hasAnyJob = false
+                for row in rows {
+                    if let job = row.jobs[safe: idx], !job.isEmpty {
+                        hasAnyJob = true
+                        if !job.isSuccess {
+                            allSuccess = false
+                            break
+                        }
+                    }
+                }
+                if hasAnyJob && allSuccess {
+                    indices.insert(idx)
+                }
+            }
+            return indices
+        }() : nil
+
         let regex: NSRegularExpression? = isRegexEnabled && !searchFilter.isEmpty
             ? try? NSRegularExpression(pattern: searchFilter, options: [.caseInsensitive])
             : nil
@@ -136,6 +159,11 @@ final class HUDViewModel: ObservableObject {
 
             // Failures-only filter: skip jobs that have no failures in current data
             if let failureIndices, !failureIndices.contains(index) {
+                return nil
+            }
+
+            // Hide green columns: skip jobs that are all success across all rows
+            if let allGreenIndices, allGreenIndices.contains(index) {
                 return nil
             }
 
@@ -367,6 +395,7 @@ final class HUDViewModel: ObservableObject {
         hideUnstable = false
         showFailuresOnly = false
         showBlockingOnly = false
+        hideGreenColumns = false
     }
 
     // MARK: - Job Organization

@@ -584,6 +584,73 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.filteredJobNames.contains("periodic / check"))
     }
 
+    // MARK: - Hide Green Columns Filter
+
+    func testHideGreenColumnsHidesAllSuccessJobs() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test", "lint"],
+            rows: [
+                [
+                    (name: "build", conclusion: "success", unstable: false),
+                    (name: "test", conclusion: "failure", unstable: false),
+                    (name: "lint", conclusion: "success", unstable: false),
+                ],
+                [
+                    (name: "build", conclusion: "success", unstable: false),
+                    (name: "test", conclusion: "success", unstable: false),
+                    (name: "lint", conclusion: "success", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        // Without filter, all 3 jobs visible
+        XCTAssertEqual(viewModel.filteredJobNames.count, 3)
+
+        // Enable hide green
+        viewModel.hideGreenColumns = true
+        // "build" is all success across both rows -> hidden
+        // "test" has a failure in row 1 -> shown
+        // "lint" is all success across both rows -> hidden
+        XCTAssertEqual(viewModel.filteredJobNames.count, 1)
+        XCTAssertEqual(viewModel.filteredJobNames.first, "test")
+    }
+
+    func testHideGreenColumnsKeepsPendingJobs() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test"],
+            rows: [
+                [
+                    (name: "build", conclusion: "success", unstable: false),
+                    (name: "test", conclusion: "pending", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        viewModel.hideGreenColumns = true
+        // "build" is all success -> hidden
+        // "test" is pending -> shown (not all-success)
+        XCTAssertEqual(viewModel.filteredJobNames.count, 1)
+        XCTAssertEqual(viewModel.filteredJobNames.first, "test")
+    }
+
     // MARK: - Clear Filter Resets All
 
     func testClearFilterResetsAllFilters() async {
@@ -594,6 +661,7 @@ final class HUDViewModelTests: XCTestCase {
         viewModel.hideUnstable = true
         viewModel.showFailuresOnly = true
         viewModel.showBlockingOnly = true
+        viewModel.hideGreenColumns = true
 
         viewModel.clearFilter()
 
@@ -601,6 +669,7 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.hideUnstable)
         XCTAssertFalse(viewModel.showFailuresOnly)
         XCTAssertFalse(viewModel.showBlockingOnly)
+        XCTAssertFalse(viewModel.hideGreenColumns)
         XCTAssertEqual(viewModel.filteredJobNames.count, 3)
     }
 

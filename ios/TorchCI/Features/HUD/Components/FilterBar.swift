@@ -73,6 +73,16 @@ struct FilterBar: View {
                         }
                     }
 
+                    filterChip(
+                        label: "Hide Green",
+                        icon: "checkmark.circle",
+                        isActive: viewModel.hideGreenColumns
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.hideGreenColumns.toggle()
+                        }
+                    }
+
                     Spacer()
                 }
 
@@ -109,7 +119,7 @@ struct FilterBar: View {
     }
 
     private var hasActiveFilters: Bool {
-        !viewModel.searchFilter.isEmpty || viewModel.showFailuresOnly || viewModel.hideUnstable || viewModel.showBlockingOnly
+        !viewModel.searchFilter.isEmpty || viewModel.showFailuresOnly || viewModel.hideUnstable || viewModel.showBlockingOnly || viewModel.hideGreenColumns
     }
 
     private func filterChip(label: String, icon: String, isActive: Bool, action: @escaping () -> Void) -> some View {
