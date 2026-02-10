@@ -2,6 +2,19 @@ import SwiftUI
 import UIKit
 
 struct SharedSessionView: View {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+    nonisolated(unsafe) private static let absoluteDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
     let uuid: String
 
     @State private var session: SharedSession?
@@ -322,21 +335,16 @@ struct SharedSessionView: View {
     }
 
     static func formattedDate(_ dateString: String) -> String {
-        if let date = ISO8601DateFormatter().date(from: dateString) {
+        if let date = isoFormatter.date(from: dateString) {
             let now = Date()
             let interval = now.timeIntervalSince(date)
 
             // Show relative time for recent dates (less than 7 days)
             if interval < 7 * 24 * 3600 && interval > 0 {
-                let formatter = RelativeDateTimeFormatter()
-                formatter.unitsStyle = .short
-                return formatter.localizedString(for: date, relativeTo: now)
+                return relativeDateFormatter.localizedString(for: date, relativeTo: now)
             }
 
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+            return absoluteDateFormatter.string(from: date)
         }
         return dateString
     }

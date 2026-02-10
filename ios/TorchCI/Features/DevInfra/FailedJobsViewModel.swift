@@ -74,6 +74,13 @@ struct AnnotationCache: @unchecked Sendable {
 
 @MainActor
 final class FailedJobsViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     // MARK: - Types
 
     enum ViewState: Equatable {
@@ -306,12 +313,8 @@ final class FailedJobsViewModel: ObservableObject {
         }
         do {
             // Format dates as ISO 8601 with milliseconds
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-            formatter.timeZone = TimeZone(identifier: "UTC")
-
-            let startTimeString = formatter.string(from: startDate)
-            let stopTimeString = formatter.string(from: endDate)
+            let startTimeString = Self.dateFormatter.string(from: startDate)
+            let stopTimeString = Self.dateFormatter.string(from: endDate)
 
             let queryParams: [String: Any] = [
                 "branch": selectedBranch,

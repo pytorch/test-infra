@@ -216,6 +216,21 @@ struct DisabledTestDetail: Decodable {
 typealias DisabledTestHistoricalResponse = [DisabledTestHistoricalData]
 
 struct DisabledTestHistoricalData: Decodable, Identifiable {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    private static let dateFormats = [
+        "yyyy-MM-dd",
+        "yyyy-MM-dd HH:mm:ss.SSS",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ssZ",
+    ]
+
     let day: String
     let count: Int
     let new: Int
@@ -237,18 +252,10 @@ struct DisabledTestHistoricalData: Decodable, Identifiable {
     }
 
     var date: Date? {
-        let formatter = DateFormatter()
-        formatter.timeZone = TimeZone(identifier: "UTC")
+        let formatter = Self.dateFormatter
         // ClickHouse date_time_output_format=iso can return various formats:
         // "2024-01-15", "2024-01-15 00:00:00.000", "2024-01-15T00:00:00.000Z"
-        for fmt in [
-            "yyyy-MM-dd",
-            "yyyy-MM-dd HH:mm:ss.SSS",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-        ] {
+        for fmt in Self.dateFormats {
             formatter.dateFormat = fmt
             if let d = formatter.date(from: day) { return d }
         }

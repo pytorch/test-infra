@@ -2,6 +2,13 @@ import Charts
 import SwiftUI
 
 struct CompilerBenchmarkView: View {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     let benchmarkId: String?
 
     // MARK: - State
@@ -764,9 +771,6 @@ struct CompilerBenchmarkView: View {
             state = .loading
         }
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
         let now = Date()
         let startDate = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: now) ?? now
 
@@ -784,8 +788,8 @@ struct CompilerBenchmarkView: View {
             "dtype": selectedDtype,
             "granularity": selectedGranularity,
             "mode": selectedMode,
-            "startTime": dateFormatter.string(from: startDate),
-            "stopTime": dateFormatter.string(from: now),
+            "startTime": Self.dateFormatter.string(from: startDate),
+            "stopTime": Self.dateFormatter.string(from: now),
             "suites": suiteOptions.filter { $0 != "all" },
             "workflowId": 0,
         ]

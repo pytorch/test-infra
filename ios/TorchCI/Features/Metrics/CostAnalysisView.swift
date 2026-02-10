@@ -418,6 +418,13 @@ private struct MetricPill: View {
 
 @MainActor
 final class CostAnalysisViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     enum ViewState: Equatable {
         case loading
         case loaded
@@ -722,17 +729,13 @@ final class CostAnalysisViewModel: ObservableObject {
         let currentStart = Calendar.current.date(byAdding: .day, value: -range.days, to: now) ?? now
         let previousStart = Calendar.current.date(byAdding: .day, value: -range.days * 2, to: currentStart) ?? now
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-
         let currentRange = (
-            startTime: formatter.string(from: currentStart),
-            stopTime: formatter.string(from: now)
+            startTime: Self.dateFormatter.string(from: currentStart),
+            stopTime: Self.dateFormatter.string(from: now)
         )
         let previousRange = (
-            startTime: formatter.string(from: previousStart),
-            stopTime: formatter.string(from: currentStart)
+            startTime: Self.dateFormatter.string(from: previousStart),
+            stopTime: Self.dateFormatter.string(from: currentStart)
         )
 
         async let currentResults: [CostQueryResult] = client.fetch(

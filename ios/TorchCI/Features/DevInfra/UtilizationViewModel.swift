@@ -3,6 +3,13 @@ import SwiftUI
 
 @MainActor
 final class UtilizationViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     // MARK: - Types
 
     enum ViewState: Equatable {
@@ -202,11 +209,8 @@ final class UtilizationViewModel: ObservableObject {
 
     /// Build the utilization endpoint with proper date range support.
     static func utilizationEndpoint(groupBy: String, startDate: Date, endDate: Date) -> APIEndpoint {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        let start = formatter.string(from: startDate)
-        let end = formatter.string(from: endDate)
+        let start = dateFormatter.string(from: startDate)
+        let end = dateFormatter.string(from: endDate)
         return APIEndpoint(
             path: "/api/list_util_reports/\(groupBy)",
             queryItems: [

@@ -2,6 +2,13 @@ import Foundation
 
 @MainActor
 final class PRDetailViewModel: ObservableObject {
+    nonisolated(unsafe) private static let isoFormatterFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     // MARK: - State
 
     enum ViewState: Equatable {
@@ -370,14 +377,8 @@ final class PRDetailViewModel: ObservableObject {
 
     /// Parses an ISO 8601 date string and returns a relative description like "3h ago".
     static func relativeTime(from dateString: String) -> String? {
-        let date: Date?
-
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        date = isoFormatter.date(from: dateString) ?? {
-            let basic = ISO8601DateFormatter()
-            return basic.date(from: dateString)
-        }()
+        let date = isoFormatterFractional.date(from: dateString)
+            ?? isoFormatter.date(from: dateString)
 
         guard let parsedDate = date else { return nil }
 

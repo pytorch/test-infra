@@ -3,6 +3,13 @@ import SwiftUI
 
 @MainActor
 final class BenchmarkDashboardViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     // MARK: - State
 
     enum ViewState: Equatable {
@@ -304,11 +311,8 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         let repo = config?.repo ?? "pytorch/pytorch"
         let benchmarks = config?.benchmarks ?? [benchmark.name]
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
-        let startTime = dateFormatter.string(from: startDate)
-        let stopTime = dateFormatter.string(from: endDate)
+        let startTime = Self.dateFormatter.string(from: startDate)
+        let stopTime = Self.dateFormatter.string(from: endDate)
 
         // Also fetch regression reports (this API does not require auth)
         let regressionEndpoint = APIEndpoint.regressionReports(reportId: benchmark.id)

@@ -548,6 +548,13 @@ struct TorchAOBenchmarkView: View {
 
 @MainActor
 final class TorchAOBenchmarkViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     enum ViewState: Equatable {
         case idle
         case loading
@@ -731,9 +738,6 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
             state = .loading
         }
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
         let now = Date()
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
 
@@ -754,8 +758,8 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
                 "granularity": selectedGranularity,
                 "mode": selectedMode,
                 "repo": "pytorch/benchmark",
-                "startTime": dateFormatter.string(from: startDate),
-                "stopTime": dateFormatter.string(from: now),
+                "startTime": Self.dateFormatter.string(from: startDate),
+                "stopTime": Self.dateFormatter.string(from: now),
                 "suites": selectedSuite == "all"
                     ? ["torchbench", "huggingface", "timm_models"]
                     : [selectedSuite],

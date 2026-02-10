@@ -3,6 +3,13 @@ import SwiftUI
 
 @MainActor
 final class LLMBenchmarkViewModel: ObservableObject {
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     // MARK: - Published State
 
     @Published var state: ViewState = .idle
@@ -222,13 +229,10 @@ final class LLMBenchmarkViewModel: ObservableObject {
         let repo = config?.repo ?? "pytorch/pytorch"
         let benchmarks = config?.benchmarks ?? []
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
         let now = Date()
         let startDate = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
-        let startTime = dateFormatter.string(from: startDate)
-        let stopTime = dateFormatter.string(from: now)
+        let startTime = Self.dateFormatter.string(from: startDate)
+        let stopTime = Self.dateFormatter.string(from: now)
 
         // Build parameters for the oss_ci_benchmark_llms ClickHouse query.
         // Must match clickhouse_queries/oss_ci_benchmark_llms/params.json exactly.

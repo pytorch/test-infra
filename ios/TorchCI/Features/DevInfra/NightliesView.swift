@@ -601,6 +601,8 @@ private struct ValidationJobsSubsection: View {
 
 @MainActor
 final class NightliesViewModel: ObservableObject {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     enum ViewState: Equatable {
         case idle
         case loading
@@ -841,7 +843,7 @@ final class NightliesViewModel: ObservableObject {
         let result: [TrendResponse] = try await client.fetch(endpoint)
         return result.map { response in
             NightlyTrendPoint(
-                date: ISO8601DateFormatter().date(from: response.granularityBucket) ?? Date(),
+                date: Self.isoFormatter.date(from: response.granularityBucket) ?? Date(),
                 failureRate: response.red
             )
         }
