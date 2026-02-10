@@ -539,6 +539,13 @@ struct JobDetailView: View {
                                     .textSelection(.enabled)
                             }
                         }
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = runnerName
+                            } label: {
+                                Label("Copy Runner Name", systemImage: "doc.on.doc")
+                            }
+                        }
                     }
 
                     if let runnerGroup = viewModel.job.runnerGroup {
@@ -554,6 +561,13 @@ struct JobDetailView: View {
                                 Text(runnerGroup)
                                     .font(.subheadline)
                                     .textSelection(.enabled)
+                            }
+                        }
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = runnerGroup
+                            } label: {
+                                Label("Copy Runner Group", systemImage: "doc.on.doc")
                             }
                         }
                     }

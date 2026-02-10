@@ -349,13 +349,18 @@ private func extractSha(from url: String?) -> String? {
 }
 
 /// Formats an ISO 8601 timestamp as a relative time string (e.g. "2h ago").
+nonisolated(unsafe) private let _failedJobsISOFormatter = ISO8601DateFormatter()
+nonisolated(unsafe) private let _failedJobsRelativeFormatter: RelativeDateTimeFormatter = {
+    let f = RelativeDateTimeFormatter()
+    f.unitsStyle = .abbreviated
+    return f
+}()
+
 private func relativeTimeString(from isoString: String) -> String {
-    guard let date = ISO8601DateFormatter().date(from: isoString) else {
+    guard let date = _failedJobsISOFormatter.date(from: isoString) else {
         return isoString
     }
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: date, relativeTo: Date())
+    return _failedJobsRelativeFormatter.localizedString(for: date, relativeTo: Date())
 }
 
 // MARK: - Failure Group Row (expandable)

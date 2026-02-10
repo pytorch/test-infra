@@ -21,20 +21,22 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
         self.baseURL = baseURL
 
         self.decoder = JSONDecoder()
+        let isoFormatter = ISO8601DateFormatter()
+        let msFormatter = DateFormatter()
+        msFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        let basicFormatter = DateFormatter()
+        basicFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
         self.decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)
 
-            if let date = ISO8601DateFormatter().date(from: dateString) {
+            if let date = isoFormatter.date(from: dateString) {
                 return date
             }
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            if let date = formatter.date(from: dateString) {
+            if let date = msFormatter.date(from: dateString) {
                 return date
             }
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            if let date = formatter.date(from: dateString) {
+            if let date = basicFormatter.date(from: dateString) {
                 return date
             }
             throw DecodingError.dataCorruptedError(

@@ -28,9 +28,11 @@ struct CommitInfo: Decodable, Identifiable {
     var body: String? { commitMessageBody }
     var prNumber: Int? { prNum }
 
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     var date: Date? {
         guard let time else { return nil }
-        return ISO8601DateFormatter().date(from: time)
+        return Self.isoFormatter.date(from: time)
     }
 }
 

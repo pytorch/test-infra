@@ -229,20 +229,13 @@ final class FailedJobsViewModel: ObservableObject {
         for job in failedJobs {
             let failureType = classifyFailure(job)
 
-            if groups[failureType] == nil {
-                groups[failureType] = [:]
-            }
-
             // Create a unique key for grouping similar jobs
             let jobName = job.jobName ?? job.name ?? "unknown"
             let workflowName = job.workflowName ?? ""
             let failureCaptures = (job.failureCaptures ?? []).joined(separator: "|")
             let key = "\(jobName)|\(workflowName)|\(failureCaptures)"
 
-            if groups[failureType]![key] == nil {
-                groups[failureType]![key] = []
-            }
-            groups[failureType]![key]!.append(job)
+            groups[failureType, default: [:]][key, default: []].append(job)
         }
 
         // Convert to FailureGroup arrays

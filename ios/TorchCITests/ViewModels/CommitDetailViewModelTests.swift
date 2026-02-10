@@ -896,7 +896,7 @@ final class CommitDetailViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.visibleJobCount, 1)
 
         // Reset filters should clear both search and status filter
-        viewModel.resetFilters()
+        viewModel.clearFilters()
         XCTAssertEqual(viewModel.jobSearchText, "")
         XCTAssertEqual(viewModel.statusFilter, .all)
         XCTAssertFalse(viewModel.isFiltering)

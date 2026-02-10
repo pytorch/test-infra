@@ -200,6 +200,11 @@ struct TestInfoView: View {
                 subtitle: "Last 3 days on main branch"
             )
 
+            if viewModel.trendPoints.isEmpty {
+                ContentUnavailableView("No Trend Data", systemImage: "chart.bar", description: Text("No recent test results found"))
+                    .frame(height: 200)
+            }
+
             Chart {
                 ForEach(viewModel.trendPoints) { point in
                     if point.success > 0 {

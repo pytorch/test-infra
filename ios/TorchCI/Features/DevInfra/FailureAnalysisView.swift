@@ -290,6 +290,11 @@ struct FailureAnalysisView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                if viewModel.histogramData.isEmpty {
+                    ContentUnavailableView("No Data", systemImage: "chart.bar", description: Text("No failure data for this period"))
+                        .frame(height: 150)
+                }
+
                 Chart {
                     ForEach(viewModel.histogramData, id: \.date) { point in
                         BarMark(
@@ -514,13 +519,18 @@ private struct FailureResultRow: View {
         return nil
     }
 
+    nonisolated(unsafe) private static let _isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let _relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     private func relativeTimeString(from isoString: String) -> String {
-        guard let date = ISO8601DateFormatter().date(from: isoString) else {
+        guard let date = Self._isoFormatter.date(from: isoString) else {
             return isoString
         }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return Self._relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

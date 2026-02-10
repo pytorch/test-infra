@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import UIKit
 
 struct BenchmarkDashboardView: View {
     @StateObject private var viewModel: BenchmarkDashboardViewModel
@@ -793,6 +794,13 @@ struct BenchmarkDashboardView: View {
                             .padding(8)
                             .background(Color(.tertiarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = best.commit
+                                } label: {
+                                    Label("Copy SHA", systemImage: "doc.on.doc")
+                                }
+                            }
                         }
 
                         if let worst = viewModel.worstPerformancePoint {
@@ -813,6 +821,13 @@ struct BenchmarkDashboardView: View {
                             .padding(8)
                             .background(Color(.tertiarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = worst.commit
+                                } label: {
+                                    Label("Copy SHA", systemImage: "doc.on.doc")
+                                }
+                            }
                         }
                     }
                 }
