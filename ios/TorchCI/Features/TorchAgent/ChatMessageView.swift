@@ -35,7 +35,8 @@ struct ChatMessageView: View {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     showCopied = true
                                 }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 1_500_000_000)
                                     withAnimation { showCopied = false }
                                 }
                             } label: {

@@ -85,7 +85,8 @@ struct PRDetailView: View {
                         Button {
                             UIPasteboard.general.string = sha
                             withAnimation { copiedSHA = true }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            Task {
+                                try? await Task.sleep(nanoseconds: 2_000_000_000)
                                 withAnimation { copiedSHA = false }
                             }
                         } label: {
