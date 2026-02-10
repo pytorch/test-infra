@@ -42,6 +42,7 @@ struct FilterBar: View {
                 )
 
                 // Quick filter toggles
+                ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     filterChip(
                         label: "Failures Only",
@@ -82,8 +83,7 @@ struct FilterBar: View {
                             viewModel.hideGreenColumns.toggle()
                         }
                     }
-
-                    Spacer()
+                }
                 }
 
                 if hasActiveFilters {
