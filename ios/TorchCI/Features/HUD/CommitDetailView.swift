@@ -129,8 +129,25 @@ struct CommitDetailView: View {
                     .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(authorName)
-                            .font(.subheadline.weight(.semibold))
+                        if let authorUrl = viewModel.commitResponse?.commit.authorUrl,
+                           let url = URL(string: authorUrl) {
+                            Button {
+                                safariURL = url
+                                showingSafari = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(authorName)
+                                        .font(.subheadline.weight(.semibold))
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Text(authorName)
+                                .font(.subheadline.weight(.semibold))
+                        }
                         if let date = viewModel.commitResponse?.commit.date {
                             Text("committed \(date, style: .relative)")
                                 .font(.caption)
