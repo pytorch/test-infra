@@ -427,8 +427,14 @@ final class BenchmarkDashboardViewModel: ObservableObject {
 
     func updateDateRange(start: Date, end: Date) {
         loadTask?.cancel()
-        startDate = start
-        endDate = end
+        // Ensure start <= end
+        if start <= end {
+            startDate = start
+            endDate = end
+        } else {
+            startDate = end
+            endDate = start
+        }
         loadTask = Task { await loadData() }
     }
 

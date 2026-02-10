@@ -909,4 +909,36 @@ final class BenchmarkDashboardViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isCompilerBenchmark,
                         "pytorch_operator_microbenchmark must NOT be a compiler benchmark")
     }
+
+    // MARK: - Date Range Swap
+
+    func testUpdateDateRangeSwapsIfStartAfterEnd() {
+        let earlier = Date(timeIntervalSince1970: 1_000_000)
+        let later = Date(timeIntervalSince1970: 2_000_000)
+
+        // Pass start > end - should be swapped
+        viewModel.updateDateRange(start: later, end: earlier)
+
+        XCTAssertEqual(viewModel.startDate, earlier)
+        XCTAssertEqual(viewModel.endDate, later)
+    }
+
+    func testUpdateDateRangeNormalOrder() {
+        let earlier = Date(timeIntervalSince1970: 1_000_000)
+        let later = Date(timeIntervalSince1970: 2_000_000)
+
+        viewModel.updateDateRange(start: earlier, end: later)
+
+        XCTAssertEqual(viewModel.startDate, earlier)
+        XCTAssertEqual(viewModel.endDate, later)
+    }
+
+    func testUpdateDateRangeSameDate() {
+        let date = Date(timeIntervalSince1970: 1_500_000)
+
+        viewModel.updateDateRange(start: date, end: date)
+
+        XCTAssertEqual(viewModel.startDate, date)
+        XCTAssertEqual(viewModel.endDate, date)
+    }
 }

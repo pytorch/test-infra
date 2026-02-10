@@ -86,7 +86,7 @@ final class CommitDetailViewModel: ObservableObject {
     }
 
     var otherJobs: Int {
-        totalJobs - passedJobs - failedJobs - pendingJobs - skippedJobs - cancelledJobs
+        max(0, totalJobs - passedJobs - failedJobs - pendingJobs - skippedJobs - cancelledJobs)
     }
 
     /// The fraction of completed (non-pending) jobs out of total, for a progress bar.

@@ -517,6 +517,61 @@ final class KPIsViewModelTests: XCTestCase {
         XCTAssertTrue(higherNames.contains("External PRs (monthly)"))
     }
 
+    // MARK: - Trend Edge Cases
+
+    func testTrendWithSingleDataPoint() async {
+        registerAllEmptyResponses()
+        // master_commit_red_percent has filterName: "Total", so include seriesName
+        registerTimeSeriesResponse(name: "master_commit_red_percent", points: [
+            (bucket: "2024-01-01T00:00:00Z", value: 50.0),
+        ], seriesName: "Total")
+
+        await viewModel.loadKPIs()
+
+        let kpi = viewModel.kpis.first { $0.name == "Commits Red on Trunk" }
+        XCTAssertNotNil(kpi)
+        // With 1 point: lookback=max(1,1/6)=1, previousIndex=max(0,0-1)=0
+        // So previous=data[0].value=50, same as current
+        XCTAssertEqual(kpi?.current, 50.0)
+        XCTAssertEqual(kpi?.previous, 50.0)
+    }
+
+    func testTrendWithTwoDataPoints() async {
+        registerAllEmptyResponses()
+        registerTimeSeriesResponse(name: "master_commit_red_percent", points: [
+            (bucket: "2024-01-01T00:00:00Z", value: 10.0),
+            (bucket: "2024-01-08T00:00:00Z", value: 50.0),
+        ], seriesName: "Total")
+
+        await viewModel.loadKPIs()
+
+        let kpi = viewModel.kpis.first { $0.name == "Commits Red on Trunk" }
+        XCTAssertNotNil(kpi)
+        // With 2 points: lookback=max(1,2/6)=1, previousIndex=max(0,1-1)=0
+        XCTAssertEqual(kpi?.current, 50.0)
+        XCTAssertEqual(kpi?.previous, 10.0)
+    }
+
+    func testTrendWithSixDataPoints() async {
+        registerAllEmptyResponses()
+        registerTimeSeriesResponse(name: "master_commit_red_percent", points: [
+            (bucket: "2024-01-01T00:00:00Z", value: 10.0),
+            (bucket: "2024-01-08T00:00:00Z", value: 20.0),
+            (bucket: "2024-01-15T00:00:00Z", value: 30.0),
+            (bucket: "2024-01-22T00:00:00Z", value: 40.0),
+            (bucket: "2024-01-29T00:00:00Z", value: 50.0),
+            (bucket: "2024-02-05T00:00:00Z", value: 60.0),
+        ], seriesName: "Total")
+
+        await viewModel.loadKPIs()
+
+        let kpi = viewModel.kpis.first { $0.name == "Commits Red on Trunk" }
+        XCTAssertNotNil(kpi)
+        // With 6 points: lookback=max(1,6/6)=1, previousIndex=max(0,5-1)=4
+        XCTAssertEqual(kpi?.current, 60.0)
+        XCTAssertEqual(kpi?.previous, 50.0)
+    }
+
     func testUnitsAreSetCorrectly() {
         let definitions = KPIsViewModel.kpiDefinitionTemplates
         let unitMap = Dictionary(uniqueKeysWithValues: definitions.map { ($0.displayName, $0.unit) })

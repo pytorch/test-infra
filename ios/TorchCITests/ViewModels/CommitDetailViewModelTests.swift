@@ -1152,4 +1152,20 @@ final class CommitDetailViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isFiltering)
         XCTAssertEqual(viewModel.visibleJobCount, 2)
     }
+
+    // MARK: - otherJobs Non-Negative
+
+    func testOtherJobsNeverNegative() async {
+        // Job with an unusual conclusion that might be double-counted
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "j1", conclusion: "action_required"),
+        ])
+        setCommitResponse(json)
+
+        await viewModel.loadCommit()
+
+        // "action_required" isn't matched by any specific category
+        // otherJobs should capture it (or at minimum never be negative)
+        XCTAssertGreaterThanOrEqual(viewModel.otherJobs, 0)
+    }
 }

@@ -217,7 +217,7 @@ struct BenchmarkDashboardView: View {
 
     private var dateRangeLabel: String {
         let days = Calendar.current.dateComponents([.day], from: viewModel.startDate, to: viewModel.endDate).day ?? 30
-        return "\(days)d"
+        return "\(max(0, days))d"
     }
 
     private var metricPicker: some View {
