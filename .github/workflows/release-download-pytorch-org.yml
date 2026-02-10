@@ -84,5 +84,11 @@ jobs:
             # Run promotion
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
+
+            # do not upload FA3 test wheels with local date suffix
+            if [[ "${PACKAGE}" == "flash_attn_3" ]]; then
+              export PACKAGE_INCLUDE_SUFFIX="-*"
+            fi
+
             # shellcheck disable=SC2086
             promote_s3 ${PACKAGE} whl "${!version}"
