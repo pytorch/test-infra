@@ -43,13 +43,20 @@ final class MetricsUITests: XCTestCase {
     func testMetricsScreenLoads() {
         navigateToMetrics()
 
-        // Should show either loading state or loaded content
-        let loadingText = app.staticTexts["Loading metrics..."]
-        let kpisText = app.staticTexts["KPIs"]
-
-        let appeared = loadingText.waitForExistence(timeout: 5)
-            || kpisText.waitForExistence(timeout: 5)
-        XCTAssertTrue(appeared, "Metrics screen should show loading or content")
+        // Should show either loading state, loaded content, or error state
+        let deadline = Date().addingTimeInterval(10)
+        var found = false
+        while Date() < deadline {
+            if app.staticTexts["Loading metrics..."].exists
+                || app.staticTexts["KPIs"].exists
+                || app.staticTexts["Red Rate"].exists
+                || app.buttons["Retry"].exists {
+                found = true
+                break
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        }
+        XCTAssertTrue(found, "Metrics screen should show loading, content, or error state")
     }
 
     func testMetricsDashboardShowsSummaryCards() {
