@@ -28,6 +28,9 @@ final class AuthManager: ObservableObject {
     /// Retains the current auth session so it is not deallocated mid-flow.
     private var currentAuthSession: ASWebAuthenticationSession?
 
+    /// OAuth state parameter for CSRF protection.
+    private var oauthState: String?
+
     /// Provides a presentation anchor for ASWebAuthenticationSession.
     private let contextProvider = AuthPresentationContextProvider()
 
@@ -68,12 +71,14 @@ final class AuthManager: ObservableObject {
     }
 
     private func buildAuthURL() -> URL {
+        let state = UUID().uuidString
+        oauthState = state
         var components = URLComponents(string: "https://github.com/login/oauth/authorize")!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientID),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
             URLQueryItem(name: "scope", value: scope),
-            URLQueryItem(name: "state", value: UUID().uuidString),
+            URLQueryItem(name: "state", value: state),
         ]
         return components.url!
     }
@@ -110,6 +115,13 @@ final class AuthManager: ObservableObject {
         else {
             throw APIError.invalidResponse
         }
+        // Validate state parameter to prevent CSRF attacks
+        let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value
+        guard returnedState == oauthState else {
+            oauthState = nil
+            throw APIError.invalidResponse
+        }
+        oauthState = nil
         return code
     }
 
