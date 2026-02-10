@@ -839,4 +839,66 @@ final class PRDetailViewModelTests: XCTestCase {
         XCTAssertTrue(paths.contains("/api/pytorch/pytorch/pull/12345"))
         XCTAssertTrue(paths.contains("/api/pytorch/pytorch/commit/\(sha)"))
     }
+
+    // MARK: - Commit Job Summaries Cache
+
+    func testCommitJobSummaryCachedAfterSelectSha() async {
+        let sha = "aaa1111111111111111111111111111111111111"
+        let jobs = [
+            JobJSON(id: 1, name: "lint", workflowName: "pull", jobName: "lint / job1", conclusion: "success"),
+            JobJSON(id: 2, name: "test", workflowName: "pull", jobName: "test / job2", conclusion: "failure"),
+            JobJSON(id: 3, name: "build", workflowName: "trunk", jobName: "build / job3", conclusion: nil),
+        ]
+        setCommitResponse(makeCommitResponseJSON(sha: sha, jobs: jobs), for: sha)
+
+        await viewModel.selectSha(sha)
+
+        let summary = viewModel.commitJobSummaries[sha]
+        XCTAssertNotNil(summary)
+        XCTAssertEqual(summary?.total, 3)
+        XCTAssertEqual(summary?.passed, 1)
+        XCTAssertEqual(summary?.failed, 1)
+        XCTAssertEqual(summary?.pending, 1)
+    }
+
+    func testCommitJobSummaryNotCachedWhenNoJobs() async {
+        let sha = "aaa1111111111111111111111111111111111111"
+        setCommitResponse(makeCommitResponseJSON(sha: sha, jobs: []), for: sha)
+
+        await viewModel.selectSha(sha)
+
+        XCTAssertNil(viewModel.commitJobSummaries[sha])
+    }
+
+    func testCommitJobSummaryPreservedAcrossSelections() async {
+        let sha1 = "aaa1111111111111111111111111111111111111"
+        let sha2 = "bbb2222222222222222222222222222222222222"
+        let jobs1 = [
+            JobJSON(id: 1, name: "lint", workflowName: "pull", jobName: "lint / job1", conclusion: "success"),
+        ]
+        let jobs2 = [
+            JobJSON(id: 2, name: "test", workflowName: "trunk", jobName: "test / job2", conclusion: "failure"),
+            JobJSON(id: 3, name: "build", workflowName: "trunk", jobName: "build / job3", conclusion: "failure"),
+        ]
+        setCommitResponse(makeCommitResponseJSON(sha: sha1, jobs: jobs1), for: sha1)
+        setCommitResponse(makeCommitResponseJSON(sha: sha2, jobs: jobs2), for: sha2)
+
+        await viewModel.selectSha(sha1)
+        await viewModel.selectSha(sha2)
+
+        // Both summaries should be cached
+        let summary1 = viewModel.commitJobSummaries[sha1]
+        XCTAssertNotNil(summary1)
+        XCTAssertEqual(summary1?.total, 1)
+        XCTAssertEqual(summary1?.passed, 1)
+
+        let summary2 = viewModel.commitJobSummaries[sha2]
+        XCTAssertNotNil(summary2)
+        XCTAssertEqual(summary2?.total, 2)
+        XCTAssertEqual(summary2?.failed, 2)
+    }
+
+    func testCommitJobSummaryInitiallyEmpty() {
+        XCTAssertTrue(viewModel.commitJobSummaries.isEmpty)
+    }
 }
