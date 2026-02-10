@@ -74,7 +74,7 @@ struct ReliabilityView: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(String(format: "%.2f", viewModel.overallReliabilityRate))
+                Text(String(format: "%.1f", viewModel.overallReliabilityRate))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .foregroundStyle(reliabilityColor(viewModel.overallReliabilityRate))
                 Text("%")
@@ -387,7 +387,7 @@ struct ReliabilityView: View {
                         HStack(spacing: 6) {
                             Image(systemName: reliabilityIcon(100 - workflow.failureRate))
                                 .font(.caption2)
-                            Text(String(format: "%.2f%% reliable", 100 - workflow.failureRate))
+                            Text(String(format: "%.1f%% reliable", 100 - workflow.failureRate))
                                 .font(.caption)
                         }
                         .foregroundStyle(reliabilityColor(100 - workflow.failureRate))

@@ -95,7 +95,7 @@ struct ContentView: View {
                 handleDeepLink(link)
             }
         }
-        // iPad keyboard shortcuts: ⌘1-⌘5 for tab switching
+        // iPad keyboard shortcuts: ⌘1-⌘7 for tab switching
         .background {
             Group {
                 Button("") { selectedTab = .hud }
@@ -108,6 +108,10 @@ struct ContentView: View {
                     .keyboardShortcut("4", modifiers: .command)
                 Button("") { selectedTab = .devInfra }
                     .keyboardShortcut("5", modifiers: .command)
+                Button("") { selectedTab = .torchAgent }
+                    .keyboardShortcut("6", modifiers: .command)
+                Button("") { selectedTab = .settings }
+                    .keyboardShortcut("7", modifiers: .command)
             }
             .frame(width: 0, height: 0)
             .opacity(0)

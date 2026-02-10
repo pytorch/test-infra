@@ -53,6 +53,13 @@ struct TestSearchView: View {
             contentView
         }
         .navigationTitle("Test Search")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: TestFileReportView()) {
+                    Label("File Report", systemImage: "doc.text.magnifyingglass")
+                }
+            }
+        }
         .sheet(isPresented: $viewModel.isShowingFilters) {
             filterSheet
         }

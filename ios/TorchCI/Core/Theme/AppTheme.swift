@@ -51,7 +51,7 @@ enum AppColors {
     static let pending = Color(red: 191/255, green: 135/255, blue: 0)
     static let unstable = Color(red: 225/255, green: 111/255, blue: 36/255)
     static let skipped = Color(red: 139/255, green: 148/255, blue: 158/255)
-    static let cancelled = Color(red: 139/255, green: 148/255, blue: 158/255)
+    static let cancelled = Color(red: 170/255, green: 125/255, blue: 60/255)
     static let neutral = Color(red: 106/255, green: 115/255, blue: 125/255)
     static let classified = Color.purple.opacity(0.7)
     static let flaky = Color.green.opacity(0.5)

@@ -378,6 +378,7 @@ struct HUDGridView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(AppColors.success)
+                    .accessibilityLabel("All \(stats.successCount) jobs passed")
             }
         }
     }
@@ -396,6 +397,7 @@ struct HUDGridView: View {
         .padding(.vertical, 2)
         .background(color)
         .clipShape(RoundedRectangle(cornerRadius: 4))
+        .accessibilityLabel("\(count) \(label ?? "pending") jobs")
     }
 
     // MARK: - Timing Badges
@@ -423,6 +425,7 @@ struct HUDGridView: View {
                 .font(.system(size: 8))
         }
         .foregroundStyle(color)
+        .accessibilityLabel(icon == "clock" ? "Duration \(text)" : "Queue time \(text)")
     }
 
     private func formatDuration(_ seconds: Int) -> String {
