@@ -34,6 +34,11 @@ final class CommitDetailViewModel: ObservableObject {
     @Published var expandedWorkflows: Set<String> = []
     @Published var statusFilter: StatusFilter = .all
     @Published var jobSearchText: String = ""
+    @Published var lastRefreshed: Date?
+
+    // MARK: - Auto-Refresh
+    private static let autoRefreshInterval: TimeInterval = 60
+    private var autoRefreshTask: Task<Void, Never>?
 
     // MARK: - Summary Stats
 
@@ -176,6 +181,7 @@ final class CommitDetailViewModel: ObservableObject {
             commitResponse = response
             groupJobs(response.jobs)
             state = .loaded
+            lastRefreshed = Date()
         } catch {
             state = .error(error.localizedDescription)
         }
@@ -190,9 +196,27 @@ final class CommitDetailViewModel: ObservableObject {
             commitResponse = response
             groupJobs(response.jobs)
             state = .loaded
+            lastRefreshed = Date()
         } catch {
             state = .error(error.localizedDescription)
         }
+    }
+
+    func startAutoRefresh() {
+        stopAutoRefresh()
+        autoRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.autoRefreshInterval))
+                guard !Task.isCancelled else { break }
+                guard let self, self.state == .loaded else { continue }
+                await self.refresh()
+            }
+        }
+    }
+
+    func stopAutoRefresh() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = nil
     }
 
     // MARK: - Grouping

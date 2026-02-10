@@ -33,6 +33,11 @@ struct HUDView: View {
 
                 if let lastRefreshed = viewModel.lastRefreshed {
                     HStack {
+                        if viewModel.isAutoRefreshEnabled {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         Text("Updated \(lastRefreshed, formatter: Self.relativeFormatter)")
                             .font(.caption)

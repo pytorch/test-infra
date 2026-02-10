@@ -35,6 +35,8 @@ struct CommitDetailView: View {
         .navigationTitle("Commit")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.loadCommit() }
+        .onAppear { viewModel.startAutoRefresh() }
+        .onDisappear { viewModel.stopAutoRefresh() }
         .sheet(isPresented: $showingSafari) {
             if let url = safariURL {
                 SafariView(url: url)
