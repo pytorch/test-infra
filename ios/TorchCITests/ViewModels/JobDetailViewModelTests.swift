@@ -558,4 +558,105 @@ final class JobDetailViewModelTests: XCTestCase {
         vm.copyLink()
         XCTAssertFalse(vm.copiedLink)
     }
+
+    // MARK: - Copy Failure Summary
+
+    func testCopyFailureSummarySetsCopiedFlag() {
+        let vm = makeViewModel(job: makeJob(conclusion: "failure", failureCaptures: ["Error: test"]))
+        XCTAssertFalse(vm.copiedFailure)
+
+        vm.copyFailureSummary()
+
+        XCTAssertTrue(vm.copiedFailure)
+    }
+
+    func testCopyFailureSummaryIncludesJobName() {
+        let vm = makeViewModel(job: makeJob(jobName: "linux-build", conclusion: "failure"))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Job: linux-build"))
+    }
+
+    func testCopyFailureSummaryIncludesConclusion() {
+        let vm = makeViewModel(job: makeJob(conclusion: "failure"))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Status: failure"))
+    }
+
+    func testCopyFailureSummaryIncludesUrl() {
+        let vm = makeViewModel(job: makeJob(htmlUrl: "https://github.com/test"))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Link: https://github.com/test"))
+    }
+
+    func testCopyFailureSummaryIncludesCaptures() {
+        let vm = makeViewModel(job: makeJob(
+            failureCaptures: ["RuntimeError: boom", "AssertionError: nope"]
+        ))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Failures:"))
+        XCTAssertTrue(copied.contains("  - RuntimeError: boom"))
+        XCTAssertTrue(copied.contains("  - AssertionError: nope"))
+    }
+
+    func testCopyFailureSummaryIncludesFailureLines() {
+        let vm = makeViewModel(job: makeJob(
+            failureLines: ["FAIL: test_foo", "Expected True got False"],
+            failureCaptures: nil
+        ))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Failure lines:"))
+        XCTAssertTrue(copied.contains("  FAIL: test_foo"))
+    }
+
+    func testCopyFailureSummaryTruncatesLongFailureLines() {
+        let lines = (0..<15).map { "Line \($0)" }
+        let vm = makeViewModel(job: makeJob(
+            failureLines: lines,
+            failureCaptures: nil
+        ))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("... (5 more lines)"))
+        // Should only include first 10 lines
+        XCTAssertTrue(copied.contains("Line 9"))
+        XCTAssertFalse(copied.contains("  Line 10"))
+    }
+
+    func testCopyFailureSummaryPrefersCaptures() {
+        let vm = makeViewModel(job: makeJob(
+            failureLines: ["Should not appear"],
+            failureCaptures: ["RuntimeError"]
+        ))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Failures:"))
+        XCTAssertTrue(copied.contains("RuntimeError"))
+        XCTAssertFalse(copied.contains("Should not appear"))
+    }
+
+    func testCopyFailureSummaryNoFailureInfoStillCopies() {
+        let vm = makeViewModel(job: makeJob(
+            conclusion: "success",
+            failureLines: nil,
+            failureCaptures: nil
+        ))
+        vm.copyFailureSummary()
+
+        let copied = UIPasteboard.general.string ?? ""
+        XCTAssertTrue(copied.contains("Job:"))
+        XCTAssertFalse(copied.contains("Failures:"))
+        XCTAssertFalse(copied.contains("Failure lines:"))
+    }
 }
