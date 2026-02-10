@@ -19,6 +19,7 @@ on:
           - torchao
           - torchvision
           - torchaudio
+          - torchcodec
           - executorch
 
 permissions:
@@ -104,4 +105,17 @@ jobs:
               PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging executorch "${!version}"
               # shellcheck disable=SC2086
               PLATFORM="win_amd64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging executorch "${!version}"
+            fi
+
+            if [[ ${PACKAGE} == 'torchcodec' ]]; then
+              # shellcheck disable=SC2086
+              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX=""                                          upload_pypi_to_staging ${PACKAGE} "${!version}"
+              # shellcheck disable=SC2086
+              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
+              # shellcheck disable=SC2086
+              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
+              # shellcheck disable=SC2086
+              PLATFORM="${MACOS_ARM64}"          VERSION_SUFFIX=""                                          upload_pypi_to_staging ${PACKAGE} "${!version}"
+              # shellcheck disable=SC2086
+              PLATFORM="win_amd64"              VERSION_SUFFIX=""                                          upload_pypi_to_staging ${PACKAGE} "${!version}"
             fi
