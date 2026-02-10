@@ -66,6 +66,11 @@ struct BenchmarkChart: View {
         guard let minVal = values.min(), let maxVal = values.max() else {
             return 0...1
         }
+        if minVal == maxVal {
+            // Single value or all identical: use ±10% or ±1 for zero
+            let offset = max(abs(minVal) * 0.1, 1.0)
+            return (minVal - offset)...(maxVal + offset)
+        }
         let padding = (maxVal - minVal) * 0.1
         return (minVal - padding)...(maxVal + padding)
     }

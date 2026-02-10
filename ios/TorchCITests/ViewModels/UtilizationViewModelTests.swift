@@ -249,6 +249,29 @@ final class UtilizationViewModelTests: XCTestCase {
         XCTAssertEqual(result.text, "Low")
     }
 
+    func testUtilizationLevelBoundaryAt40() {
+        // Exactly 40% should be medium, not low
+        let result = sut.utilizationLevel(cpu: 40.0, memory: 40.0)
+        XCTAssertEqual(result.text, "Medium")
+    }
+
+    func testUtilizationLevelBoundaryAt70() {
+        // Exactly 70% for both should be high
+        let result = sut.utilizationLevel(cpu: 70.0, memory: 70.0)
+        XCTAssertEqual(result.text, "High")
+    }
+
+    func testUtilizationLevelHighCPULowMemory() {
+        // High CPU but low memory should be medium
+        let result = sut.utilizationLevel(cpu: 90.0, memory: 20.0)
+        XCTAssertNotEqual(result.text, "High", "Need both CPU and memory high for High level")
+    }
+
+    func testUtilizationLevelJustBelow40() {
+        let result = sut.utilizationLevel(cpu: 39.9, memory: 39.9)
+        XCTAssertEqual(result.text, "Low")
+    }
+
     // MARK: - Group By
 
     func testSelectGroupByChangesAndClearsReports() async {

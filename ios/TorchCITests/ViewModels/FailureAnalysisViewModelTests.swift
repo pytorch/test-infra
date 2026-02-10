@@ -513,4 +513,126 @@ final class FailureAnalysisViewModelTests: XCTestCase {
     func testSelectedJobStartsNil() {
         XCTAssertNil(viewModel.selectedJob)
     }
+
+    // MARK: - Histogram Branch Categorization
+
+    func testHistogramCategorizesMainBranchSeparately() async {
+        let today = ISO8601DateFormatter().string(from: Date())
+        setupSearchResponse(jobs: [
+            (jobName: "build", conclusion: "failure", time: today),
+            (jobName: "test", conclusion: "failure", time: today),
+        ])
+        // Override with samples that include branch info (head_branch is the JSON key)
+        let samplesJSON = """
+        {
+            "totalCount": 3,
+            "jobCount": {"build": 2, "test": 1},
+            "samples": [
+                {"id": 1, "name": "build", "jobName": "build", "conclusion": "failure",
+                 "time": "\(today)", "head_branch": "main", "durationS": 100,
+                 "status": "completed", "unstable": false},
+                {"id": 2, "name": "build", "jobName": "build", "conclusion": "failure",
+                 "time": "\(today)", "head_branch": "feature-x", "durationS": 100,
+                 "status": "completed", "unstable": false},
+                {"id": 3, "name": "test", "jobName": "test", "conclusion": "failure",
+                 "time": "\(today)", "head_branch": "master", "durationS": 100,
+                 "status": "completed", "unstable": false}
+            ]
+        }
+        """
+        mockClient.setResponse(samplesJSON, for: "/api/failure")
+        await viewModel.fetchSimilarFailures(name: "test")
+
+        let mainCount = viewModel.mainBranchFailureCount
+        XCTAssertEqual(mainCount, 2, "main + master branches should both count as 'main'")
+    }
+
+    // MARK: - Average Failures Per Day
+
+    func testAverageFailuresPerDayWithData() async {
+        let formatter = ISO8601DateFormatter()
+        let today = formatter.string(from: Date())
+        let yesterday = formatter.string(from: Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+        setupSearchResponse(jobs: [
+            (jobName: "build", conclusion: "failure", time: today),
+            (jobName: "build", conclusion: "failure", time: today),
+            (jobName: "build", conclusion: "failure", time: yesterday),
+        ])
+        viewModel.searchQuery = "test"
+        await viewModel.search()
+
+        let avg = viewModel.averageFailuresPerDay
+        XCTAssertNotNil(avg)
+        // 3 failures over 2 days = 1.5 avg
+        XCTAssertEqual(avg, "1.5")
+    }
+
+    func testAverageFailuresPerDayWholeNumber() async {
+        let formatter = ISO8601DateFormatter()
+        let today = formatter.string(from: Date())
+        setupSearchResponse(jobs: [
+            (jobName: "build", conclusion: "failure", time: today),
+            (jobName: "build", conclusion: "failure", time: today),
+        ])
+        viewModel.searchQuery = "test"
+        await viewModel.search()
+
+        let avg = viewModel.averageFailuresPerDay
+        XCTAssertNotNil(avg)
+        // 2 failures over 1 day = 2 avg (whole number, no decimal)
+        XCTAssertEqual(avg, "2")
+    }
+
+    // MARK: - Similar Failures Error
+
+    func testSimilarFailuresErrorMessage() async {
+        mockClient.setError(APIError.serverError(500), for: "/api/failure")
+        await viewModel.fetchSimilarFailures(name: "test")
+
+        XCTAssertNotNil(viewModel.similarFailuresError)
+        XCTAssertTrue(viewModel.similarFailuresError?.contains("Could not load") ?? false)
+    }
+
+    func testSimilarFailuresErrorClearedOnSuccess() async {
+        // First: fail
+        mockClient.setError(APIError.serverError(500), for: "/api/failure")
+        await viewModel.fetchSimilarFailures(name: "test")
+        XCTAssertNotNil(viewModel.similarFailuresError)
+
+        // Then: succeed
+        mockClient.clearError(for: "/api/failure")
+        let similarJSON = makeSimilarFailuresJSON(
+            totalCount: 5,
+            jobCount: ["a": 5],
+            sampleJobs: [(jobName: "a", conclusion: "failure", time: nil)]
+        )
+        mockClient.setResponse(similarJSON, for: "/api/failure")
+        await viewModel.fetchSimilarFailures(name: "test")
+
+        XCTAssertNil(viewModel.similarFailuresError)
+        XCTAssertNotNil(viewModel.similarFailuresResult)
+    }
+
+    func testIsSimilarLoadingDuringFetch() {
+        XCTAssertFalse(viewModel.isSimilarLoading)
+    }
+
+    // MARK: - Custom Date Range
+
+    func testCustomDateRangeAffectsHistogramBuckets() {
+        let calendar = Calendar.current
+        viewModel.startDate = calendar.date(byAdding: .day, value: -3, to: Date())!
+        viewModel.endDate = Date()
+
+        let data = viewModel.histogramData
+        XCTAssertEqual(data.count, 4, "3 days ago to today = 4 day buckets")
+    }
+
+    func testSingleDayRangeReturns1Bucket() {
+        viewModel.startDate = Calendar.current.startOfDay(for: Date())
+        viewModel.endDate = Date()
+
+        let data = viewModel.histogramData
+        XCTAssertEqual(data.count, 1, "Same day range = 1 bucket")
+    }
 }
