@@ -96,10 +96,12 @@ struct HUDStatusProvider: AppIntentTimelineProvider {
     private func convertToWidgetCommits(_ rows: [WidgetHUDRow], maxCommits: Int) -> [WidgetCommit] {
         let limitedRows = Array(rows.prefix(maxCommits))
         return limitedRows.map { row in
-            let passCount = row.jobs.filter { $0.conclusion == "success" }.count
-            let failCount = row.jobs.filter { $0.conclusion == "failure" && $0.unstable != true }.count
-            let pendingCount = row.jobs.filter { $0.conclusion == nil || $0.conclusion == "pending" }.count
-            let totalJobs = row.jobs.count
+            // Only count real jobs (those with an id), matching main app behavior
+            let realJobs = row.jobs.filter { $0.id != nil }
+            let passCount = realJobs.filter { $0.conclusion == "success" }.count
+            let failCount = realJobs.filter { $0.conclusion == "failure" && $0.unstable != true }.count
+            let pendingCount = realJobs.filter { $0.conclusion == nil || $0.conclusion == "pending" }.count
+            let totalJobs = realJobs.count
 
             let overallStatus: WidgetCommit.CommitStatus
             if totalJobs == 0 {
@@ -171,6 +173,11 @@ private struct WidgetHUDRow: Decodable {
     let time: String?
     let jobs: [WidgetHUDJob]
     let isForcedMerge: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case sha, commitTitle, commitMessageBody, author, authorUrl, time, jobs, isForcedMerge
+        case prNumber = "prNum"
+    }
 }
 
 private struct WidgetHUDJob: Decodable {
