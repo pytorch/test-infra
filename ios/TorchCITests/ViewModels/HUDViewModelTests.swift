@@ -661,6 +661,7 @@ final class HUDViewModelTests: XCTestCase {
         viewModel.hideUnstable = true
         viewModel.showFailuresOnly = true
         viewModel.showBlockingOnly = true
+        viewModel.showNewFailuresOnly = true
         viewModel.hideGreenColumns = true
 
         viewModel.clearFilter()
@@ -669,6 +670,7 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.hideUnstable)
         XCTAssertFalse(viewModel.showFailuresOnly)
         XCTAssertFalse(viewModel.showBlockingOnly)
+        XCTAssertFalse(viewModel.showNewFailuresOnly)
         XCTAssertFalse(viewModel.hideGreenColumns)
         XCTAssertEqual(viewModel.filteredJobNames.count, 3)
     }

@@ -33,6 +33,7 @@ final class HUDViewModel: ObservableObject {
     @Published var hideUnstable: Bool = false
     @Published var showFailuresOnly: Bool = false
     @Published var showBlockingOnly: Bool = false
+    @Published var showNewFailuresOnly: Bool = false
     @Published var hideGreenColumns: Bool = false
     @Published var consecutiveFailures: Int = 0
     @Published var failurePatterns: [String] = []
@@ -117,6 +118,19 @@ final class HUDViewModel: ObservableObject {
             return indices
         }() : nil
 
+        // Build set of job indices that have at least one NEW failure (not repeat) across rows
+        let newFailureIndices: Set<Int>? = showNewFailuresOnly ? {
+            var indices = Set<Int>()
+            for row in rows {
+                for (idx, job) in row.jobs.enumerated() {
+                    if job.isNewFailure {
+                        indices.insert(idx)
+                    }
+                }
+            }
+            return indices
+        }() : nil
+
         // Build set of job indices that are all-green (success in every non-empty row)
         let allGreenIndices: Set<Int>? = hideGreenColumns ? {
             var indices = Set<Int>()
@@ -159,6 +173,11 @@ final class HUDViewModel: ObservableObject {
 
             // Failures-only filter: skip jobs that have no failures in current data
             if let failureIndices, !failureIndices.contains(index) {
+                return nil
+            }
+
+            // New failures only: skip jobs that have no new failures
+            if let newFailureIndices, !newFailureIndices.contains(index) {
                 return nil
             }
 
@@ -395,6 +414,7 @@ final class HUDViewModel: ObservableObject {
         hideUnstable = false
         showFailuresOnly = false
         showBlockingOnly = false
+        showNewFailuresOnly = false
         hideGreenColumns = false
     }
 
