@@ -142,8 +142,8 @@ final class TestFileReportViewModel: ObservableObject {
     }
 
     func onDateRangeChanged() {
-        Task {
-            await loadData()
+        Task { [weak self] in
+            await self?.loadData()
         }
     }
 

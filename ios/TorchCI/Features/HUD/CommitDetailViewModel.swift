@@ -261,11 +261,6 @@ final class CommitDetailViewModel: ObservableObject {
         }
     }
 
-    func resetFilters() {
-        statusFilter = .all
-        jobSearchText = ""
-        sortOption = .status
-    }
 
     // MARK: - Grouping
 
