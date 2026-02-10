@@ -2,6 +2,12 @@ import Foundation
 
 @MainActor
 final class TestInfoViewModel: ObservableObject {
+    nonisolated(unsafe) private static let trendFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
+        return f
+    }()
+
     // MARK: - State
 
     enum ViewState: Equatable {
@@ -167,11 +173,8 @@ final class TestInfoViewModel: ObservableObject {
     }
 
     func parseTrendPoints(_ response: [Test3dStatsResponse]) -> [TestTrendPoint] {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
-
         return response.compactMap { item in
-            guard let date = formatter.date(from: item.hour) else { return nil }
+            guard let date = Self.trendFormatter.date(from: item.hour) else { return nil }
             return TestTrendPoint(hour: date, conclusions: item.conclusions)
         }.sorted { $0.hour < $1.hour }
     }

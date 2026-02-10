@@ -3,6 +3,19 @@ import Combine
 
 @MainActor
 final class TestSearchViewModel: ObservableObject {
+    nonisolated(unsafe) private static let isoFormatterFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let simpleDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     // MARK: - State
 
     enum ViewState: Equatable {
@@ -405,22 +418,9 @@ final class TestSearchViewModel: ObservableObject {
 
     /// Format an ISO 8601 date string into a relative time like "2h ago"
     static func formatRelativeTime(_ dateString: String) -> String? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        var date = formatter.date(from: dateString)
-        if date == nil {
-            // Try without fractional seconds
-            formatter.formatOptions = [.withInternetDateTime]
-            date = formatter.date(from: dateString)
-        }
-        if date == nil {
-            // Try simple date format
-            let df = DateFormatter()
-            df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-            df.timeZone = TimeZone(identifier: "UTC")
-            date = df.date(from: dateString)
-        }
+        let date = isoFormatterFractional.date(from: dateString)
+            ?? isoFormatter.date(from: dateString)
+            ?? simpleDateFormatter.date(from: dateString)
 
         guard let parsedDate = date else { return nil }
 

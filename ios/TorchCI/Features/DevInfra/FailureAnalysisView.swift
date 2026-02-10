@@ -537,6 +537,8 @@ private struct FailureResultRow: View {
 // MARK: - Failure Detail Sheet
 
 private struct FailureDetailSheet: View {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     let job: JobData
     @Environment(\.dismiss) private var dismiss
     @State private var expandedLogs: Bool = false
@@ -827,9 +829,8 @@ private struct FailureDetailSheet: View {
     }
 
     private func calculateStepDuration(started: String, completed: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let startDate = formatter.date(from: started),
-              let endDate = formatter.date(from: completed) else {
+        guard let startDate = Self.isoFormatter.date(from: started),
+              let endDate = Self.isoFormatter.date(from: completed) else {
             return "Unknown"
         }
         let duration = Int(endDate.timeIntervalSince(startDate))

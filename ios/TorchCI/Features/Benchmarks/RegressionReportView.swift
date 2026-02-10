@@ -648,6 +648,13 @@ enum RegressionSortOrder {
 
 @MainActor
 final class RegressionReportViewModel: ObservableObject {
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFallback = ISO8601DateFormatter()
+
     enum ViewState: Equatable {
         case idle
         case loading
@@ -760,11 +767,7 @@ final class RegressionReportViewModel: ObservableObject {
     }
 
     func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-
-        guard let date = formatter.date(from: dateString) ?? fallback.date(from: dateString) else {
+        guard let date = Self.isoFormatter.date(from: dateString) ?? Self.isoFallback.date(from: dateString) else {
             return dateString
         }
 
