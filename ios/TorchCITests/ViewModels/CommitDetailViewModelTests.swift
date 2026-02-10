@@ -742,12 +742,9 @@ final class CommitDetailViewModelTests: XCTestCase {
 
         await viewModel.refresh()
 
-        // Refresh sets error state on failure
-        if case .error = viewModel.state {
-            // expected
-        } else {
-            XCTFail("Expected error state after failed refresh")
-        }
+        // When data is already loaded, refresh errors should preserve existing data
+        XCTAssertEqual(viewModel.state, .loaded, "Refresh should preserve loaded state when data exists")
+        XCTAssertNotNil(viewModel.commitResponse, "Existing data should be preserved after failed refresh")
     }
 
     // MARK: - API Calls

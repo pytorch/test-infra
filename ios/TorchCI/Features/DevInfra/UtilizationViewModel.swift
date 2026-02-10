@@ -173,7 +173,9 @@ final class UtilizationViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             let dateRange = resolvedDateRange
             let endpoint = Self.utilizationEndpoint(

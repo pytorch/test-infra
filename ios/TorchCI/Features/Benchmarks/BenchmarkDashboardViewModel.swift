@@ -295,7 +295,9 @@ final class BenchmarkDashboardViewModel: ObservableObject {
 
     func loadData() async {
         guard !Task.isCancelled else { return }
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         partialLoadError = nil
 
         let config = Self.benchmarkConfig[benchmark.id]

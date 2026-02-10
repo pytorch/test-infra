@@ -306,7 +306,9 @@ final class FailedJobsViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             // Format dates as ISO 8601 with milliseconds
             let formatter = DateFormatter()

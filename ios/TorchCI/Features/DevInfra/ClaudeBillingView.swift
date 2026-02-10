@@ -513,7 +513,9 @@ final class ClaudeBillingViewModel: ObservableObject {
     }
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             let days = daysForRange(selectedTimeRange)
             let range = APIEndpoint.timeRange(days: days)

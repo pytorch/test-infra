@@ -290,7 +290,9 @@ final class HUDViewModel: ObservableObject {
 
     func loadData() async {
         guard !Task.isCancelled else { return }
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         currentPage = 1
         hasMorePages = true
         loadMoreError = nil

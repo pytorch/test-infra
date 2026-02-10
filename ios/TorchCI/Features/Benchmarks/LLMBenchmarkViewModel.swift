@@ -208,7 +208,9 @@ final class LLMBenchmarkViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
 
         let config = Self.benchmarkConfig[benchmarkId]
         let repo = config?.repo ?? "pytorch/pytorch"

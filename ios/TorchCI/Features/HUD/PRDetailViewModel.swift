@@ -242,7 +242,10 @@ final class PRDetailViewModel: ObservableObject {
 
             state = .loaded
         } catch {
-            state = .error(error.localizedDescription)
+            // Only show error if we don't already have data
+            if prResponse == nil {
+                state = .error(error.localizedDescription)
+            }
         }
     }
 

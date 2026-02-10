@@ -690,7 +690,9 @@ struct CompilerRegressionView: View {
     }
 
     private func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             let result: RegressionReportListResponse = try await apiClient.fetch(
                 APIEndpoint.regressionReports(reportId: "compiler_precompute")

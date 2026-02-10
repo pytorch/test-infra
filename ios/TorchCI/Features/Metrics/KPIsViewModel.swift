@@ -217,7 +217,9 @@ final class KPIsViewModel: ObservableObject {
     // MARK: - Data Loading
 
     func loadKPIs() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
 
         let range = APIEndpoint.timeRange(days: selectedTimeRange.days)
         let definitions = Self.kpiDefinitionTemplates

@@ -81,13 +81,14 @@ struct MetricsDashboardView: View {
             Spacer()
 
             if let lastUpdated = viewModel.lastUpdated {
+                let isStale = Date().timeIntervalSince(lastUpdated) > 86400
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("Updated")
+                    Text(isStale ? "Stale" : "Updated")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(isStale ? AppColors.pending : Color.secondary)
                     Text(lastUpdated, style: .relative)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isStale ? AppColors.pending : Color.secondary)
                 }
             }
         }

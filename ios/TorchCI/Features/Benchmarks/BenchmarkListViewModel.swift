@@ -202,7 +202,9 @@ final class BenchmarkListViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadBenchmarks() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         categories = Self.benchmarkCategories
         state = .loaded
     }

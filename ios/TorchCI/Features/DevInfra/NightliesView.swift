@@ -779,7 +779,9 @@ final class NightliesViewModel: ObservableObject {
     // MARK: - Data Loading
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
 
         let client = apiClient
         let range = APIEndpoint.timeRange(days: selectedTimeRange.days)

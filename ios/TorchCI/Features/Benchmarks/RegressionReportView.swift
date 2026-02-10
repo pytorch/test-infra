@@ -725,7 +725,9 @@ final class RegressionReportViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadReport(id: String) async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             let result: RegressionReport = try await apiClient.fetch(
                 APIEndpoint.regressionReport(id: id)

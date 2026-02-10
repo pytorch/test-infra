@@ -721,7 +721,9 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
 
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"

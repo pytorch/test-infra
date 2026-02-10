@@ -164,7 +164,9 @@ final class RunnersViewModel: ObservableObject {
     // MARK: - Actions
 
     func loadData() async {
-        state = .loading
+        if state != .loaded {
+            state = .loading
+        }
         do {
             let endpoint = APIEndpoint.runners(org: selectedOrg)
             let result: RunnersResponse = try await apiClient.fetch(endpoint)

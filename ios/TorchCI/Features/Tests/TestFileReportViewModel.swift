@@ -99,7 +99,9 @@ final class TestFileReportViewModel: ObservableObject {
         let task = Task { [weak self] in
             guard let self else { return }
 
-            self.state = .loading
+            if self.state != .loaded {
+                self.state = .loading
+            }
 
             do {
                 try await self.fetchFileReport()

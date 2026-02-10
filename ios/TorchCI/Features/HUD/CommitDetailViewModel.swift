@@ -227,7 +227,10 @@ final class CommitDetailViewModel: ObservableObject {
             state = .loaded
             lastRefreshed = Date()
         } catch {
-            state = .error(error.localizedDescription)
+            // Only show error if we don't already have data
+            if commitResponse == nil {
+                state = .error(error.localizedDescription)
+            }
         }
     }
 
