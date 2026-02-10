@@ -8,6 +8,12 @@ struct HUDStatusProvider: AppIntentTimelineProvider {
     typealias Intent = HUDWidgetIntent
 
     private static let baseURL = URL(string: "https://hud.pytorch.org")!
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
 
     func placeholder(in context: Context) -> HUDStatusEntry {
         HUDStatusEntry.placeholder
@@ -145,10 +151,8 @@ struct HUDStatusProvider: AppIntentTimelineProvider {
 
     private func formatRelativeTime(_ isoString: String?) -> String {
         guard let isoString, !isoString.isEmpty else { return "--" }
-        guard let date = ISO8601DateFormatter().date(from: isoString) else { return isoString }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: .now)
+        guard let date = Self.isoFormatter.date(from: isoString) else { return isoString }
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: .now)
     }
 
     private func maxCommits(for family: WidgetFamily) -> Int {

@@ -30,12 +30,17 @@ struct TorchAgentSession: Decodable, Identifiable {
 
     var id: String { sessionId }
 
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+
     var displayDate: String {
         guard let createdAt else { return "" }
-        if let date = ISO8601DateFormatter().date(from: createdAt) {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .short
-            return formatter.localizedString(for: date, relativeTo: Date())
+        if let date = Self.isoFormatter.date(from: createdAt) {
+            return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
         }
         return createdAt
     }

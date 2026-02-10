@@ -12,6 +12,18 @@ enum WidgetColors {
     static let skipped = Color(red: 139 / 255, green: 148 / 255, blue: 158 / 255)
 }
 
+// MARK: - URL Helpers
+
+private func hudDeepLinkURL(owner: String, name: String, branch: String) -> URL {
+    let encoded = [owner, name, branch]
+        .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? $0 }
+    return URL(string: "torchci://hud/\(encoded[0])/\(encoded[1])/\(encoded[2])") ?? URL(string: "torchci://hud")!
+}
+
+private func commitDeepLinkURL(sha: String) -> URL {
+    URL(string: "torchci://commit/\(sha)") ?? URL(string: "torchci://hud")!
+}
+
 // MARK: - Small Widget View
 
 struct SmallWidgetView: View {
@@ -22,7 +34,7 @@ struct SmallWidgetView: View {
     }
 
     private var hudURL: URL {
-        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+        hudDeepLinkURL(owner: entry.configuration.repoOwner, name: entry.configuration.repoName, branch: entry.configuration.branchName)
     }
 
     var body: some View {
@@ -172,7 +184,7 @@ struct MediumWidgetView: View {
     }
 
     private var hudURL: URL {
-        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+        hudDeepLinkURL(owner: entry.configuration.repoOwner, name: entry.configuration.repoName, branch: entry.configuration.branchName)
     }
 
     var body: some View {
@@ -183,7 +195,7 @@ struct MediumWidgetView: View {
                         .padding(.bottom, 8)
 
                     ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
-                        Link(destination: URL(string: "torchci://commit/\(commit.sha)")!) {
+                        Link(destination: commitDeepLinkURL(sha: commit.sha)) {
                             commitRow(commit)
                         }
                         if index < commits.count - 1 {
@@ -372,7 +384,7 @@ struct LargeWidgetView: View {
     }
 
     private var hudURL: URL {
-        URL(string: "torchci://hud/\(entry.configuration.repoOwner)/\(entry.configuration.repoName)/\(entry.configuration.branchName)")!
+        hudDeepLinkURL(owner: entry.configuration.repoOwner, name: entry.configuration.repoName, branch: entry.configuration.branchName)
     }
 
     var body: some View {
@@ -386,7 +398,7 @@ struct LargeWidgetView: View {
                         .padding(.bottom, 10)
 
                     ForEach(Array(commits.enumerated()), id: \.element.id) { index, commit in
-                        Link(destination: URL(string: "torchci://commit/\(commit.sha)")!) {
+                        Link(destination: commitDeepLinkURL(sha: commit.sha)) {
                             largeCommitRow(commit)
                         }
                         if index < commits.count - 1 {
