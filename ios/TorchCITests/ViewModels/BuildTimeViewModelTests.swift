@@ -21,25 +21,425 @@ final class BuildTimeViewModelTests: XCTestCase {
         super.tearDown()
     }
 
-    // MARK: - Initial State
+    // MARK: - 1. Initial State (default time range, empty data)
 
-    func testInitialState() {
+    func testInitialStateIsLoading() {
         XCTAssertEqual(sut.state, .loading)
+    }
+
+    func testInitialDefaultTimeRange() {
+        XCTAssertEqual(sut.selectedTimeRange, "14d")
+    }
+
+    func testInitialDefaultGranularity() {
+        XCTAssertEqual(sut.granularity, .day)
+    }
+
+    func testInitialEmptyDurationSeries() {
         XCTAssertTrue(sut.durationSeries.isEmpty)
+    }
+
+    func testInitialEmptyPercentileSeries() {
         XCTAssertTrue(sut.p50Series.isEmpty)
         XCTAssertTrue(sut.p75Series.isEmpty)
         XCTAssertTrue(sut.p90Series.isEmpty)
+    }
+
+    func testInitialEmptySlowestWorkflows() {
         XCTAssertTrue(sut.slowestWorkflows.isEmpty)
+    }
+
+    func testInitialEmptyBuildSteps() {
         XCTAssertTrue(sut.buildSteps.isEmpty)
+    }
+
+    func testInitialEmptyRegressions() {
         XCTAssertTrue(sut.regressions.isEmpty)
+    }
+
+    func testInitialNilSummaries() {
         XCTAssertNil(sut.avgDurationMinutes)
         XCTAssertNil(sut.p90DurationMinutes)
         XCTAssertEqual(sut.totalBuildCount, 0)
     }
 
-    // MARK: - Load Data
+    func testInitialEmptyJobNames() {
+        XCTAssertTrue(sut.allJobNames.isEmpty)
+        XCTAssertTrue(sut.selectedJobs.isEmpty)
+        XCTAssertEqual(sut.selectedJobCount, 0)
+    }
 
-    func testLoadDataSuccess() async {
+    func testInitialSelectedRangeIs14Days() {
+        XCTAssertEqual(sut.selectedRange?.days, 14)
+        XCTAssertEqual(sut.selectedRange?.label, "2 Weeks")
+    }
+
+    func testInitialTrendDescriptionIsDash() {
+        XCTAssertEqual(sut.trendDescription, "--")
+    }
+
+    func testInitialIsImprovingDefaultsToTrue() {
+        // With fewer than 2 data points, isImproving returns true
+        XCTAssertTrue(sut.isImproving)
+    }
+
+    // MARK: - 2. Time Range Selection
+
+    func testTimeRangeSelectionTo7Days() {
+        sut.selectedTimeRange = "7d"
+        XCTAssertEqual(sut.selectedTimeRange, "7d")
+        XCTAssertEqual(sut.selectedRange?.days, 7)
+        XCTAssertEqual(sut.selectedRange?.label, "1 Week")
+    }
+
+    func testTimeRangeSelectionTo30Days() {
+        sut.selectedTimeRange = "30d"
+        XCTAssertEqual(sut.selectedRange?.days, 30)
+        XCTAssertEqual(sut.selectedRange?.label, "1 Month")
+    }
+
+    func testTimeRangeSelectionTo90Days() {
+        sut.selectedTimeRange = "90d"
+        XCTAssertEqual(sut.selectedRange?.days, 90)
+        XCTAssertEqual(sut.selectedRange?.label, "3 Months")
+    }
+
+    func testTimeRangeSelectionTo1Day() {
+        sut.selectedTimeRange = "1d"
+        XCTAssertEqual(sut.selectedRange?.days, 1)
+    }
+
+    func testTimeRangeSelectionTo180Days() {
+        sut.selectedTimeRange = "180d"
+        XCTAssertEqual(sut.selectedRange?.days, 180)
+    }
+
+    func testInvalidTimeRangeReturnsNil() {
+        sut.selectedTimeRange = "nonexistent"
+        XCTAssertNil(sut.selectedRange)
+    }
+
+    func testTimeRangeChangeTriggersRefetch() async {
+        registerBothEmptyResponses()
+        sut.selectedTimeRange = "30d"
+        await sut.onParametersChanged()
+
+        XCTAssertGreaterThan(mockClient.callCount, 0)
+    }
+
+    func testTimeRangeChangeBackTo14d() {
+        sut.selectedTimeRange = "7d"
+        XCTAssertEqual(sut.selectedRange?.days, 7)
+
+        sut.selectedTimeRange = "14d"
+        XCTAssertEqual(sut.selectedRange?.days, 14)
+    }
+
+    // MARK: - 3. Job Selection / Deselection Toggle
+
+    func testToggleJobSelectionRemovesJob() {
+        sut.selectedJobs = Set(["job-a", "job-b"])
+
+        sut.toggleJobSelection("job-a")
+
+        XCTAssertFalse(sut.isJobSelected("job-a"))
+        XCTAssertTrue(sut.isJobSelected("job-b"))
+    }
+
+    func testToggleJobSelectionAddsJob() {
+        sut.selectedJobs = Set(["job-b"])
+
+        sut.toggleJobSelection("job-a")
+
+        XCTAssertTrue(sut.isJobSelected("job-a"))
+        XCTAssertTrue(sut.isJobSelected("job-b"))
+    }
+
+    func testToggleJobSelectionRoundTrip() {
+        sut.selectedJobs = Set(["job-a", "job-b"])
+
+        sut.toggleJobSelection("job-a")
+        XCTAssertFalse(sut.isJobSelected("job-a"))
+
+        sut.toggleJobSelection("job-a")
+        XCTAssertTrue(sut.isJobSelected("job-a"))
+    }
+
+    func testIsJobSelectedReturnsFalseForUnknownJob() {
+        sut.selectedJobs = Set(["job-a"])
+        XCTAssertFalse(sut.isJobSelected("unknown-job"))
+    }
+
+    func testSelectedJobCountMatchesSelection() {
+        sut.selectedJobs = Set(["a", "b", "c"])
+        XCTAssertEqual(sut.selectedJobCount, 3)
+
+        sut.toggleJobSelection("b")
+        XCTAssertEqual(sut.selectedJobCount, 2)
+    }
+
+    func testJobSelectionDefaultsToAllAfterLoad() async {
+        setOverallResponse(makeOverallJSON(jobs: [("job-a", [("2025-01-01", 100)])]))
+        setStepsResponse(makeStepsJSON(steps: [
+            ("job-a", "Build", 5.0),
+            ("job-b", "Build", 3.0),
+        ]))
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.selectedJobs, Set(sut.allJobNames))
+    }
+
+    func testSelectedBuildStepsFilteredBySelection() async {
+        setOverallResponse(makeOverallJSON(jobs: [("j", [("2025-01-01", 100)])]))
+        setStepsResponse(makeStepsJSON(steps: [
+            ("job-a", "Build", 5.0),
+            ("job-b", "Build", 3.0),
+            ("job-c", "Build", 7.0),
+        ]))
+
+        await sut.loadData()
+        sut.selectedJobs = Set(["job-a"])
+
+        XCTAssertEqual(sut.selectedBuildSteps.count, 1)
+        XCTAssertEqual(sut.selectedBuildSteps.first?.jobName, "job-a")
+    }
+
+    func testSelectedBuildStepsEmptyWhenNoneSelected() async {
+        setOverallResponse(makeOverallJSON(jobs: [("j", [("2025-01-01", 100)])]))
+        setStepsResponse(makeStepsJSON(steps: [
+            ("job-a", "Build", 5.0),
+            ("job-b", "Build", 3.0),
+        ]))
+
+        await sut.loadData()
+        sut.deselectAllJobs()
+
+        XCTAssertTrue(sut.selectedBuildSteps.isEmpty)
+    }
+
+    // MARK: - 4. Select All / Deselect All
+
+    func testSelectAllJobs() {
+        sut.allJobNames = ["a", "b", "c"]
+        sut.selectAllJobs()
+
+        XCTAssertEqual(sut.selectedJobCount, 3)
+        XCTAssertTrue(sut.isJobSelected("a"))
+        XCTAssertTrue(sut.isJobSelected("b"))
+        XCTAssertTrue(sut.isJobSelected("c"))
+    }
+
+    func testDeselectAllJobs() {
+        sut.allJobNames = ["a", "b", "c"]
+        sut.selectedJobs = Set(["a", "b", "c"])
+
+        sut.deselectAllJobs()
+
+        XCTAssertEqual(sut.selectedJobCount, 0)
+        XCTAssertFalse(sut.isJobSelected("a"))
+        XCTAssertFalse(sut.isJobSelected("b"))
+        XCTAssertFalse(sut.isJobSelected("c"))
+    }
+
+    func testSelectAllThenDeselectAll() {
+        sut.allJobNames = ["x", "y", "z"]
+        sut.selectAllJobs()
+        XCTAssertEqual(sut.selectedJobCount, 3)
+
+        sut.deselectAllJobs()
+        XCTAssertEqual(sut.selectedJobCount, 0)
+    }
+
+    func testDeselectAllThenSelectAll() {
+        sut.allJobNames = ["x", "y"]
+        sut.deselectAllJobs()
+        XCTAssertEqual(sut.selectedJobCount, 0)
+
+        sut.selectAllJobs()
+        XCTAssertEqual(sut.selectedJobCount, 2)
+    }
+
+    func testSelectAllWithEmptyJobNames() {
+        sut.allJobNames = []
+        sut.selectAllJobs()
+        XCTAssertEqual(sut.selectedJobCount, 0)
+    }
+
+    // MARK: - 5. Loading State Transitions
+
+    func testLoadDataTransitionsToLoaded() async {
+        registerBothEmptyResponses()
+
+        XCTAssertEqual(sut.state, .loading)
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.state, .loaded)
+    }
+
+    func testLoadDataTransitionsToErrorOnFailure() async {
+        mockClient.setError(APIError.notFound, for: overallPath)
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        if case .error = sut.state {
+            // Expected
+        } else {
+            XCTFail("Expected error state, got \(sut.state)")
+        }
+    }
+
+    func testRefreshCallsFetchAllData() async {
+        registerBothEmptyResponses()
+
+        await sut.refresh()
+
+        XCTAssertGreaterThan(mockClient.callCount, 0)
+    }
+
+    func testRefreshTransitionsToLoaded() async {
+        registerBothEmptyResponses()
+
+        await sut.refresh()
+
+        XCTAssertEqual(sut.state, .loaded)
+    }
+
+    func testOnParametersChangedTriggersRefetch() async {
+        registerBothEmptyResponses()
+
+        await sut.onParametersChanged()
+
+        XCTAssertGreaterThan(mockClient.callCount, 0)
+        XCTAssertEqual(sut.state, .loaded)
+    }
+
+    func testLoadDataSetsLoadingStateThenTransitions() async {
+        registerBothEmptyResponses()
+
+        // loadData() sets state = .loading, then fetches
+        await sut.loadData()
+
+        // After completion, it should be .loaded
+        XCTAssertEqual(sut.state, .loaded)
+    }
+
+    func testViewStateLoadingEquality() {
+        let a = BuildTimeViewModel.ViewState.loading
+        let b = BuildTimeViewModel.ViewState.loading
+        XCTAssertEqual(a, b)
+    }
+
+    func testViewStateLoadedEquality() {
+        let a = BuildTimeViewModel.ViewState.loaded
+        let b = BuildTimeViewModel.ViewState.loaded
+        XCTAssertEqual(a, b)
+    }
+
+    func testViewStateErrorEquality() {
+        let a = BuildTimeViewModel.ViewState.error("test error")
+        let b = BuildTimeViewModel.ViewState.error("test error")
+        XCTAssertEqual(a, b)
+    }
+
+    func testViewStateDifferentErrorsNotEqual() {
+        let a = BuildTimeViewModel.ViewState.error("error-a")
+        let b = BuildTimeViewModel.ViewState.error("error-b")
+        XCTAssertNotEqual(a, b)
+    }
+
+    func testViewStateDifferentKindsNotEqual() {
+        XCTAssertNotEqual(BuildTimeViewModel.ViewState.loading, BuildTimeViewModel.ViewState.loaded)
+        XCTAssertNotEqual(BuildTimeViewModel.ViewState.loaded, BuildTimeViewModel.ViewState.error("x"))
+        XCTAssertNotEqual(BuildTimeViewModel.ViewState.loading, BuildTimeViewModel.ViewState.error("x"))
+    }
+
+    // MARK: - 6. Error Handling
+
+    func testLoadDataErrorOnOverallEndpoint() async {
+        mockClient.setError(APIError.notFound, for: overallPath)
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        if case .error(let message) = sut.state {
+            XCTAssertFalse(message.isEmpty)
+        } else {
+            XCTFail("Expected error state")
+        }
+    }
+
+    func testLoadDataErrorWithServerError() async {
+        mockClient.setError(APIError.serverError(500), for: overallPath)
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        if case .error = sut.state {
+            // Expected
+        } else {
+            XCTFail("Expected error state")
+        }
+    }
+
+    func testLoadDataErrorWithNetworkError() async {
+        mockClient.setError(
+            APIError.networkError(URLError(.notConnectedToInternet)),
+            for: overallPath
+        )
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        if case .error = sut.state {
+            // Expected
+        } else {
+            XCTFail("Expected error state")
+        }
+    }
+
+    func testBuildStepsGracefullyDegradesOnStepsError() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("job-a", [("2025-01-01", 600)]),
+        ]))
+        mockClient.setError(APIError.notFound, for: stepsPath)
+
+        await sut.loadData()
+
+        // fetchBuildSteps catches errors and returns [] so overall load still succeeds
+        XCTAssertEqual(sut.state, .loaded)
+        XCTAssertTrue(sut.buildSteps.isEmpty)
+    }
+
+    func testNoRegressionsWhenBuildStepsEmpty() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("job-a", [("2025-01-01", 600)]),
+        ]))
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        XCTAssertTrue(sut.regressions.isEmpty)
+    }
+
+    func testErrorMessageIsNonEmpty() async {
+        mockClient.setError(APIError.notFound, for: overallPath)
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        if case .error(let msg) = sut.state {
+            XCTAssertGreaterThan(msg.count, 0)
+        } else {
+            XCTFail("Expected error state")
+        }
+    }
+
+    // MARK: - 7. Data Loading with Mock Response
+
+    func testLoadDataPopulatesAllFields() async {
         setOverallResponse(makeOverallJSON(jobs: [
             ("job-a", [("2025-01-01", 600), ("2025-01-02", 720)]),
             ("job-b", [("2025-01-01", 300), ("2025-01-02", 360)]),
@@ -57,27 +457,19 @@ final class BuildTimeViewModelTests: XCTestCase {
 
         XCTAssertEqual(sut.state, .loaded)
         XCTAssertFalse(sut.durationSeries.isEmpty)
+        XCTAssertFalse(sut.p50Series.isEmpty)
+        XCTAssertFalse(sut.p75Series.isEmpty)
+        XCTAssertFalse(sut.p90Series.isEmpty)
+        XCTAssertFalse(sut.slowestWorkflows.isEmpty)
         XCTAssertEqual(sut.buildSteps.count, 2)
         XCTAssertEqual(sut.allJobNames.count, 2)
+        XCTAssertEqual(sut.selectedJobs.count, 2)
+        XCTAssertNotNil(sut.avgDurationMinutes)
+        XCTAssertNotNil(sut.p90DurationMinutes)
+        XCTAssertGreaterThan(sut.totalBuildCount, 0)
     }
-
-    func testLoadDataError() async {
-        mockClient.setError(APIError.notFound, for: overallPath)
-        setStepsResponse("[]")
-
-        await sut.loadData()
-
-        if case .error(let message) = sut.state {
-            XCTAssertFalse(message.isEmpty)
-        } else {
-            XCTFail("Expected error state")
-        }
-    }
-
-    // MARK: - Duration Series Computation
 
     func testDurationSeriesAveragesAcrossJobs() async {
-        // Two jobs at same bucket should average
         setOverallResponse(makeOverallJSON(jobs: [
             ("job-a", [("2025-01-01", 600)]),
             ("job-b", [("2025-01-01", 400)]),
@@ -102,10 +494,7 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(buckets, ["2025-01-01", "2025-01-02", "2025-01-03"])
     }
 
-    // MARK: - Percentile Series
-
     func testPercentileSeriesComputed() async {
-        // 10 jobs at same bucket to get meaningful percentiles
         var jobs: [(String, [(String, Int)])] = []
         for i in 1...10 {
             jobs.append(("job-\(i)", [("2025-01-01", i * 100)]))
@@ -140,9 +529,7 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(sut.p90Series.first?.value, 500.0)
     }
 
-    // MARK: - Slowest Workflows
-
-    func testSlowestWorkflowsDerived() async {
+    func testSlowestWorkflowsDerivedAndSorted() async {
         setOverallResponse(makeOverallJSON(jobs: [
             ("slow-job", [("2025-01-01", 3600), ("2025-01-02", 3600)]),
             ("fast-job", [("2025-01-01", 60), ("2025-01-02", 60)]),
@@ -170,7 +557,16 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(sut.slowestWorkflows.count, 10)
     }
 
-    // MARK: - Build Steps
+    func testSlowestWorkflowsRunCount() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("job-a", [("2025-01-01", 100), ("2025-01-02", 200), ("2025-01-03", 300)]),
+        ]))
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.slowestWorkflows.first?.runCount, 3)
+    }
 
     func testBuildStepsBreakdown() async {
         setOverallResponse(makeOverallJSON(jobs: [
@@ -193,22 +589,7 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(step.totalMinutes, 20.0)
     }
 
-    func testBuildStepsGracefullyDegrades() async {
-        setOverallResponse(makeOverallJSON(jobs: [
-            ("job-a", [("2025-01-01", 600)]),
-        ]))
-        mockClient.setError(APIError.notFound, for: stepsPath)
-
-        await sut.loadData()
-
-        // Should succeed with empty build steps
-        XCTAssertEqual(sut.state, .loaded)
-        XCTAssertTrue(sut.buildSteps.isEmpty)
-    }
-
-    // MARK: - Summaries
-
-    func testComputeSummaries() async {
+    func testComputeSummariesAvgDuration() async {
         setOverallResponse(makeOverallJSON(jobs: [
             ("job-a", [("2025-01-01", 1800), ("2025-01-02", 2400)]),
         ]))
@@ -218,6 +599,19 @@ final class BuildTimeViewModelTests: XCTestCase {
 
         // Last duration value is 2400 sec = 40 min
         XCTAssertEqual(sut.avgDurationMinutes ?? 0, 40.0, accuracy: 0.1)
+    }
+
+    func testComputeSummariesP90Duration() async {
+        // Single job so P90 = the value itself
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("job-a", [("2025-01-01", 3000), ("2025-01-02", 3600)]),
+        ]))
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        // p90Series last value is 3600 sec = 60 min
+        XCTAssertEqual(sut.p90DurationMinutes ?? 0, 60.0, accuracy: 0.1)
     }
 
     func testTotalBuildCount() async {
@@ -233,10 +627,7 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(sut.totalBuildCount, 3)
     }
 
-    // MARK: - Regression Detection
-
     func testDetectRegressionsAboveThreshold() async {
-        // One job with much higher build time than average
         setOverallResponse(makeOverallJSON(jobs: [
             ("job-a", [("2025-01-01", 100)]),
         ]))
@@ -275,41 +666,48 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertTrue(sut.regressions.isEmpty)
     }
 
-    // MARK: - Job Selection
-
-    func testJobSelectionDefaultsToAll() async {
-        setOverallResponse(makeOverallJSON(jobs: [("job-a", [("2025-01-01", 100)])]))
-        setStepsResponse(makeStepsJSON(steps: [
-            ("job-a", "Build", 5.0),
-            ("job-b", "Build", 3.0),
+    func testRegressionsCappedAt5() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("j", [("2025-01-01", 100)]),
         ]))
+        // Create 8 jobs where 7 regress significantly above the average
+        var steps: [(String, String, Double)] = []
+        // One small job to pull the average down
+        steps.append(("tiny-job", "Build", 1.0))
+        // Seven large jobs that will be above 15% of avg
+        for i in 1...7 {
+            steps.append(("big-job-\(i)", "Build", Double(50 + i * 10)))
+        }
+        setStepsResponse(makeStepsJSON(steps: steps))
 
         await sut.loadData()
 
-        XCTAssertEqual(sut.selectedJobs, Set(sut.allJobNames))
+        XCTAssertLessThanOrEqual(sut.regressions.count, 5)
     }
 
-    func testToggleJobSelection() {
-        sut.selectedJobs = Set(["job-a", "job-b"])
+    func testLoadDataCallsCorrectEndpoints() async {
+        registerBothEmptyResponses()
 
-        sut.toggleJobSelection("job-a")
-        XCTAssertFalse(sut.isJobSelected("job-a"))
-        XCTAssertTrue(sut.isJobSelected("job-b"))
+        await sut.loadData()
 
-        sut.toggleJobSelection("job-a")
-        XCTAssertTrue(sut.isJobSelected("job-a"))
+        let paths = Set(mockClient.callPaths())
+        XCTAssertTrue(paths.contains(overallPath))
+        XCTAssertTrue(paths.contains(stepsPath))
     }
 
-    func testSelectAllDeselectAll() {
-        sut.allJobNames = ["a", "b", "c"]
-        sut.selectAllJobs()
-        XCTAssertEqual(sut.selectedJobCount, 3)
+    func testLoadDataWithEmptyResponsesSucceeds() async {
+        registerBothEmptyResponses()
 
-        sut.deselectAllJobs()
-        XCTAssertEqual(sut.selectedJobCount, 0)
+        await sut.loadData()
+
+        XCTAssertEqual(sut.state, .loaded)
+        XCTAssertTrue(sut.durationSeries.isEmpty)
+        XCTAssertTrue(sut.buildSteps.isEmpty)
+        XCTAssertTrue(sut.slowestWorkflows.isEmpty)
+        XCTAssertNil(sut.avgDurationMinutes)
     }
 
-    func testSelectedBuildStepsFiltered() async {
+    func testJobSelectionPreservedAcrossReloads() async {
         setOverallResponse(makeOverallJSON(jobs: [("j", [("2025-01-01", 100)])]))
         setStepsResponse(makeStepsJSON(steps: [
             ("job-a", "Build", 5.0),
@@ -317,13 +715,28 @@ final class BuildTimeViewModelTests: XCTestCase {
         ]))
 
         await sut.loadData()
-        sut.selectedJobs = Set(["job-a"])
 
-        XCTAssertEqual(sut.selectedBuildSteps.count, 1)
-        XCTAssertEqual(sut.selectedBuildSteps.first?.jobName, "job-a")
+        // Deselect job-b
+        sut.toggleJobSelection("job-b")
+        XCTAssertFalse(sut.isJobSelected("job-b"))
+        XCTAssertTrue(sut.isJobSelected("job-a"))
+
+        // Reload - selected jobs should be intersected (job-a stays selected, job-b stays deselected)
+        mockClient.reset()
+        setOverallResponse(makeOverallJSON(jobs: [("j", [("2025-01-01", 100)])]))
+        setStepsResponse(makeStepsJSON(steps: [
+            ("job-a", "Build", 5.0),
+            ("job-b", "Build", 3.0),
+        ]))
+
+        await sut.loadData()
+
+        // Only job-a should remain selected since selectedJobs was {"job-a"}
+        XCTAssertTrue(sut.isJobSelected("job-a"))
+        XCTAssertFalse(sut.isJobSelected("job-b"))
     }
 
-    // MARK: - Trend
+    // MARK: - Trend Computation
 
     func testIsImprovingWhenRecentLower() async {
         setOverallResponse(makeOverallJSON(jobs: [
@@ -360,27 +773,87 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(sut.trendDescription, "+50.0%")
     }
 
+    func testTrendDescriptionNegative() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("j", [("2025-01-01", 200), ("2025-01-02", 100)]),
+        ]))
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.trendDescription, "-50.0%")
+    }
+
     func testTrendDescriptionInsufficientData() {
+        XCTAssertEqual(sut.trendDescription, "--")
+    }
+
+    func testTrendDescriptionSingleDataPoint() async {
+        setOverallResponse(makeOverallJSON(jobs: [
+            ("j", [("2025-01-01", 100)]),
+        ]))
+        setStepsResponse("[]")
+
+        await sut.loadData()
+
+        // Only 1 data point, not enough for trend, still "--"
+        // Actually with 1 point, durationSeries.count == 1, which is < 2
         XCTAssertEqual(sut.trendDescription, "--")
     }
 
     // MARK: - Format Helpers
 
-    func testFormatDurationMinutes() {
+    func testFormatDurationNil() {
         XCTAssertEqual(BuildTimeViewModel.formatDuration(nil), "--")
+    }
+
+    func testFormatDurationMinutes() {
         XCTAssertEqual(BuildTimeViewModel.formatDuration(45.0), "45m")
+    }
+
+    func testFormatDurationHoursAndMinutes() {
         XCTAssertEqual(BuildTimeViewModel.formatDuration(90.0), "1h 30m")
+    }
+
+    func testFormatDurationZero() {
         XCTAssertEqual(BuildTimeViewModel.formatDuration(0.0), "0m")
     }
 
-    func testDurationColor() {
+    func testFormatDurationExactHour() {
+        XCTAssertEqual(BuildTimeViewModel.formatDuration(60.0), "1h 0m")
+    }
+
+    func testFormatDurationLargeValue() {
+        XCTAssertEqual(BuildTimeViewModel.formatDuration(180.0), "3h 0m")
+    }
+
+    func testDurationColorNil() {
         XCTAssertEqual(BuildTimeViewModel.durationColor(nil), .secondary)
+    }
+
+    func testDurationColorSuccess() {
         XCTAssertEqual(BuildTimeViewModel.durationColor(60.0), AppColors.success)
+    }
+
+    func testDurationColorUnstable() {
         XCTAssertEqual(BuildTimeViewModel.durationColor(120.0), AppColors.unstable)
+    }
+
+    func testDurationColorFailure() {
         XCTAssertEqual(BuildTimeViewModel.durationColor(200.0), AppColors.failure)
     }
 
-    // MARK: - BuildRegression computed properties
+    func testDurationColorBoundaryAt90() {
+        // Exactly 90 is <= 90, so success
+        XCTAssertEqual(BuildTimeViewModel.durationColor(90.0), AppColors.success)
+    }
+
+    func testDurationColorBoundaryAt180() {
+        // Exactly 180 is <= 180, so unstable
+        XCTAssertEqual(BuildTimeViewModel.durationColor(180.0), AppColors.unstable)
+    }
+
+    // MARK: - BuildRegression Computed Properties
 
     func testBuildRegressionChangePercent() {
         let regression = BuildTimeViewModel.BuildRegression(
@@ -401,6 +874,15 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(regression.changePercent, 0.0)
     }
 
+    func testBuildRegressionChangeDescription() {
+        let regression = BuildTimeViewModel.BuildRegression(
+            jobName: "test",
+            currentMinutes: 150,
+            baselineMinutes: 100
+        )
+        XCTAssertEqual(regression.changeDescription, "+50.0%")
+    }
+
     // MARK: - BuildStepBreakdown
 
     func testBuildStepTotalMinutes() {
@@ -413,20 +895,22 @@ final class BuildTimeViewModelTests: XCTestCase {
         XCTAssertEqual(step.totalMinutes, 15.0)
     }
 
-    // MARK: - Time Range
-
-    func testSelectedRange() {
-        sut.selectedTimeRange = "14d"
-        XCTAssertEqual(sut.selectedRange?.days, 14)
-
-        sut.selectedTimeRange = "7d"
-        XCTAssertEqual(sut.selectedRange?.days, 7)
-
-        sut.selectedTimeRange = "nonexistent"
-        XCTAssertNil(sut.selectedRange)
+    func testBuildStepTotalMinutesAllZero() {
+        let step = BuildTimeViewModel.BuildStepBreakdown(
+            jobName: "test",
+            checkoutMinutes: 0.0,
+            pullDockerMinutes: 0.0,
+            buildMinutes: 0.0
+        )
+        XCTAssertEqual(step.totalMinutes, 0.0)
     }
 
     // MARK: - Helpers
+
+    private func registerBothEmptyResponses() {
+        setOverallResponse("[]")
+        setStepsResponse("[]")
+    }
 
     private func setOverallResponse(_ json: String) {
         mockClient.setResponse(json, for: overallPath)
