@@ -781,9 +781,10 @@ final class CommitDetailViewModelTests: XCTestCase {
 
     func testStatusFilterAllCases() {
         let cases = CommitDetailViewModel.StatusFilter.allCases
-        XCTAssertEqual(cases.count, 5)
+        XCTAssertEqual(cases.count, 6)
         XCTAssertTrue(cases.contains(.all))
         XCTAssertTrue(cases.contains(.failed))
+        XCTAssertTrue(cases.contains(.cancelled))
         XCTAssertTrue(cases.contains(.pending))
         XCTAssertTrue(cases.contains(.passed))
         XCTAssertTrue(cases.contains(.skipped))
