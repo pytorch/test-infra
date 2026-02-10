@@ -254,7 +254,7 @@ struct BenchmarkFilterOption: Decodable, Identifiable, Sendable {
     let name: String?
     let values: [String]?
 
-    var id: String { name ?? UUID().uuidString }
+    var id: String { name ?? values?.joined(separator: ",") ?? "unknown" }
 }
 
 /// Response from POST /api/benchmark/list_regression_summary_reports
