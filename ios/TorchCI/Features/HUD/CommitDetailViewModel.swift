@@ -124,7 +124,8 @@ final class CommitDetailViewModel: ObservableObject {
         case .all:
             return true
         case .failed:
-            return job.isFailure
+            let c = job.conclusion?.lowercased()
+            return job.isFailure && c != "cancelled" && c != "canceled"
         case .pending:
             let c = job.conclusion?.lowercased()
             return c == nil || c == "pending" || c == "queued" || c == "in_progress"

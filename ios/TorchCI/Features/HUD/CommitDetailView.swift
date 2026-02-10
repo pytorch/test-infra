@@ -601,7 +601,9 @@ struct CommitDetailView: View {
     @ViewBuilder
     private func workflowSection(_ group: (workflowName: String, jobs: [JobData])) -> some View {
         let isExpanded = viewModel.expandedWorkflows.contains(group.workflowName)
-        let failureCount = group.jobs.filter { $0.isFailure }.count
+        let failureCount = group.jobs.filter {
+            $0.isFailure && $0.conclusion?.lowercased() != "cancelled" && $0.conclusion?.lowercased() != "canceled"
+        }.count
         let successCount = group.jobs.filter { $0.isSuccess }.count
         let pendingCount = group.jobs.filter {
             let c = $0.conclusion?.lowercased()
