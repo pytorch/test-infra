@@ -308,6 +308,86 @@ final class HUDDataTests: XCTestCase {
         XCTAssertNil(job.failedPreviousRun)
     }
 
+    // MARK: - Classified failures
+
+    func testHUDJobIsClassifiedWhenAnnotated() {
+        let job = HUDJob(
+            id: 1, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil,
+            durationS: nil, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, failureAnnotation: "INFRA_BROKEN", authorEmail: nil
+        )
+        XCTAssertTrue(job.isClassified)
+        XCTAssertTrue(job.isFailure)
+    }
+
+    func testHUDJobIsNotClassifiedWithoutAnnotation() {
+        let job = HUDJob(
+            id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil,
+            durationS: nil, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, failureAnnotation: nil, authorEmail: nil
+        )
+        XCTAssertFalse(job.isClassified)
+        XCTAssertTrue(job.isFailure)
+    }
+
+    func testHUDJobIsNotClassifiedWhenSuccess() {
+        let job = HUDJob(
+            id: 3, name: "test", conclusion: "success", htmlUrl: nil, logUrl: nil,
+            durationS: nil, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, failureAnnotation: "TEST_FLAKE", authorEmail: nil
+        )
+        XCTAssertFalse(job.isClassified)
+        XCTAssertTrue(job.isSuccess)
+    }
+
+    func testHUDJobFailureAnnotationDecoding() {
+        let json = """
+        {
+            "shaGrid": [
+                {
+                    "sha": "aabb0000aabb0000aabb0000aabb0000aabb0000",
+                    "commitTitle": "Test commit",
+                    "commitMessageBody": null,
+                    "prNum": null,
+                    "author": null,
+                    "authorUrl": null,
+                    "time": "2025-01-15T10:30:00Z",
+                    "jobs": [
+                        {
+                            "id": 900,
+                            "name": "build",
+                            "conclusion": "failure",
+                            "htmlUrl": null,
+                            "logUrl": null,
+                            "durationS": 100,
+                            "failureLines": [],
+                            "failureCaptures": [],
+                            "runnerName": null,
+                            "unstable": false,
+                            "failureAnnotation": "INFRA_BROKEN"
+                        }
+                    ],
+                    "isForcedMerge": false
+                }
+            ],
+            "jobNames": ["build"]
+        }
+        """
+
+        let response: HUDResponse = MockData.decode(json)
+        let job = response.shaGrid[0].jobs[0]
+        XCTAssertEqual(job.failureAnnotation, "INFRA_BROKEN")
+        XCTAssertTrue(job.isClassified)
+    }
+
+    func testHUDJobFailureAnnotationNilWhenMissing() {
+        let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
+        // Default mock data doesn't include failureAnnotation
+        let job = response.shaGrid[0].jobs[0]
+        XCTAssertNil(job.failureAnnotation)
+        XCTAssertFalse(job.isClassified)
+    }
+
     // MARK: - Row-level aggregation smoke tests
 
     func testRowJobCounts() {
