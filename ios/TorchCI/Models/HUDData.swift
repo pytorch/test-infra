@@ -163,12 +163,56 @@ struct HUDJob: Decodable, Identifiable {
     }
 
     /// Check whether a job name matches a viable/strict blocking pattern.
+    /// Uses regex matching consistent with the web app's `isJobViableStrictBlocking`.
     static func isBlockingName(_ name: String) -> Bool {
         let lowered = name.lowercased()
-        let blockingPatterns = ["pull", "trunk", "lint", "linux-aarch64"]
-        let excludePatterns = ["mem_leak", "rerun_disabled"]
-        if excludePatterns.contains(where: { lowered.contains($0) }) { return false }
-        return blockingPatterns.contains(where: { lowered.contains($0) })
+        // Exclude memory leak and rerun jobs (web uses ", mem_leak" and ", rerun_" with comma prefix)
+        if lowered.contains(", mem_leak") || lowered.contains(", rerun_") { return false }
+        // Case-insensitive regex patterns matching web's VIABLE_STRICT_BLOCKING_JOBS for pytorch/pytorch
+        let blockingPatterns: [String] = ["pull", "trunk", "lint", "linux-aarch64"]
+        return blockingPatterns.contains { pattern in
+            lowered.range(of: pattern, options: .regularExpression) != nil
+        }
+    }
+
+    /// Check whether a specific job triggered an autorevert signal.
+    /// Ports the web app's `isJobAutorevertSignal` from autorevertUtils.ts.
+    static func isAutorevertSignal(jobName: String, row: HUDRow) -> Bool {
+        guard let workflows = row.autorevertWorkflows, !workflows.isEmpty,
+              let signals = row.autorevertSignals, !signals.isEmpty else {
+            return false
+        }
+
+        let lowWorkflows = workflows.map { $0.lowercased() }
+
+        // Split "workflow / jobName (config)" into parts, stripping parenthesized suffixes
+        let parts = jobName.lowercased()
+            .split(separator: "/")
+            .map { part in
+                var trimmed = part.trimmingCharacters(in: .whitespaces)
+                // Remove trailing " (...)" parenthesized config
+                if let parenRange = trimmed.range(of: #" \(.*\)$"#, options: .regularExpression) {
+                    trimmed = String(trimmed[..<parenRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+                }
+                return trimmed
+            }
+
+        guard !parts.isEmpty else { return false }
+        let jobWorkflow = parts[0]
+        let jobNameParts = Array(parts.dropFirst())
+
+        // The job's workflow must be in the autorevert workflows list
+        guard lowWorkflows.contains(jobWorkflow) else { return false }
+
+        // Check if any signal matches the job name parts
+        return signals.contains { signal in
+            let signalParts = signal.lowercased()
+                .split(separator: "/")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            return jobNameParts.enumerated().allSatisfy { idx, part in
+                idx < signalParts.count && part == signalParts[idx]
+            }
+        }
     }
 
     var durationFormatted: String? {

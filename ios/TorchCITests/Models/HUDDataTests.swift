@@ -478,4 +478,133 @@ final class HUDDataTests: XCTestCase {
         // Classified should not be treated as a new failure in stats
         XCTAssertFalse(classifiedJob.isNewFailure && !classifiedJob.isClassified)
     }
+
+    // MARK: - Blocking logic (regex-style matching)
+
+    func testBlockingNameMatchesPull() {
+        XCTAssertTrue(HUDJob.isBlockingName("pull / linux-jammy-py3.10-gcc9 / build"))
+    }
+
+    func testBlockingNameMatchesTrunk() {
+        XCTAssertTrue(HUDJob.isBlockingName("trunk / linux-jammy-py3.10-gcc9 / test"))
+    }
+
+    func testBlockingNameMatchesLint() {
+        XCTAssertTrue(HUDJob.isBlockingName("Lint / quick-checks"))
+    }
+
+    func testBlockingNameMatchesLinuxAarch64() {
+        XCTAssertTrue(HUDJob.isBlockingName("linux-aarch64 / build"))
+    }
+
+    func testBlockingNameExcludesMemLeak() {
+        // Web uses ", mem_leak" with comma prefix for context
+        XCTAssertFalse(HUDJob.isBlockingName("pull / linux-jammy-py3.10-gcc9 / test (default, mem_leak)"))
+    }
+
+    func testBlockingNameExcludesRerun() {
+        // Web uses ", rerun_" with comma prefix for context
+        XCTAssertFalse(HUDJob.isBlockingName("pull / linux-jammy-py3.10-gcc9 / test (default, rerun_disabled)"))
+    }
+
+    func testBlockingNameNoMatchForPeriodic() {
+        XCTAssertFalse(HUDJob.isBlockingName("periodic / linux-jammy-py3.10-cuda11.8 / build"))
+    }
+
+    func testBlockingNameCaseInsensitive() {
+        XCTAssertTrue(HUDJob.isBlockingName("Pull / linux-build"))
+        XCTAssertTrue(HUDJob.isBlockingName("TRUNK / build"))
+    }
+
+    // MARK: - Autorevert signal detection
+
+    func testAutorevertSignalMatchesWorkflowAndSignal() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            isAutoreverted: true,
+            autorevertWorkflows: ["pull"],
+            autorevertSignals: ["linux-jammy / build"]
+        )
+        XCTAssertTrue(HUDJob.isAutorevertSignal(
+            jobName: "pull / linux-jammy / build",
+            row: row
+        ))
+    }
+
+    func testAutorevertSignalNoMatchWrongWorkflow() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            isAutoreverted: true,
+            autorevertWorkflows: ["pull"],
+            autorevertSignals: ["linux-jammy / build"]
+        )
+        XCTAssertFalse(HUDJob.isAutorevertSignal(
+            jobName: "trunk / linux-jammy / build",
+            row: row
+        ))
+    }
+
+    func testAutorevertSignalNoMatchWrongJob() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            isAutoreverted: true,
+            autorevertWorkflows: ["pull"],
+            autorevertSignals: ["linux-jammy / build"]
+        )
+        XCTAssertFalse(HUDJob.isAutorevertSignal(
+            jobName: "pull / linux-focal / test",
+            row: row
+        ))
+    }
+
+    func testAutorevertSignalNilWorkflows() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            autorevertWorkflows: nil,
+            autorevertSignals: nil
+        )
+        XCTAssertFalse(HUDJob.isAutorevertSignal(
+            jobName: "pull / linux-jammy / build",
+            row: row
+        ))
+    }
+
+    func testAutorevertSignalStripsParenthesizedConfig() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            isAutoreverted: true,
+            autorevertWorkflows: ["pull"],
+            autorevertSignals: ["linux-jammy / test"]
+        )
+        // Job name has parenthesized config that should be stripped
+        XCTAssertTrue(HUDJob.isAutorevertSignal(
+            jobName: "pull / linux-jammy / test (default, 1, 3)",
+            row: row
+        ))
+    }
+
+    func testAutorevertSignalCaseInsensitive() {
+        let row = HUDRow(
+            sha: "abc123", commitTitle: nil, commitMessageBody: nil,
+            prNumber: nil, author: nil, authorUrl: nil, time: nil,
+            jobs: [],
+            isAutoreverted: true,
+            autorevertWorkflows: ["Pull"],
+            autorevertSignals: ["Linux-Jammy / Build"]
+        )
+        XCTAssertTrue(HUDJob.isAutorevertSignal(
+            jobName: "pull / linux-jammy / build",
+            row: row
+        ))
+    }
 }

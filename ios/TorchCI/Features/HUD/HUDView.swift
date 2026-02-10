@@ -933,7 +933,8 @@ private struct CommitJobsListView: View {
     }
 
     private func jobRow(name: String, job: HUDJob) -> some View {
-        Button {
+        let isSignal = HUDJob.isAutorevertSignal(jobName: name, row: row)
+        return Button {
             onJobTap?(job, name)
         } label: {
             HStack(spacing: 12) {
@@ -947,12 +948,34 @@ private struct CommitJobsListView: View {
                                 .foregroundStyle(.white)
                         }
                     }
+                    .overlay {
+                        if isSignal {
+                            RoundedRectangle(cornerRadius: 4)
+                                .strokeBorder(Color.orange, lineWidth: 2)
+                        }
+                    }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.caption)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
+                    HStack(spacing: 6) {
+                        Text(name)
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+
+                        if isSignal {
+                            HStack(spacing: 2) {
+                                Image(systemName: "arrow.uturn.backward.circle.fill")
+                                    .font(.system(size: 8))
+                                Text("Autorevert Signal")
+                                    .font(.system(size: 8, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.orange)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                        }
+                    }
 
                     HStack(spacing: 8) {
                         Text(job.conclusion?.capitalized ?? "Pending")
