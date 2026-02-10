@@ -390,6 +390,7 @@ final class HUDViewModel: ObservableObject {
         loadTask?.cancel()
         selectedRepo = repo
         hudData = nil
+        state = .idle
         loadTask = Task { await loadData() }
     }
 
@@ -398,6 +399,7 @@ final class HUDViewModel: ObservableObject {
         loadTask?.cancel()
         selectedBranch = branch
         hudData = nil
+        state = .idle
         loadTask = Task { await loadData() }
     }
 

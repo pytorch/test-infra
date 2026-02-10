@@ -377,6 +377,7 @@ final class FailedJobsViewModel: ObservableObject {
         selectedRepo = repo
         currentPage = 1
         jobs = []
+        state = .idle
         Task { await loadData() }
     }
 
@@ -385,6 +386,7 @@ final class FailedJobsViewModel: ObservableObject {
         selectedBranch = branch
         currentPage = 1
         jobs = []
+        state = .idle
         Task { await loadData() }
     }
 

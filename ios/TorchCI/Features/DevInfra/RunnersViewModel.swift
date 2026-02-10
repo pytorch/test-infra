@@ -187,6 +187,7 @@ final class RunnersViewModel: ObservableObject {
         selectedOrg = org
         response = nil
         expandedGroups = []
+        state = .idle
         Task { await loadData() }
     }
 
