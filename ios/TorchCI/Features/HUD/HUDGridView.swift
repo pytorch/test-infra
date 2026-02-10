@@ -394,19 +394,23 @@ struct HUDGridView: View {
                 timingLabel(icon: "clock", text: formatDuration(dur))
             }
             if let queue = stats.maxQueueTimeS, queue > 60 {
-                timingLabel(icon: "hourglass", text: formatDuration(queue))
+                timingLabel(
+                    icon: "hourglass",
+                    text: formatDuration(queue),
+                    color: queue > 600 ? .red : queue > 300 ? .orange : .secondary
+                )
             }
         }
     }
 
-    private func timingLabel(icon: String, text: String) -> some View {
+    private func timingLabel(icon: String, text: String, color: Color = .secondary) -> some View {
         HStack(spacing: 2) {
             Image(systemName: icon)
                 .font(.system(size: 7))
             Text(text)
                 .font(.system(size: 8))
         }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(color)
     }
 
     private func formatDuration(_ seconds: Int) -> String {
