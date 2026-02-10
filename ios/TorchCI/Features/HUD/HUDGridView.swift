@@ -293,7 +293,7 @@ struct HUDGridView: View {
             (AppColors.failure, stats.blockingFailureCount),
             (Color.red.opacity(0.5), nonBlockingFails),
             (AppColors.unstable, stats.unstableFailureCount),
-            (Color.purple.opacity(0.6), stats.classifiedCount),
+            (AppColors.classified, stats.classifiedCount),
             (AppColors.pending, stats.pendingCount),
         ].filter { $0.1 > 0 }
         let segmentTotal = segments.reduce(0) { $0 + $1.1 }
@@ -332,7 +332,7 @@ struct HUDGridView: View {
                 miniCountBadge(count: stats.unstableFailureCount, color: AppColors.unstable, label: "unstable")
             }
             if stats.classifiedCount > 0 {
-                miniCountBadge(count: stats.classifiedCount, color: Color.purple.opacity(0.7), label: "classified")
+                miniCountBadge(count: stats.classifiedCount, color: AppColors.classified, label: "classified")
             }
             if stats.flakyCount > 0 {
                 miniCountBadge(count: stats.flakyCount, color: Color.green.opacity(0.7), label: "flaky")

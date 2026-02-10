@@ -53,6 +53,8 @@ enum AppColors {
     static let skipped = Color(red: 139/255, green: 148/255, blue: 158/255)
     static let cancelled = Color(red: 139/255, green: 148/255, blue: 158/255)
     static let neutral = Color(red: 106/255, green: 115/255, blue: 125/255)
+    static let classified = Color.purple.opacity(0.7)
+    static let flaky = Color.green.opacity(0.5)
 
     static func forConclusion(_ conclusion: String?) -> Color {
         switch conclusion?.lowercased() {
@@ -62,6 +64,8 @@ enum AppColors {
         case "unstable": return unstable
         case "skipped": return skipped
         case "cancelled", "canceled": return cancelled
+        case "classified": return classified
+        case "flaky": return flaky
         default: return neutral
         }
     }

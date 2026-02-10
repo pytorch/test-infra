@@ -35,40 +35,38 @@ struct WorkflowSection: View {
 
     private var statusSummary: some View {
         HStack(spacing: 6) {
-            let successCount = jobs.filter { $0.job.isSuccess }.count
-            let failCount = jobs.filter { $0.job.isFailure }.count
+            let successCount = jobs.filter { $0.job.isSuccess && !$0.job.isFlaky }.count
+            let flakyCount = jobs.filter { $0.job.isFlaky }.count
+            let failCount = jobs.filter { $0.job.isFailure && !$0.job.isClassified }.count
+            let classifiedCount = jobs.filter { $0.job.isClassified }.count
             let pendingCount = jobs.filter { $0.job.isPending }.count
 
             if successCount > 0 {
-                HStack(spacing: 2) {
-                    Circle()
-                        .fill(AppColors.success)
-                        .frame(width: 8, height: 8)
-                    Text("\(successCount)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                statusDot(count: successCount, color: AppColors.success)
+            }
+            if flakyCount > 0 {
+                statusDot(count: flakyCount, color: Color.green.opacity(0.5))
             }
             if failCount > 0 {
-                HStack(spacing: 2) {
-                    Circle()
-                        .fill(AppColors.failure)
-                        .frame(width: 8, height: 8)
-                    Text("\(failCount)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                statusDot(count: failCount, color: AppColors.failure)
+            }
+            if classifiedCount > 0 {
+                statusDot(count: classifiedCount, color: Color.purple.opacity(0.7))
             }
             if pendingCount > 0 {
-                HStack(spacing: 2) {
-                    Circle()
-                        .fill(AppColors.pending)
-                        .frame(width: 8, height: 8)
-                    Text("\(pendingCount)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                statusDot(count: pendingCount, color: AppColors.pending)
             }
+        }
+    }
+
+    private func statusDot(count: Int, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text("\(count)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -79,7 +77,7 @@ struct WorkflowSection: View {
                     onJobTap?(entry.job, entry.name)
                 } label: {
                     HStack(spacing: 8) {
-                        JobStatusIcon(conclusion: entry.job.isUnstable ? "unstable" : entry.job.conclusion)
+                        JobStatusIcon(conclusion: entry.job.isClassified ? "classified" : entry.job.isFlaky ? "flaky" : entry.job.isUnstable ? "unstable" : entry.job.conclusion)
 
                         Text(entry.name)
                             .font(.caption)

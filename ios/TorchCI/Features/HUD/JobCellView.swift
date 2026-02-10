@@ -122,10 +122,10 @@ struct JobCellView: View {
 
     private var cellColor: Color {
         if job.isClassified {
-            return Color.purple.opacity(0.7)
+            return AppColors.classified
         }
         if job.isFlaky {
-            return Color.green.opacity(0.5)
+            return AppColors.flaky
         }
         if job.isUnstable {
             return AppColors.unstable

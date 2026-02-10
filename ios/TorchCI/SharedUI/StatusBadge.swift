@@ -65,6 +65,8 @@ struct JobStatusIcon: View {
         case "cancelled", "canceled": return "slash.circle.fill"
         case "skipped": return "minus.circle.fill"
         case "unstable": return "exclamationmark.triangle.fill"
+        case "classified": return "checkmark.seal.fill"
+        case "flaky": return "arrow.clockwise.circle.fill"
         default: return "questionmark.circle"
         }
     }
