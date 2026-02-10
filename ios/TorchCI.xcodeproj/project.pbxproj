@@ -135,6 +135,7 @@
 		AB5599767456296550E697CD /* GrafanaDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE87178FBDB34AB9AF64A7CD /* GrafanaDashboardView.swift */; };
 		B01CA7663DF484DBD06B846B /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0805E0C69E67DD47CA2FE073 /* EmptyStateView.swift */; };
 		B1C7BDB559790620031C4BEE /* TimeSeriesChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FACC509D2304DF6A26F62C3 /* TimeSeriesChart.swift */; };
+		B24B7A021F446CCA5658DF00 /* DeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E988A3673012EDB6056E36AA /* DeepLinkHandlerTests.swift */; };
 		B2D3C8FD7010745B116B3363 /* TTSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBD18FC3377156566D959F6 /* TTSView.swift */; };
 		B50BD6635C52A1E729FC2ADC /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81709FDAD4A73CE0F045B507 /* MessageBubble.swift */; };
 		B5F303A5B24C05F2861CAA00 /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6428AF69BBA515C053384B26 /* WidgetViews.swift */; };
@@ -403,6 +404,7 @@
 		E68D161061F02933B6D24EDD /* QueueTimeViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueTimeViewModelTests.swift; sourceTree = "<group>"; };
 		E8ED70981903AAC8A44549FB /* FailureAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FailureAnalysisView.swift; sourceTree = "<group>"; };
 		E957C44119E72E3D43F3322B /* ChatMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageView.swift; sourceTree = "<group>"; };
+		E988A3673012EDB6056E36AA /* DeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		ED0CDD7E631F39C9B1D68C32 /* PRDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRDataTests.swift; sourceTree = "<group>"; };
 		EDD7EB8D067B68AB3B81A891 /* RunnerDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerDataTests.swift; sourceTree = "<group>"; };
 		EEC66087493C8AFEF834FBDA /* BenchmarkListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkListViewModelTests.swift; sourceTree = "<group>"; };
@@ -538,6 +540,7 @@
 			isa = PBXGroup;
 			children = (
 				13C5E1AADEB2B3F3DE11F3CC /* APIClientTests.swift */,
+				E988A3673012EDB6056E36AA /* DeepLinkHandlerTests.swift */,
 				A9BA7E1088840F928A3A3D59 /* HUDMonitorTests.swift */,
 				42B680A4380838DC216BF84D /* KeychainHelperTests.swift */,
 			);
@@ -1191,6 +1194,7 @@
 				8DB282F883CC751FAF9FA26A /* CompilerBenchmarkTests.swift in Sources */,
 				321FF794D457FE9EB52DAB13 /* CompilerRegressionTests.swift in Sources */,
 				E46EE6ADD29817FC8D15CD63 /* CostAnalysisViewModelTests.swift in Sources */,
+				B24B7A021F446CCA5658DF00 /* DeepLinkHandlerTests.swift in Sources */,
 				6E8E1B82576BC0EE9D5646C5 /* DisabledTestsViewModelTests.swift in Sources */,
 				3CF2DB72CC094447FC6D8888 /* FailedJobsViewModelTests.swift in Sources */,
 				049009CC223563833ADB777B /* FailureAnalysisViewModelTests.swift in Sources */,
@@ -1301,7 +1305,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 49;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = N324UX8D9M;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1439,7 +1443,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 49;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = N324UX8D9M;
 				ENABLE_PREVIEWS = YES;
