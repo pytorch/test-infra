@@ -23,6 +23,7 @@ final class CommitDetailViewModel: ObservableObject {
     enum StatusFilter: String, CaseIterable, Equatable {
         case all = "All"
         case failed = "Failed"
+        case cancelled = "Cancelled"
         case pending = "Pending"
         case passed = "Passed"
         case skipped = "Skipped"
@@ -131,6 +132,9 @@ final class CommitDetailViewModel: ObservableObject {
             return c == nil || c == "pending" || c == "queued" || c == "in_progress"
         case .passed:
             return job.isSuccess
+        case .cancelled:
+            let c = job.conclusion?.lowercased()
+            return c == "cancelled" || c == "canceled" || c == "time_out" || c == "timed_out"
         case .skipped:
             return job.conclusion?.lowercased() == "skipped"
         }

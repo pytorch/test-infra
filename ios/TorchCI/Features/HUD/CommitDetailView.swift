@@ -6,6 +6,7 @@ struct CommitDetailView: View {
     @State private var showingSafari = false
     @State private var safariURL: URL?
     @State private var selectedJob: JobData?
+    @State private var copiedSHA = false
 
     init(sha: String, repoOwner: String = "pytorch", repoName: String = "pytorch") {
         _viewModel = StateObject(wrappedValue: CommitDetailViewModel(
@@ -192,15 +193,18 @@ struct CommitDetailView: View {
                 Button {
                     UIPasteboard.general.string = viewModel.sha
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    copiedSHA = true
+                    Task { try? await Task.sleep(for: .seconds(2)); copiedSHA = false }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "doc.on.doc")
+                        Image(systemName: copiedSHA ? "checkmark" : "doc.on.doc")
                             .font(.caption)
-                        Text("Copy SHA")
+                        Text(copiedSHA ? "Copied!" : "Copy SHA")
                             .font(.caption)
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(copiedSHA ? .green : .blue)
                 }
+                .disabled(copiedSHA)
             }
 
             // Body in disclosure group
@@ -567,6 +571,7 @@ struct CommitDetailView: View {
         switch filter {
         case .all: return viewModel.totalJobs
         case .failed: return viewModel.failedJobs
+        case .cancelled: return viewModel.cancelledJobs
         case .pending: return viewModel.pendingJobs
         case .passed: return viewModel.passedJobs
         case .skipped: return viewModel.skippedJobs
@@ -577,6 +582,7 @@ struct CommitDetailView: View {
         switch filter {
         case .all: return .blue
         case .failed: return AppColors.failure
+        case .cancelled: return AppColors.cancelled
         case .pending: return AppColors.pending
         case .passed: return AppColors.success
         case .skipped: return AppColors.skipped
