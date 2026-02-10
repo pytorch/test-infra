@@ -456,6 +456,13 @@ struct HUDView: View {
                         selectedCommitRow = row
                         showingCommitJobs = true
                     },
+                    onPRTap: { prNumber in
+                        navigationPath.append(PRNavigation(
+                            prNumber: prNumber,
+                            repoOwner: viewModel.selectedRepo.owner,
+                            repoName: viewModel.selectedRepo.name
+                        ))
+                    },
                     onLoadMore: {
                         viewModel.loadMoreIfNeeded()
                     },

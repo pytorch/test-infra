@@ -34,6 +34,16 @@ final class PRDetailViewModel: ObservableObject {
     @Published var jobFilter: JobFilter = .all
     @Published var jobSearchQuery: String = ""
 
+    /// Cached job summary per commit SHA (populated as commits are selected).
+    @Published var commitJobSummaries: [String: CommitJobSummary] = [:]
+
+    struct CommitJobSummary {
+        let total: Int
+        let passed: Int
+        let failed: Int
+        let pending: Int
+    }
+
     // MARK: - Config
 
     let prNumber: Int
@@ -252,6 +262,16 @@ final class PRDetailViewModel: ObservableObject {
         }
         rebuildGroupedJobs()
         isLoadingJobs = false
+
+        // Cache the summary for this commit's chip indicator
+        if !jobsForSelectedSha.isEmpty {
+            commitJobSummaries[sha] = CommitJobSummary(
+                total: totalJobs,
+                passed: passedJobs,
+                failed: failedJobs,
+                pending: pendingJobs
+            )
+        }
     }
 
     private func rebuildGroupedJobs() {

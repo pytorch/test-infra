@@ -10,6 +10,7 @@ struct HUDGridView: View {
     var hasMorePages: Bool = true
     var loadMoreError: String?
     var onCommitRowTap: ((HUDRow) -> Void)?
+    var onPRTap: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
     var onRetryLoadMore: (() -> Void)?
     var onDismissLoadMoreError: (() -> Void)?
@@ -234,9 +235,15 @@ struct HUDGridView: View {
                             }
 
                             if let pr = row.prNumber {
-                                Text("#\(pr)")
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
+                                Button {
+                                    onPRTap?(pr)
+                                } label: {
+                                    Text("#\(pr)")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(Color.accentColor)
+                                        .underline()
+                                }
+                                .buttonStyle(.plain)
                             }
 
                             Spacer()
@@ -283,6 +290,11 @@ struct HUDGridView: View {
                 Label("Copy SHA", systemImage: "doc.on.doc")
             }
             if let pr = row.prNumber {
+                Button {
+                    onPRTap?(pr)
+                } label: {
+                    Label("View PR #\(pr)", systemImage: "arrow.right.circle")
+                }
                 Button {
                     UIPasteboard.general.string = "\(pr)"
                 } label: {

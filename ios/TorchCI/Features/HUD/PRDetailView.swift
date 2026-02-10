@@ -356,6 +356,34 @@ struct PRDetailView: View {
                         .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary)
                         .frame(maxWidth: 180, alignment: .leading)
                 }
+
+                // Job status indicator (shown after commit jobs have been loaded)
+                if let summary = viewModel.commitJobSummaries[commit.sha] {
+                    HStack(spacing: 4) {
+                        if summary.failed > 0 {
+                            HStack(spacing: 2) {
+                                Circle().fill(AppColors.failure).frame(width: 6, height: 6)
+                                Text("\(summary.failed)")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            }
+                        }
+                        if summary.passed > 0 {
+                            HStack(spacing: 2) {
+                                Circle().fill(AppColors.success).frame(width: 6, height: 6)
+                                Text("\(summary.passed)")
+                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            }
+                        }
+                        if summary.pending > 0 {
+                            HStack(spacing: 2) {
+                                Circle().fill(AppColors.pending).frame(width: 6, height: 6)
+                                Text("\(summary.pending)")
+                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            }
+                        }
+                    }
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
