@@ -80,6 +80,7 @@ struct HUDJob: Decodable, Identifiable {
     /// Whether a previous run of this job (same name, same SHA) failed.
     /// This is a simple boolean from the API (not a full PreviousRun object).
     let failedPreviousRun: Bool?
+    let failureAnnotation: String?
     let authorEmail: String?
 
     /// Stable identity for SwiftUI; uses the server ID when available,
@@ -90,7 +91,7 @@ struct HUDJob: Decodable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, name, conclusion, htmlUrl, logUrl, durationS, queueTimeS
         case failureLines, failureCaptures, runnerName
-        case unstable, failedPreviousRun, authorEmail
+        case unstable, failedPreviousRun, failureAnnotation, authorEmail
     }
 
     /// Custom decoder that handles all fields including failure data.
@@ -108,6 +109,7 @@ struct HUDJob: Decodable, Identifiable {
         runnerName = try container.decodeIfPresent(String.self, forKey: .runnerName)
         unstable = try container.decodeIfPresent(Bool.self, forKey: .unstable)
         failedPreviousRun = try container.decodeIfPresent(Bool.self, forKey: .failedPreviousRun)
+        failureAnnotation = try container.decodeIfPresent(String.self, forKey: .failureAnnotation)
         authorEmail = try container.decodeIfPresent(String.self, forKey: .authorEmail)
         failureLines = try container.decodeIfPresent([String].self, forKey: .failureLines)
         failureCaptures = try container.decodeIfPresent([String].self, forKey: .failureCaptures)
@@ -116,7 +118,8 @@ struct HUDJob: Decodable, Identifiable {
     // Direct initializer for tests and manual construction
     init(id: Int?, name: String?, conclusion: String?, htmlUrl: String?, logUrl: String?,
          durationS: Int?, queueTimeS: Int? = nil, failureLines: [String]?, failureCaptures: [String]?,
-         runnerName: String?, unstable: Bool?, failedPreviousRun: Bool? = nil, authorEmail: String?) {
+         runnerName: String?, unstable: Bool?, failedPreviousRun: Bool? = nil,
+         failureAnnotation: String? = nil, authorEmail: String?) {
         self.jobId = id
         self.id = id.map { String($0) } ?? UUID().uuidString
         self.name = name; self.conclusion = conclusion
@@ -124,7 +127,8 @@ struct HUDJob: Decodable, Identifiable {
         self.queueTimeS = queueTimeS
         self.failureLines = failureLines; self.failureCaptures = failureCaptures
         self.runnerName = runnerName; self.unstable = unstable
-        self.failedPreviousRun = failedPreviousRun; self.authorEmail = authorEmail
+        self.failedPreviousRun = failedPreviousRun
+        self.failureAnnotation = failureAnnotation; self.authorEmail = authorEmail
     }
 
     var isFailure: Bool { conclusion == "failure" }
@@ -133,6 +137,9 @@ struct HUDJob: Decodable, Identifiable {
     var isUnstable: Bool { unstable == true }
     /// Job slot exists in the grid but no actual job was created for this commit.
     var isEmpty: Bool { conclusion == nil && jobId == nil }
+
+    /// Failure has been classified/annotated by a team member.
+    var isClassified: Bool { isFailure && failureAnnotation != nil }
 
     /// Succeeded but a previous run of the same job (same commit) failed — flaky.
     var isFlaky: Bool { isSuccess && failedPreviousRun == true }

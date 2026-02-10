@@ -126,6 +126,7 @@ struct HUDGridView: View {
         let repeatFailureCount: Int
         let unstableFailureCount: Int
         let blockingFailureCount: Int
+        let classifiedCount: Int
         let pendingCount: Int
         let totalRealJobs: Int
         let maxDurationS: Int?
@@ -135,7 +136,7 @@ struct HUDGridView: View {
     }
 
     private func computeStats(for jobs: [HUDJob]) -> RowJobStats {
-        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, pending = 0, real = 0
+        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, classified = 0, pending = 0, real = 0
         var maxDur: Int?
         var maxQueue: Int?
         for (jobIndex, job) in jobs.enumerated() {
@@ -153,14 +154,16 @@ struct HUDGridView: View {
             } else if job.isSuccess {
                 success += 1
             } else if job.isFailure {
-                if job.isUnstable {
+                if job.isClassified {
+                    classified += 1
+                } else if job.isUnstable {
                     unstableFail += 1
                 } else if job.isRepeatFailure {
                     repeatFail += 1
                 } else {
                     newFail += 1
                 }
-                if HUDJob.isBlockingName(jobName) && !job.isUnstable {
+                if HUDJob.isBlockingName(jobName) && !job.isUnstable && !job.isClassified {
                     blocking += 1
                 }
             } else if job.isPending {
@@ -174,6 +177,7 @@ struct HUDGridView: View {
             repeatFailureCount: repeatFail,
             unstableFailureCount: unstableFail,
             blockingFailureCount: blocking,
+            classifiedCount: classified,
             pendingCount: pending,
             totalRealJobs: real,
             maxDurationS: maxDur,
@@ -289,6 +293,7 @@ struct HUDGridView: View {
             (AppColors.failure, stats.blockingFailureCount),
             (Color.red.opacity(0.5), nonBlockingFails),
             (AppColors.unstable, stats.unstableFailureCount),
+            (Color.purple.opacity(0.6), stats.classifiedCount),
             (AppColors.pending, stats.pendingCount),
         ].filter { $0.1 > 0 }
         let segmentTotal = segments.reduce(0) { $0 + $1.1 }
@@ -325,6 +330,9 @@ struct HUDGridView: View {
             }
             if stats.unstableFailureCount > 0 {
                 miniCountBadge(count: stats.unstableFailureCount, color: AppColors.unstable, label: "unstable")
+            }
+            if stats.classifiedCount > 0 {
+                miniCountBadge(count: stats.classifiedCount, color: Color.purple.opacity(0.7), label: "classified")
             }
             if stats.flakyCount > 0 {
                 miniCountBadge(count: stats.flakyCount, color: Color.green.opacity(0.7), label: "flaky")
