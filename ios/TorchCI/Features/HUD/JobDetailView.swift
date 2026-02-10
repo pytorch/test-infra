@@ -81,6 +81,13 @@ struct JobDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = viewModel.workflowDisplayName
+                    } label: {
+                        Label("Copy Workflow Name", systemImage: "doc.on.doc")
+                    }
+                }
 
                 if let jobId = viewModel.jobIdDisplay {
                     HStack(spacing: 4) {
@@ -90,6 +97,13 @@ struct JobDetailView: View {
                         Text(jobId)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = jobId
+                        } label: {
+                            Label("Copy Job ID", systemImage: "doc.on.doc")
+                        }
                     }
                 }
             }

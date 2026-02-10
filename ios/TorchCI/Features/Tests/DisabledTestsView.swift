@@ -60,6 +60,7 @@ struct DisabledTestsView: View {
             Image(systemName: "arrow.up.arrow.down.circle")
                 .font(.body)
         }
+        .accessibilityLabel("Sort options")
     }
 
     private func sortIcon(for option: DisabledTestsViewModel.SortOption) -> String {
@@ -196,6 +197,7 @@ struct DisabledTestsView: View {
             Image(systemName: showFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                 .font(.body)
         }
+        .accessibilityLabel(showFilters ? "Hide filters" : "Show filters")
     }
 
     // MARK: - Content
@@ -269,6 +271,7 @@ struct DisabledTestsView: View {
             }
         }
         .listStyle(.plain)
+        .scrollDismissesKeyboard(.interactively)
         .refreshable {
             await viewModel.refresh()
         }

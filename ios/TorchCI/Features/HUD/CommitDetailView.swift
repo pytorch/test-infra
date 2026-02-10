@@ -80,6 +80,7 @@ struct CommitDetailView: View {
             }
             .padding(16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .refreshable {
             await viewModel.refresh()
         }

@@ -45,6 +45,7 @@ struct PRDetailView: View {
                     Image(systemName: "safari")
                         .font(.subheadline)
                 }
+                .accessibilityLabel("Open in Safari")
 
                 Menu {
                     Button {
@@ -95,6 +96,7 @@ struct PRDetailView: View {
                     Image(systemName: "ellipsis.circle")
                         .font(.subheadline)
                 }
+                .accessibilityLabel("More actions")
             }
         }
         .task { await viewModel.loadPR() }

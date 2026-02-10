@@ -246,6 +246,7 @@ struct FailedJobsView: View {
             .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
         .refreshable { await viewModel.refresh() }
     }
 
