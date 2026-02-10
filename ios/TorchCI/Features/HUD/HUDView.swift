@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct HUDView: View {
-    @StateObject var viewModel = HUDViewModel()
+    @ObservedObject var viewModel: HUDViewModel
     @Binding var navigationPath: NavigationPath
 
     @State private var selectedJob: HUDJob?
@@ -1077,6 +1077,6 @@ private struct CommitJobsListView: View {
 #Preview {
     @Previewable @State var path = NavigationPath()
     NavigationStack(path: $path) {
-        HUDView(navigationPath: $path)
+        HUDView(viewModel: HUDViewModel(), navigationPath: $path)
     }
 }

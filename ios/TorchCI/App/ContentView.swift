@@ -4,6 +4,7 @@ import UIKit
 struct ContentView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
+    @StateObject private var hudViewModel = HUDViewModel()
     @State private var selectedTab: AppTab = .hud
 
     // Deep link navigation state for the HUD tab.
@@ -16,7 +17,7 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $hudNavigationPath) {
-                HUDView(navigationPath: $hudNavigationPath)
+                HUDView(viewModel: hudViewModel, navigationPath: $hudNavigationPath)
                     .navigationDestination(for: DeepLinkCommitDestination.self) { dest in
                         CommitDetailView(
                             sha: dest.sha,
@@ -35,6 +36,7 @@ struct ContentView: View {
             .tabItem {
                 Label("HUD", systemImage: "square.grid.3x3")
             }
+            .badge(hudViewModel.hasData ? hudViewModel.jobHealthStats.blockingFailureCount : 0)
             .tag(AppTab.hud)
 
             NavigationStack {
