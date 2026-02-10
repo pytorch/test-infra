@@ -84,6 +84,9 @@ struct SharedSessionView: View {
                 }
                 .padding(.bottom, 16)
             }
+            .refreshable {
+                await fetchSharedSession()
+            }
 
             // Bottom action bar
             bottomActionBar
