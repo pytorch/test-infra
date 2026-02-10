@@ -171,6 +171,7 @@ struct HUDJob: Decodable, Identifiable {
     }
 
     var accessibilityStatus: String {
+        if isClassified { return "classified" }
         if isUnstable { return "unstable" }
         if isFlaky { return "flaky" }
         if isFailure { return "failure" }

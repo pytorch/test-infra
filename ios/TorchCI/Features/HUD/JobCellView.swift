@@ -22,9 +22,17 @@ struct JobCellView: View {
                 .fill(cellColor)
                 .frame(width: cellSize, height: cellSize)
                 .overlay {
-                    if job.isUnstable {
+                    if job.isClassified {
+                        Image(systemName: "checkmark.seal")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                    } else if job.isUnstable {
                         Image(systemName: "exclamationmark")
                             .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    } else if job.isFlaky {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
                     } else if job.isFailure {
                         Image(systemName: "xmark")
@@ -113,6 +121,12 @@ struct JobCellView: View {
     }
 
     private var cellColor: Color {
+        if job.isClassified {
+            return Color.purple.opacity(0.7)
+        }
+        if job.isFlaky {
+            return Color.green.opacity(0.5)
+        }
         if job.isUnstable {
             return AppColors.unstable
         }
@@ -169,6 +183,16 @@ private struct JobCellPreview: View {
                             .font(.caption)
                     }
                     .foregroundStyle(.secondary)
+                }
+
+                if job.isClassified, let annotation = job.failureAnnotation {
+                    HStack(spacing: 3) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.caption2)
+                        Text(annotation.replacingOccurrences(of: "_", with: " ").capitalized)
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .foregroundStyle(.purple)
                 }
 
                 if HUDJob.isBlockingName(jobName) {
