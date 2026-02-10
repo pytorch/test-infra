@@ -179,6 +179,17 @@ struct CommitDetailView: View {
                             .clipShape(Capsule())
                         }
                     }
+
+                    // Phabricator diff badge if available
+                    if let diffNum = viewModel.commitResponse?.commit.diffNum {
+                        Text(diffNum)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.purple)
+                            .clipShape(Capsule())
+                    }
                 }
             }
 
@@ -844,6 +855,16 @@ struct CommitDetailView: View {
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Color(.systemGray4).opacity(0.5))
+                                .clipShape(Capsule())
+                        }
+
+                        if let attempt = job.runAttempt, attempt > 1 {
+                            Text("Attempt \(attempt)")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.15))
                                 .clipShape(Capsule())
                         }
 
