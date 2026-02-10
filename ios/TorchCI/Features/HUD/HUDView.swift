@@ -892,6 +892,24 @@ private struct CommitJobsListView: View {
                 .padding(.vertical, 4)
             }
 
+            if row.isAutoreverted == true {
+                Section {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Auto-Reverted")
+                                .font(.subheadline.weight(.semibold))
+                            Text("This commit was automatically reverted due to CI failures.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             if !blockingFailures.isEmpty {
                 Section {
                     ForEach(Array(blockingFailures.enumerated()), id: \.offset) { _, pair in
