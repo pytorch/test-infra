@@ -703,6 +703,7 @@ final class MetricsDashboardViewModel: ObservableObject {
         )
 
         // === Await all results and assign to published properties ===
+        guard !Task.isCancelled else { return }
 
         // Time series
         redRateSeries = await redRateResult ?? []

@@ -90,16 +90,16 @@ struct TTSView: View {
             GranularityPicker(selection: $viewModel.granularity)
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.selectedPercentile) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.selectedJobFilter) {
             viewModel.applyJobFilter()
         }
         .onChange(of: viewModel.granularity) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
     }
 
@@ -626,6 +626,7 @@ final class TTSViewModel: ObservableObject {
     private var allTTSData: [TTSJobDataPoint] = []
     private var allDurationData: [TTSJobDataPoint] = []
     let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -740,8 +741,9 @@ final class TTSViewModel: ObservableObject {
         await fetchAllData()
     }
 
-    func onParametersChanged() async {
-        await fetchAllData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchAllData() }
     }
 
     func applyJobFilter() {
@@ -792,6 +794,7 @@ final class TTSViewModel: ObservableObject {
             async let p90 = fetchPercentileData(.p90, client: client2)
 
             let (p50Result, p75Result, p90Result) = try await (p50, p75, p90)
+            guard !Task.isCancelled else { return }
             p50Series = p50Result
             p75Series = p75Result
             p90Series = p90Result
@@ -802,6 +805,8 @@ final class TTSViewModel: ObservableObject {
             aggregateData()
 
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

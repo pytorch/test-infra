@@ -95,10 +95,10 @@ struct BuildTimeView: View {
             GranularityPicker(selection: $viewModel.granularity)
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.granularity) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
     }
 

@@ -33,6 +33,7 @@ final class LLMBenchmarkViewModel: ObservableObject {
 
     private let apiClient: APIClientProtocol
     private let benchmarkId: String
+    private var loadTask: Task<Void, Never>?
 
     static let branches: [String] = ["main", "viable/strict", "nightly"]
 
@@ -207,6 +208,11 @@ final class LLMBenchmarkViewModel: ObservableObject {
 
     // MARK: - Actions
 
+    func onFiltersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await loadData() }
+    }
+
     func loadData() async {
         if state != .loaded {
             state = .loading
@@ -273,11 +279,14 @@ final class LLMBenchmarkViewModel: ObservableObject {
             async let metadataFetch: [LLMBenchmarkMetadataRow] = client.fetch(metadataEndpoint)
 
             let (rawRows, metadataRows) = try await (dataFetch, metadataFetch)
+            guard !Task.isCancelled else { return }
             let (timeSeries, group) = Self.convertRawRows(rawRows)
             timeSeriesData = timeSeries
             groupData = group
             populateFilterOptions(from: metadataRows)
             state = .loaded
+        } catch is CancellationError {
+            return
         } catch {
             // Try loading data and metadata individually for partial results
             do {

@@ -435,7 +435,8 @@ final class CostAnalysisViewModelTests: XCTestCase {
         ])
         registerCostResponse(queryName: "cost_job_per_platform", json: json)
 
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        await viewModel.refresh()
 
         let paths = mockClient.callPaths()
         XCTAssertTrue(paths.contains("/api/clickhouse/cost_job_per_platform"))

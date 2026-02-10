@@ -72,10 +72,10 @@ struct CostAnalysisView: View {
             .pickerStyle(.segmented)
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.selectedGrouping) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
     }
 
@@ -511,6 +511,7 @@ final class CostAnalysisViewModel: ObservableObject {
     @Published var periodComparison: PeriodComparison?
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -551,8 +552,9 @@ final class CostAnalysisViewModel: ObservableObject {
         await fetchAllData()
     }
 
-    func onParametersChanged() async {
-        await fetchAllData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchAllData() }
     }
 
     // MARK: - Static Formatters
@@ -601,6 +603,7 @@ final class CostAnalysisViewModel: ObservableObject {
             async let comparison = fetchPeriodComparison(client: client)
 
             let (breakdownResult, trendResult, comparisonResult) = try await (breakdown, trend, comparison)
+            guard !Task.isCancelled else { return }
 
             costBreakdown = breakdownResult
             costTrendSeries = trendResult
@@ -615,6 +618,8 @@ final class CostAnalysisViewModel: ObservableObject {
             }
 
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

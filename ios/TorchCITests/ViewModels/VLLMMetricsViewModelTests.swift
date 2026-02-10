@@ -182,7 +182,8 @@ final class VLLMMetricsViewModelTests: XCTestCase {
         registerAllEmptyResponses()
 
         viewModel.selectedTimeRange = "30d"
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        await viewModel.refresh()
 
         XCTAssertGreaterThan(mockClient.callCount, 0)
     }
@@ -238,7 +239,8 @@ final class VLLMMetricsViewModelTests: XCTestCase {
     func testOnParametersChangedCallsFetchAllData() async {
         registerAllEmptyResponses()
 
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        await viewModel.refresh()
 
         XCTAssertGreaterThan(mockClient.callCount, 0)
     }

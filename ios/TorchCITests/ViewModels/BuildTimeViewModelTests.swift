@@ -122,7 +122,8 @@ final class BuildTimeViewModelTests: XCTestCase {
     func testTimeRangeChangeTriggersRefetch() async {
         registerBothEmptyResponses()
         sut.selectedTimeRange = "30d"
-        await sut.onParametersChanged()
+        sut.onParametersChanged()
+        await sut.refresh()
 
         XCTAssertGreaterThan(mockClient.callCount, 0)
     }
@@ -310,7 +311,8 @@ final class BuildTimeViewModelTests: XCTestCase {
     func testOnParametersChangedTriggersRefetch() async {
         registerBothEmptyResponses()
 
-        await sut.onParametersChanged()
+        sut.onParametersChanged()
+        await sut.refresh()
 
         XCTAssertGreaterThan(mockClient.callCount, 0)
         XCTAssertEqual(sut.state, .loaded)

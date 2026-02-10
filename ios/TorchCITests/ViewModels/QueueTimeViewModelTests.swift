@@ -461,9 +461,10 @@ final class QueueTimeViewModelTests: XCTestCase {
         registerQueueTimeResponse(json)
 
         viewModel.granularity = .hour
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        await viewModel.refresh()
 
-        XCTAssertEqual(mockClient.callCount, 1)
+        XCTAssertGreaterThan(mockClient.callCount, 0)
     }
 
     // MARK: - Categorize

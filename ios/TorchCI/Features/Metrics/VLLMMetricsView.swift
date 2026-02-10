@@ -38,7 +38,7 @@ struct VLLMMetricsView: View {
 
                 TimeRangePicker(selectedRangeID: $viewModel.selectedTimeRange)
                     .onChange(of: viewModel.selectedTimeRange) {
-                        Task { await viewModel.onParametersChanged() }
+                        viewModel.onParametersChanged()
                     }
 
                 jobGroupFilter
@@ -146,7 +146,7 @@ struct VLLMMetricsView: View {
                 } else {
                     viewModel.selectedJobGroups.append(group)
                 }
-                Task { await viewModel.onParametersChanged() }
+                viewModel.onParametersChanged()
             }
         } label: {
             Text(label)
@@ -683,6 +683,7 @@ final class VLLMMetricsViewModel: ObservableObject {
     @Published var jobRuntimeTrendsData: [JobRuntimeTrendRow] = []
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -721,8 +722,9 @@ final class VLLMMetricsViewModel: ObservableObject {
         await fetchAllData()
     }
 
-    func onParametersChanged() async {
-        await fetchAllData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchAllData() }
     }
 
     private func fetchAllData() async {
@@ -757,6 +759,7 @@ final class VLLMMetricsViewModel: ObservableObject {
             let jl = try? await jobList
             let dr = try? await dockerRuntime
             let jr = try? await jobRuntimes
+            guard !Task.isCancelled else { return }
 
             processReliability(rel, prev: prevRel)
             processTrunkHealth(trunk, prev: prevTrunk)
@@ -779,6 +782,8 @@ final class VLLMMetricsViewModel: ObservableObject {
             }
 
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

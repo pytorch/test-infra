@@ -74,6 +74,7 @@ final class BuildTimeViewModel: ObservableObject {
     @Published var selectedJobs: Set<String> = []
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -182,8 +183,9 @@ final class BuildTimeViewModel: ObservableObject {
         await fetchAllData()
     }
 
-    func onParametersChanged() async {
-        await fetchAllData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchAllData() }
     }
 
     private func fetchAllData() async {
@@ -192,6 +194,7 @@ final class BuildTimeViewModel: ObservableObject {
             async let steps = fetchBuildSteps()
 
             let (overallEntries, stepsResult) = try await (overall, steps)
+            guard !Task.isCancelled else { return }
 
             // Compute duration series: average across all jobs per time bucket
             let grouped = Dictionary(grouping: overallEntries, by: { $0.bucket })
@@ -225,6 +228,8 @@ final class BuildTimeViewModel: ObservableObject {
             computeSummaries()
             detectRegressions()
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

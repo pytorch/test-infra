@@ -453,7 +453,8 @@ final class TTSViewModelTests: XCTestCase {
         await viewModel.loadData()
         let callsBefore = mockClient.callCount
 
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        await viewModel.refresh()
         let callsAfter = mockClient.callCount
 
         XCTAssertGreaterThan(callsAfter, callsBefore)

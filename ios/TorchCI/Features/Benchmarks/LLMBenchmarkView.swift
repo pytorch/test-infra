@@ -89,7 +89,7 @@ struct LLMBenchmarkView: View {
                     selectedBranch: $viewModel.selectedBranch
                 )
                 .onChange(of: viewModel.selectedBranch) { _, _ in
-                    Task { await viewModel.loadData() }
+                    viewModel.onFiltersChanged()
                 }
 
                 Spacer()
@@ -178,7 +178,7 @@ struct LLMBenchmarkView: View {
                             selection: $viewModel.selectedDevice
                         )
                         .onChange(of: viewModel.selectedDevice) { _, _ in
-                            Task { await viewModel.loadData() }
+                            viewModel.onFiltersChanged()
                         }
 
                         FilterRow(
@@ -188,7 +188,7 @@ struct LLMBenchmarkView: View {
                             selection: $viewModel.selectedBackend
                         )
                         .onChange(of: viewModel.selectedBackend) { _, _ in
-                            Task { await viewModel.loadData() }
+                            viewModel.onFiltersChanged()
                         }
 
                         FilterRow(
@@ -198,7 +198,7 @@ struct LLMBenchmarkView: View {
                             selection: $viewModel.selectedMode
                         )
                         .onChange(of: viewModel.selectedMode) { _, _ in
-                            Task { await viewModel.loadData() }
+                            viewModel.onFiltersChanged()
                         }
 
                         FilterRow(
@@ -208,7 +208,7 @@ struct LLMBenchmarkView: View {
                             selection: $viewModel.selectedDtype
                         )
                         .onChange(of: viewModel.selectedDtype) { _, _ in
-                            Task { await viewModel.loadData() }
+                            viewModel.onFiltersChanged()
                         }
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))

@@ -65,7 +65,7 @@ struct AutorevertMetricsView: View {
             await viewModel.refresh()
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
     }
 
@@ -720,6 +720,7 @@ final class AutorevertMetricsViewModel: ObservableObject {
     @Published var showAllReverts: Bool = false
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -738,9 +739,10 @@ final class AutorevertMetricsViewModel: ObservableObject {
         await fetchData()
     }
 
-    func onParametersChanged() async {
+    func onParametersChanged() {
         showAllReverts = false
-        await fetchData()
+        loadTask?.cancel()
+        loadTask = Task { await fetchData() }
     }
 
     private func fetchData() async {
@@ -751,12 +753,15 @@ final class AutorevertMetricsViewModel: ObservableObject {
             let metrics: AutorevertMetrics = try await apiClient.fetch(
                 .autorevertMetrics(startTime: range.startTime, stopTime: range.stopTime)
             )
+            guard !Task.isCancelled else { return }
 
             summary = metrics.summary
             weeklyMetrics = metrics.weeklyMetrics
             significantReverts = metrics.significantReverts
             falsePositivesData = metrics.falsePositives
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

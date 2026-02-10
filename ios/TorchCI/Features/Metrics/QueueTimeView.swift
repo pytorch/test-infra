@@ -65,10 +65,10 @@ struct QueueTimeView: View {
             GranularityPicker(selection: $viewModel.granularity)
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.granularity) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
     }
 
@@ -714,6 +714,7 @@ final class QueueTimeViewModel: ObservableObject {
     @Published var maxQueueMinutes: Double?
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -816,19 +817,23 @@ final class QueueTimeViewModel: ObservableObject {
         await fetchAllData()
     }
 
-    func onParametersChanged() async {
-        await fetchAllData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchAllData() }
     }
 
     private func fetchAllData() async {
         do {
             let rawData = try await fetchQueueTimeData()
+            guard !Task.isCancelled else { return }
 
             queueTimeSeries = computeOverallTimeSeries(from: rawData)
             machineTypeBreakdown = computeMachineTypeBreakdown(from: rawData)
             computeSummary(from: rawData)
 
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }
