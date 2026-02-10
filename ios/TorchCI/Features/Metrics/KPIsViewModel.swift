@@ -26,6 +26,7 @@ final class KPIsViewModel: ObservableObject {
     @Published var selectedTimeRange: TimeRange = TimeRange.presets[6] // 6 months default
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     // MARK: - KPI Definitions
 
@@ -261,6 +262,8 @@ final class KPIsViewModel: ObservableObject {
             return collected
         }
 
+        guard !Task.isCancelled else { return }
+
         var allSparklines: [String: [TimeSeriesDataPoint]] = [:]
         var allKPIs: [KPIData] = []
         var failedQueries: [String] = []
@@ -324,9 +327,10 @@ final class KPIsViewModel: ObservableObject {
         await loadKPIs()
     }
 
-    func changeTimeRange(_ range: TimeRange) async {
+    func changeTimeRange(_ range: TimeRange) {
+        loadTask?.cancel()
         selectedTimeRange = range
-        await loadKPIs()
+        loadTask = Task { await loadKPIs() }
     }
 
     // MARK: - Helpers

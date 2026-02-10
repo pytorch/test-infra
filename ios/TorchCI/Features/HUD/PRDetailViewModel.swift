@@ -337,7 +337,8 @@ final class PRDetailViewModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.autoRefreshInterval))
                 guard !Task.isCancelled else { break }
-                guard let self, self.isAutoRefreshEnabled, self.state == .loaded else { continue }
+                guard let self else { break }
+                guard self.isAutoRefreshEnabled, self.state == .loaded else { continue }
                 await self.refresh()
             }
         }

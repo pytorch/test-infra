@@ -268,7 +268,8 @@ final class KPIsViewModelTests: XCTestCase {
         registerAllEmptyResponses()
 
         let threeMonths = TimeRange.presets[5] // "3 Months"
-        await viewModel.changeTimeRange(threeMonths)
+        viewModel.changeTimeRange(threeMonths)
+        await viewModel.loadKPIs()
 
         XCTAssertEqual(viewModel.selectedTimeRange.id, "90d")
         XCTAssertEqual(viewModel.selectedTimeRange.days, 90)
@@ -278,7 +279,8 @@ final class KPIsViewModelTests: XCTestCase {
         registerAllEmptyResponses()
 
         let oneMonth = TimeRange.presets[4] // "1 Month"
-        await viewModel.changeTimeRange(oneMonth)
+        viewModel.changeTimeRange(oneMonth)
+        await viewModel.loadKPIs()
 
         XCTAssertEqual(viewModel.state, .loaded)
         // Should have fetched all KPI definitions

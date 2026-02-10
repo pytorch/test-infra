@@ -38,9 +38,7 @@ struct KPIsView: View {
         Menu {
             ForEach([TimeRange.presets[4], TimeRange.presets[5], TimeRange.presets[6]]) { range in
                 Button {
-                    Task {
-                        await viewModel.changeTimeRange(range)
-                    }
+                    viewModel.changeTimeRange(range)
                 } label: {
                     HStack {
                         Text(range.label)

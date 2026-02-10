@@ -158,6 +158,8 @@ final class FailedJobsViewModel: ObservableObject {
     @Published var pendingAnnotationJobIds: Set<Int> = []
     @Published var annotationSyncError: String?
 
+    private var loadTask: Task<Void, Never>?
+
     // MARK: - Configuration
 
     static let repos: [RepoConfig] = [
@@ -325,6 +327,7 @@ final class FailedJobsViewModel: ObservableObject {
             )
 
             let response: FailedJobsAnnotationResponse = try await apiClient.fetch(endpoint)
+            guard !Task.isCancelled else { return }
 
             // Update jobs
             jobs = response.failedJobs ?? []
@@ -356,6 +359,8 @@ final class FailedJobsViewModel: ObservableObject {
             annotationCache.saveAll(cacheDict)
 
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user changed filters) — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }
@@ -367,38 +372,42 @@ final class FailedJobsViewModel: ObservableObject {
 
     func selectRepo(_ repo: RepoConfig) {
         guard repo.id != selectedRepo.id else { return }
+        loadTask?.cancel()
         selectedRepo = repo
         currentPage = 1
         jobs = []
         state = .idle
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func selectBranch(_ branch: String) {
         guard branch != selectedBranch else { return }
+        loadTask?.cancel()
         selectedBranch = branch
         currentPage = 1
         jobs = []
         state = .idle
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func updateTimeRange(days: Int) {
+        loadTask?.cancel()
         timeRangeDays = days
         let now = Date()
         endDate = now
         startDate = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
         currentPage = 1
         jobs = []
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func updateCustomDateRange(start: Date, end: Date) {
+        loadTask?.cancel()
         startDate = start
         endDate = end
         currentPage = 1
         jobs = []
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     /// Annotate a single job. The annotation is applied optimistically to the
