@@ -586,6 +586,12 @@ struct LegendItem: View {
 }
 
 struct SignificantRevertRow: View {
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     let revert: SignificantRevert
 
     var body: some View {
@@ -632,9 +638,7 @@ struct SignificantRevertRow: View {
     }
 
     private func formatDate(_ isoString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoString) else {
+        guard let date = Self.isoFormatter.date(from: isoString) else {
             return isoString
         }
         let display = DateFormatter()
@@ -645,6 +649,12 @@ struct SignificantRevertRow: View {
 }
 
 struct FalsePositiveRow: View {
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     let fp: FalsePositive
 
     var body: some View {
@@ -680,9 +690,7 @@ struct FalsePositiveRow: View {
     }
 
     private func formatDate(_ isoString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoString) else {
+        guard let date = Self.isoFormatter.date(from: isoString) else {
             return isoString
         }
         let display = DateFormatter()

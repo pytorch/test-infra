@@ -2,6 +2,12 @@ import SwiftUI
 import Charts
 
 struct TestInfoView: View {
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     @StateObject private var viewModel: TestInfoViewModel
 
     init(testName: String, testSuite: String, testFile: String = "") {
@@ -519,9 +525,7 @@ struct TestInfoView: View {
     // MARK: - Helpers
 
     private func formatRelativeTime(_ timeString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: timeString) else {
+        guard let date = Self.isoFormatter.date(from: timeString) else {
             return timeString
         }
 

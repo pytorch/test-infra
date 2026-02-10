@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct CompilerRegressionView: View {
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFallback = ISO8601DateFormatter()
+
     // MARK: - State
 
     @State private var state: ViewState = .idle
@@ -79,10 +86,7 @@ struct CompilerRegressionView: View {
                     value: selectedTimeRange == .day ? -24 : (selectedTimeRange == .week ? -7 : -30),
                     to: Date()
                 ) ?? Date()
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                let fallback = ISO8601DateFormatter()
-                guard let reportDate = formatter.date(from: createdAt) ?? fallback.date(from: createdAt) else {
+                guard let reportDate = Self.isoFormatter.date(from: createdAt) ?? Self.isoFallback.date(from: createdAt) else {
                     timeMatch = false
                     return searchMatch && severityMatch && timeMatch
                 }
@@ -676,11 +680,7 @@ struct CompilerRegressionView: View {
     }
 
     private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-
-        guard let date = formatter.date(from: dateString) ?? fallback.date(from: dateString) else {
+        guard let date = Self.isoFormatter.date(from: dateString) ?? Self.isoFallback.date(from: dateString) else {
             return dateString
         }
 

@@ -127,8 +127,7 @@ struct TimeSeriesChart: View {
             }
 
             if let selectedPoint, let value = selectedPoint.value {
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: selectedPoint.granularity_bucket) {
+                if let date = Self.isoFormatter.date(from: selectedPoint.granularity_bucket) {
                     RuleMark(x: .value("Selected", date))
                         .foregroundStyle(.gray.opacity(0.3))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
@@ -183,12 +182,11 @@ struct TimeSeriesChart: View {
     }
 
     private func selectNearestPoint(to targetDate: Date) {
-        let formatter = ISO8601DateFormatter()
         var nearest: TimeSeriesDataPoint?
         var minDistance: TimeInterval = .infinity
         for point in data {
             guard point.value != nil,
-                  let date = formatter.date(from: point.granularity_bucket) else { continue }
+                  let date = Self.isoFormatter.date(from: point.granularity_bucket) else { continue }
             let distance = abs(date.timeIntervalSince(targetDate))
             if distance < minDistance {
                 minDistance = distance
@@ -206,15 +204,16 @@ struct TimeSeriesChart: View {
 // MARK: - Sparkline (compact chart for KPI cards)
 
 struct SparklineChart: View {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     let data: [TimeSeriesDataPoint]
     var color: Color = .blue
     var height: CGFloat = 40
 
     private var validData: [(date: Date, value: Double)] {
-        let formatter = ISO8601DateFormatter()
         return data.compactMap { point in
             guard let value = point.value,
-                  let date = formatter.date(from: point.granularity_bucket) else { return nil }
+                  let date = Self.isoFormatter.date(from: point.granularity_bucket) else { return nil }
             return (date: date, value: value)
         }
         .sorted { $0.date < $1.date }
