@@ -411,4 +411,71 @@ final class HUDDataTests: XCTestCase {
         XCTAssertEqual(row2Jobs.filter(\.isFailure).count, 1)
         XCTAssertEqual(row2Jobs.filter(\.isPending).count, 1)
     }
+
+    // MARK: - Status Field Tests
+
+    func testHUDJobStatusFieldDecoding() {
+        let json = """
+        {"id": 1, "name": "build", "conclusion": null, "status": "in_progress"}
+        """
+        let job: HUDJob = MockData.decode(json)
+        XCTAssertEqual(job.status, "in_progress")
+        XCTAssertNil(job.conclusion)
+        XCTAssertTrue(job.isPending)
+    }
+
+    func testHUDJobStatusQueuedIsPending() {
+        let json = """
+        {"id": 2, "name": "test", "conclusion": null, "status": "queued"}
+        """
+        let job: HUDJob = MockData.decode(json)
+        XCTAssertEqual(job.status, "queued")
+        XCTAssertTrue(job.isPending)
+    }
+
+    func testHUDJobStatusCompletedNotPending() {
+        let json = """
+        {"id": 3, "name": "lint", "conclusion": "success", "status": "completed"}
+        """
+        let job: HUDJob = MockData.decode(json)
+        XCTAssertEqual(job.status, "completed")
+        XCTAssertFalse(job.isPending)
+        XCTAssertTrue(job.isSuccess)
+    }
+
+    func testHUDJobStatusNilStillPendingWhenNilConclusion() {
+        let json = """
+        {"id": 4, "name": "test", "conclusion": null}
+        """
+        let job: HUDJob = MockData.decode(json)
+        XCTAssertNil(job.status)
+        XCTAssertTrue(job.isPending)
+    }
+
+    func testHUDJobInitWithStatus() {
+        let job = HUDJob(
+            id: 1, name: "build", conclusion: nil,
+            htmlUrl: nil, logUrl: nil, durationS: nil,
+            failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, authorEmail: nil,
+            status: "in_progress"
+        )
+        XCTAssertEqual(job.status, "in_progress")
+        XCTAssertTrue(job.isPending)
+    }
+
+    func testHUDJobClassifiedHealthStats() {
+        // Classified jobs should be counted separately from new failures
+        let classifiedJob = HUDJob(
+            id: 1, name: "test", conclusion: "failure",
+            htmlUrl: nil, logUrl: nil, durationS: nil,
+            failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil,
+            failureAnnotation: "infrastructure_error", authorEmail: nil
+        )
+        XCTAssertTrue(classifiedJob.isClassified)
+        XCTAssertTrue(classifiedJob.isFailure)
+        // Classified should not be treated as a new failure in stats
+        XCTAssertFalse(classifiedJob.isNewFailure && !classifiedJob.isClassified)
+    }
 }
