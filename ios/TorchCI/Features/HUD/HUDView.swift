@@ -155,6 +155,17 @@ struct HUDView: View {
                                     selectedJobName = name
                                     showingJobDetail = true
                                 }
+                            },
+                            onViewFullDetails: {
+                                showingCommitJobs = false
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(300))
+                                    navigationPath.append(CommitNavigation(
+                                        sha: row.sha,
+                                        repoOwner: viewModel.selectedRepo.owner,
+                                        repoName: viewModel.selectedRepo.name
+                                    ))
+                                }
                             }
                         )
                     }
@@ -813,6 +824,7 @@ private struct CommitJobsListView: View {
     let row: HUDRow
     let jobNames: [String]
     var onJobTap: ((HUDJob, String) -> Void)?
+    var onViewFullDetails: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -981,6 +993,18 @@ private struct CommitJobsListView: View {
         .navigationTitle("Commit Jobs")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onViewFullDetails?()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.caption)
+                        Text("Full Details")
+                            .font(.subheadline)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Done") { dismiss() }
             }
