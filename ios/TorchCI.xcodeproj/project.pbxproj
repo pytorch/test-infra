@@ -90,6 +90,7 @@
 		620E3A400D64FCB736E643BE /* TorchAgentData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D1052E3BA3A33991BE777C /* TorchAgentData.swift */; };
 		6602B70B6B24B60B6EB239B0 /* AccessibilityModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD31FE9B0398F5904419797A /* AccessibilityModifiers.swift */; };
 		6743E18F4D9487D9066DCCBF /* HUDMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 235D3C87C295E48D15D10EFE /* HUDMonitor.swift */; };
+		67F53329D944F82DF08915B1 /* DurationFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F73453F7BF28286FACCE1B2 /* DurationFormatterTests.swift */; };
 		6841224A8F959AF5736CA543 /* JobCancellationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9797F6B018731290CD58742 /* JobCancellationView.swift */; };
 		6DBAA1F12E3C948D8762A75C /* NotificationSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6429C3D3BDF1BB1873C383 /* NotificationSettingsTests.swift */; };
 		6E8E1B82576BC0EE9D5646C5 /* DisabledTestsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B6093BEBBEECA38123D83 /* DisabledTestsViewModelTests.swift */; };
@@ -294,6 +295,7 @@
 		5DCC975009D0BA0BE36C8E05 /* AccessibilityIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityIdentifiers.swift; sourceTree = "<group>"; };
 		5E25C7E2C6E22665AC576E6E /* ChatHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryTests.swift; sourceTree = "<group>"; };
 		5EAF86BD5A86C17F8C4E8F7C /* UtilizationDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationDataTests.swift; sourceTree = "<group>"; };
+		5F73453F7BF28286FACCE1B2 /* DurationFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationFormatterTests.swift; sourceTree = "<group>"; };
 		634747FB514979BB6DBC1877 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
 		6428AF69BBA515C053384B26 /* WidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
 		662C2FBD7676EA25F4D68182 /* TestInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestInfoView.swift; sourceTree = "<group>"; };
@@ -541,6 +543,7 @@
 			children = (
 				13C5E1AADEB2B3F3DE11F3CC /* APIClientTests.swift */,
 				E988A3673012EDB6056E36AA /* DeepLinkHandlerTests.swift */,
+				5F73453F7BF28286FACCE1B2 /* DurationFormatterTests.swift */,
 				A9BA7E1088840F928A3A3D59 /* HUDMonitorTests.swift */,
 				42B680A4380838DC216BF84D /* KeychainHelperTests.swift */,
 			);
@@ -1196,6 +1199,7 @@
 				E46EE6ADD29817FC8D15CD63 /* CostAnalysisViewModelTests.swift in Sources */,
 				B24B7A021F446CCA5658DF00 /* DeepLinkHandlerTests.swift in Sources */,
 				6E8E1B82576BC0EE9D5646C5 /* DisabledTestsViewModelTests.swift in Sources */,
+				67F53329D944F82DF08915B1 /* DurationFormatterTests.swift in Sources */,
 				3CF2DB72CC094447FC6D8888 /* FailedJobsViewModelTests.swift in Sources */,
 				049009CC223563833ADB777B /* FailureAnalysisViewModelTests.swift in Sources */,
 				4F8727C17FFFB5EFB5F751D6 /* HUDDataTests.swift in Sources */,
