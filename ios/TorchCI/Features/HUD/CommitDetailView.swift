@@ -744,7 +744,7 @@ struct CommitDetailView: View {
         } label: {
             HStack(spacing: 12) {
                 // Status icon with larger size for better visibility
-                JobStatusIcon(conclusion: job.conclusion)
+                JobStatusIcon(conclusion: job.unstable == true ? "unstable" : job.conclusion)
                     .frame(width: 20)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -774,6 +774,16 @@ struct CommitDetailView: View {
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(AppColors.unstable.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+
+                        if job.isFailure, let prev = job.previousRun, prev.conclusion == "failure" {
+                            Text("Known")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(.systemGray4).opacity(0.5))
                                 .clipShape(Capsule())
                         }
 

@@ -80,6 +80,7 @@ struct HUDJob: Decodable, Identifiable {
     /// Whether a previous run of this job (same name, same SHA) failed.
     /// This is a simple boolean from the API (not a full PreviousRun object).
     let failedPreviousRun: Bool?
+    let status: String?
     let failureAnnotation: String?
     let authorEmail: String?
 
@@ -89,7 +90,7 @@ struct HUDJob: Decodable, Identifiable {
 
     // JSON keys are camelCase (matching the TypeScript interface)
     enum CodingKeys: String, CodingKey {
-        case id, name, conclusion, htmlUrl, logUrl, durationS, queueTimeS
+        case id, name, conclusion, status, htmlUrl, logUrl, durationS, queueTimeS
         case failureLines, failureCaptures, runnerName
         case unstable, failedPreviousRun, failureAnnotation, authorEmail
     }
@@ -107,6 +108,7 @@ struct HUDJob: Decodable, Identifiable {
         durationS = try container.decodeIfPresent(Int.self, forKey: .durationS)
         queueTimeS = try container.decodeIfPresent(Int.self, forKey: .queueTimeS)
         runnerName = try container.decodeIfPresent(String.self, forKey: .runnerName)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
         unstable = try container.decodeIfPresent(Bool.self, forKey: .unstable)
         failedPreviousRun = try container.decodeIfPresent(Bool.self, forKey: .failedPreviousRun)
         failureAnnotation = try container.decodeIfPresent(String.self, forKey: .failureAnnotation)
@@ -119,10 +121,10 @@ struct HUDJob: Decodable, Identifiable {
     init(id: Int?, name: String?, conclusion: String?, htmlUrl: String?, logUrl: String?,
          durationS: Int?, queueTimeS: Int? = nil, failureLines: [String]?, failureCaptures: [String]?,
          runnerName: String?, unstable: Bool?, failedPreviousRun: Bool? = nil,
-         failureAnnotation: String? = nil, authorEmail: String?) {
+         failureAnnotation: String? = nil, authorEmail: String?, status: String? = nil) {
         self.jobId = id
         self.id = id.map { String($0) } ?? UUID().uuidString
-        self.name = name; self.conclusion = conclusion
+        self.name = name; self.conclusion = conclusion; self.status = status
         self.htmlUrl = htmlUrl; self.logUrl = logUrl; self.durationS = durationS
         self.queueTimeS = queueTimeS
         self.failureLines = failureLines; self.failureCaptures = failureCaptures
@@ -133,7 +135,11 @@ struct HUDJob: Decodable, Identifiable {
 
     var isFailure: Bool { conclusion == "failure" }
     var isSuccess: Bool { conclusion == "success" }
-    var isPending: Bool { (conclusion == nil || conclusion == "pending") && jobId != nil }
+    var isPending: Bool {
+        guard jobId != nil else { return false }
+        if let s = status?.lowercased(), s == "queued" || s == "in_progress" { return true }
+        return conclusion == nil || conclusion == "pending"
+    }
     var isUnstable: Bool { unstable == true }
     /// Job slot exists in the grid but no actual job was created for this commit.
     var isEmpty: Bool { conclusion == nil && jobId == nil }

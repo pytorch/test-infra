@@ -55,13 +55,7 @@ final class JobDetailViewModel: ObservableObject {
 
     var queueTimeFormatted: String? {
         guard let queueTimeS = job.queueTimeS else { return nil }
-        let minutes = queueTimeS / 60
-        let seconds = queueTimeS % 60
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
+        return DurationFormatter.format(queueTimeS)
     }
 
     var hasFailureInfo: Bool {

@@ -264,6 +264,7 @@ struct HUDView: View {
                         (AppColors.failure, stats.blockingFailureCount),
                         (Color.red.opacity(0.5), nonBlockingFails),
                         (AppColors.unstable, stats.unstableCount),
+                        (AppColors.classified, stats.classifiedCount),
                         (AppColors.pending, stats.pendingCount),
                     ].filter { $0.1 > 0 }
                     let segmentTotal = segments.reduce(0) { $0 + $1.1 }
@@ -297,6 +298,9 @@ struct HUDView: View {
                         }
                         if stats.unstableCount > 0 {
                             healthBadge(count: stats.unstableCount, color: AppColors.unstable, label: "unstable")
+                        }
+                        if stats.classifiedCount > 0 {
+                            healthBadge(count: stats.classifiedCount, color: AppColors.classified, label: "classified")
                         }
                         if stats.flakyCount > 0 {
                             healthBadge(count: stats.flakyCount, color: Color.green.opacity(0.7), label: "flaky")
@@ -537,24 +541,56 @@ private struct HUDJobDetailView: View {
     // MARK: - Status and Duration
 
     private var statusAndDurationSection: some View {
-        HStack(spacing: 16) {
-            JobStatusBadge(
-                conclusion: job.conclusion,
-                isUnstable: job.isUnstable,
-                showLabel: true
-            )
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16) {
+                JobStatusBadge(
+                    conclusion: job.isClassified ? "classified" : job.isFlaky ? "flaky" : job.conclusion,
+                    isUnstable: job.isUnstable,
+                    showLabel: true
+                )
 
-            if let duration = job.durationFormatted {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .font(.subheadline)
-                    Text(duration)
-                        .font(.subheadline.weight(.medium))
+                if let duration = job.durationFormatted {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.subheadline)
+                        Text(duration)
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
                 }
-                .foregroundStyle(.secondary)
+
+                if let queueTime = job.queueTimeS {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hourglass")
+                            .font(.subheadline)
+                        Text("Queue: \(DurationFormatter.format(queueTime))")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
 
-            Spacer()
+            if job.isClassified, let annotation = job.failureAnnotation {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption)
+                    Text("Classified: \(annotation.replacingOccurrences(of: "_", with: " ").capitalized)")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(AppColors.classified)
+            }
+
+            if job.isFlaky {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                    Text("Flaky — succeeded after previous failure")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(AppColors.flaky)
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))

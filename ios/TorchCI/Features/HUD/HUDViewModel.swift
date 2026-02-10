@@ -171,7 +171,7 @@ final class HUDViewModel: ObservableObject {
     var jobHealthStats: JobHealthStats {
         let rows = filteredRows
         let names = filteredJobNames
-        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, pending = 0
+        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, classified = 0, pending = 0
 
         for row in rows {
             for (jobIndex, job) in row.jobs.enumerated() {
@@ -182,14 +182,16 @@ final class HUDViewModel: ObservableObject {
                 } else if job.isSuccess {
                     success += 1
                 } else if job.isFailure {
-                    if job.isUnstable {
+                    if job.isClassified {
+                        classified += 1
+                    } else if job.isUnstable {
                         unstableFail += 1
                     } else if job.isRepeatFailure {
                         repeatFail += 1
                     } else {
                         newFail += 1
                     }
-                    if HUDJob.isBlockingName(jobName) && !job.isUnstable {
+                    if HUDJob.isBlockingName(jobName) && !job.isUnstable && !job.isClassified {
                         blocking += 1
                     }
                 } else if job.isPending {
@@ -199,7 +201,7 @@ final class HUDViewModel: ObservableObject {
         }
 
         let totalFailure = newFail + repeatFail
-        let total = success + flaky + totalFailure + unstableFail + pending
+        let total = success + flaky + totalFailure + unstableFail + classified + pending
         return JobHealthStats(
             successCount: success,
             flakyCount: flaky,
@@ -207,6 +209,7 @@ final class HUDViewModel: ObservableObject {
             newFailureCount: newFail,
             repeatFailureCount: repeatFail,
             blockingFailureCount: blocking,
+            classifiedCount: classified,
             pendingCount: pending,
             unstableCount: unstableFail,
             totalCount: total
@@ -456,6 +459,7 @@ struct JobHealthStats {
     let newFailureCount: Int
     let repeatFailureCount: Int
     let blockingFailureCount: Int
+    let classifiedCount: Int
     let pendingCount: Int
     let unstableCount: Int
     let totalCount: Int
