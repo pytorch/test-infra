@@ -32,6 +32,7 @@ final class HUDViewModel: ObservableObject {
     @Published var isRegexEnabled: Bool = false
     @Published var hideUnstable: Bool = false
     @Published var showFailuresOnly: Bool = false
+    @Published var showBlockingOnly: Bool = false
     @Published var consecutiveFailures: Int = 0
     @Published var failurePatterns: [String] = []
     @Published var isLoadingMore: Bool = false
@@ -125,6 +126,11 @@ final class HUDViewModel: ObservableObject {
         return allNames.enumerated().compactMap { index, name in
             // Hide unstable filter: skip jobs whose name contains "unstable"
             if hideUnstable && name.lowercased().contains("unstable") {
+                return nil
+            }
+
+            // Blocking-only filter: skip non-viable/strict jobs
+            if showBlockingOnly && !HUDJob.isBlockingName(name) {
                 return nil
             }
 
@@ -360,6 +366,7 @@ final class HUDViewModel: ObservableObject {
         searchFilter = ""
         hideUnstable = false
         showFailuresOnly = false
+        showBlockingOnly = false
     }
 
     // MARK: - Job Organization

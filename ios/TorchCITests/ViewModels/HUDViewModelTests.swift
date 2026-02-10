@@ -551,6 +551,39 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.filteredJobNames.contains("test-linux"))
     }
 
+    // MARK: - Show Blocking Only Filter
+
+    func testShowBlockingOnlyFiltersToBlockingJobs() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["pull / lint", "trunk / build / linux", "periodic / check", "lint / flake8"],
+            rows: []
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        // Without filter, all 4 jobs visible
+        XCTAssertEqual(viewModel.filteredJobNames.count, 4)
+
+        // Enable blocking only
+        viewModel.showBlockingOnly = true
+        // "pull / lint" matches blocking (contains "pull")
+        // "trunk / build / linux" matches blocking (contains "trunk")
+        // "periodic / check" does NOT match blocking
+        // "lint / flake8" matches blocking (contains "lint")
+        XCTAssertEqual(viewModel.filteredJobNames.count, 3)
+        XCTAssertTrue(viewModel.filteredJobNames.contains("pull / lint"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("trunk / build / linux"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("lint / flake8"))
+        XCTAssertFalse(viewModel.filteredJobNames.contains("periodic / check"))
+    }
+
     // MARK: - Clear Filter Resets All
 
     func testClearFilterResetsAllFilters() async {
@@ -560,12 +593,14 @@ final class HUDViewModelTests: XCTestCase {
         viewModel.searchFilter = "build"
         viewModel.hideUnstable = true
         viewModel.showFailuresOnly = true
+        viewModel.showBlockingOnly = true
 
         viewModel.clearFilter()
 
         XCTAssertEqual(viewModel.searchFilter, "")
         XCTAssertFalse(viewModel.hideUnstable)
         XCTAssertFalse(viewModel.showFailuresOnly)
+        XCTAssertFalse(viewModel.showBlockingOnly)
         XCTAssertEqual(viewModel.filteredJobNames.count, 3)
     }
 

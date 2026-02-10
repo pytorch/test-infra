@@ -63,6 +63,16 @@ struct FilterBar: View {
                         }
                     }
 
+                    filterChip(
+                        label: "Blocking Only",
+                        icon: "exclamationmark.octagon",
+                        isActive: viewModel.showBlockingOnly
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.showBlockingOnly.toggle()
+                        }
+                    }
+
                     Spacer()
                 }
 
@@ -99,7 +109,7 @@ struct FilterBar: View {
     }
 
     private var hasActiveFilters: Bool {
-        !viewModel.searchFilter.isEmpty || viewModel.showFailuresOnly || viewModel.hideUnstable
+        !viewModel.searchFilter.isEmpty || viewModel.showFailuresOnly || viewModel.hideUnstable || viewModel.showBlockingOnly
     }
 
     private func filterChip(label: String, icon: String, isActive: Bool, action: @escaping () -> Void) -> some View {
