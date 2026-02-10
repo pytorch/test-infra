@@ -99,8 +99,14 @@ struct HUDStatusProvider: AppIntentTimelineProvider {
             // Only count real jobs (those with an id), matching main app behavior
             let realJobs = row.jobs.filter { $0.id != nil }
             let passCount = realJobs.filter { $0.conclusion == "success" }.count
-            let failCount = realJobs.filter { $0.conclusion == "failure" && $0.unstable != true }.count
-            let pendingCount = realJobs.filter { $0.conclusion == nil || $0.conclusion == "pending" }.count
+            let failCount = realJobs.filter {
+                let c = $0.conclusion?.lowercased()
+                return (c == "failure" || c == "cancelled" || c == "canceled" || c == "time_out" || c == "timed_out") && $0.unstable != true
+            }.count
+            let pendingCount = realJobs.filter {
+                let c = $0.conclusion?.lowercased()
+                return c == nil || c == "pending" || c == "queued" || c == "in_progress"
+            }.count
             let totalJobs = realJobs.count
 
             let overallStatus: WidgetCommit.CommitStatus

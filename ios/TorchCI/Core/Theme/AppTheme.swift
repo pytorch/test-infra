@@ -77,6 +77,7 @@ enum DurationFormatter {
     /// - Parameter seconds: The duration in seconds.
     /// - Parameter compact: If true, omits seconds for durations over 1 minute (e.g. "2h 15m").
     static func format(_ seconds: Int, compact: Bool = false) -> String {
+        guard seconds >= 0 else { return "0s" }
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
         let secs = seconds % 60
