@@ -507,6 +507,7 @@ final class ClaudeBillingViewModel: ObservableObject {
     @Published var costTrendData: [TimeSeriesDataPoint] = []
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -580,8 +581,9 @@ final class ClaudeBillingViewModel: ObservableObject {
 
     func selectTimeRange(_ range: String) {
         guard range != selectedTimeRange else { return }
+        loadTask?.cancel()
         selectedTimeRange = range
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     private func applyData(daily: [ClaudeUsageRow], actors: [ClaudeActorRow], repos: [ClaudeRepoRow], days: Int) {

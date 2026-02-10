@@ -63,6 +63,7 @@ final class RunnersViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
     private var refreshTimer: Timer?
 
     // MARK: - Computed
@@ -184,11 +185,12 @@ final class RunnersViewModel: ObservableObject {
 
     func selectOrg(_ org: String) {
         guard org != selectedOrg else { return }
+        loadTask?.cancel()
         selectedOrg = org
         response = nil
         expandedGroups = []
         state = .idle
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func toggleGroup(_ group: RunnerGroup) {
