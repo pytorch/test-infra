@@ -1047,6 +1047,14 @@ struct BenchmarkDashboardView: View {
 
                 Divider()
             }
+
+            if viewModel.filteredGroupDataPoints.count > 50 {
+                Text("Showing 50 of \(viewModel.filteredGroupDataPoints.count) rows")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(

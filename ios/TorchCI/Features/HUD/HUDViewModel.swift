@@ -55,6 +55,13 @@ final class HUDViewModel: ObservableObject {
         "nightly",
     ]
 
+    // MARK: - Auto-Refresh
+
+    /// Auto-refresh interval in seconds (matches web's 60s).
+    private static let autoRefreshInterval: TimeInterval = 60
+    private var autoRefreshTask: Task<Void, Never>?
+    @Published var isAutoRefreshEnabled: Bool = true
+
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
@@ -408,6 +415,35 @@ final class HUDViewModel: ObservableObject {
             .sorted { $0.value > $1.value }
             .prefix(5)
             .map(\.key)
+    }
+
+    // MARK: - Auto-Refresh
+
+    func startAutoRefresh() {
+        stopAutoRefresh()
+        guard isAutoRefreshEnabled else { return }
+        autoRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.autoRefreshInterval))
+                guard !Task.isCancelled else { break }
+                guard let self, self.isAutoRefreshEnabled, self.state == .loaded else { continue }
+                await self.refresh()
+            }
+        }
+    }
+
+    func stopAutoRefresh() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = nil
+    }
+
+    func toggleAutoRefresh() {
+        isAutoRefreshEnabled.toggle()
+        if isAutoRefreshEnabled {
+            startAutoRefresh()
+        } else {
+            stopAutoRefresh()
+        }
     }
 }
 

@@ -83,6 +83,15 @@ struct HUDView: View {
                                 } label: {
                                     Label("Refresh", systemImage: "arrow.clockwise")
                                 }
+
+                                Button {
+                                    viewModel.toggleAutoRefresh()
+                                } label: {
+                                    Label(
+                                        viewModel.isAutoRefreshEnabled ? "Disable Auto-Refresh" : "Enable Auto-Refresh",
+                                        systemImage: viewModel.isAutoRefreshEnabled ? "clock.badge.checkmark" : "clock"
+                                    )
+                                }
                             } label: {
                                 Image(systemName: "info.circle")
                                     .font(.body)
@@ -100,6 +109,10 @@ struct HUDView: View {
                 if viewModel.state == .idle {
                     Task { await viewModel.loadData() }
                 }
+                viewModel.startAutoRefresh()
+            }
+            .onDisappear {
+                viewModel.stopAutoRefresh()
             }
             .navigationDestination(for: CommitNavigation.self) { nav in
                 CommitDetailView(

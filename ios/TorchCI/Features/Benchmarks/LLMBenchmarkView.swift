@@ -575,6 +575,14 @@ struct LLMBenchmarkView: View {
                                 Divider()
                             }
                         }
+
+                        if viewModel.filteredGroupPoints.count > 50 {
+                            Text("Showing 50 of \(viewModel.filteredGroupPoints.count) rows")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
                     }
                     .frame(minWidth: 356)
                 }
