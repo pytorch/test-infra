@@ -615,7 +615,7 @@ private struct FailureDetailSheet: View {
                         .font(.headline)
                         .lineLimit(3)
 
-                    if let time = job.time, let date = ISO8601DateFormatter().date(from: time) {
+                    if let time = job.time, let date = Self.isoFormatter.date(from: time) {
                         Text(date, style: .relative)
                             .font(.caption)
                             .foregroundStyle(.secondary)

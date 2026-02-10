@@ -76,6 +76,8 @@ struct DisabledTestsAPIResponse: Decodable {
 }
 
 struct DisabledTest: Identifiable {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     let testName: String
     let issueNumber: Int?
     let issueUrl: String?
@@ -123,7 +125,7 @@ struct DisabledTest: Identifiable {
 
     var daysSinceUpdated: Int? {
         guard let updatedAt = updatedAt,
-              let date = ISO8601DateFormatter().date(from: updatedAt) else {
+              let date = Self.isoFormatter.date(from: updatedAt) else {
             return nil
         }
         return Calendar.current.dateComponents([.day], from: date, to: Date()).day

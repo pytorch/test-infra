@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ChatHistoryView: View {
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     @ObservedObject var viewModel: TorchAgentViewModel
     @Binding var isPresented: Bool
 
@@ -194,11 +196,9 @@ struct ChatHistoryView: View {
 
         let calendar = Calendar.current
         let now = Date()
-        let isoFormatter = ISO8601DateFormatter()
-
         for session in filtered {
             guard let createdAt = session.createdAt,
-                  let date = isoFormatter.date(from: createdAt) else {
+                  let date = Self.isoFormatter.date(from: createdAt) else {
                 // If no date, put in "Older"
                 groups[.older, default: []].append(session)
                 continue
