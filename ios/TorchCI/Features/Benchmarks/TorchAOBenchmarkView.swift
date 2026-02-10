@@ -37,7 +37,7 @@ struct TorchAOBenchmarkView: View {
             }
         }
         .onChange(of: viewModel.selectedGranularity) { _, _ in
-            Task { await viewModel.loadData() }
+            viewModel.onFiltersChanged()
         }
     }
 
@@ -577,6 +577,7 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
     @Published var sortBySpeedup: Bool = true
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
@@ -720,6 +721,11 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
 
     // MARK: - Actions
 
+    func onFiltersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await loadData() }
+    }
+
     func loadData() async {
         if state != .loaded {
             state = .loading
@@ -762,8 +768,11 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
             let rawRows: [TorchAORawRow] = try await apiClient.fetch(
                 APIEndpoint.clickhouseQuery(name: "torchao_query", parameters: parameters)
             )
+            guard !Task.isCancelled else { return }
             groupData = Self.pivotRawRows(rawRows)
             state = .loaded
+        } catch is CancellationError {
+            // Task was cancelled — don't update state
         } catch {
             state = .error(error.localizedDescription)
         }

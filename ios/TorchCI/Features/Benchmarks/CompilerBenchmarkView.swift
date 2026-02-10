@@ -19,6 +19,7 @@ struct CompilerBenchmarkView: View {
     @State private var modelSortOrder: ModelSortOrder = .speedupDesc
     @State private var expandedModelId: UUID?
     @State private var selectedGranularity: String = "hour"
+    @State private var loadTask: Task<Void, Never>?
 
     private let apiClient: APIClientProtocol = APIClient.shared
 
@@ -209,7 +210,8 @@ struct CompilerBenchmarkView: View {
                 Button {
                     selection.wrappedValue = option
                     if reload {
-                        Task { await loadData() }
+                        loadTask?.cancel()
+                        loadTask = Task { await loadData() }
                     }
                 } label: {
                     HStack {
@@ -796,8 +798,11 @@ struct CompilerBenchmarkView: View {
             let rawRows: [CompilerBenchmarkRawRow] = try await apiClient.fetch(
                 APIEndpoint.clickhouseQuery(name: "compilers_benchmark_performance", parameters: parameters)
             )
+            guard !Task.isCancelled else { return }
             performanceData = Self.convertToPerformanceRecords(rawRows)
             state = .loaded
+        } catch is CancellationError {
+            return
         } catch {
             state = .error(error.localizedDescription)
         }
