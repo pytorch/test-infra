@@ -903,6 +903,231 @@ final class CommitDetailViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.expandedWorkflows.contains("trunk"))
     }
 
+    // MARK: - Filter Persistence Across Reload
+
+    func testFiltersPersistAcrossDataReload() async {
+        let json1 = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "linux-build", conclusion: "failure"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "windows-build", conclusion: "success"),
+        ])
+        setCommitResponse(json1)
+        await viewModel.loadCommit()
+
+        // Set filters
+        viewModel.statusFilter = .failed
+        viewModel.jobSearchText = "linux"
+        XCTAssertEqual(viewModel.visibleJobCount, 1)
+
+        // Reload with different data
+        let json2 = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "linux-build", conclusion: "failure"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "linux-test", conclusion: "failure"),
+            JobJSON(id: 3, name: "c", workflowName: "pull", jobName: "windows-build", conclusion: "success"),
+        ])
+        setCommitResponse(json2)
+        await viewModel.refresh()
+
+        // Filters should still be applied to new data
+        XCTAssertEqual(viewModel.statusFilter, .failed)
+        XCTAssertEqual(viewModel.jobSearchText, "linux")
+        XCTAssertEqual(viewModel.visibleJobCount, 2) // linux-build + linux-test
+    }
+
+    // MARK: - Error Recovery
+
+    func testErrorRecoveryOnRetry() async {
+        // First load fails
+        let endpoint = APIEndpoint.commit(repoOwner: "pytorch", repoName: "pytorch", sha: testSha)
+        mockClient.setError(APIError.serverError(500), for: endpoint.path)
+        await viewModel.loadCommit()
+
+        if case .error = viewModel.state { /* expected */ }
+        else { XCTFail("Expected error state") }
+
+        // Clear error and retry with success
+        mockClient.clearError(for: endpoint.path)
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "build", conclusion: "success"),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.totalJobs, 1)
+    }
+
+    func testRefreshErrorWithNoDataSetsErrorState() async {
+        // No initial data loaded, refresh fails
+        let endpoint = APIEndpoint.commit(repoOwner: "pytorch", repoName: "pytorch", sha: testSha)
+        mockClient.setError(APIError.serverError(500), for: endpoint.path)
+        await viewModel.refresh()
+
+        // With no existing data, refresh error should set error state
+        if case .error = viewModel.state { /* expected */ }
+        else { XCTFail("Expected error state when refresh fails with no data") }
+    }
+
+    // MARK: - Empty State
+
+    func testLoadCommitWithZeroJobs() async {
+        let json = makeCommitResponseJSON(jobs: [])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.totalJobs, 0)
+        XCTAssertEqual(viewModel.passedJobs, 0)
+        XCTAssertEqual(viewModel.failedJobs, 0)
+        XCTAssertEqual(viewModel.pendingJobs, 0)
+        XCTAssertTrue(viewModel.groupedJobs.isEmpty)
+        XCTAssertEqual(viewModel.completionRatio, 0)
+        XCTAssertEqual(viewModel.successRatio, 0)
+    }
+
+    // MARK: - Sort Options
+
+    func testSortByDuration() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "fast-job", conclusion: "success", durationS: 10),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "slow-job", conclusion: "success", durationS: 500),
+            JobJSON(id: 3, name: "c", workflowName: "pull", jobName: "medium-job", conclusion: "success", durationS: 120),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        viewModel.sortOption = .duration
+        let jobs = viewModel.filteredGroupedJobs.flatMap { $0.jobs }
+        XCTAssertEqual(jobs[0].jobName, "slow-job")
+        XCTAssertEqual(jobs[1].jobName, "medium-job")
+        XCTAssertEqual(jobs[2].jobName, "fast-job")
+    }
+
+    func testSortByName() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "charlie", conclusion: "success"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "alpha", conclusion: "success"),
+            JobJSON(id: 3, name: "c", workflowName: "pull", jobName: "bravo", conclusion: "failure"),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        viewModel.sortOption = .name
+        let jobs = viewModel.filteredGroupedJobs.flatMap { $0.jobs }
+        XCTAssertEqual(jobs[0].jobName, "alpha")
+        XCTAssertEqual(jobs[1].jobName, "bravo")
+        XCTAssertEqual(jobs[2].jobName, "charlie")
+    }
+
+    func testSortOptionIncludedInIsFiltering() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "build", conclusion: "success"),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        XCTAssertFalse(viewModel.isFiltering)
+        viewModel.sortOption = .duration
+        XCTAssertTrue(viewModel.isFiltering)
+        viewModel.sortOption = .status
+        XCTAssertFalse(viewModel.isFiltering)
+    }
+
+    // MARK: - Cancelled Job Variants
+
+    func testCancelledJobVariantsInSummary() async {
+        let json = makeCommitResponseJSON(jobs: [
+            JobJSON(id: 1, name: "a", workflowName: "pull", jobName: "j1", conclusion: "cancelled"),
+            JobJSON(id: 2, name: "b", workflowName: "pull", jobName: "j2", conclusion: "canceled"),
+            JobJSON(id: 3, name: "c", workflowName: "pull", jobName: "j3", conclusion: "time_out"),
+            JobJSON(id: 4, name: "d", workflowName: "pull", jobName: "j4", conclusion: "timed_out"),
+        ])
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        XCTAssertEqual(viewModel.cancelledJobs, 4)
+        // These should NOT be counted as failures
+        XCTAssertEqual(viewModel.failedJobs, 0)
+    }
+
+    // MARK: - Search with Nil Job Names
+
+    func testSearchWithNilJobNameFallsBackToName() async {
+        // Build JSON manually to have nil jobName
+        let json = """
+        {
+            "commit": {
+                "sha": "\(testSha)",
+                "commitTitle": "Test",
+                "commitMessageBody": null,
+                "author": "user",
+                "authorUrl": null,
+                "time": "2025-01-20T14:30:00Z",
+                "prNum": null,
+                "diffNum": null
+            },
+            "jobs": [{
+                "id": 1,
+                "name": "linux-test-fallback",
+                "workflowName": "pull",
+                "workflowId": 5001,
+                "jobName": null,
+                "conclusion": "success",
+                "htmlUrl": null,
+                "logUrl": null,
+                "durationS": null,
+                "failureLines": null,
+                "failureCaptures": null,
+                "failureContext": null,
+                "runnerName": null,
+                "runnerGroup": null,
+                "status": "completed",
+                "steps": null,
+                "time": null,
+                "unstable": false,
+                "previousRun": null
+            }]
+        }
+        """
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        // Should find by name field when jobName is nil
+        viewModel.jobSearchText = "linux-test"
+        XCTAssertEqual(viewModel.visibleJobCount, 1)
+
+        // Should not find non-matching
+        viewModel.jobSearchText = "windows"
+        XCTAssertEqual(viewModel.visibleJobCount, 0)
+    }
+
+    // MARK: - Last Refreshed
+
+    func testLastRefreshedUpdatedOnLoad() async {
+        XCTAssertNil(viewModel.lastRefreshed)
+
+        let json = makeCommitResponseJSON()
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        XCTAssertNotNil(viewModel.lastRefreshed)
+    }
+
+    func testLastRefreshedUpdatedOnRefresh() async {
+        let json = makeCommitResponseJSON()
+        setCommitResponse(json)
+        await viewModel.loadCommit()
+
+        let firstRefresh = viewModel.lastRefreshed
+        XCTAssertNotNil(firstRefresh)
+
+        // Small delay to ensure different timestamp
+        try? await Task.sleep(for: .milliseconds(10))
+        await viewModel.refresh()
+
+        XCTAssertNotNil(viewModel.lastRefreshed)
+        XCTAssertNotEqual(viewModel.lastRefreshed, firstRefresh)
+    }
+
     // MARK: - Search Filter Clears on Reset
 
     func testSearchFilterClearsOnReset() async {

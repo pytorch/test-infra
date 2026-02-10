@@ -59,6 +59,10 @@ final class MockAPIClient: APIClientProtocol, @unchecked Sendable {
         errors[path] = error
     }
 
+    func clearError(for path: String) {
+        errors.removeValue(forKey: path)
+    }
+
     func reset() {
         responses.removeAll()
         errors.removeAll()

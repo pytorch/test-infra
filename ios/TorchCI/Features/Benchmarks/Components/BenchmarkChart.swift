@@ -146,11 +146,15 @@ struct BenchmarkChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
                     .foregroundStyle(.secondary.opacity(0.3))
-                AxisValueLabel()
-                    .font(.caption2)
+                if let doubleValue = value.as(Double.self) {
+                    AxisValueLabel {
+                        Text(formatValue(doubleValue))
+                            .font(.caption2)
+                    }
+                }
             }
         }
         .chartXSelection(value: $rawSelectedDate)

@@ -60,7 +60,8 @@ final class CommitDetailViewModel: ObservableObject {
 
     var failedJobs: Int {
         commitResponse?.jobs.filter {
-            $0.isFailure && $0.conclusion?.lowercased() != "cancelled" && $0.conclusion?.lowercased() != "canceled"
+            let c = $0.conclusion?.lowercased()
+            return $0.isFailure && c != "cancelled" && c != "canceled" && c != "time_out" && c != "timed_out"
         }.count ?? 0
     }
 
@@ -149,7 +150,7 @@ final class CommitDetailViewModel: ObservableObject {
             return true
         case .failed:
             let c = job.conclusion?.lowercased()
-            return job.isFailure && c != "cancelled" && c != "canceled"
+            return job.isFailure && c != "cancelled" && c != "canceled" && c != "time_out" && c != "timed_out"
         case .pending:
             let c = job.conclusion?.lowercased()
             return c == nil || c == "pending" || c == "queued" || c == "in_progress"
