@@ -101,6 +101,7 @@ struct HUDView: View {
                                 Image(systemName: "info.circle")
                                     .font(.body)
                             }
+                            .accessibilityLabel("Info and actions")
                         }
                     }
                 }
