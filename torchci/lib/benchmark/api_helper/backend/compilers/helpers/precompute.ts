@@ -119,8 +119,8 @@ function addMetadata(data: any[], commit_map: Map<string, any>, metadata: any) {
 
 function postFetchProcess(data: any[]) {
   // data is expected to be sorted by granularity_bucket
-  const start_ts = new Date(data[0]?.granularity_bucket).getTime();
-  const end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
+  let start_ts = new Date(data[0]?.granularity_bucket).getTime();
+  let end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
   // Handle invalid dates (NaN from getTime)
   if (isNaN(start_ts) || isNaN(end_ts)) {
     console.warn(
@@ -130,7 +130,15 @@ function postFetchProcess(data: any[]) {
       `(postFetchProcess)Invalid granularity_bucket values detected peek first data: ${data[0]}`
     );
   }
+  // Swap if needed (safety check)
+  if (end_ts < start_ts) {
+    [start_ts, end_ts] = [end_ts, start_ts];
+  }
   return {
+    start_ts,
+    end_ts,
+  };
+}
     start_ts,
     end_ts,
   };
