@@ -357,11 +357,20 @@ struct ReliabilityView: View {
             )
 
             if viewModel.filteredWorkflows.isEmpty {
-                Text("No workflows match the current filters")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
+                VStack(spacing: 12) {
+                    Text("No workflows match the current filters")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if !viewModel.searchText.isEmpty || viewModel.selectedFilter != .all {
+                        Button("Clear Filters") {
+                            viewModel.searchText = ""
+                            viewModel.selectedFilter = .all
+                        }
+                        .font(.subheadline)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding()
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.filteredWorkflows) { workflow in

@@ -208,6 +208,18 @@ final class DeepLinkHandler: ObservableObject {
         case "benchmarks":
             return .benchmarks
 
+        // torchci://devinfra or torchci://devInfra
+        case "devinfra", "devInfra":
+            return .devInfra
+
+        // torchci://torchagent or torchci://torchAgent
+        case "torchagent", "torchAgent":
+            return .torchAgent
+
+        // torchci://settings
+        case "settings":
+            return .settings
+
         // torchci://flambeau/{uuid}
         case "flambeau":
             guard let uuid = pathComponents.first, !uuid.isEmpty else { return nil }

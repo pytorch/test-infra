@@ -171,6 +171,7 @@ final class FailureAnalysisViewModel: ObservableObject {
         state = .loading
         results = []
         similarFailuresResult = nil
+        similarFailuresError = nil
         selectedJobFilters = []
 
         do {

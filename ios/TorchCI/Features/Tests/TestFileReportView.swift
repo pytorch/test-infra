@@ -167,19 +167,19 @@ private struct SummaryBarView: View {
             SummaryStatItem(
                 label: "Pass",
                 value: String(format: "%.1f%%", passRate * 100),
-                color: passRate > 0.95 ? .green : passRate > 0.8 ? .orange : .red
+                color: passRate > 0.95 ? AppColors.success : passRate > 0.8 ? AppColors.pending : AppColors.failure
             )
             Divider().frame(height: 28)
             SummaryStatItem(
                 label: "Fail",
                 value: "\(totalFailures)",
-                color: totalFailures > 0 ? .red : .green
+                color: totalFailures > 0 ? AppColors.failure : AppColors.success
             )
             Divider().frame(height: 28)
             SummaryStatItem(
                 label: "Skip",
                 value: "\(totalSkipped)",
-                color: totalSkipped > 0 ? .orange : .secondary
+                color: totalSkipped > 0 ? AppColors.pending : .secondary
             )
         }
         .padding(.vertical, 8)
@@ -261,20 +261,20 @@ private struct FileStatsRow: View {
                             StatChip(
                                 icon: "xmark.circle.fill",
                                 value: "\(fileStat.failureCount)",
-                                color: .red
+                                color: AppColors.failure
                             )
                         }
                         if fileStat.skippedCount > 0 {
                             StatChip(
                                 icon: "minus.circle.fill",
                                 value: "\(fileStat.skippedCount)",
-                                color: .orange
+                                color: AppColors.pending
                             )
                         }
                         StatChip(
                             icon: "checkmark.circle.fill",
                             value: "\(fileStat.successCount)",
-                            color: .green
+                            color: AppColors.success
                         )
 
                         Spacer(minLength: 0)
@@ -327,9 +327,9 @@ private struct FileStatsRow: View {
     }
 
     private var statusColor: Color {
-        if fileStat.failureCount > 0 { return .red }
-        if fileStat.skippedCount > 0 { return .orange }
-        return .green
+        if fileStat.failureCount > 0 { return AppColors.failure }
+        if fileStat.skippedCount > 0 { return AppColors.pending }
+        return AppColors.success
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -375,16 +375,16 @@ private struct PassRateBar: View {
             HStack(spacing: 1) {
                 if failureCount > 0 {
                     RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.red)
+                        .fill(AppColors.failure)
                         .frame(width: max(failureWidth, 2))
                 }
                 if skippedCount > 0 {
                     RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.orange)
+                        .fill(AppColors.pending)
                         .frame(width: max(skippedWidth, 2))
                 }
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.green.opacity(0.6))
+                    .fill(AppColors.success.opacity(0.6))
                     .frame(width: max(successWidth, 2))
             }
         }
@@ -423,9 +423,9 @@ private struct JobResultRow: View {
     }
 
     private var statusColor: Color {
-        if result.failures > 0 { return .red }
-        if result.skipped > 0 { return .orange }
-        return .green
+        if result.failures > 0 { return AppColors.failure }
+        if result.skipped > 0 { return AppColors.pending }
+        return AppColors.success
     }
 
     var body: some View {
@@ -444,14 +444,14 @@ private struct JobResultRow: View {
                 HStack(spacing: 8) {
                     if result.failures > 0 {
                         Text("\(result.failures) fail")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.failure)
                     }
                     if result.skipped > 0 {
                         Text("\(result.skipped) skip")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppColors.pending)
                     }
                     Text("\(result.success) pass")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
 
                     Spacer(minLength: 0)
 

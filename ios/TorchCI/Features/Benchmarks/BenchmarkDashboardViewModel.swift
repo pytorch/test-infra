@@ -296,6 +296,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     func loadData() async {
         guard !Task.isCancelled else { return }
         state = .loading
+        partialLoadError = nil
 
         let config = Self.benchmarkConfig[benchmark.id]
         let repo = config?.repo ?? "pytorch/pytorch"
