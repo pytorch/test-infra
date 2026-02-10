@@ -247,14 +247,16 @@ struct HUDView: View {
     }
 
     private var quickStatsBar: some View {
-        VStack(spacing: 8) {
+        let rows = viewModel.filteredRows
+        let jobNames = viewModel.filteredJobNames
+        return VStack(spacing: 8) {
             // Top row: commit count, job count, latest time
             HStack(spacing: 16) {
                 HStack(spacing: 6) {
                     Image(systemName: "tray.2")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("\(viewModel.filteredRows.count) commits")
+                    Text("\(rows.count) commits")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -266,14 +268,14 @@ struct HUDView: View {
                     Image(systemName: "square.grid.2x2")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("\(viewModel.filteredJobNames.count) jobs")
+                    Text("\(jobNames.count) jobs")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                if let latestCommit = viewModel.filteredRows.first {
+                if let latestCommit = rows.first {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.caption2)
