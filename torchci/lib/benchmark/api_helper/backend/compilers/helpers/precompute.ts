@@ -139,11 +139,6 @@ function postFetchProcess(data: any[]) {
     end_ts,
   };
 }
-    start_ts,
-    end_ts,
-  };
-}
-
 function getFormat(data: any, format: string) {
   switch (format) {
     case "time_series":
