@@ -224,7 +224,7 @@ struct ReliabilityView: View {
             .pickerStyle(.segmented)
         }
         .onChange(of: viewModel.selectedTimeRange) {
-            Task { await viewModel.onParametersChanged() }
+            viewModel.onParametersChanged()
         }
         .onChange(of: viewModel.selectedFilter) {
             // Filtering is local; no refetch needed

@@ -142,7 +142,8 @@ final class TestFileReportViewModel: ObservableObject {
     }
 
     func onDateRangeChanged() {
-        Task { [weak self] in
+        loadTask?.cancel()
+        loadTask = Task { [weak self] in
             await self?.loadData()
         }
     }

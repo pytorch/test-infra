@@ -29,6 +29,7 @@ final class ReliabilityViewModel: ObservableObject {
     @Published var sortOrder: SortOrder = .worstFirst
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     // MARK: - Workflow Names (matches web source)
 
@@ -246,8 +247,9 @@ final class ReliabilityViewModel: ObservableObject {
         await fetchData()
     }
 
-    func onParametersChanged() async {
-        await fetchData()
+    func onParametersChanged() {
+        loadTask?.cancel()
+        loadTask = Task { await fetchData() }
     }
 
     /// Per-commit job data returned by `master_commit_red_jobs`.
@@ -429,6 +431,7 @@ final class ReliabilityViewModel: ObservableObject {
 
             let fetchedJobs = try await jobsData
             let fetchedTrend = (try? await trendData) ?? []
+            guard !Task.isCancelled else { return }
 
             // Classify failures using the same algorithm as the web
             let failuresByType = Self.approximateFailureByType(fetchedJobs)

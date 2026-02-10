@@ -663,7 +663,9 @@ final class ReliabilityViewModelTests: XCTestCase {
         mockClient.reset()
         registerBothEndpoints(jobsJSON: sampleJobsJSON)
 
-        await viewModel.onParametersChanged()
+        viewModel.onParametersChanged()
+        // Wait for the internally-launched Task to complete
+        await viewModel.refresh()
 
         XCTAssertGreaterThan(mockClient.callCount, 0)
     }

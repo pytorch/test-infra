@@ -100,6 +100,7 @@ final class UtilizationViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     // MARK: - Computed
 
@@ -225,9 +226,10 @@ final class UtilizationViewModel: ObservableObject {
 
     func selectGroupBy(_ groupBy: GroupBy) {
         guard groupBy != selectedGroupBy else { return }
+        loadTask?.cancel()
         selectedGroupBy = groupBy
         reports = []
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func toggleSort(_ field: SortField) {
@@ -245,17 +247,19 @@ final class UtilizationViewModel: ObservableObject {
     }
 
     func selectTimeRange(_ range: TimeRange) {
+        loadTask?.cancel()
         selectedTimeRange = range
         if range == .custom {
             showingDatePicker = true
         } else {
-            Task { await refresh() }
+            loadTask = Task { await refresh() }
         }
     }
 
     func applyCustomDateRange() {
+        loadTask?.cancel()
         showingDatePicker = false
-        Task { await refresh() }
+        loadTask = Task { await refresh() }
     }
 
     func utilizationLevel(cpu: Double?, memory: Double?) -> (text: String, color: Color) {
