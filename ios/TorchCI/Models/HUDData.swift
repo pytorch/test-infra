@@ -133,13 +133,22 @@ struct HUDJob: Decodable, Identifiable {
         self.failureAnnotation = failureAnnotation; self.authorEmail = authorEmail
     }
 
-    var isFailure: Bool { conclusion == "failure" }
+    var isFailure: Bool {
+        switch conclusion {
+        case "failure", "cancelled", "time_out", "timed_out":
+            return true
+        default:
+            return false
+        }
+    }
     var isSuccess: Bool { conclusion == "success" }
     var isPending: Bool {
         guard jobId != nil else { return false }
         if let s = status?.lowercased(), s == "queued" || s == "in_progress" { return true }
         return conclusion == nil || conclusion == "pending"
     }
+    var isCancelled: Bool { conclusion == "cancelled" }
+    var isTimedOut: Bool { conclusion == "time_out" || conclusion == "timed_out" }
     var isUnstable: Bool { unstable == true }
     /// Job slot exists in the grid but no actual job was created for this commit.
     var isEmpty: Bool { conclusion == nil && jobId == nil }
@@ -224,6 +233,8 @@ struct HUDJob: Decodable, Identifiable {
         if isClassified { return "classified" }
         if isUnstable { return "unstable" }
         if isFlaky { return "flaky" }
+        if isCancelled { return "cancelled" }
+        if isTimedOut { return "timed out" }
         if isFailure { return "failure" }
         if isSuccess { return "success" }
         if isPending { return "pending" }

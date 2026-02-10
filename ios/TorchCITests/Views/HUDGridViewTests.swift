@@ -116,7 +116,7 @@ final class HUDGridViewTests: XCTestCase {
         XCTAssertEqual(summary.pending, 0)
     }
 
-    func testJobSummaryIgnoresSkippedAndCancelledInMainCounts() {
+    func testJobSummaryCountsCancelledAsFailure() {
         let jobs = [
             makeJob(conclusion: "success"),
             makeJob(conclusion: "skipped"),
@@ -125,9 +125,10 @@ final class HUDGridViewTests: XCTestCase {
 
         let summary = HUDGridView.jobSummary(for: jobs)
 
-        // Skipped and cancelled are not counted in any of the three buckets
+        // Cancelled counts as a failure (consistent with web behavior);
+        // skipped is not counted in any bucket
         XCTAssertEqual(summary.successes, 1)
-        XCTAssertEqual(summary.failures, 0)
+        XCTAssertEqual(summary.failures, 1)
         XCTAssertEqual(summary.pending, 0)
     }
 

@@ -63,7 +63,7 @@ enum AppColors {
         case "pending", "queued", "in_progress": return pending
         case "unstable": return unstable
         case "skipped": return skipped
-        case "cancelled", "canceled": return cancelled
+        case "cancelled", "canceled", "time_out", "timed_out": return cancelled
         case "classified": return classified
         case "flaky": return flaky
         default: return neutral

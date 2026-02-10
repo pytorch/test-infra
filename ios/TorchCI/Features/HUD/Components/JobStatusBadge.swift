@@ -41,6 +41,7 @@ struct JobStatusBadge: View {
         case "unstable": return "Unstable"
         case "skipped": return "Skipped"
         case "cancelled", "canceled": return "Cancelled"
+        case "time_out", "timed_out": return "Timed Out"
         default: return "Unknown"
         }
     }
@@ -53,6 +54,7 @@ struct JobStatusBadge: View {
         case "unstable": return "exclamationmark.triangle.fill"
         case "skipped": return "minus.circle.fill"
         case "cancelled", "canceled": return "slash.circle.fill"
+        case "time_out", "timed_out": return "clock.badge.xmark.fill"
         default: return "questionmark.circle"
         }
     }

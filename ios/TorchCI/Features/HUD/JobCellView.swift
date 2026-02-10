@@ -34,6 +34,14 @@ struct JobCellView: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
+                    } else if job.isCancelled {
+                        Image(systemName: "slash.circle")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                    } else if job.isTimedOut {
+                        Image(systemName: "clock.badge.xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
                     } else if job.isFailure {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .bold))
@@ -183,6 +191,16 @@ private struct JobCellPreview: View {
                             .font(.caption)
                     }
                     .foregroundStyle(.secondary)
+                }
+
+                if let queueTime = job.queueTimeS, queueTime > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "hourglass")
+                            .font(.caption2)
+                        Text("Queue: \(DurationFormatter.format(queueTime))")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(queueTime > 300 ? .orange : .secondary)
                 }
 
                 if job.isClassified, let annotation = job.failureAnnotation {

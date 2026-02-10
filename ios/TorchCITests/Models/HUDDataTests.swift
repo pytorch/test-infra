@@ -479,6 +479,57 @@ final class HUDDataTests: XCTestCase {
         XCTAssertFalse(classifiedJob.isNewFailure && !classifiedJob.isClassified)
     }
 
+    // MARK: - Cancelled / Timed-out conclusion states
+
+    func testHUDJobCancelledIsFailure() {
+        let job = HUDJob(
+            id: 1, name: "build", conclusion: "cancelled", htmlUrl: nil, logUrl: nil,
+            durationS: 100, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, authorEmail: nil
+        )
+        XCTAssertTrue(job.isFailure)
+        XCTAssertTrue(job.isCancelled)
+        XCTAssertFalse(job.isTimedOut)
+        XCTAssertFalse(job.isSuccess)
+        XCTAssertFalse(job.isPending)
+        XCTAssertEqual(job.accessibilityStatus, "cancelled")
+    }
+
+    func testHUDJobTimeOutIsFailure() {
+        let job = HUDJob(
+            id: 2, name: "test", conclusion: "time_out", htmlUrl: nil, logUrl: nil,
+            durationS: 7200, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, authorEmail: nil
+        )
+        XCTAssertTrue(job.isFailure)
+        XCTAssertTrue(job.isTimedOut)
+        XCTAssertFalse(job.isCancelled)
+        XCTAssertFalse(job.isSuccess)
+        XCTAssertEqual(job.accessibilityStatus, "timed out")
+    }
+
+    func testHUDJobTimedOutIsFailure() {
+        let job = HUDJob(
+            id: 3, name: "test", conclusion: "timed_out", htmlUrl: nil, logUrl: nil,
+            durationS: 7200, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, authorEmail: nil
+        )
+        XCTAssertTrue(job.isFailure)
+        XCTAssertTrue(job.isTimedOut)
+        XCTAssertFalse(job.isCancelled)
+    }
+
+    func testHUDJobCancelledIsNotNewFailure() {
+        // Cancelled jobs that failed previously should be repeat failures
+        let job = HUDJob(
+            id: 4, name: "build", conclusion: "cancelled", htmlUrl: nil, logUrl: nil,
+            durationS: nil, failureLines: nil, failureCaptures: nil,
+            runnerName: nil, unstable: nil, failedPreviousRun: true, authorEmail: nil
+        )
+        XCTAssertTrue(job.isRepeatFailure)
+        XCTAssertFalse(job.isNewFailure)
+    }
+
     // MARK: - Blocking logic (regex-style matching)
 
     func testBlockingNameMatchesPull() {
