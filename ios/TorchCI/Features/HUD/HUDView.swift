@@ -603,6 +603,26 @@ private struct HUDJobDetailView: View {
                 .foregroundStyle(AppColors.classified)
             }
 
+            if job.isCancelled {
+                HStack(spacing: 6) {
+                    Image(systemName: "slash.circle.fill")
+                        .font(.caption)
+                    Text("Cancelled")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(AppColors.cancelled)
+            }
+
+            if job.isTimedOut {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.badge.xmark.fill")
+                        .font(.caption)
+                    Text("Timed Out")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(AppColors.cancelled)
+            }
+
             if job.isFlaky {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.clockwise")
@@ -621,6 +641,7 @@ private struct HUDJobDetailView: View {
     // MARK: - Failure Details
 
     @State private var copiedFailures = false
+    @State private var copiedReport = false
 
     @ViewBuilder
     private var failureDetailsSection: some View {
@@ -628,6 +649,25 @@ private struct HUDJobDetailView: View {
             HStack {
                 SectionHeader(title: "Failure Details")
                 Spacer()
+                Button {
+                    var report = "**\(jobName)**\n"
+                    if let htmlUrl = job.htmlUrl { report += "Job: \(htmlUrl)\n" }
+                    if let lines = job.failureLines, !lines.isEmpty {
+                        report += "\n```\n\(lines.joined(separator: "\n"))\n```\n"
+                    }
+                    if let captures = job.failureCaptures, !captures.isEmpty {
+                        report += "\nCaptures: \(captures.joined(separator: ", "))\n"
+                    }
+                    UIPasteboard.general.string = report
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    copiedReport = true
+                    Task { try? await Task.sleep(for: .seconds(2)); copiedReport = false }
+                } label: {
+                    Label(copiedReport ? "Copied" : "Copy Report", systemImage: copiedReport ? "checkmark" : "doc.plaintext")
+                        .font(.caption.weight(.medium))
+                }
+                .disabled(copiedReport)
+
                 Button {
                     var parts: [String] = []
                     if let lines = job.failureLines { parts.append(contentsOf: lines) }
@@ -637,7 +677,7 @@ private struct HUDJobDetailView: View {
                     copiedFailures = true
                     Task { try? await Task.sleep(for: .seconds(2)); copiedFailures = false }
                 } label: {
-                    Label(copiedFailures ? "Copied" : "Copy All", systemImage: copiedFailures ? "checkmark" : "doc.on.doc")
+                    Label(copiedFailures ? "Copied" : "Copy Raw", systemImage: copiedFailures ? "checkmark" : "doc.on.doc")
                         .font(.caption.weight(.medium))
                 }
                 .disabled(copiedFailures)
