@@ -21,6 +21,7 @@ on:
           - executorch
           - torchvision
           - torchaudio
+          - torchcodec
           - torch_tensorrt
           - torchrec
           - fbgemm_gpu
