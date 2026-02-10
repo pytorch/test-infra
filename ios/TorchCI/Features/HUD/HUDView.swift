@@ -599,10 +599,28 @@ private struct HUDJobDetailView: View {
 
     // MARK: - Failure Details
 
+    @State private var copiedFailures = false
+
     @ViewBuilder
     private var failureDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Failure Details")
+            HStack {
+                SectionHeader(title: "Failure Details")
+                Spacer()
+                Button {
+                    var parts: [String] = []
+                    if let lines = job.failureLines { parts.append(contentsOf: lines) }
+                    if let captures = job.failureCaptures { parts.append(contentsOf: captures) }
+                    UIPasteboard.general.string = parts.joined(separator: "\n")
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    copiedFailures = true
+                    Task { try? await Task.sleep(for: .seconds(2)); copiedFailures = false }
+                } label: {
+                    Label(copiedFailures ? "Copied" : "Copy All", systemImage: copiedFailures ? "checkmark" : "doc.on.doc")
+                        .font(.caption.weight(.medium))
+                }
+                .disabled(copiedFailures)
+            }
 
             if let failureLines = job.failureLines, !failureLines.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -731,6 +749,7 @@ private struct HUDJobDetailView: View {
                 if let htmlUrl = job.htmlUrl {
                     Button {
                         UIPasteboard.general.string = htmlUrl
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         copiedLink = true
                         Task {
                             try? await Task.sleep(for: .seconds(2))

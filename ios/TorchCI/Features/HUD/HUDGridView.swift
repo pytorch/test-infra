@@ -276,6 +276,28 @@ struct HUDGridView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = row.sha
+            } label: {
+                Label("Copy SHA", systemImage: "doc.on.doc")
+            }
+            if let pr = row.prNumber {
+                Button {
+                    UIPasteboard.general.string = "\(pr)"
+                } label: {
+                    Label("Copy PR #\(pr)", systemImage: "number")
+                }
+            }
+            if let title = row.commitTitle {
+                Button {
+                    UIPasteboard.general.string = title
+                } label: {
+                    Label("Copy Title", systemImage: "text.quote")
+                }
+            }
+        }
+        .accessibilityLabel("\(row.author ?? "Unknown") committed \(row.shortSha): \(row.commitTitle ?? "No title"), \(row.relativeTime)\(row.prNumber.map { ", PR #\($0)" } ?? "")")
         .background(
             row.isAutoreverted == true
                 ? Color(.systemGray4).opacity(0.3)

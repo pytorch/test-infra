@@ -168,6 +168,7 @@ final class JobDetailViewModel: ObservableObject {
     func copyLink() {
         guard let urlString = job.htmlUrl else { return }
         UIPasteboard.general.string = urlString
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         copiedLink = true
 
         Task {
@@ -202,6 +203,7 @@ final class JobDetailViewModel: ObservableObject {
             }
         }
         UIPasteboard.general.string = parts.joined(separator: "\n")
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         copiedFailure = true
 
         Task {

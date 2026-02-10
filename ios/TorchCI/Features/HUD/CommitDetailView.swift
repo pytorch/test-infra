@@ -174,6 +174,7 @@ struct CommitDetailView: View {
 
                 Button {
                     UIPasteboard.general.string = viewModel.sha
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "doc.on.doc")
