@@ -614,14 +614,6 @@
       "rocm"
     ]
   ],
-  "test_flex_attention_logging_cuda (__main__.TestLearnableBiasesCUDA)": [
-    "166489",
-    "https://github.com/pytorch/pytorch/issues/166489",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_flex_attention_stride_ordering_mode_paged_attention_permute_order3_shape1_cuda (__main__.TestFlexAttentionCUDA)": [
     "161503",
     "https://github.com/pytorch/pytorch/issues/161503",
@@ -1566,13 +1558,6 @@
     "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
-    ]
-  ],
-  "test_return_aux_deprecation_warnings_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
-    "162464",
-    "https://github.com/pytorch/pytorch/issues/162464",
-    [
-      "rocm"
     ]
   ],
   "test_rng (__main__.TestCompilerBisector)": [
