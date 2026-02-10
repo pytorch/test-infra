@@ -118,15 +118,9 @@ function addMetadata(data: any[], commit_map: Map<string, any>, metadata: any) {
 }
 
 function postFetchProcess(data: any[]) {
-  // Sort by granularity_bucket to ensure correct time range calculation
-  const sortedData = [...data].sort(
-    (a, b) =>
-      Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
-  );
-  let start_ts = new Date(sortedData[0]?.granularity_bucket).getTime();
-  let end_ts = new Date(
-    sortedData[sortedData.length - 1]?.granularity_bucket
-  ).getTime();
+  // data is expected to be sorted by granularity_bucket
+  const start_ts = new Date(data[0]?.granularity_bucket).getTime();
+  const end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
   // Handle invalid dates (NaN from getTime)
   if (isNaN(start_ts) || isNaN(end_ts)) {
     console.warn(
