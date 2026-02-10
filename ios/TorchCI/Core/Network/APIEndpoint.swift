@@ -108,7 +108,7 @@ extension APIEndpoint {
 
 // MARK: - Test Endpoints
 extension APIEndpoint {
-    static func searchTests(name: String? = nil, suite: String? = nil, file: String? = nil, page: Int = 1) -> APIEndpoint {
+    static func searchTests(name: String? = nil, suite: String? = nil, file: String? = nil, page: Int = 1, perPage: Int = 100) -> APIEndpoint {
         // The server wraps each parameter with %...% wildcards for LIKE matching.
         // If a parameter is missing from the query string, the server reads it as
         // the literal string "undefined" and searches for "%undefined%" which matches
@@ -118,18 +118,20 @@ extension APIEndpoint {
             URLQueryItem(name: "suite", value: suite ?? ""),
             URLQueryItem(name: "file", value: file ?? ""),
             URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "per_page", value: "\(perPage)"),
         ]
         return APIEndpoint(path: "/api/flaky-tests/search", queryItems: items)
     }
 
-    static func testFailures(name: String, suite: String) -> APIEndpoint {
-        APIEndpoint(
-            path: "/api/flaky-tests/failures",
-            queryItems: [
-                URLQueryItem(name: "name", value: name),
-                URLQueryItem(name: "suite", value: suite),
-            ]
-        )
+    static func testFailures(name: String, suite: String, file: String? = nil) -> APIEndpoint {
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "name", value: name),
+            URLQueryItem(name: "suite", value: suite),
+        ]
+        if let file, !file.isEmpty {
+            items.append(URLQueryItem(name: "file", value: file))
+        }
+        return APIEndpoint(path: "/api/flaky-tests/failures", queryItems: items)
     }
 
     static func test3dStats(name: String, suite: String, file: String, jobFilter: String = "") -> APIEndpoint {

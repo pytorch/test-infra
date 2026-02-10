@@ -130,7 +130,7 @@ final class TestInfoViewModel: ObservableObject {
         do {
             // Fetch both failures and trend data in parallel
             async let failuresTask: [TestFailure] = client.fetch(
-                .testFailures(name: testName, suite: testSuite)
+                .testFailures(name: testName, suite: testSuite, file: testFile)
             )
             async let trendTask: [Test3dStatsResponse] = client.fetch(
                 .test3dStats(name: testName, suite: testSuite, file: testFile)
@@ -150,7 +150,7 @@ final class TestInfoViewModel: ObservableObject {
         let client = apiClient
         do {
             async let failuresTask: [TestFailure] = client.fetch(
-                .testFailures(name: testName, suite: testSuite)
+                .testFailures(name: testName, suite: testSuite, file: testFile)
             )
             async let trendTask: [Test3dStatsResponse] = client.fetch(
                 .test3dStats(name: testName, suite: testSuite, file: testFile)
