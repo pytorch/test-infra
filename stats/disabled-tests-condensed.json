@@ -248,6 +248,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_lu_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "174770",
+    "https://github.com/pytorch/pytorch/issues/174770",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
