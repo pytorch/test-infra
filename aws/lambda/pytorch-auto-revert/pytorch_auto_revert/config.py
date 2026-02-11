@@ -22,6 +22,8 @@ DEFAULT_NOTIFY_ISSUE_NUMBER = 163650  # https://github.com/pytorch/pytorch/issue
 DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
 DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]
 DEFAULT_WORKFLOW_RESTART_DAYS = 7
+# TODO: Update with actual SQS queue URL once created
+DEFAULT_REVERT_DECISIONS_SQS_QUEUE_URL = ""
 
 
 @dataclass
@@ -35,6 +37,7 @@ class AutorevertConfig:
     - ClickHouse connection settings
     - GitHub authentication settings
     - AWS Secrets Manager settings
+    - AWS SQS settings
     - Autorevert core parameters
     - Application settings
     - Subcommand-specific settings
@@ -61,6 +64,11 @@ class AutorevertConfig:
     # AWS Secrets Manager Settings
     # -------------------------------------------------------------------------
     secret_store_name: str = ""
+
+    # -------------------------------------------------------------------------
+    # AWS SQS Settings
+    # -------------------------------------------------------------------------
+    revert_decisions_sqs_queue_url: str = DEFAULT_REVERT_DECISIONS_SQS_QUEUE_URL
 
     # -------------------------------------------------------------------------
     # Autorevert Core Parameters
