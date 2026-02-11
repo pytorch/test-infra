@@ -21,6 +21,7 @@ on:
           - executorch
           - torchvision
           - torchaudio
+          - torchcodec
 
 permissions:
   id-token: write
