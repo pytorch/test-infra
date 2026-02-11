@@ -386,6 +386,14 @@ PT_R2_PACKAGES = {
     "pytorch_triton_xpu",
 }
 
+# Packages that should use R2 (download-r2.pytorch.org) for prod/stable builds
+# These packages will have their URLs point to R2 instead of S3/CloudFront
+# when the path is NOT whl/test and NOT whl/nightly (i.e., prod)
+PT_R2_PACKAGES_PROD = {
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+}
+
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
 # For example: whl/nightly/filelock/index.html -> whl/nightly/cu128/filelock/index.html
@@ -731,6 +739,13 @@ class S3Index:
             "whl/nightly"
         ):
             # Use R2 absolute URL for PT_R2_PACKAGES in nightly builds
+            base_url = "https://download-r2.pytorch.org"
+        elif (
+            package_name.lower() in PT_R2_PACKAGES_PROD
+            and not resolved_subdir.startswith("whl/test")
+            and not resolved_subdir.startswith("whl/nightly")
+        ):
+            # Use R2 absolute URL for PT_R2_PACKAGES_PROD in prod/stable builds
             base_url = "https://download-r2.pytorch.org"
         elif (
             use_cloudfront_for_non_foundation
