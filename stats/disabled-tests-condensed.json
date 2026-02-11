@@ -1001,13 +1001,6 @@
       "rocm"
     ]
   ],
-  "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
-    "173344",
-    "https://github.com/pytorch/pytorch/issues/173344",
-    [
-      "xpu"
-    ]
-  ],
   "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
     "173473",
     "https://github.com/pytorch/pytorch/issues/173473",
