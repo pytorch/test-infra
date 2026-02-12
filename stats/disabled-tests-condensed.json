@@ -645,33 +645,6 @@
       "rocm"
     ]
   ],
-  "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_complex64 (__main__.TestForeachCUDA)": [
-    "150161",
-    "https://github.com/pytorch/pytorch/issues/150161",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_float16 (__main__.TestForeachCUDA)": [
-    "150173",
-    "https://github.com/pytorch/pytorch/issues/150173",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_float32 (__main__.TestForeachCUDA)": [
-    "150208",
-    "https://github.com/pytorch/pytorch/issues/150208",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_forward_mode_AD_cholesky_solve_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "164194",
     "https://github.com/pytorch/pytorch/issues/164194",
@@ -1158,20 +1131,6 @@
   "test_pending_fusions_multiple (__main__.TestPrologueFusion)": [
     "152221",
     "https://github.com/pytorch/pytorch/issues/152221",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op_with_tensor_of_scalarlist_overload__foreach_addcmul_is_fastpath_True_cuda_complex64 (__main__.TestForeachCUDA)": [
-    "164822",
-    "https://github.com/pytorch/pytorch/issues/164822",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op_with_tensor_of_scalarlist_overload__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
-    "167538",
-    "https://github.com/pytorch/pytorch/issues/167538",
     [
       "rocm"
     ]
