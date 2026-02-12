@@ -1294,13 +1294,6 @@
       "rocm"
     ]
   ],
-  "test_pw_kernel_benchmark (__main__.TestKernelBenchmark)": [
-    "165875",
-    "https://github.com/pytorch/pytorch/issues/165875",
-    [
-      "rocm"
-    ]
-  ],
   "test_qengine (__main__.TestTorch)": [
     "157245",
     "https://github.com/pytorch/pytorch/issues/157245",
