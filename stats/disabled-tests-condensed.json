@@ -645,24 +645,6 @@
       "rocm"
     ]
   ],
-  "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "150119",
-    "https://github.com/pytorch/pytorch/issues/150119",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_bool (__main__.TestForeachCUDA)": [
-    "150120",
-    "https://github.com/pytorch/pytorch/issues/150120",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_foreach_copy_with_multi_dtypes__foreach_copy_cuda_complex64 (__main__.TestForeachCUDA)": [
     "150161",
     "https://github.com/pytorch/pytorch/issues/150161",
