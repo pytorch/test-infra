@@ -786,13 +786,6 @@
       "slow"
     ]
   ],
-  "test_index (__main__.DistTensorOpsTest)": [
-    "171119",
-    "https://github.com/pytorch/pytorch/issues/171119",
-    [
-      "rocm"
-    ]
-  ],
   "test_inlined_optimized_graph (__main__.TestTEFuserDynamic)": [
     "156438",
     "https://github.com/pytorch/pytorch/issues/156438",
