@@ -141,13 +141,6 @@
       "rocm"
     ]
   ],
-  "test_buffer_mutation_and_force_mmap_weights_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "170007",
-    "https://github.com/pytorch/pytorch/issues/170007",
-    [
-      "xpu"
-    ]
-  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -239,13 +232,6 @@
     "https://github.com/pytorch/pytorch/issues/76962",
     [
       "linux"
-    ]
-  ],
-  "test_comprehensive_linalg_multi_dot_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "174175",
-    "https://github.com/pytorch/pytorch/issues/174175",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -1724,13 +1710,6 @@
     "https://github.com/pytorch/pytorch/issues/164556",
     [
       "rocm"
-    ]
-  ],
-  "test_weight_norm_conv2d_xpu (__main__.GPUTests)": [
-    "173994",
-    "https://github.com/pytorch/pytorch/issues/173994",
-    [
-      "xpu"
     ]
   ]
 }
