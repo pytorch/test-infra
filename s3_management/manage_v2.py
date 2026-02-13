@@ -54,7 +54,7 @@ if R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY:
         aws_secret_access_key=R2_SECRET_ACCESS_KEY,
         region_name="auto",
     )
-    BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
+    R2_BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
     print(
         f"INFO: Will upload indexes to both S3 'pytorch' bucket and R2 '{R2_BUCKET_NAME}' bucket"
     )
