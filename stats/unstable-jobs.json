@@ -23,12 +23,28 @@
     "Lint URLs",
     "linux-job"
   ],
+  "inductor / inductor-cpu-test / test (cpu_inductor_torchbench)": [
+    "xmfan",
+    "174929",
+    "https://github.com/pytorch/pytorch/issues/174929",
+    "inductor",
+    "inductor-cpu-test",
+    "test (cpu_inductor_torchbench)"
+  ],
   "inductor / inductor-test / test (inductor_torchbench)": [
     "xmfan",
     "174919",
     "https://github.com/pytorch/pytorch/issues/174919",
     "inductor",
     "inductor-test",
+    "test (inductor_torchbench)"
+  ],
+  "inductor / inductor-test-cuda13 / test (inductor_torchbench)": [
+    "xmfan",
+    "174930",
+    "https://github.com/pytorch/pytorch/issues/174930",
+    "inductor",
+    "inductor-test-cuda13",
     "test (inductor_torchbench)"
   ],
   "inductor-pallas / pallas-tpu-py3.12-inductor / test (inductor-pallas-tpu)": [
