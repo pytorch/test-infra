@@ -1,0 +1,72 @@
+name: Copy flash attention wheels between CUDA subfolders (test index)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  copy-wheels:
+    name: "Copy ${{ matrix.source }} → ${{ matrix.dest }} (${{ matrix.platform }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: pytorchbot-env
+    container:
+      image: continuumio/miniconda3:4.12.0
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux wheels (cu126) → cu128, cu129
+          - source: cu126
+            dest: cu128
+            platform: linux
+          - source: cu126
+            dest: cu129
+            platform: linux
+          # Windows wheels (cu128) → cu126, cu129
+          - source: cu128
+            dest: cu126
+            platform: win
+          - source: cu128
+            dest: cu129
+            platform: win
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Configure AWS credentials (PyTorch account)
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
+          aws-region: us-east-1
+
+      - name: Copy ${{ matrix.platform }} wheels from ${{ matrix.source }} to ${{ matrix.dest }}
+        env:
+          SOURCE: ${{ matrix.source }}
+          DEST: ${{ matrix.dest }}
+          PLATFORM: ${{ matrix.platform }}
+        # copying over code from aws_promote() inst of calling directly to specify platform
+        run: |
+          set -ex
+          pip install awscli==1.32.18
+          aws s3 cp \
+            --acl public-read \
+            --recursive \
+            --metadata-directive COPY \
+            --exclude '*' \
+            --include "*flash_attn_3-3.0.0*${PLATFORM}*" \
+            "s3://pytorch/whl/test/${SOURCE}" \
+            "s3://pytorch/whl/test/${DEST}"
+
+      - name: Set SHA256 checksums
+        env:
+          DEST: ${{ matrix.dest }}
+        run: |
+          set -ex
+          python s3_management/manage_v2.py \
+            "whl/test/${DEST}" \
+            --set-checksum \
+            --package-name flash_attn_3 \
+            --package-version 3.0.0
