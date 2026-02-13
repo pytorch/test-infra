@@ -54,7 +54,7 @@ if R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY:
         aws_secret_access_key=R2_SECRET_ACCESS_KEY,
         region_name="auto",
     )
-    R2_BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
+    BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
     print(
         f"INFO: Will upload indexes to both S3 'pytorch' bucket and R2 '{R2_BUCKET_NAME}' bucket"
     )
@@ -372,7 +372,11 @@ PT_FOUNDATION_PACKAGES = {
 # Packages that should use R2 (download-r2.pytorch.org) for nightly builds
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is whl/nightly
-PT_R2_PACKAGES = {}
+PT_R2_PACKAGES = {
+    "torchaudio",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+}
 
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
