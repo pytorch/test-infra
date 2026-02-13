@@ -185,13 +185,6 @@
       "dynamo"
     ]
   ],
-  "test_circular_dependencies (__main__.TestImports)": [
-    "110040",
-    "https://github.com/pytorch/pytorch/issues/110040",
-    [
-      "xpu"
-    ]
-  ],
   "test_codegen_with_custom_heuristics_module (__main__.TritonExtensionBackendTests)": [
     "173916",
     "https://github.com/pytorch/pytorch/issues/173916",
