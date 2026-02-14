@@ -207,7 +207,7 @@ Please refer to the [release page](https://github.com/actions/checkout/releases/
     # Path to a directory containing bare git mirrors. When set and the mirror exists,
     # the mirror's objects are used as git alternates to speed up fetch. If the path
     # doesn't exist, this input is silently ignored.
-    # Default: 
+    # Default: ''
     git-mirrors-path: ''
 ```
 <!-- end usage -->
