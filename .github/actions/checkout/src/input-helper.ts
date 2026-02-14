@@ -179,5 +179,9 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   result.githubServerUrl = core.getInput('github-server-url')
   core.debug(`GitHub Host URL = ${result.githubServerUrl}`)
 
+  // Git mirrors path
+  result.gitMirrorsPath = core.getInput('git-mirrors-path') || ''
+  core.debug(`git mirrors path = ${result.gitMirrorsPath}`)
+
   return result
 }
