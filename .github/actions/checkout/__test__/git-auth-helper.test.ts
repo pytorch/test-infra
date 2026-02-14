@@ -1145,6 +1145,7 @@ async function setup(testName: string): Promise<void> {
         return [...new Set(keys)] // Remove duplicates
       }
     ),
+    setupAlternates: jest.fn(),
     tryReset: jest.fn(),
     version: jest.fn()
   }
