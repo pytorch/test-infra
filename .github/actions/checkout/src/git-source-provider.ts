@@ -115,6 +115,28 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       core.endGroup()
     }
 
+    // Set up git alternates from mirror if available
+    if (settings.gitMirrorsPath) {
+      const mirrorName = `${settings.repositoryOwner}--${settings.repositoryName}.git`
+      const mirrorObjectsPath = path.join(
+        settings.gitMirrorsPath,
+        mirrorName,
+        'objects'
+      )
+      if (fsHelper.directoryExistsSync(mirrorObjectsPath)) {
+        core.startGroup('Configuring git alternates from mirror')
+        core.info(
+          `Using git mirror at ${settings.gitMirrorsPath}/${mirrorName}`
+        )
+        await git.setupAlternates(mirrorObjectsPath)
+        core.endGroup()
+      } else {
+        core.info(
+          `Git mirror not found at ${mirrorObjectsPath}, proceeding without mirror`
+        )
+      }
+    }
+
     // Disable automatic garbage collection
     core.startGroup('Disabling automatic garbage collection')
     if (!(await git.tryDisableAutomaticGarbageCollection())) {
