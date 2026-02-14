@@ -117,7 +117,7 @@ inputs:
       Path to a directory containing bare git mirrors. When set and the mirror
       exists, the mirror's objects are used as git alternates to speed up fetch.
       If the path doesn't exist, this input is silently ignored.
-    default: ''
+    required: false
 outputs:
   ref:
     description: 'The branch, tag or SHA that was checked out'
