@@ -779,6 +779,13 @@
       "slow"
     ]
   ],
+  "test_index (__main__.DistTensorOpsTest)": [
+    "175064",
+    "https://github.com/pytorch/pytorch/issues/175064",
+    [
+      "rocm"
+    ]
+  ],
   "test_inlined_optimized_graph (__main__.TestTEFuserDynamic)": [
     "156438",
     "https://github.com/pytorch/pytorch/issues/156438",
@@ -1256,6 +1263,13 @@
     "https://github.com/pytorch/pytorch/issues/84937",
     [
       "asan"
+    ]
+  ],
+  "test_rank0_offload_full_state_dict (__main__.TestFullyShardStateDictMultiThread)": [
+    "175065",
+    "https://github.com/pytorch/pytorch/issues/175065",
+    [
+      "linux"
     ]
   ],
   "test_raw_amdsmi_device_uuids (__main__.TestCudaMallocAsync)": [
