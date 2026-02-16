@@ -780,8 +780,8 @@
     ]
   ],
   "test_index (__main__.DistTensorOpsTest)": [
-    "175064",
-    "https://github.com/pytorch/pytorch/issues/175064",
+    "171119",
+    "https://github.com/pytorch/pytorch/issues/171119",
     [
       "rocm"
     ]
