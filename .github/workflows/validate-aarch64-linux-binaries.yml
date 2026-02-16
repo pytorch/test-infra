@@ -101,7 +101,7 @@ on:
 
 jobs:
   generate-aarch64-linux-matrix:
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.11
     with:
       package-type: wheel
       os: linux-aarch64
@@ -115,7 +115,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
+    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@release/2.11
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
