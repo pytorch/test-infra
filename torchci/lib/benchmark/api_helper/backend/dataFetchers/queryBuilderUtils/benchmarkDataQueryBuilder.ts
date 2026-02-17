@@ -976,22 +976,13 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       d.granularity_bucket = workflowBucketMap.get(wfId);
     });
 
-    console.log("data", data.length);
-
     // Filter to only allowed metrics
     const filteredData = data.filter((d) =>
       VllmXPytorchBenchmarkAggregatedDataFetcher.ALLOWED_METRICS.has(d.metric)
     );
-
-    console.log("filteredData", filteredData.length);
-
     // Aggregate data by computing geomean speedup (use_compile=true vs false)
     const aggregatedData = this.aggregateData(filteredData);
-
-    console.log("aggregatedData", aggregatedData.length);
-
     const resp = super.applyFormat(aggregatedData, formats, false);
-
     // Apply the standard format using the parent's format method
     return resp;
   }
@@ -1091,10 +1082,10 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         if (item.model) models.add(item.model);
       });
 
-      console.log("key", key);
-      console.log("compiledValues", compiledValues);
-      console.log("nonCompiledValues", nonCompiledValues);
-      console.log("Models", Array.from(models));
+      //console.log("key", key);
+      //console.log("compiledValues", compiledValues);
+      //console.log("nonCompiledValues", nonCompiledValues);
+      //console.log("Models", Array.from(models));
 
       const aggregatedRecord = {
         commit: template.commit,
