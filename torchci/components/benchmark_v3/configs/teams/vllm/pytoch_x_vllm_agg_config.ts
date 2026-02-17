@@ -19,7 +19,7 @@ const CHART_METADATA_COLUMNS = [
 export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
   apiId: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
-  title: "Compiler Inductor Regression Tracking",
+  title:"Vllm x Pytorch Regression Tracking",
   type: "aggregate",
   dataBinding: {
     initial: {
