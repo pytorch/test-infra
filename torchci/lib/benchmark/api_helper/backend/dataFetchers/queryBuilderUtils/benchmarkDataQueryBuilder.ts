@@ -1031,15 +1031,23 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
     groupMap.forEach((group, key) => {
       const { compiled, nonCompiled, template } = group;
 
-      // Get values for compiled (use_compile=true)
-      const compiledValues = compiled
-        .map((item) => item.value)
-        .filter((v) => v != null && v >= 0);
+      // Get values for compiled (use_compile=true) and track valid models
+      const compiledFiltered = compiled.filter(
+        (item) => item.value != null && item.value > 0
+      );
+      const compiledValues = compiledFiltered.map((item) => item.value);
+      const compiledModels = compiledFiltered
+        .map((item) => item.model)
+        .filter(Boolean);
 
-      // Get values for non-compiled (use_compile=false)
-      const nonCompiledValues = nonCompiled
-        .map((item) => item.value)
-        .filter((v) => v != null && v >= 0);
+      // Get values for non-compiled (use_compile=false) and track valid models
+      const nonCompiledFiltered = nonCompiled.filter(
+        (item) => item.value != null && item.value > 0
+      );
+      const nonCompiledValues = nonCompiledFiltered.map((item) => item.value);
+      const nonCompiledModels = nonCompiledFiltered
+        .map((item) => item.model)
+        .filter(Boolean);
 
       // Skip if either group is empty
       if (compiledValues.length === 0 || nonCompiledValues.length === 0) {
@@ -1073,14 +1081,20 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       }
 
       // Create aggregated record
-      // Collect unique models from both compiled and nonCompiled
-      const models = new Set<string>();
+      // Collect unique models from both compiled and nonCompiled (all models, not just valid ones)
+      const allModels = new Set<string>();
       compiled.forEach((item) => {
-        if (item.model) models.add(item.model);
+        if (item.model) allModels.add(item.model);
       });
       nonCompiled.forEach((item) => {
-        if (item.model) models.add(item.model);
+        if (item.model) allModels.add(item.model);
       });
+
+      // Collect unique valid models (models that passed the filter)
+      const validModels = new Set<string>([
+        ...compiledModels,
+        ...nonCompiledModels,
+      ]);
 
       //console.log("key", key);
       //console.log("compiledValues", compiledValues);
@@ -1100,7 +1114,8 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         geomean_non_compiled: geomeanNonCompiled,
         compiled_values: compiledValues,
         non_compiled_values: nonCompiledValues,
-        models: Array.from(models),
+        models: Array.from(allModels),
+        valid_models: Array.from(validModels),
       };
 
       aggregatedData.push(aggregatedRecord);
