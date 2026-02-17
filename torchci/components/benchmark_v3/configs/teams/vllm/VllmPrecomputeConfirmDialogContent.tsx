@@ -17,7 +17,7 @@ import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_st
 import { stateToQuery } from "lib/helpers/urlQuery";
 import { NextRouter, useRouter } from "next/router";
 /**
- * Customized dialog content for compiler precompute benchmark page.
+ * Customized dialog content for vllm precompute benchmark page.
  * if parent is timeSeriesChart, we will show the following options:
  *  1. Navigate to the time series comparison table section on this page.
  *  2. Navigate to the legacy benchmark data page.
@@ -50,9 +50,7 @@ export const VllmPrecomputeConfirmDialogContent: React.FC<
       return;
     }
 
-    const tableId = toBenchamrkTimeSeriesComparisonTableId(
-      `metric=${left.metric}`
-    );
+    const tableId = toBenchamrkTimeSeriesComparisonTableId(`__ALL__`);
 
     const table = getElementById(tableId);
     // if the table is not exist,scroll to the toggle section
@@ -63,7 +61,7 @@ export const VllmPrecomputeConfirmDialogContent: React.FC<
     }
     const cell = await navigateToDataGrid(
       tableId,
-      [`${left?.compiler}|`],
+      [`${left?.device}`],
       `${left?.metric}`,
       toggleSectonId
     );
@@ -78,7 +76,7 @@ export const VllmPrecomputeConfirmDialogContent: React.FC<
     closeDialog();
 
     const cell = await navigateToEchartInGroup(
-      toBenchmarkTimeseriesChartSectionId(`suite=${left.suite}`),
+      toBenchmarkTimeseriesChartSectionId(`__ALL__`),
       toBenchmarkTimeseriesChartGroupId(`metric=${left.metric}`),
       toToggleSectionId(2)
     );
