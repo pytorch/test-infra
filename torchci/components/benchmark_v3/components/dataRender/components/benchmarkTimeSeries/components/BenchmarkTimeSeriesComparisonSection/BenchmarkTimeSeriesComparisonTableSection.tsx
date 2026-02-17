@@ -14,7 +14,6 @@ import {
 } from "../../helper";
 import { ComparisonTable } from "./BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 import { BenchmarkTimeSeriesComparisonTableSlider } from "./BenchmarkTimeSeriesComparisonTableSlider";
-import { table } from "console";
 
 const styles = {
   container: {
@@ -97,7 +96,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     xs: 12,
     md: 12,
     lg: 6,
-    ...tableSectionConfig?.renderOptions?.dynamicSize
+    ...tableSectionConfig?.renderOptions?.dynamicSize,
   };
 
   if (!filtered || filtered.length == 0) {

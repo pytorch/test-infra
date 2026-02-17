@@ -1,6 +1,5 @@
 import { List } from "@mui/material";
 import { Box } from "@mui/system";
-import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark_v3/components/common/highlight";
 import {
   getElementById,

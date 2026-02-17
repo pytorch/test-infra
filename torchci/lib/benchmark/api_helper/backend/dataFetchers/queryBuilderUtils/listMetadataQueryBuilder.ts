@@ -346,9 +346,7 @@ export class VllmAggregateBenchmarkMetadataFetcher
     );
     if (deviceItem && deviceItem.options.length > 0) {
       // Remove the first option (default option with empty value)
-      deviceItem.options = deviceItem.options.filter(
-        (opt) => opt.value !== ""
-      );
+      deviceItem.options = deviceItem.options.filter((opt) => opt.value !== "");
       // Set initial value to first available option if exists
       if (deviceItem.options.length > 0) {
         deviceItem.initialValue = deviceItem.options[0].value;

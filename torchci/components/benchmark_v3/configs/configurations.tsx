@@ -32,10 +32,13 @@ import {
   VllmBenchmarkDashboardConfig,
 } from "./teams/vllm/config";
 import {
+  PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
+  VllmXPytorchBenchmarkAggregatedConfig,
+} from "./teams/vllm/pytoch_x_vllm_agg_config";
+import {
   PYTORCH_X_VLLM_BENCHMARK_ID,
   PytorchXVllmBenchmarkDashboardConfig,
 } from "./teams/vllm/pytorch_x_vllm_config";
-import { PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID, VllmXPytorchBenchmarkAggregatedConfig } from "./teams/vllm/pytoch_x_vllm_agg_config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",

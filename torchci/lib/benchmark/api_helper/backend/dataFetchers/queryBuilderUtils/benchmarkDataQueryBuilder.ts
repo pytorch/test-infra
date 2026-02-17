@@ -993,7 +993,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
     const resp = super.applyFormat(aggregatedData, formats, false);
 
     // Apply the standard format using the parent's format method
-    return resp
+    return resp;
   }
 
   /**
@@ -1006,7 +1006,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
     // Group by all keys EXCEPT use_compile
     const groupMap = new Map<
       string,
-      { compiled: any[]; nonCompiled: any[]; template: any}
+      { compiled: any[]; nonCompiled: any[]; template: any }
     >();
 
     data.forEach((d) => {
@@ -1044,7 +1044,6 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       const compiledValues = compiled
         .map((item) => item.value)
         .filter((v) => v != null && v >= 0);
-
 
       // Get values for non-compiled (use_compile=false)
       const nonCompiledValues = nonCompiled
@@ -1092,10 +1091,10 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         if (item.model) models.add(item.model);
       });
 
-      console.log("key",key);
-      console.log("compiledValues",compiledValues);
-      console.log("nonCompiledValues",nonCompiledValues);
-      console.log("Models",Array.from(models));
+      console.log("key", key);
+      console.log("compiledValues", compiledValues);
+      console.log("nonCompiledValues", nonCompiledValues);
+      console.log("Models", Array.from(models));
 
       const aggregatedRecord = {
         commit: template.commit,
