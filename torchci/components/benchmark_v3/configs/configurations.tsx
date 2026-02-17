@@ -35,6 +35,7 @@ import {
   PYTORCH_X_VLLM_BENCHMARK_ID,
   PytorchXVllmBenchmarkDashboardConfig,
 } from "./teams/vllm/pytorch_x_vllm_config";
+import { PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID, VllmXPytorchBenchmarkAggregatedConfig } from "./teams/vllm/pytoch_x_vllm_agg_config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",
@@ -46,6 +47,9 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   },
   [PYTORCH_X_VLLM_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchXVllmBenchmarkDashboardConfig,
+  },
+  [PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID]: {
+    [BenchmarkPageType.AggregatePage]: VllmXPytorchBenchmarkAggregatedConfig,
   },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
@@ -78,6 +82,11 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
   },
   [PYTORCH_X_VLLM_BENCHMARK_ID]: {
     id: PYTORCH_X_VLLM_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch x vLLM benchmark",
+  },
+  [PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID]: {
+    id: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
     repoName: "pytorch/pytorch",
     benchmarkName: "PyTorch x vLLM benchmark",
   },

@@ -3,10 +3,12 @@ import { CompilerPrecomputeConfirmDialogContent } from "../teams/compilers/Compi
 import { CompilerSearchBarDropdowns } from "../teams/compilers/CompilerSearchBarDropdowns";
 import { compilerQueryParameterConverter } from "../teams/compilers/config";
 import { QueryParameterConverter } from "../utils/dataBindingRegistration";
+import { VllmPrecomputeConfirmDialogContent } from "../teams/vllm/VllmPrecomputeConfirmDialogContent";
 
 export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   CompilerSearchBarDropdowns,
   CompilerPrecomputeConfirmDialogContent,
+  VllmPrecomputeConfirmDialogContent
 };
 
 // register converters for data params, this is

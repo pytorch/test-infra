@@ -325,3 +325,66 @@ export class VllmBenchmarkMetadataFetcher
     return this._data_query.toQueryParams(inputs);
   }
 }
+
+export class VllmAggregateBenchmarkMetadataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkMetadataFetcher
+{
+  private _data_query: BenchmarkMetadataQuery;
+
+  constructor() {
+    super();
+    this._data_query = new BenchmarkMetadataQuery();
+  }
+
+  postProcess(data: any[]) {
+    let li = getDefaultBenchmarkMetadataGroup(data);
+
+    // Remove the default option for device
+    const deviceItem = li.find(
+      (item) => item.type === BenchmarkMetadataType.DeviceName
+    );
+    if (deviceItem && deviceItem.options.length > 0) {
+      // Remove the first option (default option with empty value)
+      deviceItem.options = deviceItem.options.filter(
+        (opt) => opt.value !== ""
+      );
+      // Set initial value to first available option if exists
+      if (deviceItem.options.length > 0) {
+        deviceItem.initialValue = deviceItem.options[0].value;
+      }
+    }
+
+    const item = makeMetadataItem(
+      data,
+      "model_category",
+      BenchmarkMetadataType.ModelCategory,
+      { displayName: "All families", value: "" },
+      "Model Category",
+      "",
+      (r) => {
+        const splitted = r.model.split("/");
+        let value = undefined;
+        if (splitted.length > 1) {
+          value = splitted[0];
+        }
+        return {
+          value: value,
+          displayName: value,
+        };
+      }
+    );
+    if (item) {
+      li.push(item);
+    }
+    return li;
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+
+  toQueryParams(inputs: any) {
+    return this._data_query.toQueryParams(inputs);
+  }
+}

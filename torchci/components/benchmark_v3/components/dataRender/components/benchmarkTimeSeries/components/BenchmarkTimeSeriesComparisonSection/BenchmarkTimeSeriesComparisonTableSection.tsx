@@ -14,6 +14,7 @@ import {
 } from "../../helper";
 import { ComparisonTable } from "./BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 import { BenchmarkTimeSeriesComparisonTableSlider } from "./BenchmarkTimeSeriesComparisonTableSlider";
+import { table } from "console";
 
 const styles = {
   container: {
@@ -92,6 +93,13 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     setRWorkflowId(next[1]);
   };
 
+  const dynamicSize = {
+    xs: 12,
+    md: 12,
+    lg: 6,
+    ...tableSectionConfig?.renderOptions?.dynamicSize
+  };
+
   if (!filtered || filtered.length == 0) {
     return <></>;
   }
@@ -149,7 +157,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
               <Grid
                 key={key}
                 sx={{ p: 0.2 }}
-                size={{ xs: 12, md: 12, lg: 6 }}
+                size={dynamicSize}
                 id={`benchmark-time-series-comparison-table-${key}`}
               >
                 <Paper sx={styles.paper}>

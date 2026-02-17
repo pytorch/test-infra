@@ -771,3 +771,379 @@ export class VllmBenchmarkDataFetcher
     return this._data_query.build();
   }
 }
+
+/**
+ * Builder to get Vllm V1 Benchmark
+ * It inherits method from BenchmarkDataQuery
+ */
+export class VllmXPytorchBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    // add extra info to the query
+    this._data_query.addExtraInfos(
+      new Map([
+        [
+          "model_category",
+          `IF(
+              tupleElement(o.benchmark, 'extra_info')['model_category'] = '',
+              arrayElement(splitByChar('/', tupleElement(o.model, 'name')), 1),
+              tupleElement(o.benchmark, 'extra_info')['model_category']
+            )`,
+        ],
+        [
+          "use_compile",
+          `IF(
+                tupleElement(o.benchmark, 'extra_info')['use_compile'] = '',
+                'true',
+                tupleElement(o.benchmark, 'extra_info')['use_compile']
+                )`,
+        ],
+        [
+          "request_rate",
+          `JSONExtractString(
+              tupleElement(o.benchmark, 'extra_info')['args'],
+              'request_rate'
+          )
+          `,
+        ],
+        [
+          "tensor_parallel_size",
+          `JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'tensor_parallel_size'
+            )`,
+        ],
+        [
+          "random_input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_input_len'
+            )`,
+        ],
+        [
+          "random_output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_output_len'
+            )`,
+        ],
+        [
+          "input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'input_len'
+            )`,
+        ],
+        [
+          "output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'output_len'
+            )`,
+        ],
+      ])
+    );
+
+    this._data_query.addInnerWhereStatements([
+      `(
+          {modelCategory:String} = ''
+          OR startsWith(tupleElement(o.model, 'name'), {modelCategory:String})
+      )
+    `,
+    ]);
+  }
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    // nput and output length is the number of token feed into vLLM and the max output it returns.
+    //  random_input_len is the name of the the parameter on vLLM bench,
+    // for other type of benchmark, it could be called input_len
+    data.forEach((d) => {
+      if (d.extra_key) {
+        const dk = d.extra_key;
+        const input_len = dk?.input_len;
+        const random_input_len = dk?.random_input_len;
+        const output_len = dk?.output_len;
+        const random_output_len = dk?.random_output_len;
+        dk.input_len = input_len || random_input_len;
+        dk.output_len = output_len || random_output_len;
+      }
+    });
+
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const excludedMetrics = [
+      "mean_itl_ms",
+      "mean_tpot_ms",
+      "mean_ttft_ms",
+      "std_itl_ms",
+      "std_tpot_ms",
+      "std_ttft_ms",
+    ];
+    const params = {
+      ...inputs,
+      modelCategory: inputs.modelCategory ?? "",
+      useCompile: inputs.useCompile ?? "true",
+      excludedMetrics: excludedMetrics,
+    };
+
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}
+
+/**
+ * Builder to get Vllm X Pytorch Benchmark with aggregated data.
+ * Inherits from VllmXPytorchBenchmarkDataFetcher but aggregates data
+ * by computing the geomean speedup of use_compile=true vs use_compile=false.
+ */
+export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenchmarkDataFetcher {
+  // Only include these metrics for aggregation
+  private static readonly ALLOWED_METRICS = new Set([
+    "median_ttft_ms",
+    "median_tpot_ms",
+    "median_itl_ms",
+    "latency",
+    "tokens_per_second",
+  ]);
+
+  // Metrics where higher is better (throughput metrics)
+  // For these: speedup = compiled / non_compiled
+  private static readonly HIGHER_IS_BETTER_METRICS = new Set([
+    "tokens_per_second",
+  ]);
+
+  // Metrics where lower is better (latency/time metrics)
+  // For these: speedup = non_compiled / compiled
+  private static readonly LOWER_IS_BETTER_METRICS = new Set([
+    "median_ttft_ms",
+    "median_tpot_ms",
+    "median_itl_ms",
+    "latency",
+  ]);
+
+  constructor() {
+    super();
+  }
+
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    data.forEach((d) => {
+      if (d.extra_key) {
+        const dk = d.extra_key;
+        const input_len = dk?.input_len;
+        const random_input_len = dk?.random_input_len;
+        const output_len = dk?.output_len;
+        const random_output_len = dk?.random_output_len;
+        dk.input_len = input_len || random_input_len;
+        dk.output_len = output_len || random_output_len;
+      }
+    });
+
+    // Normalize granularity_bucket per workflow_id (use smallest/earliest)
+    const workflowBucketMap = new Map<string, string>();
+    data.forEach((d) => {
+      const wfId = String(d.workflow_id);
+      const bucket = d.granularity_bucket;
+      if (!workflowBucketMap.has(wfId)) {
+        workflowBucketMap.set(wfId, bucket);
+      } else {
+        const existing = workflowBucketMap.get(wfId)!;
+        if (new Date(bucket) < new Date(existing)) {
+          workflowBucketMap.set(wfId, bucket);
+        }
+      }
+    });
+
+    // Apply normalized granularity_bucket to all records
+    data.forEach((d) => {
+      const wfId = String(d.workflow_id);
+      d.granularity_bucket = workflowBucketMap.get(wfId);
+    });
+
+    console.log("data", data.length);
+
+    // Filter to only allowed metrics
+    const filteredData = data.filter((d) =>
+      VllmXPytorchBenchmarkAggregatedDataFetcher.ALLOWED_METRICS.has(d.metric)
+    );
+
+    console.log("filteredData", filteredData.length);
+
+    // Aggregate data by computing geomean speedup (use_compile=true vs false)
+    const aggregatedData = this.aggregateData(filteredData);
+
+    console.log("aggregatedData", aggregatedData.length);
+
+    const resp = super.applyFormat(aggregatedData, formats, false);
+
+    // Apply the standard format using the parent's format method
+    return resp
+  }
+
+  /**
+   * Aggregate data by grouping (excluding use_compile) and computing
+   * geomean speedup based on metric type:
+   * - For latency metrics (lower is better): speedup = non_compiled / compiled
+   * - For throughput metrics (higher is better): speedup = compiled / non_compiled
+   */
+  private aggregateData(data: any[]): any[] {
+    // Group by all keys EXCEPT use_compile
+    const groupMap = new Map<
+      string,
+      { compiled: any[]; nonCompiled: any[]; template: any}
+    >();
+
+    data.forEach((d) => {
+      const key = this.createGroupKey(d);
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          compiled: [],
+          nonCompiled: [],
+          template: { ...d },
+        });
+      }
+
+      const group = groupMap.get(key)!;
+      const useCompile = d.extra_key?.use_compile;
+
+      // Categorize by use_compile value
+      if (useCompile === "true" || useCompile === true) {
+        group.compiled.push(d);
+      } else if (useCompile === "false" || useCompile === false) {
+        group.nonCompiled.push(d);
+      }
+    });
+
+    // for debugging
+    //console.log("key", key)
+    //console.log("groupMap", groupMap.size);
+    //console.log("groupMap",groupMap);
+
+    // Compute geomean speedup for each group
+    const aggregatedData: any[] = [];
+    groupMap.forEach((group, key) => {
+      const { compiled, nonCompiled, template } = group;
+
+      // Get values for compiled (use_compile=true)
+      const compiledValues = compiled
+        .map((item) => item.value)
+        .filter((v) => v != null && v >= 0);
+
+
+      // Get values for non-compiled (use_compile=false)
+      const nonCompiledValues = nonCompiled
+        .map((item) => item.value)
+        .filter((v) => v != null && v >= 0);
+
+      // Skip if either group is empty
+      if (compiledValues.length === 0 || nonCompiledValues.length === 0) {
+        return;
+      }
+      const geomeanCompiled = this.geometricMean(compiledValues);
+      const geomeanNonCompiled = this.geometricMean(nonCompiledValues);
+
+      // Calculate speedup based on metric type
+      // For latency (lower is better): speedup = baseline / compiled = non_compiled / compiled
+      // For throughput (higher is better): speedup = compiled / baseline = compiled / non_compiled
+      let speedup: number;
+      const metric = template.metric;
+
+      if (
+        VllmXPytorchBenchmarkAggregatedDataFetcher.HIGHER_IS_BETTER_METRICS.has(
+          metric
+        )
+      ) {
+        // Throughput: compiled / non_compiled
+        speedup =
+          geomeanNonCompiled > 0
+            ? Math.round((geomeanCompiled / geomeanNonCompiled) * 100) / 100
+            : 0;
+      } else {
+        // Latency (default): non_compiled / compiled
+        speedup =
+          geomeanCompiled > 0
+            ? Math.round((geomeanNonCompiled / geomeanCompiled) * 100) / 100
+            : 0;
+      }
+
+      // Create aggregated record
+      // Collect unique models from both compiled and nonCompiled
+      const models = new Set<string>();
+      compiled.forEach((item) => {
+        if (item.model) models.add(item.model);
+      });
+      nonCompiled.forEach((item) => {
+        if (item.model) models.add(item.model);
+      });
+
+      console.log("key",key);
+      console.log("compiledValues",compiledValues);
+      console.log("nonCompiledValues",nonCompiledValues);
+      console.log("Models",Array.from(models));
+
+      const aggregatedRecord = {
+        commit: template.commit,
+        workflow_id: template.workflow_id,
+        branch: template.branch,
+        device: template.device,
+        arch: template.arch,
+        granularity_bucket: template.granularity_bucket,
+        value: speedup,
+        metric: `${template.metric}_compile_speedup`,
+        geomean_compiled: geomeanCompiled,
+        geomean_non_compiled: geomeanNonCompiled,
+        compiled_values: compiledValues,
+        non_compiled_values: nonCompiledValues,
+        models: Array.from(models),
+      };
+
+      aggregatedData.push(aggregatedRecord);
+    });
+
+    return aggregatedData;
+  }
+
+  /**
+   * Create a unique group key for aggregation.
+   * Excludes use_compile since we're grouping to compare compiled vs non-compiled.
+   */
+  private createGroupKey(d: any): string {
+    const keyParts = [
+      d.workflow_id,
+      d.metric,
+      d.device,
+      d.arch,
+      d.branch,
+      d.granularity_bucket,
+    ];
+    return keyParts.join("|");
+  }
+
+  /**
+   * Compute the geometric mean of an array of positive numbers.
+   */
+  private geometricMean(values: number[]): number {
+    if (values.length === 0) return 0;
+    if (values.length === 1) return values[0];
+
+    // Use log transformation to avoid overflow
+    const logSum = values.reduce((sum, v) => sum + Math.log(v), 0);
+    return Math.round(Math.exp(logSum / values.length) * 100) / 100;
+  }
+}
