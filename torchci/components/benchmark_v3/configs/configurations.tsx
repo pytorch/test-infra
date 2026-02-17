@@ -186,6 +186,10 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
             type: "regression_report",
             href: `/benchmark/regression/reports/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
           },
+          {
+            label: "Aggregated Dashboard",
+            href: `/benchmark/v3/aggregate/${PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID}`,
+          },
         ],
       },
       {
