@@ -131,15 +131,15 @@ runs:
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
             3.14t)
-              export PYTHON_VERSION=3.14.0rc2
-              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+              export PYTHON_VERSION=3.14
+              export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
             3.14)
-              export PYTHON_VERSION=3.14.0rc2
-              export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
+              export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
             3.13t)
               export PYTHON_VERSION=3.13
+              # python-freethreading package for 3.13t only exist in conda-forge
               export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
               ;;
           esac
@@ -150,6 +150,8 @@ runs:
               "python=${PYTHON_VERSION}" \
               cmake=3.31.2 \
               ninja=1.12.1 \
+              libwebp \
+              libpng \
               pkg-config=0.29 \
               wheel=0.37  \
               ${CONDA_EXTRA_PARAM}
