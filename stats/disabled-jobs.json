@@ -86,13 +86,5 @@
     "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
     "",
     ""
-  ],
-  "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
-    "jithunnair-amd",
-    "167849",
-    "https://github.com/pytorch/pytorch/issues/167849",
-    "trunk-rocm-sandbox",
-    "linux-jammy-rocm-py3.10",
-    "test"
   ]
 }
