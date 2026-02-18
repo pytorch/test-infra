@@ -131,16 +131,15 @@ runs:
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
             3.14t)
-              export PYTHON_VERSION=3.14.0rc2
-              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+              export PYTHON_VERSION=3.14
+              export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
             3.14)
-              export PYTHON_VERSION=3.14.0rc2
-              export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
+              export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
             3.13t)
               export PYTHON_VERSION=3.13
-              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
+              export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
           esac
 
