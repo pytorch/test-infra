@@ -156,6 +156,10 @@ jobs:
       - name: Check if R2 upload is enabled
         id: check-r2
         shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           # R2 upload is enabled only for specific ecosystem libraries on nightly channel
           # Enabled repos: pytorch/audio (torchaudio), pytorch/vision (torchvision),
@@ -167,8 +171,8 @@ jobs:
               R2_UPLOAD="true"
               ;;
           esac
-          # shellcheck disable=SC2086
-          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ]; then
+          if [[ -z "${R2_ACCOUNT_ID}" || -z "${R2_ACCESS_KEY_ID}" || -z "${R2_SECRET_ACCESS_KEY}" ]]; then
+            echo "R2 secrets are not configured, skipping R2 upload"
             R2_UPLOAD="false"
           fi
           echo "r2_upload=${R2_UPLOAD}" >> "$GITHUB_OUTPUT"
