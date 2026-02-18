@@ -150,6 +150,8 @@ runs:
               "python=${PYTHON_VERSION}" \
               cmake=3.31.2 \
               ninja=1.12.1 \
+              libwebp \
+              libpng \
               pkg-config=0.29 \
               wheel=0.37  \
               ${CONDA_EXTRA_PARAM}
