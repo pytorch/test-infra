@@ -139,6 +139,7 @@ runs:
               ;;
             3.13t)
               export PYTHON_VERSION=3.13
+              # python-freethreading package for 3.13t only exist in conda-forge
               export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
               ;;
           esac
