@@ -139,7 +139,7 @@ runs:
               ;;
             3.13t)
               export PYTHON_VERSION=3.13
-              export CONDA_EXTRA_PARAM=" python-freethreading"
+              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
               ;;
           esac
 
