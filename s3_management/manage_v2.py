@@ -464,6 +464,10 @@ PACKAGE_LINKS_ALLOW_LIST = {
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
 
+# Package index files to copy from whl/ to whl/nightly/ during nightly updates.
+# Copies the root-level index and all cu* subdirectory indexes.
+FLASH_ATTN_3_COPY_PACKAGE = "flash-attn-3"
+
 
 S3IndexType = TypeVar("S3IndexType", bound="S3Index")
 
@@ -1622,6 +1626,79 @@ def recompute_sha256_for_pattern(
     _compute_and_set_checksums(matching_objects)
 
 
+def _get_flash_attn_3_nightly_copies() -> List[tuple]:
+    """Dynamically discover flash-attn-3 index.html files under whl/ to copy to whl/nightly/.
+
+    Returns a list of (source_key, destination_key) tuples for:
+    - whl/flash-attn-3/index.html -> whl/nightly/flash-attn-3/index.html
+    - whl/cu*/flash-attn-3/index.html -> whl/nightly/cu*/flash-attn-3/index.html
+      for all CUDA subdirectories matching ACCEPTED_SUBDIR_PATTERNS.
+    """
+    pkg = FLASH_ATTN_3_COPY_PACKAGE
+    copies = [
+        (f"whl/{pkg}/index.html", f"whl/nightly/{pkg}/index.html"),
+    ]
+
+    # Find all cu* subdirectories under whl/ using S3 delimiter listing
+    cu_pattern = r"cu[0-9]+"
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=BUCKET.name, Prefix="whl/", Delimiter="/"):
+        for common_prefix in page.get("CommonPrefixes", []):
+            subdir_name = common_prefix["Prefix"].rstrip("/").split("/")[-1]
+            if match(f"{cu_pattern}$", subdir_name):
+                src = f"whl/{subdir_name}/{pkg}/index.html"
+                dst = f"whl/nightly/{subdir_name}/{pkg}/index.html"
+                copies.append((src, dst))
+
+    return copies
+
+
+def upload_flash_attn_3_to_nightly() -> None:
+    """Copy flash-attn-3 index.html files from whl to whl/nightly in S3 and R2."""
+    for src_key, dst_key in _get_flash_attn_3_nightly_copies():
+        try:
+            src_obj = BUCKET.Object(key=src_key)
+            html_content = src_obj.get()["Body"].read().decode("utf-8")
+
+            print(f"INFO: Copying {src_key} to {dst_key} in S3 bucket {BUCKET.name}")
+            BUCKET.Object(key=dst_key).put(
+                ACL="public-read",
+                CacheControl="no-cache,no-store,must-revalidate",
+                ContentType="text/html",
+                Body=html_content,
+            )
+
+            if R2_BUCKET:
+                print(
+                    f"INFO: Copying {src_key} to {dst_key} in R2 bucket {R2_BUCKET.name}"
+                )
+                R2_BUCKET.Object(key=dst_key).put(
+                    ACL="public-read",
+                    CacheControl="no-cache,no-store,must-revalidate",
+                    ContentType="text/html",
+                    Body=html_content,
+                )
+        except Exception as e:
+            print(f"ERROR: Failed to copy {src_key} to {dst_key}: {e}")
+
+
+def save_flash_attn_3_to_nightly() -> None:
+    """Copy flash-attn-3 index.html files from whl to whl/nightly locally (fetched from S3)."""
+    for src_key, dst_key in _get_flash_attn_3_nightly_copies():
+        try:
+            src_obj = BUCKET.Object(key=src_key)
+            html_content = src_obj.get()["Body"].read().decode("utf-8")
+
+            dst_dir = path.dirname(dst_key)
+            makedirs(dst_dir, exist_ok=True)
+
+            print(f"INFO: Saving {src_key} to {dst_key}")
+            with open(dst_key, mode="w", encoding="utf-8") as f:
+                f.write(html_content)
+        except Exception as e:
+            print(f"ERROR: Failed to save {src_key} to {dst_key}: {e}")
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("Manage S3 HTML indices for PyTorch")
     parser.add_argument("prefix", type=str, choices=PREFIXES + ["all"])
@@ -1720,6 +1797,8 @@ def main() -> None:
         elif args.do_not_upload:
             if generate_pep503:
                 idx.save_pep503_htmls()
+                if prefix == "whl/nightly":
+                    save_flash_attn_3_to_nightly()
             elif generate_source_code:
                 idx.save_source_code_html()
             else:
@@ -1727,6 +1806,8 @@ def main() -> None:
         else:
             if generate_pep503:
                 idx.upload_pep503_htmls()
+                if prefix == "whl/nightly":
+                    upload_flash_attn_3_to_nightly()
             elif generate_source_code:
                 idx.upload_source_code_html()
             else:
