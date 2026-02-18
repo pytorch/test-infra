@@ -1,0 +1,141 @@
+name: Test checkout with git mirrors
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/checkout/**'
+      - '.github/workflows/test-checkout-git-mirrors.yml'
+
+jobs:
+  test-without-mirrors:
+    name: Baseline (no mirrors)
+    runs-on: linux.2xlarge
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@v4
+
+      - name: Time checkout without mirrors
+        id: baseline
+        run: |
+          START=$(date +%s%N)
+          git clone --single-branch --branch main \
+            https://github.com/pytorch/pytorch.git \
+            /tmp/test-no-mirror
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "::notice::Checkout without mirrors: ${ELAPSED}ms"
+
+      - run: rm -rf /tmp/test-no-mirror
+
+  test-with-mirrors:
+    name: With git mirrors
+    runs-on: linux.2xlarge
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@v4
+
+      - name: Check FSx mount
+        run: |
+          if [ ! -d /mnt/hf_cache ]; then
+            echo "::error::FSx mount not available at /mnt/hf_cache"
+            exit 1
+          fi
+          echo "FSx mount available"
+          df -h /mnt/hf_cache
+
+      - name: Setup mirror (lazy populate)
+        id: mirror
+        run: |
+          MIRRORS_PATH="/mnt/hf_cache/git-mirrors"
+          mkdir -p "$MIRRORS_PATH"
+
+          REPO_MIRROR="$MIRRORS_PATH/pytorch--pytorch.git"
+          LOCK_FILE="${REPO_MIRROR}.lock"
+
+          exec 9>"$LOCK_FILE"
+          flock -w 300 9
+
+          if [ ! -d "$REPO_MIRROR" ]; then
+            echo "Creating mirror..."
+            git clone --mirror https://github.com/pytorch/pytorch.git "$REPO_MIRROR"
+          else
+            echo "Mirror exists, updating..."
+            git -C "$REPO_MIRROR" fetch --all --prune || true
+          fi
+
+          flock -u 9
+          echo "MIRRORS_PATH=$MIRRORS_PATH" >> "$GITHUB_OUTPUT"
+          du -sh "$REPO_MIRROR"
+
+      - name: Time checkout with mirrors
+        run: |
+          MIRROR="${{ steps.mirror.outputs.MIRRORS_PATH }}/pytorch--pytorch.git"
+          START=$(date +%s%N)
+          git clone --single-branch --branch main \
+            --reference-if-able "$MIRROR" \
+            https://github.com/pytorch/pytorch.git \
+            /tmp/test-with-mirror
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "::notice::Checkout with mirrors: ${ELAPSED}ms"
+
+      - name: Verify alternates
+        run: |
+          if [ -f /tmp/test-with-mirror/.git/objects/info/alternates ]; then
+            echo "Alternates configured:"
+            cat /tmp/test-with-mirror/.git/objects/info/alternates
+          fi
+          echo "Object count:"
+          git -C /tmp/test-with-mirror count-objects -v
+
+      - run: rm -rf /tmp/test-with-mirror
+
+  test-checkout-action:
+    name: Test checkout action with mirrors
+    runs-on: linux.2xlarge
+    needs: test-with-mirrors
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@v4
+
+      - name: Checkout pytorch using our action with mirrors
+        uses: ./.github/actions/checkout
+        with:
+          repository: pytorch/pytorch
+          ref: main
+          fetch-depth: 0
+          single-branch: true
+          submodules: false
+          show-progress: false
+          git-mirrors-path: /mnt/hf_cache/git-mirrors
+          path: pytorch-checkout
+
+      - name: Verify checkout succeeded
+        run: |
+          test -d pytorch-checkout/.git
+          git -C pytorch-checkout log --oneline -5
+          echo "Checkout action with mirrors: success"
+
+  test-fallback:
+    name: Graceful fallback (no FSx)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@v4
+
+      - name: Checkout with non-existent mirrors path
+        uses: ./.github/actions/checkout
+        with:
+          repository: pytorch/pytorch
+          ref: main
+          fetch-depth: 1
+          submodules: false
+          show-progress: false
+          git-mirrors-path: /mnt/hf_cache/git-mirrors
+          path: pytorch-checkout
+
+      - name: Verify fallback checkout succeeded
+        run: |
+          test -d pytorch-checkout/.git
+          git -C pytorch-checkout log --oneline -1
+          echo "PASS: Fallback checkout worked without mirrors"
