@@ -373,6 +373,7 @@ PT_FOUNDATION_PACKAGES = {
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is whl/nightly
 PT_R2_PACKAGES = {
+    "torchvision",
     "torchaudio",
     "fbgemm_gpu",
     "fbgemm_gpu_genai",
@@ -382,8 +383,6 @@ PT_R2_PACKAGES = {
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is NOT whl/test and NOT whl/nightly (i.e., prod)
 PT_R2_PACKAGES_PROD = {
-    "fbgemm_gpu",
-    "fbgemm_gpu_genai",
 }
 
 # Packages that should have their root index.html copied to subdirectories
