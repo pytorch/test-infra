@@ -14,6 +14,7 @@ import {
 } from "../../helper";
 import { ComparisonTable } from "./BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 import { BenchmarkTimeSeriesComparisonTableSlider } from "./BenchmarkTimeSeriesComparisonTableSlider";
+import { BenchmarkTimeSeriesSingleSlider } from "./BenchmarkTimeSeriesSingleSlider";
 
 const styles = {
   container: {
@@ -32,20 +33,31 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   lcommit,
   rcommit,
   onChange,
+  enableMultiBranchOption = false,
 }: {
   data?: any[];
   tableSectionConfig: BenchmarkComparisonTableSectionConfig;
   lcommit?: BenchmarkCommitMeta;
   rcommit?: BenchmarkCommitMeta;
   onChange?: (payload: any) => void;
+  enableMultiBranchOption?: boolean;
 }) {
-  const { setLcommit, setRcommit } = useDashboardSelector((s) => ({
-    setLcommit: s.setLcommit,
-    setRcommit: s.setRcommit,
-  }));
+  const { setLcommit, setRcommit, committedLbranch, committedRbranch } =
+    useDashboardSelector((s) => ({
+      setLcommit: s.setLcommit,
+      setRcommit: s.setRcommit,
+      committedLbranch: s.committedLbranch,
+      committedRbranch: s.committedRbranch,
+    }));
 
-  // Sticky bar offset
-  const [barOffset, setBarOffset] = useState(70);
+  // Sticky bar offset - need more offset for multi-branch mode with two sliders
+  const isMultiBranchMode =
+    enableMultiBranchOption && committedLbranch !== committedRbranch;
+
+  // Height for sticky bar - two sliders need more height
+  const stickyBarHeight = isMultiBranchMode ? 100 : 50;
+
+  const [barOffset, setBarOffset] = useState(75);
   const handleMount = (h: number) => setBarOffset((prev) => prev + h);
   const handleUnmount = (h: number) => setBarOffset((prev) => prev - h);
 
@@ -63,33 +75,85 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     [filtered, tableSectionConfig.groupByFields]
   );
 
-  const workflowInfos: any[] = useMemo(
-    () => toSortedWorkflowIdMap(filtered),
-    [
-      filtered,
-      tableSectionConfig.groupByFields,
-      tableSectionConfig.filterByFieldValues,
-    ]
-  );
+  // For multi-branch mode, separate workflows by branch
+  const { lWorkflowInfos, rWorkflowInfos, workflowInfos } = useMemo(() => {
+    const allWorkflows = toSortedWorkflowIdMap(filtered);
 
-  const [lWorkflowId, setLlWorkflowId] = useState(
-    workflowInfos.length > 0 ? workflowInfos[0].workflow_id : null
+    if (enableMultiBranchOption && committedLbranch !== committedRbranch) {
+      const lWorkflows = allWorkflows.filter(
+        (w) => w.branch === committedLbranch
+      );
+      const rWorkflows = allWorkflows.filter(
+        (w) => w.branch === committedRbranch
+      );
+      return {
+        lWorkflowInfos: lWorkflows,
+        rWorkflowInfos: rWorkflows,
+        workflowInfos: allWorkflows,
+      };
+    }
+
+    return {
+      lWorkflowInfos: allWorkflows,
+      rWorkflowInfos: allWorkflows,
+      workflowInfos: allWorkflows,
+    };
+  }, [filtered, enableMultiBranchOption, committedLbranch, committedRbranch]);
+
+  const [lWorkflowId, setLWorkflowId] = useState(
+    lWorkflowInfos.length > 0 ? lWorkflowInfos[0].workflow_id : null
   );
   const [rWorkflowId, setRWorkflowId] = useState(
-    workflowInfos.length > 0
-      ? workflowInfos[workflowInfos.length - 1].workflow_id
+    rWorkflowInfos.length > 0
+      ? rWorkflowInfos[rWorkflowInfos.length - 1].workflow_id
       : null
   );
 
   useEffect(() => {
     if (!lcommit || !rcommit) return;
-    setLlWorkflowId(lcommit?.workflow_id);
+    setLWorkflowId(lcommit?.workflow_id);
     setRWorkflowId(rcommit?.workflow_id);
   }, [lcommit, rcommit]);
 
+  // Update workflow IDs when branch filtering changes
+  useEffect(() => {
+    if (enableMultiBranchOption && committedLbranch !== committedRbranch) {
+      if (lWorkflowInfos.length > 0) {
+        const currentLExists = lWorkflowInfos.some(
+          (w) => w.workflow_id === lWorkflowId
+        );
+        if (!currentLExists) {
+          setLWorkflowId(lWorkflowInfos[0].workflow_id);
+        }
+      }
+      if (rWorkflowInfos.length > 0) {
+        const currentRExists = rWorkflowInfos.some(
+          (w) => w.workflow_id === rWorkflowId
+        );
+        if (!currentRExists) {
+          setRWorkflowId(rWorkflowInfos[rWorkflowInfos.length - 1].workflow_id);
+        }
+      }
+    }
+  }, [
+    enableMultiBranchOption,
+    committedLbranch,
+    committedRbranch,
+    lWorkflowInfos,
+    rWorkflowInfos,
+  ]);
+
   const onSliderChange = (next: [string, string]) => {
-    setLlWorkflowId(next[0]);
+    setLWorkflowId(next[0]);
     setRWorkflowId(next[1]);
+  };
+
+  const onLSliderChange = (next: string) => {
+    setLWorkflowId(next);
+  };
+
+  const onRSliderChange = (next: string) => {
+    setRWorkflowId(next);
   };
 
   const dynamicSize = {
@@ -116,6 +180,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
       <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
         <StickyBar
           offset={barOffset}
+          height={stickyBarHeight}
           zIndex={900}
           align="left"
           contentMode="full"
@@ -126,16 +191,33 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
           <Paper sx={{ p: 2, width: "100%" }}>
             <Stack
               spacing={2}
-              direction="row"
+              direction="column"
               sx={{ width: "100%" }}
               alignItems={"flex-start"}
             >
-              <BenchmarkTimeSeriesComparisonTableSlider
-                workflows={workflowInfos}
-                onChange={onSliderChange}
-                lWorkflowId={lWorkflowId}
-                rWorkflowId={rWorkflowId}
-              />
+              {isMultiBranchMode ? (
+                <Box sx={{ width: "100%" }}>
+                  <BenchmarkTimeSeriesSingleSlider
+                    workflows={lWorkflowInfos}
+                    onChange={onLSliderChange}
+                    selectedWorkflowId={lWorkflowId ?? undefined}
+                    label={`L (${committedLbranch})`}
+                  />
+                  <BenchmarkTimeSeriesSingleSlider
+                    workflows={rWorkflowInfos}
+                    onChange={onRSliderChange}
+                    selectedWorkflowId={rWorkflowId ?? undefined}
+                    label={`R (${committedRbranch})`}
+                  />
+                </Box>
+              ) : (
+                <BenchmarkTimeSeriesComparisonTableSlider
+                  workflows={workflowInfos}
+                  onChange={onSliderChange}
+                  lWorkflowId={lWorkflowId ?? undefined}
+                  rWorkflowId={rWorkflowId ?? undefined}
+                />
+              )}
               <UMDenseButtonLight onClick={onClickUpdate}>
                 Update
               </UMDenseButtonLight>
