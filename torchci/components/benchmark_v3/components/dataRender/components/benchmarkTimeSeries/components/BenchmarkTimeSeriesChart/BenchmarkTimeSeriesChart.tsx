@@ -96,6 +96,18 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     }
 
     let legendKeyItems: string[] = [];
+    if (renderOptions?.additionalMetadataList) {
+      const additionalMetadataList = renderOptions.additionalMetadataList;
+      additionalMetadataList.forEach((k) => {
+        const v = getSmartValue(meta, k);
+        if (v) {
+          legendKeyItems.push(
+            `<div style="font-size:10px;"><i>${k}:${v}</i></div>`
+          );
+        }
+      });
+    }
+
     if (renderOptions?.showLegendDetails) {
       legendKeys?.forEach((k) => {
         const v = getSmartValue(meta, k);

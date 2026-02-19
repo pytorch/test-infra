@@ -14,6 +14,7 @@ export type BenchmarkComparisonTableSectionConfig = {
   titleMapping?: Record<string, string>;
   groupByFields: string[];
   filterByFieldValues?: Record<string, Array<string>>;
+  renderOptions: any;
   tableConfig: ComparisonTableConfig;
 };
 
@@ -130,6 +131,7 @@ export type BenchmarkTimeSeriesCharRenderOpiton = {
   height?: string | number;
   title_group_mapping?: BenchmarkComparisonTitleMapping;
   chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
+  additionalMetadataList?: string[];
   showLegendDetails?: boolean;
 };
 
