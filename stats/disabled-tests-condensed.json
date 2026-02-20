@@ -493,15 +493,6 @@
       "linux"
     ]
   ],
-  "test_dont_dce_rand (__main__.ReproTests)": [
-    "156580",
-    "https://github.com/pytorch/pytorch/issues/156580",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_dtensor_input_mutations (__main__.TestDTensorCompileWithCompiledAutograd)": [
     "171934",
     "https://github.com/pytorch/pytorch/issues/171934",
@@ -686,15 +677,6 @@
       "slow",
       "win",
       "windows"
-    ]
-  ],
-  "test_get_parameter_dtype (__main__.ReproTests)": [
-    "156598",
-    "https://github.com/pytorch/pytorch/issues/156598",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_getitem_call (__main__.TestTorchFunctionMode)": [
