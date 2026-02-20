@@ -1,4 +1,5 @@
 import { FanoutComponentProps } from "components/benchmark_v3/configs/utils/fanoutRegistration";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkChartSection from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartSection";
 import { BenchmarkComparisonGithubExternalLink } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/GithubExternalLink";
 import BenchmarkTimeSeriesComparisonTableSection from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
@@ -52,6 +53,10 @@ export function FanoutBenchmarkTimeSeriesComparisonTableSection({
   lcommit,
   rcommit,
 }: FanoutComponentProps) {
+  const enableMultiBranchOption = useDashboardSelector(
+    (s) => s.enableMultiBranchOption
+  );
+
   return (
     <>
       <BenchmarkTimeSeriesComparisonTableSection
@@ -60,6 +65,7 @@ export function FanoutBenchmarkTimeSeriesComparisonTableSection({
         lcommit={lcommit ?? undefined}
         rcommit={rcommit ?? undefined}
         onChange={onChange}
+        enableMultiBranchOption={enableMultiBranchOption}
       />
     </>
   );
