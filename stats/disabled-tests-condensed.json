@@ -385,6 +385,13 @@
       "linux"
     ]
   ],
+  "test_custom_op_with_layout_arg_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "175475",
+    "https://github.com/pytorch/pytorch/issues/175475",
+    [
+      "xpu"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
