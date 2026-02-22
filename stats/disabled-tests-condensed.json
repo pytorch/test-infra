@@ -768,6 +768,13 @@
       "rocm"
     ]
   ],
+  "test_index_put_error_cuda (__main__.TestNestedTensorSubclassCUDA)": [
+    "175482",
+    "https://github.com/pytorch/pytorch/issues/175482",
+    [
+      "rocm"
+    ]
+  ],
   "test_inductor_all_gather_into_tensor_coalesced (__main__.CompileTest)": [
     "146806",
     "https://github.com/pytorch/pytorch/issues/146806",
