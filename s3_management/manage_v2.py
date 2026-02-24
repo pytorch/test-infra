@@ -1741,6 +1741,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Compute SHA256 checksums for objects matching this pattern that don't already have "
         "checksums (e.g., 'whl/test/rocm7.1'). Objects with existing checksums are skipped.",
     )
+    parser.add_argument(
+        "--recompute-missing-sha256",
+        action="store_true",
+        help="Scan the prefix for .whl files missing x-amz-meta-checksum-sha256 metadata "
+        "and compute/set the checksum for each one.",
+    )
     return parser
 
 
@@ -1769,6 +1775,18 @@ def main() -> None:
             args.package_name,
             args.package_version,
         )
+        return
+
+    # Handle --recompute-missing-sha256 command
+    if args.recompute_missing_sha256:
+        print(f"INFO: Scanning '{args.prefix}' for .whl files missing x-amz-meta-checksum-sha256...")
+        idx = S3Index.from_S3(prefix=args.prefix, with_metadata=True)
+        missing_keys = idx.collect_missing_sha256_checksums()
+        if not missing_keys:
+            print("INFO: All .whl files already have x-amz-meta-checksum-sha256")
+            return
+        print(f"INFO: Found {len(missing_keys)} .whl file(s) missing x-amz-meta-checksum-sha256")
+        _compute_and_set_checksums(missing_keys)
         return
 
     # Display PACKAGE_LINKS_ALLOW_LIST summary

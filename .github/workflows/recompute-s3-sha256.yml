@@ -45,4 +45,4 @@ jobs:
         shell: bash
         run: |
           set -ex
-          python s3_management/manage_v2.py "${{ github.event.inputs.channel }}" --compute-sha256
+          python s3_management/manage_v2.py "${{ github.event.inputs.channel }}" --recompute-missing-sha256
