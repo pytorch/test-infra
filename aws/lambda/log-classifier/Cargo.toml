@@ -27,6 +27,7 @@ aws-sdk-bedrockruntime = "1.38.0"
 aws-smithy-runtime-api = "1.7.1"
 insta = { version = "1.20.0", features = ["redactions", "yaml"] }
 assert_unordered = "0.3.5"
+time = "0.3.47"
   [dependencies.serde]
   version = "1.0.144"
   features = [ "derive" ]
