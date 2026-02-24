@@ -234,6 +234,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "152520",
+    "https://github.com/pytorch/pytorch/issues/152520",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
@@ -288,6 +295,16 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_comprehensive_pca_lowrank_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "139828",
+    "https://github.com/pytorch/pytorch/issues/139828",
+    [
+      "inductor",
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_comprehensive_sub_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
