@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -50,13 +50,14 @@ class JobMeta:
     - job_id: Optional job_id from the failing job, or from the first job if none failed.
     """
 
-    started_at: datetime = datetime.min
-    is_pending: bool = False
-    is_cancelled: bool = False
-    has_failures: bool = False
     all_completed_success: bool = False
+    rules: List[str] = field(default_factory=lambda: [])
+    has_failures: bool = False
     has_non_test_failures: bool = False
+    is_cancelled: bool = False
+    is_pending: bool = False
     job_id: Optional[int] = None
+    started_at: datetime = datetime.min
 
     @property
     def status(self) -> Optional[SignalStatus]:
@@ -183,6 +184,7 @@ class JobAggIndex(Generic[KeyT]):
             has_non_test_failures=(
                 any((r.is_failure and not r.is_test_failure) for r in jrows)
             ),
+            rules=[r.rule for r in jrows if r.rule],
             job_id=job_id,
         )
         self._meta_cache[key] = meta
