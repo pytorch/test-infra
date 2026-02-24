@@ -1212,6 +1212,14 @@ class S3Index:
                             )
                         )
 
+    def collect_missing_sha256_checksums(self) -> List[str]:
+        """Return orig_keys of .whl objects missing x-amz-meta-checksum-sha256."""
+        return [
+            obj.orig_key
+            for obj in self.objects
+            if obj.key.endswith(".whl") and obj.checksum is None
+        ]
+
     def compute_sha256(self) -> None:
         for obj in self.objects:
             if obj.checksum is not None:
@@ -1782,6 +1790,8 @@ def main() -> None:
         action = "Computing checksums"
 
     prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
+    # Collect missing checksums per prefix to report at the end
+    missing_checksums: Dict[str, List[str]] = {}
     for prefix in prefixes:
         generate_pep503 = prefix.startswith("whl")
         generate_source_code = prefix.startswith("source_code")
@@ -1794,6 +1804,11 @@ def main() -> None:
         print(
             f"INFO: Processing completed for '{prefix}' in {etime - stime:.2f} seconds"
         )
+        # Collect .whl files missing SHA256 checksums (reported at the end)
+        if generate_pep503 and not args.compute_sha256:
+            missing = idx.collect_missing_sha256_checksums()
+            if missing:
+                missing_checksums[prefix] = missing
         if args.compute_sha256:
             idx.compute_sha256()
         elif args.do_not_upload:
@@ -1814,6 +1829,21 @@ def main() -> None:
                 idx.upload_source_code_html()
             else:
                 idx.upload_libtorch_html()
+
+    # Print SHA256 checksum validation summary at the end
+    if missing_checksums:
+        print(f"\n{'=' * 80}")
+        print("SHA256 CHECKSUM VALIDATION ERRORS")
+        print(f"{'=' * 80}")
+        for prefix, keys in missing_checksums.items():
+            print(f"\n{prefix}: {len(keys)} .whl file(s) missing x-amz-meta-checksum-sha256")
+            for key in keys:
+                print(f"  ERROR: {key}")
+        total = sum(len(keys) for keys in missing_checksums.values())
+        print(f"\nTotal: {total} .whl file(s) missing x-amz-meta-checksum-sha256")
+        print(f"{'=' * 80}")
+    elif not args.compute_sha256 and any(p.startswith("whl") for p in prefixes):
+        print("\nINFO: All .whl files have x-amz-meta-checksum-sha256")
 
 
 if __name__ == "__main__":
