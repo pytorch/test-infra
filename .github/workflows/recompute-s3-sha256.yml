@@ -1,0 +1,48 @@
+name: Recompute missing SHA256 checksums for wheels on S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel (S3 prefix) to scan for missing checksums'
+        required: true
+        type: choice
+        default: whl/test
+        options:
+          - whl
+          - whl/test
+          - whl/nightly
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  recompute-sha256:
+    runs-on: ubuntu-22.04
+    environment: pytorchbot-env
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - name: Configure AWS credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+
+      - name: Checkout repository test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ github.ref }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r s3_management/requirements.txt
+
+      - name: Recompute missing SHA256 checksums
+        shell: bash
+        run: |
+          set -ex
+          python s3_management/manage_v2.py "${{ github.event.inputs.channel }}" --recompute-missing-sha256
