@@ -1779,13 +1779,17 @@ def main() -> None:
 
     # Handle --recompute-missing-sha256 command
     if args.recompute_missing_sha256:
-        print(f"INFO: Scanning '{args.prefix}' for .whl files missing x-amz-meta-checksum-sha256...")
+        print(
+            f"INFO: Scanning '{args.prefix}' for .whl files missing x-amz-meta-checksum-sha256..."
+        )
         idx = S3Index.from_S3(prefix=args.prefix, with_metadata=True)
         missing_keys = idx.collect_missing_sha256_checksums()
         if not missing_keys:
             print("INFO: All .whl files already have x-amz-meta-checksum-sha256")
             return
-        print(f"INFO: Found {len(missing_keys)} .whl file(s) missing x-amz-meta-checksum-sha256")
+        print(
+            f"INFO: Found {len(missing_keys)} .whl file(s) missing x-amz-meta-checksum-sha256"
+        )
         _compute_and_set_checksums(missing_keys)
         return
 
@@ -1854,7 +1858,9 @@ def main() -> None:
         print("SHA256 CHECKSUM VALIDATION ERRORS")
         print(f"{'=' * 80}")
         for prefix, keys in missing_checksums.items():
-            print(f"\n{prefix}: {len(keys)} .whl file(s) missing x-amz-meta-checksum-sha256")
+            print(
+                f"\n{prefix}: {len(keys)} .whl file(s) missing x-amz-meta-checksum-sha256"
+            )
             for key in keys:
                 print(f"  ERROR: {key}")
         total = sum(len(keys) for keys in missing_checksums.values())
