@@ -93,12 +93,17 @@ class SignalExtractor:
 
         test_signals = self._build_test_signals(jobs, test_rows, commits)
         job_signals = self._build_non_test_signals(jobs, commits)
+        job_test_signals = self._build_non_test_signals(
+            jobs, commits, test_failures=True
+        )
         # Deduplicate events within commits across all signals as a final step
         # GitHub-specific behavior like "rerun failed" can reuse job instances for reruns.
         # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
         # But since they are still the same job logically, we want to deduplicate them
         # for the purposes of signal events.
-        signals = self._dedup_signal_events(test_signals + job_signals)
+        signals = self._dedup_signal_events(
+            test_signals + job_signals + job_test_signals
+        )
 
         # Inject synthetic PENDING events for workflow runs that are known to be
         # pending but have no events in a given signal (e.g. multi-stage workflows).
@@ -457,15 +462,28 @@ class SignalExtractor:
         return signals
 
     def _build_non_test_signals(
-        self, jobs: List[JobRow], commits: List[Tuple[Sha, datetime]]
+        self,
+        jobs: List[JobRow],
+        commits: List[Tuple[Sha, datetime]],
+        *,
+        test_failures: bool = False,
     ) -> List[Signal]:
         """Build Signals keyed by normalized job base name per workflow.
 
         Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
 
+        When test_failures=False (default), only non-test failures produce FAILURE
+        events (test-caused failures are mapped to SUCCESS, handled by test-track).
+
+        When test_failures=True, only test-caused failures produce FAILURE events
+        (non-test failures are mapped to SUCCESS, handled by the default job-track).
+        This catches new tests without a green base and tests missing from the
+        tests.all_test_runs table.
+
         Args:
             jobs: List of job rows from the datasource
             commits: Ordered list of (sha, timestamp) tuples (newest → older)
+            test_failures: If True, track test-caused failures instead of non-test failures
         """
 
         commit_timestamps = dict(commits)
@@ -494,8 +512,7 @@ class SignalExtractor:
         signals: List[Signal] = []
         for wf_name, base_name in wf_base_keys:
             commit_objs: List[SignalCommit] = []
-            # Track failure types across all attempts/commits for this base
-            has_relevant_failures = False  # at least one non-test failure observed
+            has_relevant_failures = False
 
             for sha, _ in commits:
                 attempt_keys: List[
@@ -511,14 +528,23 @@ class SignalExtractor:
                     # Map aggregation verdict to outer SignalStatus
                     if meta.status is None:
                         continue
-                    if meta.status == AggStatus.FAILURE and meta.has_non_test_failures:
-                        # mark presence of non-test failures (relevant for job track)
-                        has_relevant_failures = True
-                        ev_status = SignalStatus.FAILURE
+
+                    if meta.status == AggStatus.FAILURE:
+                        # Two passes call this method: one for non-test failures
+                        # (test_failures=False), one for test-caused failures
+                        # (test_failures=True). A failure is relevant when its
+                        # type matches the current pass:
+                        #   test_failures=False + has_non_test_failures → relevant
+                        #   test_failures=True  + NOT has_non_test_failures → relevant
+                        # This is equivalent to XOR: exactly one flag is set.
+                        if test_failures != meta.has_non_test_failures:
+                            has_relevant_failures = True
+                            ev_status = SignalStatus.FAILURE
+                        else:
+                            ev_status = SignalStatus.SUCCESS
                     elif meta.status == AggStatus.PENDING:
                         ev_status = SignalStatus.PENDING
                     else:
-                        # Note: when all failures are caused by tests, we do NOT emit job-level failures
                         ev_status = SignalStatus.SUCCESS
 
                     # Extract wf_run_id/run_attempt from the attempt key
@@ -549,11 +575,11 @@ class SignalExtractor:
                     )
                 )
 
-            # Emit job signal when failures were present and failures were NOT exclusively test-caused
             if has_relevant_failures:
+                signal_key = f"{base_name} [test]" if test_failures else base_name
                 signals.append(
                     Signal(
-                        key=base_name,
+                        key=signal_key,
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(base_name),
