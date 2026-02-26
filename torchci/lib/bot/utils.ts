@@ -45,6 +45,7 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "ao",
       "torchchat",
       "torchcodec",
+      "tensordict",
     ].includes(repo)
   );
 }
