@@ -234,6 +234,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_linalg_lu_factor_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "175890",
+    "https://github.com/pytorch/pytorch/issues/175890",
+    [
+      "linux"
+    ]
+  ],
   "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "152520",
     "https://github.com/pytorch/pytorch/issues/152520",
