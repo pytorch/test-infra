@@ -475,8 +475,10 @@ class SignalExtractor:
         When test_failures=False (default), only non-test failures produce FAILURE
         events (test-caused failures are mapped to SUCCESS, handled by test-track).
 
-        When test_failures=True, only test-caused failures produce FAILURE events
-        (non-test failures are mapped to SUCCESS, handled by the default job-track).
+        When test_failures=True, ALL failures produce FAILURE events. The signal
+        is only created when at least one commit has a test-caused failure, but
+        non-test failures (e.g. build) also map to FAILURE because they may mask
+        underlying test failures on the same commit.
         This catches new tests without a green base and tests missing from the
         tests.all_test_runs table.
 
@@ -532,12 +534,18 @@ class SignalExtractor:
                     if meta.status == AggStatus.FAILURE:
                         # Two passes call this method: one for non-test failures
                         # (test_failures=False), one for test-caused failures
-                        # (test_failures=True). A failure is relevant when its
-                        # type matches the current pass:
-                        #   test_failures=False + has_non_test_failures → relevant
-                        #   test_failures=True  + NOT has_non_test_failures → relevant
-                        # This is equivalent to XOR: exactly one flag is set.
-                        if test_failures != meta.has_non_test_failures:
+                        # (test_failures=True).
+                        if test_failures:
+                            # Map ALL failures to FAILURE: a build failure may
+                            # mask underlying test failures on the same commit,
+                            # so we can't safely treat it as SUCCESS.
+                            # Only mark signal as relevant when test failures
+                            # exist, to avoid creating [test] signals for bases
+                            # that only have build failures.
+                            ev_status = SignalStatus.FAILURE
+                            if not meta.has_non_test_failures:
+                                has_relevant_failures = True
+                        elif meta.has_non_test_failures:
                             has_relevant_failures = True
                             ev_status = SignalStatus.FAILURE
                         else:

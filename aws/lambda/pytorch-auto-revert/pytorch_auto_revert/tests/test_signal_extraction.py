@@ -855,9 +855,9 @@ class TestSignalExtraction(unittest.TestCase):
         # Older commit: SUCCESS (job passed, test didn't exist)
         self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
 
-    def test_job_test_signal_maps_non_test_failure_to_success(self):
-        # Mirror of test_job_track_treats_test_failures_as_success: on the [test]
-        # track, non-test (infra) failures should be mapped to SUCCESS.
+    def test_job_test_signal_maps_non_test_failure_to_failure(self):
+        # On the [test] track, non-test (infra/build) failures should also map to
+        # FAILURE because they may mask underlying test failures on the same commit.
         jobs = [
             # Newer commit: test-caused failure
             J(
@@ -869,7 +869,7 @@ class TestSignalExtraction(unittest.TestCase):
                 conclusion="failure",
                 rule="pytest failure",
             ),
-            # Older commit: infra failure (non-test)
+            # Older commit: infra/build failure (non-test) — may mask test failures
             J(
                 sha="M1",
                 run=1400,
@@ -888,8 +888,8 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual([c.head_sha for c in sig.commits], ["M2", "M1"])
         # Newer: FAILURE (test-caused)
         self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
-        # Older: SUCCESS (infra failure mapped to success on [test] track)
-        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
+        # Older: FAILURE (build failure may mask test failures)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.FAILURE)
 
     def test_no_job_test_signal_when_only_non_test_failures(self):
         # When all failures are non-test (infra), no [test] signal should be emitted.
