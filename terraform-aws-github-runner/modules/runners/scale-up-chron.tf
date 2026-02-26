@@ -22,7 +22,7 @@ resource "aws_lambda_function" "scale_up_chron" {
   function_name     = "${var.environment}-scale-up-chron"
   role              = aws_iam_role.scale_up_chron[0].arn
   handler           = "index.scaleUpChron"
-  runtime           = "nodejs20.x"
+  runtime           = "nodejs22.x"
   timeout           = var.lambda_timeout_scale_up_chron
   tags              = local.tags
   memory_size       = 2048
