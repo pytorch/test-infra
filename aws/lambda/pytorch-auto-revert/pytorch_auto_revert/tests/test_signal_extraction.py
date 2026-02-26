@@ -192,7 +192,7 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIn("attempt=1", events[0].name)
         self.assertIn("attempt=2", events[1].name)
 
-    def test_keep_going_failure_test_track_failure_and_no_job_signal(self):
+    def test_keep_going_failure_test_track_and_job_test_signal(self):
         # in_progress + KG-adjusted failure for a test-classified job
         jobs = [
             J(
@@ -222,8 +222,15 @@ class TestSignalExtraction(unittest.TestCase):
         test_sig = self._find_test_signal(signals, "trunk", "f.py::test_a")
         self.assertIsNotNone(test_sig)
         self.assertEqual(test_sig.commits[0].events[0].status, SignalStatus.FAILURE)
-        # Non-test signal for this base should be omitted due to test-only failure policy
+        # Non-test job signal is not emitted (test-only failure)
         self.assertIsNone(self._find_job_signal(signals, "trunk", jobs[0].base_name))
+        # Test-failure job-track signal is emitted under "[test]" key
+        job_test_sig = self._find_job_signal(
+            signals, "trunk", f"{jobs[0].base_name} [test]"
+        )
+        self.assertIsNotNone(job_test_sig)
+        k1 = next(c for c in job_test_sig.commits if c.head_sha == "K1")
+        self.assertEqual(k1.events[0].status, SignalStatus.FAILURE)
 
     def test_cancelled_attempt_yields_no_event(self):
         # Include a separate failing commit so the job signal is emitted
@@ -256,7 +263,7 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(x1.events, [])
 
     def test_non_test_inclusion_gate(self):
-        # (a) only test failures -> no job signal
+        # (a) only test failures -> test-failure job signal emitted (not non-test job signal)
         jobs_a = [
             J(
                 sha="A2",
@@ -298,9 +305,17 @@ class TestSignalExtraction(unittest.TestCase):
             ),
         ]
         signals_a = self._extract(jobs_a, tests_a)
+        # Non-test job signal is not emitted (test-only failures)
         self.assertIsNone(
             self._find_job_signal(signals_a, "trunk", jobs_a[0].base_name)
         )
+        # Test-failure job-track signal is emitted under "[test]" key
+        job_test_sig = self._find_job_signal(
+            signals_a, "trunk", f"{jobs_a[0].base_name} [test]"
+        )
+        self.assertIsNotNone(job_test_sig)
+        a2 = next(c for c in job_test_sig.commits if c.head_sha == "A2")
+        self.assertEqual(a2.events[0].status, SignalStatus.FAILURE)
 
         # (b) includes a non-test failure -> job signal emitted
         jobs_b = [
@@ -797,6 +812,114 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNone(
             self._find_test_signal(signals, "trunk", "flaky.py::test_always_retries")
         )
+
+    def test_job_test_signal_green_base_for_new_test(self):
+        # The motivating scenario: a job succeeds on older commits, then a new test
+        # is introduced that fails. The [test] job signal should show SUCCESS on
+        # older commits and FAILURE on newer ones, providing the green base that
+        # enables autorevert pattern detection.
+        jobs = [
+            # Newer commit: job fails due to new test
+            J(
+                sha="N2",
+                run=1200,
+                job=200,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: same job passed (test didn't exist yet)
+            J(
+                sha="N1",
+                run=1100,
+                job=201,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        # Non-test job signal should NOT be emitted (failure is test-only)
+        self.assertIsNone(self._find_job_signal(signals, "trunk", base))
+
+        # [test] job signal should be emitted with green base
+        sig = self._find_job_signal(signals, "trunk", f"{base} [test]")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["N2", "N1"])
+        # Newer commit: FAILURE (test-caused)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Older commit: SUCCESS (job passed, test didn't exist)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
+
+    def test_job_test_signal_maps_non_test_failure_to_failure(self):
+        # On the [test] track, non-test (infra/build) failures should also map to
+        # FAILURE because they may mask underlying test failures on the same commit.
+        jobs = [
+            # Newer commit: test-caused failure
+            J(
+                sha="M2",
+                run=1300,
+                job=300,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: infra/build failure (non-test) — may mask test failures
+            J(
+                sha="M1",
+                run=1400,
+                job=301,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        sig = self._find_job_signal(signals, "trunk", f"{base} [test]")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["M2", "M1"])
+        # Newer: FAILURE (test-caused)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Older: FAILURE (build failure may mask test failures)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.FAILURE)
+
+    def test_no_job_test_signal_when_only_non_test_failures(self):
+        # When all failures are non-test (infra), no [test] signal should be emitted.
+        jobs = [
+            J(
+                sha="P2",
+                run=1500,
+                job=400,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="P1",
+                run=1600,
+                job=401,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        # Non-test job signal is emitted (infra failure)
+        self.assertIsNotNone(self._find_job_signal(signals, "trunk", base))
+        # [test] job signal should NOT be emitted (no test failures)
+        self.assertIsNone(self._find_job_signal(signals, "trunk", f"{base} [test]"))
 
 
 if __name__ == "__main__":
