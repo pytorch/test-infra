@@ -956,6 +956,13 @@
       "dynamo"
     ]
   ],
+  "test_mixed_mm_epi_works (__main__.TestPatternMatcher)": [
+    "126489",
+    "https://github.com/pytorch/pytorch/issues/126489",
+    [
+      "rocm"
+    ]
+  ],
   "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
     "173344",
     "https://github.com/pytorch/pytorch/issues/173344",
