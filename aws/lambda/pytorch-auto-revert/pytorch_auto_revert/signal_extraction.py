@@ -339,8 +339,8 @@ class SignalExtractor:
 
             tests_by_group_attempt[key] = outcome
 
-            # Track keys that have at least one failure across any shard
-            if outcome.failure_runs > 0:
+            # Track keys that have at least one persistent failure (no retry success)
+            if outcome.failure_runs > 0 and outcome.success_runs == 0:
                 failing_tests_by_job_base_name.add(
                     (job.workflow_name, job_base_name, tr.test_id)
                 )
@@ -393,20 +393,23 @@ class SignalExtractor:
                     }
 
                     if outcome:
-                        # Emit at most one FAILURE and one SUCCESS per attempt
-                        if outcome.failure_runs > 0:
+                        # A successful retry means the test is not persistently
+                        # broken — treat it as SUCCESS, consistent with HUD and
+                        # job-level conclusion which consider retried-then-passed
+                        # tests as "flaky" (not "failure").
+                        if outcome.success_runs > 0:
                             events.append(
                                 SignalEvent(
-                                    status=SignalStatus.FAILURE,
+                                    status=SignalStatus.SUCCESS,
                                     started_at=outcome.started_at,
                                     job_id=outcome.job_id,
                                     **event_common,
                                 )
                             )
-                        if outcome.success_runs > 0:
+                        elif outcome.failure_runs > 0:
                             events.append(
                                 SignalEvent(
-                                    status=SignalStatus.SUCCESS,
+                                    status=SignalStatus.FAILURE,
                                     started_at=outcome.started_at,
                                     job_id=outcome.job_id,
                                     **event_common,

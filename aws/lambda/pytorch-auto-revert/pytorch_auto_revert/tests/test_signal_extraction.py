@@ -687,6 +687,117 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].status, SignalStatus.SUCCESS)
 
+    def test_test_retry_success_emits_only_success(self):
+        # When a test fails on first try but succeeds on retry within the same
+        # job, the aggregated outcome has both failure_runs > 0 and success_runs > 0.
+        # Consistent with HUD (which classifies this as "flaky", not "failure")
+        # and job conclusion (which is "success" when retry passes), we should
+        # emit only a SUCCESS event.
+        jobs = [
+            # Newer commit: job fails overall (other test fails), but test_retry
+            # passes on retry (failure_runs=1, success_runs=1)
+            J(
+                sha="R2",
+                run=2000,
+                job=500,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: same test fails persistently (no retry success)
+            J(
+                sha="R1",
+                run=2100,
+                job=501,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            # R2: test failed then retried successfully
+            T(
+                job=500,
+                run=2000,
+                attempt=1,
+                file="t.py",
+                name="test_retry",
+                failure_runs=1,
+                success_runs=1,
+            ),
+            # R1: test failed, no successful retry
+            T(
+                job=501,
+                run=2100,
+                attempt=1,
+                file="t.py",
+                name="test_retry",
+                failure_runs=1,
+                success_runs=0,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "t.py::test_retry")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["R2", "R1"])
+        # R2: retry passed → only SUCCESS (not FAILURE+SUCCESS)
+        self.assertEqual(len(sig.commits[0].events), 1)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.SUCCESS)
+        # R1: no retry success → FAILURE
+        self.assertEqual(len(sig.commits[1].events), 1)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.FAILURE)
+
+    def test_test_retry_success_everywhere_produces_no_signal(self):
+        # When a test retries successfully on every commit, it has no persistent
+        # failures and should not produce a test signal at all.
+        jobs = [
+            J(
+                sha="S2",
+                run=3000,
+                job=600,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="S1",
+                run=3100,
+                job=601,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            # Both commits: test fails then retries successfully
+            T(
+                job=600,
+                run=3000,
+                attempt=1,
+                file="flaky.py",
+                name="test_always_retries",
+                failure_runs=1,
+                success_runs=1,
+            ),
+            T(
+                job=601,
+                run=3100,
+                attempt=1,
+                file="flaky.py",
+                name="test_always_retries",
+                failure_runs=1,
+                success_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        self.assertIsNone(
+            self._find_test_signal(signals, "trunk", "flaky.py::test_always_retries")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
