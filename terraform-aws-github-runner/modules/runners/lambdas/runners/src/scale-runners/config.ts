@@ -42,6 +42,7 @@ export class Config {
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
   readonly scaleUpChronRecordQueueUrl: string | undefined;
+  readonly scaleUpChronHudBotToken: string | undefined;
   readonly scaleUpMaxQueueTimeMinutes: number;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
@@ -104,6 +105,7 @@ export class Config {
     this.retryScaleUpRecordJitterPct = Number(process.env.RETRY_SCALE_UP_RECORD_JITTER_PCT || '0');
     this.retryScaleUpRecordQueueUrl = process.env.RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL;
     this.scaleUpChronRecordQueueUrl = process.env.SCALE_UP_CHRON_HUD_QUERY_URL;
+    this.scaleUpChronHudBotToken = process.env.SCALE_UP_CHRON_HUD_BOT_TOKEN;
     this.scaleUpMaxQueueTimeMinutes = process.env.SCALE_UP_MAX_QUEUE_TIME_MINUTES
       ? Number(process.env.SCALE_UP_MAX_QUEUE_TIME_MINUTES)
       : 30;
