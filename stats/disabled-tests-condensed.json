@@ -402,6 +402,13 @@
       "rocm"
     ]
   ],
+  "test_cudagraph_memory_cleanup (__main__.TestCustomOpAutoTune)": [
+    "175949",
+    "https://github.com/pytorch/pytorch/issues/175949",
+    [
+      "xpu"
+    ]
+  ],
   "test_cudagraphs_aot_eager_compat_equal (__main__.TestSAC)": [
     "163852",
     "https://github.com/pytorch/pytorch/issues/163852",
