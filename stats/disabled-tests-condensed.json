@@ -636,6 +636,13 @@
       "rocm"
     ]
   ],
+  "test_fake_device (__main__.FakeTensorTest)": [
+    "175950",
+    "https://github.com/pytorch/pytorch/issues/175950",
+    [
+      "xpu"
+    ]
+  ],
   "test_flex_attention_stride_ordering_mode_paged_attention_permute_order3_shape1_cuda (__main__.TestFlexAttentionCUDA)": [
     "161503",
     "https://github.com/pytorch/pytorch/issues/161503",
