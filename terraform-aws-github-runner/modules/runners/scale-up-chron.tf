@@ -62,6 +62,7 @@ resource "aws_lambda_function" "scale_up_chron" {
       SCALE_CONFIG_ORG                     = var.scale_config_org
       SCALE_CONFIG_REPO                    = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
+      SCALE_UP_CHRON_HUD_BOT_TOKEN          = var.scale_up_chron_hud_bot_token
       SCALE_UP_CHRON_HUD_QUERY_URL         = var.retry_scale_up_chron_hud_query_url
       SCALE_UP_MAX_QUEUE_TIME_MINUTES      = 30
       SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
