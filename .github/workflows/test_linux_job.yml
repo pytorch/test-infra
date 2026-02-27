@@ -39,7 +39,7 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     strategy:
       matrix:
-        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
+        runner_type: ["linux.g5.4xlarge.nvidia.gpu"]
     with:
       job-name: "linux-py3.9-cu121"
       runner: ${{ matrix.runner_type }}
