@@ -416,20 +416,6 @@
       "linux"
     ]
   ],
-  "test_custom_op_with_layout_arg_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "175475",
-    "https://github.com/pytorch/pytorch/issues/175475",
-    [
-      "xpu"
-    ]
-  ],
-  "test_custom_op_with_memory_format_arg_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "175720",
-    "https://github.com/pytorch/pytorch/issues/175720",
-    [
-      "xpu"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -588,20 +574,6 @@
       "rocm"
     ]
   ],
-  "test_errors_nn_MultiMarginLoss_xpu_float32 (__main__.TestModuleXPU)": [
-    "175717",
-    "https://github.com/pytorch/pytorch/issues/175717",
-    [
-      "xpu"
-    ]
-  ],
-  "test_errors_nn_MultiMarginLoss_xpu_float64 (__main__.TestModuleXPU)": [
-    "175718",
-    "https://github.com/pytorch/pytorch/issues/175718",
-    [
-      "xpu"
-    ]
-  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
@@ -648,13 +620,6 @@
     "https://github.com/pytorch/pytorch/issues/161503",
     [
       "linux"
-    ]
-  ],
-  "test_flex_attention_with_dynamic_max_autotune_graph_partition_xpu (__main__.TestLearnableBiasesXPU)": [
-    "175719",
-    "https://github.com/pytorch/pytorch/issues/175719",
-    [
-      "xpu"
     ]
   ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
