@@ -1,4 +1,65 @@
 #!/usr/bin/env python
+#
+# manage_v2.py - Manage S3 and Cloudflare R2 HTML package indices for PyTorch
+#
+# This script generates and uploads PEP 503-compliant HTML index pages for
+# PyTorch wheel packages, libtorch archives, and source code tarballs hosted
+# on S3 (download.pytorch.org) and optionally mirrored to Cloudflare R2.
+#
+# Core functionality:
+#   - Reads package listings from the S3 "pytorch" bucket, builds per-package
+#     and per-subdirectory index.html pages, and uploads them back to S3/R2.
+#   - For wheel (whl) prefixes, generates PEP 503 simple repository HTML that
+#     includes sha256 checksums and PEP 658 metadata links when available.
+#   - For libtorch prefixes, generates a flat HTML listing of archives.
+#   - For source_code prefixes, generates a flat HTML listing of tarballs.
+#   - Copies flash-attn-3 indices from whl/ to whl/nightly/ for nightly builds.
+#   - Nightly packages are pruned to keep only the N most recent versions
+#     (controlled by KEEP_THRESHOLD).
+#   - PACKAGE_ALLOW_LIST controls which packages are indexed; packages not in
+#     the allow list are excluded from generated indices.
+#   - PACKAGE_LINKS_ALLOW_LIST packages have their index.html copied from
+#     parent directories rather than regenerated from wheel listings, so they
+#     can point to external package sources.
+#
+# SHA256 checksum management:
+#   - --compute-sha256: download each package, compute its SHA256, and store
+#     the digest as S3 object metadata (x-amz-meta-checksum-sha256).
+#   - --set-checksum: compute and set SHA256 metadata for a specific
+#     package/version combination (requires --package-name and --package-version).
+#   - --recompute-sha256-pattern PATTERN: compute SHA256 for all .whl files
+#     matching PATTERN under the given prefix that are missing checksums.
+#   - --recompute-missing-sha256: scan the entire prefix for .whl files that
+#     are missing x-amz-meta-checksum-sha256 metadata and compute/set it.
+#     Example: python s3_management/manage_v2.py channel --recompute-missing-sha256
+#     where "channel" is one of: whl, whl/nightly, whl/test, libtorch,
+#     libtorch/nightly, whl/test/variant, whl/variant, whl/preview/forge,
+#     source_code/test, or "all" to process every prefix.
+#
+# Dual-backend upload:
+#   When R2 credentials are configured (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+#   R2_SECRET_ACCESS_KEY), all index uploads are written to both the S3
+#   "pytorch" bucket and the Cloudflare R2 bucket in parallel.
+#
+# Usage examples:
+#   # Generate and upload indices for all prefixes:
+#   python s3_management/manage_v2.py all
+#
+#   # Generate indices locally without uploading (dry run):
+#   python s3_management/manage_v2.py whl/nightly --do-not-upload
+#
+#   # Compute SHA256 checksums for all packages in a prefix:
+#   python s3_management/manage_v2.py whl/test --compute-sha256
+#
+#   # Set checksum for a specific package and version:
+#   python s3_management/manage_v2.py whl/test --set-checksum \
+#       --package-name torch --package-version 2.5.0+cu121
+#
+#   # Recompute missing SHA256 checksums for a channel:
+#   python s3_management/manage_v2.py whl/nightly --recompute-missing-sha256
+#
+#   # Recompute SHA256 for a specific subdir pattern:
+#   python s3_management/manage_v2.py whl/test --recompute-sha256-pattern rocm6.4
 
 import argparse
 import base64
