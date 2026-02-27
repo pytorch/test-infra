@@ -1604,13 +1604,6 @@
       "mac"
     ]
   ],
-  "test_tield_kernel_fusion_cuda (__main__.BenchmarkFusionGpuTest)": [
-    "168208",
-    "https://github.com/pytorch/pytorch/issues/168208",
-    [
-      "rocm"
-    ]
-  ],
   "test_torch_function_all_disabled_api (__main__.TestTorchFunctionMode)": [
     "162704",
     "https://github.com/pytorch/pytorch/issues/162704",
