@@ -35,7 +35,7 @@ jobs:
         conda create --yes --quiet -n test python=3.9
         conda activate test
         python -m pip install --index-url=https://download.pytorch.org/whl/nightly/cu118 --pre torch
-        # Can import pytorch, cuda is available
+        # Can import pytorch, cuda is available 1
         python -c 'import torch;assert(torch.cuda.is_available())'
   test-upload-artifact:
     uses: ./.github/workflows/windows_job.yml
