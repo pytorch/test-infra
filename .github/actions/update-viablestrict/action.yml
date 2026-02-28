@@ -21,6 +21,12 @@ inputs:
       considered stable
     required: true
     type: string
+  exclude-checks:
+    description: |
+      The list of jobs to exclude from consideration when determining if a
+      commit is green
+    required: false
+    type: string
   secret-bot-token:
     description: The token to use to push to the stable protected branch
     required: true
@@ -90,10 +96,16 @@ runs:
 
         TEST_INFRA_PATH="${GITHUB_ACTION_PATH}/../../.."
 
+        exclude_checks_arg=""
+        if [ -n "${{ inputs.exclude-checks }}" ]; then
+          exclude_checks_arg="--exclude-checks \"${{ inputs.exclude-checks }}\""
+        fi
+
         output=$(python ${TEST_INFRA_PATH}/tools/scripts/fetch_latest_green_commit.py \
           --required-checks "${{ inputs.requires }}" \
           --viable-strict-branch "viable/strict" \
-          --main-branch "master")
+          --main-branch "master" \
+          $exclude_checks_arg)
         echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
         echo $output
 
