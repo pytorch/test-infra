@@ -612,7 +612,7 @@ class S3Index:
                 print(f"INFO Uploading {subdir}/{self.html_name} to {bucket.name}")
                 bucket.Object(key=f"{subdir}/{self.html_name}").put(
                     ACL="public-read",
-                    CacheControl="no-cache,no-store,must-revalidate",
+                    CacheControl="max-age=600, public",
                     ContentType="text/html",
                     Body=index_html,
                 )
@@ -625,7 +625,7 @@ class S3Index:
                 print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
                 bucket.Object(key=f"{subdir}/index.html").put(
                     ACL="public-read",
-                    CacheControl="no-cache,no-store,must-revalidate",
+                    CacheControl="max-age=600, public",
                     ContentType="text/html",
                     Body=index_html,
                 )
@@ -640,7 +640,7 @@ class S3Index:
                     )
                     bucket.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                         ACL="public-read",
-                        CacheControl="no-cache,no-store,must-revalidate",
+                        CacheControl="max-age=600, public",
                         ContentType="text/html",
                         Body=index_html,
                     )
