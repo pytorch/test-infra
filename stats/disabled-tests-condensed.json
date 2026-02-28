@@ -806,6 +806,13 @@
       "rocm"
     ]
   ],
+  "test_index_reduce_reduce_prod_mps_int32 (__main__.TestIndexingMPS)": [
+    "176074",
+    "https://github.com/pytorch/pytorch/issues/176074",
+    [
+      "macos"
+    ]
+  ],
   "test_inductor_all_gather_into_tensor_coalesced (__main__.CompileTest)": [
     "146806",
     "https://github.com/pytorch/pytorch/issues/146806",
