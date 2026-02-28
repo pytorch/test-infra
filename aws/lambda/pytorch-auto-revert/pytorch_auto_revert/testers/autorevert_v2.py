@@ -20,6 +20,7 @@ def autorevert_v2(
     revert_action: RevertAction = RevertAction.LOG,
     bisection_limit: Optional[int] = None,
     as_of: Optional[datetime] = None,
+    revert_decisions_sqs_queue_url: str = "",
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -74,6 +75,7 @@ def autorevert_v2(
         restart_action=restart_action,
         revert_action=revert_action,
         ts=ts,
+        revert_decisions_sqs_queue_url=revert_decisions_sqs_queue_url,
         workflows=workflows,
     )
 
