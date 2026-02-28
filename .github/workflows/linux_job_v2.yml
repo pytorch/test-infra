@@ -122,6 +122,11 @@ on:
         default: false
         type: boolean
 
+# Needed for ROCm-conditional steps that need to use OIDC
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   job:
     strategy:
@@ -179,7 +184,7 @@ jobs:
         if: ${{ inputs.gpu-arch-type != 'rocm' }}
 
       - name: Setup ROCM
-        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        uses: pytorch/pytorch/.github/actions/setup-rocm@move_aws_steps_inside_setup_rocm
         if: ${{ inputs.gpu-arch-type == 'rocm' }}
 
       - name: Setup SSH
