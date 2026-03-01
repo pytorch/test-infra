@@ -890,11 +890,11 @@
       "inductor/test_subgraph_choice": 3.231666686541091,
       "inductor/test_template_heuristics_registry": 0.2542781258011625,
       "inductor/test_torchbind": 28.55612381056611,
-      "inductor/test_torchinductor": 1065.832610398281,
+      "inductor/test_torchinductor": 1073.2161021763543,
       "inductor/test_torchinductor_codegen_config_overrides": 2.29263846294429,
       "inductor/test_torchinductor_codegen_dynamic_shapes": 1219.1857956709607,
       "inductor/test_torchinductor_dynamic_shapes": 1700.195913574147,
-      "inductor/test_torchinductor_opinfo": 2719.0308069924276,
+      "inductor/test_torchinductor_opinfo": 2568.021956604807,
       "inductor/test_torchinductor_strided_blocks": 62.75452827630861,
       "inductor/test_triton_cpu_backend": 2243.8069763183594,
       "inductor/test_triton_extension_backend": 4.967639598126214,
@@ -1067,7 +1067,7 @@
       "test_mobile_optimizer": 3.296468345324198,
       "test_model_exports_to_core_aten": 0.270308331765312,
       "test_module_tracker": 1.3782108338363466,
-      "test_modules": 766.4933521323204,
+      "test_modules": 822.094973129034,
       "test_monitor": 0.4306225039288013,
       "test_mps": 2407.536333048716,
       "test_multiprocessing": 101.48393071805319,
@@ -1083,9 +1083,9 @@
       "test_numpy_interop": 2.7587613708621856,
       "test_opaque_obj_v2": 13.395809010970284,
       "test_openmp": 6.346971450131091,
-      "test_ops": 3486.3561267725563,
+      "test_ops": 3782.90200149019,
       "test_ops_fwd_gradients": 527.7892848388353,
-      "test_ops_gradients": 736.926328146285,
+      "test_ops_gradients": 771.4653983765179,
       "test_ops_jit": 771.1666290569304,
       "test_ops_unbacked": 244.15082476046354,
       "test_optim": 300.3462317132391,
@@ -1123,7 +1123,7 @@
       "test_tensorexpr": 20.471300135805897,
       "test_tensorexpr_pybind": 1.2133408393620628,
       "test_testing": 75.13707509045983,
-      "test_torch": 280.28525668944826,
+      "test_torch": 280.6985067536484,
       "test_torch_config_hash_determinism": 0.36491750052819655,
       "test_torchfuzz_repros": 0.9163808367277186,
       "test_transformers": 1431.0163363485958,
@@ -1742,6 +1742,14 @@
       "test_ops": 7953.981303885579,
       "test_ops_gradients": 890.4162445068359,
       "test_torch": 1510.3372657299042
+    },
+    "inductor_avx2": {
+      "inductor/test_torchinductor": 1206.1189541816711,
+      "inductor/test_torchinductor_opinfo": 0.8715000152587891,
+      "test_modules": 2212.135498046875,
+      "test_ops": 11196.548869431019,
+      "test_ops_gradients": 1565.864013671875,
+      "test_torch": 291.44300842285156
     },
     "inductor_core": {
       "inductor/test_alignment": 19.348583221435547,
@@ -22234,12 +22242,12 @@
   },
   "periodic-dynamo-benchmarks-cpu-test": {
     "inductor_avx2": {
-      "inductor/test_torchinductor": 1140.2909994125366,
-      "inductor/test_torchinductor_opinfo": 0.6880000233650208,
-      "test_modules": 2110.02197265625,
-      "test_ops": 10507.698122620583,
-      "test_ops_gradients": 1519.093017578125,
-      "test_torch": 226.9759979248047
+      "inductor/test_torchinductor": 1206.1189541816711,
+      "inductor/test_torchinductor_opinfo": 0.8715000152587891,
+      "test_modules": 2212.135498046875,
+      "test_ops": 11196.548869431019,
+      "test_ops_gradients": 1565.864013671875,
+      "test_torch": 291.44300842285156
     }
   },
   "rocm-py3.10-inductor": {
@@ -22534,11 +22542,6 @@
   "unit-test / inductor-pallas-gpu-test": {
     "inductor-pallas-gpu": {
       "inductor/test_pallas": 23.748999913533527
-    }
-  },
-  "unit-test / inductor-pallas-test": {
-    "inductor-pallas": {
-      "inductor/test_pallas": 287.6630068550585
     }
   },
   "unit-test / inductor-test": {
