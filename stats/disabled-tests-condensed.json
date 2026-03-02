@@ -298,6 +298,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_matmul_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "176176",
+    "https://github.com/pytorch/pytorch/issues/176176",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
