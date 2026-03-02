@@ -49,6 +49,13 @@
       "rocm"
     ]
   ],
+  "test_adam_ema_update_scalar_precision_beta2_0_1 (__main__.ForeachTests)": [
+    "176152",
+    "https://github.com/pytorch/pytorch/issues/176152",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
