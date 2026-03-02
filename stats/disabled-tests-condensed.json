@@ -801,8 +801,8 @@
     ]
   ],
   "test_graph_partition_user_defined_triton_kernel_reuse (__main__.CudaGraphTreeTests)": [
-    "176143",
-    "https://github.com/pytorch/pytorch/issues/176143",
+    "176144",
+    "https://github.com/pytorch/pytorch/issues/176144",
     [
       "linux",
       "slow"
@@ -1436,6 +1436,13 @@
     "https://github.com/pytorch/pytorch/issues/163701",
     [
       "rocm"
+    ]
+  ],
+  "test_replicate_wrong_device_id_type (__main__.ReplicateFullyShardInit)": [
+    "176155",
+    "https://github.com/pytorch/pytorch/issues/176155",
+    [
+      "linux"
     ]
   ],
   "test_replicate_wrong_device_id_type (__main__.ReplicateTest)": [
