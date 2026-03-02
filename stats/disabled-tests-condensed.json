@@ -420,6 +420,20 @@
       "xpu"
     ]
   ],
+  "test_cudagraph_memory_cleanup_benchmarker (__main__.TestCustomOpAutoTune)": [
+    "176139",
+    "https://github.com/pytorch/pytorch/issues/176139",
+    [
+      "xpu"
+    ]
+  ],
+  "test_custom_op_with_layout_arg_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "175475",
+    "https://github.com/pytorch/pytorch/issues/175475",
+    [
+      "xpu"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -570,6 +584,20 @@
       "rocm"
     ]
   ],
+  "test_errors_nn_MultiMarginLoss_xpu_float32 (__main__.TestModuleXPU)": [
+    "175717",
+    "https://github.com/pytorch/pytorch/issues/175717",
+    [
+      "xpu"
+    ]
+  ],
+  "test_errors_nn_MultiMarginLoss_xpu_float64 (__main__.TestModuleXPU)": [
+    "175718",
+    "https://github.com/pytorch/pytorch/issues/175718",
+    [
+      "xpu"
+    ]
+  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
@@ -607,6 +635,13 @@
   "test_fake_device (__main__.FakeTensorTest)": [
     "175950",
     "https://github.com/pytorch/pytorch/issues/175950",
+    [
+      "xpu"
+    ]
+  ],
+  "test_fake_device_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "176138",
+    "https://github.com/pytorch/pytorch/issues/176138",
     [
       "xpu"
     ]
