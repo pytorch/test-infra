@@ -604,6 +604,13 @@
       "xpu"
     ]
   ],
+  "test_fake_device_property_normalization (__main__.FakeTensorTest)": [
+    "176125",
+    "https://github.com/pytorch/pytorch/issues/176125",
+    [
+      "xpu"
+    ]
+  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -773,13 +780,6 @@
       "macos"
     ]
   ],
-  "test_index_reduce_reduce_prod_mps_int32 (__main__.TestIndexingMPS)": [
-    "176074",
-    "https://github.com/pytorch/pytorch/issues/176074",
-    [
-      "macos"
-    ]
-  ],
   "test_inductor_all_gather_into_tensor_coalesced (__main__.CompileTest)": [
     "146806",
     "https://github.com/pytorch/pytorch/issues/146806",
@@ -898,20 +898,6 @@
     "https://github.com/pytorch/pytorch/issues/126489",
     [
       "rocm"
-    ]
-  ],
-  "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
-    "173344",
-    "https://github.com/pytorch/pytorch/issues/173344",
-    [
-      "xpu"
-    ]
-  ],
-  "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "173473",
-    "https://github.com/pytorch/pytorch/issues/173473",
-    [
-      "xpu"
     ]
   ],
   "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
