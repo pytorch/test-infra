@@ -18,6 +18,10 @@ from benchmark_regression_summary_report.common.config_model import (
     RangeConfig,
     RegressionPolicy,
 )
+from benchmark_regression_summary_report.common.regression_utils import (
+    BenchmarkRegressionPointGroup,
+    BenchmarkRegressionReportGenerator,
+)
 from benchmark_regression_summary_report.lambda_function import (
     BenchmarkSummaryProcessor,
     format_ts_with_t,
@@ -669,6 +673,183 @@ class TestIntegration(EnvironmentBaseTest):
 
 
 # ------------------------ INTEGRATION TESTS END ----------------------------------
+
+
+# ------------------------ EXCLUDE_ZERO TESTS START ----------------------------------
+class TestExcludeZero(unittest.TestCase):
+    """Tests for the exclude_zero functionality in regression detection."""
+
+    def setUp(self):
+        """Set up mock generator for testing _get_baseline method."""
+        mock_data_point = {
+            "granularity_bucket": "2025-01-15T10:00:00Z",
+            "commit": "abc123",
+            "branch": "main",
+            "workflow_id": "123",
+            "value": 0.95,
+        }
+
+        mock_ts_item = Mock()
+        mock_ts_item.group_info = {"metric": "passrate", "device": "cuda"}
+        mock_ts_item.data = [mock_data_point]
+
+        mock_ts_data = Mock(spec=BenchmarkTimeSeriesApiData)
+        mock_ts_data.time_series = [mock_ts_item]
+
+        mock_config = MagicMock()
+        mock_config.policy.metrics = {
+            "passrate": RegressionPolicy(
+                name="passrate",
+                condition="greater_equal",
+                threshold=0.9,
+                baseline_aggregation="median",
+                exclude_zero=True,
+            )
+        }
+
+        self.generator = BenchmarkRegressionReportGenerator(
+            config=mock_config,
+            target_ts=mock_ts_data,
+            baseline_ts=mock_ts_data,
+        )
+
+    def _make_point(self, value: float, commit: str = "abc") -> dict:
+        """Helper to create a BenchmarkRegressionPoint-like dict."""
+        return {
+            "value": value,
+            "commit": commit,
+            "branch": "main",
+            "workflow_id": "123",
+            "timestamp": "2025-01-15T10:00:00Z",
+        }
+
+    def _make_point_group(
+        self, values: List[float], metric: str = "passrate"
+    ) -> BenchmarkRegressionPointGroup:
+        """Helper to create a BenchmarkRegressionPointGroup."""
+        return {
+            "group_info": {"metric": metric, "device": "cuda"},
+            "values": [
+                self._make_point(v, f"commit_{i}") for i, v in enumerate(values)
+            ],
+        }
+
+    def test_get_baseline_without_exclude_zero_includes_zeros(self):
+        """Verify that zeros are included in baseline when exclude_zero=False."""
+        data = self._make_point_group([0.95, 0.0, 0.92, 0.97])
+
+        result = self.generator._get_baseline(data, mode="min", exclude_zero=False)
+
+        # Without exclude_zero, min should be 0.0
+        self.assertEqual(result["value"], 0.0)
+
+    def test_get_baseline_with_exclude_zero_filters_zeros(self):
+        """Verify that zeros are excluded from baseline when exclude_zero=True."""
+        data = self._make_point_group([0.95, 0.0, 0.92, 0.97])
+
+        result = self.generator._get_baseline(data, mode="min", exclude_zero=True)
+
+        # With exclude_zero, min should be 0.92 (skipping 0.0)
+        self.assertEqual(result["value"], 0.92)
+
+    def test_get_baseline_all_zeros_returns_none(self):
+        """Verify that when all values are zero and exclude_zero=True, returns None."""
+        data = self._make_point_group([0.0, 0.0, 0.0])
+
+        result = self.generator._get_baseline(data, mode="median", exclude_zero=True)
+
+        # Should return None when all values are filtered out, resulting in "insufficient_data" output.
+        self.assertIsNone(result)
+
+    def test_get_baseline_all_zeros_without_exclude_returns_zero(self):
+        """Verify that when all values are zero and exclude_zero=False, returns 0."""
+        data = self._make_point_group([0.0, 0.0, 0.0])
+
+        result = self.generator._get_baseline(data, mode="median", exclude_zero=False)
+
+        # Should return 0.0 when exclude_zero is False
+        self.assertEqual(result["value"], 0.0)
+
+    def test_exclude_zero_prevents_false_regression_on_recovery(self):
+        """
+        Test the main use case: a test that fails (0) then recovers should not
+        trigger a regression when exclude_zero=True.
+
+        Scenario:
+        - Baseline window: [0.95, 0.92, 0.97] (healthy)
+        - Comparison window: [0.0, 0.0, 0.94, 0.96] (failed then recovered)
+
+        Without exclude_zero: The two trailing zeros would be violations
+        With exclude_zero: Only [0.94, 0.96] compared, no violations
+        """
+        policy = RegressionPolicy(
+            name="passrate",
+            condition="greater_equal",
+            threshold=1.0,
+            baseline_aggregation="median",
+            exclude_zero=True,
+        )
+
+        # Baseline data WITH zeros - this is the primary use case
+        # Without exclude_zero, zeros would skew the baseline calculation
+        baseline_data = self._make_point_group([0.93, 0.0, 0.92, 0.0, 0.97])
+        baseline_result = self.generator._get_baseline(
+            baseline_data, mode="median", exclude_zero=True
+        )
+
+        self.assertEqual(baseline_result["value"], 0.93)
+
+        # Comparison points - filter zeros as policy.exclude_zero would do
+        comparison_points = [
+            self._make_point(0.0),
+            self._make_point(0.0),
+            self._make_point(0.94),
+            self._make_point(0.96),
+        ]
+        filtered_points = [p for p in comparison_points if p["value"] != 0]
+
+        violations = [
+            policy.is_violation(p["value"], baseline_result["value"])
+            for p in filtered_points
+        ]
+
+        self.assertEqual(violations, [False, False])
+
+    def test_without_exclude_zero(self):
+        policy = RegressionPolicy(
+            name="passrate",
+            condition="greater_equal",
+            threshold=1.0,
+            baseline_aggregation="median",
+            exclude_zero=False,
+        )
+
+        # Same baseline data as the exclude_zero=True test
+        baseline_data = self._make_point_group([0.93, 0.0, 0.92, 0.0, 0.97])
+        baseline_result = self.generator._get_baseline(
+            baseline_data, mode="median", exclude_zero=False
+        )
+        self.assertEqual(baseline_result["value"], 0.92)
+
+        # Comparison points WITHOUT filtering zeros
+        comparison_points = [
+            self._make_point(0.0),
+            self._make_point(0.0),
+            self._make_point(0.94),
+            self._make_point(0.96),
+        ]
+
+        # All points compared (zeros included to be consistent)
+        violations = [
+            policy.is_violation(p["value"], baseline_result["value"])
+            for p in comparison_points
+        ]
+
+        # Two violations from the zero values
+        self.assertEqual(violations, [True, True, False, False])
+
+
+# ------------------------ EXCLUDE_ZERO TESTS END ----------------------------------
 
 
 if __name__ == "__main__":
