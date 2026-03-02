@@ -663,6 +663,13 @@
       "xpu"
     ]
   ],
+  "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "176147",
+    "https://github.com/pytorch/pytorch/issues/176147",
+    [
+      "xpu"
+    ]
+  ],
   "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
     "176146",
     "https://github.com/pytorch/pytorch/issues/176146",
