@@ -119,8 +119,8 @@ pub async fn make_query(
     error_line: &usize,
     num_lines: usize,
 ) -> Option<SerializedMatch> {
-    let model_id_primary = String::from("anthropic.claude-3-haiku-20240307-v1:0");
-    let model_id_secondary = String::from("anthropic.claude-3-5-sonnet-20240620-v1:0");
+    let model_id_primary = String::from("anthropic.claude-haiku-4-5-20251001-v1:0");
+    let model_id_secondary = String::from("anthropic.claude-sonnet-4-6");
     let line_numbers = vec![*error_line];
 
     let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
