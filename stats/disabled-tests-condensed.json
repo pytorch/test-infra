@@ -1003,6 +1003,13 @@
       "rocm"
     ]
   ],
+  "test_mem_leak (__main__.TestProfilerCUDA)": [
+    "78457",
+    "https://github.com/pytorch/pytorch/issues/78457",
+    [
+      "rocm"
+    ]
+  ],
   "test_memory_plots (__main__.TestCudaMallocAsync)": [
     "176203",
     "https://github.com/pytorch/pytorch/issues/176203",
