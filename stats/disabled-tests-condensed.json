@@ -418,13 +418,6 @@
       "rocm"
     ]
   ],
-  "test_conv_with_as_strided_cpu (__main__.FreezingCpuTests)": [
-    "107893",
-    "https://github.com/pytorch/pytorch/issues/107893",
-    [
-      "rocm"
-    ]
-  ],
   "test_copy_non_blocking_is_pinned_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "164858",
     "https://github.com/pytorch/pytorch/issues/164858",
