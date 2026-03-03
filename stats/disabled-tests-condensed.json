@@ -1084,20 +1084,6 @@
       "dynamo"
     ]
   ],
-  "test_mixed_mm (__main__.TestPatternMatcher)": [
-    "145192",
-    "https://github.com/pytorch/pytorch/issues/145192",
-    [
-      "rocm"
-    ]
-  ],
-  "test_mixed_mm_bad_cases (__main__.TestPatternMatcher)": [
-    "128487",
-    "https://github.com/pytorch/pytorch/issues/128487",
-    [
-      "rocm"
-    ]
-  ],
   "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
     "87581",
     "https://github.com/pytorch/pytorch/issues/87581",
