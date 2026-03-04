@@ -77,6 +77,13 @@
       "xpu"
     ]
   ],
+  "test_adam_ema_update_scalar_precision_beta2_0_9999 (__main__.ForeachTests)": [
+    "176391",
+    "https://github.com/pytorch/pytorch/issues/176391",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -437,6 +444,13 @@
     "https://github.com/pytorch/pytorch/issues/106557",
     [
       "macos"
+    ]
+  ],
+  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
+    "176392",
+    "https://github.com/pytorch/pytorch/issues/176392",
+    [
+      "xpu"
     ]
   ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
