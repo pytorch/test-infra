@@ -16,6 +16,7 @@ const CHART_METADATA_COLUMNS = [
 ] as const;
 
 const TITLE_GROUP_MAPPING = {
+  // Speedup metrics (each gets its own chart)
   latency_compile_speedup: {
     text: "Latency Compile Speedup (higher is better)",
     description:
@@ -41,9 +42,21 @@ const TITLE_GROUP_MAPPING = {
     description:
       "Speedup ratio of token generation throughput with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
   },
+  // Grouped metric titles (cold + warm in same chart)
+  compilation_time: {
+    text: "Compilation Time (lower is better)",
+    description:
+      "Time spent on torch.compile compilation. Cold = first compilation without cache. Warm = compilation with cache available.",
+  },
+  startup_time: {
+    text: "Startup Time (lower is better)",
+    description:
+      "Total model startup time including loading and initialization. Cold = first startup without cache. Warm = startup with cache available.",
+  },
 };
 
 const RENDER_BOOK = {
+  // Speedup metrics
   latency_compile_speedup: {
     displayName: "Latency Speedup",
     unit: { unit: "x" },
@@ -63,6 +76,24 @@ const RENDER_BOOK = {
   tokens_per_second_compile_speedup: {
     displayName: "Tokens/sec Speedup",
     unit: { unit: "x" },
+  },
+  // Compilation time metrics
+  avg_cold_compilation_time: {
+    displayName: "Cold Compilation",
+    unit: { type: "time", unit: "s" },
+  },
+  avg_warm_compilation_time: {
+    displayName: "Warm Compilation",
+    unit: { type: "time", unit: "s" },
+  },
+  // Startup time metrics
+  avg_cold_startup_time: {
+    displayName: "Cold Startup",
+    unit: { type: "time", unit: "s" },
+  },
+  avg_warm_startup_time: {
+    displayName: "Warm Startup",
+    unit: { type: "time", unit: "s" },
   },
 };
 
@@ -102,8 +133,8 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
           groupByFields: [],
           chartGroup: {
             type: "line",
-            groupByFields: ["metric"],
-            lineKey: ["device", "arch", "branch"],
+            groupByFields: ["metric_group"],
+            lineKey: ["metric", "device", "arch", "branch"],
             chart: {
               enableDialog: true,
               customizedConfirmDialog: {
