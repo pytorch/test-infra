@@ -312,6 +312,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         trigger: "item",
         triggerOn: "mousemove|click",
         formatter: tooltipFormatter,
+        confine: true,
       },
       series: [...lineSeries, ...overlaySeries],
     };
@@ -382,6 +383,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         ref={chartRef}
         echarts={echarts}
         option={option}
+        opts={{ renderer: "svg" }}
         notMerge={true}
         lazyUpdate
         onEvents={onEvents}
