@@ -934,6 +934,38 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
     "latency",
   ]);
 
+  // Compilation time metrics - pass through without speedup calculation (lower is better)
+  // These are averaged directly without comparing compiled vs non-compiled
+  private static readonly COMPILATION_TIME_METRICS = new Set([
+    "avg_cold_compilation_time",
+    "avg_cold_startup_time",
+    "avg_warm_compilation_time",
+    "avg_warm_startup_time",
+  ]);
+
+  // Metric group mapping for chart grouping
+  // For speedup metrics: metric_group = metric (each metric gets its own chart)
+  // For time metrics: group cold/warm together
+  private static readonly METRIC_GROUP_MAP: Record<string, string> = {
+    // Compilation time metrics - grouped together
+    geomean_avg_cold_compilation_time: "compilation_time",
+    geomean_avg_warm_compilation_time: "compilation_time",
+    // Startup time metrics - grouped together
+    geomean_avg_cold_startup_time: "startup_time",
+    geomean_avg_warm_startup_time: "startup_time",
+  };
+
+  /**
+   * Get metric group for a metric.
+   * Returns the metric itself if not in the group map (each speedup metric gets its own chart).
+   */
+  private static getMetricGroup(metric: string): string {
+    return (
+      VllmXPytorchBenchmarkAggregatedDataFetcher.METRIC_GROUP_MAP[metric] ||
+      metric
+    );
+  }
+
   constructor() {
     super();
   }
@@ -976,13 +1008,48 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       d.granularity_bucket = workflowBucketMap.get(wfId);
     });
 
-    // Filter to only allowed metrics
+    // Filter to only allowed metrics (speedup metrics)
     const filteredData = data.filter((d) =>
       VllmXPytorchBenchmarkAggregatedDataFetcher.ALLOWED_METRICS.has(d.metric)
     );
     // Aggregate data by computing geomean speedup (use_compile=true vs false)
     const aggregatedData = this.aggregateData(filteredData);
-    const resp = super.applyFormat(aggregatedData, formats, false);
+
+    // Filter and aggregate compilation time metrics (pass-through without speedup)
+    const compilationTimeData = data.filter((d) =>
+      VllmXPytorchBenchmarkAggregatedDataFetcher.COMPILATION_TIME_METRICS.has(
+        d.metric
+      )
+    );
+    const aggregatedCompilationTimeData =
+      this.aggregateCompilationTimeData(compilationTimeData);
+
+    // Combine both aggregated datasets
+    const combinedData = [...aggregatedData, ...aggregatedCompilationTimeData];
+
+    const resp = super.applyFormat(combinedData, formats, false);
+
+    // Add metric_group to group_info for each formatted record
+    // This is needed for chart grouping to work properly
+    if ("data" in resp && resp.data) {
+      resp.data.time_series.forEach((item: any) => {
+        if (item.group_info && item.group_info.metric) {
+          item.group_info.metric_group =
+            VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
+              item.group_info.metric
+            );
+        }
+      });
+      resp.data.table.forEach((item: any) => {
+        if (item.group_info && item.group_info.metric) {
+          item.group_info.metric_group =
+            VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
+              item.group_info.metric
+            );
+        }
+      });
+    }
+
     // Apply the standard format using the parent's format method
     return resp;
   }
@@ -1101,6 +1168,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       //console.log("nonCompiledValues", nonCompiledValues);
       //console.log("Models", Array.from(models));
 
+      const metricName = `${template.metric}_compile_speedup`;
       const aggregatedRecord = {
         commit: template.commit,
         workflow_id: template.workflow_id,
@@ -1109,7 +1177,9 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         arch: template.arch,
         granularity_bucket: template.granularity_bucket,
         value: speedup,
-        metric: `${template.metric}_compile_speedup`,
+        metric: metricName,
+        metric_group:
+          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),
         geomean_compiled: geomeanCompiled,
         geomean_non_compiled: geomeanNonCompiled,
         compiled_values: compiledValues,
@@ -1150,5 +1220,72 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
     // Use log transformation to avoid overflow
     const logSum = values.reduce((sum, v) => sum + Math.log(v), 0);
     return Math.round(Math.exp(logSum / values.length) * 100) / 100;
+  }
+
+  /**
+   * Aggregate compilation time metrics by computing the geometric mean value
+   * across all models for each workflow/metric/device/arch combination.
+   * These metrics are pass-through without compile vs non-compile comparison.
+   */
+  private aggregateCompilationTimeData(data: any[]): any[] {
+    // Group by workflow_id, metric, device, arch, branch, granularity_bucket
+    const groupMap = new Map<
+      string,
+      { values: number[]; template: any; models: Set<string> }
+    >();
+
+    data.forEach((d) => {
+      const key = this.createGroupKey(d);
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          values: [],
+          template: { ...d },
+          models: new Set(),
+        });
+      }
+
+      const group = groupMap.get(key)!;
+      if (d.value != null && d.value > 0) {
+        group.values.push(d.value);
+      }
+      if (d.model) {
+        group.models.add(d.model);
+      }
+    });
+
+    // Compute geomean for each group
+    const aggregatedData: any[] = [];
+    groupMap.forEach((group) => {
+      const { values, template, models } = group;
+
+      if (values.length === 0) {
+        return;
+      }
+
+      // Compute geometric mean
+      const geomeanValue = this.geometricMean(values);
+
+      const metricName = `geomean_${template.metric}`;
+      const aggregatedRecord = {
+        commit: template.commit,
+        workflow_id: template.workflow_id,
+        branch: template.branch,
+        device: template.device,
+        arch: template.arch,
+        granularity_bucket: template.granularity_bucket,
+        value: geomeanValue,
+        metric: metricName,
+        metric_group:
+          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),
+        geomean_value: geomeanValue,
+        raw_values: values,
+        models: Array.from(models),
+        valid_models: Array.from(models),
+      };
+
+      aggregatedData.push(aggregatedRecord);
+    });
+
+    return aggregatedData;
   }
 }

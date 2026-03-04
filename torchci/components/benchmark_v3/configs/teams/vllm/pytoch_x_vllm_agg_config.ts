@@ -1,19 +1,115 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
 
 export const PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID =
   "pytroch_x_vllm_aggregated";
 
-const CHART_METADATA_COLUMNS = [
-  {
-    field: "geomean_compiled",
-    displayName: "Use Compile Geomean",
+// Speedup metrics policy (higher is better)
+// Regression if new value < 95% of old value
+const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "speedup",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 0.95,
+    goodRatio: 1.05,
+    direction: "up",
   },
-  {
-    field: "geomean_non_compiled",
-    displayName: "Use Non-Compile Geomean",
+};
+
+// Time metrics policy (lower is better)
+// Regression if new value > 115% of old value
+const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "time",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
   },
-] as const;
+};
+
+const TITLE_GROUP_MAPPING = {
+  // Speedup metrics (each gets its own chart)
+  latency_compile_speedup: {
+    text: "Latency Compile Speedup (higher is better)",
+    description:
+      "Speedup ratio of latency with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_itl_ms_compile_speedup: {
+    text: "Median ITL Compile Speedup (higher is better)",
+    description:
+      "ITL = Inter-Token Latency. Speedup ratio of median time between consecutive tokens with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_tpot_ms_compile_speedup: {
+    text: "Median TPOT Compile Speedup (higher is better)",
+    description:
+      "TPOT = Time Per Output Token. Speedup ratio of median time to generate each output token with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_ttft_ms_compile_speedup: {
+    text: "Median TTFT Compile Speedup (higher is better)",
+    description:
+      "TTFT = Time To First Token. Speedup ratio of median time until the first token is generated with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  tokens_per_second_compile_speedup: {
+    text: "Tokens Per Second Compile Speedup (higher is better)",
+    description:
+      "Speedup ratio of token generation throughput with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  // Grouped metric titles (cold + warm in same chart)
+  compilation_time: {
+    text: "Geomean Compilation Time (lower is better)",
+    description:
+      "Geometric mean of torch.compile compilation time across models. Cold = first compilation without cache. Warm = compilation with cache available.",
+  },
+  startup_time: {
+    text: "Geomean Startup Time (lower is better)",
+    description:
+      "Geometric mean of total model startup time across models. Cold = first startup without cache. Warm = startup with cache available.",
+  },
+};
+
+const RENDER_BOOK = {
+  // Speedup metrics
+  latency_compile_speedup: {
+    displayName: "Latency Speedup",
+    unit: { unit: "x" },
+  },
+  median_itl_ms_compile_speedup: {
+    displayName: "Median ITL Speedup",
+    unit: { unit: "x" },
+  },
+  median_tpot_ms_compile_speedup: {
+    displayName: "Median TPOT Speedup",
+    unit: { unit: "x" },
+  },
+  median_ttft_ms_compile_speedup: {
+    displayName: "Median TTFT Speedup",
+    unit: { unit: "x" },
+  },
+  tokens_per_second_compile_speedup: {
+    displayName: "Tokens/sec Speedup",
+    unit: { unit: "x" },
+  },
+  // Compilation time metrics (geomean)
+  geomean_avg_cold_compilation_time: {
+    displayName: "Cold Compilation",
+    unit: { type: "time", unit: "s" },
+  },
+  geomean_avg_warm_compilation_time: {
+    displayName: "Warm Compilation",
+    unit: { type: "time", unit: "s" },
+  },
+  // Startup time metrics (geomean)
+  geomean_avg_cold_startup_time: {
+    displayName: "Cold Startup",
+    unit: { type: "time", unit: "s" },
+  },
+  geomean_avg_warm_startup_time: {
+    displayName: "Warm Startup",
+    unit: { type: "time", unit: "s" },
+  },
+};
 
 // main config for the compiler benchmark regression page
 export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
@@ -51,8 +147,8 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
           groupByFields: [],
           chartGroup: {
             type: "line",
-            groupByFields: ["metric"],
-            lineKey: ["device", "arch", "branch"],
+            groupByFields: ["metric_group"],
+            lineKey: ["metric", "device", "arch", "branch"],
             chart: {
               enableDialog: true,
               customizedConfirmDialog: {
@@ -60,13 +156,13 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
                 id: "VllmPrecomputeConfirmDialogContent",
               },
               renderOptions: {
-                chartRenderBook: {},
+                chartRenderBook: RENDER_BOOK,
                 showLegendDetails: true,
                 additionalMetadataList: [
                   "geomean_compiled",
                   "geomean_non_compiled",
                 ],
-                title_group_mapping: {},
+                title_group_mapping: TITLE_GROUP_MAPPING,
               },
             },
           },
@@ -91,10 +187,23 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             },
             enableDialog: true,
             targetField: "metric",
-            comparisonPolicy: {},
+            comparisonPolicy: {
+              // Speedup metrics (higher is better)
+              latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              // Time metrics (lower is better) - geomean
+              geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
+              geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
+              geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
+              geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
+            },
             renderOptions: {
-              tableRenderingBook: {},
+              tableRenderingBook: RENDER_BOOK,
               renderMissing: true,
+              title_group_mapping: TITLE_GROUP_MAPPING,
             },
           },
         },
