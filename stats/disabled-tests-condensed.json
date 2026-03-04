@@ -739,13 +739,6 @@
       "xpu"
     ]
   ],
-  "test_fake_device_property_normalization (__main__.FakeTensorTest)": [
-    "176125",
-    "https://github.com/pytorch/pytorch/issues/176125",
-    [
-      "xpu"
-    ]
-  ],
   "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "176147",
     "https://github.com/pytorch/pytorch/issues/176147",
