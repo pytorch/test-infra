@@ -175,6 +175,13 @@
       "dynamo"
     ]
   ],
+  "test_circular_dependencies (__main__.TestImports)": [
+    "110040",
+    "https://github.com/pytorch/pytorch/issues/110040",
+    [
+      "xpu"
+    ]
+  ],
   "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
     "176112",
     "https://github.com/pytorch/pytorch/issues/176112",
