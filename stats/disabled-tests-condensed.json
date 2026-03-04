@@ -49,27 +49,6 @@
       "rocm"
     ]
   ],
-  "test_adam_ema_update_scalar_precision_beta2_0_1 (__main__.ForeachTests)": [
-    "176152",
-    "https://github.com/pytorch/pytorch/issues/176152",
-    [
-      "xpu"
-    ]
-  ],
-  "test_adam_ema_update_scalar_precision_beta2_0_3333333333333333 (__main__.ForeachTests)": [
-    "176157",
-    "https://github.com/pytorch/pytorch/issues/176157",
-    [
-      "xpu"
-    ]
-  ],
-  "test_adam_ema_update_scalar_precision_beta2_0_999 (__main__.ForeachTests)": [
-    "176168",
-    "https://github.com/pytorch/pytorch/issues/176168",
-    [
-      "xpu"
-    ]
-  ],
   "test_adam_ema_update_scalar_precision_beta2_0_9990000128746033 (__main__.ForeachTests)": [
     "176358",
     "https://github.com/pytorch/pytorch/issues/176358",
@@ -80,13 +59,6 @@
   "test_adam_ema_update_scalar_precision_beta2_0_9999 (__main__.ForeachTests)": [
     "176391",
     "https://github.com/pytorch/pytorch/issues/176391",
-    [
-      "xpu"
-    ]
-  ],
-  "test_adam_ema_update_scalar_precision_beta2_0_999999 (__main__.ForeachTests)": [
-    "176407",
-    "https://github.com/pytorch/pytorch/issues/176407",
     [
       "xpu"
     ]
