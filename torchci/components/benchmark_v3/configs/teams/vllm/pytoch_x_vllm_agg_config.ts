@@ -1,19 +1,33 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
 
 export const PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID =
   "pytroch_x_vllm_aggregated";
 
-const CHART_METADATA_COLUMNS = [
-  {
-    field: "geomean_compiled",
-    displayName: "Use Compile Geomean",
+// Speedup metrics policy (higher is better)
+// Regression if new value < 95% of old value
+const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "speedup",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 0.95,
+    goodRatio: 1.05,
+    direction: "up",
   },
-  {
-    field: "geomean_non_compiled",
-    displayName: "Use Non-Compile Geomean",
+};
+
+// Time metrics policy (lower is better)
+// Regression if new value > 115% of old value
+const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "time",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
   },
-] as const;
+};
 
 const TITLE_GROUP_MAPPING = {
   // Speedup metrics (each gets its own chart)
@@ -44,12 +58,12 @@ const TITLE_GROUP_MAPPING = {
   },
   // Grouped metric titles (cold + warm in same chart)
   compilation_time: {
-    text: "Compilation Time (lower is better)",
+    text: "Avg Compilation Time (lower is better)",
     description:
       "Time spent on torch.compile compilation. Cold = first compilation without cache. Warm = compilation with cache available.",
   },
   startup_time: {
-    text: "Startup Time (lower is better)",
+    text: "Avg Startup Time (lower is better)",
     description:
       "Total model startup time including loading and initialization. Cold = first startup without cache. Warm = startup with cache available.",
   },
@@ -173,7 +187,19 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             },
             enableDialog: true,
             targetField: "metric",
-            comparisonPolicy: {},
+            comparisonPolicy: {
+              // Speedup metrics (higher is better)
+              latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              // Time metrics (lower is better)
+              avg_cold_compilation_time: TIME_COMPARISON_POLICY,
+              avg_warm_compilation_time: TIME_COMPARISON_POLICY,
+              avg_cold_startup_time: TIME_COMPARISON_POLICY,
+              avg_warm_startup_time: TIME_COMPARISON_POLICY,
+            },
             renderOptions: {
               tableRenderingBook: RENDER_BOOK,
               renderMissing: true,
