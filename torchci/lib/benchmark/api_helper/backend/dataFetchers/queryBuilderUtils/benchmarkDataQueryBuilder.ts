@@ -1179,9 +1179,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         value: speedup,
         metric: metricName,
         metric_group:
-          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
-            metricName
-          ),
+          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),
         geomean_compiled: geomeanCompiled,
         geomean_non_compiled: geomeanNonCompiled,
         compiled_values: compiledValues,
@@ -1278,10 +1276,9 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         granularity_bucket: template.granularity_bucket,
         value: avgValue,
         metric: template.metric,
-        metric_group:
-          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
-            template.metric
-          ),
+        metric_group: VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
+          template.metric
+        ),
         models: Array.from(models),
         valid_models: Array.from(models),
       };
