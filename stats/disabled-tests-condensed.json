@@ -84,6 +84,13 @@
       "xpu"
     ]
   ],
+  "test_adam_ema_update_scalar_precision_beta2_0_999999 (__main__.ForeachTests)": [
+    "176407",
+    "https://github.com/pytorch/pytorch/issues/176407",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -602,6 +609,13 @@
   "test_div7_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "176134",
     "https://github.com/pytorch/pytorch/issues/176134",
+    [
+      "xpu"
+    ]
+  ],
+  "test_div7_xpu (__main__.GPUTests)": [
+    "176406",
+    "https://github.com/pytorch/pytorch/issues/176406",
     [
       "xpu"
     ]
