@@ -948,11 +948,11 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
   // For time metrics: group cold/warm together
   private static readonly METRIC_GROUP_MAP: Record<string, string> = {
     // Compilation time metrics - grouped together
-    avg_cold_compilation_time: "compilation_time",
-    avg_warm_compilation_time: "compilation_time",
+    geomean_avg_cold_compilation_time: "compilation_time",
+    geomean_avg_warm_compilation_time: "compilation_time",
     // Startup time metrics - grouped together
-    avg_cold_startup_time: "startup_time",
-    avg_warm_startup_time: "startup_time",
+    geomean_avg_cold_startup_time: "startup_time",
+    geomean_avg_warm_startup_time: "startup_time",
   };
 
   /**
@@ -1223,7 +1223,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
   }
 
   /**
-   * Aggregate compilation time metrics by computing the average value
+   * Aggregate compilation time metrics by computing the geometric mean value
    * across all models for each workflow/metric/device/arch combination.
    * These metrics are pass-through without compile vs non-compile comparison.
    */
@@ -1253,7 +1253,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       }
     });
 
-    // Compute average for each group
+    // Compute geomean for each group
     const aggregatedData: any[] = [];
     groupMap.forEach((group) => {
       const { values, template, models } = group;
@@ -1262,11 +1262,10 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         return;
       }
 
-      // Compute average
-      const avgValue =
-        Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) /
-        100;
+      // Compute geometric mean
+      const geomeanValue = this.geometricMean(values);
 
+      const metricName = `geomean_${template.metric}`;
       const aggregatedRecord = {
         commit: template.commit,
         workflow_id: template.workflow_id,
@@ -1274,11 +1273,12 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         device: template.device,
         arch: template.arch,
         granularity_bucket: template.granularity_bucket,
-        value: avgValue,
-        metric: template.metric,
-        metric_group: VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
-          template.metric
-        ),
+        value: geomeanValue,
+        metric: metricName,
+        metric_group:
+          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),
+        geomean_value: geomeanValue,
+        raw_values: values,
         models: Array.from(models),
         valid_models: Array.from(models),
       };
