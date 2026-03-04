@@ -70,6 +70,13 @@
       "xpu"
     ]
   ],
+  "test_adam_ema_update_scalar_precision_beta2_0_9990000128746033 (__main__.ForeachTests)": [
+    "176358",
+    "https://github.com/pytorch/pytorch/issues/176358",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
