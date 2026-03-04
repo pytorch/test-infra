@@ -15,6 +15,57 @@ const CHART_METADATA_COLUMNS = [
   },
 ] as const;
 
+const TITLE_GROUP_MAPPING = {
+  latency_compile_speedup: {
+    text: "Latency Compile Speedup (higher is better)",
+    description:
+      "Speedup ratio of latency with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_itl_ms_compile_speedup: {
+    text: "Median ITL Compile Speedup (higher is better)",
+    description:
+      "ITL = Inter-Token Latency. Speedup ratio of median time between consecutive tokens with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_tpot_ms_compile_speedup: {
+    text: "Median TPOT Compile Speedup (higher is better)",
+    description:
+      "TPOT = Time Per Output Token. Speedup ratio of median time to generate each output token with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  median_ttft_ms_compile_speedup: {
+    text: "Median TTFT Compile Speedup (higher is better)",
+    description:
+      "TTFT = Time To First Token. Speedup ratio of median time until the first token is generated with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+  tokens_per_second_compile_speedup: {
+    text: "Tokens Per Second Compile Speedup (higher is better)",
+    description:
+      "Speedup ratio of token generation throughput with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
+  },
+};
+
+const RENDER_BOOK = {
+  latency_compile_speedup: {
+    displayName: "Latency Speedup",
+    unit: { unit: "x" },
+  },
+  median_itl_ms_compile_speedup: {
+    displayName: "Median ITL Speedup",
+    unit: { unit: "x" },
+  },
+  median_tpot_ms_compile_speedup: {
+    displayName: "Median TPOT Speedup",
+    unit: { unit: "x" },
+  },
+  median_ttft_ms_compile_speedup: {
+    displayName: "Median TTFT Speedup",
+    unit: { unit: "x" },
+  },
+  tokens_per_second_compile_speedup: {
+    displayName: "Tokens/sec Speedup",
+    unit: { unit: "x" },
+  },
+};
+
 // main config for the compiler benchmark regression page
 export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
@@ -60,13 +111,13 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
                 id: "VllmPrecomputeConfirmDialogContent",
               },
               renderOptions: {
-                chartRenderBook: {},
+                chartRenderBook: RENDER_BOOK,
                 showLegendDetails: true,
                 additionalMetadataList: [
                   "geomean_compiled",
                   "geomean_non_compiled",
                 ],
-                title_group_mapping: {},
+                title_group_mapping: TITLE_GROUP_MAPPING,
               },
             },
           },
@@ -93,8 +144,9 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             targetField: "metric",
             comparisonPolicy: {},
             renderOptions: {
-              tableRenderingBook: {},
+              tableRenderingBook: RENDER_BOOK,
               renderMissing: true,
+              title_group_mapping: TITLE_GROUP_MAPPING,
             },
           },
         },
