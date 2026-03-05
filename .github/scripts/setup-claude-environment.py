@@ -27,7 +27,7 @@ EXPECTED_DEPLOYMENT_BRANCH_POLICY = {
     "custom_branch_policies": True,
 }
 
-EXPECTED_BRANCH_NAMES = ["main"]
+EXPECTED_BRANCH_NAMES = ["main", "refs/pull/*/merge"]
 
 
 def gh_api(
