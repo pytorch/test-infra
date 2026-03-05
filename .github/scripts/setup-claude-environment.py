@@ -123,9 +123,14 @@ def create_environment(repo: str) -> None:
 
     check_admin(repo)
 
-    gh_api("PUT", f"repos/{repo}/environments/bedrock", {
-        "deployment_branch_policy": EXPECTED_DEPLOYMENT_BRANCH_POLICY,
-    }, check=True)
+    gh_api(
+        "PUT",
+        f"repos/{repo}/environments/bedrock",
+        {
+            "deployment_branch_policy": EXPECTED_DEPLOYMENT_BRANCH_POLICY,
+        },
+        check=True,
+    )
 
     reconcile_branch_policies(repo)
 
@@ -149,9 +154,7 @@ def reconcile_branch_policies(repo: str) -> None:
     """Add missing and remove unexpected branch policies (delta only)."""
     endpoint = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
     resp = gh_api("GET", endpoint)
-    existing = {
-        p["name"]: p["id"] for p in (resp or {}).get("branch_policies", [])
-    }
+    existing = {p["name"]: p["id"] for p in (resp or {}).get("branch_policies", [])}
     expected = set(EXPECTED_BRANCH_NAMES)
 
     # Remove policies that shouldn't be there
