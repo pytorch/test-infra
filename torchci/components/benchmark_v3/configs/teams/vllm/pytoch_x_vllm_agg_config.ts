@@ -1,7 +1,6 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
-import { PYTORCH_X_VLLM_BENCHMARK_ID } from "./pytorch_x_vllm_config";
 
 export const PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID =
   "pytroch_x_vllm_aggregated";
@@ -31,18 +30,18 @@ export const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
 };
 
 export const PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY = {
-        // Speedup metrics (higher is better)
-        latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-        median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              // Time metrics (lower is better) - geomean
-              geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
-          }
+  // Speedup metrics (higher is better)
+  latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  // Time metrics (lower is better) - geomean
+  geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
+  geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
+};
 
 export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
   // Speedup metrics (each gets its own chart)
@@ -177,7 +176,8 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
                   "geomean_compiled",
                   "geomean_non_compiled",
                 ],
-                title_group_mapping: PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
+                title_group_mapping:
+                  PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
               },
             },
           },
@@ -202,11 +202,12 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             },
             enableDialog: true,
             targetField: "metric",
-              comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
+            comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
             renderOptions: {
               tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
               renderMissing: true,
-              title_group_mapping: PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
+              title_group_mapping:
+                PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
             },
           },
         },

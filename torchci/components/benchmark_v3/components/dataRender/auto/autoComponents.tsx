@@ -304,7 +304,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     return <div>no data</div>;
   }
 
-    const data = resp?.data?.data;
+  const data = resp?.data?.data;
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>

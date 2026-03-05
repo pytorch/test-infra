@@ -18,14 +18,14 @@ import {
   VllmBenchmarkMetadataFetcher,
 } from "./queryBuilderUtils/listMetadataQueryBuilder";
 import {
+  VllmXPytorchBenchmarkAggregatedDataFetcher,
+  VllmXPytorchBenchmarkDataFetcher,
+} from "./queryBuilderUtils/vllmDataFetchers";
+import {
   BenchmarkDataFetcher,
   BenchmarkListCommitFetcher,
   BenchmarkMetadataFetcher,
 } from "./type";
-import {
-  VllmXPytorchBenchmarkAggregatedDataFetcher,
-  VllmXPytorchBenchmarkDataFetcher,
-} from "./queryBuilderUtils/vllmDataFetchers";
 
 // Register benchmark data fetchers, this is mainly used in get_benchmark_data api and get_time_series api
 const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {

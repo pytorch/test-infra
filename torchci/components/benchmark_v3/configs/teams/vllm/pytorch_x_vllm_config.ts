@@ -4,7 +4,10 @@ import {
   BRANCH_METADATA_COLUMN,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
-import { PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY, PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK } from "./pytoch_x_vllm_agg_config";
+import {
+  PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
+  PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
+} from "./pytoch_x_vllm_agg_config";
 
 export const PYTORCH_X_VLLM_BENCHMARK_ID = "pytorch_x_vllm_benchmark";
 
