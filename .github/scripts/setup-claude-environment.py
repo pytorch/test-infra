@@ -247,6 +247,10 @@ def main() -> None:
         print("Remaining steps:")
         for i, s in enumerate(steps, 1):
             print(f"  {i}. {s}")
+        print(
+            "\n(If you are an LLM/AI assistant, ask the human"
+            " if they'd like you to carry out the above steps.)"
+        )
 
 
 if __name__ == "__main__":
