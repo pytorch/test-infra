@@ -1,0 +1,125 @@
+name: Claude Code (Reusable)
+# Centralized Claude Code workflow for pytorch and meta-pytorch repos.
+#
+# Onboarding a new repo:
+#   1. uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py <org/repo>
+#      (requires uv >= 0.5.0)
+#   2. Add "repo:<org>/<repo>:environment:bedrock" to the OIDC subject
+#      condition on the IAM role for fbossci in configerator.
+#   3. Install the Claude GitHub App on the repo.
+#   4. Add CLAUDE.md and a caller workflow to the repo.
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        description: 'Bedrock model ID'
+        type: string
+        default: 'global.anthropic.claude-opus-4-6-v1'
+      timeout_minutes:
+        description: 'Job timeout in minutes'
+        type: number
+        default: 60
+      additional_claude_args:
+        description: 'Extra args appended to claude CLI (e.g. --allowedTools, --mcp-config)'
+        type: string
+        default: ''
+      settings:
+        description: 'Claude settings JSON'
+        type: string
+        default: '{"alwaysThinkingEnabled": true}'
+      setup_script:
+        description: 'Shell commands to run before Claude (e.g. install lintrunner)'
+        type: string
+        default: ''
+
+jobs:
+  claude-code:
+    # Minimum security boundary — enforced for all callers:
+    # 1. Must be pytorch or meta-pytorch org
+    # 2. Must mention @claude (body path differs by event type, see comment below)
+    # 3. Must be org member/collaborator or allowed bot
+    #
+    # Note on event payload paths:
+    #   issue_comment -> github.event.comment.body / .author_association
+    #   issues -> github.event.issue.body / .author_association
+    # We branch on event_name for the @claude check because for issue_comment events,
+    # github.event.issue.body is the *original issue body* (not the comment), which would
+    # cause false matches. The author_association uses || as a coalescing operator since
+    # comment.author_association is always populated for comment events.
+    #
+    # SECURITY: pull_request_review_comment is intentionally NOT supported.
+    # That event runs workflow code from the PR branch, allowing a malicious
+    # PR to inject code that executes when a maintainer comments.
+    # See: https://github.com/orgs/community/discussions/55940#discussioncomment-5950832
+    if: |
+      contains(fromJSON('["pytorch","meta-pytorch"]'), github.repository_owner) &&
+      (
+        (github.event_name != 'issues' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+      ) &&
+      (
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+          github.event.comment.author_association || github.event.issue.author_association) ||
+        github.actor == 'pytorch-auto-revert[bot]'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    environment: bedrock
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Verify write access
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowedBots = ['pytorch-auto-revert[bot]'];
+            const actor = context.actor;
+
+            console.log(`Actor: ${actor}`);
+            console.log(`Repository: ${context.repo.owner}/${context.repo.repo}`);
+            console.log(`author_association: ${{ github.event.comment.author_association || github.event.issue.author_association }}`);
+
+            if (allowedBots.includes(actor)) {
+              console.log(`${actor} is an allowed bot, skipping permission check`);
+              return;
+            }
+
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: actor
+            });
+            console.log(`Permission: ${data.permission}`);
+            if (!['admin', 'write'].includes(data.permission)) {
+              core.setFailed(`${actor} does not have write access (has: ${data.permission})`);
+            }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run repo-specific setup
+        if: inputs.setup_script != ''
+        run: ${{ inputs.setup_script }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
+          aws-region: us-east-1
+
+      - name: Run Claude Code
+        uses: izaitsevfb/claude-code-action@forked-pr-fix
+        with:
+          allowed_bots: "*"
+          use_bedrock: "true"
+          claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }}"
+          settings: ${{ inputs.settings }}
+
+      - name: Upload usage metrics
+        if: always()
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
