@@ -60,9 +60,6 @@ jobs:
       issues: write
       id-token: write
     steps:
-      - name: Reusable workflow info
-        run: echo "Running centralized Claude Code workflow from pytorch/test-infra"
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
