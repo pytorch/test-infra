@@ -20,6 +20,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 
 ALLOWED_ORGS = ("pytorch", "meta-pytorch")
@@ -56,7 +57,7 @@ jobs:
 # ── Helpers ──────────────────────────────────────────────────
 
 
-def die(msg: str) -> None:
+def die(msg: str) -> NoReturn:
     print(f"Error: {msg}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -159,7 +160,10 @@ def configure_environment(repo: str) -> bool:
 
     # Reconcile branch policies
     ep = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
-    existing = {p["name"]: p["id"] for p in (gh("GET", ep) or {}).get("branch_policies", [])}
+    existing = {
+        p["name"]: p["id"]
+        for p in (gh("GET", ep) or {}).get("branch_policies", [])
+    }
     for name, pid in existing.items():
         if name not in ALLOWED_BRANCHES:
             print(f"    Removing branch policy: {name}")
