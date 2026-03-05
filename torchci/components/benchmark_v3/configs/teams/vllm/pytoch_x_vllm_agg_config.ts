@@ -79,12 +79,12 @@ export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
   cold_compilation_time: {
     text: "Geomean Cold Compilation Time (lower is better)",
     description:
-      "Geometric mean of torch.compile cold compilation time across models. Compares compiled vs non-compiled. Cold = first compilation without cache.",
+      "Geometric mean of torch.compile cold compilation time across models. Cold = first compilation without cache. Note: Non-compiled is always zero (no compilation) and not displayed.",
   },
   warm_compilation_time: {
     text: "Geomean Warm Compilation Time (lower is better)",
     description:
-      "Geometric mean of torch.compile warm compilation time across models. Compares compiled vs non-compiled. Warm = compilation with cache available.",
+      "Geometric mean of torch.compile warm compilation time across models. Warm = compilation with cache available. Note: Non-compiled is always zero (no compilation) and not displayed.",
   },
   cold_startup_time: {
     text: "Geomean Cold Startup Time (lower is better)",
