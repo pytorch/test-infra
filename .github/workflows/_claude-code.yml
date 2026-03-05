@@ -1,4 +1,6 @@
 name: Claude Code (Reusable)
+# Centralized Claude Code workflow for pytorch and meta-pytorch repos.
+# Setup: .github/scripts/setup-claude-environment.py
 
 on:
   workflow_call:
