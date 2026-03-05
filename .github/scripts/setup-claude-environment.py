@@ -161,8 +161,7 @@ def configure_environment(repo: str) -> bool:
     # Reconcile branch policies
     ep = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
     existing = {
-        p["name"]: p["id"]
-        for p in (gh("GET", ep) or {}).get("branch_policies", [])
+        p["name"]: p["id"] for p in (gh("GET", ep) or {}).get("branch_policies", [])
     }
     for name, pid in existing.items():
         if name not in ALLOWED_BRANCHES:
