@@ -218,9 +218,6 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       groupByFields ??
       VllmXPytorchBenchmarkAggregatedDataFetcher.DEFAULT_GROUP_BY_FIELDS;
 
-    console.log("[DEBUG] VllmXPytorchBenchmarkAggregatedDataFetcher.applyFormat - fields:", fields);
-    console.log("[DEBUG] First data item model:", data[0]?.model);
-
     data.forEach((d) => {
       if (d.extra_key) {
         const dk = d.extra_key;
@@ -325,9 +322,6 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       { compiled: any[]; nonCompiled: any[]; template: any }
     >();
 
-    console.log("[DEBUG] aggregateData - groupByFields:", groupByFields);
-    console.log("[DEBUG] aggregateData - data length:", data.length);
-
     data.forEach((d) => {
       const key = createGroupKey(d, groupByFields);
       if (!groupMap.has(key)) {
@@ -348,11 +342,6 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
         group.nonCompiled.push(d);
       }
     });
-
-    console.log("[DEBUG] aggregateData - groupMap size:", groupMap.size);
-    // Log first few keys to see if model is in the key
-    const keys = Array.from(groupMap.keys()).slice(0, 3);
-    console.log("[DEBUG] aggregateData - sample keys:", keys);
 
     // Compute geomean speedup for each group
     const aggregatedData: any[] = [];
