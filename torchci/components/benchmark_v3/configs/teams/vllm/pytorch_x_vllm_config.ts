@@ -32,6 +32,23 @@ const COMPARISON_POLICY_BOOK = {
   p99_ttft_ms: TIME_METRIC_POLICY,
 };
 
+// Render book for raw comparison table metrics
+const RAW_COMPARISON_RENDER_BOOK = {
+  avg_cold_compilation_time: { displayName: "Avg Cold Compilation Time" },
+  avg_cold_startup_time: { displayName: "Avg Cold Startup Time" },
+  avg_warm_compilation_time: { displayName: "Avg Warm Compilation Time" },
+  avg_warm_startup_time: { displayName: "Avg Warm Startup Time" },
+  latency: { displayName: "Latency" },
+  median_itl_ms: { displayName: "Median ITL (ms)" },
+  median_tpot_ms: { displayName: "Median TPOT (ms)" },
+  median_ttft_ms: { displayName: "Median TTFT (ms)" },
+  p99_itl_ms: { displayName: "P99 ITL (ms)" },
+  p99_tpot_ms: { displayName: "P99 TPOT (ms)" },
+  p99_ttft_ms: { displayName: "P99 TTFT (ms)" },
+  requests_per_second: { displayName: "Requests/sec" },
+  tokens_per_second: { displayName: "Tokens/sec" },
+};
+
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
     field: "extra_key.use_compile",
@@ -168,7 +185,7 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
         type: "AutoBenchmarkPairwiseTable",
         title: "Model-wise Compile Performance",
         description:
-          "Compile speedup is calculated per model by compiled vs non-compiled.",
+          "Compares compiled (use_compile=true) vs non-compiled (use_compile=false) performance for selected data. Speedup > 1 indicates compile improves performance.",
         config: {
           // Use aggregated fetcher with per-model grouping
           fetcherId: "pytroch_x_vllm_aggregated",
@@ -203,7 +220,9 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
       },
       {
         type: "AutoBenchmarkPairwiseTable",
-        title: "Raw Comparison Table",
+        title: "Detailed Metrics Comparison",
+        description:
+          "Raw benchmark metrics comparing two workflow runs. Includes latency, throughput, compilation time, and percentile metrics per model and configuration.",
         config: {
           primary: {
             fields: ["model"],
@@ -217,6 +236,7 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           comparisonPolicy: COMPARISON_POLICY_BOOK,
           renderOptions: {
+            tableRenderingBook: RAW_COMPARISON_RENDER_BOOK,
             missingText: "none",
             bothMissingText: "",
             flex: {
