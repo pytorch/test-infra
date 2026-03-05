@@ -142,7 +142,7 @@ def configure_environment(repo: str) -> bool:
     """Create/update the bedrock environment. Returns True on success."""
     if not has_admin(repo):
         print(f"  Skipping: no admin access on {repo}.")
-        print("  \033[31mAsk a repo admin to re-run this script.\033[0m")
+        print("  " + "\x1b[31m" + "Ask a repo admin to re-run this script." + "\x1b[0m")
         return False
 
     print(f"  Configuring 'bedrock' environment on {repo}...")
