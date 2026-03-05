@@ -128,7 +128,10 @@ def create_environment(repo: str) -> None:
         )
         sys.exit(1)
 
-    print(f"\nDone. 'bedrock' environment configured on {repo} with deployment restricted to main.")
+    print(
+        f"\nDone. 'bedrock' environment configured on {repo}"
+        " with deployment restricted to main."
+    )
 
 
 def reconcile_branch_policies(repo: str) -> None:
@@ -202,7 +205,10 @@ def main() -> None:
 
     if org not in ALLOWED_ORGS:
         if args.json:
-            json.dump({"error": f"org must be one of {ALLOWED_ORGS}, got '{org}'"}, sys.stdout)
+            json.dump(
+                {"error": f"org must be one of {ALLOWED_ORGS}, got '{org}'"},
+                sys.stdout,
+            )
             print()
         else:
             print(f"Error: org must be one of {ALLOWED_ORGS}, got '{org}'")
@@ -219,11 +225,17 @@ def main() -> None:
             sys.exit(1 if mismatches else 0)
 
         if not args.json:
-            print(f"'bedrock' environment already exists on {repo}. Validating settings...")
+            print(
+                f"'bedrock' environment already exists on {repo}."
+                " Validating settings..."
+            )
 
         if mismatches:
             if not args.json:
-                print("\nMismatch: existing 'bedrock' environment settings differ from expected:\n")
+                print(
+                    "\nMismatch: existing 'bedrock' environment settings"
+                    " differ from expected:\n"
+                )
                 print(f"  {'SETTING':<50} {'EXPECTED':<20} {'ACTUAL':<20}")
                 print(f"  {'-------':<50} {'--------':<20} {'------':<20}")
                 for setting, expected, actual in mismatches:
@@ -234,7 +246,10 @@ def main() -> None:
                 if not args.json:
                     print("--force specified. Overwriting remote settings...")
             else:
-                print("To overwrite remote settings with expected values, re-run with --force:")
+                print(
+                    "To overwrite remote settings with expected values,"
+                    " re-run with --force:"
+                )
                 print(f"  {sys.argv[0]} --force {repo}")
                 sys.exit(1)
         else:
