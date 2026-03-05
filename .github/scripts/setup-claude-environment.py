@@ -84,19 +84,23 @@ def validate_environment(repo: str) -> list[tuple[str, str, str]]:
     for key, expected in EXPECTED_DEPLOYMENT_BRANCH_POLICY.items():
         actual = policy.get(key)
         if actual != expected:
-            mismatches.append((
-                f"deployment_branch_policy.{key}",
-                str(expected),
-                str(actual),
-            ))
+            mismatches.append(
+                (
+                    f"deployment_branch_policy.{key}",
+                    str(expected),
+                    str(actual),
+                )
+            )
 
     actual_branches = get_branch_policies(repo)
     if actual_branches != EXPECTED_BRANCH_NAMES:
-        mismatches.append((
-            "deployment branch policies",
-            json.dumps(EXPECTED_BRANCH_NAMES),
-            json.dumps(actual_branches),
-        ))
+        mismatches.append(
+            (
+                "deployment branch policies",
+                json.dumps(EXPECTED_BRANCH_NAMES),
+                json.dumps(actual_branches),
+            )
+        )
 
     return mismatches
 
