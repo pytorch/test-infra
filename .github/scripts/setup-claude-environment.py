@@ -15,10 +15,13 @@ Prerequisites:
   - Claude GitHub App installed on the repo (fburl.com/1b49tng7)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import subprocess
 import sys
+
 
 ALLOWED_ORGS = ("pytorch", "meta-pytorch")
 
@@ -31,7 +34,10 @@ EXPECTED_BRANCH_NAMES = ["main", "refs/pull/*/merge"]
 
 
 def gh_api(
-    method: str, endpoint: str, data: dict | None = None, check: bool = False,
+    method: str,
+    endpoint: str,
+    data: dict | None = None,
+    check: bool = False,
 ) -> dict | None:
     """Call the GitHub API via gh CLI and return parsed JSON."""
     cmd = ["gh", "api", "--method", method, endpoint]
