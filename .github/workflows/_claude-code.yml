@@ -2,7 +2,7 @@ name: Claude Code (Reusable)
 # Centralized Claude Code workflow for pytorch and meta-pytorch repos.
 #
 # Onboarding a new repo:
-#   1. Run .github/scripts/setup-claude-environment.py <org/repo>
+#   1. Run pytorch/test-infra/.github/scripts/setup-claude-environment.py <org/repo>
 #   2. Add "repo:<org>/<repo>:environment:bedrock" to the OIDC subject
 #      condition on the IAM role for fbossci in configerator.
 #   3. Install the Claude GitHub App on the repo.
@@ -53,7 +53,7 @@ jobs:
         (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
       ) &&
       (
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'),
           github.event.comment.author_association || github.event.issue.author_association) ||
         github.actor == 'pytorch-auto-revert[bot]'
       )
