@@ -172,14 +172,20 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
 
   // Metric group mapping for chart grouping
   // For speedup metrics: metric_group = metric (each metric gets its own chart)
-  // For time metrics: group cold/warm together
+  // For time metrics: group compiled/non-compiled together by metric type
   private static readonly METRIC_GROUP_MAP: Record<string, string> = {
-    // Compilation time metrics - grouped together
-    geomean_avg_cold_compilation_time: "compilation_time",
-    geomean_avg_warm_compilation_time: "compilation_time",
-    // Startup time metrics - grouped together
-    geomean_avg_cold_startup_time: "startup_time",
-    geomean_avg_warm_startup_time: "startup_time",
+    // Cold Compilation time metrics - grouped together (compiled vs non-compiled)
+    geomean_avg_cold_compilation_time_compiled: "cold_compilation_time",
+    geomean_avg_cold_compilation_time_noncompiled: "cold_compilation_time",
+    // Warm Compilation time metrics - grouped together (compiled vs non-compiled)
+    geomean_avg_warm_compilation_time_compiled: "warm_compilation_time",
+    geomean_avg_warm_compilation_time_noncompiled: "warm_compilation_time",
+    // Cold Startup time metrics - grouped together (compiled vs non-compiled)
+    geomean_avg_cold_startup_time_compiled: "cold_startup_time",
+    geomean_avg_cold_startup_time_noncompiled: "cold_startup_time",
+    // Warm Startup time metrics - grouped together (compiled vs non-compiled)
+    geomean_avg_warm_startup_time_compiled: "warm_startup_time",
+    geomean_avg_warm_startup_time_noncompiled: "warm_startup_time",
   };
 
   /**
@@ -453,7 +459,7 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
   /**
    * Aggregate compilation time metrics by computing the geometric mean value
    * across all models for each workflow/metric/device/arch combination.
-   * These metrics are pass-through without compile vs non-compile comparison.
+   * Separates by compiled vs non-compiled (use_compile=true vs use_compile=false).
    */
   private aggregateCompilationTimeData(
     data: any[],
@@ -466,58 +472,93 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
       "granularity_bucket",
     ]
   ): any[] {
-    // Group by specified fields
+    // Group by specified fields AND use_compile
     const groupMap = new Map<
       string,
-      { values: number[]; template: any; models: Set<string> }
+      {
+        compiled: { values: number[]; models: Set<string> };
+        nonCompiled: { values: number[]; models: Set<string> };
+        template: any;
+      }
     >();
 
     data.forEach((d) => {
       const key = createGroupKey(d, groupByFields);
       if (!groupMap.has(key)) {
         groupMap.set(key, {
-          values: [],
+          compiled: { values: [], models: new Set() },
+          nonCompiled: { values: [], models: new Set() },
           template: { ...d },
-          models: new Set(),
         });
       }
 
       const group = groupMap.get(key)!;
-      if (d.value != null && d.value > 0) {
-        group.values.push(d.value);
-      }
-      if (d.model) {
-        group.models.add(d.model);
+      const useCompile = d.extra_key?.use_compile;
+
+      // Categorize by use_compile value
+      if (useCompile === "true" || useCompile === true) {
+        if (d.value != null && d.value > 0) {
+          group.compiled.values.push(d.value);
+        }
+        if (d.model) {
+          group.compiled.models.add(d.model);
+        }
+      } else if (useCompile === "false" || useCompile === false) {
+        if (d.value != null && d.value > 0) {
+          group.nonCompiled.values.push(d.value);
+        }
+        if (d.model) {
+          group.nonCompiled.models.add(d.model);
+        }
       }
     });
 
-    // Compute geomean for each group
+    // Compute geomean for each group, creating separate records for compiled and non-compiled
     const aggregatedData: any[] = [];
     groupMap.forEach((group) => {
-      const { values, template, models } = group;
+      const { compiled, nonCompiled, template } = group;
 
-      if (values.length === 0) {
-        return;
+      // Create record for compiled (use_compile=true)
+      if (compiled.values.length > 0) {
+        const geomeanValue = geometricMean(compiled.values);
+        const metricName = `geomean_${template.metric}_compiled`;
+        const baseRecord = buildBaseRecordFromTemplate(template, groupByFields);
+        const aggregatedRecord = {
+          ...baseRecord,
+          value: geomeanValue,
+          metric: metricName,
+          metric_group:
+            VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
+              metricName
+            ),
+          geomean_value: geomeanValue,
+          raw_values: compiled.values,
+          models: Array.from(compiled.models),
+          valid_models: Array.from(compiled.models),
+        };
+        aggregatedData.push(aggregatedRecord);
       }
 
-      // Compute geometric mean
-      const geomeanValue = geometricMean(values);
-
-      const metricName = `geomean_${template.metric}`;
-      const baseRecord = buildBaseRecordFromTemplate(template, groupByFields);
-      const aggregatedRecord = {
-        ...baseRecord,
-        value: geomeanValue,
-        metric: metricName,
-        metric_group:
-          VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),
-        geomean_value: geomeanValue,
-        raw_values: values,
-        models: Array.from(models),
-        valid_models: Array.from(models),
-      };
-
-      aggregatedData.push(aggregatedRecord);
+      // Create record for non-compiled (use_compile=false)
+      if (nonCompiled.values.length > 0) {
+        const geomeanValue = geometricMean(nonCompiled.values);
+        const metricName = `geomean_${template.metric}_noncompiled`;
+        const baseRecord = buildBaseRecordFromTemplate(template, groupByFields);
+        const aggregatedRecord = {
+          ...baseRecord,
+          value: geomeanValue,
+          metric: metricName,
+          metric_group:
+            VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(
+              metricName
+            ),
+          geomean_value: geomeanValue,
+          raw_values: nonCompiled.values,
+          models: Array.from(nonCompiled.models),
+          valid_models: Array.from(nonCompiled.models),
+        };
+        aggregatedData.push(aggregatedRecord);
+      }
     });
 
     return aggregatedData;

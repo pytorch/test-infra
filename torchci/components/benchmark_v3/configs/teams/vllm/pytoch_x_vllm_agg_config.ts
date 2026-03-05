@@ -36,11 +36,16 @@ export const PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY = {
   median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
   median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
   tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-  // Time metrics (lower is better) - geomean
-  geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
-  geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
-  geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
-  geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
+  // Time metrics (lower is better) - geomean, compiled
+  geomean_avg_cold_compilation_time_compiled: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_compilation_time_compiled: TIME_COMPARISON_POLICY,
+  geomean_avg_cold_startup_time_compiled: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_startup_time_compiled: TIME_COMPARISON_POLICY,
+  // Time metrics (lower is better) - geomean, noncompiled
+  geomean_avg_cold_compilation_time_noncompiled: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_compilation_time_noncompiled: TIME_COMPARISON_POLICY,
+  geomean_avg_cold_startup_time_noncompiled: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_startup_time_noncompiled: TIME_COMPARISON_POLICY,
 };
 
 export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
@@ -70,16 +75,26 @@ export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
     description:
       "Speedup ratio of token generation throughput with torch.compile enabled vs disabled. Value > 1 means compile improves performance.",
   },
-  // Grouped metric titles (cold + warm in same chart)
-  compilation_time: {
-    text: "Geomean Compilation Time (lower is better)",
+  // Grouped metric titles (compiled vs noncompiled in same chart)
+  cold_compilation_time: {
+    text: "Geomean Cold Compilation Time (lower is better)",
     description:
-      "Geometric mean of torch.compile compilation time across models. Cold = first compilation without cache. Warm = compilation with cache available.",
+      "Geometric mean of torch.compile cold compilation time across models. Compares compiled vs non-compiled. Cold = first compilation without cache.",
   },
-  startup_time: {
-    text: "Geomean Startup Time (lower is better)",
+  warm_compilation_time: {
+    text: "Geomean Warm Compilation Time (lower is better)",
     description:
-      "Geometric mean of total model startup time across models. Cold = first startup without cache. Warm = startup with cache available.",
+      "Geometric mean of torch.compile warm compilation time across models. Compares compiled vs non-compiled. Warm = compilation with cache available.",
+  },
+  cold_startup_time: {
+    text: "Geomean Cold Startup Time (lower is better)",
+    description:
+      "Geometric mean of model cold startup time across models. Compares compiled vs non-compiled. Cold = first startup without cache.",
+  },
+  warm_startup_time: {
+    text: "Geomean Warm Startup Time (lower is better)",
+    description:
+      "Geometric mean of model warm startup time across models. Compares compiled vs non-compiled. Warm = startup with cache available.",
   },
 };
 
@@ -112,22 +127,40 @@ export const PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK = {
   geomean_non_compiled: {
     displayName: "Non-compiled Geomean",
   },
-  // Compilation time metrics (geomean)
-  geomean_avg_cold_compilation_time: {
-    displayName: "Geomean Cold Compilation",
+  // Cold Compilation time metrics (geomean) - compiled vs noncompiled
+  geomean_avg_cold_compilation_time_compiled: {
+    displayName: "Cold Compilation (compiled)",
     unit: { type: "time", unit: "s" },
   },
-  geomean_avg_warm_compilation_time: {
-    displayName: "Geomean Warm Compilation",
+  geomean_avg_cold_compilation_time_noncompiled: {
+    displayName: "Cold Compilation (noncompiled)",
     unit: { type: "time", unit: "s" },
   },
-  // Startup time metrics (geomean)
-  geomean_avg_cold_startup_time: {
-    displayName: "Geomean Cold Startup",
+  // Warm Compilation time metrics (geomean) - compiled vs noncompiled
+  geomean_avg_warm_compilation_time_compiled: {
+    displayName: "Warm Compilation (compiled)",
     unit: { type: "time", unit: "s" },
   },
-  geomean_avg_warm_startup_time: {
-    displayName: "Geomean Warm Startup",
+  geomean_avg_warm_compilation_time_noncompiled: {
+    displayName: "Warm Compilation (noncompiled)",
+    unit: { type: "time", unit: "s" },
+  },
+  // Cold Startup time metrics (geomean) - compiled vs noncompiled
+  geomean_avg_cold_startup_time_compiled: {
+    displayName: "Cold Startup (compiled)",
+    unit: { type: "time", unit: "s" },
+  },
+  geomean_avg_cold_startup_time_noncompiled: {
+    displayName: "Cold Startup (noncompiled)",
+    unit: { type: "time", unit: "s" },
+  },
+  // Warm Startup time metrics (geomean) - compiled vs noncompiled
+  geomean_avg_warm_startup_time_compiled: {
+    displayName: "Warm Startup (compiled)",
+    unit: { type: "time", unit: "s" },
+  },
+  geomean_avg_warm_startup_time_noncompiled: {
+    displayName: "Warm Startup (noncompiled)",
     unit: { type: "time", unit: "s" },
   },
 };
