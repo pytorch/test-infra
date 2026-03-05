@@ -185,7 +185,7 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
         type: "AutoBenchmarkPairwiseTable",
         title: "Model-wise Compile Performance",
         description:
-          "Compares compiled (use_compile=true) vs non-compiled (use_compile=false) performance for selected data. Speedup > 1 indicates compile improves performance.",
+          "Compares compiled vs non-compiled performance for selected benchmark data. Speedup > 1 indicates compile improves performance.",
         config: {
           // Use aggregated fetcher with per-model grouping
           fetcherId: "pytroch_x_vllm_aggregated",
