@@ -4,38 +4,33 @@
 # dependencies = []
 # ///
 """
-Sets up a repository for Claude Code: creates the 'bedrock' GitHub environment,
-generates the caller workflow file, and prints remaining manual steps.
+Sets up a repository for Claude Code: configures the GitHub environment,
+generates the caller workflow, and prints remaining steps.
 
 Run from inside the repo you want to set up:
   cd /path/to/my-repo
   uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py
 
 Requires uv >= 0.5.0 for the URL form.
-
-Prerequisites:
-  - gh CLI authenticated (admin access needed for environment setup)
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-
 ALLOWED_ORGS = ("pytorch", "meta-pytorch")
 
-EXPECTED_DEPLOYMENT_BRANCH_POLICY = {
+BRANCH_POLICY = {
     "protected_branches": False,
     "custom_branch_policies": True,
 }
 
-EXPECTED_BRANCH_NAMES = ["main"]
+ALLOWED_BRANCHES = ["main"]
 
-CALLER_WORKFLOW = """\
+WORKFLOW = """\
 name: Claude Code
 
 on:
@@ -57,402 +52,200 @@ jobs:
 """
 
 
-def gh_api(
-    method: str,
-    endpoint: str,
-    data: dict | None = None,
-    check: bool = False,
-) -> dict | None:
-    """Call the GitHub API via gh CLI and return parsed JSON."""
+# ── Helpers ──────────────────────────────────────────────────
+
+
+def die(msg: str) -> None:
+    print(f"Error: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def gh(method: str, endpoint: str, data: dict | None = None) -> dict | None:
+    """Call the GitHub API via gh CLI. Returns None on failure."""
     cmd = ["gh", "api", "--method", method, endpoint]
     if data is not None:
         cmd.extend(["--input", "-"])
-    result = subprocess.run(
+    r = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
         input=json.dumps(data) if data else None,
     )
-    if result.returncode != 0:
-        if check:
-            print(
-                f"Error: gh api {method} {endpoint} failed:",
-                file=sys.stderr,
-            )
-            print(result.stderr, file=sys.stderr)
-            sys.exit(1)
+    if r.returncode != 0:
         return None
-    if not result.stdout.strip():
-        return {}
-    return json.loads(result.stdout)
+    return json.loads(r.stdout) if r.stdout.strip() else {}
 
 
 def detect_repo() -> str:
-    """Detect org/repo from git remote origin in cwd."""
-    result = subprocess.run(
+    """Detect org/repo from git remote origin."""
+    r = subprocess.run(
         ["git", "remote", "get-url", "origin"],
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
-        print(
-            "Error: not a git repository or no 'origin' remote.\n"
-            "Run this script from inside the repo you want to set up.",
-            file=sys.stderr,
+    if r.returncode != 0:
+        die(
+            "not a git repository or no 'origin' remote.\n"
+            "Run this from inside the repo you want to set up."
         )
-        sys.exit(1)
-    url = result.stdout.strip()
-    # Handle SSH (git@github.com:org/repo.git) and HTTPS
+    url = r.stdout.strip()
     for prefix in ("git@github.com:", "https://github.com/"):
         if url.startswith(prefix):
             return url[len(prefix) :].removesuffix(".git")
-    print(f"Error: could not parse GitHub repo from remote URL: {url}", file=sys.stderr)
-    sys.exit(1)
+    die(f"could not parse GitHub repo from: {url}")
 
 
-def get_environment(repo: str) -> dict | None:
-    return gh_api("GET", f"repos/{repo}/environments/bedrock")
+def has_admin(repo: str) -> bool:
+    resp = gh("GET", f"repos/{repo}")
+    return bool((resp or {}).get("permissions", {}).get("admin"))
+
+
+# ── Environment ──────────────────────────────────────────────
 
 
 def get_branch_policies(repo: str) -> list[str]:
-    endpoint = (
-        f"repos/{repo}/environments/bedrock/deployment-branch-policies"
-    )
-    resp = gh_api("GET", endpoint)
+    ep = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
+    resp = gh("GET", ep)
     if not resp:
         return []
-    return sorted(
-        p["name"] for p in resp.get("branch_policies", [])
-    )
+    return sorted(p["name"] for p in resp.get("branch_policies", []))
 
 
-def validate_environment(repo: str) -> list[tuple[str, str, str]]:
-    """Returns list of (setting, expected, actual) mismatches."""
-    env = get_environment(repo)
+def check_environment(repo: str) -> list[tuple[str, str, str]]:
+    """Return list of (setting, expected, actual) mismatches."""
+    env = gh("GET", f"repos/{repo}/environments/bedrock")
     if env is None:
-        return []  # doesn't exist, nothing to validate
+        return [("environment", "exists", "missing")]
 
     mismatches = []
     policy = env.get("deployment_branch_policy", {})
-
-    for key, expected in EXPECTED_DEPLOYMENT_BRANCH_POLICY.items():
+    for key, expected in BRANCH_POLICY.items():
         actual = policy.get(key)
         if actual != expected:
             mismatches.append(
-                (
-                    f"deployment_branch_policy.{key}",
-                    str(expected),
-                    str(actual),
-                )
+                (f"deployment_branch_policy.{key}", str(expected), str(actual))
             )
 
     actual_branches = get_branch_policies(repo)
-    if actual_branches != EXPECTED_BRANCH_NAMES:
+    if actual_branches != ALLOWED_BRANCHES:
         mismatches.append(
             (
-                "deployment branch policies",
-                json.dumps(EXPECTED_BRANCH_NAMES),
+                "branch_policies",
+                json.dumps(ALLOWED_BRANCHES),
                 json.dumps(actual_branches),
             )
         )
-
     return mismatches
 
 
-def check_admin(repo: str) -> None:
-    """Verify we have admin access, required for environment management."""
-    resp = gh_api("GET", f"repos/{repo}", check=True)
-    perms = (resp or {}).get("permissions", {})
-    if not perms.get("admin"):
+def configure_environment(repo: str) -> bool:
+    """Create/update the bedrock environment. Returns True on success."""
+    if not has_admin(repo):
         print(
-            f"Error: admin access required on {repo}"
-            " to manage environments.\n"
-            f"Current permissions: {json.dumps(perms)}",
-            file=sys.stderr,
+            f"  Skipping: no admin access on {repo}.\n"
+            "  Ask a repo admin to re-run this script."
         )
-        sys.exit(1)
-
-
-def create_environment(repo: str) -> None:
-    print(f"Configuring 'bedrock' environment on {repo}...")
-
-    check_admin(repo)
-
-    gh_api(
-        "PUT",
-        f"repos/{repo}/environments/bedrock",
-        {
-            "deployment_branch_policy": EXPECTED_DEPLOYMENT_BRANCH_POLICY,
-        },
-        check=True,
-    )
-
-    reconcile_branch_policies(repo)
-
-    # Verify the final state
-    final_branches = get_branch_policies(repo)
-    if final_branches != EXPECTED_BRANCH_NAMES:
-        print(
-            f"\nWarning: verification failed."
-            f" Expected {EXPECTED_BRANCH_NAMES},"
-            f" got {final_branches}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    print(
-        f"\nDone. 'bedrock' environment configured on {repo}"
-        " with deployment restricted to main."
-    )
-
-
-def reconcile_branch_policies(repo: str) -> None:
-    """Add missing and remove unexpected branch policies."""
-    endpoint = (
-        f"repos/{repo}/environments/bedrock/deployment-branch-policies"
-    )
-    resp = gh_api("GET", endpoint)
-    existing = {
-        p["name"]: p["id"]
-        for p in (resp or {}).get("branch_policies", [])
-    }
-    expected = set(EXPECTED_BRANCH_NAMES)
-
-    # Remove policies that shouldn't be there
-    for name, policy_id in existing.items():
-        if name not in expected:
-            print(f"  Removing unexpected branch policy: {name}")
-            policy_ep = f"{endpoint}/{policy_id}"
-            gh_api("DELETE", policy_ep, check=True)
-
-    # Add policies that are missing
-    for name in expected:
-        if name not in existing:
-            print(f"  Adding branch policy: {name}")
-            gh_api(
-                "POST",
-                endpoint,
-                {"name": name, "type": "branch"},
-                check=True,
-            )
-
-
-def create_workflow_file() -> bool:
-    """Create .github/workflows/claude-code.yml if it doesn't exist.
-
-    Returns True if the file was created, False if it already existed.
-    """
-    workflow_path = Path(".github/workflows/claude-code.yml")
-    if workflow_path.exists():
-        print(f"  {workflow_path} already exists, skipping.")
         return False
 
-    workflow_path.parent.mkdir(parents=True, exist_ok=True)
-    workflow_path.write_text(CALLER_WORKFLOW)
-    print(f"  Created {workflow_path}")
+    print(f"  Configuring 'bedrock' environment on {repo}...")
+    resp = gh(
+        "PUT",
+        f"repos/{repo}/environments/bedrock",
+        {"deployment_branch_policy": BRANCH_POLICY},
+    )
+    if resp is None:
+        die("failed to create/update environment")
+
+    # Reconcile branch policies
+    ep = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
+    existing = {
+        p["name"]: p["id"]
+        for p in (gh("GET", ep) or {}).get("branch_policies", [])
+    }
+    for name, pid in existing.items():
+        if name not in ALLOWED_BRANCHES:
+            print(f"    Removing branch policy: {name}")
+            gh("DELETE", f"{ep}/{pid}")
+    for name in ALLOWED_BRANCHES:
+        if name not in existing:
+            print(f"    Adding branch policy: {name}")
+            gh("POST", ep, {"name": name, "type": "branch"})
+
+    print("  Done.")
     return True
 
 
-def build_result(
-    repo: str,
-    env: dict | None,
-    mismatches: list[tuple[str, str, str]],
-) -> dict:
-    """Build a structured result dict for JSON output."""
-    exists = env is not None
-    actual_policy = (
-        env.get("deployment_branch_policy", {}) if env else None
-    )
-    actual_branches = get_branch_policies(repo) if exists else None
+# ── Workflow file ────────────────────────────────────────────
 
-    result: dict = {
-        "repo": repo,
-        "environment": "bedrock",
-        "exists": exists,
-        "valid": exists and len(mismatches) == 0,
-        "expected": {
-            "deployment_branch_policy": EXPECTED_DEPLOYMENT_BRANCH_POLICY,
-            "branch_policies": EXPECTED_BRANCH_NAMES,
-        },
-    }
-    if exists:
-        result["actual"] = {
-            "deployment_branch_policy": actual_policy,
-            "branch_policies": actual_branches,
-        }
-    if mismatches:
-        result["mismatches"] = [
-            {"setting": s, "expected": e, "actual": a}
-            for s, e, a in mismatches
-        ]
-    return result
+
+def create_workflow() -> bool:
+    """Create .github/workflows/claude-code.yml. Returns True if created."""
+    path = Path(".github/workflows/claude-code.yml")
+    if path.exists():
+        print(f"  {path} already exists, skipping.")
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(WORKFLOW)
+    print(f"  Created {path}")
+    return True
+
+
+# ── Main ─────────────────────────────────────────────────────
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Setup a repo for Claude Code: creates the bedrock"
-            " environment and caller workflow."
-        ),
-    )
-    parser.add_argument(
-        "--force", action="store_true", help=argparse.SUPPRESS
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output result as JSON",
-    )
-    args = parser.parse_args()
+    force = "--force" in sys.argv
 
     repo = detect_repo()
     org = repo.split("/")[0]
-
     if org not in ALLOWED_ORGS:
-        if args.json:
-            json.dump(
-                {
-                    "error": (
-                        f"org must be one of {ALLOWED_ORGS},"
-                        f" got '{org}'"
-                    )
-                },
-                sys.stdout,
-            )
-            print()
-        else:
-            print(
-                f"Error: org must be one of {ALLOWED_ORGS},"
-                f" got '{org}'"
-            )
-        sys.exit(1)
+        die(f"org must be one of {ALLOWED_ORGS}, got '{org}'")
 
-    # --- Environment setup (best-effort) ---
-    env_ok = False
-    env = get_environment(repo)
+    print(f"Setting up Claude Code for {repo}\n")
 
-    if env is not None:
-        mismatches = validate_environment(repo)
-
-        if args.json and not args.force:
-            json.dump(
-                build_result(repo, env, mismatches),
-                sys.stdout,
-                indent=2,
-            )
-            print()
-            # Don't exit — still create workflow below
-
-        if not args.json:
-            print(
-                f"'bedrock' environment already exists on {repo}."
-                " Validating settings..."
-            )
-
-        if mismatches:
-            if not args.json:
-                print(
-                    "\nMismatch: existing 'bedrock' environment"
-                    " settings differ from expected:\n"
-                )
-                print(
-                    f"  {'SETTING':<50}"
-                    f" {'EXPECTED':<20}"
-                    f" {'ACTUAL':<20}"
-                )
-                print(
-                    f"  {'-------':<50}"
-                    f" {'--------':<20}"
-                    f" {'------':<20}"
-                )
-                for setting, expected, actual in mismatches:
-                    print(
-                        f"  {setting:<50}"
-                        f" {expected:<20}"
-                        f" {actual:<20}"
-                    )
-                print()
-
-            if args.force:
-                if not args.json:
-                    print(
-                        "--force specified."
-                        " Overwriting remote settings..."
-                    )
-                create_environment(repo)
-                env_ok = True
-            else:
-                print(
-                    "To overwrite remote settings with"
-                    " expected values, re-run with --force:"
-                )
-                print(f"  {sys.argv[0]} --force")
-        else:
-            env_ok = True
-            if not args.json:
-                print("Settings match. Nothing to do.")
+    # 1. Environment
+    print("[1/2] GitHub environment")
+    mismatches = check_environment(repo)
+    if not mismatches:
+        print("  bedrock environment OK.")
+        env_ok = True
+    elif force or mismatches == [("environment", "exists", "missing")]:
+        env_ok = configure_environment(repo)
     else:
-        # Try to create, but don't bail if no admin access
-        resp = gh_api("GET", f"repos/{repo}", check=True)
-        perms = (resp or {}).get("permissions", {})
-        if perms.get("admin"):
-            create_environment(repo)
-            env_ok = True
-        else:
-            print(
-                f"Warning: no admin access on {repo},"
-                " skipping environment setup.\n"
-                "  Ask a repo admin to run this script,"
-                " or create the 'bedrock' environment manually."
-            )
+        print("  Mismatch in bedrock environment settings:")
+        for setting, expected, actual in mismatches:
+            print(f"    {setting}: expected={expected} actual={actual}")
+        print(f"\n  Re-run with --force to overwrite.")
+        env_ok = False
 
-    # --- Always create the caller workflow file ---
-    created = create_workflow_file()
+    # 2. Workflow file
+    print("\n[2/2] Workflow file")
+    created = create_workflow()
 
-    # --- Summary ---
-    if args.json:
-        env_now = get_environment(repo)
-        result = build_result(repo, env_now, [])
-        result["workflow_created"] = created
-        result["environment_configured"] = env_ok
-        json.dump(result, sys.stdout, indent=2)
-        print()
-    else:
-        done = "done" if env_ok else "NEEDS ACTION"
-        wf = "done" if not created else "CREATED — commit and push"
-        print(f"\nSetup status for {repo}:")
-        print(f"  bedrock environment: {done}")
-        print(f"  .github/workflows/claude-code.yml: {wf}")
-
-        print("\nRemaining steps:")
-        step = 0
-        if not env_ok:
-            step += 1
-            print(
-                f"  {step}. Configure the 'bedrock' environment"
-                " (requires repo admin).\n"
-                "     Re-run this script with admin access."
-            )
-        step += 1
-        print(
-            f"  {step}. Add 'repo:{repo}:environment:bedrock'"
-            " to the OIDC subject condition\n"
-            "     on the IAM role for fbossci"
-            " in configerator."
+    # Summary
+    print(f"\n{'─' * 50}")
+    steps = []
+    if not env_ok:
+        steps.append(
+            "Configure the 'bedrock' environment (requires admin)."
         )
-        step += 1
-        print(
-            f"  {step}. Install the Claude GitHub App"
-            " on the repo: https://github.com/apps/claude"
+    steps.append(
+        f"Add 'repo:{repo}:environment:bedrock' to the OIDC"
+        " trust policy in configerator."
+    )
+    steps.append(
+        "Install Claude GitHub App: https://github.com/apps/claude"
+    )
+    steps.append("Add a CLAUDE.md to the repo.")
+    if created:
+        steps.append(
+            "Commit and push .github/workflows/claude-code.yml."
         )
-        step += 1
-        print(f"  {step}. Add a CLAUDE.md to the repo.")
-        if created:
-            step += 1
-            print(
-                f"  {step}. Commit and push the generated"
-                " .github/workflows/claude-code.yml."
-            )
+
+    if steps:
+        print("Remaining steps:")
+        for i, s in enumerate(steps, 1):
+            print(f"  {i}. {s}")
 
 
 if __name__ == "__main__":
