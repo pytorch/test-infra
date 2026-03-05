@@ -1,13 +1,14 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import { PYTORCH_X_VLLM_BENCHMARK_ID } from "./pytorch_x_vllm_config";
 
 export const PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID =
   "pytroch_x_vllm_aggregated";
 
 // Speedup metrics policy (higher is better)
 // Regression if new value < 95% of old value
-const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+export const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "speedup",
   type: "ratio",
   ratioPolicy: {
@@ -19,7 +20,7 @@ const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
 
 // Time metrics policy (lower is better)
 // Regression if new value > 115% of old value
-const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+export const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "time",
   type: "ratio",
   ratioPolicy: {
@@ -29,7 +30,21 @@ const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
-const TITLE_GROUP_MAPPING = {
+export const PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY = {
+        // Speedup metrics (higher is better)
+        latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+        median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+              // Time metrics (lower is better) - geomean
+              geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
+              geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
+              geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
+              geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
+          }
+
+export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
   // Speedup metrics (each gets its own chart)
   latency_compile_speedup: {
     text: "Latency Compile Speedup (higher is better)",
@@ -69,7 +84,7 @@ const TITLE_GROUP_MAPPING = {
   },
 };
 
-const RENDER_BOOK = {
+export const PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK = {
   // Speedup metrics
   latency_compile_speedup: {
     displayName: "Latency Speedup",
@@ -156,13 +171,13 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
                 id: "VllmPrecomputeConfirmDialogContent",
               },
               renderOptions: {
-                chartRenderBook: RENDER_BOOK,
+                chartRenderBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
                 showLegendDetails: true,
                 additionalMetadataList: [
                   "geomean_compiled",
                   "geomean_non_compiled",
                 ],
-                title_group_mapping: TITLE_GROUP_MAPPING,
+                title_group_mapping: PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
               },
             },
           },
@@ -187,23 +202,11 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             },
             enableDialog: true,
             targetField: "metric",
-            comparisonPolicy: {
-              // Speedup metrics (higher is better)
-              latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              // Time metrics (lower is better) - geomean
-              geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
-            },
+              comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
             renderOptions: {
-              tableRenderingBook: RENDER_BOOK,
+              tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
               renderMissing: true,
-              title_group_mapping: TITLE_GROUP_MAPPING,
+              title_group_mapping: PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
             },
           },
         },

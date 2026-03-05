@@ -4,6 +4,7 @@ import {
   BRANCH_METADATA_COLUMN,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
+import { PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY, PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK } from "./pytoch_x_vllm_agg_config";
 
 export const PYTORCH_X_VLLM_BENCHMARK_ID = "pytorch_x_vllm_benchmark";
 
@@ -163,10 +164,9 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
             "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         },
       },
-
       {
         type: "AutoBenchmarkPairwiseTable",
-        title: "Comparison Table",
+        title: "Raw Comparison Table",
         config: {
           primary: {
             fields: ["model"],
@@ -180,6 +180,51 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           comparisonPolicy: COMPARISON_POLICY_BOOK,
           renderOptions: {
+            missingText: "none",
+            bothMissingText: "",
+            flex: {
+              primary: 2,
+            },
+          },
+        },
+      },
+      {
+        type: "AutoBenchmarkPairwiseTable",
+        title: "Per-Model Compile Speedup",
+        config: {
+          // Use aggregated fetcher with per-model grouping
+          fetcherId: "pytroch_x_vllm_aggregated",
+          groupByFields: [
+            "workflow_id",
+            "metric",
+            "device",
+            "arch",
+            "branch",
+            "granularity_bucket",
+            "model",
+          ],
+          primary: {
+            fields: ["model"],
+            displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model", "device", "arch"],
+            },
+          },
+          extraMetadata: [
+            {
+              field: "device",
+              displayName: "Hardware type",
+            },
+            {
+              field: "arch",
+              displayName: "Hardware model",
+            },
+          ],
+          comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
+          renderOptions: {
+            tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
             missingText: "none",
             bothMissingText: "",
             flex: {

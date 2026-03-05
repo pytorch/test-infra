@@ -115,7 +115,11 @@ async function getGenernalBenchmarkTimeSeries(
   }
   const fetcher = getBenchmarkDataFetcher(id);
   const result = await fetcher.applyQuery(params);
-  return fetcher.applyFormat(result, formats);
+
+  // Pass groupByFields if provided in query_params
+  const groupByFields = query_params.groupByFields;
+  console.log("[DEBUG] getGenernalBenchmarkTimeSeries - groupByFields:", groupByFields);
+  return fetcher.applyFormat(result, formats, true, groupByFields);
 }
 
 export async function getGeneralBenchmarkTimeRangeQueryParams(

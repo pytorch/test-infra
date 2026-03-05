@@ -56,12 +56,14 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   });
 
   const queryParams: any | null = ready ? params : null;
+  // Use fetcherId from config if provided, otherwise use ctx.benchmarkId
+  const fetcherId = uiRenderConfig.config?.fetcherId ?? ctx.benchmarkId;
   // fetch the bechmark data
   const {
     data: resp,
     isLoading,
     error,
-  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+  } = useBenchmarkTimeSeriesData(fetcherId, queryParams, ["table"]);
 
   const subrenders = ctx.config.raw.dataRender.subSectionRenders;
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
@@ -193,7 +195,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
       : [];
 
   // convert to the query params
-  const params = dataBinding.toQueryParams({
+  const baseParams = dataBinding.toQueryParams({
     repo: ctx.repo,
     branches: branches,
     benchmarkName: ctx.benchmarkName,
@@ -202,6 +204,12 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     maxSampling: ctx.committedMaxSampling,
     workflows,
   });
+
+  // Add groupByFields separately (not processed by toQueryParams)
+  const params = {
+    ...baseParams,
+    groupByFields: uiRenderConfig.config?.groupByFields,
+  };
 
   const subrenders = ctx.config.raw.dataRender.subSectionRenders;
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
@@ -252,12 +260,14 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   };
 
   const queryParams: any | null = ready ? params : null;
+  // Use fetcherId from config if provided, otherwise use ctx.benchmarkId
+  const fetcherId = uiRenderConfig.config?.fetcherId ?? ctx.benchmarkId;
   // fetch the bechmark data
   const {
     data: resp,
     isLoading,
     error,
-  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+  } = useBenchmarkTimeSeriesData(fetcherId, queryParams, ["table"]);
 
   if (!ready && !timedOut) {
     return (
@@ -294,7 +304,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     return <div>no data</div>;
   }
 
-  const data = resp?.data?.data;
+    const data = resp?.data?.data;
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
