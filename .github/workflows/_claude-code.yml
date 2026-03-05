@@ -1,6 +1,12 @@
 name: Claude Code (Reusable)
 # Centralized Claude Code workflow for pytorch and meta-pytorch repos.
-# Setup: .github/scripts/setup-claude-environment.py
+#
+# Onboarding a new repo:
+#   1. Run .github/scripts/setup-claude-environment.py <org/repo>
+#   2. Add "repo:<org>/<repo>:environment:bedrock" to the OIDC subject
+#      condition on the IAM role for fbossci in configerator.
+#   3. Install the Claude GitHub App on the repo.
+#   4. Add CLAUDE.md and a caller workflow to the repo.
 
 on:
   workflow_call:

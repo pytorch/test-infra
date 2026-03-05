@@ -284,11 +284,10 @@ def main() -> None:
     else:
         print(f"""
 Remaining manual steps:
-  1. Add 'repo:{repo}:environment:bedrock' to the IAM trust policy in configerator
-     File: raw_configs/cloud/strata/fbossci/iam/main.tf
-     Then: cloud tf plan fbossci --strata iam --configerator-root ~/configerator/
-  2. Install Claude GitHub App on the repo: fburl.com/1b49tng7
-  3. Add CLAUDE.md and .github/workflows/claude-code.yml to the repo""")
+  1. Add 'repo:{repo}:environment:bedrock' to the OIDC subject condition
+     on the IAM role for fbossci in configerator.
+  2. Install the Claude GitHub App on the repo.
+  3. Add CLAUDE.md and .github/workflows/claude-code.yml to the repo.""")
 
 
 if __name__ == "__main__":
