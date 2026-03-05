@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["requests"]
+# dependencies = []
 # ///
 """
 Sets up a repository for Claude Code: creates the 'bedrock' GitHub environment,
@@ -14,15 +14,13 @@ Run from inside the repo you want to set up:
 Requires uv >= 0.5.0 for the URL form.
 
 Prerequisites:
-  - gh CLI authenticated with admin access to the target repo
-  - Claude GitHub App installed on the repo (https://github.com/apps/claude)
+  - gh CLI authenticated (admin access needed for environment setup)
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -388,7 +386,7 @@ def main() -> None:
                     "To overwrite remote settings with"
                     " expected values, re-run with --force:"
                 )
-                print(f"  {sys.argv[0]} --force {repo}")
+                print(f"  {sys.argv[0]} --force")
         else:
             env_ok = True
             if not args.json:
