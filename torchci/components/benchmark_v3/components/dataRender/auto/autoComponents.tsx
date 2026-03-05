@@ -143,6 +143,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
           rWorkflowId={ctx.rcommit?.workflow_id ?? null}
           title={{
             text: uiRenderConfig?.title ?? "Comparison Table",
+            description: uiRenderConfig?.description,
           }}
           onSelect={() => {}}
           onPrimaryFieldSelect={onPrimaryFieldSelect}
@@ -315,6 +316,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
           rWorkflowId={ctx.rcommit?.workflow_id ?? null}
           title={{
             text: uiRenderConfig?.title ?? "Comparison Table",
+            description: uiRenderConfig?.description,
           }}
           onSelect={() => {}}
           onPrimaryFieldSelect={onPrimaryFieldSelect}

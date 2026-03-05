@@ -292,6 +292,19 @@ export class VllmBenchmarkMetadataFetcher
 
   postProcess(data: any[]) {
     let li = getDefaultBenchmarkMetadataGroup(data);
+
+    // Remove the default "all" option for device
+    const deviceItem = li.find(
+      (item) => item.type === BenchmarkMetadataType.DeviceName
+    );
+    if (deviceItem && deviceItem.options.length > 0) {
+      // Remove the first option (default option with empty value)
+      deviceItem.options = deviceItem.options.filter((opt) => opt.value !== "");
+      // Set initial value to first available option if exists
+      if (deviceItem.options.length > 0) {
+        deviceItem.initialValue = deviceItem.options[0].value;
+      }
+    }
     const item = makeMetadataItem(
       data,
       "model_category",

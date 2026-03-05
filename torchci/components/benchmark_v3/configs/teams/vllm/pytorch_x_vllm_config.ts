@@ -34,14 +34,6 @@ const COMPARISON_POLICY_BOOK = {
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-    field: "device",
-    displayName: "Hardware type",
-  },
-  {
-    field: "arch",
-    displayName: "Hardware model",
-  },
-  {
     field: "extra_key.use_compile",
     displayName: "Use Compile",
   },
@@ -72,6 +64,11 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
     initial: {
       ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
       benchmarkId: PYTORCH_X_VLLM_BENCHMARK_ID,
+      filters: {
+        device: "cuda",
+        arch: "NVIDIA B200",
+        deviceName: "cuda||NVIDIA H100 80GB HBM3",
+      },
     },
     required_filter_fields: [],
   },
@@ -164,36 +161,14 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
         type: "AutoBenchmarkMarkDownContent",
         config: {
           content:
-            "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+            "The data is generated based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         },
       },
       {
         type: "AutoBenchmarkPairwiseTable",
-        title: "Raw Comparison Table",
-        config: {
-          primary: {
-            fields: ["model"],
-            displayName: "Model",
-            navigation: {
-              type: "subSectionRender",
-              value: "detail_view",
-              applyFilterFields: ["model", "device", "arch"],
-            },
-          },
-          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
-          comparisonPolicy: COMPARISON_POLICY_BOOK,
-          renderOptions: {
-            missingText: "none",
-            bothMissingText: "",
-            flex: {
-              primary: 2,
-            },
-          },
-        },
-      },
-      {
-        type: "AutoBenchmarkPairwiseTable",
-        title: "Per-Model Compile Speedup",
+        title: "Model-wise Compile Performance",
+        description:
+          "Compile speedup is calculated per model by compiled vs non-compiled.",
         config: {
           // Use aggregated fetcher with per-model grouping
           fetcherId: "pytroch_x_vllm_aggregated",
@@ -215,19 +190,33 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
               applyFilterFields: ["model", "device", "arch"],
             },
           },
-          extraMetadata: [
-            {
-              field: "device",
-              displayName: "Hardware type",
-            },
-            {
-              field: "arch",
-              displayName: "Hardware model",
-            },
-          ],
           comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
           renderOptions: {
             tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
+            missingText: "none",
+            bothMissingText: "",
+            flex: {
+              primary: 2,
+            },
+          },
+        },
+      },
+      {
+        type: "AutoBenchmarkPairwiseTable",
+        title: "Raw Comparison Table",
+        config: {
+          primary: {
+            fields: ["model"],
+            displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model", "device", "arch"],
+            },
+          },
+          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+          comparisonPolicy: COMPARISON_POLICY_BOOK,
+          renderOptions: {
             missingText: "none",
             bothMissingText: "",
             flex: {

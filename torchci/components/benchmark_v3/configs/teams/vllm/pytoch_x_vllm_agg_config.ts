@@ -107,20 +107,20 @@ export const PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK = {
   },
   // Compilation time metrics (geomean)
   geomean_avg_cold_compilation_time: {
-    displayName: "Cold Compilation",
+    displayName: "Geomean Cold Compilation",
     unit: { type: "time", unit: "s" },
   },
   geomean_avg_warm_compilation_time: {
-    displayName: "Warm Compilation",
+    displayName: "Geomean Warm Compilation",
     unit: { type: "time", unit: "s" },
   },
   // Startup time metrics (geomean)
   geomean_avg_cold_startup_time: {
-    displayName: "Cold Startup",
+    displayName: "Geomean Cold Startup",
     unit: { type: "time", unit: "s" },
   },
   geomean_avg_warm_startup_time: {
-    displayName: "Warm Startup",
+    displayName: "Geomean Warm Startup",
     unit: { type: "time", unit: "s" },
   },
 };
@@ -137,8 +137,8 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
       benchmarkId: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
       filters: {
         device: "cuda",
-        arch: "NVIDIA H100 80GB HBM3",
-        deviceName: "cuda||NVIDIA H100 80GB HBM3",
+        arch: "NVIDIA B200",
+        deviceName: "cuda||NVIDIA B200",
       },
     },
     required_filter_fields: [],

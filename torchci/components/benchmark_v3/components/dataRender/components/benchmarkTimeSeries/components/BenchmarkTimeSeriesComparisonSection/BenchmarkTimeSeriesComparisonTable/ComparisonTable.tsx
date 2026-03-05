@@ -101,7 +101,9 @@ export function ComparisonTable({
     <Box>
       <Typography variant="h6">{title.text}</Typography>
       {title.description && (
-        <Typography variant="body2">{title.description}</Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          {title.description}
+        </Typography>
       )}
       <Typography variant="body2">
         {lWorkflowId} - {rWorkflowId}
