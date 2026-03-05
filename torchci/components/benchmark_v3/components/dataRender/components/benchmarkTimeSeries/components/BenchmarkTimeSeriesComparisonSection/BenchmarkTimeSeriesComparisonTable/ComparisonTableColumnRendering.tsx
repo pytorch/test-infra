@@ -22,8 +22,7 @@ import {
   getBenchmarkTimeSeriesComparisonTableTarget,
   renderBasedOnUnitConifg,
 } from "../../../helper";
-import { displayNameOf, valOf } from "./ComparisonTableHelpers";
-
+import { valOf } from "./ComparisonTableHelpers";
 /**
  *
  * @param allColumns
@@ -37,7 +36,8 @@ export function getComparisionTableConlumnRendering(
   rWorkflowId: string | null,
   config: ComparisonTableConfig,
   onColumnFieldClick: (data: any) => void = (data: any) => {},
-  onPrimaryField?: (data: any) => void
+  onPrimaryField?: (data: any) => void,
+  displayField: string = "displayName"
 ): GridColDef[] {
   const primaryHeaderName = config?.primary?.displayName ?? "Name";
 
@@ -112,7 +112,8 @@ export function getComparisionTableConlumnRendering(
         ldata,
         rdata,
         targetVal,
-        config
+        config,
+        displayField
       );
       return {
         result,
@@ -345,7 +346,8 @@ export function getComparisonResult(
   ldata: any,
   rdata: any,
   targetVal: string,
-  config?: ComparisonTableConfig
+  config?: ComparisonTableConfig,
+  displayField: string = "displayName"
 ) {
   // get target field key name, for instance, metric
   // so we can get the comparison policy by get the value of target field
@@ -357,8 +359,10 @@ export function getComparisonResult(
   // evaluate the value comparison result, return the comparison report for each field
   const result = evaluateComparison(policy?.target, L, R, policy);
 
-  const ldisplay = displayNameOf(ldata);
-  const rdisplay = displayNameOf(rdata);
+  // Get display value from the specified field
+  // Falls back to undefined if field doesn't exist (normal value rendering)
+  const ldisplay = ldata?.[displayField] as string | undefined;
+  const rdisplay = rdata?.[displayField] as string | undefined;
 
   const missingText =
     config?.renderOptions?.missingText == undefined

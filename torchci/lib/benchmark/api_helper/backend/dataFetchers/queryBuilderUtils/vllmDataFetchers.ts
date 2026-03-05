@@ -415,9 +415,24 @@ export class VllmXPytorchBenchmarkAggregatedDataFetcher extends VllmXPytorchBenc
 
       const metricName = `${template.metric}_compile_speedup`;
       const baseRecord = buildBaseRecordFromTemplate(template, groupByFields);
+
+      // Format display names for view switching:
+      // displayName: speedup only (e.g., "2.14x")
+      // displayNameAlt: absolute values matching speedup calculation (numerator/denominator)
+      const displayName = `${speedup}x`;
+      // Match the displayNameAlt format to the speedup calculation
+      const displayNameAlt =
+        VllmXPytorchBenchmarkAggregatedDataFetcher.HIGHER_IS_BETTER_METRICS.has(
+          metric
+        )
+          ? `${geomeanCompiled.toFixed(1)}/${geomeanNonCompiled.toFixed(1)}` // Throughput: compiled / non_compiled
+          : `${geomeanNonCompiled.toFixed(1)}/${geomeanCompiled.toFixed(1)}`; // Latency: non_compiled / compiled
+
       const aggregatedRecord = {
         ...baseRecord,
         value: speedup,
+        displayName: displayName,
+        displayNameAlt: displayNameAlt,
         metric: metricName,
         metric_group:
           VllmXPytorchBenchmarkAggregatedDataFetcher.getMetricGroup(metricName),

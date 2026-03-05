@@ -1,4 +1,9 @@
-import { Button, Typography } from "@mui/material";
+import {
+  Button,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -12,6 +17,9 @@ import { useMemo, useState } from "react";
 import { ComparisonTableConfig } from "../../../helper";
 import { getComparisionTableConlumnRendering } from "./ComparisonTableColumnRendering";
 import { SnapshotRow, ToComparisonTableRow } from "./ComparisonTableHelpers";
+
+// View mode type for switching between displayName and displayNameAlt
+export type ViewMode = "default" | "alternate";
 
 export function ComparisonTable({
   data,
@@ -45,6 +53,29 @@ export function ComparisonTable({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedData, setSelectedData] = useState<any>(undefined);
+  const [viewMode, setViewMode] = useState<ViewMode>("default");
+
+  // Check if view switch is enabled
+  const enableViewSwitch = config?.renderOptions?.enableViewSwitch ?? false;
+  const viewSwitchConfig = config?.renderOptions?.viewSwitchLabels ?? {
+    default: { label: "Detailed", field: "displayName" },
+    alternate: { label: "Simple", field: "displayNameAlt" },
+  };
+
+  const handleViewModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newMode: ViewMode | null
+  ) => {
+    if (newMode !== null) {
+      setViewMode(newMode);
+    }
+  };
+
+  // Get the current field name based on view mode
+  const currentDisplayField =
+    viewMode === "default"
+      ? viewSwitchConfig.default.field ?? "displayName"
+      : viewSwitchConfig.alternate.field ?? "displayNameAlt";
 
   const onColumnFieldClick = (data: any) => {
     setSelectedData(data);
@@ -83,9 +114,10 @@ export function ComparisonTable({
         rWorkflowId,
         config,
         onColumnFieldClick,
-        onPrimaryFieldClick
+        onPrimaryFieldClick,
+        currentDisplayField
       ),
-    [allColumns, lWorkflowId, rWorkflowId, title]
+    [allColumns, lWorkflowId, rWorkflowId, title, currentDisplayField]
   );
 
   const tableRenderingBook = config?.renderOptions?.tableRenderingBook as
@@ -99,7 +131,30 @@ export function ComparisonTable({
 
   return (
     <Box>
-      <Typography variant="h6">{title.text}</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+        <Typography variant="h6">{title.text}</Typography>
+        {enableViewSwitch && (
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={handleViewModeChange}
+            size="small"
+          >
+            <ToggleButton
+              value="default"
+              sx={{ py: 0, px: 1, fontSize: "0.75rem" }}
+            >
+              {viewSwitchConfig.default.label}
+            </ToggleButton>
+            <ToggleButton
+              value="alternate"
+              sx={{ py: 0, px: 1, fontSize: "0.75rem" }}
+            >
+              {viewSwitchConfig.alternate.label}
+            </ToggleButton>
+          </ToggleButtonGroup>
+        )}
+      </Box>
       {title.description && (
         <Typography variant="body2" sx={{ mb: 1 }}>
           {title.description}

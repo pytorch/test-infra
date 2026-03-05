@@ -210,6 +210,11 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
           comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
           renderOptions: {
             tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
+            enableViewSwitch: true,
+            viewSwitchLabels: {
+              default: { label: "Relative value", field: "displayName" },
+              alternate: { label: "Absolute value", field: "displayNameAlt" },
+            },
             missingText: "none",
             bothMissingText: "",
             flex: {

@@ -105,6 +105,13 @@ export const PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK = {
     displayName: "Tokens/sec Speedup",
     unit: { unit: "x" },
   },
+  // Absolute values (geomean for compiled and non-compiled)
+  geomean_compiled: {
+    displayName: "Compiled Geomean",
+  },
+  geomean_non_compiled: {
+    displayName: "Non-compiled Geomean",
+  },
   // Compilation time metrics (geomean)
   geomean_avg_cold_compilation_time: {
     displayName: "Geomean Cold Compilation",
