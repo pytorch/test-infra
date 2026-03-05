@@ -70,6 +70,11 @@ export const VllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
       benchmarkId: VLLM_BENCHMARK_ID,
       lbranch: "main(main)",
       rbranch: "main(main)",
+      filters: {
+        device: "cuda",
+        arch: "NVIDIA B200",
+        deviceName: "cuda||NVIDIA B200",
+      },
     },
     required_filter_fields: [],
   },

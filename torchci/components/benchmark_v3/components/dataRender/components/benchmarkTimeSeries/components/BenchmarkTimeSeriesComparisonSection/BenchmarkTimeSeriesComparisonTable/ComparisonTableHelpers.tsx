@@ -42,6 +42,8 @@ function getGroupKeyAndLabel(gi: any) {
 
 export type RowCellObj = {
   value: number | string | null | undefined;
+  displayName?: string;
+  displayNameAlt?: string;
   [k: string]: any;
 };
 export type SnapshotRow = {
@@ -63,6 +65,8 @@ export const asNumber = (v: unknown): number | undefined => {
 export const valOf = (cell?: RowCellObj) => (cell ? cell.value : undefined);
 export const displayNameOf = (cell?: RowCellObj) =>
   cell ? cell.displayName : undefined;
+export const displayNameAltOf = (cell?: RowCellObj) =>
+  cell ? cell.displayNameAlt : undefined;
 
 /**
  * convert the data to ready to render table row

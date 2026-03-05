@@ -4,8 +4,6 @@ import {
   PytorchHelionDataFetcher,
   PytorchOperatorMicroBenchmarkDataFetcher,
   VllmBenchmarkDataFetcher,
-  VllmXPytorchBenchmarkAggregatedDataFetcher,
-  VllmXPytorchBenchmarkDataFetcher,
 } from "./queryBuilderUtils/benchmarkDataQueryBuilder";
 import {
   BenchmarkListCommitQueryBuilder,
@@ -19,6 +17,10 @@ import {
   VllmAggregateBenchmarkMetadataFetcher,
   VllmBenchmarkMetadataFetcher,
 } from "./queryBuilderUtils/listMetadataQueryBuilder";
+import {
+  VllmXPytorchBenchmarkAggregatedDataFetcher,
+  VllmXPytorchBenchmarkDataFetcher,
+} from "./queryBuilderUtils/vllmDataFetchers";
 import {
   BenchmarkDataFetcher,
   BenchmarkListCommitFetcher,

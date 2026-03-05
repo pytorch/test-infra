@@ -2,7 +2,8 @@ export interface BenchmarkDataFetcher {
   applyFormat(
     data: any[],
     formats: string[],
-    includesAllExtraKey?: boolean
+    includesAllExtraKey?: boolean,
+    groupByFields?: string[]
   ): any;
   applyQuery(inputs: string): Promise<any>;
 }

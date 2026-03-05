@@ -70,6 +70,19 @@ export interface BenchmarkComparisonTableRenderingOptions {
   missingText?: string;
   bothMissingText?: string;
   renderMissing?: boolean;
+  // Enable view switch button to toggle between different display fields
+  enableViewSwitch?: boolean;
+  // Configuration for the view switch options
+  viewSwitchLabels?: {
+    default: {
+      label: string; // Button label for default view
+      field?: string; // Field name to use (default: "displayName")
+    };
+    alternate: {
+      label: string; // Button label for alternate view
+      field?: string; // Field name to use (default: "displayNameAlt")
+    };
+  };
 }
 
 export interface BenchmarkComparisonTablePrimaryColumnConfig {

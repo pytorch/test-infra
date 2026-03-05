@@ -7,7 +7,7 @@ export const PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID =
 
 // Speedup metrics policy (higher is better)
 // Regression if new value < 95% of old value
-const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+export const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "speedup",
   type: "ratio",
   ratioPolicy: {
@@ -19,7 +19,7 @@ const SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
 
 // Time metrics policy (lower is better)
 // Regression if new value > 115% of old value
-const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+export const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "time",
   type: "ratio",
   ratioPolicy: {
@@ -29,7 +29,21 @@ const TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
-const TITLE_GROUP_MAPPING = {
+export const PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY = {
+  // Speedup metrics (higher is better)
+  latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
+  // Time metrics (lower is better) - geomean
+  geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
+  geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
+  geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
+};
+
+export const PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING = {
   // Speedup metrics (each gets its own chart)
   latency_compile_speedup: {
     text: "Latency Compile Speedup (higher is better)",
@@ -69,7 +83,7 @@ const TITLE_GROUP_MAPPING = {
   },
 };
 
-const RENDER_BOOK = {
+export const PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK = {
   // Speedup metrics
   latency_compile_speedup: {
     displayName: "Latency Speedup",
@@ -91,22 +105,29 @@ const RENDER_BOOK = {
     displayName: "Tokens/sec Speedup",
     unit: { unit: "x" },
   },
+  // Absolute values (geomean for compiled and non-compiled)
+  geomean_compiled: {
+    displayName: "Compiled Geomean",
+  },
+  geomean_non_compiled: {
+    displayName: "Non-compiled Geomean",
+  },
   // Compilation time metrics (geomean)
   geomean_avg_cold_compilation_time: {
-    displayName: "Cold Compilation",
+    displayName: "Geomean Cold Compilation",
     unit: { type: "time", unit: "s" },
   },
   geomean_avg_warm_compilation_time: {
-    displayName: "Warm Compilation",
+    displayName: "Geomean Warm Compilation",
     unit: { type: "time", unit: "s" },
   },
   // Startup time metrics (geomean)
   geomean_avg_cold_startup_time: {
-    displayName: "Cold Startup",
+    displayName: "Geomean Cold Startup",
     unit: { type: "time", unit: "s" },
   },
   geomean_avg_warm_startup_time: {
-    displayName: "Warm Startup",
+    displayName: "Geomean Warm Startup",
     unit: { type: "time", unit: "s" },
   },
 };
@@ -123,8 +144,8 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
       benchmarkId: PYTORCH_X_VLLM_AGGREGATE_BENCHMARK_ID,
       filters: {
         device: "cuda",
-        arch: "NVIDIA H100 80GB HBM3",
-        deviceName: "cuda||NVIDIA H100 80GB HBM3",
+        arch: "NVIDIA B200",
+        deviceName: "cuda||NVIDIA B200",
       },
     },
     required_filter_fields: [],
@@ -156,13 +177,14 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
                 id: "VllmPrecomputeConfirmDialogContent",
               },
               renderOptions: {
-                chartRenderBook: RENDER_BOOK,
+                chartRenderBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
                 showLegendDetails: true,
                 additionalMetadataList: [
                   "geomean_compiled",
                   "geomean_non_compiled",
                 ],
-                title_group_mapping: TITLE_GROUP_MAPPING,
+                title_group_mapping:
+                  PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
               },
             },
           },
@@ -187,23 +209,12 @@ export const VllmXPytorchBenchmarkAggregatedConfig: BenchmarkUIConfig = {
             },
             enableDialog: true,
             targetField: "metric",
-            comparisonPolicy: {
-              // Speedup metrics (higher is better)
-              latency_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_itl_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_tpot_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              median_ttft_ms_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              tokens_per_second_compile_speedup: SPEEDUP_COMPARISON_POLICY,
-              // Time metrics (lower is better) - geomean
-              geomean_avg_cold_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_compilation_time: TIME_COMPARISON_POLICY,
-              geomean_avg_cold_startup_time: TIME_COMPARISON_POLICY,
-              geomean_avg_warm_startup_time: TIME_COMPARISON_POLICY,
-            },
+            comparisonPolicy: PYTORCH_X_VLLM_AGGREGATED_COMPARISON_POLICY,
             renderOptions: {
-              tableRenderingBook: RENDER_BOOK,
+              tableRenderingBook: PYTORCH_X_VLLM_AGGREGATED_RENDER_BOOK,
               renderMissing: true,
-              title_group_mapping: TITLE_GROUP_MAPPING,
+              title_group_mapping:
+                PYTORCH_X_VLLM_AGGREGATED_TITLE_GROUP_MAPPING,
             },
           },
         },
