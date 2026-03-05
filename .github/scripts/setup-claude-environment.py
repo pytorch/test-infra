@@ -11,9 +11,6 @@ Run from inside the repo you want to set up:
   cd /path/to/my-repo
   uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py
 
-Or pass a local path (clones if it doesn't exist):
-  uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py pytorch/tutorials
-
 Requires uv >= 0.5.0 for the URL form.
 
 Prerequisites:
@@ -301,16 +298,6 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "path",
-        nargs="?",
-        default=None,
-        help=(
-            "Local path to the repo (e.g. ./pytorch/tutorials)."
-            " Clones the repo if it doesn't exist."
-            " If omitted, uses the current directory."
-        ),
-    )
-    parser.add_argument(
         "--force", action="store_true", help=argparse.SUPPRESS
     )
     parser.add_argument(
@@ -319,28 +306,6 @@ def main() -> None:
         help="Output result as JSON",
     )
     args = parser.parse_args()
-
-    if args.path:
-        repo_path = Path(args.path)
-        if not repo_path.exists():
-            # Treat the path as org/repo and clone
-            name = str(repo_path)
-            print(f"Cloning {name}...")
-            result = subprocess.run(
-                ["git", "clone",
-                 f"https://github.com/{name}.git",
-                 str(repo_path)],
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                print(
-                    f"Error: failed to clone {name}",
-                    file=sys.stderr,
-                )
-                print(result.stderr, file=sys.stderr)
-                sys.exit(1)
-        os.chdir(repo_path)
 
     repo = detect_repo()
     org = repo.split("/")[0]
