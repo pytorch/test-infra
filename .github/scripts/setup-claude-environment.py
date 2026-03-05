@@ -231,7 +231,8 @@ def main() -> None:
         )
     steps.append(
         f"Add 'repo:{repo}:environment:bedrock' to the OIDC"
-        " trust policy in configerator."
+        " trust policy in configerator:\n"
+        "     raw_configs/cloud/strata/fbossci/iam/main.tf"
     )
     steps.append(
         "Install Claude GitHub App: https://github.com/apps/claude"
