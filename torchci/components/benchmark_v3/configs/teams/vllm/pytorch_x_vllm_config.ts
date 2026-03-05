@@ -34,10 +34,22 @@ const COMPARISON_POLICY_BOOK = {
 
 // Render book for raw comparison table metrics
 const RAW_COMPARISON_RENDER_BOOK = {
-  avg_cold_compilation_time: { displayName: "Avg Cold Compilation Time" },
-  avg_cold_startup_time: { displayName: "Avg Cold Startup Time" },
-  avg_warm_compilation_time: { displayName: "Avg Warm Compilation Time" },
-  avg_warm_startup_time: { displayName: "Avg Warm Startup Time" },
+  avg_cold_compilation_time: {
+    displayName: "Avg Cold Compilation Time",
+    unit: { type: "time", unit: "s" },
+  },
+  avg_cold_startup_time: {
+    displayName: "Avg Cold Startup Time",
+    unit: { type: "time", unit: "s" },
+  },
+  avg_warm_compilation_time: {
+    displayName: "Avg Warm Compilation Time",
+    unit: { type: "time", unit: "s" },
+  },
+  avg_warm_startup_time: {
+    displayName: "Avg Warm Startup Time",
+    unit: { type: "time", unit: "s" },
+  },
   latency: { displayName: "Latency" },
   median_itl_ms: { displayName: "Median ITL (ms)" },
   median_tpot_ms: { displayName: "Median TPOT (ms)" },
@@ -185,7 +197,7 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
         type: "AutoBenchmarkPairwiseTable",
         title: "Model-wise Compile Performance",
         description:
-          "Compares compiled vs non-compiled performance for selected benchmark data. Speedup > 1 indicates compile improves performance.",
+          "Compares compiled vs non-compiled performance for selected benchmark data. Speedup > 1 indicates compile improves performance. Toggle to 'Absolute value' view to see the geomean values (compiled/non-compiled) used in speedup calculation.",
         config: {
           // Use aggregated fetcher with per-model grouping
           fetcherId: "pytroch_x_vllm_aggregated",
