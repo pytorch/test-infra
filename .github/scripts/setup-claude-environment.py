@@ -7,8 +7,12 @@
 Creates the 'bedrock' GitHub environment with branch protection for Claude Code workflows.
 If the environment already exists, validates its settings match expected configuration.
 
-Usage: uv run setup-claude-environment.py <org/repo>
-       uv run setup-claude-environment.py --force <org/repo>
+Usage (no clone needed, requires uv >= 0.5.0):
+  uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py <org/repo>
+  uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py --force <org/repo>
+
+Or from a local checkout:
+  uv run .github/scripts/setup-claude-environment.py <org/repo>
 
 Prerequisites:
   - gh CLI authenticated with admin access to the target repo

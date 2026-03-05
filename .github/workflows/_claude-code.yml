@@ -2,7 +2,8 @@ name: Claude Code (Reusable)
 # Centralized Claude Code workflow for pytorch and meta-pytorch repos.
 #
 # Onboarding a new repo:
-#   1. Run pytorch/test-infra's .github/scripts/setup-claude-environment.py <org/repo>
+#   1. uv run https://raw.githubusercontent.com/pytorch/test-infra/main/.github/scripts/setup-claude-environment.py <org/repo>
+#      (requires uv >= 0.5.0)
 #   2. Add "repo:<org>/<repo>:environment:bedrock" to the OIDC subject
 #      condition on the IAM role for fbossci in configerator.
 #   3. Install the Claude GitHub App on the repo.
