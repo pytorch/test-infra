@@ -41,12 +41,17 @@ jobs:
     # 3. Must be org member/collaborator or allowed bot
     #
     # Note on event payload paths:
-    #   issue_comment / pull_request_review_comment -> github.event.comment.body / .author_association
+    #   issue_comment -> github.event.comment.body / .author_association
     #   issues -> github.event.issue.body / .author_association
     # We branch on event_name for the @claude check because for issue_comment events,
     # github.event.issue.body is the *original issue body* (not the comment), which would
     # cause false matches. The author_association uses || as a coalescing operator since
     # comment.author_association is always populated for comment events.
+    #
+    # SECURITY: pull_request_review_comment is intentionally NOT supported.
+    # That event runs workflow code from the PR branch, allowing a malicious
+    # PR to inject code that executes when a maintainer comments.
+    # See: https://github.com/orgs/community/discussions/55940#discussioncomment-5950832
     if: |
       contains(fromJSON('["pytorch","meta-pytorch"]'), github.repository_owner) &&
       (
@@ -54,7 +59,7 @@ jobs:
         (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
       ) &&
       (
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'),
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
           github.event.comment.author_association || github.event.issue.author_association) ||
         github.actor == 'pytorch-auto-revert[bot]'
       )
