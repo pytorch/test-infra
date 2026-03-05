@@ -21,6 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 ALLOWED_ORGS = ("pytorch", "meta-pytorch")
 
 BRANCH_POLICY = {
@@ -57,7 +58,7 @@ jobs:
 
 def die(msg: str) -> None:
     print(f"Error: {msg}", file=sys.stderr)
-    sys.exit(1)
+    raise SystemExit(1)
 
 
 def gh(method: str, endpoint: str, data: dict | None = None) -> dict | None:
@@ -158,10 +159,7 @@ def configure_environment(repo: str) -> bool:
 
     # Reconcile branch policies
     ep = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
-    existing = {
-        p["name"]: p["id"]
-        for p in (gh("GET", ep) or {}).get("branch_policies", [])
-    }
+    existing = {p["name"]: p["id"] for p in (gh("GET", ep) or {}).get("branch_policies", [])}
     for name, pid in existing.items():
         if name not in ALLOWED_BRANCHES:
             print(f"    Removing branch policy: {name}")
@@ -226,22 +224,16 @@ def main() -> None:
     print(f"\n{'─' * 50}")
     steps = []
     if not env_ok:
-        steps.append(
-            "Configure the 'bedrock' environment (requires admin)."
-        )
+        steps.append("Configure the 'bedrock' environment (requires admin).")
     steps.append(
         f"Add 'repo:{repo}:environment:bedrock' to the OIDC"
         " trust policy in configerator:\n"
         "     raw_configs/cloud/strata/fbossci/iam/main.tf"
     )
-    steps.append(
-        "Install Claude GitHub App: https://github.com/apps/claude"
-    )
+    steps.append("Install Claude GitHub App: https://github.com/apps/claude")
     steps.append("Add a CLAUDE.md to the repo.")
     if created:
-        steps.append(
-            "Commit and push .github/workflows/claude-code.yml."
-        )
+        steps.append("Commit and push .github/workflows/claude-code.yml.")
 
     if steps:
         print("Remaining steps:")
