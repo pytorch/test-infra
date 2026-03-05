@@ -341,6 +341,8 @@ def main() -> None:
             )
         sys.exit(1)
 
+    # --- Environment setup (best-effort) ---
+    env_ok = False
     env = get_environment(repo)
 
     if env is not None:
@@ -353,7 +355,7 @@ def main() -> None:
                 indent=2,
             )
             print()
-            sys.exit(1 if mismatches else 0)
+            # Don't exit — still create workflow below
 
         if not args.json:
             print(
@@ -391,35 +393,56 @@ def main() -> None:
                         "--force specified."
                         " Overwriting remote settings..."
                     )
+                create_environment(repo)
+                env_ok = True
             else:
                 print(
                     "To overwrite remote settings with"
                     " expected values, re-run with --force:"
                 )
                 print(f"  {sys.argv[0]} --force {repo}")
-                sys.exit(1)
         else:
+            env_ok = True
             if not args.json:
                 print("Settings match. Nothing to do.")
     else:
-        create_environment(repo)
+        # Try to create, but don't bail if no admin access
+        resp = gh_api("GET", f"repos/{repo}", check=True)
+        perms = (resp or {}).get("permissions", {})
+        if perms.get("admin"):
+            create_environment(repo)
+            env_ok = True
+        else:
+            print(
+                f"Warning: no admin access on {repo},"
+                " skipping environment setup.\n"
+                "  Ask a repo admin to run this script,"
+                " or create the 'bedrock' environment manually."
+            )
 
-    # Create the caller workflow file
+    # --- Always create the caller workflow file ---
     created = create_workflow_file()
 
+    # --- Next steps ---
     if args.json:
-        result = build_result(repo, get_environment(repo), [])
+        env_now = get_environment(repo)
+        result = build_result(repo, env_now, [])
         result["workflow_created"] = created
+        result["environment_configured"] = env_ok
         json.dump(result, sys.stdout, indent=2)
         print()
     else:
         next_steps = []
-        iam_step = (
+        if not env_ok:
+            next_steps.append(
+                "Configure the 'bedrock' environment"
+                " (requires repo admin access)."
+            )
+        next_steps.append(
             f"Add 'repo:{repo}:environment:bedrock' to the OIDC"
             " subject condition\n"
             "     on the IAM role for fbossci in configerator."
         )
-        next_steps.append(iam_step)
         next_steps.append(
             "Install the Claude GitHub App on the repo:"
             " fburl.com/1b49tng7"
