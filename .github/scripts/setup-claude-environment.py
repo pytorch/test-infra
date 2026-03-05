@@ -18,7 +18,7 @@ Requires uv >= 0.5.0 for the URL form.
 
 Prerequisites:
   - gh CLI authenticated with admin access to the target repo
-  - Claude GitHub App installed on the repo (fburl.com/1b49tng7)
+  - Claude GitHub App installed on the repo (https://github.com/apps/claude)
 """
 
 from __future__ import annotations
@@ -457,7 +457,7 @@ def main() -> None:
         step += 1
         print(
             f"  {step}. Install the Claude GitHub App"
-            " on the repo: fburl.com/1b49tng7"
+            " on the repo: https://github.com/apps/claude"
         )
         step += 1
         print(f"  {step}. Add a CLAUDE.md to the repo.")
