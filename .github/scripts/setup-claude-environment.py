@@ -59,7 +59,8 @@ def get_environment(repo: str) -> dict | None:
 
 
 def get_branch_policies(repo: str) -> list[str]:
-    resp = gh_api("GET", f"repos/{repo}/environments/bedrock/deployment-branch-policies")
+    endpoint = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
+    resp = gh_api("GET", endpoint)
     if not resp:
         return []
     return sorted(p["name"] for p in resp.get("branch_policies", []))
@@ -136,19 +137,19 @@ def create_environment(repo: str) -> None:
 
 def reconcile_branch_policies(repo: str) -> None:
     """Add missing and remove unexpected branch policies (delta only)."""
-    resp = gh_api("GET", f"repos/{repo}/environments/bedrock/deployment-branch-policies")
-    existing = {p["name"]: p["id"] for p in (resp or {}).get("branch_policies", [])}
+    endpoint = f"repos/{repo}/environments/bedrock/deployment-branch-policies"
+    resp = gh_api("GET", endpoint)
+    existing = {
+        p["name"]: p["id"] for p in (resp or {}).get("branch_policies", [])
+    }
     expected = set(EXPECTED_BRANCH_NAMES)
 
     # Remove policies that shouldn't be there
     for name, policy_id in existing.items():
         if name not in expected:
             print(f"  Removing unexpected branch policy: {name}")
-            gh_api(
-                "DELETE",
-                f"repos/{repo}/environments/bedrock/deployment-branch-policies/{policy_id}",
-                check=True,
-            )
+            policy_ep = f"{endpoint}/{policy_id}"
+            gh_api("DELETE", policy_ep, check=True)
 
     # Add policies that are missing
     for name in expected:
@@ -162,7 +163,11 @@ def reconcile_branch_policies(repo: str) -> None:
             )
 
 
-def build_result(repo: str, env: dict | None, mismatches: list[tuple[str, str, str]]) -> dict:
+def build_result(
+    repo: str,
+    env: dict | None,
+    mismatches: list[tuple[str, str, str]],
+) -> dict:
     """Build a structured result dict for JSON output."""
     exists = env is not None
     actual_policy = env.get("deployment_branch_policy", {}) if env else None
@@ -185,8 +190,7 @@ def build_result(repo: str, env: dict | None, mismatches: list[tuple[str, str, s
         }
     if mismatches:
         result["mismatches"] = [
-            {"setting": s, "expected": e, "actual": a}
-            for s, e, a in mismatches
+            {"setting": s, "expected": e, "actual": a} for s, e, a in mismatches
         ]
     return result
 
