@@ -159,48 +159,98 @@ def reconcile_branch_policies(repo: str) -> None:
             )
 
 
+def build_result(repo: str, env: dict | None, mismatches: list[tuple[str, str, str]]) -> dict:
+    """Build a structured result dict for JSON output."""
+    exists = env is not None
+    actual_policy = env.get("deployment_branch_policy", {}) if env else None
+    actual_branches = get_branch_policies(repo) if exists else None
+
+    result: dict = {
+        "repo": repo,
+        "environment": "bedrock",
+        "exists": exists,
+        "valid": exists and len(mismatches) == 0,
+        "expected": {
+            "deployment_branch_policy": EXPECTED_DEPLOYMENT_BRANCH_POLICY,
+            "branch_policies": EXPECTED_BRANCH_NAMES,
+        },
+    }
+    if exists:
+        result["actual"] = {
+            "deployment_branch_policy": actual_policy,
+            "branch_policies": actual_branches,
+        }
+    if mismatches:
+        result["mismatches"] = [
+            {"setting": s, "expected": e, "actual": a}
+            for s, e, a in mismatches
+        ]
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Setup bedrock GitHub environment for Claude Code workflows.",
     )
     parser.add_argument("repo", help="org/repo (e.g. pytorch/tutorials)")
     parser.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--json", action="store_true", help="Output result as JSON")
     args = parser.parse_args()
 
     repo = args.repo
     org = repo.split("/")[0]
 
     if org not in ALLOWED_ORGS:
-        print(f"Error: org must be one of {ALLOWED_ORGS}, got '{org}'")
+        if args.json:
+            json.dump({"error": f"org must be one of {ALLOWED_ORGS}, got '{org}'"}, sys.stdout)
+            print()
+        else:
+            print(f"Error: org must be one of {ALLOWED_ORGS}, got '{org}'")
         sys.exit(1)
 
     env = get_environment(repo)
 
     if env is not None:
-        print(f"'bedrock' environment already exists on {repo}. Validating settings...")
         mismatches = validate_environment(repo)
 
-        if mismatches:
-            print("\nMismatch: existing 'bedrock' environment settings differ from expected:\n")
-            print(f"  {'SETTING':<50} {'EXPECTED':<20} {'ACTUAL':<20}")
-            print(f"  {'-------':<50} {'--------':<20} {'------':<20}")
-            for setting, expected, actual in mismatches:
-                print(f"  {setting:<50} {expected:<20} {actual:<20}")
+        if args.json and not args.force:
+            json.dump(build_result(repo, env, mismatches), sys.stdout, indent=2)
             print()
+            sys.exit(1 if mismatches else 0)
+
+        if not args.json:
+            print(f"'bedrock' environment already exists on {repo}. Validating settings...")
+
+        if mismatches:
+            if not args.json:
+                print("\nMismatch: existing 'bedrock' environment settings differ from expected:\n")
+                print(f"  {'SETTING':<50} {'EXPECTED':<20} {'ACTUAL':<20}")
+                print(f"  {'-------':<50} {'--------':<20} {'------':<20}")
+                for setting, expected, actual in mismatches:
+                    print(f"  {setting:<50} {expected:<20} {actual:<20}")
+                print()
 
             if args.force:
-                print("--force specified. Overwriting remote settings...")
+                if not args.json:
+                    print("--force specified. Overwriting remote settings...")
             else:
                 print("To overwrite remote settings with expected values, re-run with --force:")
                 print(f"  {sys.argv[0]} --force {repo}")
                 sys.exit(1)
         else:
-            print("Settings match. Nothing to do.")
+            if not args.json:
+                print("Settings match. Nothing to do.")
             sys.exit(0)
 
     create_environment(repo)
 
-    print(f"""
+    if args.json:
+        result = build_result(repo, get_environment(repo), [])
+        result["action"] = "created"
+        json.dump(result, sys.stdout, indent=2)
+        print()
+    else:
+        print(f"""
 Remaining manual steps:
   1. Add 'repo:{repo}:environment:bedrock' to the IAM trust policy in configerator
      File: raw_configs/cloud/strata/fbossci/iam/main.tf
