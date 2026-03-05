@@ -423,7 +423,7 @@ def main() -> None:
     # --- Always create the caller workflow file ---
     created = create_workflow_file()
 
-    # --- Next steps ---
+    # --- Summary ---
     if args.json:
         env_now = get_environment(repo)
         result = build_result(repo, env_now, [])
@@ -432,31 +432,41 @@ def main() -> None:
         json.dump(result, sys.stdout, indent=2)
         print()
     else:
-        next_steps = []
+        done = "done" if env_ok else "NEEDS ACTION"
+        wf = "done" if not created else "CREATED — commit and push"
+        print(f"\nSetup status for {repo}:")
+        print(f"  bedrock environment: {done}")
+        print(f"  .github/workflows/claude-code.yml: {wf}")
+
+        print("\nRemaining steps:")
+        step = 0
         if not env_ok:
-            next_steps.append(
-                "Configure the 'bedrock' environment"
-                " (requires repo admin access)."
+            step += 1
+            print(
+                f"  {step}. Configure the 'bedrock' environment"
+                " (requires repo admin).\n"
+                "     Re-run this script with admin access."
             )
-        next_steps.append(
-            f"Add 'repo:{repo}:environment:bedrock' to the OIDC"
-            " subject condition\n"
-            "     on the IAM role for fbossci in configerator."
+        step += 1
+        print(
+            f"  {step}. Add 'repo:{repo}:environment:bedrock'"
+            " to the OIDC subject condition\n"
+            "     on the IAM role for fbossci"
+            " in configerator."
         )
-        next_steps.append(
-            "Install the Claude GitHub App on the repo:"
-            " fburl.com/1b49tng7"
+        step += 1
+        print(
+            f"  {step}. Install the Claude GitHub App"
+            " on the repo: fburl.com/1b49tng7"
         )
-        next_steps.append("Add a CLAUDE.md to the repo.")
+        step += 1
+        print(f"  {step}. Add a CLAUDE.md to the repo.")
         if created:
-            next_steps.append(
-                "Commit and push the generated"
+            step += 1
+            print(
+                f"  {step}. Commit and push the generated"
                 " .github/workflows/claude-code.yml."
             )
-
-        print("\nNext steps:")
-        for i, step in enumerate(next_steps, 1):
-            print(f"  {i}. {step}")
 
 
 if __name__ == "__main__":
