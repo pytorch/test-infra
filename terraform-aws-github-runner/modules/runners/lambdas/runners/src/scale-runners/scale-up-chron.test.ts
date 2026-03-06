@@ -270,7 +270,7 @@ describe('getQueuedJobs', () => {
     await getQueuedJobs(metrics, 'url');
 
     expect(trackRequestSpy).toHaveBeenCalled();
-    expect(axiosGetSpy).toHaveBeenCalledWith('url');
+    expect(axiosGetSpy).toHaveBeenCalledWith('url', { headers: {} });
   });
 
   it('handles invalid data (not an array) from response', async () => {
