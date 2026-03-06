@@ -175,13 +175,6 @@
       "dynamo"
     ]
   ],
-  "test_circular_dependencies (__main__.TestImports)": [
-    "110040",
-    "https://github.com/pytorch/pytorch/issues/110040",
-    [
-      "xpu"
-    ]
-  ],
   "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
     "176112",
     "https://github.com/pytorch/pytorch/issues/176112",
@@ -198,13 +191,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_codegen_with_custom_heuristics_module (__main__.TritonExtensionBackendTests)": [
-    "173916",
-    "https://github.com/pytorch/pytorch/issues/173916",
-    [
-      "xpu"
     ]
   ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
