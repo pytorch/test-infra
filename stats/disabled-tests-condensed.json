@@ -292,13 +292,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_matmul_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "176176",
-    "https://github.com/pytorch/pytorch/issues/176176",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
@@ -416,13 +409,6 @@
     "https://github.com/pytorch/pytorch/issues/106557",
     [
       "macos"
-    ]
-  ],
-  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
-    "176392",
-    "https://github.com/pytorch/pytorch/issues/176392",
-    [
-      "xpu"
     ]
   ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
@@ -563,20 +549,6 @@
       "rocm"
     ]
   ],
-  "test_div7_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "176134",
-    "https://github.com/pytorch/pytorch/issues/176134",
-    [
-      "xpu"
-    ]
-  ],
-  "test_div7_xpu (__main__.GPUTests)": [
-    "176406",
-    "https://github.com/pytorch/pytorch/issues/176406",
-    [
-      "xpu"
-    ]
-  ],
   "test_do_not_guard_unbacked_inputs (__main__.TestUnbacked)": [
     "163953",
     "https://github.com/pytorch/pytorch/issues/163953",
@@ -653,20 +625,6 @@
     "https://github.com/pytorch/pytorch/issues/163765",
     [
       "rocm"
-    ]
-  ],
-  "test_errors_nn_MultiMarginLoss_xpu_float32 (__main__.TestModuleXPU)": [
-    "175717",
-    "https://github.com/pytorch/pytorch/issues/175717",
-    [
-      "xpu"
-    ]
-  ],
-  "test_errors_nn_MultiMarginLoss_xpu_float64 (__main__.TestModuleXPU)": [
-    "175718",
-    "https://github.com/pytorch/pytorch/issues/175718",
-    [
-      "xpu"
     ]
   ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
@@ -1284,20 +1242,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_profiler_mark_wrapper_call_xpu_dynamic_shapes_gpu_wrapper (__main__.DynamicShapesGpuWrapperGpuTests)": [
-    "176583",
-    "https://github.com/pytorch/pytorch/issues/176583",
-    [
-      "xpu"
-    ]
-  ],
-  "test_profiler_mark_wrapper_call_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "176564",
-    "https://github.com/pytorch/pytorch/issues/176564",
-    [
-      "xpu"
     ]
   ],
   "test_profiler_optimizer_single_tensor_pattern (__main__.TestExperimentalUtils)": [
