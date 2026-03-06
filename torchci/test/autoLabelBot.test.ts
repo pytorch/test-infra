@@ -118,7 +118,7 @@ describe("auto-label-bot", () => {
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
         expect(body).toMatchObject({
-          labels: ["ciflow/rocm-mi300", "module: rocm"],
+          labels: ["module: rocm"],
         });
         return true;
       })
