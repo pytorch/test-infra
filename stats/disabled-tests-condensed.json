@@ -1547,20 +1547,6 @@
       "rocm"
     ]
   ],
-  "test_replicate_wrong_device_id_type (__main__.ReplicateFullyShardInit)": [
-    "176155",
-    "https://github.com/pytorch/pytorch/issues/176155",
-    [
-      "linux"
-    ]
-  ],
-  "test_replicate_wrong_device_id_type (__main__.ReplicateTest)": [
-    "176111",
-    "https://github.com/pytorch/pytorch/issues/176111",
-    [
-      "linux"
-    ]
-  ],
   "test_requires_grad_loop (test_jit.TestScript)": [
     "91492",
     "https://github.com/pytorch/pytorch/issues/91492",
