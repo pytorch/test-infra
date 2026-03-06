@@ -28,6 +28,10 @@ on:
         description: 'Claude settings JSON'
         type: string
         default: '{"alwaysThinkingEnabled": true}'
+      prompt:
+        description: 'Custom prompt passed to claude-code-action'
+        type: string
+        default: ''
       setup_script:
         description: 'Shell commands to run before Claude (e.g. install lintrunner)'
         type: string
@@ -118,6 +122,7 @@ jobs:
           allowed_bots: "*"
           use_bedrock: "true"
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }}"
+          prompt: ${{ inputs.prompt }}
           settings: ${{ inputs.settings }}
 
       - name: Upload usage metrics
