@@ -214,13 +214,6 @@
       "inductor"
     ]
   ],
-  "test_compiler_collectives_type_mismatch (__main__.TestMultiProc)": [
-    "165988",
-    "https://github.com/pytorch/pytorch/issues/165988",
-    [
-      "rocm"
-    ]
-  ],
   "test_complex_half_reference_testing_fft_hfft2_cuda_complex32 (__main__.TestCommonCUDA)": [
     "108743",
     "https://github.com/pytorch/pytorch/issues/108743",
