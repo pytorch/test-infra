@@ -6,13 +6,12 @@ on:
   issues:
     types: [opened]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-  id-token: write
-
 jobs:
   claude-code:
     uses: ./.github/workflows/_claude-code.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
     secrets: inherit
