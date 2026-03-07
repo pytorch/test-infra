@@ -28,7 +28,7 @@ env:
 jobs:
   build:
     name: Build & Archive
-    runs-on: macos-15
+    runs-on: self-hosted
     timeout-minutes: 30
     outputs:
       build_number: ${{ steps.version.outputs.build }}
@@ -110,8 +110,8 @@ jobs:
           -destination 'generic/platform=iOS' \
           CODE_SIGNING_ALLOWED=NO
 
-    - name: Import distribution certificate
-      if: github.event_name != 'pull_request' && env.CERT_BASE64 != ''
+    - name: Setup signing keychain
+      if: github.event_name != 'pull_request'
       env:
         CERT_BASE64: ${{ secrets.DISTRIBUTION_CERTIFICATE_BASE64 }}
         CERT_PASSWORD: ${{ secrets.DISTRIBUTION_CERTIFICATE_PASSWORD }}
@@ -132,79 +132,14 @@ jobs:
         security set-key-partition-list -S apple-tool:,apple:,codesign: \
           -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-        security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+        # Replace keychain search list with ONLY the signing keychain
+        # This prevents Xcode from finding dev certs in login keychain
+        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
 
         echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
-        echo "Signing certificate imported into temporary keychain"
+        security find-identity -v -p codesigning | head -5
         rm -f $RUNNER_TEMP/cert.p12
-
-    - name: Cleanup excess certificates
-      if: github.event_name != 'pull_request'
-      env:
-        ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-        ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        ASC_KEY_PATH: ${{ runner.temp }}/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-      run: |
-        pip3 install -q --break-system-packages PyJWT
-        python3 << 'CLEANUP_SCRIPT'
-        import jwt, json, time, os, urllib.request, ssl
-
-        key_id = os.environ["ASC_KEY_ID"]
-        issuer_id = os.environ["ASC_ISSUER_ID"]
-        key_path = os.environ["ASC_KEY_PATH"]
-
-        with open(key_path, "r") as f:
-            private_key = f.read()
-
-        now = int(time.time())
-        payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
-        token = jwt.encode(payload, private_key, algorithm="ES256", headers={"kid": key_id})
-
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        ctx = ssl.create_default_context()
-
-        def api_get(path):
-            req = urllib.request.Request(f"https://api.appstoreconnect.apple.com/v1/{path}", headers=headers)
-            with urllib.request.urlopen(req, context=ctx) as resp:
-                return json.loads(resp.read())
-
-        def api_delete(path):
-            req = urllib.request.Request(f"https://api.appstoreconnect.apple.com/v1/{path}", headers=headers, method="DELETE")
-            urllib.request.urlopen(req, context=ctx)
-
-        data = api_get("certificates?limit=200")
-        certs = data.get("data", [])
-
-        dev_certs = [c for c in certs if c["attributes"]["certificateType"] == "DEVELOPMENT"]
-        dist_certs = [c for c in certs if c["attributes"]["certificateType"] in ("DISTRIBUTION", "IOS_DISTRIBUTION")]
-
-        print(f"Found {len(dev_certs)} dev certs, {len(dist_certs)} dist certs")
-
-        dev_certs.sort(key=lambda c: c["attributes"].get("expirationDate", ""), reverse=True)
-        dist_certs.sort(key=lambda c: c["attributes"].get("expirationDate", ""), reverse=True)
-
-        for cert in dev_certs[1:]:
-            cert_id = cert["id"]
-            name = cert["attributes"].get("name", "unknown")
-            print(f"Revoking dev cert: {name} ({cert_id})")
-            try:
-                api_delete(f"certificates/{cert_id}")
-            except Exception as e:
-                print(f"  Warning: {e}")
-
-        for cert in dist_certs[2:]:
-            cert_id = cert["id"]
-            name = cert["attributes"].get("name", "unknown")
-            print(f"Revoking dist cert: {name} ({cert_id})")
-            try:
-                api_delete(f"certificates/{cert_id}")
-            except Exception as e:
-                print(f"  Warning: {e}")
-
-        remaining_dev = min(len(dev_certs), 1)
-        remaining_dist = min(len(dist_certs), 2)
-        print(f"After cleanup: {remaining_dev} dev, {remaining_dist} dist certs")
-        CLEANUP_SCRIPT
 
     - name: Archive app
       if: github.event_name != 'pull_request'
@@ -278,5 +213,7 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
+        security list-keychains -d user -s ~/Library/Keychains/login.keychain-db
+        security default-keychain -s ~/Library/Keychains/login.keychain-db
         security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true
         rm -rf $RUNNER_TEMP/private_keys $RUNNER_TEMP/Export $RUNNER_TEMP/cert.p12
