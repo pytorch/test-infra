@@ -791,13 +791,6 @@
       "linux"
     ]
   ],
-  "test_graph_concurrent_replay (__main__.TestCuda)": [
-    "104055",
-    "https://github.com/pytorch/pytorch/issues/104055",
-    [
-      "rocm"
-    ]
-  ],
   "test_graph_partition_user_defined_triton_kernel_reuse (__main__.CudaGraphTreeTests)": [
     "176144",
     "https://github.com/pytorch/pytorch/issues/176144",
@@ -916,6 +909,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_mem_get_info (__main__.TestCuda)": [
+    "103495",
+    "https://github.com/pytorch/pytorch/issues/103495",
+    [
+      "rocm"
     ]
   ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
