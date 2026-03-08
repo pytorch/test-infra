@@ -918,6 +918,13 @@
       "slow"
     ]
   ],
+  "test_mem_get_info (__main__.TestCuda)": [
+    "103495",
+    "https://github.com/pytorch/pytorch/issues/103495",
+    [
+      "rocm"
+    ]
+  ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
     "78457",
     "https://github.com/pytorch/pytorch/issues/78457",
