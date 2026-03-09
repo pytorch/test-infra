@@ -503,6 +503,7 @@ async function setup(testName: string): Promise<void> {
     }),
     tryGetConfigValues: jest.fn(),
     tryGetConfigKeys: jest.fn(),
+    setupAlternates: jest.fn(),
     tryReset: jest.fn(async () => {
       return true
     }),
