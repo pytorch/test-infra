@@ -38,6 +38,7 @@ class RunContext:
     revert_action: RevertAction
     ts: datetime
     workflows: List[str]
+    revert_decisions_sqs_queue_url: str = ""
 
 
 # Represents a job row from the jobs table in ClickHouse
