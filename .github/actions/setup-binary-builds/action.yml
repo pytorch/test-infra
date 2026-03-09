@@ -89,7 +89,7 @@ runs:
         uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           miniconda-version: "latest"
-          python-version: 3.9
+          python-version: 3.12
       - name: Clean conda environment
         shell: bash -l {0}
         run: |
