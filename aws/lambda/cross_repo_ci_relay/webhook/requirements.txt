@@ -1,0 +1,5 @@
+requests
+PyYAML
+PyGithub
+python-dotenv
+redis
