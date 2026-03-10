@@ -31,6 +31,7 @@ FROM (
         AND job.conclusion = 'success'
         AND workflow.head_branch LIKE {branch: String}
         AND workflow.run_attempt = 1
+        AND workflow.event != 'schedule'
 ) AS tts
 group by name
 order by tts_sec * count desc
