@@ -235,6 +235,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addmm_decomposed_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "177022",
+    "https://github.com/pytorch/pytorch/issues/177022",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_linalg_cond_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "176997",
     "https://github.com/pytorch/pytorch/issues/176997",
@@ -381,16 +388,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_comprehensive_pca_lowrank_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "139828",
-    "https://github.com/pytorch/pytorch/issues/139828",
-    [
-      "inductor",
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_comprehensive_sub_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -1107,8 +1104,8 @@
     ]
   ],
   "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
-    "176999",
-    "https://github.com/pytorch/pytorch/issues/176999",
+    "177001",
+    "https://github.com/pytorch/pytorch/issues/177001",
     [
       "linux"
     ]
