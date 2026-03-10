@@ -335,3 +335,10 @@ variable "retry_scale_up_chron_hud_query_url" {
   description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
   type        = string
 }
+
+variable "scale_up_chron_hud_bot_token" {
+  description = "Token sent as x-hud-internal-bot header to bypass Vercel bot protection on HUD API requests."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

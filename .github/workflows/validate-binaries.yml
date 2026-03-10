@@ -47,6 +47,11 @@ on:
         default: false
         required: false
         type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
   workflow_dispatch:
     inputs:
       os:
@@ -100,6 +105,11 @@ on:
         default: false
         required: false
         type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
 
 jobs:
   generate-release-matrix:
@@ -119,6 +129,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
+      use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   linux:
     if:  inputs.os == 'linux' || inputs.os == 'all'
@@ -133,6 +144,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
+      use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   linux-aarch64:
     if:  inputs.os == 'linux-aarch64' || inputs.os == 'all'
@@ -146,6 +158,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
+      use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   mac-arm64:
     if:  inputs.os == 'macos' || inputs.os == 'all'
@@ -159,3 +172,4 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
+      use-wheel-variants: ${{ inputs.use-wheel-variants }}

@@ -147,6 +147,29 @@ drCi.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
+// lint (also accepts fix-lint and apply-lint)
+const lint = commands.add_parser("lint", {
+  help: "Apply lint fixes to a PR",
+  description:
+    "Apply lint fixes to the PR. This will trigger a workflow that automatically\n" +
+    "applies lint fixes and pushes them to the PR branch.\n\n" +
+    "Aliases: @pytorchbot fix-lint, @pytorchbot apply-lint",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+lint.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+commands.add_parser("fix-lint", {
+  help: SUPPRESS,
+  add_help: false,
+});
+commands.add_parser("apply-lint", {
+  help: SUPPRESS,
+  add_help: false,
+});
+
 // cherry-pick
 const cherryPick = commands.add_parser("cherry-pick", {
   help: "Cherry pick a PR onto a release branch",
@@ -214,6 +237,9 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
+## Lint
+\`\`\`
+${lint.format_help()}\`\`\`
 ## cherry-pick
 \`\`\`
 ${cherryPick.format_help()}\`\`\`

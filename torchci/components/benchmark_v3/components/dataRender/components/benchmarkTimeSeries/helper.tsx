@@ -14,6 +14,7 @@ export type BenchmarkComparisonTableSectionConfig = {
   titleMapping?: Record<string, string>;
   groupByFields: string[];
   filterByFieldValues?: Record<string, Array<string>>;
+  renderOptions: any;
   tableConfig: ComparisonTableConfig;
 };
 
@@ -69,6 +70,19 @@ export interface BenchmarkComparisonTableRenderingOptions {
   missingText?: string;
   bothMissingText?: string;
   renderMissing?: boolean;
+  // Enable view switch button to toggle between different display fields
+  enableViewSwitch?: boolean;
+  // Configuration for the view switch options
+  viewSwitchLabels?: {
+    default: {
+      label: string; // Button label for default view
+      field?: string; // Field name to use (default: "displayName")
+    };
+    alternate: {
+      label: string; // Button label for alternate view
+      field?: string; // Field name to use (default: "displayNameAlt")
+    };
+  };
 }
 
 export interface BenchmarkComparisonTablePrimaryColumnConfig {
@@ -130,6 +144,7 @@ export type BenchmarkTimeSeriesCharRenderOpiton = {
   height?: string | number;
   title_group_mapping?: BenchmarkComparisonTitleMapping;
   chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
+  additionalMetadataList?: string[];
   showLegendDetails?: boolean;
 };
 

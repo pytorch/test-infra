@@ -152,11 +152,6 @@ runner_types:
     instance_type: p3.8xlarge
     is_ephemeral: true
     os: linux
-  lf.linux.16xlarge.nvidia.gpu:
-    disk_size: 150
-    instance_type: g3.16xlarge
-    is_ephemeral: true
-    os: linux
   lf.linux.24xlarge:
     disk_size: 150
     instance_type: c5.24xlarge
@@ -180,16 +175,6 @@ runner_types:
   lf.linux.4xlarge.for.testing.donotuse:
     disk_size: 150
     instance_type: c5.4xlarge
-    is_ephemeral: true
-    os: linux
-  lf.linux.4xlarge.nvidia.gpu:
-    disk_size: 150
-    instance_type: g3.4xlarge
-    is_ephemeral: true
-    os: linux
-  lf.linux.8xlarge.nvidia.gpu:
-    disk_size: 150
-    instance_type: g3.8xlarge
     is_ephemeral: true
     os: linux
   lf.linux.g4dn.12xlarge.nvidia.gpu:

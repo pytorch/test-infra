@@ -204,6 +204,7 @@ PACKAGE_ALLOW_LIST = {
         "torch_no_python",
         "torch",
         "torch_tensorrt",
+        "torch_tensorrt_rtx",
         "torcharrow",
         "torchaudio",
         "torchcodec",

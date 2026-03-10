@@ -28,6 +28,7 @@ import {
   useState,
 } from "react";
 import useSWRImmutable from "swr";
+import CopyLink from "../CopyLink";
 import LogAnnotationToggle from "./LogAnnotationToggle";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
@@ -185,6 +186,16 @@ function JumpToLineButton({
           <code onDoubleClick={(e) => e.stopPropagation()}>
             {lineText ?? "Show log"}
           </code>
+          {lineText && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <CopyLink
+                textToCopy={lineText.replaceAll(ESC_CHAR_REGEX, "")}
+                copyPrompt="Copy failure line"
+                link={false}
+                compressed={true}
+              />
+            </span>
+          )}
         </div>
       </button>
     </div>

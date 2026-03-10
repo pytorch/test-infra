@@ -384,8 +384,26 @@ function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
 async function listCompilerCommitsFromDb(queryParams: any) {
   // fetch metadata from db
   const fetcher = new BenchmarkCompilerListCommitQueryBuilder();
+  console.log(
+    "[DEBUG listCompilerCommitsFromDb] arches:",
+    queryParams.arches,
+    "startTime:",
+    queryParams.startTime,
+    "stopTime:",
+    queryParams.stopTime
+  );
   const data = await fetcher.applyQuery(queryParams);
   const result = fetcher.postProcess(data);
+  console.log(
+    "[DEBUG listCompilerCommitsFromDb] returned",
+    result.length,
+    "commits, date range:",
+    result.length > 0
+      ? `${result[0]?.date} to ${result[result.length - 1]?.date}`
+      : "none",
+    "workflow_ids sample:",
+    result.slice(0, 3).map((r: any) => r.workflow_id)
+  );
   return result;
 }
 

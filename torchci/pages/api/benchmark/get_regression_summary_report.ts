@@ -36,6 +36,7 @@ export default async function handler(
       id,
     });
     console.log("[API][DB]get regression summary report with params", params);
+
     const result = await queryClickhouse(query, params);
     const resp = toMiniReport(result);
     if (resp.length > 1) {
@@ -92,19 +93,28 @@ function toMiniReport(dbResult: any[]): any[] {
 }
 
 export function transformReportRows(results: Array<Record<string, any>>): {
-  buckets: Record<"regression" | "suspicious", any[]>;
+  buckets: Record<"regression" | "suspicious" | "insufficient_data", any[]>;
   filterOptions: { type: string; options: string | any[]; labelName: string }[];
 } {
   const filterOptions: Record<string, Set<string>> = {};
-  const buckets: Record<"regression" | "suspicious", any[]> = {
+  const buckets: Record<
+    "regression" | "suspicious" | "insufficient_data" | "no_regression",
+    any[]
+  > = {
     regression: [],
     suspicious: [],
+    insufficient_data: [],
+    no_regression: [],
   };
 
   for (const item of results) {
     const groupInfo = item.group_info ?? {};
     // --- collect unique values for each groupInfo key ---
-    if (item.label === "regression" || item.label === "suspicious") {
+    if (
+      item.label === "regression" ||
+      item.label === "suspicious" ||
+      item.label === "insufficient_data"
+    ) {
       for (const key of Object.keys(groupInfo)) {
         if (EXCLUDED_FILTER_OPTIONS.includes(key)) continue;
         const value = String(groupInfo[key]);
@@ -121,6 +131,8 @@ export function transformReportRows(results: Array<Record<string, any>>): {
       buckets.regression.push(item);
     } else if (item.label === "suspicious") {
       buckets.suspicious.push(item);
+    } else if (item.label === "insufficient_data") {
+      buckets.insufficient_data.push(item);
     }
   }
   // Convert Set → string[]

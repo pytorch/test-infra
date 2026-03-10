@@ -37,6 +37,7 @@ export function BenchmarkRegressionReportWrapper({
         enableTableSidePanel={enableTableSidePanel}
         singleChartSizeSx={singleChartSizeSx}
         groupChartSizeSx={groupChartSizeSx}
+        include_non_regression={false}
       />
     </Box>
   );

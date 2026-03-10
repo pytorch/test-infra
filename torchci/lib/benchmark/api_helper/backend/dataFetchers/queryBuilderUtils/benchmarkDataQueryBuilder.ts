@@ -291,7 +291,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   applyFormat(
     rawData: any[],
     formats: string[],
-    includesAllExtraKey: boolean = true
+    includesAllExtraKey: boolean = true,
+    _groupByFields?: string[]
   ) {
     const config = this._format_config;
     if (includesAllExtraKey) {
@@ -717,12 +718,19 @@ export class VllmBenchmarkDataFetcher
           OR startsWith(tupleElement(o.model, 'name'), {modelCategory:String})
       )
     `,
+      `(
+          {useCompile:String} = ''
+          OR tupleElement(o.benchmark, 'extra_info')['use_compile'] = ''
+          OR tupleElement(o.benchmark, 'extra_info')['use_compile'] = {useCompile:String}
+      )
+    `,
     ]);
   }
   applyFormat(
     data: any[],
     formats: string[],
-    includesAllExtraKey: boolean = true
+    includesAllExtraKey: boolean = true,
+    _groupByFields?: string[]
   ) {
     // nput and output length is the number of token feed into vLLM and the max output it returns.
     //  random_input_len is the name of the the parameter on vLLM bench,
@@ -754,6 +762,7 @@ export class VllmBenchmarkDataFetcher
     const params = {
       ...inputs,
       modelCategory: inputs.modelCategory ?? "",
+      useCompile: inputs.useCompile ?? "true",
       excludedMetrics: excludedMetrics,
     };
 

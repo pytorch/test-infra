@@ -501,6 +501,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, owner, repo, [prNum]);
   }
 
+  async handleLint() {
+    await this.logger.log("lint");
+    await this.dispatchEvent("apply-lint", {});
+    await this.ackComment();
+  }
+
   async handleCherryPick(
     branch: string,
     fixes: string,
@@ -571,6 +577,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "drci": {
           return await this.handleDrCI();
+        }
+        case "lint":
+        case "fix-lint":
+        case "apply-lint": {
+          return await this.handleLint();
         }
       }
     }

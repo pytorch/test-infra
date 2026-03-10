@@ -33,8 +33,8 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["7.0", "7.1"],
-    "test": ["7.0", "7.1"],
+    "nightly": ["7.1", "7.2"],
+    "test": ["7.1", "7.2"],
     "release": ["7.0", "7.1"],
 }
 
@@ -46,8 +46,8 @@ CUDA_CUDNN_VERSIONS = {
 }
 
 STABLE_CUDA_VERSIONS = {
-    "nightly": "12.8",
-    "test": "12.8",
+    "nightly": "13.0",
+    "test": "13.0",
     "release": "12.8",
 }
 
@@ -76,8 +76,8 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.11.0"
-CURRENT_CANDIDATE_VERSION = "2.10.0"
+CURRENT_NIGHTLY_VERSION = "2.12.0"
+CURRENT_CANDIDATE_VERSION = "2.11.0"
 CURRENT_STABLE_VERSION = "2.10.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 

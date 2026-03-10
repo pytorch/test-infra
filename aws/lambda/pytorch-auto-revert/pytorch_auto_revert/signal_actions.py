@@ -727,6 +727,11 @@ class SignalActionProcessor:
                             + "\n"
                             + breaking_notification_msg
                             + "\nPlease investigate and fix the issues."
+                            + "\n"
+                            + "@claude Can you please read this revert comment, follow the links and "
+                            + "read the errors, to then give a brief diagnostics on the cause of the "
+                            + "error? If you judge the error to be legitimate reason for a revert, "
+                            + "please provide brief guidance on how the author could fix it."
                         )
                         logging.warning(
                             "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",

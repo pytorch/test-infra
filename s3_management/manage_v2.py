@@ -1,4 +1,65 @@
 #!/usr/bin/env python
+#
+# manage_v2.py - Manage S3 and Cloudflare R2 HTML package indices for PyTorch
+#
+# This script generates and uploads PEP 503-compliant HTML index pages for
+# PyTorch wheel packages, libtorch archives, and source code tarballs hosted
+# on S3 (download.pytorch.org) and optionally mirrored to Cloudflare R2.
+#
+# Core functionality:
+#   - Reads package listings from the S3 "pytorch" bucket, builds per-package
+#     and per-subdirectory index.html pages, and uploads them back to S3/R2.
+#   - For wheel (whl) prefixes, generates PEP 503 simple repository HTML that
+#     includes sha256 checksums and PEP 658 metadata links when available.
+#   - For libtorch prefixes, generates a flat HTML listing of archives.
+#   - For source_code prefixes, generates a flat HTML listing of tarballs.
+#   - Copies flash-attn-3 indices from whl/ to whl/nightly/ for nightly builds.
+#   - Nightly packages are pruned to keep only the N most recent versions
+#     (controlled by KEEP_THRESHOLD).
+#   - PACKAGE_ALLOW_LIST controls which packages are indexed; packages not in
+#     the allow list are excluded from generated indices.
+#   - PACKAGE_LINKS_ALLOW_LIST packages have their index.html copied from
+#     parent directories rather than regenerated from wheel listings, so they
+#     can point to external package sources.
+#
+# SHA256 checksum management:
+#   - --compute-sha256: download each package, compute its SHA256, and store
+#     the digest as S3 object metadata (x-amz-meta-checksum-sha256).
+#   - --set-checksum: compute and set SHA256 metadata for a specific
+#     package/version combination (requires --package-name and --package-version).
+#   - --recompute-sha256-pattern PATTERN: compute SHA256 for all .whl files
+#     matching PATTERN under the given prefix that are missing checksums.
+#   - --recompute-missing-sha256: scan the entire prefix for .whl files that
+#     are missing x-amz-meta-checksum-sha256 metadata and compute/set it.
+#     Example: python s3_management/manage_v2.py channel --recompute-missing-sha256
+#     where "channel" is one of: whl, whl/nightly, whl/test, libtorch,
+#     libtorch/nightly, whl/test/variant, whl/variant, whl/preview/forge,
+#     source_code/test, or "all" to process every prefix.
+#
+# Dual-backend upload:
+#   When R2 credentials are configured (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+#   R2_SECRET_ACCESS_KEY), all index uploads are written to both the S3
+#   "pytorch" bucket and the Cloudflare R2 bucket in parallel.
+#
+# Usage examples:
+#   # Generate and upload indices for all prefixes:
+#   python s3_management/manage_v2.py all
+#
+#   # Generate indices locally without uploading (dry run):
+#   python s3_management/manage_v2.py whl/nightly --do-not-upload
+#
+#   # Compute SHA256 checksums for all packages in a prefix:
+#   python s3_management/manage_v2.py whl/test --compute-sha256
+#
+#   # Set checksum for a specific package and version:
+#   python s3_management/manage_v2.py whl/test --set-checksum \
+#       --package-name torch --package-version 2.5.0+cu121
+#
+#   # Recompute missing SHA256 checksums for a channel:
+#   python s3_management/manage_v2.py whl/nightly --recompute-missing-sha256
+#
+#   # Recompute SHA256 for a specific subdir pattern:
+#   python s3_management/manage_v2.py whl/test --recompute-sha256-pattern rocm6.4
 
 import argparse
 import base64
@@ -191,6 +252,7 @@ PACKAGE_ALLOW_LIST = {
         "torch_no_python",
         "torch",
         "torch_tensorrt",
+        "torch_tensorrt_rtx",
         "torcharrow",
         "torchaudio",
         "torchcodec",
@@ -220,6 +282,7 @@ PACKAGE_ALLOW_LIST = {
         "cuda_python",
         "cuda_bindings",
         "cuda_pathfinder",
+        "cuda_toolkit",
         "pynvml",
         "nvidia_ml_py",
         "einops",
@@ -368,6 +431,29 @@ PT_FOUNDATION_PACKAGES = {
     "pytorch_triton_xpu",
 }
 
+# Packages that should use R2 (download-r2.pytorch.org) for nightly builds
+# These packages will have their URLs point to R2 instead of S3/CloudFront
+# when the path is whl/nightly
+PT_R2_PACKAGES = {
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+    "triton",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
+}
+
+# Packages that should use R2 (download-r2.pytorch.org) for prod/stable builds
+# These packages will have their URLs point to R2 instead of S3/CloudFront
+# when the path is NOT whl/test and NOT whl/nightly (i.e., prod)
+PT_R2_PACKAGES_PROD = {
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+}
+
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
 # For example: whl/nightly/filelock/index.html -> whl/nightly/cu128/filelock/index.html
@@ -383,6 +469,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "fsspec",
         "typing-extensions",
         "cuda-bindings",
+        "cuda-toolkit",
         "nvidia-cuda-nvrtc-cu12",
         "nvidia-cuda-nvrtc",
         "nvidia-cuda-runtime-cu12",
@@ -444,6 +531,10 @@ PACKAGE_LINKS_ALLOW_LIST = {
 
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
+
+# Package index files to copy from whl/ to whl/nightly/ during nightly updates.
+# Copies the root-level index and all cu* subdirectory indexes.
+FLASH_ATTN_3_COPY_PACKAGE = "flash-attn-3"
 
 
 S3IndexType = TypeVar("S3IndexType", bound="S3Index")
@@ -705,7 +796,22 @@ class S3Index:
         )
 
         # Determine URL strategy once before the loop
-        if (
+        resolved_subdir = self._resolve_subdir(subdir)
+
+        # Check if this package should use R2 for nightly builds
+        if package_name.lower() in PT_R2_PACKAGES and resolved_subdir.startswith(
+            "whl/nightly"
+        ):
+            # Use R2 absolute URL for PT_R2_PACKAGES in nightly builds
+            base_url = "https://download-r2.pytorch.org"
+        elif (
+            package_name.lower() in PT_R2_PACKAGES_PROD
+            and not resolved_subdir.startswith("whl/test")
+            and not resolved_subdir.startswith("whl/nightly")
+        ):
+            # Use R2 absolute URL for PT_R2_PACKAGES_PROD in prod/stable builds
+            base_url = "https://download-r2.pytorch.org"
+        elif (
             use_cloudfront_for_non_foundation
             and package_name.lower() not in PT_FOUNDATION_PACKAGES
         ):
@@ -1172,6 +1278,14 @@ class S3Index:
                             )
                         )
 
+    def collect_missing_sha256_checksums(self) -> List[str]:
+        """Return orig_keys of .whl objects missing x-amz-meta-checksum-sha256."""
+        return [
+            obj.orig_key
+            for obj in self.objects
+            if obj.key.endswith(".whl") and obj.checksum is None
+        ]
+
     def compute_sha256(self) -> None:
         for obj in self.objects:
             if obj.checksum is not None:
@@ -1588,6 +1702,79 @@ def recompute_sha256_for_pattern(
     _compute_and_set_checksums(matching_objects)
 
 
+def _get_flash_attn_3_nightly_copies() -> List[tuple]:
+    """Dynamically discover flash-attn-3 index.html files under whl/ to copy to whl/nightly/.
+
+    Returns a list of (source_key, destination_key) tuples for:
+    - whl/flash-attn-3/index.html -> whl/nightly/flash-attn-3/index.html
+    - whl/cu*/flash-attn-3/index.html -> whl/nightly/cu*/flash-attn-3/index.html
+      for all CUDA subdirectories matching ACCEPTED_SUBDIR_PATTERNS.
+    """
+    pkg = FLASH_ATTN_3_COPY_PACKAGE
+    copies = [
+        (f"whl/{pkg}/index.html", f"whl/nightly/{pkg}/index.html"),
+    ]
+
+    # Find all cu* subdirectories under whl/ using S3 delimiter listing
+    cu_pattern = r"cu[0-9]+"
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=BUCKET.name, Prefix="whl/", Delimiter="/"):
+        for common_prefix in page.get("CommonPrefixes", []):
+            subdir_name = common_prefix["Prefix"].rstrip("/").split("/")[-1]
+            if match(f"{cu_pattern}$", subdir_name):
+                src = f"whl/{subdir_name}/{pkg}/index.html"
+                dst = f"whl/nightly/{subdir_name}/{pkg}/index.html"
+                copies.append((src, dst))
+
+    return copies
+
+
+def upload_flash_attn_3_to_nightly() -> None:
+    """Copy flash-attn-3 index.html files from whl to whl/nightly in S3 and R2."""
+    for src_key, dst_key in _get_flash_attn_3_nightly_copies():
+        try:
+            src_obj = BUCKET.Object(key=src_key)
+            html_content = src_obj.get()["Body"].read().decode("utf-8")
+
+            print(f"INFO: Copying {src_key} to {dst_key} in S3 bucket {BUCKET.name}")
+            BUCKET.Object(key=dst_key).put(
+                ACL="public-read",
+                CacheControl="no-cache,no-store,must-revalidate",
+                ContentType="text/html",
+                Body=html_content,
+            )
+
+            if R2_BUCKET:
+                print(
+                    f"INFO: Copying {src_key} to {dst_key} in R2 bucket {R2_BUCKET.name}"
+                )
+                R2_BUCKET.Object(key=dst_key).put(
+                    ACL="public-read",
+                    CacheControl="no-cache,no-store,must-revalidate",
+                    ContentType="text/html",
+                    Body=html_content,
+                )
+        except Exception as e:
+            print(f"ERROR: Failed to copy {src_key} to {dst_key}: {e}")
+
+
+def save_flash_attn_3_to_nightly() -> None:
+    """Copy flash-attn-3 index.html files from whl to whl/nightly locally (fetched from S3)."""
+    for src_key, dst_key in _get_flash_attn_3_nightly_copies():
+        try:
+            src_obj = BUCKET.Object(key=src_key)
+            html_content = src_obj.get()["Body"].read().decode("utf-8")
+
+            dst_dir = path.dirname(dst_key)
+            makedirs(dst_dir, exist_ok=True)
+
+            print(f"INFO: Saving {src_key} to {dst_key}")
+            with open(dst_key, mode="w", encoding="utf-8") as f:
+                f.write(html_content)
+        except Exception as e:
+            print(f"ERROR: Failed to save {src_key} to {dst_key}: {e}")
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("Manage S3 HTML indices for PyTorch")
     parser.add_argument("prefix", type=str, choices=PREFIXES + ["all"])
@@ -1620,6 +1807,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Compute SHA256 checksums for objects matching this pattern that don't already have "
         "checksums (e.g., 'whl/test/rocm7.1'). Objects with existing checksums are skipped.",
     )
+    parser.add_argument(
+        "--recompute-missing-sha256",
+        action="store_true",
+        help="Scan the prefix for .whl files missing x-amz-meta-checksum-sha256 metadata "
+        "and compute/set the checksum for each one.",
+    )
     return parser
 
 
@@ -1650,6 +1843,22 @@ def main() -> None:
         )
         return
 
+    # Handle --recompute-missing-sha256 command
+    if args.recompute_missing_sha256:
+        print(
+            f"INFO: Scanning '{args.prefix}' for .whl files missing x-amz-meta-checksum-sha256..."
+        )
+        idx = S3Index.from_S3(prefix=args.prefix, with_metadata=True)
+        missing_keys = idx.collect_missing_sha256_checksums()
+        if not missing_keys:
+            print("INFO: All .whl files already have x-amz-meta-checksum-sha256")
+            return
+        print(
+            f"INFO: Found {len(missing_keys)} .whl file(s) missing x-amz-meta-checksum-sha256"
+        )
+        _compute_and_set_checksums(missing_keys)
+        return
+
     # Display PACKAGE_LINKS_ALLOW_LIST summary
     print(f"\n{'=' * 80}")
     print("PACKAGE_LINKS_ALLOW_LIST Configuration:")
@@ -1669,6 +1878,8 @@ def main() -> None:
         action = "Computing checksums"
 
     prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
+    # Collect missing checksums per prefix to report at the end
+    missing_checksums: Dict[str, List[str]] = {}
     for prefix in prefixes:
         generate_pep503 = prefix.startswith("whl")
         generate_source_code = prefix.startswith("source_code")
@@ -1681,11 +1892,18 @@ def main() -> None:
         print(
             f"INFO: Processing completed for '{prefix}' in {etime - stime:.2f} seconds"
         )
+        # Collect .whl files missing SHA256 checksums (reported at the end)
+        if generate_pep503 and not args.compute_sha256:
+            missing = idx.collect_missing_sha256_checksums()
+            if missing:
+                missing_checksums[prefix] = missing
         if args.compute_sha256:
             idx.compute_sha256()
         elif args.do_not_upload:
             if generate_pep503:
                 idx.save_pep503_htmls()
+                if prefix == "whl/nightly":
+                    save_flash_attn_3_to_nightly()
             elif generate_source_code:
                 idx.save_source_code_html()
             else:
@@ -1693,10 +1911,29 @@ def main() -> None:
         else:
             if generate_pep503:
                 idx.upload_pep503_htmls()
+                if prefix == "whl/nightly":
+                    upload_flash_attn_3_to_nightly()
             elif generate_source_code:
                 idx.upload_source_code_html()
             else:
                 idx.upload_libtorch_html()
+
+    # Print SHA256 checksum validation summary at the end
+    if missing_checksums:
+        print(f"\n{'=' * 80}")
+        print("SHA256 CHECKSUM VALIDATION ERRORS")
+        print(f"{'=' * 80}")
+        for prefix, keys in missing_checksums.items():
+            print(
+                f"\n{prefix}: {len(keys)} .whl file(s) missing x-amz-meta-checksum-sha256"
+            )
+            for key in keys:
+                print(f"  ERROR: {key}")
+        total = sum(len(keys) for keys in missing_checksums.values())
+        print(f"\nTotal: {total} .whl file(s) missing x-amz-meta-checksum-sha256")
+        print(f"{'=' * 80}")
+    elif not args.compute_sha256 and any(p.startswith("whl") for p in prefixes):
+        print("\nINFO: All .whl files have x-amz-meta-checksum-sha256")
 
 
 if __name__ == "__main__":

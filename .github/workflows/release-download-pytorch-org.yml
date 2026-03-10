@@ -21,11 +21,13 @@ on:
           - executorch
           - torchvision
           - torchaudio
+          - torchcodec
           - torch_tensorrt
           - torchrec
           - fbgemm_gpu
           - fbgemm_gpu_genai
           - mslk
+          - flash_attn_3
 
 permissions:
   id-token: write
@@ -83,5 +85,11 @@ jobs:
             # Run promotion
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
+
+            # do not upload FA3 test wheels with local date suffix
+            if [[ "${PACKAGE}" == "flash_attn_3" ]]; then
+              export PACKAGE_INCLUDE_SUFFIX="-*"
+            fi
+
             # shellcheck disable=SC2086
             promote_s3 ${PACKAGE} whl "${!version}"

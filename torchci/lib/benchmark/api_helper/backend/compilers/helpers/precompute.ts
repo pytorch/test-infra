@@ -87,19 +87,20 @@ export function toPrecomputeCompilerData(
     const dataPerGroup = toPrecomputeCompilerDataPerGroup(items, meta);
     all_data = [...all_data, ...dataPerGroup];
   }
-  const data = [...all_data].sort(
+  // Sort data by granularity_bucket
+  const sortedData = [...all_data].sort(
     (a, b) =>
       Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
   );
-  if (!data || data.length === 0) {
+  if (!sortedData || sortedData.length === 0) {
     return emptyTimeSeriesResponse();
   }
 
-  // post process data to get start_ts and end_ts, and add commit metadata
-  const { start_ts, end_ts } = postFetchProcess(all_data);
+  // post process data to get start_ts and end_ts using SORTED data
+  const { start_ts, end_ts } = postFetchProcess(sortedData);
   let res: any = {};
   formats.forEach((format) => {
-    const f = getFormat(all_data, format);
+    const f = getFormat(sortedData, format);
     res[format] = f;
   });
   return toTimeSeriesResponse(res, rawData.length, start_ts, end_ts);
@@ -117,6 +118,7 @@ function addMetadata(data: any[], commit_map: Map<string, any>, metadata: any) {
 }
 
 function postFetchProcess(data: any[]) {
+  // data is expected to be sorted by granularity_bucket
   let start_ts = new Date(data[0]?.granularity_bucket).getTime();
   let end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
   // Handle invalid dates (NaN from getTime)
@@ -128,7 +130,7 @@ function postFetchProcess(data: any[]) {
       `(postFetchProcess)Invalid granularity_bucket values detected peek first data: ${data[0]}`
     );
   }
-  // Swap if needed
+  // Swap if needed (safety check)
   if (end_ts < start_ts) {
     [start_ts, end_ts] = [end_ts, start_ts];
   }
@@ -137,7 +139,6 @@ function postFetchProcess(data: any[]) {
     end_ts,
   };
 }
-
 function getFormat(data: any, format: string) {
   switch (format) {
     case "time_series":

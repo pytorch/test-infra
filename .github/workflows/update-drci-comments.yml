@@ -19,8 +19,10 @@ jobs:
           { repo: executorch, org: pytorch },
           { repo: pytorch, org: pytorch },
           { repo: rl, org: pytorch },
+          { repo: tensordict, org: pytorch },
           { repo: text, org: pytorch },
           { repo: torchchat, org: pytorch },
+          { repo: torchcodec, org: meta-pytorch },
           { repo: tutorials, org: pytorch },
           { repo: vision, org: pytorch },
         ]

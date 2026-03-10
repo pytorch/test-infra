@@ -42,6 +42,11 @@ on:
         default: false
         required: false
         type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
   workflow_dispatch:
     inputs:
       channel:
@@ -83,6 +88,11 @@ on:
         default: false
         required: false
         type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
       use-version-set:
         description: 'Applies when version is used, use version for each domain'
         default: false
@@ -120,6 +130,7 @@ jobs:
         export USE_FORCE_REINSTALL="true"
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
         export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
+        export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
         export USE_VERSION_SET=${{ inputs.use-version-set }}
 
         if [[ ${{ matrix.package_type }} == "conda" ]]; then

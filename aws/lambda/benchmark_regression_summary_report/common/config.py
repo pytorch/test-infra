@@ -48,7 +48,7 @@ PYTORCH_HELION_CONFIG = BenchmarkConfig(
             "helion_speedup": RegressionPolicy(
                 name="helion_speedup",
                 condition="greater_equal",
-                threshold=0.85,
+                threshold=0.95,
                 baseline_aggregation="median",
             ),
         },
@@ -291,11 +291,104 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     ),
 )
 
+PYTORCH_X_VLLM_BENCHMARK_CONFIG = BenchmarkConfig(
+    name="PyTorch x vLLM Benchmark Regression",
+    id="pytorch_x_vllm_benchmark",
+    source=BenchmarkApiSource(
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
+        type="benchmark_time_series_api",
+        api_endpoint_params_template="""
+                {
+                  "name": "pytorch_x_vllm_benchmark",
+                  "query_params": {
+                    "mode": "",
+                    "branches": ["main"],
+                    "repo": "pytorch/pytorch",
+                    "device": "",
+                    "benchmarkName": "PyTorch x vLLM benchmark",
+                    "startTime": "{{ startTime }}",
+                    "stopTime": "{{ stopTime }}"
+                    },
+                    "response_formats":["time_series"]
+                }
+                """,
+    ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_x_vllm_benchmark",
+    },
+    policy=Policy(
+        frequency=Frequency(value=1, unit="days"),
+        range=RangeConfig(
+            baseline=DayRangeWindow(value=3),
+            comparison=DayRangeWindow(value=3),
+        ),
+        metrics={
+            "latency": RegressionPolicy(
+                name="latency",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="median",
+            ),
+            "median_itl_ms": RegressionPolicy(
+                name="median_itl_ms",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="median",
+            ),
+            "median_tpot_ms": RegressionPolicy(
+                name="median_tpot_ms",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="median",
+            ),
+            "median_ttft_ms": RegressionPolicy(
+                name="median_ttft_ms",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="median",
+            ),
+            "requests_per_second": RegressionPolicy(
+                name="requests_per_second",
+                condition="greater_equal",
+                threshold=0.8,
+                baseline_aggregation="median",
+            ),
+            "tokens_per_second": RegressionPolicy(
+                name="tokens_per_second",
+                condition="greater_equal",
+                threshold=0.8,
+                baseline_aggregation="median",
+            ),
+        },
+        notification_config={
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7676",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [
+                            {"device": "cuda", "arch": "NVIDIA H100 80GB HBM3"},
+                            {"device": "cuda", "arch": "NVIDIA B200"},
+                        ],
+                    },
+                }
+            ]
+        },
+    ),
+    report_config=ReportConfig(
+        report_level="no_regression",
+    ),
+)
+
+
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
     configs={
         "compiler_regression": COMPILER_BENCHMARK_CONFIG,
         "pytorch_operator_microbenchmark": PYTORCH_OPERATOR_MICROBENCH_CONFIG,
         "pytorch_helion": PYTORCH_HELION_CONFIG,
+        "pytorch_x_vllm_benchmark": PYTORCH_X_VLLM_BENCHMARK_CONFIG,
         "torchao_micro_api_benchmark": TORCHAO_MICRO_API_CONFIG,
     }
 )

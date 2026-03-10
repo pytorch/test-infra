@@ -49,6 +49,15 @@ on:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
         required: false
+      R2_ACCOUNT_ID:
+        description: Cloudflare R2 account ID
+        required: false
+      R2_ACCESS_KEY_ID:
+        description: Cloudflare R2 access key ID
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        description: Cloudflare R2 secret access key
+        required: false
 
 jobs:
   upload:
@@ -143,3 +152,71 @@ jobs:
           repository-url: https://upload.pypi.org/legacy/
           packages-dir: ${{ inputs.repository }}/dist/
           skip-existing: true
+
+      - name: Check if R2 upload is enabled
+        id: check-r2
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # R2 upload is enabled only for specific ecosystem libraries on nightly channel
+          # Enabled repos: pytorch/audio (torchaudio), pytorch/vision (torchvision),
+          #                pytorch/FBGEMM (fbgemm_gpu, fbgemm_gpu_genai)
+          REPOSITORY="${{ inputs.repository }}"
+          R2_UPLOAD="false"
+          case "$REPOSITORY" in
+            pytorch/audio|pytorch/vision|pytorch/FBGEMM)
+              R2_UPLOAD="true"
+              ;;
+          esac
+          if [[ -z "${R2_ACCOUNT_ID}" || -z "${R2_ACCESS_KEY_ID}" || -z "${R2_SECRET_ACCESS_KEY}" ]]; then
+            echo "R2 secrets are not configured, skipping R2 upload"
+            R2_UPLOAD="false"
+          fi
+          echo "r2_upload=${R2_UPLOAD}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure R2 credentials
+        if: ${{ steps.check-r2.outputs.r2_upload == 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly'))) }}
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # Configure AWS CLI to work with R2
+          # Unset OIDC-based AWS credentials from the S3 upload step to avoid conflicts
+          {
+            echo "AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}"
+            echo "AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}"
+            echo "AWS_SESSION_TOKEN="
+            echo "AWS_DEFAULT_REGION=auto"
+            echo "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Upload package to R2
+        if: ${{ steps.check-r2.outputs.r2_upload == 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly'))) }}
+        shell: bash
+        working-directory: ${{ inputs.repository }}
+        env:
+          WHEEL_UPLOAD_PATH: ${{ inputs.wheel-upload-path }}
+        run: |
+          set -ex
+
+          # shellcheck disable=SC1090
+          source "${BUILD_ENV_FILE}"
+
+          # set path to specific wheel-upload-path
+          if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch-downloads/${WHEEL_UPLOAD_PATH}"
+          else
+            PYTORCH_S3_BUCKET_PATH=${PYTORCH_S3_BUCKET_PATH/"s3://pytorch"/"s3://pytorch-downloads"}
+          fi
+
+          # shellcheck disable=SC2086
+          for pkg in dist/*; do
+            shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
+            aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" \
+              --metadata "checksum-sha256=${shm_id}" --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          done

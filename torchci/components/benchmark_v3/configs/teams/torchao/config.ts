@@ -9,6 +9,11 @@ import {
 export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
   "pytorch_operator_microbenchmark";
 
+export const PYTORCH_OPERATOR_MICROBENCHMARK_ID_REPORT_CONFIG = {
+  report_id: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
+  include_non_regression: false,
+};
+
 const initialOptions = {
   ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
   benchmarkId: PYTORCH_OPERATOR_MICROBENCHMARK_ID,

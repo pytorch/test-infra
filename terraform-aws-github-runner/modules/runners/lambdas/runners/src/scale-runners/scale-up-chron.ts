@@ -129,7 +129,11 @@ export async function getQueuedJobs(
     const response = await expBackOff(() => {
       return metrics.trackRequest(metrics.getQueuedJobsEndpointSuccess, metrics.getQueuedJobsEndpointFailure, () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return axios.get<any, AxiosResponse<string>>(url);
+        const headers: Record<string, string> = {};
+        if (Config.Instance.scaleUpChronHudBotToken) {
+          headers['x-hud-internal-bot'] = Config.Instance.scaleUpChronHudBotToken;
+        }
+        return axios.get<any, AxiosResponse<string>>(url, { headers });
       });
     });
 

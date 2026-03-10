@@ -52,7 +52,7 @@ aws_promote() {
             --recursive \
             --metadata-directive COPY \
             --exclude '*' \
-            --include "*${package_name}-${pytorch_version}*" \
+            --include "*${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-*}" \
             "${PYTORCH_S3_FROM/\/$//}" \
             "${PYTORCH_S3_TO/\/$//}"
     )

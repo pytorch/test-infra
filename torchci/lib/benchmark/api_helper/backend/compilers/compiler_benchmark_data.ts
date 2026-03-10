@@ -139,11 +139,6 @@ async function fetchCompilerDataFromDb(queryParams: any): Promise<any[]> {
 
   const end = Date.now();
   console.log("time to get compiler timeseris data", end - start);
-
-  if (rows.length === 0) {
-    return [];
-  }
-
   console.log("rows from clickhouse", rows[0], "total length", rows.length);
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.

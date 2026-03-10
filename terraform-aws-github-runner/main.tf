@@ -116,6 +116,7 @@ module "runners" {
   }
 
   retry_scale_up_chron_hud_query_url = var.retry_scale_up_chron_hud_query_url
+  scale_up_chron_hud_bot_token       = var.scale_up_chron_hud_bot_token
 
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels

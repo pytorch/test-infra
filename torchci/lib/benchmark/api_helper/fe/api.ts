@@ -117,9 +117,13 @@ export async function listBenchmarkRegressionReport<T>(
   return res.json();
 }
 
-export async function getBenchmarkRegressionReport<T>(id: string): Promise<T> {
+export async function getBenchmarkRegressionReport<T>(
+  id: string,
+  include_non_regression: boolean = false
+): Promise<T> {
   const body = {
     id,
+    include_non_regression,
   };
   const url = "/api/benchmark/get_regression_summary_report";
   const res = await fetch(url, {

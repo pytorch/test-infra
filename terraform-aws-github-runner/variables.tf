@@ -387,6 +387,13 @@ variable "retry_scale_up_chron_hud_query_url" {
   default     = ""
 }
 
+variable "scale_up_chron_hud_bot_token" {
+  description = "Token sent as x-hud-internal-bot header to bypass Vercel bot protection on HUD API requests."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "wiz_secret_arn" {
   description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
   type        = string

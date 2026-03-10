@@ -14,8 +14,13 @@ import {
   BenchmarkMetadataQuery,
   PytorchOperatorMicrobenchmarkMetadataFetcher,
   TorchAoMicrobApienchmarkMetadataFetcher,
+  VllmAggregateBenchmarkMetadataFetcher,
   VllmBenchmarkMetadataFetcher,
 } from "./queryBuilderUtils/listMetadataQueryBuilder";
+import {
+  VllmXPytorchBenchmarkAggregatedDataFetcher,
+  VllmXPytorchBenchmarkDataFetcher,
+} from "./queryBuilderUtils/vllmDataFetchers";
 import {
   BenchmarkDataFetcher,
   BenchmarkListCommitFetcher,
@@ -28,7 +33,8 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
   pytorch_helion: PytorchHelionDataFetcher,
   torchao_micro_api_benchmark: PytorchAoMicroApiBenchmarkDataFetcher,
   vllm_benchmark: VllmBenchmarkDataFetcher,
-  pytorch_x_vllm_benchmark: VllmBenchmarkDataFetcher,
+  pytorch_x_vllm_benchmark: VllmXPytorchBenchmarkDataFetcher,
+  pytroch_x_vllm_aggregated: VllmXPytorchBenchmarkAggregatedDataFetcher,
   default: BenchmarkDataQuery,
 };
 
@@ -38,6 +44,7 @@ const metaCtors: Record<string, new () => BenchmarkMetadataFetcher> = {
   torchao_micro_api_benchmark: TorchAoMicrobApienchmarkMetadataFetcher,
   vllm_benchmark: VllmBenchmarkMetadataFetcher,
   pytorch_x_vllm_benchmark: VllmBenchmarkMetadataFetcher,
+  pytroch_x_vllm_aggregated: VllmAggregateBenchmarkMetadataFetcher,
   default: BenchmarkMetadataQuery,
 };
 
@@ -46,6 +53,7 @@ const listCommitsCtors: Record<string, new () => BenchmarkListCommitFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicroListCommitsDataFetcher,
   vllm_benchmark: VllmListCommitsDataFetcher,
   pytorch_x_vllm_benchmark: VllmListCommitsDataFetcher,
+  pytroch_x_vllm_aggregated: VllmListCommitsDataFetcher,
   default: BenchmarkListCommitQueryBuilder,
 };
 
