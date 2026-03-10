@@ -870,6 +870,14 @@
       "linux"
     ]
   ],
+  "test_functional_call_sequential_params_and_buffers (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "177056",
+    "https://github.com/pytorch/pytorch/issues/177056",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
     "170259",
     "https://github.com/pytorch/pytorch/issues/170259",
@@ -1739,6 +1747,20 @@
       "linux"
     ]
   ],
+  "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_2_add_1dim_False (__main__.MixOrderReductionTest)": [
+    "177054",
+    "https://github.com/pytorch/pytorch/issues/177054",
+    [
+      "linux"
+    ]
+  ],
+  "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_2_add_1dim_False (__main__.NoMixOrderReductionTest)": [
+    "177055",
+    "https://github.com/pytorch/pytorch/issues/177055",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -2022,6 +2044,15 @@
     "https://github.com/pytorch/pytorch/issues/177003",
     [
       "linux",
+      "slow"
+    ]
+  ],
+  "test_unbacked_symint (__main__.TestMemoryPlanning)": [
+    "168171",
+    "https://github.com/pytorch/pytorch/issues/168171",
+    [
+      "linux",
+      "rocm",
       "slow"
     ]
   ],
