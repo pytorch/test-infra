@@ -1301,11 +1301,6 @@
       "linux"
     ]
   ],
-  "test_no_fusion_indexing_var_usage (__main__.TestUserKernelEpilogueFusion)": [
-    "176739",
-    "https://github.com/pytorch/pytorch/issues/176739",
-    []
-  ],
   "test_noncontiguous_samples_cholesky_solve_cuda_complex64 (__main__.TestCommonCUDA)": [
     "165294",
     "https://github.com/pytorch/pytorch/issues/165294",
