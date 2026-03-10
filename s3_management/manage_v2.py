@@ -440,6 +440,10 @@ PT_R2_PACKAGES = {
     "torchaudio",
     "fbgemm_gpu",
     "fbgemm_gpu_genai",
+    "triton",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
 }
 
 # Packages that should use R2 (download-r2.pytorch.org) for prod/stable builds
