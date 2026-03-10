@@ -235,6 +235,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_linalg_cond_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "176997",
+    "https://github.com/pytorch/pytorch/issues/176997",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
@@ -307,8 +314,8 @@
     ]
   ],
   "test_comprehensive_matmul_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176962",
-    "https://github.com/pytorch/pytorch/issues/176962",
+    "176964",
+    "https://github.com/pytorch/pytorch/issues/176964",
     [
       "inductor"
     ]
@@ -423,6 +430,14 @@
     "https://github.com/pytorch/pytorch/issues/104366",
     [
       "rocm"
+    ]
+  ],
+  "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
+    "158115",
+    "https://github.com/pytorch/pytorch/issues/158115",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_copy_non_blocking_is_pinned_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -662,6 +677,30 @@
       "rocm"
     ]
   ],
+  "test_dynamic_lstm (__main__.TestExport)": [
+    "176995",
+    "https://github.com/pytorch/pytorch/issues/176995",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_cpp_serdes (__main__.CppSerdesTestExport)": [
+    "177002",
+    "https://github.com/pytorch/pytorch/issues/177002",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_retraceability_strict (__main__.RetraceExportTestExport)": [
+    "176998",
+    "https://github.com/pytorch/pytorch/issues/176998",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
     "176959",
     "https://github.com/pytorch/pytorch/issues/176959",
@@ -885,6 +924,13 @@
       "slow"
     ]
   ],
+  "test_graph_two_successive (__main__.TestCuda)": [
+    "159113",
+    "https://github.com/pytorch/pytorch/issues/159113",
+    [
+      "linux"
+    ]
+  ],
   "test_guard_serialization_fsdp_module (__main__.TestGuardSerializationFSDP)": [
     "162793",
     "https://github.com/pytorch/pytorch/issues/162793",
@@ -1053,6 +1099,13 @@
       "slow"
     ]
   ],
+  "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
+    "176999",
+    "https://github.com/pytorch/pytorch/issues/176999",
+    [
+      "linux"
+    ]
+  ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
     "153460",
     "https://github.com/pytorch/pytorch/issues/153460",
@@ -1065,6 +1118,14 @@
   "test_mempool_empty_cache_inactive (__main__.TestMemPool)": [
     "159663",
     "https://github.com/pytorch/pytorch/issues/159663",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mempool_expandable (__main__.TestMemPool)": [
+    "177000",
+    "https://github.com/pytorch/pytorch/issues/177000",
     [
       "linux",
       "slow"
@@ -1165,9 +1226,23 @@
       "linux"
     ]
   ],
+  "test_nan_assert_float32 (__main__.ProcessGroupNCCLGroupTest)": [
+    "177006",
+    "https://github.com/pytorch/pytorch/issues/177006",
+    [
+      "linux"
+    ]
+  ],
   "test_nan_assert_float64 (__main__.ProcessGroupNCCLGroupTest)": [
     "166067",
     "https://github.com/pytorch/pytorch/issues/166067",
+    [
+      "linux"
+    ]
+  ],
+  "test_nan_assert_float8_e4m3fn (__main__.ProcessGroupNCCLGroupTest)": [
+    "177007",
+    "https://github.com/pytorch/pytorch/issues/177007",
     [
       "linux"
     ]
@@ -1651,6 +1726,20 @@
       "linux"
     ]
   ],
+  "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_1_add_1dim_True (__main__.MixOrderReductionTest)": [
+    "177004",
+    "https://github.com/pytorch/pytorch/issues/177004",
+    [
+      "linux"
+    ]
+  ],
+  "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_1_add_1dim_True (__main__.NoMixOrderReductionTest)": [
+    "177005",
+    "https://github.com/pytorch/pytorch/issues/177005",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -1927,6 +2016,21 @@
     "https://github.com/pytorch/pytorch/issues/173761",
     [
       "rocm"
+    ]
+  ],
+  "test_unbacked_symbol_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "177003",
+    "https://github.com/pytorch/pytorch/issues/177003",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_unexpected_c_return_events (__main__.TestPythonTracer)": [
+    "176996",
+    "https://github.com/pytorch/pytorch/issues/176996",
+    [
+      "linux"
     ]
   ],
   "test_unshard_async (__main__.TestFullyShardUnshardMultiProcess)": [
