@@ -1,5 +1,5 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { IconButton, Tooltip, Typography } from "@mui/material";
+import { IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   GridColDef,
@@ -154,11 +154,13 @@ export function getComparisionTableConlumnRendering(
   return [primaryCol, ...metadataCols, ...metricCols, labelCol];
 }
 
-/** Colors */
-const VIOLATE_RULE_COLOR = "#ffebee"; // red[50]
-const IMPROVEMENT_COLOR = "#e8f5e9"; // green[50]
-const WARNING_COLOR = "#fff9c4"; // yellow[50]
-const MISSING_DATA_COLOR = "#F5F5F5"; // ~ MUI grey[300]
+/** Colors — light / dark pairs */
+const COLORS = {
+  regression: { light: "#ffebee", dark: "#4b2c2c" },
+  improvement: { light: "#e8f5e9", dark: "#1b4332" },
+  warning: { light: "#fff9c4", dark: "#4a4000" },
+  missing: { light: "#F5F5F5", dark: "#3a3a3a" },
+};
 
 export function ComparisonTablePrimaryFieldValueCell({
   params,
@@ -213,19 +215,21 @@ export function ComparisonTableColumnFieldValueCell({
   onClick: (data: any) => void;
 }) {
   // pick background color based on result signals
+  const theme = useTheme();
+  const mode = theme.palette.mode === "dark" ? "dark" : "light";
   let bgColor = "";
   switch (result?.verdict) {
     case "good":
-      bgColor = IMPROVEMENT_COLOR;
+      bgColor = COLORS.improvement[mode];
       break;
     case "regression":
-      bgColor = VIOLATE_RULE_COLOR;
+      bgColor = COLORS.regression[mode];
       break;
     case "warning":
-      bgColor = WARNING_COLOR;
+      bgColor = COLORS.warning[mode];
       break;
     case "missing":
-      bgColor = MISSING_DATA_COLOR;
+      bgColor = COLORS.missing[mode];
       break;
     case "neutral":
     default:
