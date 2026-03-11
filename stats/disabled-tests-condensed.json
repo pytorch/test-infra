@@ -2032,6 +2032,13 @@
       "rocm"
     ]
   ],
+  "test_unbacked_dtensor_op_db_nanmean_cpu_float32 (__main__.TestUnbackedDTensorOpsCPU)": [
+    "177141",
+    "https://github.com/pytorch/pytorch/issues/177141",
+    [
+      "linux"
+    ]
+  ],
   "test_unbacked_symbol_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "177003",
     "https://github.com/pytorch/pytorch/issues/177003",
