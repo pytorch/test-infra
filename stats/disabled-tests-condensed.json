@@ -448,14 +448,6 @@
     "https://github.com/pytorch/pytorch/issues/106308",
     []
   ],
-  "test_cuda_load (__main__.TestCUDACodeCache)": [
-    "138343",
-    "https://github.com/pytorch/pytorch/issues/138343",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
