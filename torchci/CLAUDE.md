@@ -1,0 +1,1 @@
+- All HUD pages must support both dark mode and light mode. Use MUI's `useTheme()` to detect the current palette mode and select appropriate colors. Never hardcode colors that only work on one background.
