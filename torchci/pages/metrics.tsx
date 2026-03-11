@@ -945,7 +945,7 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job time-to-signal, main-only"}
+          title={"Job time-to-signal, push to main only"}
           branchName={"main"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
@@ -963,7 +963,7 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job duration, main-only"}
+          title={"Job duration, push to main only"}
           branchName={"main"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}

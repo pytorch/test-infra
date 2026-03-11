@@ -32,6 +32,7 @@ WHERE
     AND job.conclusion = 'success'
     AND workflow.head_branch LIKE {branch: String}
     AND workflow.run_attempt = 1
+    AND workflow.event = 'push'
 GROUP BY
     name
 ORDER BY

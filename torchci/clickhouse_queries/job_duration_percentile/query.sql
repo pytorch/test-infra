@@ -32,6 +32,7 @@ FROM (
         AND job.conclusion = 'success'
         AND workflow.head_branch LIKE {branch: String}
         AND workflow.run_attempt = 1
+        AND workflow.event = 'push'
 ) AS duration
 group by name
 ORDER BY count * duration_sec DESC
