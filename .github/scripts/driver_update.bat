@@ -7,19 +7,18 @@ set "DRIVER_DOWNLOAD_LINK=https://ossci-windows.s3.amazonaws.com/%DRIVER_FILENAM
 
 echo Checking current NVIDIA driver version...
 
-:: Parse driver version from the first line of nvidia-smi output
-:: The first line looks like: "NVIDIA-SMI 580.88  Driver Version: 580.88  CUDA Version: ..."
-for /f "tokens=*" %%i in ('nvidia-smi 2^>nul') do (
+:: Find the line containing "Driver Version" from nvidia-smi output
+:: Example: "| NVIDIA-SMI 580.88    Driver Version: 580.88    CUDA Version: 12.8  |"
+for /f "tokens=*" %%i in ('nvidia-smi 2^>nul ^| findstr /C:"Driver Version"') do (
     set "SMI_LINE=%%i"
-    goto :parse_version
 )
-goto :no_version
 
-:parse_version
-:: Extract the version after "Driver Version: "
-for /f "tokens=2 delims=:" %%a in ("!SMI_LINE:*Driver Version=Driver Version!") do (
-    for /f "tokens=1" %%b in ("%%a") do set CURRENT_DRIVER_VN=%%b
-)
+if not defined SMI_LINE goto :no_version
+
+:: Remove everything up to and including "Driver Version: ", leaving "580.88  CUDA ..."
+set "AFTER_DV=!SMI_LINE:*Driver Version: =!"
+:: Take the first space-delimited token
+for /f "tokens=1" %%a in ("!AFTER_DV!") do set CURRENT_DRIVER_VN=%%a
 
 :no_version
 
