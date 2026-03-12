@@ -63,6 +63,13 @@
       "xpu"
     ]
   ],
+  "test_additive_rnumel (__main__.MixOrderReductionTest)": [
+    "177218",
+    "https://github.com/pytorch/pytorch/issues/177218",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
