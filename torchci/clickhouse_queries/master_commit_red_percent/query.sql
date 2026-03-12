@@ -36,6 +36,7 @@ all_jobs AS (
         AND j.name != 'ciflow_should_run'
         AND j.name != 'generate-test-matrix'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%mem_leak_check%'
         AND j.name NOT LIKE '%unstable%'
 ),
 any_red AS (

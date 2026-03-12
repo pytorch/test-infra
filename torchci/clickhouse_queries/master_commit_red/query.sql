@@ -29,12 +29,7 @@ all_runs AS (
     JOIN commits commit ON workflow_run.head_commit.'id' = commit.sha
     WHERE
         -- Limit it to workflows which block viable/strict upgrades
-        workflow_run.name IN (
-            'Lint',
-            'pull',
-            'trunk',
-            'linux-aarch64'
-        )
+        has({workflowNames:Array(String)}, lower(workflow_run.name))
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow_run.id IN (
             SELECT id FROM materialized_views.workflow_run_by_head_sha
@@ -66,6 +61,7 @@ all_jobs AS (
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
         AND job.name NOT LIKE '%rerun_disabled_tests%'
+        AND job.name NOT LIKE '%mem_leak_check%'
         AND job.name NOT LIKE '%unstable%'
         AND job.id IN (
             SELECT id FROM materialized_views.workflow_job_by_head_sha
