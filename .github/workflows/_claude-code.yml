@@ -139,16 +139,15 @@ jobs:
               'mcp__github_file_ops__commit_files',
               'mcp__github_file_ops__delete_files',
             ].join(',');
-            const ghstackNotice = [
+            core.setOutput('extra_claude_args', `--disallowedTools "${disabledTools}"`);
+            core.setOutput('ghstack_notice', [
               'This is a ghstack PR (branch: ' + headRef + ').',
               'Write operations (file edits, git commits, git push) are disabled',
               'because pushing to ghstack-managed branches would break the PR stack.',
               'You can still read code, search, and answer questions.',
               'If asked to make code changes, explain that ghstack PRs are read-only',
               'and suggest the user apply changes manually or use a non-ghstack PR.',
-            ].join(' ');
-            core.setOutput('extra_claude_args',
-              `--disallowedTools "${disabledTools}" --append-system-prompt "${ghstackNotice}"`);
+            ].join(' '));
 
       - uses: actions/checkout@v4
         with:
@@ -171,6 +170,8 @@ jobs:
           use_bedrock: "true"
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
+        env:
+          INPUT_APPEND_SYSTEM_PROMPT: ${{ steps.ghstack-check.outputs.ghstack_notice }}
 
       - name: Upload usage metrics
         if: always()
