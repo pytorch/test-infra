@@ -1897,13 +1897,6 @@
       "mac"
     ]
   ],
-  "test_torch_function_all_disabled_api (__main__.TestTorchFunctionMode)": [
-    "162704",
-    "https://github.com/pytorch/pytorch/issues/162704",
-    [
-      "dynamo"
-    ]
-  ],
   "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
     "114831",
     "https://github.com/pytorch/pytorch/issues/114831",
