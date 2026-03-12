@@ -18,6 +18,18 @@ WITH commits AS (
         AND push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
 ),
 
+-- Fetch job names marked as unstable via open GitHub issues (e.g. "UNSTABLE pull / linux-jammy / test (default)")
+unstable_issue_names AS (
+    SELECT
+        replaceRegexpOne(issue.title, '^UNSTABLE\\s+', '') AS unstable_name
+    FROM
+        default.issues AS issue FINAL
+    WHERE
+        arrayExists(x -> x.'name' = 'unstable', issue.labels)
+        AND issue.state = 'open'
+        AND issue.title LIKE 'UNSTABLE%'
+),
+
 all_runs AS (
     SELECT
         workflow_run.id AS id,
@@ -31,6 +43,8 @@ all_runs AS (
         -- Limit it to workflows which block viable/strict upgrades
         has({workflowNames:Array(String)}, lower(workflow_run.name))
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+        AND workflow_run.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs
+        AND NOT (workflow_run.event = 'workflow_dispatch' AND workflow_run.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         AND workflow_run.id IN (
             SELECT id FROM materialized_views.workflow_run_by_head_sha
             WHERE head_sha IN (SELECT sha FROM commits)
@@ -42,7 +56,7 @@ all_jobs AS (
         all_runs.time AS time,
         all_runs.sha AS sha,
         job.run_attempt AS run_attempt,
-        job.conclusion AS raw_conclusion,
+        job.conclusion_kg AS raw_conclusion,
         job.run_id AS run_id,
         -- Normalize job name to group shards together (same as auto-revert logic)
         trim(
@@ -63,6 +77,9 @@ all_jobs AS (
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%mem_leak_check%'
         AND job.name NOT LIKE '%unstable%'
+        -- Exclude jobs marked unstable via open GitHub issues
+        AND CONCAT(all_runs.name, ' / ', job.name) NOT IN (SELECT unstable_name FROM unstable_issue_names)
+        AND CONCAT(all_runs.name, ' / ', replaceRegexpOne(job.name, ' \\(([^,]*),.*\\)$', ' (\\1)')) NOT IN (SELECT unstable_name FROM unstable_issue_names)
         AND job.id IN (
             SELECT id FROM materialized_views.workflow_job_by_head_sha
             WHERE head_sha IN (SELECT sha FROM commits)
@@ -79,7 +96,7 @@ attempt_status AS (
         run_attempt,
         run_id,
         -- Does this attempt have ANY shard with failure?
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+        MAX(raw_conclusion IN ('failure', 'time_out', 'cancelled'))
             AS attempt_has_failure,
         -- Does this attempt have any pending jobs?
         MAX(raw_conclusion = '') AS attempt_has_pending
