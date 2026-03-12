@@ -141,8 +141,7 @@ jobs:
             ].join(',');
             core.setOutput('extra_claude_args', `--disallowedTools "${disabledTools}"`);
             core.setOutput('ghstack_notice',
-              'This is a ghstack PR (branch: ' + headRef + '). ' +
-              'Write operations (file edits, git commits, git push) are disabled.');
+              'This is a ghstack PR. Write operations (file edits, git commits, git push) are disabled.');
 
       - uses: actions/checkout@v4
         with:
