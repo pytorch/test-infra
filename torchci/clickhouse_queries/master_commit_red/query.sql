@@ -1,7 +1,10 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
 --- during a period of time, separating real failures from flaky ones.
---- Jobs are grouped by base_name (stripping shard numbers) to handle flaky tests
---- that move between shards.
+--- Classification uses the LATEST attempt of each job (matching viable/strict logic):
+---   red = some job's latest attempt is still failing (broken trunk)
+---   flaky = all latest attempts passed, but some earlier attempt had a failure
+---   green = no failures on any attempt
+---   pending = some jobs haven't completed yet
 -- Split up the query into multiple CTEs to make it faster.
 WITH commits AS (
     SELECT
@@ -55,19 +58,12 @@ all_jobs AS (
     SELECT
         all_runs.time AS time,
         all_runs.sha AS sha,
-        job.run_attempt AS run_attempt,
-        job.conclusion_kg AS raw_conclusion,
-        job.run_id AS run_id,
-        -- Normalize job name to group shards together (same as auto-revert logic)
-        trim(
-            replaceRegexpAll(
-                replaceRegexpAll(
-                    replaceRegexpAll(job.name, '\\s*\\(.*\\)$', ''),
-                    ', \\d+, \\d+, ', ', '
-                ),
-                '\\s+', ' '
-            )
-        ) AS base_name
+        job.conclusion_kg AS conclusion,
+        -- rn = 1 is the latest attempt for each job (matching viable/strict logic)
+        ROW_NUMBER() OVER (
+            PARTITION BY all_runs.sha, job.name
+            ORDER BY job.run_attempt DESC
+        ) AS rn
     FROM
         default.workflow_job job FINAL
     JOIN all_runs all_runs ON all_runs.id = workflow_job.run_id
@@ -86,62 +82,27 @@ all_jobs AS (
         )
 ),
 
--- Step 1: For each (sha, base_name, run_attempt), determine if this attempt
--- has any failures or is all green across all shards
-attempt_status AS (
-    SELECT
-        time,
-        sha,
-        base_name,
-        run_attempt,
-        run_id,
-        -- Does this attempt have ANY shard with failure?
-        MAX(raw_conclusion IN ('failure', 'time_out', 'cancelled'))
-            AS attempt_has_failure,
-        -- Does this attempt have any pending jobs?
-        MAX(raw_conclusion = '') AS attempt_has_pending
-    FROM all_jobs
-    GROUP BY time, sha, base_name, run_attempt, run_id
-),
-
--- Step 2: For each (sha, base_name), aggregate across all run_attempts
--- to determine: red (all attempts failed), flaky (some failed, some green), green (all green)
-job_group_status AS (
-    SELECT
-        time,
-        sha,
-        base_name,
-        -- Any attempt still pending?
-        MAX(attempt_has_pending) AS has_pending,
-        -- Did ALL attempts have at least one failure? (MIN=1 means all had failure)
-        MIN(attempt_has_failure) AS all_attempts_failed,
-        -- Did ANY attempt have a failure?
-        MAX(attempt_has_failure) AS any_attempt_failed
-    FROM attempt_status
-    GROUP BY time, sha, base_name
-),
-
 commit_overall_conclusion AS (
     SELECT
         time,
         sha,
         CASE
-            -- Any job group pending = pending
-            WHEN SUM(has_pending) > 0 THEN 'pending'
-            -- Any job group where ALL attempts failed = red (never recovered)
-            WHEN SUM(all_attempts_failed) > 0 THEN 'red'
-            -- Any job group where SOME attempts failed but not all = flaky (recovered)
-            WHEN SUM(any_attempt_failed) > 0 THEN 'flaky'
-            -- Everything passed on all attempts
+            -- Any job still pending on its latest attempt
+            WHEN countIf(rn = 1 AND conclusion = '') > 0 THEN 'pending'
+            -- Any job whose latest attempt is still failing (broken trunk)
+            WHEN countIf(rn = 1 AND conclusion IN ('failure', 'time_out', 'cancelled')) > 0 THEN 'red'
+            -- All latest attempts passed, but some earlier attempt had a failure (flaky)
+            WHEN countIf(conclusion IN ('failure', 'time_out', 'cancelled')) > 0 THEN 'flaky'
+            -- No failures on any attempt
             ELSE 'green'
         END AS overall_conclusion
     FROM
-        job_group_status
+        all_jobs
     GROUP BY
         time,
         sha
     HAVING
-        COUNT(*) > 10 -- Filter out jobs that didn't run anything.
+        countIf(rn = 1) > 10 -- Filter out commits that didn't run enough jobs
     ORDER BY
         time DESC
 )
