@@ -92,6 +92,41 @@ jobs:
               core.setFailed(`${actor} does not have write access (has: ${data.permission})`);
             }
 
+      - name: Check for ghstack PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber = null;
+            if (context.payload.issue?.pull_request) {
+              prNumber = context.payload.issue.number;
+            } else if (context.payload.pull_request) {
+              prNumber = context.payload.pull_request.number;
+            }
+
+            if (!prNumber) {
+              console.log('Not a PR event, skipping ghstack check');
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const isGhstack = /^gh\/[^/]+\/\d+\/head$/.test(pr.head.ref);
+            console.log(`PR #${prNumber} head ref: ${pr.head.ref}, is ghstack: ${isGhstack}`);
+
+            if (isGhstack) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: '⚠️ Sorry, Claude Code doesn\'t support ghstack PRs yet. Please use a regular PR branch instead.'
+              });
+              core.setFailed('ghstack PRs are not supported');
+            }
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -105,6 +140,24 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
           aws-region: us-east-1
+
+      - name: Configure git author
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const actor = context.actor;
+            try {
+              const { data: user } = await github.rest.users.getByUsername({ username: actor });
+              const name = user.name || actor;
+              const email = `${user.id}+${actor}@users.noreply.github.com`;
+              core.exportVariable('GIT_AUTHOR_NAME', name);
+              core.exportVariable('GIT_AUTHOR_EMAIL', email);
+              console.log(`Set git author to: ${name} <${email}>`);
+            } catch (e) {
+              console.log(`Could not fetch user info for ${actor}, using defaults`);
+              core.exportVariable('GIT_AUTHOR_NAME', actor);
+              core.exportVariable('GIT_AUTHOR_EMAIL', `${actor}@users.noreply.github.com`);
+            }
 
       - name: Run Claude Code
         uses: izaitsevfb/claude-code-action@forked-pr-fix
