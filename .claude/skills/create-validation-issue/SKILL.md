@@ -47,8 +47,8 @@ If `gh` is not available or not authenticated, use WebFetch against the GitHub A
 Search for all PRs targeting the release branch to get the complete list of cherry-picks:
 
 ```bash
-# Search for all PRs against the release branch
-gh api --paginate 'search/issues?q=repo:pytorch/pytorch+is:pr+base:release/{VERSION}+sort:created-asc&per_page=50' \
+# Search for all merged PRs against the release branch (excludes closed-unmerged PRs)
+gh api --paginate 'search/issues?q=repo:pytorch/pytorch+is:pr+is:merged+base:release/{VERSION}+sort:created-asc&per_page=50' \
   --jq '.items[] | {number, title, user: .user.login, state}'
 ```
 
@@ -67,7 +67,8 @@ Apply these rules to each issue/PR:
 2. **Skip [release-only] items**: Exclude items with `[release-only]` or `[RELEASE X.XX]` in the title — these are internal release branch housekeeping
 3. **Skip routine pin updates**: Exclude items like "Update vLLM pinned commit", "Update pinned commit" — these are routine version bumps with no validation signal
 4. **Skip cherry-pick reverts**: Exclude cherry-pick PRs whose title matches `[cherry-pick] Revert "..."` — these are reverts of previously cherry-picked changes and don't need validation tracking (e.g., `[cherry-pick] Revert "[fix] DISABLED test_index ..."`, `[cherry-pick] Revert "[CI] Enable TIMM pretrained model caching ..."`)
-5. **Skip the release tracker itself**: Do not include the release tracker issue
+5. **Skip unmerged cherry-picks**: Exclude cherry-pick PRs that were closed without being merged. When fetching PRs targeting the release branch, check the `merged` field (or `pull_request.merged_at` for issue-style results). Only include cherry-picks where `merged` is `true` (or `merged_at` is non-null). Closed-but-unmerged PRs (e.g., `[cherry-pick] Reland NCCL 2.29.3 in 2.11 #176699`) should be excluded entirely.
+6. **Skip the release tracker itself**: Do not include the release tracker issue
 6. **Identify cherry-picks**: If the PR targets the release branch, or the title contains `[cherry-pick]`, prepend `[cherry-pick]` to the line
 7. **Identify high priority**: If the issue has a label `high priority` or the title contains `[hi-pri]`, prepend `[hi-pri]` to the line
 8. **Link issues to fixing PRs**: If a PR fixes an issue (check PR body for "Fixes #NNNNN" or "Closes #NNNNN"), combine them into a single line with the issue listed first, then the PR URL appended with ` | `
