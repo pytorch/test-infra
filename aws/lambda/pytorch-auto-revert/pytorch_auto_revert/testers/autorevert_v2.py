@@ -7,7 +7,7 @@ from ..signal import Signal
 from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
-from ..utils import RestartAction, RevertAction
+from ..utils import AdvisorAction, RestartAction, RevertAction
 
 
 def autorevert_v2(
@@ -18,6 +18,7 @@ def autorevert_v2(
     repo_full_name: str = "pytorch/pytorch",
     restart_action: RestartAction = RestartAction.RUN,
     revert_action: RevertAction = RevertAction.LOG,
+    advisor_action: AdvisorAction = AdvisorAction.LOG,
     bisection_limit: Optional[int] = None,
     as_of: Optional[datetime] = None,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
@@ -36,12 +37,13 @@ def autorevert_v2(
 
     logging.info(
         "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s"
-        " revert_action=%s notify_issue_number=%s bisection=%s as_of=%s",
+        " revert_action=%s advisor_action=%s notify_issue_number=%s bisection=%s as_of=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
         restart_action,
         revert_action,
+        advisor_action,
         notify_issue_number,
         ("unlimited" if bisection_limit is None else f"limit={bisection_limit}"),
         (as_of.isoformat() if as_of else "now"),
@@ -75,10 +77,15 @@ def autorevert_v2(
         revert_action=revert_action,
         ts=ts,
         workflows=workflows,
+        advisor_action=advisor_action,
     )
 
     # Group and execute actions
     proc = SignalActionProcessor()
+
+    # Dispatch AI advisors for eligible signals (shadow mode: fire-and-forget)
+    advisor_dispatches = proc.dispatch_advisors(pairs, run_ctx)
+
     groups = proc.group_actions(pairs)
     logging.info("[v2] Candidate action groups: %d", len(groups))
 
@@ -87,7 +94,9 @@ def autorevert_v2(
 
     # Persist full run state via separate logger
     try:
-        state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
+        state_json = RunStateLogger().insert_state(
+            ctx=run_ctx, pairs=pairs, advisor_dispatches=advisor_dispatches
+        )
         logging.info("[v2] State logged")
     except Exception:
         logging.exception("[v2] State logging failed")  # capture full stack

@@ -12,11 +12,18 @@ import github
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
-from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
+from .signal import (
+    AutorevertPattern,
+    DispatchAdvisor,
+    Ineligible,
+    RestartCommits,
+    Signal,
+)
 from .signal_extraction_types import RunContext
 from .utils import (
     build_job_pytorch_url,
     build_pytorch_hud_url,
+    proper_workflow_create_dispatch,
     RestartAction,
     RetryWithBackoff,
     RevertAction,
@@ -109,6 +116,44 @@ class ActionLogger:
             with attempt:
                 res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
                 return len(res.result_rows) > 0
+
+    def prior_advisor_exists(
+        self, *, repo: str, commit_sha: str, signal_key: str
+    ) -> bool:
+        """Return True if an advisor was already dispatched for this commit + signal."""
+        q = (
+            "SELECT 1 FROM misc.autorevert_events_v2 "
+            "WHERE repo = {repo:String} AND action = 'advisor' "
+            "AND commit_sha = {sha:String} "
+            "AND has(source_signal_keys, {key:String}) "
+            "AND dry_run = 0 LIMIT 1"
+        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(
+                    q, {"repo": repo, "sha": commit_sha, "key": signal_key}
+                )
+                return len(res.result_rows) > 0
+
+    def advisor_count_for_commit(
+        self, *, repo: str, commit_sha: str, workflow: str
+    ) -> int:
+        """Return total advisor dispatches for a (repo, commit, workflow)."""
+        q = (
+            "SELECT count() FROM misc.autorevert_events_v2 "
+            "WHERE repo = {repo:String} AND action = 'advisor' "
+            "AND commit_sha = {sha:String} "
+            "AND has(workflows, {wf:String}) "
+            "AND dry_run = 0"
+        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(
+                    q, {"repo": repo, "sha": commit_sha, "wf": workflow}
+                )
+                if res.result_rows:
+                    return int(res.result_rows[0][0])
+                return 0
 
     @dataclass(frozen=True)
     class RestartStats:
@@ -462,6 +507,299 @@ class SignalActionProcessor:
                 "[v2][action] restart for sha %s: logged (dry_run)", commit_sha[:8]
             )
         return True
+
+    def dispatch_advisors(
+        self,
+        pairs: Iterable[Tuple[Signal, SignalProcOutcome]],
+        ctx: RunContext,
+    ) -> List[Dict[str, str]]:
+        """Dispatch AI advisors for all eligible signals.
+
+        Iterates (Signal, Outcome) pairs in shuffled order so that when the
+        per-(workflow, commit) cap is reached, a representative subset of
+        signals is evaluated rather than always the same alphabetical prefix.
+
+        Returns a list of dispatch metadata dicts for state logging, one per
+        successfully dispatched advisor.
+        """
+        import random
+
+        from .utils import AdvisorAction
+
+        if ctx.advisor_action == AdvisorAction.SKIP:
+            return []
+
+        # Collect eligible pairs, then shuffle for representative sampling
+        eligible = []
+        for sig, outcome in pairs:
+            advisor = getattr(outcome, "advisor", None)
+            if advisor is not None:
+                eligible.append((sig, advisor))
+
+        random.shuffle(eligible)
+
+        dispatches: List[Dict[str, str]] = []
+        for sig, advisor in eligible:
+            if self.execute_advisor(signal=sig, dispatch_advisor=advisor, ctx=ctx):
+                dispatches.append(
+                    {
+                        "signal_key": f"{sig.workflow_name}:{sig.key}",
+                        "commit_sha": advisor.suspect_commit,
+                        "workflow_name": sig.workflow_name,
+                        "mode": str(ctx.advisor_action),
+                    }
+                )
+        logging.info("[v2] Dispatched %d advisor(s)", len(dispatches))
+        return dispatches
+
+    def execute_advisor(
+        self,
+        *,
+        signal: Signal,
+        dispatch_advisor: "DispatchAdvisor",
+        ctx: RunContext,
+    ) -> bool:
+        """Dispatch AI advisor workflow for a signal (shadow mode: fire-and-forget).
+
+        Returns True if an event row was inserted (passed dedup).
+        """
+        from .utils import AdvisorAction
+
+        if ctx.advisor_action == AdvisorAction.SKIP:
+            return False
+
+        commit_sha = dispatch_advisor.suspect_commit
+        dry_run = not ctx.advisor_action.side_effects
+
+        if self._logger.prior_advisor_exists(
+            repo=ctx.repo_full_name,
+            commit_sha=commit_sha,
+            signal_key=signal.key,
+        ):
+            logging.info(
+                "[v2][action] advisor for sha %s key=%s: skipping existing",
+                commit_sha[:8],
+                signal.key,
+            )
+            return False
+
+        # Cap: max 8 advisor dispatches per (workflow, commit) to limit cost
+        ADVISOR_CAP_PER_WORKFLOW_COMMIT = 8
+        count = self._logger.advisor_count_for_commit(
+            repo=ctx.repo_full_name,
+            commit_sha=commit_sha,
+            workflow=signal.workflow_name,
+        )
+        if count >= ADVISOR_CAP_PER_WORKFLOW_COMMIT:
+            logging.info(
+                "[v2][action] advisor for sha %s wf=%s: cap reached (%d/%d)",
+                commit_sha[:8],
+                signal.workflow_name,
+                count,
+                ADVISOR_CAP_PER_WORKFLOW_COMMIT,
+            )
+            return False
+
+        # Find PR number for the suspect commit
+        pr_number = 0
+        try:
+            result = self._find_pr_by_sha(commit_sha, ctx)
+            if result is not None:
+                _, pr = result
+                pr_number = pr.number
+        except Exception:
+            logging.warning(
+                "[v2][action] advisor: failed to find PR for sha %s",
+                commit_sha[:8],
+                exc_info=True,
+            )
+
+        # Build signal pattern JSON and write to /tmp for debugging
+        signal_pattern_json = self._build_signal_pattern_json(
+            signal=signal,
+            dispatch_advisor=dispatch_advisor,
+            repo_full_name=ctx.repo_full_name,
+        )
+        try:
+            import json
+            import os
+            import tempfile
+
+            tmp_dir = os.path.join(tempfile.gettempdir(), "advisor-patterns")
+            os.makedirs(tmp_dir, exist_ok=True)
+            safe_key = re.sub(r"[^\w\-.]", "_", signal.key)[:80]
+            tmp_path = os.path.join(tmp_dir, f"{commit_sha[:8]}_{safe_key}.json")
+            with open(tmp_path, "w") as f:
+                # Pretty-print for human readability; dispatch uses compact form
+                f.write(json.dumps(json.loads(signal_pattern_json), indent=2))
+            logging.info("[v2][action] advisor signal pattern written to %s", tmp_path)
+        except Exception:
+            logging.debug(
+                "[v2][action] advisor: failed to write signal pattern to tmp",
+                exc_info=True,
+            )
+
+        ok = True
+        notes = ""
+        if not dry_run:
+            try:
+                gh_client = GHClientFactory().client
+                repo = gh_client.get_repo(ctx.repo_full_name)
+                workflow = repo.get_workflow("claude-autorevert-advisor.yml")
+                proper_workflow_create_dispatch(
+                    workflow,
+                    ref="main",
+                    inputs={
+                        "suspect_commit": commit_sha,
+                        "pr_number": str(pr_number),
+                        "signal_pattern": signal_pattern_json,
+                    },
+                )
+            except Exception as exc:
+                ok = False
+                notes = f"dispatch error: {exc}"
+                logging.warning(  # noqa: G200
+                    "[v2][action] advisor dispatch failed for sha %s: %s",
+                    commit_sha[:8],
+                    str(exc),
+                )
+
+        self._logger.insert_event(
+            repo=ctx.repo_full_name,
+            ts=ctx.ts,
+            action="advisor",
+            commit_sha=commit_sha,
+            workflows=[signal.workflow_name],
+            source_signal_keys=[signal.key],
+            dry_run=dry_run,
+            failed=not ok,
+            notes=notes,
+        )
+        logging.info(
+            "[v2][action] advisor for sha %s key=%s: %s",
+            commit_sha[:8],
+            signal.key,
+            "dispatched"
+            if (not dry_run and ok)
+            else ("failed" if not ok else "logged (dry_run)"),
+        )
+        return True
+
+    @staticmethod
+    def _build_signal_pattern_json(
+        *,
+        signal: Signal,
+        dispatch_advisor: "DispatchAdvisor",
+        repo_full_name: str,
+    ) -> str:
+        """Build flattened signal pattern JSON for the advisor workflow.
+
+        Dumps ALL commits from signal.commits with partition annotations,
+        timestamps, and event details.
+        """
+        import json
+
+        failed_set = set(dispatch_advisor.failed_commits)
+        successful_set = set(dispatch_advisor.successful_commits)
+
+        # Partition label descriptions
+        LABEL_FAILED = (
+            "failed: commits where this signal FAILS, "
+            "at or after the suspect commit (newest first)"
+        )
+        LABEL_UNKNOWN = (
+            "unknown: commits between failed and successful partitions "
+            "with no resolved events (pending or missing data)"
+        )
+        LABEL_SUCCESSFUL = (
+            "successful: baseline commits where this signal was GREEN "
+            "before the suspect commit"
+        )
+        LABEL_PRIOR = (
+            "prior: older commits before the successful baseline — "
+            "may contain similar failures (timeouts, infra flakes) "
+            "that predate the suspect commit"
+        )
+
+        def _fmt_ts(dt: Optional[datetime]) -> str:
+            if dt is None:
+                return ""
+            return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        def _partition_label(sha: str) -> str:
+            if sha in failed_set:
+                return LABEL_FAILED
+            if sha in successful_set:
+                return LABEL_SUCCESSFUL
+            # Check if between failed and successful (unknown)
+            # Commits are newest→oldest; failed comes first, then unknown, then successful
+            # If we've seen any successful but not failed, it's prior
+            # Simple approach: if not in failed/successful, check ordering
+            return LABEL_UNKNOWN
+
+        # Build commit list — identify partition boundaries to distinguish unknown vs prior
+        # Commits are newest→oldest. The partition order is: failed → unknown → successful → prior
+        # After the last successful commit, everything is prior.
+        last_successful_idx = -1
+        for i, c in enumerate(signal.commits):
+            if c.head_sha in successful_set:
+                last_successful_idx = i
+
+        commits_json = []
+        for i, commit in enumerate(signal.commits):
+            sha = commit.head_sha
+
+            if sha in failed_set:
+                label = LABEL_FAILED
+            elif sha in successful_set:
+                label = LABEL_SUCCESSFUL
+            elif i > last_successful_idx and last_successful_idx >= 0:
+                label = LABEL_PRIOR
+            else:
+                label = LABEL_UNKNOWN
+
+            events_json = []
+            for ev in commit.events:
+                event_dict = {
+                    "status": ev.status.value,
+                    "job_name": ev.job_name or ev.name,
+                    "job_id": ev.job_id,
+                    "wf_run_id": ev.wf_run_id,
+                    "run_attempt": ev.run_attempt,
+                    "started_at": _fmt_ts(ev.started_at),
+                    "ended_at": _fmt_ts(ev.ended_at),
+                }
+                if ev.job_id:
+                    event_dict["url"] = (
+                        f"https://github.com/{repo_full_name}/actions/runs/"
+                        f"{ev.wf_run_id}/job/{ev.job_id}"
+                    )
+                    event_dict["log_url"] = (
+                        f"https://ossci-raw-job-status.s3.amazonaws.com/log/{ev.job_id}"
+                    )
+                events_json.append(event_dict)
+
+            commits_json.append(
+                {
+                    "sha": sha,
+                    "timestamp": _fmt_ts(commit.timestamp),
+                    "partition": label,
+                    "is_suspect": sha == dispatch_advisor.suspect_commit,
+                    "events": events_json,
+                }
+            )
+
+        return json.dumps(
+            {
+                "signal_key": signal.key,
+                "signal_source": signal.source.value if signal.source else "unknown",
+                "workflow_name": signal.workflow_name,
+                "job_base_name": signal.job_base_name,
+                "commit_order": "newest_first",
+                "suspect_commit": dispatch_advisor.suspect_commit,
+                "commits": commits_json,
+            }
+        )
 
     def _commit_message_check_pr_is_revert(
         self, commit_message: str, ctx: RunContext
