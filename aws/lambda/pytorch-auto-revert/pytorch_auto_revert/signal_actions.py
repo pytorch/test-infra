@@ -716,9 +716,9 @@ class SignalActionProcessor:
             "before the suspect commit"
         )
         LABEL_PRIOR = (
-            "prior: older commits before the successful baseline — "
-            "may contain similar failures (timeouts, infra flakes) "
-            "that predate the suspect commit"
+            "prior: older commits before the successful baseline. "
+            "Important: the signal may have been fixed and then failed again. "
+            "Don't make assumptions just based on the presence of failures here."
         )
 
         def _fmt_ts(dt: Optional[datetime]) -> str:
@@ -745,6 +745,11 @@ class SignalActionProcessor:
             if c.head_sha in successful_set:
                 last_successful_idx = i
 
+        # Cap: successful + prior commits combined should not exceed 12
+        # to keep the JSON payload manageable. Trim oldest (prior) first.
+        MAX_SUCCESSFUL_PLUS_PRIOR = 12
+        successful_plus_prior_count = 0
+
         commits_json = []
         for i, commit in enumerate(signal.commits):
             sha = commit.head_sha
@@ -753,8 +758,12 @@ class SignalActionProcessor:
                 label = LABEL_FAILED
             elif sha in successful_set:
                 label = LABEL_SUCCESSFUL
+                successful_plus_prior_count += 1
             elif i > last_successful_idx and last_successful_idx >= 0:
                 label = LABEL_PRIOR
+                successful_plus_prior_count += 1
+                if successful_plus_prior_count > MAX_SUCCESSFUL_PLUS_PRIOR:
+                    continue  # trim oldest prior commits
             else:
                 label = LABEL_UNKNOWN
 
