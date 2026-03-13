@@ -28,9 +28,10 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 import requests
+
 
 API_BASE = "https://api.github.com"
 RUN_STATUSES_TO_CHECK = ("queued", "in_progress")
@@ -132,51 +133,43 @@ def make_session(token: str) -> requests.Session:
 
 
 def api_get(
-    session: requests.Session, url: str, params: dict[str, Any] | None = None
+    session: requests.Session, url: str, params: Optional[dict[str, Any]] = None
 ) -> requests.Response:
     """GET with rate-limit retry."""
     for attempt in range(MAX_RETRIES):
         resp = session.get(url, params=params)
         if resp.status_code == 403 and "rate limit" in resp.text.lower():
-            retry_after = int(
-                resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS)
-            )
+            retry_after = int(resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS))
             print(f"  Rate limited. Waiting {retry_after}s...")
             time.sleep(retry_after)
             continue
         if resp.status_code == 429:
-            retry_after = int(
-                resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS)
-            )
+            retry_after = int(resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS))
             print(f"  Rate limited (429). Waiting {retry_after}s...")
             time.sleep(retry_after)
             continue
         if resp.status_code >= 500 and attempt < MAX_RETRIES - 1:
             print(f"  Server error ({resp.status_code}), retrying...")
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
             continue
         return resp
     return resp  # return last response even if all retries failed
 
 
-def api_post(
-    session: requests.Session, url: str
-) -> requests.Response:
+def api_post(session: requests.Session, url: str) -> requests.Response:
     """POST with rate-limit retry."""
     for attempt in range(MAX_RETRIES):
         resp = session.post(url)
         if resp.status_code in (403, 429) and (
             "rate limit" in resp.text.lower() or resp.status_code == 429
         ):
-            retry_after = int(
-                resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS)
-            )
+            retry_after = int(resp.headers.get("Retry-After", RATE_LIMIT_RETRY_SECONDS))
             print(f"  Rate limited. Waiting {retry_after}s...")
             time.sleep(retry_after)
             continue
         if resp.status_code >= 500 and attempt < MAX_RETRIES - 1:
             print(f"  Server error ({resp.status_code}), retrying...")
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
             continue
         return resp
     return resp
@@ -282,9 +275,7 @@ def compute_queue_minutes(job: dict[str, Any]) -> float:
     return (now - created).total_seconds() / 60.0
 
 
-def wait_for_run_cancelled(
-    session: requests.Session, repo: str, run_id: int
-) -> bool:
+def wait_for_run_cancelled(session: requests.Session, repo: str, run_id: int) -> bool:
     """Poll until a run reaches completed/cancelled state. Returns True if confirmed."""
     url = f"{API_BASE}/repos/{repo}/actions/runs/{run_id}"
     elapsed = 0
@@ -391,7 +382,9 @@ def main() -> None:
         return
 
     total_stuck = sum(len(jobs) for jobs in stuck_by_run.values())
-    print(f"\nFound {total_stuck} stuck job(s) across {len(stuck_by_run)} workflow run(s):\n")
+    print(
+        f"\nFound {total_stuck} stuck job(s) across {len(stuck_by_run)} workflow run(s):\n"
+    )
     print_stuck_runs(stuck_by_run, run_info)
 
     if args.dry_run:
@@ -411,13 +404,17 @@ def main() -> None:
     for idx, run_id in enumerate(run_ids_to_process, 1):
         run = run_info[run_id]
         n_jobs = len(stuck_by_run[run_id])
-        print(f"  {idx}. [{run.get('name', '?')}] Run #{run.get('run_number', '?')} ({n_jobs} stuck job(s))")
+        print(
+            f"  {idx}. [{run.get('name', '?')}] Run #{run.get('run_number', '?')} ({n_jobs} stuck job(s))"
+        )
     print()
 
     if not args.yes:
-        answer = input(
-            f"Cancel and restart these {len(run_ids_to_process)} run(s)? [y/N] "
-        ).strip().lower()
+        answer = (
+            input(f"Cancel and restart these {len(run_ids_to_process)} run(s)? [y/N] ")
+            .strip()
+            .lower()
+        )
         if answer != "y":
             print("Aborted.")
             return
@@ -438,7 +435,9 @@ def main() -> None:
 
         print("    Waiting for cancellation to complete...")
         if not wait_for_run_cancelled(session, args.repo, run_id):
-            print(f"    Warning: timed out waiting for cancellation ({POLL_TIMEOUT_SECONDS}s).")
+            print(
+                f"    Warning: timed out waiting for cancellation ({POLL_TIMEOUT_SECONDS}s)."
+            )
             print("    Attempting rerun anyway...")
 
         if rerun_workflow(session, args.repo, run_id):
