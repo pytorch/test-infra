@@ -98,6 +98,51 @@ jobs:
               core.setFailed(`${actor} does not have write access (has: ${data.permission})`);
             }
 
+      - name: Check for ghstack PR
+        id: ghstack-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Only applies to issue_comment events on pull requests
+            if (!context.payload.issue?.pull_request) {
+              console.log('Not a PR comment, skipping ghstack check');
+              core.setOutput('extra_claude_args', '');
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+
+            const headRef = pr.head.ref;
+            console.log(`PR head ref: ${headRef}`);
+
+            // ghstack PRs have head refs matching gh/<username>/<N>/head
+            if (!/^gh\/[^/]+\/\d+\/head$/.test(headRef)) {
+              console.log('Not a ghstack PR');
+              core.setOutput('extra_claude_args', '');
+              return;
+            }
+
+            console.log('Detected ghstack PR — Claude will run in read-only mode');
+
+            const disabledTools = [
+              'Edit',
+              'Write',
+              'NotebookEdit',
+              'Bash(git push:*)',
+              'Bash(git add:*)',
+              'Bash(git commit:*)',
+              'Bash(git rm:*)',
+              'mcp__github_file_ops__commit_files',
+              'mcp__github_file_ops__delete_files',
+            ].join(',');
+            core.setOutput('extra_claude_args', `--disallowedTools "${disabledTools}"`);
+            core.setOutput('ghstack_notice',
+              'This is a ghstack PR. Write operations are disabled.');
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -117,8 +162,10 @@ jobs:
         with:
           allowed_bots: "*"
           use_bedrock: "true"
-          claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }}"
+          claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
+        env:
+          INPUT_APPEND_SYSTEM_PROMPT: ${{ steps.ghstack-check.outputs.ghstack_notice }}
 
       - name: Upload usage metrics
         if: always()
