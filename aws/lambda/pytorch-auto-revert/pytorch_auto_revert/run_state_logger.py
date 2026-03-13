@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from .clickhouse_client_helper import CHCliFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
@@ -27,8 +27,23 @@ class RunStateLogger:
         repo: str,
         ctx: RunContext,
         pairs: Iterable[Tuple[Signal, SignalProcOutcome]],
+        advisor_dispatches: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        """Build a dictionary describing the run’s HUD-like grid and outcomes."""
+        """Build a dictionary describing the run’s HUD-like grid and outcomes.
+
+        Args:
+            repo: Repository full name (e.g., "pytorch/pytorch").
+            ctx: Run-scoped context with timestamps, action modes, and workflow list.
+            pairs: Iterable of (Signal, SignalProcOutcome) tuples from signal processing.
+                Each Signal carries commits with events; each SignalProcOutcome is one of
+                AutorevertPattern, RestartCommits, or Ineligible.
+            advisor_dispatches: Optional list of advisor dispatch metadata dicts from
+                SignalActionProcessor.dispatch_advisors(). Each dict has keys:
+                "signal_key" (str, "workflow:key"), "commit_sha" (str),
+                "workflow_name" (str), "mode" (str, e.g. "run" or "log").
+                When present, stored as a top-level "advisor_dispatches" key in the
+                state JSON. Absent in older states (forward-compatible).
+        """
         pairs_list = list(pairs)
         signals: List[Signal] = [s for s, _ in pairs_list]
 
@@ -140,6 +155,9 @@ class RunStateLogger:
                 "revert_action": str(ctx.revert_action),
             },
         }
+        # Optional: advisor dispatches from this run (forward-compatible — absent in older states)
+        if advisor_dispatches:
+            doc["advisor_dispatches"] = advisor_dispatches
         return doc
 
     def insert_state(
@@ -148,13 +166,19 @@ class RunStateLogger:
         ctx: RunContext,
         pairs: Iterable[Tuple[Signal, SignalProcOutcome]],
         params: str = "",
+        advisor_dispatches: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """Insert one state row into misc.autorevert_state for this run context.
 
         Returns the serialized JSON state that was stored, so callers can reuse it
         for local rendering/debugging without rebuilding the structure.
         """
-        doc = self._build_state_json(repo=ctx.repo_full_name, ctx=ctx, pairs=pairs)
+        doc = self._build_state_json(
+            repo=ctx.repo_full_name,
+            ctx=ctx,
+            pairs=pairs,
+            advisor_dispatches=advisor_dispatches,
+        )
         state_json = json.dumps(doc, separators=(",", ":"))
         cols = [
             "ts",

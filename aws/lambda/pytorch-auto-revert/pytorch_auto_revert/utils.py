@@ -70,6 +70,24 @@ class RevertAction(AbstractExecAction, Enum):
         )
 
 
+class AdvisorAction(AbstractExecAction, Enum):
+    """Controls AI advisor dispatch behavior.
+
+    - SKIP: no logging, no dispatch
+    - LOG: log to ClickHouse only, no workflow dispatch (dry_run=True)
+    - RUN: dispatch workflow + log to ClickHouse (dry_run=False)
+    """
+
+    SKIP = "skip"
+    LOG = "log"
+    RUN = "run"
+
+    @property
+    def side_effects(self) -> bool:
+        """True if this mode dispatches the advisor workflow."""
+        return self is AdvisorAction.RUN
+
+
 class _TryAgain(Exception):
     pass
 

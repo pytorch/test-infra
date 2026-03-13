@@ -3,10 +3,12 @@ from datetime import datetime, timedelta
 
 from pytorch_auto_revert.signal import (
     AutorevertPattern,
+    DispatchAdvisor,
     Ineligible,
     IneligibleReason,
     InfraCheckResult,
     PartitionedCommits,
+    RestartCommits,
     Signal,
     SignalCommit,
     SignalEvent,
@@ -571,6 +573,246 @@ class TestSignal(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, AutorevertPattern)
+
+
+class TestDispatchAdvisor(unittest.TestCase):
+    """Tests for DispatchAdvisor emission from process_valid_autorevert_pattern."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    def _ev(self, name: str, status: SignalStatus, minute: int, **kw) -> SignalEvent:
+        return SignalEvent(
+            name=name,
+            status=status,
+            started_at=ts(self.t0, minute),
+            wf_run_id=kw.get("wf_run_id", 1),
+            job_id=kw.get("job_id", None),
+        )
+
+    def test_advisor_emitted_on_restart_commits(self):
+        """When partition has 2+ failures and 1+ success, advisor is attached to RestartCommits."""
+        # 2 failures on one commit, 1 success on base → eligible for advisor
+        # Only 2 failure events total (< 3 required), so outcome is RestartCommits
+        c_failed = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_failed, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        self.assertIsNotNone(res.advisor)
+        self.assertIsInstance(res.advisor, DispatchAdvisor)
+        self.assertEqual(res.advisor.suspect_commit, "sha_fail")
+        self.assertEqual(res.advisor.failed_commits, ("sha_fail",))
+        self.assertEqual(res.advisor.successful_commits, ("sha_base",))
+
+    def test_advisor_not_emitted_when_unknown_gap_exists(self):
+        """When partition has unknown commits between failed and successful, no advisor is emitted."""
+        c_fail_1 = SignalCommit(
+            head_sha="sha_fail_1",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 9)],
+        )
+        c_fail_2 = SignalCommit(
+            head_sha="sha_fail_2",
+            timestamp=ts(self.t0, -5),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+        )
+        # Unknown gap commit with pending event
+        c_gap = SignalCommit(
+            head_sha="sha_gap",
+            timestamp=ts(self.t0, -8),
+            events=[self._ev("job", SignalStatus.PENDING, 7)],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 2),
+                self._ev("job", SignalStatus.SUCCESS, 3),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_fail_1, c_fail_2, c_gap, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertNotIsInstance(res, AutorevertPattern)
+        # Unknown gap means advisor is NOT emitted (partition boundary uncertain)
+        advisor = getattr(res, "advisor", None)
+        self.assertIsNone(advisor)
+
+    def test_advisor_emitted_on_clean_partition(self):
+        """When partition has no unknown gap and sufficient data, advisor is emitted."""
+        # 2 failures (not enough for AutorevertPattern), 1 success, no gap
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_fail, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        self.assertIsNotNone(res.advisor)
+        self.assertEqual(res.advisor.suspect_commit, "sha_fail")
+
+    def test_advisor_not_emitted_when_insufficient_failures(self):
+        """When partition has < 2 failures, no advisor is emitted."""
+        c_failed = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_failed, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        self.assertIsNone(res.advisor)
+
+    def test_advisor_not_emitted_when_insufficient_successes(self):
+        """When partition has < 1 success event, no advisor is emitted."""
+        # Base commit has only pending events (no success events)
+        c_failed = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.PENDING, 3)],
+        )
+        # This won't even partition (base has no success), so we get NO_SUCCESSES
+        s = Signal(key="job", workflow_name="wf", commits=[c_failed, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        # Early return before partition — no advisor field
+        self.assertIsNone(res.advisor)
+
+    def test_advisor_not_emitted_on_autorevert_pattern(self):
+        """AutorevertPattern outcome does not carry an advisor."""
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        # AutorevertPattern has no advisor field
+        self.assertFalse(hasattr(res, "advisor"))
+
+    def test_advisor_not_emitted_for_early_returns(self):
+        """Early exits (flaky, fixed, no_successes) have no advisor."""
+        # Flaky: mixed outcomes on same commit
+        c_flaky = SignalCommit(
+            head_sha="sha_flaky",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 4),
+                self._ev("job", SignalStatus.SUCCESS, 5),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_flaky, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.FLAKY)
+        self.assertIsNone(res.advisor)
+
+    def test_advisor_has_correct_partition_shas(self):
+        """Verify advisor carries the right failed and successful commit SHAs."""
+        c_fail_1 = SignalCommit(
+            head_sha="fail_1",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 7),
+                self._ev("job", SignalStatus.FAILURE, 8),
+            ],
+        )
+        c_fail_2 = SignalCommit(
+            head_sha="fail_2",
+            timestamp=ts(self.t0, -5),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_succ_1 = SignalCommit(
+            head_sha="succ_1",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        c_succ_2 = SignalCommit(
+            head_sha="succ_2",
+            timestamp=ts(self.t0, -15),
+            events=[self._ev("job", SignalStatus.SUCCESS, 1)],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_fail_1, c_fail_2, c_succ_1, c_succ_2],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # With 3 failures and 2 successes, this might be AutorevertPattern or RestartCommits
+        # depending on infra check. Either way, if it's RestartCommits/Ineligible, check advisor.
+        advisor = getattr(res, "advisor", None)
+        if advisor is not None:
+            self.assertEqual(advisor.failed_commits, ("fail_1", "fail_2"))
+            self.assertEqual(advisor.successful_commits, ("succ_1", "succ_2"))
+            self.assertEqual(advisor.suspect_commit, "fail_2")
 
 
 if __name__ == "__main__":

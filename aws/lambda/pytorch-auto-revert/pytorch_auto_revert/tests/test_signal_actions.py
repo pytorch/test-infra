@@ -9,7 +9,7 @@ from pytorch_auto_revert.signal_actions import (
     SignalMetadata,
 )
 from pytorch_auto_revert.signal_extraction_types import RunContext
-from pytorch_auto_revert.utils import RestartAction, RevertAction
+from pytorch_auto_revert.utils import AdvisorAction, RestartAction, RevertAction
 
 
 # flake8: noqa
@@ -57,6 +57,7 @@ def make_ctx(*, revert_action, restart_action=RestartAction.SKIP):
         lookback_hours=24,
         revert_action=revert_action,
         restart_action=restart_action,
+        advisor_action=AdvisorAction.SKIP,
     )
 
 
@@ -163,6 +164,7 @@ class TestSignalActionsPacing(unittest.TestCase):
             # ensures no GH calls are made for revert; restarts do run
             revert_action=RevertAction.LOG,
             restart_action=RestartAction.RUN,
+            advisor_action=AdvisorAction.SKIP,
         )
 
     def test_skip_cap_when_two_recent(self):
@@ -292,6 +294,7 @@ class TestCommentIssueRevert(unittest.TestCase):
             lookback_hours=24,
             revert_action=RevertAction.RUN_NOTIFY,
             restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.SKIP,
         )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
@@ -464,6 +467,638 @@ class TestCommentIssueRevert(unittest.TestCase):
             "- inductor: test_inductor ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20inductor&mergeEphemeralLF=true))\n",
             comment_text,
         )
+
+
+class FakeLoggerWithAdvisorDedup(FakeLogger):
+    """FakeLogger that tracks advisor dedup checks."""
+
+    def __init__(self, *, advisor_exists: bool = False, advisor_count: int = 0):
+        super().__init__()
+        self._advisor_exists = advisor_exists
+        self._advisor_count = advisor_count
+
+    def prior_advisor_exists(
+        self, *, repo: str, commit_sha: str, signal_key: str
+    ) -> bool:
+        return self._advisor_exists
+
+    def advisor_count_for_commit(
+        self, *, repo: str, commit_sha: str, workflow: str
+    ) -> int:
+        return self._advisor_count
+
+
+class TestExecuteAdvisor(unittest.TestCase):
+    """Tests for SignalActionProcessor.execute_advisor."""
+
+    def _make_signal_and_advisor(self):
+        from datetime import datetime
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent("job", SignalStatus.FAILURE, t0, wf_run_id=100, job_id=200),
+                SignalEvent("job", SignalStatus.FAILURE, t0, wf_run_id=101, job_id=201),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t0,
+            events=[
+                SignalEvent("job", SignalStatus.SUCCESS, t0, wf_run_id=99, job_id=199),
+            ],
+        )
+        signal = Signal(
+            key="test_signal",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+        return signal, advisor
+
+    def test_skip_when_action_is_skip(self):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        signal, advisor = self._make_signal_and_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.SKIP,
+        )
+        result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
+        self.assertFalse(result)
+        self.assertEqual(len(proc._logger.insert_calls), 0)
+
+    def test_skip_when_cap_reached(self):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(advisor_count=8)
+        signal, advisor = self._make_signal_and_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.RUN,
+        )
+        result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
+        self.assertFalse(result)
+        self.assertEqual(len(proc._logger.insert_calls), 0)
+
+    def test_skip_when_prior_advisor_exists(self):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(advisor_exists=True)
+        signal, advisor = self._make_signal_and_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.RUN,
+        )
+        result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
+        self.assertFalse(result)
+        self.assertEqual(len(proc._logger.insert_calls), 0)
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_log_mode_inserts_event_without_dispatch(self, mock_gh_factory):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.LOG,
+        )
+        result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
+        self.assertTrue(result)
+        self.assertEqual(len(proc._logger.insert_calls), 1)
+        call = proc._logger.insert_calls[0]
+        # call is (repo, ts, action, commit_sha, workflows, signal_keys, dry_run, failed, notes)
+        self.assertEqual(call[2], "advisor")  # action
+        self.assertEqual(call[3], "sha_fail")  # commit_sha
+        self.assertTrue(call[6])  # dry_run=True for LOG mode
+        # No GitHub dispatch should have been called
+        mock_gh_factory.assert_not_called()
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_run_mode_dispatches_and_logs(self, mock_gh_factory, mock_dispatch):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        mock_pr = Mock()
+        mock_pr.number = 42
+        proc._find_pr_by_sha = Mock(return_value=(CommitPRSourceAction.MERGE, mock_pr))
+
+        mock_repo = Mock()
+        mock_workflow = Mock()
+        mock_repo.get_workflow.return_value = mock_workflow
+        mock_gh_factory.return_value.client.get_repo.return_value = mock_repo
+
+        signal, advisor = self._make_signal_and_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.RUN,
+        )
+        result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
+        self.assertTrue(result)
+        # Verify dispatch was called
+        mock_dispatch.assert_called_once()
+        dispatch_args = mock_dispatch.call_args
+        self.assertEqual(dispatch_args[1]["ref"], "main")
+        inputs = dispatch_args[1]["inputs"]
+        self.assertEqual(inputs["suspect_commit"], "sha_fail")
+        self.assertEqual(inputs["pr_number"], "42")
+        self.assertIn("signal_key", inputs["signal_pattern"])
+        # Verify CH event logged
+        self.assertEqual(len(proc._logger.insert_calls), 1)
+        call = proc._logger.insert_calls[0]
+        self.assertEqual(call[2], "advisor")
+        self.assertFalse(call[6])  # dry_run=False for RUN mode
+
+
+class TestBuildSignalPatternJson(unittest.TestCase):
+    """Tests for SignalActionProcessor._build_signal_pattern_json."""
+
+    def test_flattened_structure(self):
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        t1 = datetime(2025, 8, 19, 11, 0, 0)
+        t2 = datetime(2025, 8, 19, 10, 0, 0)
+        t3 = datetime(2025, 8, 19, 9, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent("job", SignalStatus.FAILURE, t0, wf_run_id=100, job_id=200),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t1,
+            events=[
+                SignalEvent("job", SignalStatus.SUCCESS, t1, wf_run_id=99, job_id=199),
+            ],
+        )
+        c_prior = SignalCommit(
+            head_sha="sha_prior",
+            timestamp=t2,
+            events=[
+                SignalEvent("job", SignalStatus.FAILURE, t2, wf_run_id=98, job_id=198),
+            ],
+        )
+        c_oldest = SignalCommit(
+            head_sha="sha_oldest",
+            timestamp=t3,
+            events=[],
+        )
+
+        signal = Signal(
+            key="test_key",
+            workflow_name="trunk",
+            commits=[c_fail, c_base, c_prior, c_oldest],
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy / test",
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result_json = SignalActionProcessor._build_signal_pattern_json(
+            signal=signal,
+            dispatch_advisor=advisor,
+            repo_full_name="pytorch/pytorch",
+        )
+        result = json.loads(result_json)
+
+        # Top-level metadata
+        self.assertEqual(result["signal_key"], "test_key")
+        self.assertEqual(result["signal_source"], "test")
+        self.assertEqual(result["workflow_name"], "trunk")
+        self.assertEqual(result["job_base_name"], "linux-jammy / test")
+        self.assertEqual(result["commit_order"], "newest_first")
+        self.assertEqual(result["suspect_commit"], "sha_fail")
+
+        # Should have all 4 commits
+        self.assertEqual(len(result["commits"]), 4)
+
+        # Check partition labels
+        commits = {c["sha"]: c for c in result["commits"]}
+        self.assertIn("failed", commits["sha_fail"]["partition"])
+        self.assertTrue(commits["sha_fail"]["is_suspect"])
+        self.assertIn("successful", commits["sha_base"]["partition"])
+        self.assertFalse(commits["sha_base"]["is_suspect"])
+        self.assertIn("prior", commits["sha_prior"]["partition"])
+        self.assertIn("prior", commits["sha_oldest"]["partition"])
+
+        # Check event URLs are present for events with job_id
+        fail_events = commits["sha_fail"]["events"]
+        self.assertEqual(len(fail_events), 1)
+        self.assertEqual(fail_events[0]["status"], "failure")
+        self.assertIn("url", fail_events[0])
+        self.assertIn("log_url", fail_events[0])
+        self.assertIn("200", fail_events[0]["url"])
+
+        # Check success events also have URLs
+        base_events = commits["sha_base"]["events"]
+        self.assertEqual(len(base_events), 1)
+        self.assertEqual(base_events[0]["status"], "success")
+        self.assertIn("url", base_events[0])
+
+        # Timestamps are human-readable
+        self.assertIn("UTC", commits["sha_fail"]["timestamp"])
+
+    def test_unknown_partition_label(self):
+        """Commits between failed and successful partitions get 'unknown' label."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        t1 = datetime(2025, 8, 19, 11, 0, 0)
+        t2 = datetime(2025, 8, 19, 10, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1)],
+        )
+        c_gap = SignalCommit(
+            head_sha="sha_gap",
+            timestamp=t1,
+            events=[],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t2,
+            events=[SignalEvent("j", SignalStatus.SUCCESS, t2, wf_run_id=2, job_id=2)],
+        )
+
+        signal = Signal(
+            key="k",
+            workflow_name="wf",
+            commits=[c_fail, c_gap, c_base],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="o/r",
+            )
+        )
+        commits = {c["sha"]: c for c in result["commits"]}
+        self.assertIn("unknown", commits["sha_gap"]["partition"])
+
+    def test_signal_pattern_sanity_check(self):
+        """Sanity check: all required keys present, events ordered, timestamps valid."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        t1 = datetime(2025, 8, 19, 11, 0, 0)
+        t2 = datetime(2025, 8, 19, 10, 0, 0)
+        t3 = datetime(2025, 8, 19, 9, 0, 0)
+
+        # Build a signal with all partition types and multiple events per commit
+        c_fail = SignalCommit(
+            head_sha="aaa111",
+            timestamp=t0,
+            events=[
+                SignalEvent(
+                    "ev1",
+                    SignalStatus.FAILURE,
+                    t0,
+                    wf_run_id=10,
+                    job_id=20,
+                    ended_at=t0,
+                    run_attempt=1,
+                ),
+                SignalEvent(
+                    "ev2",
+                    SignalStatus.FAILURE,
+                    t1,
+                    wf_run_id=11,
+                    job_id=21,
+                    ended_at=t1,
+                    run_attempt=2,
+                ),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="bbb222",
+            timestamp=t1,
+            events=[
+                SignalEvent("ev3", SignalStatus.SUCCESS, t2, wf_run_id=8, job_id=18),
+            ],
+        )
+        c_prior_fail = SignalCommit(
+            head_sha="ccc333",
+            timestamp=t2,
+            events=[
+                SignalEvent("ev4", SignalStatus.FAILURE, t3, wf_run_id=5, job_id=15),
+            ],
+        )
+        c_prior_empty = SignalCommit(
+            head_sha="ddd444",
+            timestamp=t3,
+            events=[],
+        )
+
+        signal = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="trunk",
+            commits=[c_fail, c_base, c_prior_fail, c_prior_empty],
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy / test",
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="aaa111",
+            failed_commits=("aaa111",),
+            successful_commits=("bbb222",),
+        )
+
+        raw = SignalActionProcessor._build_signal_pattern_json(
+            signal=signal,
+            dispatch_advisor=advisor,
+            repo_full_name="pytorch/pytorch",
+        )
+        result = json.loads(raw)
+
+        # Top-level required keys
+        for key in (
+            "signal_key",
+            "signal_source",
+            "workflow_name",
+            "commit_order",
+            "suspect_commit",
+            "commits",
+        ):
+            self.assertIn(key, result, f"Missing top-level key: {key}")
+
+        self.assertEqual(result["signal_key"], "test/foo.py::test_bar")
+        self.assertEqual(result["signal_source"], "test")
+        self.assertEqual(result["commit_order"], "newest_first")
+        self.assertEqual(result["suspect_commit"], "aaa111")
+        self.assertEqual(result["job_base_name"], "linux-jammy / test")
+
+        # All commits present in order (newest first)
+        shas = [c["sha"] for c in result["commits"]]
+        self.assertEqual(shas, ["aaa111", "bbb222", "ccc333", "ddd444"])
+
+        # Partition labels
+        commits = {c["sha"]: c for c in result["commits"]}
+        self.assertIn("failed", commits["aaa111"]["partition"])
+        self.assertTrue(commits["aaa111"]["is_suspect"])
+        self.assertIn("successful", commits["bbb222"]["partition"])
+        self.assertFalse(commits["bbb222"]["is_suspect"])
+        self.assertIn("prior", commits["ccc333"]["partition"])
+        self.assertIn("prior", commits["ddd444"]["partition"])
+
+        # Events ordered oldest-first within each commit (as per SignalCommit)
+        fail_events = commits["aaa111"]["events"]
+        self.assertEqual(len(fail_events), 2)
+        # Events should have started_at as strings with "UTC"
+        for ev in fail_events:
+            self.assertIn("UTC", ev["started_at"])
+            self.assertIn("status", ev)
+            self.assertIn("job_id", ev)
+            self.assertIn("wf_run_id", ev)
+
+        # URLs present for events with job_id
+        for ev in fail_events:
+            if ev["job_id"]:
+                self.assertIn("url", ev)
+                self.assertIn("log_url", ev)
+                self.assertIn("pytorch/pytorch", ev["url"])
+
+        # Success events also have URLs
+        base_events = commits["bbb222"]["events"]
+        self.assertEqual(len(base_events), 1)
+        self.assertIn("url", base_events[0])
+
+        # Prior commit with events has URLs
+        prior_events = commits["ccc333"]["events"]
+        self.assertEqual(len(prior_events), 1)
+        self.assertIn("url", prior_events[0])
+
+        # Empty commit has no events
+        self.assertEqual(len(commits["ddd444"]["events"]), 0)
+
+        # Timestamps are human-readable
+        for c in result["commits"]:
+            if c["timestamp"]:
+                self.assertIn("UTC", c["timestamp"])
+
+        # JSON is valid and re-parseable
+        reparsed = json.loads(json.dumps(result))
+        self.assertEqual(reparsed, result)
+
+
+class TestDispatchAdvisorsMethod(unittest.TestCase):
+    """Tests for SignalActionProcessor.dispatch_advisors."""
+
+    def _make_signal_with_advisor(self, key="sig1", commit="sha1"):
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Ineligible,
+            IneligibleReason,
+            RestartCommits,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        advisor = DispatchAdvisor(
+            suspect_commit=commit,
+            failed_commits=(commit,),
+            successful_commits=("base",),
+        )
+        signal = Signal(
+            key=key,
+            workflow_name="trunk",
+            commits=[
+                SignalCommit(
+                    commit,
+                    t0,
+                    [
+                        SignalEvent(
+                            "j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1
+                        ),
+                    ],
+                ),
+                SignalCommit(
+                    "base",
+                    t0,
+                    [
+                        SignalEvent(
+                            "j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=2
+                        ),
+                    ],
+                ),
+            ],
+            source=SignalSource.TEST,
+        )
+        outcome = RestartCommits(commit_shas={commit}, advisor=advisor)
+        return signal, outcome
+
+    def _make_signal_without_advisor(self, key="no_advisor"):
+        from pytorch_auto_revert.signal import (
+            Ineligible,
+            IneligibleReason,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        signal = Signal(
+            key=key,
+            workflow_name="trunk",
+            commits=[SignalCommit("x", t0, [])],
+            source=SignalSource.TEST,
+        )
+        outcome = Ineligible(IneligibleReason.FLAKY, "flaky")
+        return signal, outcome
+
+    def test_skip_mode_returns_empty(self):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        s1, o1 = self._make_signal_with_advisor()
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.SKIP,
+        )
+        result = proc.dispatch_advisors([(s1, o1)], ctx)
+        self.assertEqual(result, [])
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_dispatches_only_eligible_signals(self, mock_gh):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        s1, o1 = self._make_signal_with_advisor(key="eligible")
+        s2, o2 = self._make_signal_without_advisor(key="ineligible")
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.LOG,
+        )
+        result = proc.dispatch_advisors([(s1, o1), (s2, o2)], ctx)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["signal_key"], "trunk:eligible")
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_dispatch_metadata_format(self, mock_gh):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        s1, o1 = self._make_signal_with_advisor(key="test_key", commit="abc123")
+        ctx = RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=AdvisorAction.LOG,
+        )
+        result = proc.dispatch_advisors([(s1, o1)], ctx)
+        self.assertEqual(len(result), 1)
+        d = result[0]
+        self.assertEqual(d["signal_key"], "trunk:test_key")
+        self.assertEqual(d["commit_sha"], "abc123")
+        self.assertEqual(d["workflow_name"], "trunk")
+        self.assertEqual(d["mode"], "log")
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ from pytorch_auto_revert.signal import (
     SignalStatus,
 )
 from pytorch_auto_revert.signal_extraction_types import RunContext
-from pytorch_auto_revert.utils import RestartAction, RevertAction
+from pytorch_auto_revert.utils import AdvisorAction, RestartAction, RevertAction
 
 
 def ts(base: datetime, minutes: int) -> datetime:
@@ -52,6 +52,7 @@ class TestRunStateLogger(unittest.TestCase):
             repo_full_name="owner/repo",
             restart_action=restart,
             revert_action=revert,
+            advisor_action=AdvisorAction.SKIP,
             ts=self.t0,
             workflows=["wf-a", "wf-b"],
         )

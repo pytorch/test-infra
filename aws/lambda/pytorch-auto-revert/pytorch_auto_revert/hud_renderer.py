@@ -40,6 +40,10 @@ HUD_CSS = """
     .badge-revert { background: #fee; color: #a40000; border-color: #f8b4b4; }
     .badge-restart { background: #fff3bf; color: #7a5a00; border-color: #ffe08a; }
     .badge-ineligible { background: #eee; color: #555; border-color: #ccc; }
+    .badge-advisor { background: #e8f0fe; color: #1a73e8; border-color: #aecbfa; font-size: 10px; }
+    .advisor-section { margin-top: 16px; font-size: 13px; }
+    .advisor-section table { width: auto; }
+    .advisor-section td, .advisor-section th { padding: 4px 8px; font-size: 12px; }
     .outcome .details { display: none; margin-top: 6px;
         background: #fafafa; border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 12px; }
     .outcome.open .details { display: block; }
@@ -309,6 +313,15 @@ def render_html_from_state(
     commit_times: Mapping[str, Any] = state.get("commit_times", {}) or {}
     columns: Sequence[Mapping[str, Any]] = state.get("columns", []) or []
     meta: Mapping[str, Any] = state.get("meta", {}) or {}
+    advisor_dispatches: Sequence[Mapping[str, Any]] = (
+        state.get("advisor_dispatches", []) or []
+    )
+    # Build lookup: signal_key -> advisor dispatch info
+    advisor_by_signal: Dict[str, Mapping[str, Any]] = {}
+    for ad in advisor_dispatches:
+        sk = ad.get("signal_key", "")
+        if sk:
+            advisor_by_signal[sk] = ad
 
     raw_outcomes = (
         state.get("outcomes") if isinstance(state.get("outcomes"), dict) else None
@@ -387,6 +400,9 @@ def render_html_from_state(
             badge = '<span class="badge badge-restart">RST</span>'
         else:
             badge = '<span class="badge badge-ineligible">N/A</span>'
+        # Add AI advisor badge if an advisor was dispatched for this signal
+        if sig_key in advisor_by_signal:
+            badge += ' <span class="badge badge-advisor">AI</span>'
         header_label = f"{workflow}:{key}" if key else workflow
         safe_note = note.replace('"', "'")
 
@@ -473,5 +489,26 @@ def render_html_from_state(
         html_parts.append("</tr>")
     html_parts.append("</tbody>")
     html_parts.append("</table>")
+
+    # Advisor dispatches section (forward-compatible: only shown when data exists)
+    if advisor_dispatches:
+        html_parts.append('<div class="advisor-section">')
+        html_parts.append(f"<h2>AI Advisor Dispatches ({len(advisor_dispatches)})</h2>")
+        html_parts.append("<table><thead><tr>")
+        html_parts.append(
+            "<th>Signal</th><th>Commit</th><th>Workflow</th><th>Mode</th>"
+        )
+        html_parts.append("</tr></thead><tbody>")
+        for ad in advisor_dispatches:
+            sk = ad.get("signal_key", "")
+            sha = ad.get("commit_sha", "")
+            wf = ad.get("workflow_name", "")
+            mode = ad.get("mode", "")
+            html_parts.append(
+                f"<tr><td>{sk}</td><td><code>{sha[:8]}</code></td>"
+                f"<td>{wf}</td><td>{mode}</td></tr>"
+            )
+        html_parts.append("</tbody></table></div>")
+
     html_parts.append("</body></html>")
     return "".join(html_parts)
