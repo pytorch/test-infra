@@ -665,14 +665,6 @@
       "rocm"
     ]
   ],
-  "test_dynamic_lstm (__main__.TestExport)": [
-    "176995",
-    "https://github.com/pytorch/pytorch/issues/176995",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_dynamic_lstm_cpp_serdes (__main__.CppSerdesTestExport)": [
     "177002",
     "https://github.com/pytorch/pytorch/issues/177002",
