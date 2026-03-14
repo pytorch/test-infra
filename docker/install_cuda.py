@@ -299,7 +299,8 @@ def install_nccl(nccl_version: str, prefix: str, tmp: str) -> None:
         "https://github.com/NVIDIA/nccl.git",
         nccl_dir,
     )
-    run("make", "-j", f"CUDA_HOME={prefix}", "src.build", cwd=nccl_dir)
+    jobs = max(1, os.cpu_count() - 2)
+    run("make", f"-j{jobs}", f"CUDA_HOME={prefix}", "src.build", cwd=nccl_dir)
     run("cp", "-a", *_glob(f"{nccl_dir}/build/include/"), f"{prefix}/include/")
     run("cp", "-a", *_glob(f"{nccl_dir}/build/lib/"), f"{prefix}/lib64/")
     shutil.rmtree(nccl_dir)
