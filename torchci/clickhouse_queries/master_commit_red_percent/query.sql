@@ -12,10 +12,21 @@ WITH pushes AS ( -- very selective
         and p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
         and p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
 ),
+-- Fetch job names marked as unstable via open GitHub issues
+unstable_issue_names AS (
+    SELECT
+        replaceRegexpOne(issue.title, '^UNSTABLE\\s+', '') AS unstable_name
+    FROM
+        default.issues AS issue FINAL
+    WHERE
+        arrayExists(x -> x.'name' = 'unstable', issue.labels)
+        AND issue.state = 'open'
+        AND issue.title LIKE 'UNSTABLE%'
+),
 all_jobs AS (
     SELECT
         p.time AS time,
-        j.conclusion AS conclusion,
+        j.conclusion_kg AS conclusion,
         j.head_sha AS sha,
         ROW_NUMBER() OVER(
             PARTITION BY j.name,
@@ -31,12 +42,17 @@ all_jobs AS (
             SELECT id FROM materialized_views.workflow_job_by_head_sha
             WHERE head_sha in (SELECT distinct p.sha FROM pushes p)
         )
-        AND j.workflow_event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+        AND j.workflow_event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+        AND j.workflow_event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs
         AND has({workflowNames: Array(String) }, lower(j.workflow_name))
         AND j.name != 'ciflow_should_run'
         AND j.name != 'generate-test-matrix'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%mem_leak_check%'
         AND j.name NOT LIKE '%unstable%'
+        -- Exclude jobs marked unstable via open GitHub issues
+        AND CONCAT(j.workflow_name, ' / ', j.name) NOT IN (SELECT unstable_name FROM unstable_issue_names)
+        AND CONCAT(j.workflow_name, ' / ', replaceRegexpOne(j.name, ' \\(([^,]*),.*\\)$', ' (\\1)')) NOT IN (SELECT unstable_name FROM unstable_issue_names)
 ),
 any_red AS (
     SELECT
@@ -46,7 +62,7 @@ any_red AS (
             SUM(
                 CASE
                     WHEN conclusion = 'failure' THEN 1
-                    WHEN conclusion = 'timed_out' THEN 1
+                    WHEN conclusion = 'time_out' THEN 1
                     WHEN conclusion = 'cancelled' THEN 1
                     ELSE 0
                 END
@@ -57,7 +73,7 @@ any_red AS (
                 CASE
                     WHEN conclusion = 'failure'
                     AND row_num = 1 THEN 1
-                    WHEN conclusion = 'timed_out'
+                    WHEN conclusion = 'time_out'
                     AND row_num = 1 THEN 1
                     WHEN conclusion = 'cancelled'
                     AND row_num = 1 THEN 1

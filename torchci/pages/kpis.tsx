@@ -1,6 +1,7 @@
 import { Grid } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES } from "lib/JobClassifierUtil";
 import { useState } from "react";
 
 const ROW_HEIGHT = 240;
@@ -24,7 +25,8 @@ export default function Kpis() {
           queryParams={{
             ...timeParams,
             granularity: "week",
-            workflowNames: ["lint", "pull", "trunk"],
+            workflowNames:
+              VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES["pytorch/pytorch"] ?? [],
           }}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}

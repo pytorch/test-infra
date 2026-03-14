@@ -4,7 +4,8 @@
     "stopTime": "DateTime64(3)",
     "timezone": "String",
     "granularity": "String",
-    "usePercentage": "Bool"
+    "usePercentage": "Bool",
+    "workflowNames": "Array(String)"
   },
   "tests": [
     {
@@ -12,21 +13,24 @@
       "stopTime": "2024-01-08 00:00:00.000",
       "timezone": "UTC",
       "granularity": "day",
-      "usePercentage": true
+      "usePercentage": true,
+      "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"]
     },
     {
       "startTime": "2024-01-01 00:00:00.000",
       "stopTime": "2024-02-01 00:00:00.000",
       "timezone": "UTC",
       "granularity": "day",
-      "usePercentage": true
+      "usePercentage": true,
+      "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"]
     },
     {
       "startTime": "2024-01-01 00:00:00.000",
       "stopTime": "2025-01-01 00:00:00.000",
       "timezone": "UTC",
       "granularity": "day",
-      "usePercentage": true
+      "usePercentage": true,
+      "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"]
     },
     {
       "startTime": {
@@ -37,7 +41,8 @@
       },
       "timezone": "UTC",
       "granularity": "day",
-      "usePercentage": true
+      "usePercentage": true,
+      "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"]
     }
   ]
 }
