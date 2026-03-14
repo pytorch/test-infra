@@ -5,8 +5,6 @@ FROM ${BASE_IMAGE}
 # INSTALL_CUDA: set to any non-empty value (e.g. "1") to install all CUDA versions;
 # leave empty for CPU-only images.
 ARG INSTALL_CUDA
-ARG NCCL_VERSION=v2.29.3-1
-ARG NVSHMEM_VERSION=3.4.5
 
 # System dependencies (adapted from PyTorch CI install_centos)
 RUN dnf install -y \
@@ -35,9 +33,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Install CUDA stack (skipped when INSTALL_CUDA is empty)
 RUN --mount=type=bind,source=install_cuda.py,target=/tmp/install_cuda.py \
     if [ -n "${INSTALL_CUDA}" ]; then \
-        uv run /tmp/install_cuda.py \
-            --nccl-version "${NCCL_VERSION}" \
-            --nvshmem-version "${NVSHMEM_VERSION}"; \
+        uv run /tmp/install_cuda.py; \
     fi
 
 # Install sccache (do this last so /opt/cache/bin gets PATH priority)
