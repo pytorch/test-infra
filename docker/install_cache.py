@@ -53,7 +53,8 @@ def main() -> None:
 
     # Download and extract in one pipeline, same as the bash version
     run(
-        "bash", "-c",
+        "bash",
+        "-c",
         f'curl -fsSL "{url}" | tar xz --strip-components=1 -C {INSTALL_DIR}',
     )
     os.chmod(f"{INSTALL_DIR}/sccache", 0o755)

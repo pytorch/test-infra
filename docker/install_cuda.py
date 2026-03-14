@@ -21,16 +21,18 @@ import platform
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import urllib.request
-from pathlib import Path
 from time import sleep
+
 
 PYTORCH_MATRIX_URL = (
     "https://raw.githubusercontent.com/pytorch/pytorch/main/"
     ".github/scripts/generate_binary_build_matrix.py"
 )
+
+# CUDA arches to skip (PyTorch supports them but we don't build Docker images for them)
+SKIP_CUDA_ARCHES = {"12.6"}
 
 # ---------------------------------------------------------------------------
 # Fetching & parsing PyTorch version info
@@ -66,7 +68,9 @@ def fetch_pytorch_versions() -> list[dict]:
 
     # CUDA_ARCHES = ["12.6", "12.8", ...]
     arches_node = _extract_ast_assign(tree, "CUDA_ARCHES")
-    arches: list[str] = ast.literal_eval(arches_node)
+    arches: list[str] = [
+        a for a in ast.literal_eval(arches_node) if a not in SKIP_CUDA_ARCHES
+    ]
 
     # CUDA_ARCHES_FULL_VERSION = {"12.6": "12.6.3", ...}
     full_ver_node = _extract_ast_assign(tree, "CUDA_ARCHES_FULL_VERSION")
@@ -76,31 +80,35 @@ def fetch_pytorch_versions() -> list[dict]:
     reqs_node = _extract_ast_assign(tree, "PYTORCH_EXTRA_INSTALL_REQUIREMENTS")
     reqs: dict[str, str] = ast.literal_eval(reqs_node)
 
+    def _extract_pip_ver(pkg_prefix: str, req_str: str, arch: str) -> str:
+        m = re.search(rf"{re.escape(pkg_prefix)}==([^\s;|]+)", req_str)
+        if not m:
+            raise ValueError(
+                f"Could not find {pkg_prefix} in requirements for CUDA {arch}"
+            )
+        return m.group(1)
+
     results = []
     for arch in arches:
         full_ver = full_versions[arch]
         cuda_major = arch.split(".")[0]
         req_str = reqs[arch]
 
-        def _extract_pip_ver(pkg_prefix: str) -> str:
-            m = re.search(rf"{re.escape(pkg_prefix)}==([^\s;|]+)", req_str)
-            if not m:
-                raise ValueError(
-                    f"Could not find {pkg_prefix} in requirements for CUDA {arch}"
-                )
-            return m.group(1)
-
         results.append(
             {
                 "version": full_ver,
                 "cuda_major": cuda_major,
-                "cudnn_version": _extract_pip_ver(f"nvidia-cudnn-cu{cuda_major}"),
-                "nccl_pip_version": _extract_pip_ver(f"nvidia-nccl-cu{cuda_major}"),
+                "cudnn_version": _extract_pip_ver(
+                    f"nvidia-cudnn-cu{cuda_major}", req_str, arch
+                ),
+                "nccl_pip_version": _extract_pip_ver(
+                    f"nvidia-nccl-cu{cuda_major}", req_str, arch
+                ),
                 "cusparselt_pip_version": _extract_pip_ver(
-                    f"nvidia-cusparselt-cu{cuda_major}"
+                    f"nvidia-cusparselt-cu{cuda_major}", req_str, arch
                 ),
                 "nvshmem_version": _extract_pip_ver(
-                    f"nvidia-nvshmem-cu{cuda_major}"
+                    f"nvidia-nvshmem-cu{cuda_major}", req_str, arch
                 ),
             }
         )
@@ -211,9 +219,7 @@ def download(url: str, dest: str, retries: int = 3) -> None:
 # ---------------------------------------------------------------------------
 
 
-def install_cuda(
-    version: str, runfile: str, prefix: str, arch: str, tmp: str
-) -> None:
+def install_cuda(version: str, runfile: str, prefix: str, arch: str, tmp: str) -> None:
     major_minor = ".".join(version.split(".")[:2])
     default_path = f"/usr/local/cuda-{major_minor}"
 
@@ -300,9 +306,7 @@ def install_nccl(nccl_version: str, prefix: str, tmp: str) -> None:
     run("ldconfig")
 
 
-def install_cusparselt(
-    cusparselt_name: str, prefix: str, arch: str, tmp: str
-) -> None:
+def install_cusparselt(cusparselt_name: str, prefix: str, arch: str, tmp: str) -> None:
     nv_arch = "x86_64" if arch == "x86_64" else "aarch64"
     url = (
         f"https://developer.download.nvidia.com/compute/cusparselt/redist/"
@@ -347,21 +351,19 @@ def install_version(cfg: dict, arch: str) -> None:
     prefix = f"/usr/local/cuda-{major_minor}"
 
     print(
-        f"\n{'='*72}\n"
+        f"\n{'=' * 72}\n"
         f"Installing CUDA {version} + cuDNN {cfg['cudnn_version']} "
         f"+ nvSHMEM {cfg['nvshmem_version']} "
         f"+ NCCL {cfg['nccl_git_tag']} "
         f"+ cuSPARSELt {cfg['cusparselt_archive']}\n"
-        f"{'='*72}",
+        f"{'=' * 72}",
         flush=True,
     )
 
     with tempfile.TemporaryDirectory() as tmp:
         install_cuda(version, cfg["runfile"], prefix, arch, tmp)
         install_cudnn(cfg["cuda_major"], cfg["cudnn_version"], prefix, arch, tmp)
-        install_nvshmem(
-            cfg["cuda_major"], cfg["nvshmem_version"], prefix, arch, tmp
-        )
+        install_nvshmem(cfg["cuda_major"], cfg["nvshmem_version"], prefix, arch, tmp)
         install_nccl(cfg["nccl_git_tag"], prefix, tmp)
         install_cusparselt(cfg["cusparselt_archive"], prefix, arch, tmp)
 
@@ -409,8 +411,12 @@ def main() -> None:
             print(f"CUDA {mm} ({cfg['version']}):")
             print(f"  runfile:       {cfg['runfile']}")
             print(f"  cuDNN:         {cfg['cudnn_version']}")
-            print(f"  NCCL:          {cfg['nccl_git_tag']} (pip: {cfg['nccl_pip_version']})")
-            print(f"  cuSPARSELt:    {cfg['cusparselt_archive']} (pip: {cfg['cusparselt_pip_version']})")
+            print(
+                f"  NCCL:          {cfg['nccl_git_tag']} (pip: {cfg['nccl_pip_version']})"
+            )
+            print(
+                f"  cuSPARSELt:    {cfg['cusparselt_archive']} (pip: {cfg['cusparselt_pip_version']})"
+            )
             print(f"  nvSHMEM:       {cfg['nvshmem_version']}")
             print()
         return
