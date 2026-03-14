@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE}
 # INSTALL_CUDA: set to any non-empty value (e.g. "1") to install all CUDA versions;
 # leave empty for CPU-only images.
 ARG INSTALL_CUDA
-ARG NCCL_VERSION=v2.28.9-1
+ARG NCCL_VERSION=v2.29.3-1
 ARG NVSHMEM_VERSION=3.4.5
 
 # System dependencies (adapted from PyTorch CI install_centos)
@@ -28,20 +28,21 @@ RUN dnf install -y \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
-# Install CUDA stack (skipped when INSTALL_CUDA is empty)
-RUN --mount=type=bind,source=install_cuda.sh,target=/tmp/install_cuda.sh \
-    if [ -n "${INSTALL_CUDA}" ]; then \
-        NCCL_VERSION="${NCCL_VERSION}" NVSHMEM_VERSION="${NVSHMEM_VERSION}" \
-        bash /tmp/install_cuda.sh; \
-    fi
-
-# Install uv (Python package manager)
+# Install uv (Python package manager) — needed before CUDA install for uv run
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
+# Install CUDA stack (skipped when INSTALL_CUDA is empty)
+RUN --mount=type=bind,source=install_cuda.py,target=/tmp/install_cuda.py \
+    if [ -n "${INSTALL_CUDA}" ]; then \
+        uv run /tmp/install_cuda.py \
+            --nccl-version "${NCCL_VERSION}" \
+            --nvshmem-version "${NVSHMEM_VERSION}"; \
+    fi
+
 # Install sccache (do this last so /opt/cache/bin gets PATH priority)
-RUN --mount=type=bind,source=install_cache.sh,target=/tmp/install_cache.sh \
-    bash /tmp/install_cache.sh
+RUN --mount=type=bind,source=install_cache.py,target=/tmp/install_cache.py \
+    uv run /tmp/install_cache.py
 ENV PATH="/opt/cache/bin:${PATH}"
 
 # CUDA environment (no-ops when CPU-only since the paths simply won't exist)
