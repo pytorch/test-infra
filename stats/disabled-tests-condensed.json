@@ -319,6 +319,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_masked_cumprod_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "177483",
+    "https://github.com/pytorch/pytorch/issues/177483",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_matmul_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "176964",
     "https://github.com/pytorch/pytorch/issues/176964",
@@ -448,6 +455,13 @@
     "https://github.com/pytorch/pytorch/issues/106557",
     [
       "macos"
+    ]
+  ],
+  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
+    "176392",
+    "https://github.com/pytorch/pytorch/issues/176392",
+    [
+      "xpu"
     ]
   ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
