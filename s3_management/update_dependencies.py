@@ -12,7 +12,7 @@ BUCKET = S3.Bucket("pytorch")
 
 # Valid target patterns for validation
 VALID_TARGET_PATTERNS = [
-    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
+    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130, cuXYZ
     r"^rocm[0-9]+\.[0-9]+$",  # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
 ]
 
@@ -81,6 +81,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "target": "cu130",
         },
         {
+            "project": "torch",
+            "target": "cu132",
+        },
+        {
             "project": "vllm",
         },
     ],
@@ -100,6 +104,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-nvrtc-cu12": [
@@ -127,6 +135,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cuda-runtime-cu12": [
         {
@@ -152,6 +164,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-cupti-cu12": [
@@ -179,6 +195,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cudnn-cu12": [
         {
@@ -204,6 +224,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cublas-cu12": [
@@ -231,6 +255,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cufft-cu12": [
         {
@@ -256,6 +284,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-curand-cu12": [
@@ -283,6 +315,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cusolver-cu12": [
         {
@@ -308,6 +344,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cusparse-cu12": [
@@ -335,6 +375,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cusparselt-cu12": [
         {
@@ -360,6 +404,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-nccl-cu12": [
@@ -387,6 +435,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-nvshmem-cu12": [
         {
@@ -412,6 +464,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-cccl-cu12": [
@@ -439,6 +495,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-nvtx-cu12": [
         {
@@ -464,6 +524,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-nvjitlink-cu12": [
@@ -491,6 +555,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cufile-cu12": [
         {
@@ -516,6 +584,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "arpeggio": [{"project": "triton"}],
@@ -900,6 +972,116 @@ def generate_packages_index_html(packages: List[str]) -> str:
     return "\n".join(lines)
 
 
+def copy_target(
+    prefix: str,
+    source: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Initialize a new target by copying all folders and index.html from an existing source target.
+
+    Only copies package subdirectory index files (second level), not the top-level index.html.
+    For example: copy_target("whl/nightly", "cu130", "cu132") copies
+    whl/nightly/cu130/filelock/index.html -> whl/nightly/cu132/filelock/index.html
+    whl/nightly/cu130/numpy/index.html -> whl/nightly/cu132/numpy/index.html
+    but NOT whl/nightly/cu130/index.html
+
+    Args:
+        prefix: The base prefix (e.g., "whl/nightly")
+        source: The source target name (e.g., "cu130")
+        target: The destination target name (e.g., "cu132")
+        dry_run: If True, don't actually copy anything
+
+    Returns:
+        True if target was created, False otherwise
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    if not is_valid_target(source):
+        print(f"ERROR: Invalid source name '{source}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    source_path = f"{prefix}/{source}/"
+    target_path = f"{prefix}/{target}"
+
+    # Check source exists
+    if not dry_run and not target_exists(prefix, source):
+        print(f"ERROR: Source '{prefix}/{source}' does not exist in S3.")
+        return False
+
+    # Warn if target already exists but continue anyway
+    if not dry_run and target_exists(prefix, target):
+        print(f"WARNING: Target '{target_path}' already exists, will copy into it.")
+
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}Copying {prefix}/{source} -> {target_path}"
+    )
+
+    # List all objects under the source path, only copying files in subdirectories
+    # (e.g., cu130/filelock/index.html) and skipping any files directly in the
+    # source root (e.g., cu130/index.html). Also skip .whl and .zip binary artifacts.
+    copied_count = 0
+    skipped_count = 0
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket="pytorch", Prefix=source_path):
+        for obj in page.get("Contents", []):
+            source_key = obj["Key"]
+            # Get the relative path after the source prefix
+            relative_path = source_key[len(source_path) :]
+            # Only copy files in subdirectories (must contain a /)
+            # Skip any files directly in the source root like index.html
+            if "/" not in relative_path:
+                print(f"  Skipping root-level file: {source_key}")
+                continue
+            # Skip .whl and .zip files - only copy subfolder index files
+            if source_key.endswith(".whl") or source_key.endswith(".zip"):
+                skipped_count += 1
+                print(f"  Skipping binary artifact: {source_key}")
+                continue
+            # Replace source target with destination target in the key
+            dest_key = source_key.replace(source_path, f"{target_path}/", 1)
+
+            if dry_run:
+                print(f"  [DRY RUN] Would copy: {source_key} -> {dest_key}")
+            else:
+                print(f"  Copying: {source_key} -> {dest_key}")
+                CLIENT.copy_object(
+                    Bucket="pytorch",
+                    CopySource={"Bucket": "pytorch", "Key": source_key},
+                    Key=dest_key,
+                    ACL="public-read",
+                )
+
+                # Also copy to R2 if configured
+                if R2_BUCKET:
+                    print(f"  Copying to R2: {source_key} -> {dest_key}")
+                    # Download from S3 and upload to R2 (cross-service copy)
+                    response = CLIENT.get_object(Bucket="pytorch", Key=source_key)
+                    body = response["Body"].read()
+                    content_type = response.get("ContentType", "text/html")
+                    R2_BUCKET.Object(key=dest_key).put(
+                        ACL="public-read",
+                        ContentType=content_type,
+                        CacheControl="no-cache,no-store,must-revalidate",
+                        Body=body,
+                    )
+
+            copied_count += 1
+
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}"
+        f"Successfully copied {copied_count} objects from {prefix}/{source} to {target_path}"
+        f" (skipped {skipped_count} .whl/.zip files)"
+    )
+    return True
+
+
 def create_target(
     prefix: str,
     target: str,
@@ -1001,6 +1183,12 @@ def main() -> None:
         help="Create a new target directory with torch dependencies",
     )
     parser.add_argument(
+        "--init-from",
+        type=str,
+        help="Initialize a new target by copying all folders and index.html from an existing source target "
+        "(e.g., --init-from cu130 --target cu132 copies whl/nightly/cu130/* -> whl/nightly/cu132/*)",
+    )
+    parser.add_argument(
         "--prefix",
         type=str,
         default="whl/nightly",
@@ -1008,6 +1196,20 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    # Handle init-from mode (copy source target to new target)
+    if args.init_from:
+        if not args.target:
+            print("ERROR: --target is required when using --init-from")
+            return
+
+        copy_target(
+            args.prefix,
+            args.init_from,
+            args.target,
+            dry_run=args.dry_run,
+        )
+        return
 
     # Handle target creation mode
     if args.create_target:
