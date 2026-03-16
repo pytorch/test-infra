@@ -1015,27 +1015,35 @@ def copy_target(
         print(f"ERROR: Source '{prefix}/{source}' does not exist in S3.")
         return False
 
-    # Check target doesn't already exist
+    # Warn if target already exists but continue anyway
     if not dry_run and target_exists(prefix, target):
-        print(f"Target '{target_path}' already exists.")
-        return False
+        print(f"WARNING: Target '{target_path}' already exists, will copy into it.")
 
     print(
         f"{'[DRY RUN] ' if dry_run else ''}"
         f"Copying {prefix}/{source} -> {target_path}"
     )
 
-    # List all objects under the source path, skipping the top-level index.html
-    # Only copy package subdirectory files (e.g., cu130/filelock/index.html)
-    top_level_index = f"{source_path}index.html"
+    # List all objects under the source path, only copying files in subdirectories
+    # (e.g., cu130/filelock/index.html) and skipping any files directly in the
+    # source root (e.g., cu130/index.html). Also skip .whl and .zip binary artifacts.
     copied_count = 0
+    skipped_count = 0
     paginator = CLIENT.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket="pytorch", Prefix=source_path):
         for obj in page.get("Contents", []):
             source_key = obj["Key"]
-            # Skip the top-level index.html (e.g., whl/nightly/cu130/index.html)
-            if source_key == top_level_index:
-                print(f"  Skipping top-level index: {source_key}")
+            # Get the relative path after the source prefix
+            relative_path = source_key[len(source_path):]
+            # Only copy files in subdirectories (must contain a /)
+            # Skip any files directly in the source root like index.html
+            if "/" not in relative_path:
+                print(f"  Skipping root-level file: {source_key}")
+                continue
+            # Skip .whl and .zip files - only copy subfolder index files
+            if source_key.endswith(".whl") or source_key.endswith(".zip"):
+                skipped_count += 1
+                print(f"  Skipping binary artifact: {source_key}")
                 continue
             # Replace source target with destination target in the key
             dest_key = source_key.replace(source_path, f"{target_path}/", 1)
@@ -1070,6 +1078,7 @@ def copy_target(
     print(
         f"{'[DRY RUN] ' if dry_run else ''}"
         f"Successfully copied {copied_count} objects from {prefix}/{source} to {target_path}"
+        f" (skipped {skipped_count} .whl/.zip files)"
     )
     return True
 
