@@ -12,7 +12,7 @@ BUCKET = S3.Bucket("pytorch")
 
 # Valid target patterns for validation
 VALID_TARGET_PATTERNS = [
-    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
+    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130, cuXYZ
     r"^rocm[0-9]+\.[0-9]+$",  # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
 ]
 
@@ -81,6 +81,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "target": "cu130",
         },
         {
+            "project": "torch",
+            "target": "cu132",
+        },
+        {
             "project": "vllm",
         },
     ],
@@ -100,6 +104,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-nvrtc-cu12": [
@@ -127,6 +135,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cuda-runtime-cu12": [
         {
@@ -152,6 +164,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-cupti-cu12": [
@@ -179,6 +195,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cudnn-cu12": [
         {
@@ -204,6 +224,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cublas-cu12": [
@@ -231,6 +255,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cufft-cu12": [
         {
@@ -256,6 +284,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-curand-cu12": [
@@ -283,6 +315,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cusolver-cu12": [
         {
@@ -308,6 +344,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cusparse-cu12": [
@@ -335,6 +375,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cusparselt-cu12": [
         {
@@ -360,6 +404,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-nccl-cu12": [
@@ -387,6 +435,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-nvshmem-cu12": [
         {
@@ -412,6 +464,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-cuda-cccl-cu12": [
@@ -439,6 +495,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-nvtx-cu12": [
         {
@@ -464,6 +524,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "nvidia-nvjitlink-cu12": [
@@ -491,6 +555,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
     ],
     "nvidia-cufile-cu12": [
         {
@@ -516,6 +584,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
         },
     ],
     "arpeggio": [{"project": "triton"}],
