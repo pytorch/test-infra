@@ -972,6 +972,108 @@ def generate_packages_index_html(packages: List[str]) -> str:
     return "\n".join(lines)
 
 
+def copy_target(
+    prefix: str,
+    source: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Initialize a new target by copying all folders and index.html from an existing source target.
+
+    Only copies package subdirectory index files (second level), not the top-level index.html.
+    For example: copy_target("whl/nightly", "cu130", "cu132") copies
+    whl/nightly/cu130/filelock/index.html -> whl/nightly/cu132/filelock/index.html
+    whl/nightly/cu130/numpy/index.html -> whl/nightly/cu132/numpy/index.html
+    but NOT whl/nightly/cu130/index.html
+
+    Args:
+        prefix: The base prefix (e.g., "whl/nightly")
+        source: The source target name (e.g., "cu130")
+        target: The destination target name (e.g., "cu132")
+        dry_run: If True, don't actually copy anything
+
+    Returns:
+        True if target was created, False otherwise
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    if not is_valid_target(source):
+        print(f"ERROR: Invalid source name '{source}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    source_path = f"{prefix}/{source}/"
+    target_path = f"{prefix}/{target}"
+
+    # Check source exists
+    if not dry_run and not target_exists(prefix, source):
+        print(f"ERROR: Source '{prefix}/{source}' does not exist in S3.")
+        return False
+
+    # Check target doesn't already exist
+    if not dry_run and target_exists(prefix, target):
+        print(f"Target '{target_path}' already exists.")
+        return False
+
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}"
+        f"Copying {prefix}/{source} -> {target_path}"
+    )
+
+    # List all objects under the source path, skipping the top-level index.html
+    # Only copy package subdirectory files (e.g., cu130/filelock/index.html)
+    top_level_index = f"{source_path}index.html"
+    copied_count = 0
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket="pytorch", Prefix=source_path):
+        for obj in page.get("Contents", []):
+            source_key = obj["Key"]
+            # Skip the top-level index.html (e.g., whl/nightly/cu130/index.html)
+            if source_key == top_level_index:
+                print(f"  Skipping top-level index: {source_key}")
+                continue
+            # Replace source target with destination target in the key
+            dest_key = source_key.replace(source_path, f"{target_path}/", 1)
+
+            if dry_run:
+                print(f"  [DRY RUN] Would copy: {source_key} -> {dest_key}")
+            else:
+                print(f"  Copying: {source_key} -> {dest_key}")
+                CLIENT.copy_object(
+                    Bucket="pytorch",
+                    CopySource={"Bucket": "pytorch", "Key": source_key},
+                    Key=dest_key,
+                    ACL="public-read",
+                )
+
+                # Also copy to R2 if configured
+                if R2_BUCKET:
+                    print(f"  Copying to R2: {source_key} -> {dest_key}")
+                    # Download from S3 and upload to R2 (cross-service copy)
+                    response = CLIENT.get_object(Bucket="pytorch", Key=source_key)
+                    body = response["Body"].read()
+                    content_type = response.get("ContentType", "text/html")
+                    R2_BUCKET.Object(key=dest_key).put(
+                        ACL="public-read",
+                        ContentType=content_type,
+                        CacheControl="no-cache,no-store,must-revalidate",
+                        Body=body,
+                    )
+
+            copied_count += 1
+
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}"
+        f"Successfully copied {copied_count} objects from {prefix}/{source} to {target_path}"
+    )
+    return True
+
+
 def create_target(
     prefix: str,
     target: str,
@@ -1073,6 +1175,12 @@ def main() -> None:
         help="Create a new target directory with torch dependencies",
     )
     parser.add_argument(
+        "--init-from",
+        type=str,
+        help="Initialize a new target by copying all folders and index.html from an existing source target "
+        "(e.g., --init-from cu130 --target cu132 copies whl/nightly/cu130/* -> whl/nightly/cu132/*)",
+    )
+    parser.add_argument(
         "--prefix",
         type=str,
         default="whl/nightly",
@@ -1080,6 +1188,20 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    # Handle init-from mode (copy source target to new target)
+    if args.init_from:
+        if not args.target:
+            print("ERROR: --target is required when using --init-from")
+            return
+
+        copy_target(
+            args.prefix,
+            args.init_from,
+            args.target,
+            dry_run=args.dry_run,
+        )
+        return
 
     # Handle target creation mode
     if args.create_target:
