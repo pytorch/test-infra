@@ -1015,13 +1015,6 @@
     "https://github.com/pytorch/pytorch/issues/156438",
     []
   ],
-  "test_interaction_with_triton_template (__main__.LoopOrderingTest)": [
-    "162462",
-    "https://github.com/pytorch/pytorch/issues/162462",
-    [
-      "rocm"
-    ]
-  ],
   "test_intra_node_comm_all_reduce (__main__.CommTest)": [
     "115859",
     "https://github.com/pytorch/pytorch/issues/115859",
