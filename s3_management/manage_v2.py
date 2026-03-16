@@ -451,6 +451,7 @@ PT_R2_PACKAGES = {
 # when the path is NOT whl/test and NOT whl/nightly (i.e., prod)
 PT_R2_PACKAGES_PROD = {
     "torchaudio",
+    "torchvision",
     "fbgemm_gpu",
     "fbgemm_gpu_genai",
 }
