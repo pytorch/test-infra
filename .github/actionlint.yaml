@@ -9,3 +9,6 @@ self-hosted-runner:
     - linux.large
     - linux.g5.4xlarge.nvidia.gpu
     - linux.g5.12xlarge.nvidia.gpu
+    # Below are OSDC ARC runner
+    - l-x86iamx-8-16
+    - l-arm64g2-6-32

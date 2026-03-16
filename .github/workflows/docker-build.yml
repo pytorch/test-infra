@@ -1,0 +1,35 @@
+name: Build and Publish Docker Images
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "docker/**"
+  pull_request:
+    paths:
+      - "docker/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' && github.run_id }}-${{ github.event_name == 'schedule' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/_docker-build.yml
+    with:
+      push: false
+    permissions:
+      contents: read
+
+  build-and-publish:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/_docker-build.yml
+    with:
+      push: true
+    permissions:
+      contents: read
+      packages: write
