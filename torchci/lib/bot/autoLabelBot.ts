@@ -18,6 +18,7 @@ import {
 const IssueAndPRRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/vulkan/gi, "module: vulkan"],
+  [/helion/gi, "module: helion"],
 ];
 
 // List of regex patterns for assigning labels to Pull Requests
