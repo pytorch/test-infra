@@ -1020,8 +1020,7 @@ def copy_target(
         print(f"WARNING: Target '{target_path}' already exists, will copy into it.")
 
     print(
-        f"{'[DRY RUN] ' if dry_run else ''}"
-        f"Copying {prefix}/{source} -> {target_path}"
+        f"{'[DRY RUN] ' if dry_run else ''}Copying {prefix}/{source} -> {target_path}"
     )
 
     # List all objects under the source path, only copying files in subdirectories
@@ -1034,7 +1033,7 @@ def copy_target(
         for obj in page.get("Contents", []):
             source_key = obj["Key"]
             # Get the relative path after the source prefix
-            relative_path = source_key[len(source_path):]
+            relative_path = source_key[len(source_path) :]
             # Only copy files in subdirectories (must contain a /)
             # Skip any files directly in the source root like index.html
             if "/" not in relative_path:
