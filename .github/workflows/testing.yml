@@ -1,0 +1,28 @@
+name: Docker Info
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  docker-info:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [linux.dgx.b200, linux.aws.a100, linux.g5.4xlarge.nvidia.gpu]
+
+    steps:
+      - name: Check who am i
+        run: whoami; id; uptime
+
+      - name: Run docker info
+        run: docker info
+
+      - name: Check contexts
+        run: docker context ls
+
+      - name: Run nvidia-smi
+        run: nvidia-smi
