@@ -5,7 +5,7 @@
 if [[ -d "$OUTPUT_PATH" && "$(ls -A $OUTPUT_PATH 2>/dev/null)" ]]; then
     OUTPUT_S3_PATH="${ARTIFACTS_PATH}outputs/${TASK_ID}/"
     echo "[Runner] Uploading outputs from $OUTPUT_PATH to $OUTPUT_S3_PATH"
-    if aws s3 sync "$OUTPUT_PATH/" "$OUTPUT_S3_PATH" 2>&1; then
+    if aws s3 sync "$OUTPUT_PATH/" "$OUTPUT_S3_PATH" 2>&1 | sed 's/^/[Runner] /'; then
         echo "[Runner] ✓ Outputs uploaded to $OUTPUT_S3_PATH"
     else
         echo "[Runner] Warning: Failed to upload outputs"
@@ -19,11 +19,11 @@ LOG_DIR="${LOG_DIR:-/tmp/work/logs}"
 echo "[Runner] Looking for logs in: $LOG_DIR"
 if [[ -d "$LOG_DIR" ]]; then
     echo "[Runner] LOG_DIR contents:"
-    ls -la "$LOG_DIR" 2>/dev/null || echo "(empty)"
+    ls -la "$LOG_DIR" 2>/dev/null | sed 's/^/[Runner] /' || echo "(empty)"
     if [[ "$(ls -A $LOG_DIR 2>/dev/null)" ]]; then
         LOGS_S3_PATH="${ARTIFACTS_PATH}logs/"
         echo "[Runner] Uploading logs from $LOG_DIR to $LOGS_S3_PATH"
-        if aws s3 sync "$LOG_DIR/" "$LOGS_S3_PATH" 2>&1; then
+        if aws s3 sync "$LOG_DIR/" "$LOGS_S3_PATH" 2>&1 | sed 's/^/[Runner] /'; then
             echo "[Runner] ✓ Logs uploaded to $LOGS_S3_PATH"
         else
             echo "[Runner] Warning: Failed to upload logs"

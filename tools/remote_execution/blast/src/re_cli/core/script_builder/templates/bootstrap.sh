@@ -30,13 +30,13 @@ mkdir -p "$ARTIFACTS_DIR"
 if ! command -v git &> /dev/null; then
     echo "[Bootstrap] Installing git..."
     if command -v apt-get &> /dev/null; then
-        apt-get update -qq && apt-get install -y -qq git 2>/dev/null
+        apt-get update -qq && apt-get install -y -qq git 2>&1 | sed 's/^/[Bootstrap] /'
     elif command -v yum &> /dev/null; then
-        yum install -y -q git 2>/dev/null
+        yum install -y -q git 2>&1 | sed 's/^/[Bootstrap] /'
     elif command -v apk &> /dev/null; then
-        apk add --quiet git 2>/dev/null
+        apk add --quiet git 2>&1 | sed 's/^/[Bootstrap] /'
     elif command -v conda &> /dev/null; then
-        conda install -y -q git 2>/dev/null
+        conda install -y -q git 2>&1 | sed 's/^/[Bootstrap] /'
     fi
     command -v git &> /dev/null && echo "[Bootstrap] ✓ git installed" || echo "[Bootstrap] Warning: git not available"
 fi
