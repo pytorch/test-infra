@@ -2,6 +2,7 @@
 
 import sys
 import time
+from typing import Optional, Type
 
 from rich.panel import Panel
 
@@ -23,7 +24,7 @@ class JobRunner:
         client,
         name: str,
         step_configs: list[StepConfig],
-        script_builder_class: type = None,
+        script_builder_class: Optional[Type] = None,
     ):
         from .script_builder import RunnerScriptBuilder
 
@@ -37,9 +38,9 @@ class JobRunner:
         self.api_steps = self._build_api_steps()
 
         # Set during run
-        self.run_id = None
-        self.artifacts_path = None
-        self.signed_url = None
+        self.run_id: Optional[str] = None
+        self.artifacts_path: Optional[str] = None
+        self.signed_url: Optional[str] = None
         self.tasks_info: list[TaskInfo] = []
         self.raw = False  # Will be set in run()
 
@@ -59,10 +60,10 @@ class JobRunner:
         self,
         raw: bool = False,
         patch: bool = False,
-        repo_path: str = None,
-        commit: str = None,
-        repo: str = None,
-        repo_cache: str = None,
+        repo_path: Optional[str] = None,
+        commit: Optional[str] = None,
+        repo: Optional[str] = None,
+        repo_cache: Optional[str] = None,
         follow: bool = False,
         dry_run: bool = False,
         as_json: bool = False,
@@ -144,7 +145,7 @@ class JobRunner:
     # =========================================================================
     # API 2: /run/execute - finalize tasks + spawn first job
     # =========================================================================
-    def _execute(self, task_requests: list, patch_metadata: dict = None):
+    def _execute(self, task_requests: list, patch_metadata: Optional[dict] = None):
         """Call /run/execute API."""
         first_task_env = task_requests[0]["env_vars"] if task_requests else {}
         self.client.execute_run(
@@ -168,6 +169,8 @@ class JobRunner:
         console.print("[blue]Creating run (raw mode)...[/blue]")
 
         self._create(need_signed_url=False)
+        assert self.run_id is not None
+        assert self.artifacts_path is not None
         console.print(f"[blue]Run ID:[/blue] {self.run_id}")
         for t in self.tasks_info:
             # Raw mode: set command directly
@@ -195,10 +198,10 @@ class JobRunner:
     def _run_normal_mode(
         self,
         patch: bool = False,
-        repo_path: str = None,
-        commit: str = None,
-        repo: str = None,
-        repo_cache: str = None,
+        repo_path: Optional[str] = None,
+        commit: Optional[str] = None,
+        repo: Optional[str] = None,
+        repo_cache: Optional[str] = None,
         follow: bool = False,
         dry_run: bool = False,
         as_json: bool = False,
@@ -231,6 +234,8 @@ class JobRunner:
             console.quiet = False
             console.print(f"\n[red]Error creating run: {e}[/red]")
             sys.exit(1)
+        assert self.run_id is not None
+        assert self.artifacts_path is not None
         console.print(f"[dim]({time.time() - create_start:.1f}s)[/dim]")
         self._print_job_info()
 
@@ -334,10 +339,10 @@ class JobRunner:
     def _print_dry_run_info(
         self,
         patch: bool = False,
-        repo_path: str = None,
-        commit: str = None,
-        repo: str = None,
-        repo_cache: str = None,
+        repo_path: Optional[str] = None,
+        commit: Optional[str] = None,
+        repo: Optional[str] = None,
+        repo_cache: Optional[str] = None,
         as_json: bool = False,
     ):
         """Print dry run information without making API calls."""
@@ -358,7 +363,7 @@ class JobRunner:
                 task_id=f"<task_{i}>",
                 step_index=i,
                 step_name=cfg.name,
-                dependency=None if i == 0 else f"<task_{i - 1}>",
+                dependency=None if i == 0 else i - 1,
                 task_type=cfg.task_type,
                 image=cfg.image,
                 script_name=cfg.get_script_name(i),

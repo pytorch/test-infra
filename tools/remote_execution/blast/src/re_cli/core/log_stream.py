@@ -42,7 +42,10 @@ def _prompt_cancel_action() -> str:
 
 
 def follow_all_steps(
-    client, tasks_info: list[TaskInfo], run_id: str, artifacts_path: Optional[str] = None
+    client,
+    tasks_info: list[TaskInfo],
+    run_id: str,
+    artifacts_path: Optional[str] = None,
 ):
     """Follow logs for all steps in sequence using kubectl logs.
 

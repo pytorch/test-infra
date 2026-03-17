@@ -1,12 +1,13 @@
 """Git patch utilities for the Remote Execution CLI."""
 
 import os
+from typing import Optional
 
 from .core_types import console
 from .git_helper import GitHelper
 
 
-def check_uncommitted_changes(repo_path: str = None) -> bool:
+def check_uncommitted_changes(repo_path: Optional[str] = None) -> bool:
     """Check for uncommitted changes in a git repository.
 
     Args:
@@ -29,9 +30,9 @@ def check_uncommitted_changes(repo_path: str = None) -> bool:
 
 
 def get_patch_metadata(
-    repo_path: str = None,
-    commit: str = None,
-    repo: str = None,
+    repo_path: Optional[str] = None,
+    commit: Optional[str] = None,
+    repo: Optional[str] = None,
 ) -> tuple[dict, str, str]:
     """Get git patch metadata and resolve commit/repo.
     Returns:

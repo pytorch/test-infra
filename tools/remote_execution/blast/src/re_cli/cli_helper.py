@@ -5,7 +5,9 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
+import click
 from rich.panel import Panel
 from rich.table import Table
 
@@ -193,20 +195,20 @@ def build_step_configs_from_json(steps_json: list) -> list[StepConfig]:
 
 
 def execute_job(
-    ctx,
-    step_configs,
-    name,
-    follow,
-    patch,
-    repo_path,
-    repo_cache,
-    commit,
-    repo,
-    raw,
-    dry_run,
-    as_json=False,
-    no_submodule=False,
-):
+    ctx: click.Context,
+    step_configs: list[StepConfig],
+    name: str,
+    follow: bool,
+    patch: bool,
+    repo_path: Optional[str],
+    repo_cache: Optional[str],
+    commit: Optional[str],
+    repo: Optional[str],
+    raw: bool,
+    dry_run: bool,
+    as_json: bool = False,
+    no_submodule: bool = False,
+) -> None:
     """Shared execution logic for run and run-steps commands."""
     if patch and raw:
         console.print("[red]Error: --raw mode cannot upload patch[/red]")

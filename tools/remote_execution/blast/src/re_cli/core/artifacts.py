@@ -1,7 +1,7 @@
 """Artifact building, packaging, and upload for the Remote Execution CLI."""
 
 import time
-from typing import Optional
+from typing import Optional, Type
 
 from .core_types import console, StepConfig, TaskInfo
 from .script_builder import create_bootstrap, GitCloneConfig, RunnerScriptBuilder
@@ -16,7 +16,7 @@ def build_artifacts_metadata(
     patch_metadata: Optional[dict] = None,
     commit: Optional[str] = None,
     repo: Optional[str] = None,
-    script_builder_class: Optional[type] = None,
+    script_builder_class: Optional[Type] = None,
 ) -> dict:
     """Build all artifact data for upload or dry-run preview.
 
@@ -38,10 +38,10 @@ def build_artifacts_metadata(
 
     # Build task configs
     task_configs = []
-    scripts: list[dict[str, str | None]] = []
+    scripts: list[dict[str, Optional[str]]] = []
     for i, cfg in enumerate(step_configs):
         task_info = tasks_info[i]
-        script_name = task_info.script_name
+        script_name = task_info.script_name or cfg.get_script_name(i)
         script_content = cfg.get_command()
         if cfg.runner_modules:
             runner_content = builder_cls.create_from_modules(
@@ -216,7 +216,7 @@ def upload_artifacts_to_s3(
     console.print(f"[blue]Artifacts:[/blue] {artifacts_path}")
 
 
-def upload_file(file_path: str, signed_url: str) -> None:
+def upload_file(file_path: str, signed_url: Optional[str]) -> None:
     """Upload a file to S3 using a presigned URL.
 
     Args:
@@ -241,7 +241,7 @@ def build_task_requests(
     artifacts_path: str,
     step_configs: list[StepConfig],
     tasks_info: list[TaskInfo],
-    repo_cache: str = "/var/cache/git/pytorch",
+    repo_cache: Optional[str] = "/var/cache/git/pytorch",
     raw_mode: bool = False,
     commit: Optional[str] = None,
     repo: Optional[str] = None,
@@ -315,7 +315,7 @@ def build_task_requests(
             # Parse additional: must be S3 paths
             additional_paths = []
             for item in additional_value.split(","):
-                item: str = item.strip()
+                item = item.strip()
                 if item.startswith("s3://"):
                     additional_paths.append(item)
                 else:

@@ -75,8 +75,8 @@ class TaskInfo:
     task_id: str
     step_index: int
     step_name: str
-    dependency: int
     task_type: str
+    dependency: Optional[int] = None
     image: Optional[str] = None
     command: Optional[str] = None
     script_name: Optional[str] = None

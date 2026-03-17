@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Generator, Optional
 
-from kubernetes import client, config
+from kubernetes import client, config  # type: ignore[import-untyped]
 
 from .core_types import console
 
@@ -250,7 +250,7 @@ class K8sClient:
         crd_name = f"exec-{run_id}"
         tasks_spec = tasks if tasks else []
 
-        spec = {
+        spec: dict = {
             "action": "execute",
             "run_id": run_id,
             "artifacts_path": artifacts_path,
