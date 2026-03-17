@@ -24,7 +24,7 @@ source "$VENV_DIR/bin/activate"
 
 # 3. Install Blast CLI
 echo "[2/4] Installing Blast CLI..."
-pip install -e "$SCRIPT_DIR/cli" --quiet
+pip install -e "$SCRIPT_DIR/blast" --quiet
 
 # 4. Configure kubectl
 echo "[3/4] Configuring kubectl for $CLUSTER ($REGION)..."

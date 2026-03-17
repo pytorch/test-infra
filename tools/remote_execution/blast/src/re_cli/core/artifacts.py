@@ -13,10 +13,10 @@ def build_artifacts_metadata(
     artifacts_path: str,
     step_configs: list[StepConfig],
     tasks_info: list[TaskInfo],
-    patch_metadata: dict = None,
-    commit: str = None,
-    repo: str = None,
-    script_builder_class: type = None,
+    patch_metadata: Optional[dict] = None,
+    commit: Optional[str] = None,
+    repo: Optional[str] = None,
+    script_builder_class: Optional[type] = None,
 ) -> dict:
     """Build all artifact data for upload or dry-run preview.
 
@@ -114,8 +114,8 @@ def upload_artifacts_to_s3(
     run_id: str,
     artifacts_path: str,
     artifact_data: dict,
-    patch_metadata: dict = None,
-    signed_url: str = None,
+    patch_metadata: Optional[dict] = None,
+    signed_url: Optional[str] = None,
 ):
     """Upload scripts and job data to S3 as a single ZIP.
 
@@ -243,9 +243,9 @@ def build_task_requests(
     tasks_info: list[TaskInfo],
     repo_cache: str = "/var/cache/git/pytorch",
     raw_mode: bool = False,
-    commit: str = None,
-    repo: str = None,
-    run_id: str = None,
+    commit: Optional[str] = None,
+    repo: Optional[str] = None,
+    run_id: Optional[str] = None,
 ) -> list[dict]:
     """Build task update records with runner commands.
 

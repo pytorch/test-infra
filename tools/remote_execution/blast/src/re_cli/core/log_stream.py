@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from rich.panel import Panel
 
@@ -42,7 +42,7 @@ def _prompt_cancel_action() -> str:
 
 
 def follow_all_steps(
-    client, tasks_info: list[TaskInfo], run_id: str, artifacts_path: str = None
+    client, tasks_info: list[TaskInfo], run_id: str, artifacts_path: Optional[str] = None
 ):
     """Follow logs for all steps in sequence using kubectl logs.
 

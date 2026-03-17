@@ -23,7 +23,7 @@ blast run-steps --config demo_script/simple/multi_run_simple.json --follow
 
 This will:
 1. Create a virtual environment at `~/.blast-venv`
-2. Install the Blast CLI (`pip install -e cli/`)
+2. Install the Blast CLI (`pip install -e blast/`)
 3. Configure `~/.kube/config` for the EKS cluster
 4. Verify the installation
 
@@ -134,7 +134,7 @@ remote_execution/
 │   └── configs/             # Shared/test configs
 │       ├── multi_run_raw.json
 │       └── test_error.json
-└── cli/                     # Blast CLI package
+└── blast/                   # Blast CLI package
     ├── pyproject.toml
     └── src/re_cli/
         ├── main.py          # CLI commands

@@ -52,7 +52,7 @@ class K8sClient:
         self.custom_api = client.CustomObjectsApi(self.api_client)
         self.core_api = client.CoreV1Api(self.api_client)
 
-    def _get_token(self) -> str | None:
+    def _get_token(self) -> Optional[str]:
         """Get the current bearer token from api_client configuration."""
         cfg = self.api_client.configuration
         token = cfg.api_key.get("BearerToken") or cfg.api_key.get("authorization")
@@ -106,7 +106,7 @@ class K8sClient:
         plural: str,
         name: str,
         phases: list[str],
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> dict:
         """Wait for CRD to reach one of the specified phases."""
         timeout = timeout or self.config.timeout
@@ -132,7 +132,7 @@ class K8sClient:
         plural: str,
         name: str,
         phases: list[str],
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> dict:
         """Wait for CRD to reach phase AND have tasks populated."""
         timeout = timeout or self.config.timeout
@@ -169,7 +169,7 @@ class K8sClient:
         name: str,
         steps: list[dict],
         need_signed_url: bool = True,
-        run_name: str = None,
+        run_name: Optional[str] = None,
     ) -> dict:
         """Create a run via RemoteExecutionRun CRD (action=create).
 
@@ -239,9 +239,9 @@ class K8sClient:
         self,
         run_id: str,
         artifacts_path: str = "",
-        tasks: list[dict] = None,
-        patch_info: dict = None,
-        first_task_env: dict = None,
+        tasks: Optional[list[dict]] = None,
+        patch_info: Optional[dict] = None,
+        first_task_env: Optional[dict] = None,
     ) -> dict:
         """Execute a run via RemoteExecutionRun CRD (action=execute).
 
@@ -357,7 +357,7 @@ class K8sClient:
         items = status.get("items", [])
         return items[0] if items else None
 
-    def list_tasks(self, limit: int = 20, status_filter: str = None) -> list:
+    def list_tasks(self, limit: int = 20, status_filter: Optional[str] = None) -> list:
         """List tasks via RunQuery CRD."""
         crd_name = f"query-{uuid.uuid4().hex[:8]}"
 
@@ -388,7 +388,7 @@ class K8sClient:
         self,
         task_id: str,
         follow: bool = False,
-        tail_lines: int = None,
+        tail_lines: Optional[int] = None,
     ) -> str:
         """Get logs for a task (non-streaming, for completed tasks).
 
@@ -414,7 +414,7 @@ class K8sClient:
         if tail_lines:
             params["tail_lines"] = str(tail_lines)
 
-        token = self._ensure_valid_token()
+        token = self._get_token()
         host = self.api_client.configuration.host
         url = host + path
 
@@ -439,9 +439,9 @@ class K8sClient:
         self,
         task_id: str,
         follow: bool = False,
-        tail_lines: int = None,
+        tail_lines: Optional[int] = None,
         wait_ready: bool = True,
-        since_time: str | None = None,
+        since_time: Optional[str] = None,
         max_retries: int = 5,
     ) -> Generator[tuple[str, str], None, None]:
         """Stream logs via API Extension with auto-reconnect.
