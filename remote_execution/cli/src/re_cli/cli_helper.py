@@ -1,25 +1,19 @@
 """CLI helper functions shared across commands."""
 
 import json
-import os
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from rich.panel import Panel
 from rich.table import Table
 
-from .core.core_types import (
-    StepConfig,
-    TaskInfo,
-    build_step_configs,
-    get_status_color,
-    console,
-)
-from .core.job_runner import JobRunner
+from .core.core_types import build_step_configs, console, get_status_color, StepConfig
 from .core.git_patch import check_uncommitted_changes
+from .core.job_runner import JobRunner
 from .core.log_stream import _prompt_cancel_action
+
 
 # =============================================================================
 # Local history cache (~/.blast/history.json)
@@ -67,18 +61,14 @@ def save_to_history(run_id: str, name: str, tasks_info: list):
         {
             "run_id": run_id,
             "name": name,
-            "tasks": [
-                {"task_id": t.task_id, "step": t.step_name} for t in tasks_info
-            ],
+            "tasks": [{"task_id": t.task_id, "step": t.step_name} for t in tasks_info],
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
     )
 
     # Prune by age
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_days)
-    records = [
-        r for r in records if _parse_time(r.get("created_at", "")) >= cutoff
-    ]
+    records = [r for r in records if _parse_time(r.get("created_at", "")) >= cutoff]
 
     # Prune by count
     records = records[-max_entries:]
@@ -239,9 +229,7 @@ def execute_job(
         from .core.script_builder import RunnerScriptBuilder
 
         modules_without_submodule = [
-            m
-            for m in RunnerScriptBuilder.DEFAULT_MODULES
-            if m != "git_submodule"
+            m for m in RunnerScriptBuilder.DEFAULT_MODULES if m != "git_submodule"
         ]
         for cfg in step_configs:
             if not cfg.runner_modules:
@@ -291,9 +279,7 @@ def execute_job(
                                 "step_name": t.step_name,
                                 "step_index": t.step_index,
                                 "task_type": t.task_type,
-                                "env_vars": runner.task_requests[i].get(
-                                    "env_vars", {}
-                                ),
+                                "env_vars": runner.task_requests[i].get("env_vars", {}),
                             }
                             for i, t in enumerate(runner.tasks_info)
                         ],
@@ -306,15 +292,11 @@ def execute_job(
         if action == "cancel" and runner.run_id:
             try:
                 client.cancel_run(runner.run_id)
-                console.print(
-                    f"[yellow]○ Run {runner.run_id} cancelled[/yellow]"
-                )
+                console.print(f"[yellow]○ Run {runner.run_id} cancelled[/yellow]")
             except Exception as e:
                 console.print(f"[red]Failed to cancel: {e}[/red]")
         elif action == "exit":
-            console.print(
-                f"[dim]Run {runner.run_id} continues in background[/dim]"
-            )
+            console.print(f"[dim]Run {runner.run_id} continues in background[/dim]")
     finally:
         # Save to history as soon as run_id exists (job submitted)
         if not dry_run and runner.run_id:

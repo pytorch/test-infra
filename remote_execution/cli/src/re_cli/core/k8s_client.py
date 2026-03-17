@@ -9,11 +9,12 @@ Provides methods to interact with CRDs:
 
 import time
 import uuid
-import json
 from dataclasses import dataclass
-from typing import Optional, Generator
-from .core_types import console
+from typing import Generator, Optional
+
 from kubernetes import client, config
+
+from .core_types import console
 
 
 @dataclass
@@ -54,9 +55,7 @@ class K8sClient:
     def _get_token(self) -> str | None:
         """Get the current bearer token from api_client configuration."""
         cfg = self.api_client.configuration
-        token = cfg.api_key.get("BearerToken") or cfg.api_key.get(
-            "authorization"
-        )
+        token = cfg.api_key.get("BearerToken") or cfg.api_key.get("authorization")
         if token and token.startswith("Bearer "):
             token = token[7:]
         return token
@@ -71,9 +70,7 @@ class K8sClient:
                 return fn()
             raise
 
-    def _apply_crd(
-        self, kind: str, plural: str, name: str, spec: dict
-    ) -> dict:
+    def _apply_crd(self, kind: str, plural: str, name: str, spec: dict) -> dict:
         """Apply a CRD and return the created object."""
         body = {
             "apiVersion": f"{self.CRD_GROUP}/{self.CRD_VERSION}",
@@ -128,9 +125,7 @@ class K8sClient:
 
             time.sleep(0.5)
 
-        raise TimeoutError(
-            f"Timeout waiting for {plural}/{name} to reach {phases}"
-        )
+        raise TimeoutError(f"Timeout waiting for {plural}/{name} to reach {phases}")
 
     def _wait_for_status_with_tasks(
         self,
@@ -208,9 +203,7 @@ class K8sClient:
             "run_id": run_id,  # Pass run_id for idempotency
         }
 
-        self._apply_crd(
-            "RemoteExecutionRun", "remoteexecutionruns", crd_name, spec
-        )
+        self._apply_crd("RemoteExecutionRun", "remoteexecutionruns", crd_name, spec)
 
         # Wait for status AND tasks to be populated
         obj = self._wait_for_status_with_tasks(
@@ -269,9 +262,7 @@ class K8sClient:
         if first_task_env:
             spec["first_task_env"] = first_task_env
 
-        self._apply_crd(
-            "RemoteExecutionRun", "remoteexecutionruns", crd_name, spec
-        )
+        self._apply_crd("RemoteExecutionRun", "remoteexecutionruns", crd_name, spec)
 
         # Wait for status
         obj = self._wait_for_status(
@@ -300,9 +291,7 @@ class K8sClient:
             "run_id": run_id,
         }
 
-        self._apply_crd(
-            "RemoteExecutionRun", "remoteexecutionruns", crd_name, spec
-        )
+        self._apply_crd("RemoteExecutionRun", "remoteexecutionruns", crd_name, spec)
 
         return {"run_id": run_id, "status": "cancelled"}
 
@@ -323,9 +312,7 @@ class K8sClient:
         self._apply_crd("RunQuery", "runqueries", crd_name, spec)
 
         # Wait for status
-        obj = self._wait_for_status(
-            "runqueries", crd_name, ["Completed", "Failed"]
-        )
+        obj = self._wait_for_status("runqueries", crd_name, ["Completed", "Failed"])
 
         status = obj.get("status", {})
         if status.get("phase") == "Failed":
@@ -344,8 +331,7 @@ class K8sClient:
         return {
             "id": result.get("task_id") or result.get("id"),
             "name": result.get("name"),
-            "current_status": result.get("current_status")
-            or result.get("status"),
+            "current_status": result.get("current_status") or result.get("status"),
             "run_id": result.get("run_id"),
         }
 
@@ -362,9 +348,7 @@ class K8sClient:
         self._apply_crd("RunQuery", "runqueries", crd_name, spec)
 
         # Wait for status
-        obj = self._wait_for_status(
-            "runqueries", crd_name, ["Completed", "Failed"]
-        )
+        obj = self._wait_for_status("runqueries", crd_name, ["Completed", "Failed"])
 
         status = obj.get("status", {})
         if status.get("phase") == "Failed":
@@ -388,9 +372,7 @@ class K8sClient:
         self._apply_crd("RunQuery", "runqueries", crd_name, spec)
 
         # Wait for status
-        obj = self._wait_for_status(
-            "runqueries", crd_name, ["Completed", "Failed"]
-        )
+        obj = self._wait_for_status("runqueries", crd_name, ["Completed", "Failed"])
 
         status = obj.get("status", {})
         if status.get("phase") == "Failed":
@@ -503,9 +485,7 @@ class K8sClient:
                 else:
                     raise
         else:
-            raise ConnectionError(
-                f"Log stream failed after {max_retries} retries"
-            )
+            raise ConnectionError(f"Log stream failed after {max_retries} retries")
 
     def _build_stream_params(
         self,
@@ -572,9 +552,7 @@ class K8sClient:
             )
             yield from self._parse_byte_stream(response.stream())
 
-    def _parse_text_stream(
-        self, chunks
-    ) -> Generator[tuple[str, str], None, None]:
+    def _parse_text_stream(self, chunks) -> Generator[tuple[str, str], None, None]:
         """Parse text chunks into (timestamp, line) tuples."""
         buffer = ""
         for chunk in chunks:
@@ -588,9 +566,7 @@ class K8sClient:
         if buffer:
             yield self._parse_cursor_line(buffer)
 
-    def _parse_byte_stream(
-        self, chunks
-    ) -> Generator[tuple[str, str], None, None]:
+    def _parse_byte_stream(self, chunks) -> Generator[tuple[str, str], None, None]:
         """Parse byte chunks into (timestamp, line) tuples."""
         buffer = b""
         for chunk in chunks:
@@ -604,9 +580,7 @@ class K8sClient:
                         line.decode("utf-8", errors="replace")
                     )
         if buffer:
-            yield self._parse_cursor_line(
-                buffer.decode("utf-8", errors="replace")
-            )
+            yield self._parse_cursor_line(buffer.decode("utf-8", errors="replace"))
 
     def _parse_cursor_line(self, line: str) -> tuple[str, str]:
         """Parse [cursor:TIMESTAMP] prefix from a log line."""

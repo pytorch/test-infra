@@ -123,9 +123,7 @@ class GitHelper:
             committed_only: If True, only include committed changes (base..HEAD)
         """
         if committed_only:
-            output = self.run_git(
-                "diff", "--name-only", f"{base_commit}..HEAD"
-            )
+            output = self.run_git("diff", "--name-only", f"{base_commit}..HEAD")
         else:
             output = self.run_git("diff", "--name-only", base_commit)
         return [f for f in output.split("\n") if f]

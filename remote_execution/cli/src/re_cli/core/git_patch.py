@@ -21,9 +21,7 @@ def check_uncommitted_changes(repo_path: str = None) -> bool:
 
     if has_changes:
         console.print()
-        console.print(
-            f"[red]Error: You have uncommitted changes in {cwd}[/red]"
-        )
+        console.print(f"[red]Error: You have uncommitted changes in {cwd}[/red]")
         console.print("[yellow]Please commit all your changes first:[/yellow]")
         console.print("  git add -A && git commit -m 'your message'")
 

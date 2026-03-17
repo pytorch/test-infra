@@ -189,9 +189,7 @@ class RunnerScriptBuilder:
             else:
                 template_name = "git_clone_copy"
 
-            method_template = _load_template(
-                template_name, subdir="git_templates"
-            )
+            method_template = _load_template(template_name, subdir="git_templates")
             git_clone_method = _render_template(
                 method_template,
                 cache_path=cfg.cache_path,
@@ -208,9 +206,7 @@ export REPO_DIR
 """
 
         # Load git_clone template and render
-        git_clone_template = _load_template(
-            "git_clone", subdir="git_templates"
-        )
+        git_clone_template = _load_template("git_clone", subdir="git_templates")
         rendered = _render_template(
             git_clone_template,
             git_clone_method=git_clone_method,
@@ -223,10 +219,7 @@ export REPO_DIR
 
     def add_git_checkout(self) -> "RunnerScriptBuilder":
         """Add module to checkout specific commit."""
-        if (
-            not self.config.checkout_git_commit
-            and not self.config.apply_git_patch
-        ):
+        if not self.config.checkout_git_commit and not self.config.apply_git_patch:
             return self
         return self._add_module("git_checkout", subdir="git_templates")
 
@@ -245,9 +238,7 @@ export REPO_DIR
         fallback_commands = "\n".join(fallback_cmds)
 
         template = _load_template("git_submodule")
-        rendered = _render_template(
-            template, submodule_commands=fallback_commands
-        )
+        rendered = _render_template(template, submodule_commands=fallback_commands)
 
         self._modules.append(
             f"\n# {'=' * 44}\n# MODULE: git_submodule\n# {'=' * 44}\n{rendered}"
@@ -347,8 +338,7 @@ export REPO_DIR
             method = getattr(builder, f"add_{module}", None)
             if method is None:
                 raise ValueError(
-                    f"Unknown module '{module}'. "
-                    f"Available: {cls.DEFAULT_MODULES}"
+                    f"Unknown module '{module}'. Available: {cls.DEFAULT_MODULES}"
                 )
             method()
         return builder.build()

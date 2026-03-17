@@ -1,2 +1,1 @@
 blast run --script ./demo_script/vllm/vllm-test.sh --image public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:d4191e9393ea6af8c0148fa183148bf1fea533a2 --type gpu-l4 --name vllm-starcoder2-test --follow
-

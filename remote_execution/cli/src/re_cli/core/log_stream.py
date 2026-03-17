@@ -9,6 +9,7 @@ from rich.panel import Panel
 
 from .core_types import console
 
+
 if TYPE_CHECKING:
     from .core_types import TaskInfo
 
@@ -104,10 +105,7 @@ def follow_all_steps(
                     console.print(f"[green]Status: {current_status}[/green]")
                     last_status = current_status
 
-                if (
-                    current_status == "running"
-                    or current_status in FINAL_STATES
-                ):
+                if current_status == "running" or current_status in FINAL_STATES:
                     break
 
             except KeyboardInterrupt:
@@ -118,9 +116,7 @@ def follow_all_steps(
                 elif action == "cancel":
                     try:
                         client.cancel_run(run_id)
-                        console.print(
-                            f"[yellow]○ Run {run_id} cancelled[/yellow]"
-                        )
+                        console.print(f"[yellow]○ Run {run_id} cancelled[/yellow]")
                     except Exception as e:
                         console.print(f"[dim]Failed to cancel: {e}[/dim]")
                     cancelled_by_user = True
@@ -177,9 +173,7 @@ def follow_all_steps(
                     f"[green]✓ Step '{task_info.step_name}' completed[/green]"
                 )
             elif final_status == "failed":
-                console.print(
-                    f"[red]✗ Step '{task_info.step_name}' failed[/red]"
-                )
+                console.print(f"[red]✗ Step '{task_info.step_name}' failed[/red]")
                 print_header(i + 1, "failed")
                 break
             elif final_status == "cancelled":

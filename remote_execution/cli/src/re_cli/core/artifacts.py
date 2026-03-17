@@ -3,12 +3,8 @@
 import time
 from typing import Optional
 
-from .core_types import StepConfig, TaskInfo, console
-from .script_builder import (
-    GitCloneConfig,
-    RunnerScriptBuilder,
-    create_bootstrap,
-)
+from .core_types import console, StepConfig, TaskInfo
+from .script_builder import create_bootstrap, GitCloneConfig, RunnerScriptBuilder
 
 
 def build_artifacts_metadata(
@@ -153,9 +149,7 @@ def upload_artifacts_to_s3(
             os.makedirs(task_scripts_dir)
 
             # Write step script
-            script_path = os.path.join(
-                task_scripts_dir, script_data["script_name"]
-            )
+            script_path = os.path.join(task_scripts_dir, script_data["script_name"])
             with open(script_path, "w") as f:
                 f.write(script_data["script_content"])
 
@@ -274,9 +268,7 @@ def build_task_requests(
     for i, task_info in enumerate(tasks_info):
         if raw_mode:
             # Raw mode: use command directly
-            command = task_info.command or step_configs[i].get_command(
-                raw_mode=True
-            )
+            command = task_info.command or step_configs[i].get_command(raw_mode=True)
         else:
             # Normal mode: use bootstrap script that downloads runner.sh from S3
             command = create_bootstrap(artifacts_path=artifacts_path)
@@ -336,9 +328,7 @@ def build_task_requests(
                         "s3://bucket/runs/R123/outputs/T456/[/yellow]"
                     )
             if additional_paths:
-                env_vars["ADDITIONAL_ARTIFACTS_PATHS"] = ",".join(
-                    additional_paths
-                )
+                env_vars["ADDITIONAL_ARTIFACTS_PATHS"] = ",".join(additional_paths)
 
         # Add user-defined env vars (per step) - last so they can override
         env_vars.update(step_configs[i].env_vars)

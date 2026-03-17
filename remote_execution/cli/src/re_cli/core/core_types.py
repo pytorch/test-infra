@@ -2,10 +2,11 @@
 
 import os
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Any
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 from rich.console import Console
+
 
 # centralized console for all CLI output
 console = Console()
@@ -57,9 +58,7 @@ class StepConfig:
                 return self.script
             else:
                 # Not raw mode and not a file - error
-                raise FileNotFoundError(
-                    f"Script file not found: {self.script}"
-                )
+                raise FileNotFoundError(f"Script file not found: {self.script}")
         return self.command or ""
 
     def get_script_name(self, index: int) -> str:
@@ -183,9 +182,7 @@ def build_step_configs(
     for i, step_name in enumerate(steps):
         script_path = scripts[i] if i < len(scripts) else None
         command_str = commands[i] if i < len(commands) else None
-        task_type = (
-            types[i] if i < len(types) else types[0] if types else "default"
-        )
+        task_type = types[i] if i < len(types) else types[0] if types else "default"
         image = images[i] if i < len(images) else images[0] if images else None
 
         # Parse env vars for this step (one -e per step, comma-separated)

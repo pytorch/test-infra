@@ -12,24 +12,20 @@ Usage:
 """
 
 import sys
-import click
-from rich.table import Table
-from rich.panel import Panel
 
-from .core.k8s_client import K8sClient, K8sConfig
-from .core.core_types import (
-    get_status_color,
-    build_step_configs,
-    StepConfig,
-    console,
-)
+import click
+from rich.panel import Panel
+from rich.table import Table
+
 from .cli_helper import (
-    print_task_detail,
-    load_history,
+    build_step_configs_from_json,
     execute_job,
     load_config_file,
-    build_step_configs_from_json,
+    load_history,
+    print_task_detail,
 )
+from .core.core_types import build_step_configs, console, get_status_color
+from .core.k8s_client import K8sClient, K8sConfig
 
 
 @click.group()
@@ -44,9 +40,7 @@ from .cli_helper import (
     default=60,
     help="Timeout for CRD operations (seconds)",
 )
-@click.option(
-    "--json", "as_json", is_flag=True, help="Output as JSON (quiet mode)"
-)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON (quiet mode)")
 @click.pass_context
 def cli(ctx, namespace, timeout, as_json):
     """Blast CLI - Run and monitor remote execution jobs."""
@@ -73,9 +67,7 @@ def cancel(ctx, run_id):
     try:
         result = client.cancel_run(run_id)
         if as_json:
-            print(
-                json.dumps({"run_id": run_id, "status": "cancelled", **result})
-            )
+            print(json.dumps({"run_id": run_id, "status": "cancelled", **result}))
 
         console.print(f"[yellow]○ Run {run_id} cancelled[/yellow]")
         if result.get("message"):
@@ -111,9 +103,7 @@ def task_status(ctx, task_id):
 
 @cli.command("status")
 @click.argument("run_id")
-@click.option(
-    "--detail", "-d", is_flag=True, help="Show detailed status for each task"
-)
+@click.option("--detail", "-d", is_flag=True, help="Show detailed status for each task")
 @click.pass_context
 def run_status(ctx, run_id, detail):
     """Get status of job and all its tasks."""
@@ -213,9 +203,7 @@ def run_status(ctx, run_id, detail):
 
 @cli.command("stream")
 @click.argument("id", type=str)
-@click.option(
-    "-t", "--task", is_flag=True, help="ID is a task_id (single task)"
-)
+@click.option("-t", "--task", is_flag=True, help="ID is a task_id (single task)")
 @click.pass_context
 def logs(ctx, id, task):
     """Stream logs for a run or task.
@@ -248,9 +236,7 @@ def logs(ctx, id, task):
 
             tasks_info = [
                 TaskInfo(
-                    task_id=str(
-                        t.get("task_id", t.get("taskId", t.get("id")))
-                    ),
+                    task_id=str(t.get("task_id", t.get("taskId", t.get("id")))),
                     step_name=t.get("step_name", t.get("name", f"step_{i}")),
                     step_index=t.get("step_order", t.get("stepIndex", i)),
                     dependency=1 if i > 0 else 0,
@@ -286,9 +272,7 @@ def history(ctx, limit):
         if as_json:
             print(json.dumps([]))
         console.print("[yellow]No runs in history[/yellow]")
-        console.print(
-            "[dim]History is saved after each blast run/run-steps[/dim]"
-        )
+        console.print("[dim]History is saved after each blast run/run-steps[/dim]")
         return
 
     # Show most recent first
@@ -375,9 +359,7 @@ def history(ctx, limit):
 )
 @click.option("--commit", default=None, help="Git commit SHA")
 @click.option("--repo", "-r", default=None, help="Git repo URL")
-@click.option(
-    "--raw", is_flag=True, default=False, help="Raw mode: skip S3 upload"
-)
+@click.option("--raw", is_flag=True, default=False, help="Raw mode: skip S3 upload")
 @click.option("--dry-run", is_flag=True, default=False, help="Dry run")
 @click.pass_context
 def run_single(
@@ -427,27 +409,21 @@ def run_single(
             script = script or s.get("script")
             command = command or s.get("command")
             task_type = (
-                task_type
-                if task_type != "default"
-                else s.get("type", "default")
+                task_type if task_type != "default" else s.get("type", "default")
             )
             image = image or s.get("image")
             name = name or s.get("name")
             if not env_vars and s.get("env"):
                 env_data = s["env"]
                 if isinstance(env_data, dict):
-                    env_vars = ",".join(
-                        f"{k}={v}" for k, v in env_data.items()
-                    )
+                    env_vars = ",".join(f"{k}={v}" for k, v in env_data.items())
 
     if not script and not command:
         console.print("[red]Error: --script or --command is required[/red]")
         sys.exit(1)
 
     step_name = (
-        name or os.path.splitext(os.path.basename(script))[0]
-        if script
-        else "step"
+        name or os.path.splitext(os.path.basename(script))[0] if script else "step"
     )
     job_name = name or step_name
 
@@ -637,11 +613,7 @@ def run_steps(
         commit = commit or cfg.get("commit")
         repo = repo or cfg.get("repo")
         raw = raw or cfg.get("raw", False)
-        name = (
-            name
-            if name != "multi_step_job"
-            else cfg.get("name", "multi_step_job")
-        )
+        name = name if name != "multi_step_job" else cfg.get("name", "multi_step_job")
 
     # Build step configs from config file or CLI flags
     if config_file and "steps" in cfg and not steps:
@@ -658,9 +630,7 @@ def run_steps(
             additional,
         )
     else:
-        console.print(
-            "[red]Error: provide --step flags or --config with steps[/red]"
-        )
+        console.print("[red]Error: provide --step flags or --config with steps[/red]")
         sys.exit(1)
 
     execute_job(

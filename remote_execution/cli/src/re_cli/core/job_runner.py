@@ -4,12 +4,13 @@ import sys
 import time
 
 from rich.panel import Panel
-from .core_types import StepConfig, TaskInfo, compute_topo_deps, console
+
 from .artifacts import (
     build_artifacts_metadata,
     build_task_requests,
     upload_artifacts_to_s3,
 )
+from .core_types import compute_topo_deps, console, StepConfig, TaskInfo
 from .git_patch import get_patch_metadata
 from .log_stream import follow_all_steps
 
@@ -82,9 +83,7 @@ class JobRunner:
         self.raw = raw
         if raw:
             if dry_run:
-                console.print(
-                    "[yellow]Dry run not supported in raw mode[/yellow]"
-                )
+                console.print("[yellow]Dry run not supported in raw mode[/yellow]")
                 return
             self._run_raw_mode(follow=follow)
         else:
@@ -135,8 +134,7 @@ class JobRunner:
                 image=self.api_steps[step_idx].get("image"),
                 command=None,
                 script_name=(
-                    t.get("script_name")
-                    or self.api_steps[step_idx].get("script_name")
+                    t.get("script_name") or self.api_steps[step_idx].get("script_name")
                 ),
             )
             self.tasks_info.append(task_info)
@@ -173,12 +171,8 @@ class JobRunner:
         console.print(f"[blue]Run ID:[/blue] {self.run_id}")
         for t in self.tasks_info:
             # Raw mode: set command directly
-            t.command = self.step_configs[t.step_index].get_command(
-                raw_mode=True
-            )
-            console.print(
-                f"  [green]✓[/green] Task {t.task_id} for '{t.step_name}'"
-            )
+            t.command = self.step_configs[t.step_index].get_command(raw_mode=True)
+            console.print(f"  [green]✓[/green] Task {t.task_id} for '{t.step_name}'")
 
         self.task_requests = build_task_requests(
             artifacts_path=self.artifacts_path,
@@ -246,8 +240,8 @@ class JobRunner:
         nonlocal_repo = repo
         if patch:
             try:
-                patch_metadata, nonlocal_commit, nonlocal_repo = (
-                    get_patch_metadata(repo_path, commit, repo)
+                patch_metadata, nonlocal_commit, nonlocal_repo = get_patch_metadata(
+                    repo_path, commit, repo
                 )
             except Exception as e:
                 console.print(f"[red]Error creating patch: {e}[/red]")
@@ -466,9 +460,7 @@ class JobRunner:
         console.print()
 
         # 2. Print task requests (from build_task_requests)
-        console.print(
-            "[blue bold]═══ Task Requests (send to API) ═══[/blue bold]"
-        )
+        console.print("[blue bold]═══ Task Requests (send to API) ═══[/blue bold]")
 
         for i, task_req in enumerate(task_requests):
             cfg = self.step_configs[i]
@@ -478,17 +470,11 @@ class JobRunner:
                 if key == "env_vars" and isinstance(value, dict):
                     console.print("  env_vars:")
                     for k, v in value.items():
-                        console.print(
-                            f"    [cyan]{k}[/cyan]=[green]{v}[/green]"
-                        )
+                        console.print(f"    [cyan]{k}[/cyan]=[green]{v}[/green]")
                 elif key == "command":
                     # Truncate command for display
                     lines = str(value).split("\n")
-                    preview = (
-                        lines[0][:60] + "..."
-                        if len(lines[0]) > 60
-                        else lines[0]
-                    )
+                    preview = lines[0][:60] + "..." if len(lines[0]) > 60 else lines[0]
                     console.print(f"  {key}: [dim]{preview}[/dim]")
                 else:
                     console.print(f"  {key}: [green]{value}[/green]")
@@ -496,24 +482,18 @@ class JobRunner:
         console.print()
 
         # 3. Print ZIP file structure
-        console.print(
-            "[blue bold]═══ Files to Upload (inputs.zip) ═══[/blue bold]"
-        )
+        console.print("[blue bold]═══ Files to Upload (inputs.zip) ═══[/blue bold]")
         tree = Tree("[bold]inputs.zip[/bold]")
 
         scripts_branch = tree.add("[cyan]scripts/[/cyan]")
         for script_data in artifact_data["scripts"]:
-            task_branch = scripts_branch.add(
-                f"[cyan]{script_data['task_id']}/[/cyan]"
-            )
+            task_branch = scripts_branch.add(f"[cyan]{script_data['task_id']}/[/cyan]")
             task_branch.add(f"[green]{script_data['script_name']}[/green]")
             task_branch.add("[green]runner.sh[/green]")
 
         tasks_branch = tree.add("[cyan]tasks/[/cyan]")
         for task_config in artifact_data["task_configs"]:
-            tasks_branch.add(
-                f"[green]task_{task_config['task_id']}.json[/green]"
-            )
+            tasks_branch.add(f"[green]task_{task_config['task_id']}.json[/green]")
 
         if patch:
             git_branch = tree.add("[cyan]git-changes/[/cyan]")
@@ -561,9 +541,7 @@ class JobRunner:
                 console.print("[dim]No script content[/dim]")
 
         # 7. Print generated runner script
-        console.print(
-            "\n[blue bold]═══ Generated runner.sh (Step 1) ═══[/blue bold]"
-        )
+        console.print("\n[blue bold]═══ Generated runner.sh (Step 1) ═══[/blue bold]")
         runner_content = artifact_data["scripts"][0]["runner_content"]
         lines = runner_content.split("\n")
         if len(lines) > 200:
@@ -571,9 +549,7 @@ class JobRunner:
             preview += f"\n\n... ({len(lines) - 200} more lines) ..."
         else:
             preview = runner_content
-        console.print(
-            Syntax(preview, "bash", theme="monokai", line_numbers=True)
-        )
+        console.print(Syntax(preview, "bash", theme="monokai", line_numbers=True))
 
         console.print()
         console.print(
