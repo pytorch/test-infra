@@ -547,7 +547,7 @@ class K8sClient:
             response, status, _ = self.api_client.call_api(
                 path,
                 "GET",
-                query_params=[(k, v) for k, v in params.items()],
+                query_params=list(params.items()),
                 _preload_content=False,
             )
             yield from self._parse_byte_stream(response.stream())

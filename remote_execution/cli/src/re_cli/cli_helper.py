@@ -238,12 +238,13 @@ def execute_job(
     client = ctx.obj["client"]
     if not as_json:
         console.print("[blue]Build step configs....[/blue]")
-        for i, cfg in enumerate(step_configs):
+        for cfg in step_configs:
             src = (
                 cfg.script or f'"{cfg.command[:30]}..."'
                 if cfg.command and len(cfg.command) > 30
                 else cfg.command
             )
+            console.print(f"  - {src}")
         console.print()
 
     runner = JobRunner(

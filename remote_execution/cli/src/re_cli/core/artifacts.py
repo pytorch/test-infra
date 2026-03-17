@@ -186,7 +186,7 @@ def upload_artifacts_to_s3(
         zip_contents = []  # Track files for display
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             # Add all files from temp_dir to ZIP
-            for root, dirs, files in os.walk(temp_dir):
+            for root, _dirs, files in os.walk(temp_dir):
                 for file in files:
                     if file == "inputs.zip":
                         continue  # Skip the zip itself

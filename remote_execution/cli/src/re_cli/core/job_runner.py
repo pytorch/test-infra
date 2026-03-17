@@ -248,7 +248,7 @@ class JobRunner:
                 sys.exit(1)
 
         # Build artifact data for bucket
-        artifact_data: dict[Unknown, Unknown] = build_artifacts_metadata(
+        artifact_data: dict = build_artifacts_metadata(
             run_id=self.run_id,
             name=self.name,
             artifacts_path=self.artifacts_path,
