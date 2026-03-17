@@ -238,17 +238,6 @@ def execute_job(
                 cfg.runner_modules = modules_without_submodule
 
     client = ctx.obj["client"]
-    if not as_json:
-        console.print("[blue]Build step configs....[/blue]")
-        for cfg in step_configs:
-            src = (
-                cfg.script or f'"{cfg.command[:30]}..."'
-                if cfg.command and len(cfg.command) > 30
-                else cfg.command
-            )
-            console.print(f"  - {src}")
-        console.print()
-
     runner = JobRunner(
         client=client,
         name=name,
