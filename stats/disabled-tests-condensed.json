@@ -443,6 +443,13 @@
       "linux"
     ]
   ],
+  "test_copy_cat_fusion (__main__.FusionTests)": [
+    "177653",
+    "https://github.com/pytorch/pytorch/issues/177653",
+    [
+      "xpu"
+    ]
+  ],
   "test_copy_non_blocking_is_pinned_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "164858",
     "https://github.com/pytorch/pytorch/issues/164858",
