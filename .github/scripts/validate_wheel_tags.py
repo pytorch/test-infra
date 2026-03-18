@@ -1,7 +1,7 @@
 """Validate wheel platform tags and macOS dylib minos.
 
 Supports two modes:
-1. Pre-install: reads .whl files from PYTORCH_FINAL_PACKAGE_DIR (strict)
+1. Pre-install: reads .whl files from PYTORCH_FINAL_PACKAGE_DIR
 2. Post-install: reads metadata from installed torch package (soft warnings)
 - (macOS only) dylib minos matches the wheel platform tag
 """
@@ -74,7 +74,7 @@ def check_wheel_platform_tag() -> None:
         )
         return
 
-    # Mode 1: Read from .whl file (strict)
+    # Mode 1: Read from .whl file
     if wheel_dir and os.path.isdir(wheel_dir):
         whls = list(Path(wheel_dir).glob("torch-*.whl"))
         if not whls:
@@ -89,23 +89,18 @@ def check_wheel_platform_tag() -> None:
         print(f"Checking wheel platform tag for: {whl.name}")
         tags = _extract_wheel_tags(whl)
         source = whl.name
-        strict = True
     else:
         # Mode 2: Read from installed package (soft)
         print("PYTORCH_FINAL_PACKAGE_DIR not set, reading from installed torch package")
         try:
             tags = _extract_installed_wheel_tags("torch")
             source = "installed torch"
-            strict = False
         except Exception as e:
             print(f"Could not read installed torch metadata: {e}, skipping")
             return
 
     if not tags:
-        if strict:
-            raise RuntimeError(f"No Tag found in WHEEL metadata of {source}")
-        print(f"WARNING: No Tag found in WHEEL metadata of {source}")
-        return
+        raise RuntimeError(f"No Tag found in WHEEL metadata of {source}")
 
     for tag_str in tags:
         parts = tag_str.split("-")
@@ -114,40 +109,32 @@ def check_wheel_platform_tag() -> None:
                 f"Malformed wheel tag '{tag_str}' in {source}, "
                 f"expected format: <python>-<abi>-<platform>"
             )
-            if strict:
-                raise RuntimeError(msg)
-            print(f"WARNING: {msg}")
+            raise RuntimeError(msg)
             continue
 
         python_tag, abi_tag, platform_tag = parts
 
         if python_tag != expected_python:
-            msg = (
+            msg: str = (
                 f"Python tag mismatch in {source}: "
                 f"got '{python_tag}', expected '{expected_python}'"
             )
-            if strict:
-                raise RuntimeError(msg)
-            print(f"WARNING: {msg}")
+            raise RuntimeError(msg)
 
         if abi_tag != expected_abi:
             msg = (
                 f"ABI tag mismatch in {source}: "
                 f"got '{abi_tag}', expected '{expected_abi}'"
             )
-            if strict:
-                raise RuntimeError(msg)
-            print(f"WARNING: {msg}")
+            raise RuntimeError(msg)
 
-        if not re.match(platform_pattern, platform_tag):
+        if not re.search(platform_pattern, platform_tag):
             msg = (
                 f"Platform tag mismatch in {source}: "
                 f"got '{platform_tag}', expected pattern matching "
                 f"'{platform_pattern}' for TARGET_OS={target_os}"
             )
-            if strict:
-                raise RuntimeError(msg)
-            print(f"WARNING: {msg}")
+            raise RuntimeError(msg)
 
     print(f"OK: Wheel tag(s) valid for {source}: {', '.join(tags)}")
 
