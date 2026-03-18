@@ -663,6 +663,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_requires_grad_intermediate_backward (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "177751",
+    "https://github.com/pytorch/pytorch/issues/177751",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_seq_par_shard_dim_0 (__main__.MicroPipelineTPTest)": [
     "145924",
     "https://github.com/pytorch/pytorch/issues/145924",
