@@ -46,4 +46,4 @@ jobs:
           name: Blast CLI v${{ steps.version.outputs.version }}
           files: tools/remote_execution/blast/dist/*.whl
           body: |
-            blast-cli==${{ steps.version.outputs.version }}`
+            blast-cli==${{ steps.version.outputs.version }}
