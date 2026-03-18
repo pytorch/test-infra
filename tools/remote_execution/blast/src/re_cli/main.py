@@ -12,6 +12,7 @@ Usage:
 """
 
 import sys
+from typing import cast
 
 import click
 from rich.panel import Panel
@@ -45,13 +46,25 @@ from .core.k8s_client import K8sClient, K8sConfig
 def cli(ctx, namespace, timeout, as_json):
     """Blast CLI - Run and monitor remote execution jobs."""
     ctx.ensure_object(dict)
-    # silence console output if --json output is used
     ctx.obj["as_json"] = as_json
     if as_json:
         console.quiet = True
-    console.print("[Auth] getting K8sConfig")
-    config = K8sConfig(namespace=namespace, timeout=timeout)
-    ctx.obj["client"] = K8sClient(config)
+    ctx.obj["_k8s_namespace"] = namespace
+    ctx.obj["_k8s_timeout"] = timeout
+    ctx.obj["_client"] = None
+
+
+def _get_client(ctx: click.Context) -> K8sClient:
+    """Lazy-init K8sClient on first use. Call this instead of ctx.obj['client']."""
+    if ctx.obj["_client"] is None:
+        console.print("[Auth] getting K8sConfig")
+        config = K8sConfig(
+            namespace=ctx.obj["_k8s_namespace"],
+            timeout=ctx.obj["_k8s_timeout"],
+        )
+        ctx.obj["_client"] = K8sClient(config)
+    client: K8sClient = cast(K8sClient, ctx.obj["_client"])
+    return client
 
 
 @cli.command("cancel")
@@ -62,7 +75,7 @@ def cancel(ctx, run_id):
     as_json = ctx.obj.get("as_json", False)
     import json
 
-    client = ctx.obj["client"]
+    client = _get_client(ctx)
 
     try:
         result = client.cancel_run(run_id)
@@ -87,7 +100,7 @@ def task_status(ctx, task_id):
     import json
 
     as_json = ctx.obj.get("as_json", False)
-    client = ctx.obj["client"]
+    client = _get_client(ctx)
 
     try:
         if as_json:
@@ -111,7 +124,7 @@ def run_status(ctx, run_id, detail):
 
     as_json = ctx.obj.get("as_json", False)
 
-    client = ctx.obj["client"]
+    client = _get_client(ctx)
 
     try:
         run_info = client.query_run_status(run_id)
@@ -212,7 +225,7 @@ def logs(ctx, id, task):
     from .core.core_types import TaskInfo
     from .core.log_stream import follow_all_steps
 
-    client = ctx.obj["client"]
+    client = _get_client(ctx)
 
     try:
         if task:
@@ -438,7 +451,7 @@ def run_single(
         additional=(),
     )
     execute_job(
-        ctx,
+        _get_client(ctx),
         step_configs,
         job_name,
         follow,
@@ -634,7 +647,7 @@ def run_steps(
         sys.exit(1)
 
     execute_job(
-        ctx,
+        _get_client(ctx),
         step_configs,
         name,
         follow,

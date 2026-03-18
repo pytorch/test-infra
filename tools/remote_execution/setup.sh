@@ -28,7 +28,14 @@ pip install -e "$SCRIPT_DIR/blast" --quiet
 
 # 4. Configure kubectl
 echo "[3/4] Configuring kubectl for $CLUSTER ($REGION)..."
-aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION"
+if ! aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION"; then
+    echo ""
+    echo "ERROR: Failed to configure kubectl."
+    echo "  Make sure your AWS credentials are set up correctly:"
+    echo "    aws sso login"
+    echo "  Then re-run this script."
+    exit 1
+fi
 
 # 5. Verify
 echo "[4/4] Verifying..."

@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-import click
 from rich.panel import Panel
 from rich.table import Table
 
@@ -194,8 +193,11 @@ def build_step_configs_from_json(steps_json: list) -> list[StepConfig]:
 # =============================================================================
 
 
+from .core.k8s_client import K8sClient
+
+
 def execute_job(
-    ctx: click.Context,
+    client: K8sClient,
     step_configs: list[StepConfig],
     name: str,
     follow: bool,
@@ -237,7 +239,6 @@ def execute_job(
             if not cfg.runner_modules:
                 cfg.runner_modules = modules_without_submodule
 
-    client = ctx.obj["client"]
     runner = JobRunner(
         client=client,
         name=name,
