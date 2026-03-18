@@ -12,6 +12,7 @@ Usage:
 """
 
 import sys
+from typing import cast
 
 import click
 from rich.panel import Panel
@@ -53,7 +54,7 @@ def cli(ctx, namespace, timeout, as_json):
     ctx.obj["_client"] = None
 
 
-def _get_client(ctx) -> K8sClient:
+def _get_client(ctx: click.Context) -> K8sClient:
     """Lazy-init K8sClient on first use. Call this instead of ctx.obj['client']."""
     if ctx.obj["_client"] is None:
         console.print("[Auth] getting K8sConfig")
@@ -62,7 +63,8 @@ def _get_client(ctx) -> K8sClient:
             timeout=ctx.obj["_k8s_timeout"],
         )
         ctx.obj["_client"] = K8sClient(config)
-    return ctx.obj["_client"]
+    client: K8sClient = cast(K8sClient, ctx.obj["_client"])
+    return client
 
 
 @cli.command("cancel")

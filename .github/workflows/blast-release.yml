@@ -1,9 +1,7 @@
 name: Blast CLI Release
 
 on:
-  push:
-    tags:
-      - "blast-v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,19 +19,30 @@ jobs:
           python-version: "3.11"
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build==1.2.2
 
       - name: Build wheel
         run: |
           cd tools/remote_execution/blast
           python -m build --wheel
 
+      - name: Get version from wheel
+        id: version
+        run: |
+          WHEEL=$(ls tools/remote_execution/blast/dist/*.whl)
+          VERSION=$(echo "$WHEEL" | grep -oP '\d+\.\d+\.\d+')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Built version: $VERSION"
+
       - name: Smoke test
         run: |
           pip install tools/remote_execution/blast/dist/*.whl
           blast --help
 
-      - name: Upload wheel to GitHub Release
+      - name: Create tag and release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: blast-v${{ steps.version.outputs.version }}
+          name: Blast CLI v${{ steps.version.outputs.version }}
           files: tools/remote_execution/blast/dist/*.whl
+          generate_release_notes: true

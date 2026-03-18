@@ -193,8 +193,11 @@ def build_step_configs_from_json(steps_json: list) -> list[StepConfig]:
 # =============================================================================
 
 
+from .core.k8s_client import K8sClient
+
+
 def execute_job(
-    client: object,
+    client: K8sClient,
     step_configs: list[StepConfig],
     name: str,
     follow: bool,
