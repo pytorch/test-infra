@@ -18,6 +18,7 @@ def test_get_macos_variables(python_version, expected_target):
     result = get_macos_variables("arm64", python_version)
     assert result == [
         f"export MACOSX_DEPLOYMENT_TARGET={expected_target}",
+        f"export _PYTHON_HOST_PLATFORM=macosx-{expected_target}-arm64",
         "export CC=clang",
         "export CXX=clang++",
     ]
