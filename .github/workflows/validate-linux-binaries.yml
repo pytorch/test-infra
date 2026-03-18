@@ -129,7 +129,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release_211_validations
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
       binary-matrix: ${{ toJSON(matrix) }}
@@ -175,7 +175,7 @@ jobs:
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release_211_validations
       job-name: "amazon-linux-2023-test"
       docker-image: 'almalinux/9-base'
       docker-build-dir: "skip-docker-build"
