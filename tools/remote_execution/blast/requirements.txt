@@ -1,0 +1,5 @@
+# Elaine Playground CLI
+click>=8.1.0
+requests>=2.31.0
+rich>=13.0.0
+kubernetes>=28.1.0

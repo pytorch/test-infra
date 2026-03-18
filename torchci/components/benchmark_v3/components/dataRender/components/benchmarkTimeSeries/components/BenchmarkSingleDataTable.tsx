@@ -1,4 +1,4 @@
-import { Button, Tooltip, Typography } from "@mui/material";
+import { Button, Tooltip, Typography, useTheme } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -16,7 +16,8 @@ import {
 } from "../helper";
 import { groupKeyAndLabel } from "./BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTableHelpers";
 
-const GOOD_COLOR = "#e8f5e9"; // green[50]
+const GOOD_COLOR_LIGHT = "#e8f5e9"; // green[50]
+const GOOD_COLOR_DARK = "#1b4332";
 export default function BenchmarkSingleDataTable({
   config,
   data,
@@ -250,7 +251,7 @@ function getTableConlumnRendering(
     renderCell: (params: GridRenderCellParams<any>) => {
       if (config?.renderOptions?.highlightPolicy) {
         const policy = config?.renderOptions?.highlightPolicy;
-        return renderHighlight(policy, params);
+        return <HighlightCell highlightPolicy={policy} params={params} />;
       }
       return <Box>{params.formattedValue ?? ""}</Box>;
     },
@@ -259,16 +260,22 @@ function getTableConlumnRendering(
   return [...metadataColumns, ...metadataCols, ...metricCols];
 }
 
-function renderHighlight(
-  highlightPolicy: any,
-  params: GridRenderCellParams<any>
-) {
+function HighlightCell({
+  highlightPolicy,
+  params,
+}: {
+  highlightPolicy: any;
+  params: GridRenderCellParams<any>;
+}) {
+  const theme = useTheme();
   if (highlightPolicy.direction != "row") {
     return <Box>{params.formattedValue ?? ""}</Box>;
   }
   const policy = highlightPolicy?.policy ?? "max";
   const regex = highlightPolicy?.regex;
-  const highlighColor = highlightPolicy?.color ?? GOOD_COLOR;
+  const defaultColor =
+    theme.palette.mode === "dark" ? GOOD_COLOR_DARK : GOOD_COLOR_LIGHT;
+  const highlighColor = highlightPolicy?.color ?? defaultColor;
   const highlight = shouldHighlightCellByRowExtrema(params, policy, regex);
   return (
     <Box

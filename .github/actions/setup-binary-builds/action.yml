@@ -147,7 +147,7 @@ runs:
               "python=${PYTHON_VERSION}" \
               cmake=3.31.2 \
               ninja=1.12.1 \
-              libwebp \
+              "libwebp>=1.3.2" \
               libpng \
               pkg-config=0.29 \
               wheel=0.37  \
