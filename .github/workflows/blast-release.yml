@@ -2,7 +2,6 @@ name: Blast CLI Release
 
 on:
   workflow_dispatch:
-  pull_request:
 
 permissions:
   contents: write
@@ -46,4 +45,6 @@ jobs:
           tag_name: blast-cli-v${{ steps.version.outputs.version }}
           name: Blast CLI v${{ steps.version.outputs.version }}
           files: tools/remote_execution/blast/dist/*.whl
-          generate_release_notes: true
+          body: |
+            Install: `pip install blast-cli==${{ steps.version.outputs.version }}`
+            Upgrade: `pip install blast-cli --upgrade`
