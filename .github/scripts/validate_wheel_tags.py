@@ -114,6 +114,8 @@ def check_wheel_platform_tag() -> None:
 
         python_tag, abi_tag, platform_tag = parts
 
+        print(f"Checking wheel tag: {tag_str} (from {source})")
+
         if python_tag != expected_python:
             msg: str = (
                 f"Python tag mismatch in {source}: "
