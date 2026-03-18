@@ -27,17 +27,12 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
 }
 
-# Pinned Python point versions for macOS builds.
-# On macOS, we install specific .0 point releases instead of the latest patch
-# to ensure consistent builds across CI runs.
-# NOTE: Freethreading variants (3.13t, 3.14t) are excluded because the
-# setup-binary-builds action has a case statement that matches them exactly.
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13",
-    "3.14": "3.14",
+    "3.13": "3.13.12",
+    "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "13.0"],
