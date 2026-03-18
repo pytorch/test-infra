@@ -262,38 +262,9 @@
       "linux"
     ]
   ],
-  "test_comprehensive_linalg_lu_factor_ex_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "168207",
-    "https://github.com/pytorch/pytorch/issues/168207",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_linalg_multi_dot_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "176960",
     "https://github.com/pytorch/pytorch/issues/176960",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_linalg_multi_dot_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176109",
-    "https://github.com/pytorch/pytorch/issues/176109",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_linalg_pinv_singular_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "152059",
-    "https://github.com/pytorch/pytorch/issues/152059",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_comprehensive_linalg_svd_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176110",
-    "https://github.com/pytorch/pytorch/issues/176110",
     [
       "inductor"
     ]
