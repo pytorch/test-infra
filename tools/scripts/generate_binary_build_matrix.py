@@ -26,6 +26,14 @@ PYTHON_ARCHES_DICT = {
     "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
 }
+
+MACOS_PYTHON_POINT_VERSIONS = {
+    "3.10": "3.10.19",
+    "3.11": "3.11.14",
+    "3.12": "3.12.12",
+    "3.13": "3.13",
+    "3.14": "3.14.3",
+}
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "13.0"],
     "test": ["12.6", "12.8", "13.0"],
@@ -483,8 +491,16 @@ def generate_wheels_matrix(
                 continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
+
+            # For macOS, use pinned .0 point versions for consistent builds
+            effective_python_version = python_version
+            if os == MACOS_ARM64:
+                effective_python_version = MACOS_PYTHON_POINT_VERSIONS.get(
+                    python_version, python_version
+                )
+
             entry = {
-                "python_version": python_version,
+                "python_version": effective_python_version,
                 "gpu_arch_type": gpu_arch_type,
                 "gpu_arch_version": gpu_arch_version,
                 "desired_cuda": desired_cuda,
