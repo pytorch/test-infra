@@ -270,6 +270,10 @@ install_numpy_1x
 # Run tests
 run_smoke_tests "${TEST_SUFFIX}"
 
+# Validate wheel platform tags and macOS minos
+echo "Validating wheel platform tags..."
+${PYTHON_RUN} "${SCRIPT_DIR}/validate_wheel_tags.py"
+
 # Restore PATH for macos-arm64
 if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
     export PATH=${OLD_PATH}
