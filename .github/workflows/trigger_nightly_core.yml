@@ -1,0 +1,22 @@
+name: Trigger nightly builds for pytorch core
+
+on:
+  schedule:
+    # every night at 7:30AM UTC, 3:30AM EST, 0:30AM PST
+    - cron: 30 7 * * *
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    environment: trigger-nightly
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Trigger nightly core build
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: viable/strict
+          repository: pytorch/pytorch
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: pytorch

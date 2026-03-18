@@ -1,0 +1,6 @@
+[sqlfluff]
+exclude_rules = capitalisation.functions,capitalisation.identifiers
+
+[sqlfluff:rules:capitalisation.keywords]
+# Keywords
+capitalisation_policy = upper

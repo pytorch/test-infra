@@ -1,5 +1,0 @@
-{
-  "sql_path": "__sql/queued_jobs_by_label.sql",
-  "default_parameters": [],
-  "description": ""
-}

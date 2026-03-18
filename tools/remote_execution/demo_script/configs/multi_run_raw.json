@@ -1,0 +1,16 @@
+{
+  "name": "build-and-test",
+  "raw": true,
+  "steps": [
+    {
+      "name": "build",
+      "script": "echo 'step 1: building on cpu...' && echo \"CPU count: $(nproc)\" && sleep 3 && echo 'build done!'",
+      "type": "cpu-44"
+    },
+    {
+      "name": "test",
+      "script": "echo 'step 2: testing on gpu-l4...' && echo \"CPU count: $(nproc)\" && nvidia-smi || echo 'no GPU found' && sleep 3 && echo 'test done!'",
+      "type": "gpu-l4"
+    }
+  ]
+}

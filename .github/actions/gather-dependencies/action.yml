@@ -1,0 +1,26 @@
+name: Gather dependencies
+
+description: Gather the list of all dependencies
+
+inputs:
+  venv:
+    description: 'Path to virtual environment to activate'
+    required: false
+    default: ''
+
+outputs:
+  dependencies:
+    description: The list of all dependencies in JSON format
+    value: ${{ steps.gather-dependencies.outputs.dependencies }}
+
+runs:
+  using: composite
+  steps:
+    - name: Gather the dependencies information
+      id: gather-dependencies
+      shell: bash
+      run: |
+        set -eux
+
+        # TODO (huydhn): Implement this part
+        echo "dependencies={}" >> "${GITHUB_OUTPUT}"

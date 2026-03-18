@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
+import { PinnedTooltipContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { formatHudUrlForRoute, HudParams } from "./types";
 
 export default function useTableFilter(params: HudParams) {
@@ -11,42 +12,48 @@ export default function useTableFilter(params: HudParams) {
   const normalizedJobFilter =
     jobFilter === null || jobFilter === "" ? null : jobFilter.toLowerCase();
 
+  const [pinnedId] = useContext(PinnedTooltipContext);
+
   useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+    const sha = pinnedId.sha;
+    const listener = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         setJobFilter(null);
+        router.push(formatHudUrlForRoute("hud", params), undefined, {
+          shallow: true,
+        });
       }
-    });
-  }, []);
-  const handleInput = useCallback((f: any) => {
-    setJobFilter(f);
-  }, []);
-  const handleSubmit = useCallback(() => {
-    if (jobFilter === "") {
-      router.push(formatHudUrlForRoute("hud", params), undefined, {
-        shallow: true,
-      });
-    } else {
+    };
+    if (!sha) {
+      document.addEventListener("keydown", listener);
+      return () => {
+        document.removeEventListener("keydown", listener);
+      };
+    }
+  }, [router, params, pinnedId.sha]);
+  const handleSubmit = useCallback(
+    (f: any) => {
+      setJobFilter(f);
       router.push(
         formatHudUrlForRoute("hud", {
           ...params,
-          nameFilter: jobFilter ?? undefined,
+          nameFilter: f ?? undefined,
         }),
         undefined,
         {
           shallow: true,
         }
       );
-    }
-  }, [params, router, jobFilter]);
+    },
+    [params, router]
+  );
 
   // We have to use an effect hook here because query params are undefined at
   // static generation time; they only become available after hydration.
   useEffect(() => {
     const filterValue = (router.query.name_filter as string) || "";
     setJobFilter(filterValue);
-    handleInput(filterValue);
-  }, [router.query.name_filter, handleInput]);
+  }, [router.query.name_filter]);
 
-  return { jobFilter, handleSubmit, handleInput, normalizedJobFilter };
+  return { jobFilter, handleSubmit, normalizedJobFilter };
 }

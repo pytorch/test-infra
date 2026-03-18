@@ -1,0 +1,6 @@
+[flake8]
+# Don't recurse into .venv/.
+exclude = .venv/
+
+# Match black tool's default.
+max-line-length = 88

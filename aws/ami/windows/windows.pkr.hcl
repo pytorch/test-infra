@@ -17,15 +17,15 @@ source "amazon-ebs" "windows_ebs_builder" {
   ami_name                    = "Windows 2019 GHA CI - ${local.timestamp}"
   associate_public_ip_address = true
   communicator                = "winrm"
-  instance_type               = "p3.2xlarge"
+  instance_type               = "g5.4xlarge"
   launch_block_device_mappings {
     delete_on_termination = true
     device_name           = "/dev/sda1"
-    volume_size           = 64
+    volume_size           = 128
   }
   source_ami      = "${data.amazon-ami.windows_root_ami.id}"
   region          = "us-east-1"
-  ami_regions     = ["us-east-1", "us-east-2"]
+  ami_regions     = ["us-east-1"]
   user_data_file  = "user-data-scripts/bootstrap-winrm.ps1"
   winrm_insecure  = true
   winrm_use_ssl   = true
@@ -39,6 +39,19 @@ source "amazon-ebs" "windows_ebs_builder" {
 
 build {
   sources = ["source.amazon-ebs.windows_ebs_builder"]
+
+  # Install conda, it needs to be installed under SYSTEM to avoid this broken
+  # installation https://github.com/ContinuumIO/anaconda-issues/issues/11799.
+  provisioner "powershell" {
+    elevated_user     = "SYSTEM"
+    elevated_password = ""
+    scripts = [
+      "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
+      "${path.root}/scripts/Installers/Initialize-Python3.ps1",
+      "${path.root}/scripts/Installers/Install-Conda-Dependencies.ps1",
+      "${path.root}/scripts/Installers/Install-Pip-Dependencies.ps1",
+    ]
+  }
 
   # Install sshd_config
   provisioner "file" {
@@ -55,44 +68,70 @@ build {
     ]
   }
 
-  # Install the rest of the dependencies
+  # Install the Visual Studio 2022
   provisioner "powershell" {
-    environment_vars = ["INSTALL_WINDOWS_SDK=0", "VS_VERSION=16.8.6"]
+    environment_vars = ["INSTALL_WINDOWS_SDK=1", "VS_YEAR=2022", "VS_VERSION=17.4.1", "VS_UNINSTALL_PREVIOUS=0"]
     execution_policy = "unrestricted"
     scripts = [
-      "${path.root}/scripts/Helpers/Reset-UserData.ps1",
-      "${path.root}/scripts/Installers/Install-Choco.ps1",
-      "${path.root}/scripts/Installers/Install-Tools.ps1",
       "${path.root}/scripts/Installers/Install-VS.ps1",
     ]
   }
 
-  # Install CUDA Toolkits
+  # Install the rest of the dependencies
+  # Please note: When modifying Microsoft.PowerShell_profile for a user
+  # all modifications need to be done to Install-Choco-GenerateProfile script
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=10.2"]
+    execution_policy = "unrestricted"
+    scripts = [
+      "${path.root}/scripts/Helpers/Reset-UserData.ps1",
+      "${path.root}/scripts/Installers/Install-Choco-GenerateProfile.ps1",
+      "${path.root}/scripts/Installers/Initialize-Python3.ps1",
+      "${path.root}/scripts/Installers/Install-Tools.ps1",
+    ]
+  }
+
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=12.6"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
     ]
   }
 
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=11.3"]
+    environment_vars = ["CUDA_VERSION=12.8"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
     ]
   }
 
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=11.6"]
+    environment_vars = ["CUDA_VERSION=12.9"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
     ]
   }
 
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=11.7"]
+    environment_vars = ["CUDA_VERSION=13.0"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
+    ]
+  }
+
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=13.2"]
+    scripts = [
+      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
+    ]
+  }
+
+  # Uninstall Windows Defender, it brings more trouble than it's worth. Do this
+  # last as it screws up the installation of other services like sshd somehow
+  provisioner "powershell" {
+    elevated_user     = "SYSTEM"
+    elevated_password = ""
+    scripts = [
+      "${path.root}/scripts/Helpers/Uninstall-WinDefend.ps1",
     ]
   }
 }

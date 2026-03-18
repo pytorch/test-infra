@@ -16,12 +16,15 @@ on:
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-macos.yml'
 
+permissions:
+  id-token: write
+
 jobs:
-  build:
-    runs-on: macos-10.15
+  build-Intel:
+    runs-on: macos-13
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install dependencies
         run: |
           brew install ninja
@@ -35,14 +38,54 @@ jobs:
           export PATH
 
           ./setup.sh
-      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
-        name: Publish binary
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Move files for s3 upload
+        run: |
+          set -ex
+          mv tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy \
+            tools/clang-tidy-checks/llvm-project/build/bin/clang-format \
+            .
+
+      - name: Sanity check and upload
+        uses: ./.github/actions/clang-tidy-upload
         with:
-          name: clang-tidy
-          if-no-files-found: error
-          s3-prefix: macos
-          s3-bucket: oss-clang-format
-          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          platform: macos-i386
+          version: 19.1.4
+          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+  build-M1:
+    runs-on: macos-m1-stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install dependencies
+        run: |
+          brew install ninja cmake
+      - name: Build
+        working-directory: ./tools/clang-tidy-checks
+        run: |
+          set -ex
+
+          # LLVM is installed on the machine, but the binaries are not on the path
+          PATH="$(brew --prefix llvm)/bin:$PATH"
+          export PATH
+
+          ./setup.sh
+
+      - name: Move files for s3 upload
+        run: |
+          set -ex
+          mv tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy \
+            tools/clang-tidy-checks/llvm-project/build/bin/clang-format \
+            .
+
+      - name: Sanity check and upload
+        uses: ./.github/actions/clang-tidy-upload
+        with:
+          platform: macos-arm64
+          version: 19.1.4
+          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true

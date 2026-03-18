@@ -1,96 +1,34 @@
-import { Context, Probot } from "probot";
-
-export const drciCommentStart = "<!-- drci-comment-start -->\n";
-export const officeHoursUrl =
-  "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
-export const docsBuildsUrl = "https://docs-preview.pytorch.org/";
-export const pythonDocsUrl = "/index.html";
-export const cppDocsUrl = "/cppdocs/index.html";
-const drciCommentEnd = "\n<!-- drci-comment-end -->";
-const possibleUsers = ["swang392"];
-const hudUrl = "https://hud.pytorch.org/pr/";
-
-async function getDrciComment(
-  context: Context,
-  prNum: number,
-  owner: string,
-  repo: string
-): Promise<{ id: number; body: string }> {
-  const commentsRes = await context.octokit.issues.listComments({
-    owner,
-    repo,
-    issue_number: prNum,
-  });
-  for (const comment of commentsRes.data) {
-    if (comment.body!.includes(drciCommentStart)) {
-      return { id: comment.id, body: comment.body! };
-    }
-  }
-  return { id: 0, body: "" };
-}
-
-export function formDrciComment(prNum: number): string {
-  let body = `## :link: Helpful Links
-### :test_tube: See artifacts and rendered test results [here](${hudUrl}${prNum})
-* :page_facing_up: Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})
-* :page_facing_up: Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})
-* :question: Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})
-Note: Links to docs will display an error until the docs builds have been completed.`;
-  return drciCommentStart + body + drciCommentEnd;
-}
+import { upsertDrCiComment } from "lib/drciUtils";
+import { Probot } from "probot";
+import { isPyTorchbotSupportedOrg } from "./utils";
 
 export default function drciBot(app: Probot): void {
   app.on(
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
-      const prNum = context.payload.pull_request.number;
-      const pr_owner = context.payload.pull_request.user.login;
-      const repo = context.payload.repository.name;
       const owner = context.payload.repository.owner.login;
-
-      context.log(pr_owner);
-
-      if (!possibleUsers.includes(pr_owner)) {
-        context.log("did not make a comment");
+      if (!isPyTorchbotSupportedOrg(owner)) {
+        context.log(`${__filename} isn't enabled on ${owner}'s repos`);
         return;
       }
 
-      const existingDrciData = await getDrciComment(
-        context,
-        prNum,
-        owner,
-        repo
-      );
-      const existingDrciID = existingDrciData.id;
-      const existingDrciComment = existingDrciData.body;
+      // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#pull_request
+      const repo = context.payload.repository.name;
+      const prNum = context.payload.pull_request.number;
+      const prOwner = context.payload.pull_request.user.login;
+      const prState = context.payload.pull_request.state;
+      const prUrl = context.payload.pull_request.html_url;
 
-      const drciComment = formDrciComment(prNum);
-
-      if (existingDrciComment === drciComment) {
+      if (prState != "open") {
+        context.log(
+          `Pull request ${prNum} to ${owner}/${repo} is not open, no comment is made`
+        );
         return;
       }
 
-      if (existingDrciID === 0) {
-        await context.octokit.issues.createComment({
-          body: drciComment,
-          owner,
-          repo,
-          issue_number: prNum,
-        });
-        context.log(
-          `Commenting with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
-        );
-      } else {
-        await context.octokit.issues.updateComment({
-          body: drciComment,
-          owner,
-          repo,
-          comment_id: existingDrciID,
-        });
-        context.log(
-          `Updated comment with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
-        );
-      }
+      context.log(prOwner);
+
+      await upsertDrCiComment(owner, repo, prNum, context, prUrl);
     }
   );
 }

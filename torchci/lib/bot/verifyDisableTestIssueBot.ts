@@ -1,17 +1,13 @@
+import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
+import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { Context, Probot } from "probot";
+import { hasWritePermissions, isPyTorchbotSupportedOrg } from "./utils";
 
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
-const disabledKey = "DISABLED ";
-export const supportedPlatforms = new Set([
-  "asan",
-  "linux",
-  "mac",
-  "macos",
-  "rocm",
-  "win",
-  "windows",
-]);
+export const disabledKey = "DISABLED ";
+export const unstableKey = "UNSTABLE ";
+export const pytorchBotId = 54816060;
 
 async function getValidationComment(
   context: Context,
@@ -33,119 +29,52 @@ async function getValidationComment(
   return [0, ""];
 }
 
-export function parseBody(body: string): [Set<string>, Set<string>] {
-  const lines = body.split(/[\r\n]+/);
-  const platformsToSkip = new Set<string>();
-  const invalidPlatforms = new Set<string>();
-  const key = "platforms:";
-  for (let line of lines) {
-    line = line.toLowerCase();
-    if (line.startsWith(key)) {
-      for (const platform of line
-        .slice(key.length)
-        .split(/^\s+|\s*,\s*|\s+$/)) {
-        if (supportedPlatforms.has(platform)) {
-          platformsToSkip.add(platform);
-        } else if (platform !== "") {
-          invalidPlatforms.add(platform);
-        }
-      }
-    }
-  }
-  return [platformsToSkip, invalidPlatforms];
+export function parseTitle(title: string, prefix: string): string {
+  return title.slice(prefix.length).trim();
 }
 
-export function parseTitle(title: string): string {
-  return title.slice(disabledKey.length).trim();
-}
-
-function testNameIsExpected(testName: string): boolean {
-  const split = testName.split(/\s+/);
-  console.log(split);
-  if (split.length !== 2) {
-    return false;
-  }
-
-  const testSuite = split[1].split(".");
-  if (testSuite.length < 2) {
-    return false;
-  }
-  return true;
-}
-
-export function formValidationComment(
-  testName: string,
-  platforms: [Set<string>, Set<string>]
+export function formJobValidationComment(
+  username: string,
+  authorized: boolean,
+  jobName: string,
+  prefix: string
 ): string {
-  const platformsToSkip = Array.from(platforms[0]).sort((a, b) =>
-    a.localeCompare(b)
-  );
-  const platformMsg =
-    platformsToSkip.length === 0
-      ? "none parsed, defaulting to ALL platforms"
-      : platformsToSkip.join(", ");
-  const invalidPlatforms = Array.from(platforms[1]).sort((a, b) =>
-    a.localeCompare(b)
-  );
-
-  let body =
-    "<body>Hello there! From the DISABLED prefix in this issue title, ";
-  body += "it looks like you are attempting to disable a test in PyTorch CI. ";
+  const trimPrefix = prefix.trim();
+  let body = `<body>Hello there! From the ${trimPrefix} prefix in this issue title, `;
+  body += `it looks like you are attempting to ${trimPrefix.toLowerCase()} a job in PyTorch CI. `;
   body += "The information I have parsed is below:\n\n";
-  body += `* Test name: \`${testName}\`\n`;
-  body += `* Platforms for which to skip the test: ${platformMsg}\n\n`;
+  body += `* Job name: \`${jobName}\`\n`;
+  body += `* Credential: \`${username}\`\n\n`;
 
-  if (invalidPlatforms.length > 0) {
-    body +=
-      "<b>WARNING!</b> In the parsing process, I received these invalid inputs as platforms for ";
-    body += `which the test will be disabled: ${invalidPlatforms.join(
-      ", "
-    )}. These could `;
-    body +=
-      "be typos or platforms we do not yet support test disabling. Please ";
-    body +=
-      "verify the platform list above and modify your issue body if needed.\n\n";
-  }
-
-  if (!testNameIsExpected(testName)) {
-    body +=
-      "<b>ERROR!</b> As you can see above, I could not properly parse the test ";
-    body +=
-      "information and determine which test to disable. Please modify the ";
-    body +=
-      "title to be of the format: DISABLED test_case_name (test.ClassName), ";
-    body += "for example, `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
+  if (!authorized) {
+    body += `<b>ERROR!</b> You (${username}) don't have permission to ${trimPrefix.toLowerCase()} ${jobName}.\n\n`;
   } else {
-    body += `Within ~15 minutes, \`${testName}\` will be disabled in PyTorch CI for `;
+    body += `Within ~15 minutes, \`${jobName}\` and all of its dependants will be ${trimPrefix.toLowerCase()} in PyTorch CI. `;
     body +=
-      platformsToSkip.length === 0
-        ? "all platforms"
-        : `these platforms: ${platformsToSkip.join(", ")}`;
-    body +=
-      ". Please verify that your test name looks correct, e.g., `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
+      "Please verify that the job name looks correct. With great power comes great responsibility.\n\n";
   }
+  body += "</body>";
 
-  body +=
-    "To modify the platforms list, please include a line in the issue body, like below. The default ";
-  body +=
-    "action will disable the test for all platforms if no platforms list is specified. \n";
-  body +=
-    "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
-  body += `${Array.from(supportedPlatforms)
-    .sort((a, b) => a.localeCompare(b))
-    .join(", ")}.</body>`;
-
-  return validationCommentStart + body + validationCommentEnd;
+  return body;
 }
 
 export default function verifyDisableTestIssueBot(app: Probot): void {
   app.on(["issues.opened", "issues.edited"], async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const state = context.payload["issue"]["state"];
     const title = context.payload["issue"]["title"];
-    const owner = context.payload["repository"]["owner"]["login"];
     const repo = context.payload["repository"]["name"];
 
-    if (state === "closed" || !title.startsWith(disabledKey)) {
+    if (state === "closed") {
+      return;
+    }
+
+    if (!title.startsWith(disabledKey) && !title.startsWith(unstableKey)) {
       return;
     }
 
@@ -160,9 +89,36 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const existingValidationCommentID = existingValidationCommentData[0];
     const existingValidationComment = existingValidationCommentData[1];
 
-    const testName = parseTitle(title);
-    const platforms = parseBody(body!);
-    const validationComment = formValidationComment(testName, platforms);
+    const username = context.payload["issue"]["user"]["login"];
+    const authorized =
+      context.payload["issue"]["user"]["id"] === pytorchBotId ||
+      (await hasWritePermissions(context, username));
+    const labels =
+      context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
+
+    let validationComment = "";
+    if (singleDisableIssue.isSingleIssue(title)) {
+      validationComment = singleDisableIssue.formValidationComment(
+        context.payload["issue"],
+        authorized
+      );
+      singleDisableIssue.fixLabels(context);
+    } else if (aggregateDisableIssue.isAggregateIssue(title)) {
+      validationComment = aggregateDisableIssue.formValidationComment(
+        context.payload["issue"],
+        authorized
+      );
+    } else {
+      // UNSTABLE
+      const prefix = title.startsWith(unstableKey) ? unstableKey : disabledKey;
+      validationComment = formJobValidationComment(
+        username,
+        authorized,
+        parseTitle(title, prefix),
+        prefix
+      );
+    }
+    validationComment = `${validationCommentStart}${validationComment}${validationCommentEnd}`;
 
     if (existingValidationComment === validationComment) {
       return;
@@ -181,6 +137,16 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
         owner,
         repo,
         comment_id: existingValidationCommentID,
+      });
+    }
+
+    // Auto-close unauthorized issues
+    if (!authorized) {
+      await context.octokit.issues.update({
+        owner,
+        repo,
+        issue_number: number,
+        state: "closed",
       });
     }
   });

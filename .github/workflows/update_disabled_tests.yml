@@ -6,28 +6,120 @@ on:
     - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/update_disabled_tests.yml
+      - .github/scripts/update_disabled_issues.py
+
+permissions:
+  contents: write
 
 jobs:
   update-disabled-tests:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'trigger-nightly' || '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Generate new disabled test json
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Generate new disabled tests and jobs jsons
+        env:
+          # The token is used to confirm issue creator's write permission before
+          # allowing them to disable jobs. Note that the token needs to have access
+          # to the target repo, i.e. pytorch/pytorch instead of test-infra. Using
+          # PyTorch bot token is the most obvious choice.  Outside of the
+          # environment, we do not have access to this token so fall back to the
+          # GITHUB_TOKEN.
+          FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
         run: |
-          .github/scripts/update_disabled_tests.py
-      - name: Print file
+          python3 -m pip install GitPython==3.1.44
+          python3 .github/scripts/update_disabled_issues.py
+
+      - name: Print the list of disabled tests
         run: |
-          cat disabled-tests.json
-      - name: Push file to test-infra repository
+          cat disabled-tests-condensed.json
+
+      - name: Print the list of disabled and unstable jobs
+        run: |
+          echo "Disabled jobs:"
+          cat disabled-jobs.json
+
+          echo
+          echo "Unstable jobs:"
+          cat unstable-jobs.json
+
+      - name: Push disable tests to test-infra repository
+        if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
-           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: 'disabled-tests.json'
-          destination_repo: 'pytorch/test-infra'
-          destination_folder: 'stats'
+          source_file: "disabled-tests-condensed.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
           destination_branch: generated-stats
-          user_email: 'test-infra@pytorch.org'
-          user_name: 'Pytorch Test Infra'
-          commit_message: 'Updating disabled tests stats'
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating condensed disabled tests stats"
+
+      - name: Push disable jobs to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "disabled-jobs.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating disabled jobs"
+
+      - name: Push unstable jobs to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "unstable-jobs.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating unstable jobs"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: disabled-artifacts
+          if-no-files-found: error
+          path: |
+            disabled-tests-condensed.json
+            disabled-jobs.json
+            unstable-jobs.json
+            for_historical_records.json
+
+  # NB: Use our self-hosted runner to upload the files to S3, the runners already
+  # have access to the bucket
+  upload-disabled-tests-s3:
+    runs-on: linux.large
+    needs: update-disabled-tests
+    steps:
+      - name: Download disabled artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: disabled-artifacts
+
+      - name: Upload files to s3
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 -mpip install awscli==1.27.69
+
+          aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
+          aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
+          aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
+
+          unix_time="$(date +%s)"
+          aws s3 cp for_historical_records.json s3://ossci-metrics/disabled_tests_historical/"${unix_time}".json

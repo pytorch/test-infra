@@ -1,43 +1,122 @@
+import CheckBoxSelector from "components/common/CheckBoxSelector";
+import CopyLink from "components/common/CopyLink";
+import LoadingPage from "components/common/LoadingPage";
+import PageSelector from "components/common/PageSelector";
+import { LocalTimeHuman } from "components/common/TimeUtils";
+import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import styles from "components/hud.module.css";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
-} from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupJobConclusion";
-import styles from "components/hud.module.css";
-import JobConclusion from "components/JobConclusion";
-import JobFilterInput from "components/JobFilterInput";
-import JobTooltip from "components/JobTooltip";
-import { LocalTimeHuman } from "components/TimeUtils";
-import TooltipTarget from "components/TooltipTarget";
-import { getGroupingData } from "lib/JobClassifierUtil";
+  passesGroupFilter,
+} from "components/hud/GroupHudTableHeaders";
+import HudGroupedCell from "components/job/GroupJobConclusion";
+import JobConclusion from "components/job/JobConclusion";
+import JobFilterInput from "components/job/JobFilterInput";
+import JobTooltip from "components/job/JobTooltip";
+import SettingsPanel from "components/SettingsPanel";
+import { isJobAutorevertSignal } from "lib/autorevertUtils";
+import { fetcher } from "lib/GeneralUtils";
+import {
+  getGroupingData,
+  groups,
+  isUnstableGroup,
+  sortGroupNamesForHUD,
+} from "lib/JobClassifierUtil";
+import {
+  isFailedJob,
+  isRerunDisabledTestsJob,
+  isUnstableJob,
+} from "lib/jobUtils";
+import { ParamSelector } from "lib/ParamSelector";
+import { trackRouteEvent } from "lib/tracking/track";
 import {
   formatHudUrlForRoute,
-  HudData,
+  Highlight,
   HudParams,
+  IssueData,
   JobData,
   packHudParams,
   RowData,
 } from "lib/types";
+import {
+  useGroupingPreference,
+  useHideGreenColumnsPreference,
+  useHideNonViableStrictPreference,
+  useMonsterFailuresPreference,
+  usePreference,
+} from "lib/useGroupingPreference";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
-import useGroupingPreference from "lib/useGroupingPreference";
-import React, { createContext, useContext, useEffect, useState } from "react";
-import PageSelector from "components/PageSelector";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import useSWR from "swr";
 
-export function JobCell({ sha, job }: { sha: string; job: JobData }) {
+export function JobCell({
+  sha,
+  job,
+  unstableIssues,
+  isAutorevertSignal,
+  repoOwner,
+  repoName,
+}: {
+  sha: string;
+  job: JobData;
+  unstableIssues: IssueData[];
+  isAutorevertSignal?: boolean;
+  repoOwner?: string;
+  repoName?: string;
+}) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+
+  // Build cell style classes
+  const cellClasses = [];
+  if (pinnedId.name == job.name) {
+    cellClasses.push(styles.highlight);
+  }
+  if (isAutorevertSignal) {
+    cellClasses.push(styles.autorevertSignal);
+  }
+  const cellStyle = cellClasses.join(" ");
+
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
       <TooltipTarget
-        id={`${sha}-${job.name}`}
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
-        tooltipContent={<JobTooltip job={job} />}
+        tooltipContent={
+          <JobTooltip
+            job={job}
+            sha={pinnedId.sha || sha}
+            isAutorevertSignal={isAutorevertSignal}
+            repoOwner={repoOwner}
+            repoName={repoName}
+          />
+        }
+        sha={sha as string}
+        name={job.name as string}
       >
-        <JobConclusion conclusion={job.conclusion} />
+        <div className={`${styles.center} ${cellStyle}`}>
+          <JobConclusion
+            conclusion={job.conclusion}
+            failedPreviousRun={job.failedPreviousRun}
+            classified={job.failureAnnotation != null}
+            warningOnly={
+              isFailedJob(job) &&
+              (isRerunDisabledTestsJob(job) ||
+                isUnstableJob(job, unstableIssues))
+            }
+            jobData={job}
+          />
+        </div>
       </TooltipTarget>
     </td>
   );
@@ -45,18 +124,40 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
 
 function HudRow({
   rowData,
-  expandedGroups,
-  useGrouping,
+  names,
+  unstableIssues,
+  repoOwner,
+  repoName,
 }: {
   rowData: RowData;
-  expandedGroups: Set<string>;
-  useGrouping: boolean;
+  names: string[];
+  unstableIssues: IssueData[];
+  repoOwner?: string;
+  repoName?: string;
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
   const sha = rowData.sha;
+
+  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+
+  let rowStyle = "";
+  if (pinnedId.sha == sha) {
+    rowStyle = styles.highlight;
+  } else if (rowData.isAutoreverted) {
+    rowStyle = styles.autoreverted;
+  }
+
+  function clickCommit(e: React.MouseEvent) {
+    if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
+      return;
+    }
+    e.stopPropagation();
+    setPinnedId({ sha: rowData.sha, name: undefined });
+  }
+
   return (
-    <tr>
+    <tr className={rowStyle} onClick={(e) => clickCommit(e)}>
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
@@ -76,8 +177,27 @@ function HudRow({
         {rowData.prNum !== null && (
           <a
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+            title={
+              rowData.isForcedMerge
+                ? rowData.isForcedMergeWithFailures
+                  ? "Forced merge with failures that were merge-blocking"
+                  : "Forced merge. Had no merge-blocking failures"
+                : undefined
+            }
           >
-            #{rowData.prNum}
+            {rowData.isForcedMerge ? (
+              <mark
+                className={
+                  rowData.isForcedMergeWithFailures
+                    ? styles.forcedMergeWithFailure
+                    : styles.forcedMerge
+                }
+              >
+                #{rowData.prNum}
+              </mark>
+            ) : (
+              <div>#{rowData.prNum}</div>
+            )}
           </a>
         )}
       </td>
@@ -92,8 +212,11 @@ function HudRow({
       </td>
       <HudJobCells
         rowData={rowData}
-        expandedGroups={expandedGroups}
-        useGrouping={useGrouping}
+        names={names}
+        unstableIssues={unstableIssues}
+        params={params}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     </tr>
   );
@@ -101,47 +224,104 @@ function HudRow({
 
 function HudJobCells({
   rowData,
-  expandedGroups,
-  useGrouping,
+  names,
+  unstableIssues,
+  params,
+  repoOwner,
+  repoName,
 }: {
   rowData: RowData;
-  expandedGroups: Set<string>;
-  useGrouping: boolean;
+  names: string[];
+  unstableIssues: IssueData[];
+  params: HudParams;
+  repoOwner?: string;
+  repoName?: string;
 }) {
-  if (!useGrouping) {
-    return (
-      <>
-        {rowData.jobs.map((job: JobData) => (
-          <JobCell sha={rowData.sha} key={job.name} job={job} />
-        ))}
-      </>
-    );
-  } else {
-    return (
-      <>
-        {(rowData?.groupedJobs ?? []).map((group, ind) => {
+  let groupNames = groups.map((group) => group.name).concat("other");
+  const { expandedGroups, setExpandedGroups, groupNameMapping } =
+    useContext(GroupingContext);
+  return (
+    <>
+      {names.map((name) => {
+        if (groupNames.includes(name)) {
+          let numClassified = 0;
+          for (const jobName of groupNameMapping.get(name) ?? []) {
+            if (rowData.nameToJobs.get(jobName)?.failureAnnotation != null) {
+              numClassified++;
+            }
+          }
+
+          const failedJobs = groupNameMapping.get(name)?.filter((jobName) => {
+            const job = rowData.nameToJobs.get(jobName);
+            return job && isFailedJob(job);
+          });
+
           return (
             <HudGroupedCell
               sha={rowData.sha}
-              key={ind}
-              groupData={group}
-              isExpanded={expandedGroups.has(group.groupName)}
+              key={name}
+              groupName={name}
+              repoOwner={params.repoOwner}
+              repoName={params.repoName}
+              jobs={
+                groupNameMapping
+                  .get(name)
+                  ?.map((jobName) => {
+                    return rowData.nameToJobs.get(jobName);
+                  })
+                  .filter((job) => job != null && job != undefined) as JobData[]
+              }
+              isExpanded={expandedGroups.has(name)}
+              toggleExpanded={() => {
+                if (expandedGroups.has(name)) {
+                  expandedGroups.delete(name);
+                } else {
+                  expandedGroups.add(name);
+                }
+                setExpandedGroups(new Set(expandedGroups));
+              }}
+              isClassified={
+                numClassified != 0 && numClassified == failedJobs?.length
+              }
+              unstableIssues={unstableIssues}
+              rowData={rowData}
             />
           );
-        })}
-      </>
-    );
-  }
+        } else {
+          const job = rowData.nameToJobs.get(name) ?? {
+            name: name,
+            conclusion: undefined,
+          };
+
+          return (
+            <JobCell
+              sha={rowData.sha}
+              key={name}
+              job={job}
+              unstableIssues={unstableIssues}
+              isAutorevertSignal={isJobAutorevertSignal(job, rowData)}
+              repoOwner={repoOwner}
+              repoName={repoName}
+            />
+          );
+        }
+      })}
+    </>
+  );
 }
 
 function HudTableBody({
   shaGrid,
-  expandedGroups = new Set(),
-  useGrouping,
+  names,
+  unstableIssues,
+  repoOwner,
+  repoName,
 }: {
   shaGrid: RowData[];
-  expandedGroups?: Set<string>;
-  useGrouping: boolean;
+  names: string[];
+  unstableIssues: IssueData[];
+  repoOwner?: string;
+  repoName?: string;
 }) {
   return (
     <tbody>
@@ -149,140 +329,138 @@ function HudTableBody({
         <HudRow
           key={row.sha}
           rowData={row}
-          expandedGroups={expandedGroups}
-          useGrouping={useGrouping}
+          names={names}
+          unstableIssues={unstableIssues}
+          repoOwner={repoOwner}
+          repoName={repoName}
         />
       ))}
     </tbody>
   );
 }
 
-function GroupFilterableHudTable({
-  params,
-  groupNameMapping,
-  children,
-  names,
-  groupNames,
-  expandedGroups,
-  setExpandedGroups,
-  useGrouping,
-  setUseGrouping,
-}: {
-  params: HudParams;
-  groupNameMapping: Map<string, string[]>;
-  children: React.ReactNode;
-  names: string[];
-  groupNames: string[];
+function FiltersAndSettings({}: {}) {
+  const router = useRouter();
+  const params = packHudParams(router.query);
+  const { jobFilter, handleSubmit } = useTableFilter(params);
+  const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
+  const [hideGreenColumns, setHideGreenColumns] =
+    useHideGreenColumnsPreference();
+  const [hideNonViableStrict, setHideNonViableStrict] =
+    useHideNonViableStrictPreference();
+  const [useGrouping, setUseGrouping] = useGroupingPreference(
+    params.nameFilter
+  );
+
+  return (
+    <div className={styles.hudControlsRow}>
+      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
+      <SettingsPanel
+        settingGroups={{
+          // You need to specify both checkBoxName and key for each setting.
+          // `checkbox name` is used by CheckBoxSelector while `key` is
+          // used to uniquely identify the component in the settings panel.
+          // As far as I can CheckBoxSelector cannot read or write `key` but
+          // React requires us to set key since it's a list element, so we
+          // end up with some unfortunate duplication.
+          "View Options": [
+            <CheckBoxSelector
+              value={useGrouping}
+              setValue={(value) => setUseGrouping(value)}
+              checkBoxName="groupView"
+              key="groupView"
+              labelText={"Use grouped view"}
+            />,
+            <MonsterFailuresCheckbox key="monsterFailures" />,
+          ],
+          "Filter Options": [
+            <CheckBoxSelector
+              value={hideUnstable}
+              setValue={(value) => setHideUnstable(value)}
+              checkBoxName="hideUnstable"
+              key="hideUnstable"
+              labelText={"Hide unstable jobs"}
+            />,
+            <CheckBoxSelector
+              value={hideGreenColumns}
+              setValue={(value) => setHideGreenColumns(value)}
+              checkBoxName="hideGreenColumns"
+              key="hideGreenColumns"
+              labelText={"Hide green columns"}
+            />,
+            <CheckBoxSelector
+              value={hideNonViableStrict}
+              setValue={(value) => setHideNonViableStrict(value)}
+              checkBoxName="hideNonViableStrict"
+              key="hideNonViableStrict"
+              labelText={"Hide non-viable-strict jobs"}
+            />,
+            <CheckBoxSelector
+              value={mergeEphemeralLF}
+              setValue={setMergeEphemeralLF}
+              checkBoxName="mergeEphemeralLF"
+              key="mergeEphemeralLF"
+              labelText={"Condense LF, ephemeral jobs"}
+            />,
+          ],
+        }}
+        isOpen={settingsPanelOpen}
+        onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
+      />
+    </div>
+  );
+}
+
+export const MonsterFailuresContext = createContext<
+  [boolean, ((_value: boolean) => void) | undefined]
+>([false, undefined]);
+
+export const GroupingContext = createContext<{
+  groupNameMapping: Map<string, Array<string>>;
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
-  useGrouping: boolean;
-  setUseGrouping: any;
+}>({
+  groupNameMapping: new Map(),
+  expandedGroups: new Set(),
+  setExpandedGroups: () => {},
+});
+
+export function MonsterFailuresProvider({
+  children,
+}: {
+  children: React.ReactNode;
 }) {
-  const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params);
-  const headerNames = useGrouping ? groupNames : names;
+  const [monsterFailures, setMonsterFailures] = useMonsterFailuresPreference();
   return (
-    <>
-      <JobFilterInput
-        currentFilter={jobFilter}
-        handleSubmit={handleSubmit}
-        handleInput={handleInput}
-        handleFocus={() => {
-          setUseGrouping(false);
-        }}
-      />
-      <GroupViewCheckBox
-        useGrouping={useGrouping}
-        setUseGrouping={setUseGrouping}
-      />
-      <table className={styles.hudTable}>
-        <GroupHudTableColumns
-          filter={normalizedJobFilter}
-          names={headerNames}
-          groupNameMapping={groupNameMapping}
-        />
-        <GroupHudTableHeader
-          filter={normalizedJobFilter}
-          names={headerNames}
-          expandedGroups={expandedGroups}
-          setExpandedGroups={setExpandedGroups}
-          groupNameMapping={groupNameMapping}
-        />
-        {children}
-      </table>
-    </>
+    <MonsterFailuresContext.Provider
+      value={[monsterFailures, setMonsterFailures]}
+    >
+      {children}
+    </MonsterFailuresContext.Provider>
   );
 }
 
-function GroupViewCheckBox({
-  useGrouping,
-  setUseGrouping,
-}: {
-  useGrouping: boolean;
-  setUseGrouping: any;
-}) {
-  return (
-    <>
-      <input
-        type="checkbox"
-        name="groupView"
-        checked={useGrouping}
-        onChange={() => {
-          setUseGrouping(!useGrouping);
-        }}
-      />
-      <label htmlFor="groupView"> Use grouped view</label>
-      <br />
-    </>
+export function MonsterFailuresCheckbox() {
+  const [monsterFailures, setMonsterFailures] = useContext(
+    MonsterFailuresContext
   );
-}
-
-function HudTable({ params }: { params: HudParams }) {
-  return <GroupedView params={params} />;
-}
-
-function ParamSelector({
-  value,
-  handleSubmit,
-}: {
-  value: string;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-}) {
-  const [isInput, setIsInput] = useState(false);
-  if (isInput) {
-    return (
-      <form
-        className={styles.branchForm}
-        onSubmit={handleSubmit}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setIsInput(false);
-          }
-        }}
-      >
-        <input autoFocus className={styles.branchFormInput} type="text"></input>
-      </form>
-    );
-  }
-
   return (
-    <code style={{ cursor: "pointer" }} onClick={() => setIsInput(true)}>
-      {value}
-    </code>
+    <CheckBoxSelector
+      value={monsterFailures}
+      setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
+      checkBoxName="monsterFailures"
+      labelText={"Monsterize failures"}
+    />
   );
 }
 
 function HudHeader({ params }: { params: HudParams }) {
-  function handleBranchSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const branch = e.target[0].value;
+  function handleBranchSubmit(branch: string) {
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
-  function handleRepoSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // @ts-ignore
-    const repoOwnerAndName = e.target[0].value;
+  function handleRepoSubmit(repoOwnerAndName: string) {
     const split = repoOwnerAndName.split("/");
     window.location.href = formatHudUrlForRoute("hud", {
       ...params,
@@ -303,14 +481,23 @@ function HudHeader({ params }: { params: HudParams }) {
   );
 }
 
-export const PinnedTooltipContext = createContext<[null | string, any]>([
+export const PinnedTooltipContext = createContext<[Highlight, any]>([
+  { sha: undefined, name: undefined },
   null,
-  null,
+]);
+
+export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
+  false,
+  (_) => {},
 ]);
 
 export default function Hud() {
   const router = useRouter();
-  const params = packHudParams(router.query);
+  const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  const params = packHudParams({
+    ...router.query,
+    mergeEphemeralLF: mergeEphemeralLF,
+  });
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -319,93 +506,260 @@ export default function Hud() {
   // This state needs to be set up at this level because we want to capture all
   // clicks.
 
-  const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
+  const [pinnedTooltip, setPinnedTooltip] = useState<Highlight>({
+    sha: undefined,
+    name: undefined,
+  });
+
   function handleClick() {
-    setPinnedTooltip(null);
+    setPinnedTooltip({ sha: undefined, name: undefined });
   }
-  useEffect(() => {
-    document.addEventListener("keydown", (e) => {
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (e.code === "Escape") {
-        setPinnedTooltip(null);
+        setPinnedTooltip({ sha: undefined, name: undefined });
       }
-    });
+    },
+    [setPinnedTooltip]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
-  const title =
+  const titleRepoInfo =
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
   return (
     <>
       <Head>
-        <title>PyTorch CI HUD {title}</title>
+        <title>{`HUD ${titleRepoInfo}`}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
-        {params.branch !== undefined && (
-          <div onClick={handleClick}>
-            <HudHeader params={params} />
-            <div>This page automatically updates.</div>
-            <HudTable params={params} />
-            <PageSelector params={params} baseUrl="hud" />
-          </div>
-        )}
+        <MonsterFailuresProvider>
+          <MergeLFContext.Provider
+            value={[mergeEphemeralLF, setMergeEphemeralLF]}
+          >
+            {params.branch !== undefined && (
+              <div onClick={handleClick}>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <HudHeader params={params} />
+                  <CopyPermanentLink
+                    params={params}
+                    style={{ marginLeft: "10px" }}
+                  />
+                </div>
+                <div style={{ position: "relative", clear: "both" }}>
+                  <FiltersAndSettings />
+                  <GroupedHudTable params={params} />
+                </div>
+                <PageSelector params={params} baseUrl="hud" />
+                <br />
+                <div>
+                  <em>This page automatically updates.</em>
+                </div>
+              </div>
+            )}
+          </MergeLFContext.Provider>
+        </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
   );
 }
 
-function GroupedView({ params }: { params: HudParams }) {
-  const data = useHudData(params);
+function useLatestCommitSha(params: HudParams) {
+  const { data } = useHudData({ ...params, page: 1, per_page: 1 });
   if (data === undefined) {
-    return <div>Loading...</div>;
+    return null;
+  }
+  if (data.length === 0) {
+    return null; // Nothing worth copying
+  }
+  if (data[0].sha === undefined) {
+    return null; // No sha to copy. This should never happen (TM)
   }
 
-  return <GroupedHudTable params={params} data={data} />;
+  return data[0].sha;
 }
 
-function GroupedHudTable({
+function CopyPermanentLink({
   params,
-  data,
+  style,
 }: {
   params: HudParams;
-  data: HudData;
+  style?: React.CSSProperties;
 }) {
-  const { shaGrid, groupNameMapping } = getGroupingData(
-    data.shaGrid,
-    data.jobNames
+  // Branch and tag pointers can change over time.
+  // For a permanent, we take the latest immutable commit as our reference
+  const latestCommitSha = useLatestCommitSha(params);
+  if (latestCommitSha === null) {
+    return <></>;
+  }
+  let permaParams = { ...params, branch: latestCommitSha };
+
+  const domain = window.location.origin;
+  const path = formatHudUrlForRoute("hud", permaParams);
+  const url = `${domain}${path}`;
+  return <CopyLink textToCopy={url} compressed={false} style={style} />;
+}
+
+function GroupedHudTable({ params }: { params: HudParams }) {
+  const router = useRouter();
+  const { data, isLoading, error } = useHudData(params);
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
   );
+  const jobNames = new Set(
+    data?.flatMap((row) => Array.from(row.nameToJobs.keys()))
+  );
+
+  const [hideUnstable] = usePreference("hideUnstable");
+  const [hideGreenColumns] = useHideGreenColumnsPreference();
+  const [hideNonViableStrict] = useHideNonViableStrictPreference();
+  const [useGrouping] = useGroupingPreference(params.nameFilter);
+
+  const {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+    jobsViableStrictBlocking,
+    groupsViableStrictBlocking,
+  } = getGroupingData(
+    data ?? [],
+    jobNames,
+    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+    unstableIssuesData ?? [],
+    params.repoOwner,
+    params.repoName
+  );
+
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
-  const [useGrouping, setUseGrouping] = useGroupingPreference(
-    params.nameFilter != null && params.nameFilter !== ""
-  );
-  const groupNames = Array.from(groupNameMapping.keys());
-  let names = groupNames;
+  const { jobFilter } = useTableFilter(params);
 
-  expandedGroups.forEach((group) => {
-    const nameInd = names.indexOf(group);
-    names = [
-      ...names.slice(0, nameInd + 1),
-      ...(groupNameMapping.get(group) ?? []),
-      ...names.slice(nameInd + 1),
-    ];
+  useEffect(() => {
+    // Only run on component mount, this assumes that the user's preference is
+    // the value in local storage
+    trackRouteEvent(router, "groupingPreference", { useGrouping: useGrouping });
+  }, [router, useGrouping]);
+
+  const groupNames = Array.from(groupNameMapping.keys());
+  let names = sortGroupNamesForHUD(groupNames);
+
+  if (useGrouping) {
+    expandedGroups.forEach((group) => {
+      const nameInd = names.indexOf(group);
+      names = [
+        ...names.slice(0, nameInd + 1),
+        ...(groupNameMapping.get(group) ?? []),
+        ...names.slice(nameInd + 1),
+      ];
+    });
+    if (hideUnstable) {
+      names = names.filter(
+        (name) => !isUnstableGroup(name, unstableIssuesData ?? [])
+      );
+    }
+  } else {
+    names = [...jobNames];
+    groups.forEach((group) => {
+      if (
+        groupNames.includes(group.name) &&
+        (group.persistent ||
+          (isUnstableGroup(group.name, unstableIssuesData ?? []) &&
+            hideUnstable))
+      ) {
+        // Add group name, take out all the jobs that belong to that group
+        // unless the group is expanded
+        names.push(group.name);
+        names = names.filter(
+          (name) => !groupNameMapping.get(group.name)?.includes(name)
+        );
+        if (expandedGroups.has(group.name)) {
+          names = names.concat(groupNameMapping.get(group.name) ?? []);
+        }
+      }
+    });
+  }
+
+  names = names.filter((name) => {
+    // Filter by job filter text first
+    if (
+      !passesGroupFilter(
+        jobFilter,
+        name,
+        groupNameMapping,
+        params.useRegexFilter || false
+      )
+    ) {
+      return false;
+    }
+
+    // If hiding non-viable-strict, only show jobs/groups that are viable/strict blocking
+    if (hideNonViableStrict) {
+      if (
+        !groupsViableStrictBlocking.has(name) &&
+        !jobsViableStrictBlocking.has(name)
+      ) {
+        return false;
+      }
+    }
+
+    // If hiding green columns, filter out names that don't have any failed jobs
+    if (hideGreenColumns) {
+      // For group names, check if any job in the group has failures
+      if (groupNameMapping.has(name)) {
+        return groupsWithFailures.has(name);
+      }
+      // For individual job names, check if this job has failures
+      else {
+        return jobsWithFailures.has(name);
+      }
+    }
+
+    return true;
   });
 
+  if (isLoading) {
+    return <LoadingPage />;
+  }
+  if (error) {
+    return (
+      <div>
+        Error loading HUD data: {error.message} {error.status} {error.info}
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return <div>No data available? Please file an issue</div>;
+  }
+
   return (
-    <GroupFilterableHudTable
-      params={params}
-      groupNameMapping={groupNameMapping}
-      names={data.jobNames}
-      groupNames={names}
-      expandedGroups={expandedGroups}
-      setExpandedGroups={setExpandedGroups}
-      useGrouping={useGrouping}
-      setUseGrouping={setUseGrouping}
+    <GroupingContext.Provider
+      value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
     >
-      <HudTableBody
-        shaGrid={shaGrid}
-        expandedGroups={expandedGroups}
-        useGrouping={useGrouping}
-      />
-    </GroupFilterableHudTable>
+      <table className={styles.hudTable} style={{ overflow: "auto" }}>
+        <GroupHudTableColumns names={names} />
+        <GroupHudTableHeader names={names} />
+        <HudTableBody
+          shaGrid={shaGrid}
+          names={names}
+          unstableIssues={unstableIssuesData ?? []}
+          repoOwner={params.repoOwner}
+          repoName={params.repoName}
+        />
+      </table>
+    </GroupingContext.Provider>
   );
 }

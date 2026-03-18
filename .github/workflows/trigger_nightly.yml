@@ -1,0 +1,148 @@
+name: Trigger nightly builds for domains
+
+on:
+  schedule:
+    # every night at 11:30AM UTC, 7:30AM EST, 4:30AM PST
+    - cron: 30 11 * * *
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "What domain to trigger"
+        required: false
+        type: choice
+        default: all
+        options:
+          - vision
+          - audio
+          - torchrec
+          - tensorrt
+          - data
+          - fbgemm
+          - mslk
+          - executorch
+          - torchtune
+          - torchcodec
+          - torchvision-extra-decoders
+          - torchtitan
+          - torchcomms
+          - torchforge
+          - all
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    environment: trigger-nightly
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Trigger nightly audio build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/audio
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: audio
+      - name: Trigger nightly data build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'data' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/data
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: data
+      - name: Trigger nightly vision build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/vision
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: vision
+      - name: Trigger nightly torchrec build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchrec' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchrec
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchrec
+      - name: Trigger nightly tensorrt build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'tensorrt' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/tensorrt
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: tensorrt
+      - name: Trigger nightly fbgemm build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'fbgemm' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/fbgemm
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: fbgemm
+      - name: Trigger nightly mslk build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'mslk' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/mslk
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: mslk
+      - name: Trigger nightly executorch build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'executorch' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: viable/strict
+          repository: pytorch/executorch
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: executorch
+      - name: Trigger nightly torchtune build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchtune' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchtune
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchtune
+      - name: Trigger nightly torchcodec build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchcodec' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/torchcodec
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchcodec
+      - name: Trigger nightly torchvision-extra-decoders build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchvision-extra-decoders' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/torchvision-extra-decoders
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchvision-extra-decoders
+      - name: Trigger nightly torchtitan
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchtitan' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchtitan
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchtitan
+      - name: Trigger nightly torchcomms
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchcomms' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/torchcomms
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchcomms
+      - name: Trigger nightly torchforge
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchforge' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/torchforge
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchforge

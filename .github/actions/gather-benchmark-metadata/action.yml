@@ -1,0 +1,69 @@
+name: Gather benchmark metadata
+
+description: Gather the metadata about the benchmark run
+
+inputs:
+  github-token:
+    default: ''
+  schema-version:
+    default: 'v3'
+  venv:
+    description: 'Path to virtual environment to activate'
+    required: false
+    default: ''
+
+outputs:
+  benchmark-metadata:
+    description: The benchmark metadata in JSON format
+    value: ${{ steps.gather-metadata.outputs.metadata }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check that GITHUB_TOKEN is defined
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ -z "${GITHUB_TOKEN}" ]]; then
+          echo "Missing github-token input"
+          exit 1
+        fi
+
+    - name: Get workflow job id
+      if: ${{ inputs.github-token != '' }}
+      id: get-job-id
+      uses: pytorch/test-infra/.github/actions/get-workflow-job-id@main
+      with:
+        github-token: ${{ inputs.github-token }}
+
+    - name: Gather the metadata
+      id: gather-metadata
+      shell: bash
+      env:
+        SCHEMA_VERSION: ${{ inputs.schema-version }}
+        REPO: ${{ github.repository }}
+        HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref }}
+        HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        WORKFLOW_RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        JOB_ID: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-id || '0' }}
+        JOB_NAME: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-name || '' }}
+      run: |
+        set -eux
+
+        if [[ -n "${{ inputs.venv }}" ]]; then
+          source "${{ inputs.venv }}"
+        fi
+
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_metadata.py" \
+          --schema-version "${SCHEMA_VERSION}" \
+          --repo "${REPO}" \
+          --head-branch "${HEAD_BRANCH}" \
+          --head-sha "${HEAD_SHA}" \
+          --workflow-id "${WORKFLOW_RUN_ID}" \
+          --run-attempt "${RUN_ATTEMPT}" \
+          --job-id "${JOB_ID}" \
+          --job-name "${JOB_NAME}"

@@ -1,0 +1,101 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateOrChangeOnlyWithBoundary",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:AttachRolePolicy",
+        "iam:PutRolePermissionsBoundary",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:role/${role_namespace}/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PermissionsBoundary": "${permission_boundary}"
+        }
+      }
+    },
+    {
+      "Sid": "RoleInNamespace",
+      "Effect": "Allow",
+      "Action": [
+        "iam:TagRole",
+        "iam:GetRolePolicy",
+        "iam:GetRole",
+        "iam:DeleteRole",
+        "iam:PassRole",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:role/${role_namespace}/*"
+    },
+    {
+      "Sid": "PolicyInNamespace",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:policy/${policy_namespace}/*"
+    },
+    {
+      "Sid": "InstanceProfileInNamespace",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:GetInstanceProfile"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:instance-profile/${instance_profile_namespace}/*"
+    },
+    {
+      "Sid": "IamListActions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListInstanceProfilesForRole",
+        "iam:ListPolicies",
+        "iam:ListPolicyVersions",
+        "iam:ListEntitiesForPolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NoBoundaryPolicyEdit",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:policy/${boundary_namespace}/*"
+    },
+    {
+      "Sid": "Services",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*",
+        "ec2:*",
+        "events:*",
+        "logs:*",
+        "lambda:*",
+        "sqs:*",
+        "ssm:*",
+        "apigateway:*",
+        "resource-groups:*",
+        "kms:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "build-and-test",
+  "steps": [
+    {
+      "name": "build",
+      "script": "./demo_script/simple/build_demo.sh",
+      "type": "cpu-44"
+    },
+    {
+      "name": "test",
+      "script": "./demo_script/simple/test_demo.sh",
+      "type": "gpu-l4"
+    }
+  ]
+}

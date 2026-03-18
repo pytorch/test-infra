@@ -1,0 +1,43 @@
+name: Validate PyPI Wheel Binary Size
+on:
+  pull_request:
+    paths:
+      - .github/workflows/validate-pypi-wheel-binary-size.yml
+  workflow_dispatch:
+    inputs:
+      channel:
+          description: "Channel to use (nightly, test)"
+          required: true
+          type: choice
+          default: test
+          options:
+            - nightly
+            - test
+  schedule:
+    # At 2:30 pm UTC (7:30 am PDT)
+    - cron: "30 14 * * *"
+
+jobs:
+  pypi-binary-size-validation:
+    runs-on: ubuntu-latest
+    env:
+      CHANNEL: ${{ inputs.channel || 'nightly' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+      - name: Install requirements
+        run: |
+          pip3 install -r tools/binary_size_validation/requirements.txt
+      - name: Run validation
+        run: |
+          # shellcheck disable=SC2086
+          CUDA_VERSION=$(python3 tools/scripts/get_stable_cuda_version.py --channel ${CHANNEL})
+          # shellcheck disable=SC2086
+          CUDA_VERSION_NODOT=$(echo ${CUDA_VERSION} | tr -d '.')
+
+          # shellcheck disable=SC2086
+          python tools/binary_size_validation/binary_size_validation.py \
+              --url https://download.pytorch.org/whl/${CHANNEL}/cu${CUDA_VERSION_NODOT}/torch/ \
+              --include "manylinux" --only-latest-version --threshold 850

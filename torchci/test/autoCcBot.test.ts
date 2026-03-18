@@ -1,9 +1,9 @@
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
-import * as utils from "./utils";
+import { Probot } from "probot";
 import myProbotApp from "../lib/bot/autoCcBot";
 import { nockTracker } from "./common";
-import { Probot } from "probot";
-
+import * as utils from "./utils";
 nock.disableNetConnect();
 
 describe("auto-cc-bot", () => {
@@ -13,6 +13,17 @@ describe("auto-cc-bot", () => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
   });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  function mockIsPytorchbotSupportedOrg(bool: boolean) {
+    return jest
+      .spyOn(botUtils, "isPyTorchbotSupportedOrg")
+      .mockReturnValue(bool);
+  }
 
   test("no-op when tracker is missing", async () => {
     nock("https://api.github.com")
@@ -36,7 +47,8 @@ describe("auto-cc-bot", () => {
     await probot.receive({ name: "issues", payload, id: "2" });
   });
 
-  test("add a cc when issue is labeled", async () => {
+  test("add a cc when issue is labeled(skipping self)", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -44,7 +56,7 @@ describe("auto-cc-bot", () => {
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @ezyang @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled"); // testlabel
@@ -55,7 +67,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @ezyang",
+            body: "Arf arf\n\ncc @malfet",
           });
           return true;
         }
@@ -67,6 +79,7 @@ Some header text
     scope.done();
   });
   test("add a cc to issue with empty body", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -74,7 +87,7 @@ Some header text
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled"); // testlabel
@@ -85,7 +98,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "cc @ezyang",
+            body: "cc @malfet",
           });
           return true;
         }
@@ -98,6 +111,7 @@ Some header text
   });
 
   test("add a cc when PR is labeled", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -115,9 +129,8 @@ Some header text
     payload["pull_request"]["body"] = "Arf arf";
 
     const scope = nock("https://api.github.com")
-      .patch("/repos/seemethere/test-repo/pulls/", (body: any) => {
+      .patch("/repos/seemethere/test-repo/pulls/20", (body: any) => {
         expect(body).toMatchObject({
-          issue_number: 20,
           body: "Arf arf\n\ncc @ezyang",
         });
         return true;
@@ -130,6 +143,7 @@ Some header text
   });
 
   test("update an existing cc when issue is labeled", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -137,7 +151,7 @@ Some header text
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled");
@@ -148,7 +162,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @ezyang @moo @foo/bar @mar\nxxxx",
+            body: "Arf arf\n\ncc @malfet @moo @foo/bar @mar\nxxxx",
           });
           return true;
         }
@@ -161,6 +175,7 @@ Some header text
   });
 
   test("mkldnn update bug", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });

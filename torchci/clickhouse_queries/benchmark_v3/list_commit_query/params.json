@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "benchmarkNames": "Array<String>",
+    "branches": "Array<String>",
+    "models": "Array(String)",
+    "backends": "Array(String)",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "arch": "String",
+    "dtype": "String",
+    "device": "String",
+    "mode": "String"
+  },
+  "tests": []
+}

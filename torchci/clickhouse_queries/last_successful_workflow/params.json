@@ -1,0 +1,8 @@
+{
+  "params": {
+    "workflowName": "String"
+  },
+  "tests": [
+    {"workflowName": "docker-builds"}
+  ]
+}

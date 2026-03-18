@@ -1,0 +1,317 @@
+From d9c63bd71de07bfff508981dcf4dfbfa3f0c8fd3 Mon Sep 17 00:00:00 2001
+From: Nikita Shulga <nshulga@meta.com>
+Date: Tue, 10 Jan 2023 17:52:43 -0800
+Subject: [PATCH 1/2] Max tokens checks
+
+---
+ .../clang-tidy/misc/CMakeLists.txt            |  1 +
+ .../clang-tidy/misc/MaxTokensCheck.cpp        | 66 +++++++++++++++++++
+ .../clang-tidy/misc/MaxTokensCheck.h          | 37 +++++++++++
+ .../clang-tidy/misc/MiscTidyModule.cpp        |  3 +
+ clang-tools-extra/docs/ReleaseNotes.rst       |  5 ++
+ .../docs/clang-tidy/checks/list.rst           |  1 +
+ .../clang-tidy/checks/misc-max-tokens.rst     |  6 ++
+ .../clang-tidy/checkers/misc-max-tokens.cpp   | 20 ++++++
+ clang/include/clang/Lex/PPCallbacks.h         | 22 +++++++
+ clang/lib/Parse/ParsePragma.cpp               |  5 ++
+ clang/lib/Parse/Parser.cpp                    | 10 +++
+ 11 files changed, 176 insertions(+)
+ create mode 100644 clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
+ create mode 100644 clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
+ create mode 100644 clang-tools-extra/docs/clang-tidy/checks/misc-max-tokens.rst
+ create mode 100644 clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp
+
+diff --git a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
+index de76b4b00..6b3084d5d 100644
+--- a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
++++ b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
+@@ -31,6 +31,7 @@ add_clang_library(clangTidyMiscModule
+   ConstCorrectnessCheck.cpp
+   DefinitionsInHeadersCheck.cpp
+   ConfusableIdentifierCheck.cpp
++  MaxTokensCheck.cpp
+   MiscTidyModule.cpp
+   MisleadingBidirectional.cpp
+   MisleadingIdentifier.cpp
+diff --git a/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
+new file mode 100644
+index 000000000..1c7e5a18b
+--- /dev/null
++++ b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
+@@ -0,0 +1,66 @@
++//===--- MaxTokensCheck.cpp - clang-tidy ----------------------------------===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#include "MaxTokensCheck.h"
++#include "clang/AST/ASTContext.h"
++#include "clang/ASTMatchers/ASTMatchFinder.h"
++#include "clang/Lex/PPCallbacks.h"
++#include "clang/Lex/Preprocessor.h"
++#include "llvm/Support/FormatVariadic.h"
++
++using namespace clang::ast_matchers;
++
++namespace clang {
++namespace tidy {
++namespace misc {
++namespace {
++class MaxTokensPPCallbacks : public PPCallbacks {
++public:
++  MaxTokensPPCallbacks(MaxTokensCheck *Check) : Check(Check) {}
++
++  void diag(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount, bool SuggestFix) {
++    if (MaxTokenCount != 0 && TokenCount > MaxTokenCount && Loc.isValid()) {
++      std::string Msg = llvm::formatv(
++          "Number of tokens ({0}) exceeds the specified maximum ({1})",
++          TokenCount, MaxTokenCount);
++      auto BaseDiag = Check->diag(Loc, Msg);
++      if (SuggestFix) {
++        BaseDiag << FixItHint::CreateReplacement(Loc, std::to_string(TokenCount));
++      }
++    }
++  }
++
++  void PragmaMaxTokensHere(SourceLocation Loc, unsigned CurrTokenCount,
++                           unsigned MaxTokenCount) override {
++    diag(Loc, CurrTokenCount, MaxTokenCount, true);
++  }
++
++  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount,
++                            unsigned MaxTokenCount, bool IsFromPragma) override {
++    MaxTokenCount = MaxTokenCount == 0 ? Check->FMaxTokens : MaxTokenCount;
++    diag(Loc, TokenCount, MaxTokenCount, IsFromPragma);
++  }
++
++private:
++  MaxTokensCheck *Check;
++};
++} // namespace
++
++void MaxTokensCheck::registerPPCallbacks(const SourceManager &SM,
++                                         Preprocessor *PP,
++                                         Preprocessor *ModuleExpanderPP) {
++  PP->addPPCallbacks(std::make_unique<MaxTokensPPCallbacks>(this));
++}
++
++void MaxTokensCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
++  Options.store(Opts, "FMaxTokens", FMaxTokens);
++}
++
++} // namespace misc
++} // namespace tidy
++} // namespace clang
+diff --git a/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
+new file mode 100644
+index 000000000..5e73923ad
+--- /dev/null
++++ b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
+@@ -0,0 +1,37 @@
++//===--- MaxTokensCheck.h - clang-tidy --------------------------*- C++ -*-===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_MAXTOKENSCHECK_H
++#define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_MAXTOKENSCHECK_H
++
++#include "../ClangTidyCheck.h"
++
++namespace clang {
++namespace tidy {
++namespace misc {
++
++/// Implements the -Wmax-tokens clang flag as a check
++///
++/// For the user-facing documentation see:
++/// http://clang.llvm.org/extra/clang-tidy/checks/misc-max-tokens.html
++class MaxTokensCheck : public ClangTidyCheck {
++public:
++  MaxTokensCheck(StringRef Name, ClangTidyContext *Context)
++      : ClangTidyCheck(Name, Context),
++        FMaxTokens(Options.get("FMaxTokens", 0)) {}
++  const unsigned FMaxTokens;
++  void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
++                           Preprocessor *ModuleExpanderPP) override;
++  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
++};
++
++} // namespace misc
++} // namespace tidy
++} // namespace clang
++
++#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_MAXTOKENSCHECK_H
+diff --git a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
+index 127889230..c24aa8470 100644
+--- a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
++++ b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
+@@ -12,6 +12,7 @@
+ #include "ConfusableIdentifierCheck.h"
+ #include "ConstCorrectnessCheck.h"
+ #include "DefinitionsInHeadersCheck.h"
++#include "MaxTokensCheck.h"
+ #include "MisleadingBidirectional.h"
+ #include "MisleadingIdentifier.h"
+ #include "MisplacedConstCheck.h"
+@@ -41,6 +42,8 @@ public:
+         "misc-const-correctness");
+     CheckFactories.registerCheck<DefinitionsInHeadersCheck>(
+         "misc-definitions-in-headers");
++    CheckFactories.registerCheck<MaxTokensCheck>(
++        "misc-max-tokens");
+     CheckFactories.registerCheck<MisleadingBidirectionalCheck>(
+         "misc-misleading-bidirectional");
+     CheckFactories.registerCheck<MisleadingIdentifierCheck>(
+diff --git a/clang-tools-extra/docs/ReleaseNotes.rst b/clang-tools-extra/docs/ReleaseNotes.rst
+index 182052785..43eb51ab4 100644
+--- a/clang-tools-extra/docs/ReleaseNotes.rst
++++ b/clang-tools-extra/docs/ReleaseNotes.rst
+@@ -158,6 +158,11 @@ New checks
+ 
+   Detects confusable Unicode identifiers.
+ 
++- New :doc:`misc-max-tokens
++  <clang-tidy/checks/misc-max-tokens>` check.
++
++  FIXME: add release notes.
++
+ - New :doc:`bugprone-assignment-in-if-condition
+   <clang-tidy/checks/bugprone/assignment-in-if-condition>` check.
+ 
+diff --git a/clang-tools-extra/docs/clang-tidy/checks/list.rst b/clang-tools-extra/docs/clang-tidy/checks/list.rst
+index ab6bdc4fe..d8f69345e 100644
+--- a/clang-tools-extra/docs/clang-tidy/checks/list.rst
++++ b/clang-tools-extra/docs/clang-tidy/checks/list.rst
+@@ -241,6 +241,7 @@ Clang-Tidy Checks
+    `misc-confusable-identifiers <misc/confusable-identifiers.html>`_,
+    `misc-const-correctness <misc/const-correctness.html>`_, "Yes"
+    `misc-definitions-in-headers <misc/definitions-in-headers.html>`_, "Yes"
++   `misc-max-tokens <misc-max-tokens.html>`_, "Yes"
+    `misc-misleading-bidirectional <misc/misleading-bidirectional.html>`_,
+    `misc-misleading-identifier <misc/misleading-identifier.html>`_,
+    `misc-misplaced-const <misc/misplaced-const.html>`_,
+diff --git a/clang-tools-extra/docs/clang-tidy/checks/misc-max-tokens.rst b/clang-tools-extra/docs/clang-tidy/checks/misc-max-tokens.rst
+new file mode 100644
+index 000000000..e6995cd87
+--- /dev/null
++++ b/clang-tools-extra/docs/clang-tidy/checks/misc-max-tokens.rst
+@@ -0,0 +1,6 @@
++.. title:: clang-tidy - misc-max-tokens
++
++misc-max-tokens
++===============
++
++FIXME: Describe what patterns does the check detect and why. Give examples.
+diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp
+new file mode 100644
+index 000000000..661f168ac
+--- /dev/null
++++ b/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp
+@@ -0,0 +1,20 @@
++// RUN: %check_clang_tidy %s misc-max-tokens %t
++// RUN: %check_clang_tidy -check-suffix=NOT-HIT-MAX-TOKEN %s misc-max-tokens %t -- -config="{CheckOptions: [{key: misc-max-tokens.FMaxTokens, value: 10}]}"
++// RUN: %check_clang_tidy -check-suffix=MAX-TOKEN %s misc-max-tokens %t -- -config="{CheckOptions: [{key: misc-max-tokens.FMaxTokens, value: 1}]}"
++// RUN: %check_clang_tidy -check-suffix=MAX-TOKEN-OVERRIDE %s misc-max-tokens %t -- -- -DMAX_TOKEN_OVERRIDE
++
++int x, y, z;
++
++#pragma clang max_tokens_here 1
++// CHECK-MESSAGES: :[[@LINE-1]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-NOT-HIT-MAX-TOKEN: :[[@LINE-2]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-MAX-TOKEN: :[[@LINE-3]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-MAX-TOKEN-OVERRIDE: :[[@LINE-4]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++
++#pragma clang max_tokens_here 10
++
++#ifdef MAX_TOKEN_OVERRIDE
++#pragma clang max_tokens_total 3
++// CHECK-MESSAGES-MAX-TOKEN-OVERRIDE: :[[@LINE-1]]:32: warning: Number of tokens (8) exceeds the specified maximum (3)
++#endif
++// CHECK-MESSAGES-MAX-TOKEN: :[[@LINE]]:3: warning: Number of tokens (8) exceeds the specified maximum (1)
+diff --git a/clang/include/clang/Lex/PPCallbacks.h b/clang/include/clang/Lex/PPCallbacks.h
+index 045df8711..dfd5d0464 100644
+--- a/clang/include/clang/Lex/PPCallbacks.h
++++ b/clang/include/clang/Lex/PPCallbacks.h
+@@ -296,6 +296,18 @@ public:
+   /// is read.
+   virtual void PragmaAssumeNonNullEnd(SourceLocation Loc) {}
+ 
++  /// Callback invoked when a \#pragma clang max_tokens_here directive is processed.
++  virtual void PragmaMaxTokensHere(SourceLocation Loc,
++                                   unsigned CurrTokenCount,
++                                   unsigned MaxTokenCount) {}
++
++  /// Callback invoked when a \#pragma clang max_tokens_all directive is
++  /// processed, which happens at the end of the file
++  virtual void PragmaMaxTokensTotal(SourceLocation Loc,
++                                    unsigned TokenCount,
++                                    unsigned MaxTokenCount,
++                                    bool IsFromPragma) {}
++
+   /// Called by Preprocessor::HandleMacroExpandedIdentifier when a
+   /// macro invocation is found.
+   virtual void MacroExpands(const Token &MacroNameTok,
+@@ -593,6 +605,16 @@ public:
+     Second->PragmaAssumeNonNullEnd(Loc);
+   }
+ 
++  void PragmaMaxTokensHere(SourceLocation Loc, unsigned CurTokenCount, unsigned MaxTokenCount) override {
++    First->PragmaMaxTokensHere(Loc, CurTokenCount, MaxTokenCount);
++    Second->PragmaMaxTokensHere(Loc, CurTokenCount, MaxTokenCount);
++  }
++
++  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount, bool IsFromPragma) override {
++    First->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount, IsFromPragma);
++    Second->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount, IsFromPragma);
++  }
++
+   void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
+                     SourceRange Range, const MacroArgs *Args) override {
+     First->MacroExpands(MacroNameTok, MD, Range, Args);
+diff --git a/clang/lib/Parse/ParsePragma.cpp b/clang/lib/Parse/ParsePragma.cpp
+index 74fa70379..5964a1d81 100644
+--- a/clang/lib/Parse/ParsePragma.cpp
++++ b/clang/lib/Parse/ParsePragma.cpp
+@@ -3915,6 +3915,11 @@ void PragmaMaxTokensHereHandler::HandlePragma(Preprocessor &PP,
+     return;
+   }
+ 
++  PPCallbacks *Callbacks = PP.getPPCallbacks();
++  if (Callbacks) {
++    Callbacks->PragmaMaxTokensHere(Loc, PP.getTokenCount(), MaxTokens);
++  }
++
+   if (PP.getTokenCount() > MaxTokens) {
+     PP.Diag(Loc, diag::warn_max_tokens)
+         << PP.getTokenCount() << (unsigned)MaxTokens;
+diff --git a/clang/lib/Parse/Parser.cpp b/clang/lib/Parse/Parser.cpp
+index fd0446608..fb7d407d9 100644
+--- a/clang/lib/Parse/Parser.cpp
++++ b/clang/lib/Parse/Parser.cpp
+@@ -705,6 +705,16 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result,
+       }
+     }
+ 
++    if (PP.getPPCallbacks()) {
++      SourceLocation Loc = PP.getMaxTokensOverrideLoc();
++      bool IsFromPragma = true;
++      if (!Loc.isValid()) {
++        Loc = Tok.getLocation();
++        IsFromPragma = false;
++      }
++      PP.getPPCallbacks()->PragmaMaxTokensTotal(Loc, PP.getTokenCount(), PP.getMaxTokens(), IsFromPragma);
++    }
++
+     // Late template parsing can begin.
+     Actions.SetLateTemplateParser(LateTemplateParserCallback, nullptr, this);
+     if (!PP.isIncrementalProcessingEnabled())
+-- 
+2.31.1
+

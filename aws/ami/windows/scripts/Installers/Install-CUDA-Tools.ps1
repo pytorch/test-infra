@@ -10,57 +10,52 @@ $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
 # installerArgs
-Switch -Wildcard ($cudaVersion) {
-  "10*" {
-    $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion nvgraph_$cudaVersion nvgraph_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
-  }
-  "11*" {
-    $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
-  }
-}
+$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion nvjpeg_$cudaVersion nvjpeg_dev_$cudaVersion cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion thrust_$cudaVersion"
 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
 $cudnn_lib_folder="lib\x64"
+$cudnn_subfolder="cudnn-windows-x86_64-9.10.2.21_cuda12-archive"
+$toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
 
 Switch ($cudaVersion) {
-  "10.2" {
-    $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
-    $cudnnZip = "cudnn-10.2-windows10-x64-v7.6.5.32.zip"
+  "12.6" {
+    $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
   }
-  {($_ -eq "11.3") -or ($_ -eq "11.6") -or ($_ -eq "11.7")} {
-
-    Switch ($cudaVersion) {
-      "11.3" {
-        $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
-      }
-      "11.6" {
-        $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
-      }
-      "11.7" {
-        $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
-      }
-    }
-
-    $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
-    $cudnnZip = "$cudnn_subfolder.zip"
-    $installerArgs = "$installerArgs thrust_$cudaVersion"
-    $cudnn_lib_folder="lib"
-
-    Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
-    $tmpZlibDll = New-TemporaryFile
-    Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
-    $tmpExtractedZlibDll = New-TemporaryDirectory
-    7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
-    Get-ChildItem -Path $tmpExtractedZlibDll
-    if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
-     Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
-       exit 1
-    }
-    Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
+  "12.8" {
+    $toolkitInstaller = "cuda_12.8.1_572.61_windows.exe"
   }
-
+  "12.9" {
+    $toolkitInstaller = "cuda_12.9.1_576.57_windows.exe"
+  }
+  "13.0" {
+    $cudnn_subfolder="cudnn-windows-x86_64-9.19.0.56_cuda13-archive"
+    $toolkitInstaller = "cuda_13.0.0_windows.exe"
+    $installerArgs = ""
+  }
+  "13.2" {
+    $cudnn_subfolder="cudnn-windows-x86_64-9.19.0.56_cuda13-archive"
+    $toolkitInstaller = "cuda_13.2.0_windows.exe"
+    $installerArgs = ""
+  }
 }
+
+
+$cudnnZip = "$cudnn_subfolder.zip"
+$cudnn_lib_folder="lib"
+
+Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
+$tmpZlibDll = New-TemporaryFile
+Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
+$tmpExtractedZlibDll = New-TemporaryDirectory
+7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
+Get-ChildItem -Path $tmpExtractedZlibDll
+if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
+  Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
+  exit 1
+}
+Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
+
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
@@ -89,6 +84,10 @@ function Install-CudaToolkit() {
     Get-Content -Path "$cudaInstallLogs\LOG.setup.exe.log"
     exit 1
   }
+
+  Write-Output "Installing VS 2019 integration"
+  New-Item -Path  "$expectedInstallLocation\MSBuildExtensions\" -Type Directory -Force
+  Copy-Item -Force -Verbose -Recurse "$tmpExtractedInstaller\visual_studio_integration\CUDAVisualStudioIntegration\extras\visual_studio_integration\MSBuildExtensions\*.*" "$expectedInstallLocation\MSBuildExtensions\"
 }
 
 function Install-Cudnn() {
@@ -107,7 +106,7 @@ function Install-Cudnn() {
   Write-Output "Copying cudnn to $expectedInstallLocation"
 
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
-  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
 
   if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {

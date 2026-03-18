@@ -1,0 +1,10 @@
+{
+  "params": {
+    "label": "String",
+    "platform": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "triaged": "String"
+  },
+  "tests": []
+}

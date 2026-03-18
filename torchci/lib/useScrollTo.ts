@@ -8,6 +8,7 @@ export default function useScrollTo() {
     if (id != null) {
       const job = document.getElementById(id);
       window.scrollTo({ top: job?.offsetTop, behavior: "smooth" });
+      job?.style.setProperty("background-color", "var(--scroll-highlight-bg)");
     }
   }, [router.asPath]);
 }

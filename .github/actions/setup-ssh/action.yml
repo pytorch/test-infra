@@ -1,0 +1,31 @@
+name: Setup SSH
+
+description: Adds ssh keys for current user to machine
+
+inputs:
+  github-secret:
+    description: GitHub token
+    required: true
+  activate-with-label:
+    required: true
+    description: 'Tells the action only to add keys when specific label is applied, set false if you want the key to always be added'
+    default: false
+  label:
+    required: true
+    description: 'Label to activate action with'
+    default: 'with-ssh'
+  remove-existing-keys:
+    required: true
+    description: 'Removes existing keys at ~/.ssh/authorized_keys before adding new ones'
+    default: true
+  instructions:
+    required: false
+    description: 'Additional instructions on what to do next'
+  fail-silently:
+    required: true
+    description: 'If set to true, action will always succeed even if it failed to fetch the keys or determine hosts IP address'
+    default: true
+
+runs:
+  using: 'node16'
+  main: 'index.js'

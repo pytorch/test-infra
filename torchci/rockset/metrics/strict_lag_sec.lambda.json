@@ -1,5 +1,0 @@
-{
-  "sql_path": "__sql/strict_lag_sec.sql",
-  "default_parameters": [],
-  "description": "How many seconds viable/strict lags behind master"
-}

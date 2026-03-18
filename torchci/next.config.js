@@ -5,7 +5,7 @@ module.exports = {
     return [
       {
         source: "/",
-        destination: "/hud/pytorch/pytorch/master/1",
+        destination: "/hud/pytorch/pytorch/main/1",
       },
       {
         source: "/commit/:repoOwner/:repoName/:sha",
@@ -28,9 +28,18 @@ module.exports = {
         destination: "/hud/:repoOwner/:repoName/:branch/1",
       },
       {
-        source: "/minihud",
-        destination: "/minihud/pytorch/pytorch/master/1",
+        source: "/tts",
+        destination: "/tts/pytorch/pytorch/main",
+      },
+      {
+        source: "/reliability",
+        destination: "/reliability/pytorch/pytorch",
       },
     ];
   },
+  transpilePackages: [
+    "@mui/x-data-grid",
+    "@mui/x-data-grid-pro",
+    "@mui/x-data-grid-premium",
+  ],
 };

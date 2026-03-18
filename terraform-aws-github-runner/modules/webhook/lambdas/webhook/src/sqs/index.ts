@@ -1,0 +1,24 @@
+import { SQS } from '@aws-sdk/client-sqs';
+
+const sqs = new SQS({ region: process.env.AWS_REGION });
+
+export interface ActionRequestMessage {
+  id: number;
+  eventType: string;
+  repositoryName: string;
+  repositoryOwner: string;
+  installationId: number;
+  runnerLabels: string[];
+  callbackUrl: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const NUM_MESSAGE_GROUPS = process.env.NUM_MESSAGE_GROUPS !== undefined ? parseInt(process.env.NUM_MESSAGE_GROUPS) : 1;
+
+export const sendActionRequest = async (message: ActionRequestMessage) => {
+  console.info(`Sending message: ${JSON.stringify(message)}`);
+  await sqs.sendMessage({
+    QueueUrl: String(process.env.SQS_URL_WEBHOOK),
+    MessageBody: JSON.stringify(message),
+  });
+};

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+FUNCTION_NAME="$1"
+AWS_REGION="$2"
+
+if [ -z "$FUNCTION_NAME" ] || [ -z "$AWS_REGION" ]; then
+  echo "Usage: $0 <LAMBDA_FUNCTION_NAME> <AWS_REGION>"
+  exit 1
+fi
+
+echo "#!/bin/bash"
+echo ""
+
+# Fetch the environment variables for the given Lambda function.
+# Then use jq to transform them into export statements.
+aws lambda get-function-configuration \
+  --region "$AWS_REGION" \
+  --function-name "$FUNCTION_NAME" \
+  --query 'Environment.Variables' \
+  --output json \
+  2>/dev/null \
+| jq -r 'to_entries | map("export \(.key)=\(.value|@sh)") | .[]'
+
+echo "export FUNCTION_NAME=$FUNCTION_NAME"
+echo "export AWS_REGION=$AWS_REGION"
+echo "export AWS_DEFAULT_REGION=$AWS_REGION"
+
+echo ""
+
+echo "node -e 'require(\"./index\").scaleDown({}, {}, {});'"

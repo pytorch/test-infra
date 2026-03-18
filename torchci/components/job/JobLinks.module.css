@@ -1,0 +1,11 @@
+.disableTestButton {
+  background-color: var(--warning-button-bg);
+  border-color: var(--warning-button-border);
+  color: var(--warning-button-text);
+}
+
+.closedDisableIssueButton {
+  background-color: var(--info-button-bg);
+  border-color: var(--info-button-border);
+  color: var(--info-button-text);
+}

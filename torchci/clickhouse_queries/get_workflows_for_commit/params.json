@@ -1,0 +1,7 @@
+{
+    "params": {
+      "prNum": "Int64",
+      "headSha": "String"
+    },
+    "tests": []
+  }

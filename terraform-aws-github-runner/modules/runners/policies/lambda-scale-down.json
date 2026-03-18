@@ -1,0 +1,39 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances*",
+        "ec2:DescribeTags"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DeleteParameter"
+      ],
+      "Resource": "${arn_ssm_parameters}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DescribeParameters"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:TerminateInstances"
+      ],
+      "Resource": ["*"],
+      "Condition": {
+        "StringEquals": {
+          "ec2:ResourceTag/Application": "github-action-runner"
+        }
+      }
+    }
+  ]
+}

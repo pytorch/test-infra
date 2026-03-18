@@ -1,8 +1,0 @@
-apiVersion: 3
-
-datasources:
-  - name: Rockset
-    type: rockset-backend-datasource
-    url:
-    secureJsonData:
-      apiKey: {{ passwords.rockset_api_key }}

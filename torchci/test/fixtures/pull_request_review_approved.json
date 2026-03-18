@@ -1,0 +1,41 @@
+[
+    {
+      "id": 1764212110,
+      "node_id": "PRR_kwDOA-j9z85pJ72O",
+      "user": {
+        "login": "kit1980",
+        "id": 420184,
+        "node_id": "MDQ6VXNlcjQyMDE4NA==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/420184?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/kit1980",
+        "html_url": "https://github.com/kit1980",
+        "followers_url": "https://api.github.com/users/kit1980/followers",
+        "following_url": "https://api.github.com/users/kit1980/following{/other_user}",
+        "gists_url": "https://api.github.com/users/kit1980/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/kit1980/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/kit1980/subscriptions",
+        "organizations_url": "https://api.github.com/users/kit1980/orgs",
+        "repos_url": "https://api.github.com/users/kit1980/repos",
+        "events_url": "https://api.github.com/users/kit1980/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/kit1980/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "body": "",
+      "state": "APPROVED",
+      "html_url": "https://github.com/pytorch/pytorch/pull/115150#pullrequestreview-1764212110",
+      "pull_request_url": "https://api.github.com/repos/pytorch/pytorch/pulls/115150",
+      "author_association": "MEMBER",
+      "_links": {
+        "html": {
+          "href": "https://github.com/pytorch/pytorch/pull/115150#pullrequestreview-1764212110"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/pytorch/pytorch/pulls/115150"
+        }
+      },
+      "submitted_at": "2023-12-05T07:52:54Z",
+      "commit_id": "0c44b0bd52865f000c1848eddc949aea838525c9"
+    }
+  ]

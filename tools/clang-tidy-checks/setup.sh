@@ -35,7 +35,11 @@ function check_requirements() {
   gcc --version
   python3 --version
   ninja --version
-  ld.lld --version
+  if [ "$(uname)" != "Darwin" ]; then
+    ld.lld --version
+  else
+    echo "ld.lld is no longer available on Darwin"
+  fi
   success
 }
 
@@ -44,20 +48,22 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-11.0.0 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-19.1.4 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
 function apply_patches() {
   info "applying patches"
-  cd llvm-project
-  for check in ../*.diff; do
+  pushd llvm-project
+  for check in ../19.x-patches/*.diff; do
     patch -p1 -N -d . < "$check"
   done
+  popd
   success
 }
 
 function build() {
+  cd llvm-project
   local cmake_common_args=(
     -DCMAKE_C_COMPILER=clang
     -DCMAKE_CXX_COMPILER=clang++
@@ -97,19 +103,22 @@ function build() {
 
   cmake "${cmake_common_args[@]}" "${cmake_os_args[@]}" ../llvm
   cmake --build . --target clang-tidy
+  cmake --build . --target clang-format
   success
 }
 
 function setup() {
   clone_llvm
-  apply_patches
+  # No need to patch llvm-19
+  # apply_patches
   build
 }
 
 function check_if_static() {
   case $(uname) in
     Linux)
-      ldd ./bin/clang-tidy 2>&1 | grep -q "not a dynamic executable"
+      ldd ./bin/clang-tidy 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
+      ldd ./bin/clang-format 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
       ;;
     Darwin)
       # No static link check for MacOS

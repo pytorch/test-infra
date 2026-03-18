@@ -1,44 +1,7 @@
-import CommitStatus from "components/CommitStatus";
-import { fetcher } from "lib/GeneralUtils";
+import { AutorevertBanner } from "components/commit/AutorevertBanner";
+import { CommitInfo } from "components/commit/CommitInfo";
+import { useSetTitle } from "components/layout/DynamicTitle";
 import { useRouter } from "next/router";
-import useSWR from "swr";
-
-export function CommitInfo({
-  repoOwner,
-  repoName,
-  sha,
-}: {
-  repoOwner: string;
-  repoName: string;
-  sha: string;
-}) {
-  const { data, error } = useSWR(
-    `/api/${repoOwner}/${repoName}/commit/${sha}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
-
-  if (error != null) {
-    return <div>Error occured</div>;
-  }
-
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-
-  const { commit, jobs } = data;
-  return (
-    <div>
-      <h2>{commit.commitTitle}</h2>
-      <CommitStatus commit={commit} jobs={jobs} />
-    </div>
-  );
-}
 
 export default function Page() {
   const router = useRouter();
@@ -50,7 +13,11 @@ export default function Page() {
       ? "TorchVision"
       : repoOwner === "pytorch" && repoName === "audio"
       ? "TorchAudio"
+      : repoOwner === "pytorch" && repoName === "executorch"
+      ? "ExecuTorch"
       : `${repoOwner}/${repoName}`;
+
+  useSetTitle(`${repoOwner}/${repoName} sha:${sha}`);
 
   return (
     <div>
@@ -58,11 +25,19 @@ export default function Page() {
         {fancyName} Commit: <code>{sha}</code>
       </h1>
       {sha !== undefined && (
-        <CommitInfo
-          repoOwner={repoOwner as string}
-          repoName={repoName as string}
-          sha={sha as string}
-        />
+        <>
+          <AutorevertBanner
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            sha={sha as string}
+          />
+          <CommitInfo
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            sha={sha as string}
+            isCommitPage={true}
+          />
+        </>
       )}
     </div>
   );

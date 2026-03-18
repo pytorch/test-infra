@@ -1,2 +1,4 @@
 PyGithub
 black
+tqdm
+boto3

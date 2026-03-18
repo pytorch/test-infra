@@ -1,25 +1,15 @@
-import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
-
+import { queryClickhouseSaved } from "./clickhouse";
 import { IssueData } from "./types";
 
 export default async function fetchIssuesByLabel(
-  label: string
+  label: string,
+  useChCache?: boolean
 ): Promise<IssueData[]> {
-  const rocksetClient = getRocksetClient();
-  const query = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
+  return await queryClickhouseSaved(
     "issue_query",
-    rocksetVersions.commons.issue_query,
     {
-      parameters: [
-        {
-          name: "label",
-          type: "string",
-          value: label as string,
-        },
-      ],
-    }
+      label,
+    },
+    useChCache
   );
-  return query.results!;
 }

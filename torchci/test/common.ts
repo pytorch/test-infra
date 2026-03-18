@@ -24,3 +24,27 @@ export function nockTracker(
     .get("/repos/" + ghaPath + "/issues/6")
     .reply(200, payload);
 }
+
+export function requireDeepCopy(fileName: string) {
+  return deepCopy(require(fileName));
+}
+
+export function deepCopy<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+export function handleScope(scope: nock.Scope | nock.Scope[]) {
+  function scopeIsDone(s: nock.Scope) {
+    if (!s.isDone()) {
+      console.error("pending mocks: %j", s.pendingMocks());
+    }
+    s.done();
+  }
+  if (Array.isArray(scope)) {
+    for (const s of scope) {
+      scopeIsDone(s);
+    }
+  } else {
+    scopeIsDone(scope);
+  }
+}

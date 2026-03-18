@@ -1,16 +1,20 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import * as urllib from "urllib";
-
-import { getOctokit } from "lib/github";
-import fetchFlakyTests from "lib/fetchFlakyTests";
-import { FlakyTestData, IssueData } from "lib/types";
-import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
+import dayjs from "dayjs";
+import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
+import fetchFlakyTests, {
+  fetchFlakyTestsAcrossFileReruns,
+} from "lib/fetchFlakyTests";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
+import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
+import { getOctokit } from "lib/github";
+import { DisabledNonFlakyTestData, FlakyTestData, IssueData } from "lib/types";
+import _ from "lodash";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
 
-const NUM_HOURS = 3;
-const owner: string = "pytorch";
-const repo: string = "pytorch";
+export const NUM_HOURS = 6;
+const PYTORCH = "pytorch";
+const THRESHOLD = 4;
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,195 +22,294 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    await disableFlakyTests();
+    await disableFlakyTestsAndReenableNonFlakyTests();
     res.status(200).end();
+  } else {
+    res.status(403).end();
   }
-  res.status(403).end();
 }
 
-async function disableFlakyTests() {
-  const [octokit, flakyTests, issues] = await Promise.all([
-    getOctokit(owner, repo),
+async function disableFlakyTestsAndReenableNonFlakyTests() {
+  const [
+    octokit,
+    flakyTests,
+    flakyTestsAcrossFileReruns,
+    issues,
+    disabledNonFlakyTests,
+  ] = await Promise.all([
+    getOctokit(PYTORCH, PYTORCH),
     fetchFlakyTests(`${NUM_HOURS}`),
+    fetchFlakyTestsAcrossFileReruns(`${NUM_HOURS}`),
     fetchIssuesByLabel("skipped"),
+    fetchDisabledNonFlakyTests(),
   ]);
 
-  // If the test is flaky only on PRs, we should not disable it yet.
-  const flakyTestsOnTrunk = filterOutPRFlakyTests(flakyTests);
-
-  flakyTestsOnTrunk.forEach(async function (test) {
-    await handleFlakyTest(test, issues, octokit);
-  });
+  // Separating this out to make it easier to test
+  await handleAll(
+    octokit,
+    flakyTests,
+    flakyTestsAcrossFileReruns,
+    issues,
+    disabledNonFlakyTests
+  );
 }
 
-export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
+async function handleAll(
+  octokit: Octokit,
+  flakyTests: FlakyTestData[],
+  flakyTestsAcrossFileReruns: FlakyTestData[],
+  issues: IssueData[],
+  disabledNonFlakyTests: DisabledNonFlakyTestData[]
+) {
+  const allFlakyTests = flakyTests.concat(flakyTestsAcrossFileReruns);
+  allFlakyTests.forEach((test) => {
+    test.invoking_file = test.invoking_file.replaceAll(".", "/");
+  });
+  // If the test is flaky only on PRs, we should not disable it yet.
+  const recentFlakyTests = allFlakyTests.filter((test) => wasRecent(test));
+  const flakyTestsOnTrunk = filterThreshold(
+    filterOutPRFlakyTests(recentFlakyTests)
+  );
+
+  const dedupedIssues = await dedupFlakyTestIssues(octokit, issues);
+
+  await handleFlakyTests(flakyTestsOnTrunk, dedupedIssues, octokit);
+
+  // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
+  // that no flaky test is accidentally closed
+  const nonFlakyTests = filterOutNonFlakyTests(
+    disabledNonFlakyTests,
+    allFlakyTests
+  );
+
+  await handleNoLongerFlakyTests(nonFlakyTests, dedupedIssues, octokit);
+}
+
+function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
   // Remove the PR-only instances of flakiness, but don't modify data within
   return tests.filter(
     (test) => test.branches.includes("master") || test.branches.includes("main")
   );
 }
+function filterThreshold(
+  tests: FlakyTestData[],
+  threshold: number = 2
+): FlakyTestData[] {
+  return tests.filter(
+    (test) =>
+      new Set(test.jobIds).size > threshold &&
+      test.suite != "TestSDPACudaOnlyCUDA" && // TODO: Get rid of this when driss fixes the flakiness
+      !(
+        test.suite == "TestInductorOpInfoCPU" &&
+        test.jobNames.every((name) => name.includes("mac"))
+      ) // See https://github.com/pytorch/pytorch/issues/135885
+  );
+}
 
-export async function handleFlakyTest(
-  test: FlakyTestData,
+async function handleFlakyTests(
+  flakyTests: FlakyTestData[],
   issues: IssueData[],
   octokit: Octokit
 ) {
-  const issueTitle = getIssueTitle(test.name, test.suite);
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
-  const workflowJobNames = getWorkflowJobNames(test);
-  if (matchingIssues.length !== 0) {
-    // There is a matching issue
-    const matchingIssue = matchingIssues[0];
-    if (matchingIssue.state === "open") {
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Please verify the issue was opened after this instance, that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(
-              ", "
-            )}], or disable bot might not be working as expected.`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
-    } else {
-      // Re-open the issue
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        state: "open",
-      });
-
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Reopening the issue to disable. Please verify that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(", ")}].`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
-    }
-  } else {
-    await createIssueFromFlakyTest(test, octokit);
-  }
-}
-
-export function getLatestTrunkJobURL(test: FlakyTestData): string {
-  let index = test.branches.lastIndexOf("master");
-  if (index < 0) {
-    let index = test.branches.lastIndexOf("main");
-    if (index < 0) {
-      console.warn(
-        `Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`
-      );
-      index = test.workflowIds.length - 1;
-    }
-  }
-  return `https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`;
-}
-
-export function getIssueTitle(testName: string, testSuite: string) {
-  let suite = testSuite;
-  // If the test class is not a subclass, it belongs to __main__
-  if (testSuite.indexOf(".") < 0) {
-    suite = "__main__." + suite;
-  }
-  return `DISABLED ${testName} (${suite})`;
-}
-
-export function getWorkflowJobNames(test: FlakyTestData): string[] {
-  return test.workflowNames.map(
-    (value, index) => `${value} / ${test.jobNames[index]}`
-  );
-}
-
-export function getPlatformsAffected(workflowJobNames: string[]): string[] {
-  const platformsToSkip: string[] = [];
-  supportedPlatforms.forEach((platform: string) =>
-    workflowJobNames.forEach((workflowJobNames) => {
-      if (
-        workflowJobNames.includes(platform) &&
-        !platformsToSkip.includes(platform)
-      ) {
-        platformsToSkip.push(platform);
-      }
-    })
-  );
-  return platformsToSkip;
-}
-
-export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  const examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}&file=${test.file}`;
-  return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
-    ", "
-  )}
-
-This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkJobURL(
-    test
-  )}).
-
-Over the past ${NUM_HOURS} hours, it has been determined flaky in ${
-    test.workflowIds.length
-  } workflow(s) with ${test.numRed} red and ${test.numGreen} green.`;
-}
-
-export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
-  const urlkey =
-    "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
-
-  try {
-    const result = await urllib.request(`${urlkey}${testFile}.py`);
-    const statusCode = result.res.statusCode;
-    if (statusCode !== 200) {
-      console.warn(`Error retrieving test file of flaky test: ${statusCode}`);
-      return ["module: unknown"];
-    }
-    const fileContents = result.data.toString(); // data is a Buffer
-    const lines = fileContents.split(/[\r\n]+/);
-    const prefix = "# Owner(s): ";
-    for (const line of lines) {
-      if (line.startsWith(prefix)) {
-        const labels: string[] = JSON.parse(line.substring(prefix.length));
-        if (labels.length === 0) {
-          return ["module: unknown"];
+  // Determine the test 1. has a matching single issue, 2. has a matching
+  // aggregate issue, 3. needs a new single issue, 4. needs a new aggregate
+  // issue
+  const stillLeft = (
+    await Promise.all(
+      flakyTests.map(async (test) => {
+        for (const issue of issues) {
+          if (singleDisableIssue.matchesSingleFlakyTestIssue(issue, test)) {
+            await singleDisableIssue.updateExistingIssueForFlakyTest(
+              octokit,
+              issue,
+              test
+            );
+            return { test, keep: false };
+          }
         }
-        if (
-          labels.some(
-            (x) => x.startsWith("module: ") && x !== "module: unknown"
+
+        return { test, keep: true };
+      })
+    )
+  )
+    .filter((x) => x.keep)
+    .map((x) => x.test);
+
+  // Map issue number -> tests that should update it
+  const aggregateIssueToBeUpdated = new Map<string, FlakyTestData[]>();
+
+  const needsNew = stillLeft.filter((test) => {
+    for (const issue of issues) {
+      if (aggregateDisableIssue.matchesAggregateFlakyTestIssue(issue, test)) {
+        aggregateIssueToBeUpdated.set(
+          issue.number.toString(),
+          (aggregateIssueToBeUpdated.get(issue.number.toString()) || []).concat(
+            [test]
           )
-        ) {
-          labels.push("triaged");
-        }
-        return labels;
+        );
+        return false;
       }
     }
-    return ["module: unknown"];
-  } catch (err) {
-    console.warn(`Error retrieving test file of flaky test: ${err}`);
-    return ["module: unknown"];
+    return true;
+  });
+
+  for (const [issueNumber, tests] of aggregateIssueToBeUpdated.entries()) {
+    const issue = issues.find(
+      (issue) => issue.number.toString() === issueNumber
+    )!;
+    await aggregateDisableIssue.updateAggregateFlakyTestIssue(
+      octokit,
+      issue,
+      tests
+    );
+  }
+
+  const groupedByFile = _.groupBy(needsNew, (test) => test.file);
+
+  for (const file in groupedByFile) {
+    let tests = groupedByFile[file];
+    tests = tests.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (tests.length > THRESHOLD) {
+      await aggregateDisableIssue.createNewAggregateIssue(tests, octokit);
+    } else {
+      for (const test of tests) {
+        await singleDisableIssue.createNewSingleIssue(test, octokit);
+      }
+    }
   }
 }
 
-export async function createIssueFromFlakyTest(
-  test: FlakyTestData,
-  octokit: Octokit
-): Promise<void> {
-  const title = getIssueTitle(test.name, test.suite);
-  const body = getIssueBodyForFlakyTest(test);
-  const labels = ["skipped", "module: flaky-tests"].concat(
-    await getTestOwnerLabels(test.file)
+function filterOutNonFlakyTests(
+  nonFlakyTests: DisabledNonFlakyTestData[],
+  allFlakyTests: FlakyTestData[]
+): DisabledNonFlakyTestData[] {
+  const flakyTestKeys = allFlakyTests.map(
+    (test) => `${test.name} / ${test.suite}`
   );
-  await octokit.rest.issues.create({
-    owner,
-    repo,
-    title,
-    body,
-    labels,
-  });
+
+  return nonFlakyTests.filter(
+    (test) => !flakyTestKeys.includes(`${test.name} / ${test.classname}`)
+  );
 }
+
+async function dedupFlakyTestIssues(
+  octokit: Octokit,
+  issues: IssueData[]
+): Promise<IssueData[]> {
+  // Dedup the list of issues by favoring open issues and issues with the
+  // largest PR number.
+
+  let deduped = new Map<string, IssueData>();
+  const [aggregateIssues, singleIssues] = _.partition(issues, (issue) =>
+    issue.labels.includes(aggregateDisableIssue.MASS_FLAKY_TEST_ISSUE_LABEL)
+  );
+
+  for (const issue of singleIssues) {
+    const key = issue.title;
+    const existing_issue = deduped.get(key);
+    if (
+      !existing_issue ||
+      (issue.state === existing_issue.state &&
+        issue.number > existing_issue.number) ||
+      (existing_issue.state === "closed" && issue.state === "open")
+    ) {
+      deduped.set(key, issue);
+    }
+  }
+  const dedupedArray = Array.from(deduped.values());
+
+  // Close the issues that aren't favored
+  const dedupedArrayNumbers = dedupedArray.map((i) => i.number);
+  for (const issue of singleIssues) {
+    if (!dedupedArrayNumbers.includes(issue.number) && issue.state === "open") {
+      await octokit.rest.issues.update({
+        owner: PYTORCH,
+        repo: PYTORCH,
+        issue_number: issue.number,
+        state: "closed",
+      });
+    }
+  }
+
+  return dedupedArray.concat(aggregateIssues);
+}
+
+async function handleNoLongerFlakyTests(
+  tests: DisabledNonFlakyTestData[],
+  issues: IssueData[],
+  octokit: Octokit
+) {
+  const openIssues = issues.filter((issue) => issue.state === "open");
+
+  // Sort the tests by the issues they should update.
+  // Map issue number -> tests that should update it
+  const singleIssueToBeUpdated = new Map<string, DisabledNonFlakyTestData[]>();
+  const aggregateIssueToBeUpdated = new Map<
+    string,
+    DisabledNonFlakyTestData[]
+  >();
+
+  for (const test of tests) {
+    for (const issue of openIssues) {
+      if (singleDisableIssue.nonFlakyTestMatchesIssue(issue, test)) {
+        singleIssueToBeUpdated.set(
+          issue.number.toString(),
+          (singleIssueToBeUpdated.get(issue.number.toString()) || []).concat([
+            test,
+          ])
+        );
+      }
+      if (aggregateDisableIssue.nonFlakyTestMatchesIssue(issue, test)) {
+        aggregateIssueToBeUpdated.set(
+          issue.number.toString(),
+          (aggregateIssueToBeUpdated.get(issue.number.toString()) || []).concat(
+            [test]
+          )
+        );
+      }
+    }
+  }
+
+  for (const [issueNumber, tests] of singleIssueToBeUpdated) {
+    const issue = openIssues.find(
+      (issue) => issue.number.toString() === issueNumber
+    );
+    if (issue) {
+      await singleDisableIssue.handleNoLongerFlakyTest(
+        tests[0],
+        issue,
+        octokit
+      );
+    }
+  }
+  for (const [issueNumber, tests] of aggregateIssueToBeUpdated) {
+    const issue = openIssues.find(
+      (issue) => issue.number.toString() === issueNumber
+    );
+    if (issue) {
+      await aggregateDisableIssue.handleNoLongerFlakyTest(
+        tests,
+        issue,
+        octokit
+      );
+    }
+  }
+}
+
+function wasRecent(test: FlakyTestData) {
+  if (test.eventTimes) {
+    return test.eventTimes.some(
+      (value) => dayjs().diff(dayjs(value), "minutes") < (NUM_HOURS - 1) * 60
+    );
+  }
+  return true;
+}
+
+export const __forTesting__ = {
+  handleNoLongerFlakyTests,
+  filterOutPRFlakyTests,
+  filterOutNonFlakyTests,
+  dedupFlakyTestIssues,
+  handleAll,
+};

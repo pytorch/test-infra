@@ -1,0 +1,7 @@
+{
+  "params": {
+    "shas": "Array(String)",
+    "workflowIds": "Array(Int64)"
+  },
+  "tests": []
+}

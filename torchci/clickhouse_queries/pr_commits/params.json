@@ -1,0 +1,8 @@
+{
+  "params": {
+    "owner": "String",
+    "pr_num": "Int64",
+    "repo": "String"
+  },
+  "tests": []
+}

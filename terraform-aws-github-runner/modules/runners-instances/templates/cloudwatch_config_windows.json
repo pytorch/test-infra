@@ -1,0 +1,46 @@
+{
+  "LogicalDisk": {
+    "measurement": [
+      "% Free Space"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "*"
+    ]
+  },
+  "Memory": {
+    "measurement": [
+      "% Committed Bytes In Use"
+    ],
+    "metrics_collection_interval": 10
+  },
+  "Paging File": {
+    "measurement": [
+      "% Usage"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "*"
+    ]
+  },
+  "PhysicalDisk": {
+    "measurement": [
+      "% Disk Time"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "*"
+    ]
+  },
+  "Processor": {
+    "measurement": [
+      "% User Time",
+      "% Idle Time",
+      "% Interrupt Time"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "_Total"
+    ]
+  }
+}

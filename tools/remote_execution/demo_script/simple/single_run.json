@@ -1,0 +1,10 @@
+{
+  "name": "hello-world",
+  "steps": [
+    {
+      "name": "build",
+      "script": "./demo_script/simple/build_demo.sh",
+      "type": "cpu-44"
+    }
+  ]
+}

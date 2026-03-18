@@ -1,0 +1,23 @@
+name: Lambda Webhook
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - .github/workflows/lambda-webhook.yml
+      - "terraform-aws-github-runner/modules/webhook/lambdas/webhook/**"
+
+jobs:
+  build:
+    name: "Run tests for webhook lambda"
+    runs-on: ubuntu-latest
+    container: node:20
+    defaults:
+      run:
+        working-directory: terraform-aws-github-runner/modules/webhook/lambdas/webhook
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build, Lint, and Test
+        run: make build

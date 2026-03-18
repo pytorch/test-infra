@@ -1,0 +1,9 @@
+{
+  "params": {
+    "granularity": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "repoFullName": "String"
+  },
+  "tests": []
+}

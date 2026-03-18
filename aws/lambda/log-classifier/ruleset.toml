@@ -1,0 +1,322 @@
+# Rules for matching logs against.
+# The rules are ordered by priority, first rule being the highest priority.
+
+# Guidelines for writing rules:
+# - Use a raw string literal ('single-quote') to avoid having to escape
+#   characters, or a multi-line string literal ('''triple-quote''') if your
+#   string has a single-quote character inside it.
+# - Start with ^ if you can, it makes filtering out non-matching lines faster.
+# - Try to make sure the produced "captures" field is useful:
+#   - It should have enough information to identify the failure.
+#   - It should be groupable; e.g. there should be no random noise in the capture group.
+# - If no capture groups are specified, the "captures" field is the whole match.
+# - Try to match against as much information as possible, so that captures are interesting.
+#     For example, instead of 'error: ', do 'error: .*'
+# - You can use capture groups to filter out line noise, so that we can aggregate on captures.
+#     For example, for the failure 'FAIL [10.2s]: test_foo', 'test_foo' is a
+#     good capture group, as it filters out test timings which might be
+#     variable.
+[[rule]]
+name = 'Operator backwards compatibility'
+pattern = '^The PR is introducing backward incompatible changes to the operator library.'
+
+[[rule]]
+name = 'Failed graph_break_registry check'
+pattern = '^Found the unimplemented_v2 or unimplemented_v2_with_warning calls below that don.t match the registry in graph_break_registry.json.'
+
+[[rule]]
+name = 'Lintrunner failure'
+pattern = '^>>> Lint for.*'
+
+[[rule]]
+name = 'GHA timeout'
+pattern = '^##\[error\]The action (.*)has timed out(?: after .* minutes|)?.'
+
+[[rule]]
+name = 'Faulty ROCM runner'
+pattern = '^Error: .*[dD]etect.*GPUs on the runner'
+
+[[rule]]
+name = 'GHA cancellation'
+pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
+
+[[rule]]
+name = 'GHA job was cancelled'
+pattern = '^##\[error\]The operation was canceled.'
+
+[[rule]]
+name = 'Runner disk space issue'
+pattern = '^Failure: There is only .+ free space left in .+, which is less than the minimum requirement of'
+
+[[rule]]
+name = 'make build failure'
+pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
+
+[[rule]]
+name = 'bazel build failure'
+pattern = '^Target //:\w+ failed to build'
+
+[[rule]]
+name = 'gtest failure'
+pattern = '(^\[  FAILED  \].*) \(\d+'
+
+[[rule]]
+name = 'No trailing spaces'
+pattern = '^The above lines have trailing spaces; please remove them'
+
+[[rule]]
+name = '''GitHub workflows weren't regenerated'''
+pattern = '^As shown by the above diff, the committed \.github/workflows'
+
+[[rule]]
+name = 'Docker image push failure'
+pattern = '''^name unknown: The repository with name '.*' does not exist in the registry'''
+
+[[rule]]
+name = 'Windows PyLong API usage check'
+pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
+
+[[rule]]
+name = 'Bazel build failure (specific)'
+pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
+
+[[rule]]
+name = 'Bazel build failure'
+pattern = '^FAILED: Build did NOT complete successfully'
+
+[[rule]]
+name = 'Python unittest failure'
+pattern = '^FAILED CONSISTENTLY: (.*)$'
+
+[[rule]]
+name = 'Python unittest failure'
+pattern = 'FAIL(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'Python unittest unexpected success'
+pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'pytest failure'
+pattern = '^(?:FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+
+[[rule]]
+name = 'Python unittest error'
+pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'pytest test error'
+pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+
+[[rule]]
+name = 'Fallback for other test failure rules'
+pattern = '^The following tests failed consistently: \[(.*)\]$'
+
+[[rule]]
+name = 'xla cpp test failure'
+pattern = 'Build completed, \d+ test FAILED, \d+ total actions'
+
+[[rule]]
+name = 'inductor model failure'
+pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
+
+[[rule]]
+name = 'NVIDIA installation failure'
+pattern = '^ERROR: Installation has failed.*?nvidia'
+
+[[rule]]
+name = 'failed to download github artifacts'
+pattern = 'List Artifacts failed:.*'
+
+[[rule]]
+name = 'MSVC out of memory'
+pattern = 'Catastrophic error: .*'
+
+[[rule]]
+name = 'MSVC compiler error'
+pattern = '^.*\(\d+\): error C\d+:.*'
+
+[[rule]]
+name = 'MSVC compiler fatal'
+pattern = '^.*\(\d+\): fatal error C\d+:.*'
+
+[[rule]]
+name = 'Compile error'
+pattern = '^.*\d+:\d+: error: .*'
+
+[[rule]]
+name = 'MSVC mt.exe manifest error'
+pattern = '^mt.exe : general error c101008d: Failed to write the updated manifest to the resource of file'
+
+[[rule]]
+name = 'Curl error'
+pattern = 'curl: .* error:'
+
+[[rule]]
+name = 'Dirty checkout'
+pattern = '^Build left local git repository checkout dirty'
+
+[[rule]]
+name = 'Docker manifest error'
+pattern = '''^ERROR: Something has gone wrong and the previous image isn't available for the merge-base of your branch'''
+
+[[rule]]
+name = 'flake8 error'
+pattern = '^.*:\d+:\d: [EBFW]\d+ .*'
+
+[[rule]]
+name = 'apt-get update failure'
+pattern = '^E: Failed to fetch.*'
+
+[[rule]]
+name = 'Dependency fetch error'
+pattern = '^Error downloading packages:'
+
+[[rule]]
+name = 'ASAN LD_PRELOAD failure'
+pattern = '^ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded'
+
+[[rule]]
+name = 'ASAN failure'
+pattern = '^ERROR: AddressSanitizer'
+
+[[rule]]
+name = 'undefined reference linker error'
+pattern = 'undefined reference to .*'
+
+[[rule]]
+name = "Python Test SIG Code"
+pattern = '^.*(Received Signal: SIG.*)'
+
+[[rule]]
+name = 'Library not loaded'
+pattern = 'Library not loaded: .*$'
+
+[[rule]]
+name = 'Bad response status code'
+pattern = '^##\[error\]Response status code does not indicate success: .*$'
+
+[[rule]]
+name = 'Python Test timeout (KeyboardInterrupt)'
+pattern = '!+ KeyboardInterrupt !+'
+
+[[rule]]
+name = 'Python Test File RuntimeError'
+pattern = '(?:RuntimeError: )?.*test.* failed!'
+
+[[rule]]
+name = 'CUDA out of memory error'
+pattern = '^RuntimeError: CUDA out of memory.'
+
+[[rule]]
+name = 'Python AttributeError'
+pattern = '^AttributeError: .*'
+
+[[rule]]
+name = 'File level retry'
+pattern = '^Got exit code -.*, retrying \(retries left=.*\)$'
+
+[[rule]]
+name = 'Python flaky unittest - failed'
+pattern = '^\s*(test.*) failed - num_retries_left:'
+
+[[rule]]
+name = 'Python flaky unittest - errored'
+pattern = '^\s*(test.*) errored - num_retries_left:'
+
+[[rule]]
+name = 'pr_time_benchmarks regression'
+pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
+
+[[rule]]
+name = 'Python RuntimeError'
+pattern = '^RuntimeError: .*'
+
+[[rule]]
+name = 'Python ModuleNotFoundError'
+pattern = '^ModuleNotFoundError: .*'
+
+[[rule]]
+name = 'Python ImportError'
+pattern = '^ImportError: .*'
+
+[[rule]]
+name = 'Python ValueErrors'
+pattern = '^ValueError: .*'
+
+[[rule]]
+name = 'Python TypeErrors'
+pattern = '^TypeError: .*'
+
+# TODO (huydhn): Update ET test script to include the model name in the error message
+[[rule]]
+name = 'ExecuTorch portable model test - failed'
+pattern = 'Portable fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized portable model test - failed'
+pattern = 'Portable q8 error'
+
+[[rule]]
+name = 'ExecuTorch delegation model test - failed'
+pattern = 'Delegation fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized delegation model test - failed'
+pattern = 'Delegation q8 error'
+
+[[rule]]
+name = 'Docker login failure'
+pattern = '''Docker login for '.*' failed.*'''
+
+[[rule]]
+name = 'conda failure'
+pattern = 'An unexpected error has occurred. Conda has prepared the above report.'
+
+[[rule]]
+name = 'Docker error'
+pattern = '^docker: Error.*'
+
+[[rule]]
+name = 'Build error'
+pattern = 'ninja: build stopped: subcommand failed'
+
+[[rule]]
+name = 'sccache error'
+pattern = '^sccache: error: .*'
+
+[[rule]]
+name = 'Docker daemon error'
+pattern = '^Error response from daemon: .*'
+
+[[rule]]
+name = 'Out of space error'
+pattern = 'no space left on device'
+
+[[rule]]
+name = 'New graph breaks'
+pattern = 'FAIL:\s+graph_breaks='
+
+[[rule]]
+name = 'Improved graph breaks'
+pattern = 'IMPROVED:\s+graph_breaks='
+
+[[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code .*'
+
+[[rule]]
+name = 'No release notes label'
+pattern = '^# This PR needs a `release notes:` label.*'
+
+[[rule]]
+name = 'ghstack merge check error'
+pattern = '^Mergeability Error: .*'
+
+[[rule]]
+name = 'GHA error'
+pattern = '^##\[error\](.*)'
+
+[[rule]]
+name = 'New modules are not documented correctly'
+pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'

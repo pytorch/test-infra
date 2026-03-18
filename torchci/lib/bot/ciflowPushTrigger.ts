@@ -1,7 +1,15 @@
 import { Context, Probot } from "probot";
+import { canRunWorkflows } from "./autoLabelBot";
+import {
+  CachedConfigTracker,
+  hasApprovedPullRuns,
+  hasWritePermissions,
+  isPyTorchbotSupportedOrg,
+  isPyTorchPyTorch,
+} from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
-  return label.startsWith("ciflow/") || label.startsWith("ci/");
+  return label.startsWith("ciflow/");
 }
 
 function labelToTag(label: string, prNum: number): string {
@@ -9,10 +17,11 @@ function labelToTag(label: string, prNum: number): string {
 }
 
 function getAllPRTags(
-  context: Context<"pull_request"> | Context<"pull_request.closed">
+  context: Context,
+  payload: Context<"pull_request" | "pull_request.closed">["payload"]
 ) {
-  const prNum = context.payload.pull_request.number;
-  const labels = context.payload.pull_request.labels
+  const prNum = payload.pull_request.number;
+  const labels = payload.pull_request.labels
     .map((label) => label.name)
     .filter(isCIFlowLabel);
 
@@ -25,11 +34,7 @@ function getAllPRTags(
  * @param tag  looks like "ciflow/trunk/12345", where 12345 is the PR number.
  * @param headSha
  */
-async function syncTag(
-  context: Context<"pull_request"> | Context<"pull_request.labeled">,
-  tag: string,
-  headSha: string
-) {
+async function syncTag(context: Context, tag: string, headSha: string) {
   context.log.info(`Synchronizing tag ${tag} to head sha ${headSha}`);
   const matchingTags = await context.octokit.git.listMatchingRefs(
     context.repo({ ref: `tags/${tag}` })
@@ -61,10 +66,7 @@ async function syncTag(
  * Remove a tag from the repo if necessary.
  * @param tag  looks like "ciflow/trunk/12345", where 12345 is the PR number.
  */
-async function rmTag(
-  context: Context<"pull_request.closed"> | Context<"pull_request.unlabeled">,
-  tag: string
-) {
+async function rmTag(context: Context, tag: string) {
   context.log.info(`Cleaning up tag ${tag}`);
   const matchingTags = await context.octokit.git.listMatchingRefs(
     context.repo({ ref: `tags/${tag}` })
@@ -83,11 +85,29 @@ async function rmTag(
  * We check all the CIFlow labels on the PR and make sure the corresponding tags
  * are pointing to the PR's head SHA.
  */
-async function handleSyncEvent(context: Context<"pull_request">) {
+async function handleSyncEvent(
+  context: Context,
+  payload: Context<"pull_request">["payload"]
+) {
   context.log.debug("START Processing sync event");
 
-  const headSha = context.payload.pull_request.head.sha;
-  const tags = getAllPRTags(context);
+  if (!(await canRunWorkflows(context as any))) {
+    context.log.info("PR does not have permissions to run workflows");
+    for (const label of payload.pull_request.labels) {
+      if (isCIFlowLabel(label.name)) {
+        await context.octokit.issues.removeLabel(
+          context.repo({
+            issue_number: payload.pull_request.number,
+            name: label.name,
+          })
+        );
+      }
+    }
+    return;
+  }
+
+  const headSha = payload.pull_request.head.sha;
+  const tags = getAllPRTags(context, payload);
   const promises = tags.map(
     async (tag) => await syncTag(context, tag, headSha)
   );
@@ -97,103 +117,166 @@ async function handleSyncEvent(context: Context<"pull_request">) {
 
 // Remove the tag corresponding to the removed label.
 async function handleUnlabeledEvent(
-  context: Context<"pull_request.unlabeled">
+  context: Context,
+  payload: Context<"pull_request.unlabeled">["payload"]
 ) {
   context.log.debug("START Processing unlabeled event");
 
-  const label = context.payload.label.name;
+  const label = payload.label.name;
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const prNum = context.payload.pull_request.number;
-  const tag = labelToTag(context.payload.label.name, prNum);
+  const prNum = payload.pull_request.number;
+  const tag = labelToTag(payload.label.name, prNum);
   await rmTag(context, tag);
 }
 
 // Remove all tags as this PR is closed.
-async function handleClosedEvent(context: Context<"pull_request.closed">) {
+async function handleClosedEvent(
+  context: Context,
+  payload: Context<"pull_request.closed">["payload"]
+) {
   context.log.debug("START Processing rm event");
 
-  const tags = getAllPRTags(context);
+  const tags = getAllPRTags(context, payload);
   const promises = tags.map(async (tag) => await rmTag(context, tag));
   await Promise.all(promises);
 }
 
 // Add the tag corresponding to the new label.
-async function handleLabelEvent(context: Context<"pull_request.labeled">) {
+async function handleLabelEvent(
+  context: Context,
+  payload: Context<"pull_request.labeled">["payload"],
+  tracker: CachedConfigTracker
+) {
   context.log.debug("START Processing label event");
-  if (context.payload.pull_request.state === "closed") {
+  if (payload.pull_request.state === "closed") {
     // Ignore closed PRs. If this PR is reopened, the tags will get pushed as
     // part of the sync event handling.
     return;
   }
 
-  const label = context.payload.label.name;
+  const label = payload.label.name;
   if (!isCIFlowLabel(label)) {
     return;
   }
-
-  // collected from .github/workflows/*
-  const valid_labels = [
-    "ciflow/trunk",
-    "ciflow/periodic",
-    "ciflow/android",
-    "ciflow/binaries",
-    "ciflow/nightly",
-    "ciflow/binaries_conda",
-    "ciflow/binaries_libtorch",
-    "ciflow/binaries_wheel",
-  ];
+  const config: any = await tracker.loadConfig(context);
+  const valid_labels: Array<string> =
+    config !== null ? config["ciflow_push_tags"] : null;
+  if (valid_labels == null) {
+    return;
+  }
+  const prNum = payload.pull_request.number;
+  const owner = payload.repository.owner.login;
+  const repo = payload.repository.name;
+  const has_write_permissions = await hasWritePermissions(
+    context,
+    payload.pull_request.user.login
+  );
+  const has_ci_approved = has_write_permissions
+    ? true
+    : await hasApprovedPullRuns(
+        context.octokit,
+        owner,
+        repo,
+        payload.pull_request.head.sha
+      );
   if (!valid_labels.includes(label)) {
-    let body;
-    if (label === "ciflow/all") {
+    let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
+    valid_labels.forEach((l: string) => {
+      body += ` - \`${l}\`\n`;
+    });
+    if (has_ci_approved) {
       body =
-        "The `ciflow/all` label was recently removed. It ran very expensive periodic CI jobs when most contributors ";
-      body +=
-        "did not need them. If you just want to check that you won't be reverted, use `ciflow/trunk`. ";
-      body +=
-        "If you *really* want the old `ciflow/all` behavior, add `ciflow/trunk` and `ciflow/periodic`.";
-    } else {
-      body = `We have recently simplified the CIFlow labels and \`${label}\` is no longer in use.\n`;
+        "Warning: " +
+        body +
+        "\n Please add the new label to .github/pytorch-probot.yml";
     }
-    body += "You can use any of the following\n";
-    body +=
-      "- `ciflow/trunk` (`.github/workflows/trunk.yml`): all jobs we run per-commit on master\n";
-    body +=
-      "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
-    body +=
-      "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
-    body +=
-      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
-    body += "- `ciflow/binaries`: all binary build and upload jobs\n";
-    body +=
-      " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
-    body +=
-      " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
-    body += " - `ciflow/binaries_wheel`: binary build and upload job for wheel";
     await context.octokit.issues.createComment(
       context.repo({
         body,
-        issue_number: context.payload.pull_request.number,
+        issue_number: prNum,
       })
     );
+    if (!has_ci_approved) {
+      return;
+    }
+  }
+  if (!has_ci_approved) {
+    let body =
+      "To add the ciflow label `" +
+      label +
+      "` please first approve the workflows " +
+      "that are awaiting approval (scroll to the bottom of this page).\n\n" +
+      "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
+      "Please ping one of the reviewers if you do not have access to approve and run workflows.";
+    await context.octokit.issues.createComment(
+      context.repo({
+        body,
+        issue_number: prNum,
+      })
+    );
+    await context.octokit.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: prNum,
+      name: label,
+    });
     return;
   }
-  const prNum = context.payload.pull_request.number;
-  const tag = labelToTag(context.payload.label.name, prNum);
-  await syncTag(context, tag, context.payload.pull_request.head.sha);
+
+  // https://github.com/pytorch/pytorch/pull/26921 is a special PR that should
+  // never get ciflow tags
+  if (prNum == 26921 && isPyTorchPyTorch(owner, repo)) {
+    return;
+  }
+  const tag = labelToTag(payload.label.name, prNum);
+  await syncTag(context, tag, payload.pull_request.head.sha);
 }
 
 export default function ciflowPushTrigger(app: Probot) {
-  app.on("pull_request.labeled", handleLabelEvent);
+  const tracker = new CachedConfigTracker(app);
+  app.on("pull_request.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+    await handleLabelEvent(context, context.payload, tracker);
+  });
+
   app.on(
     [
       "pull_request.synchronize",
       "pull_request.opened",
       "pull_request.reopened",
     ],
-    handleSyncEvent
+    async (context) => {
+      const owner = context.payload.repository.owner.login;
+      if (!isPyTorchbotSupportedOrg(owner)) {
+        context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
+      await handleSyncEvent(context, context.payload);
+    }
   );
-  app.on("pull_request.closed", handleClosedEvent);
-  app.on("pull_request.unlabeled", handleUnlabeledEvent);
+  app.on("pull_request.closed", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
+    await handleClosedEvent(context, context.payload);
+  });
+  app.on("pull_request.unlabeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
+    await handleUnlabeledEvent(context, context.payload);
+  });
 }

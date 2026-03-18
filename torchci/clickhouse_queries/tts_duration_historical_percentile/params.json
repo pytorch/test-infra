@@ -1,0 +1,12 @@
+{
+  "params": {
+    "branch": "String",
+    "granularity": "String",
+    "percentile": "Float32",
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "ignoredWorkflows": "Array(String)"
+  },
+  "tests": []
+}

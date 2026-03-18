@@ -1,8 +1,24 @@
 import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
+import {
+  mockApprovedWorkflowRuns,
+  mockHasApprovedWorkflowRun,
+  mockPermissions,
+} from "./utils";
 
 nock.disableNetConnect();
+
+function mockDeleteLabel(repoFullName: string, number: number, label: string) {
+  return nock("https://api.github.com")
+    .delete(
+      `/repos/${repoFullName}/issues/${number}/labels/${encodeURIComponent(
+        label
+      )}`
+    )
+    .reply(200);
+}
 
 describe("Push trigger integration tests", () => {
   let probot: Probot;
@@ -15,6 +31,11 @@ describe("Push trigger integration tests", () => {
         throttle: { enabled: false },
       }),
     });
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     ciflowPushTrigger(probot);
   });
 
@@ -25,6 +46,7 @@ describe("Push trigger integration tests", () => {
     }
     expect(nock.isDone()).toBe(true);
     nock.cleanAll();
+    jest.restoreAllMocks();
   });
 
   test("CIFlow label trigger ignores closed PR", async () => {
@@ -45,11 +67,19 @@ describe("Push trigger integration tests", () => {
 
     nock("https://api.github.com")
       .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
+      .get(
         `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
           `tags/${label}/${prNum}`
         )}`
       )
-      .reply(200, []);
+      .reply(200, [])
+      .get("/repos/suo/actions-test/collaborators/suo/permission")
+      .reply(200, { permission: "admin" });
 
     nock("https://api.github.com")
       .post("/repos/suo/actions-test/git/refs", (body) => {
@@ -81,6 +111,12 @@ describe("Push trigger integration tests", () => {
 
     nock("https://api.github.com")
       .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
+      .get(
         `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
           `tags/${label}/${prNum}`
         )}`
@@ -91,7 +127,9 @@ describe("Push trigger integration tests", () => {
           node_id: "123",
           object: { sha: "abc" },
         },
-      ]);
+      ])
+      .get("/repos/suo/actions-test/collaborators/suo/permission")
+      .reply(200, { permission: "admin" });
 
     nock("https://api.github.com")
       .delete(
@@ -163,6 +201,8 @@ describe("Push trigger integration tests", () => {
       "ciflow/1",
     ];
 
+    mockHasApprovedWorkflowRun(payload.repository.full_name);
+
     for (const label of labels) {
       nock("https://api.github.com")
         .get(
@@ -203,6 +243,31 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
+  test("synchronization of PR requires permissions", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.synchronize");
+    mockApprovedWorkflowRuns(
+      payload.repository.full_name,
+      payload.pull_request.head.sha,
+      false
+    );
+    mockPermissions(
+      payload.repository.full_name,
+      payload.pull_request.user.login,
+      "read"
+    );
+    mockDeleteLabel(
+      payload.repository.full_name,
+      payload.pull_request.number,
+      "ciflow/test"
+    );
+    mockDeleteLabel(
+      payload.repository.full_name,
+      payload.pull_request.number,
+      "ciflow/1"
+    );
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
   test("closure of PR should cause all tags to be removed", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.closed");
     const prNum = payload.pull_request.number;
@@ -239,27 +304,91 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
-  test("old/invalid CIFlow label creates comment", async () => {
+  test("Unconfigured CIFlow label does nothing", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
 
     payload.label.name = "ciflow/test";
     nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(404, { message: "There is nothing here" });
+    nock("https://api.github.com")
+      .get(
+        `/repos/suo/.github/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(404, { message: "There is nothing here" });
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("Invalid CIFlow label with established contributor triggers flow", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
+    const permission = require("./fixtures/push-trigger/permission");
+    const label = payload.label.name;
+    const prNum = payload.pull_request.number;
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/test";
+    nock("https://api.github.com")
+      .get(`/repos/suo/actions-test/collaborators/suo/permission`)
+      .reply(200, permission) // note: example response from pytorch not action-test
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use."
-        );
+        expect(body.body).toContain("Unknown label `ciflow/test`.");
+        return true;
+      })
+      .reply(200)
+      .get(
+        `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
+          `tags/${label}/${prNum}`
+        )}`
+      )
+      .reply(200, [])
+      .post("/repos/suo/actions-test/git/refs", (body) => {
+        expect(body).toMatchObject({
+          ref: `refs/tags/${label}/${prNum}`,
+          sha: payload.pull_request.head.sha,
+        });
         return true;
       })
       .reply(200);
-    await probot.receive({ name: "pull_request", id: "123", payload });
 
-    payload.label.name = "ci/test";
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("Invalid CIFlow label with first time contributor creates comment", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/test";
+    payload.pull_request.user.login = "fake_user";
+    const login = payload.pull_request.user.login;
+    const head_sha = payload.pull_request.head.sha;
     nock("https://api.github.com")
+      .get(`/repos/suo/actions-test/actions/runs?head_sha=${head_sha}`)
+      .reply(200, {})
+      .get(`/repos/suo/actions-test/collaborators/${login}/permission`)
+      .reply(200, {
+        message: "fake_user is not a user",
+        documentation_url:
+          "https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user",
+      })
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ci/test` is no longer in use."
-        );
+        expect(body.body).toContain("Unknown label `ciflow/test`.");
         return true;
       })
       .reply(200);

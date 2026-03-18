@@ -1,0 +1,323 @@
+name: Setup NVIDIA
+
+description: Set up NVIDIA driver and NVIDIA-docker runtime on Linux runner
+
+inputs:
+  driver-version:
+    description: which driver version to install
+    required: false
+    type: string
+    default: "580.65.06" # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-580-65-06/
+
+outputs:
+  has-nvidia:
+    description: '"true" if this runner exposes an NVIDIA GPU device.'
+    value: ${{ steps.detect-gpu.outputs.HAS_NVIDIA }}
+  in-container-runner:
+    description: '"true" if the runner is already inside a container.'
+    value: ${{ steps.check-container.outputs.IN_CONTAINER_RUNNER }}
+
+runs:
+  using: composite
+  steps:
+    - id: check-container
+      name: Check if running inside container runner
+      shell: bash
+      run: |
+        echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
+
+    - id: detect-gpu
+      name: Detect NVIDIA GPU availability
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        has_gpu=false
+        devices=""
+
+        if command -v nvidia-smi >/dev/null 2>&1; then
+          if nvidia-smi -L >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        if [ "$has_gpu" = false ]; then
+          if ls /dev/nvidia* >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        if [ "$has_gpu" = false ] && command -v lspci >/dev/null 2>&1; then
+          if lspci | grep -i 'nvidia' >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        printf 'HAS_NVIDIA=%s\n' "$has_gpu" >> "$GITHUB_OUTPUT"
+        printf 'DETECTED_DEVICES<<EOF\n%s\nEOF\n' "$devices" >> "$GITHUB_OUTPUT"
+
+    - name: Export GPU detection result
+      shell: bash
+      env:
+        HAS_NVIDIA: ${{ steps.detect-gpu.outputs.HAS_NVIDIA }}
+      run: |
+        if [ "${HAS_NVIDIA}" = "true" ]; then
+          echo "HAS_NVIDIA_GPU=true" >> "${GITHUB_ENV}"
+          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
+        else
+          echo "HAS_NVIDIA_GPU=false" >> "${GITHUB_ENV}"
+        fi
+
+    - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
+      if: ${{ steps.detect-gpu.outputs.HAS_NVIDIA == 'true' && steps.check-container.outputs.IN_CONTAINER_RUNNER != 'true' }}
+      uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
+      env:
+        DRIVER_VERSION: ${{ inputs.driver-version }}
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        command: |
+          # Is it disgusting to have a full shell script here in this github action? Sure
+          # But is it the best way to make it so that this action relies on nothing else? Absolutely
+          set -eou pipefail
+
+          DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
+          DRIVER_FN="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+
+          install_nvidia_docker2_amzn2() {
+              (
+                  set -x
+                  # Needed for yum-config-manager
+                  sudo yum install -y yum-utils
+                  if [[ "${DISTRIBUTION}" == "amzn2023" ]] ; then
+                    YUM_REPO_URL="https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+                  else
+                    # Amazon Linux 2
+                    YUM_REPO_URL="https://nvidia.github.io/nvidia-docker/${DISTRIBUTION}/nvidia-docker.repo"
+                  fi
+
+                  sudo yum-config-manager --add-repo "${YUM_REPO_URL}"
+                  sudo yum install -y \
+                    nvidia-container-toolkit-1.17.8 \
+                    libnvidia-container-tools-1.17.8 \
+                    libnvidia-container1-1.17.8 \
+                    nvidia-container-toolkit-base-1.17.8
+                  sudo systemctl restart docker
+              )
+          }
+
+          install_nvidia_docker2_ubuntu20() {
+              (
+                  set -x
+                  # Install nvidia-driver package if not installed
+                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+                    sudo apt-get install -y nvidia-container-toolkit-1.17.8
+                    sudo systemctl restart docker
+                  fi
+              )
+          }
+
+          pre_install_nvidia_driver_amzn2() {
+              (
+                  # Purge any nvidia driver installed from RHEL repo
+                  sudo yum remove -y nvidia-driver-latest-dkms
+              )
+          }
+
+          install_nvidia_driver_common() {
+              (
+                  # Try to gather more information about the runner and its existing NVIDIA driver if any
+                  echo "Before installing NVIDIA driver"
+                  lspci
+                  lsmod
+                  modinfo nvidia || true
+
+                  HAS_NVIDIA_DRIVER=0
+                  # Check if NVIDIA driver has already been installed
+                  if [ -x "$(command -v nvidia-smi)" ]; then
+                      set +e
+                      # The driver exists, check its version next. Also check only the first GPU if there are more than one of them
+                      # so that the same driver version is not print over multiple lines
+                      INSTALLED_DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)
+                      NVIDIA_SMI_STATUS=$?
+
+                      if [ "$NVIDIA_SMI_STATUS" -ne 0 ] && [ "$NVIDIA_SMI_STATUS" -ne 14 ]; then
+                          echo "Failed to get NVIDIA driver version ($INSTALLED_DRIVER_VERSION). Continuing"
+                      elif [ "$INSTALLED_DRIVER_VERSION" != "$DRIVER_VERSION" ]; then
+                          echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has been installed, but we expect to have $DRIVER_VERSION instead. Continuing"
+
+                          # Turn off persistent mode so that the installation script can unload the kernel module
+                          sudo killall nvidia-persistenced || true
+                      else
+                          HAS_NVIDIA_DRIVER=1
+                          echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
+                      fi
+                      set -e
+                  fi
+
+                  if [ "$HAS_NVIDIA_DRIVER" -eq 0 ]; then
+                      # CAUTION: this may need to be updated in future
+                      if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
+                            sudo yum groupinstall -y "Development Tools"
+                            # ensure our kernel install is the same as our underlying kernel,
+                            # groupinstall "Development Tools" has a habit of mismatching kernel headers
+                            sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
+                            sudo modprobe backlight
+                      fi
+                      sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
+
+                      set +e
+                      sudo /bin/bash /tmp/nvidia_driver -s --no-drm
+                      NVIDIA_INSTALLATION_STATUS=$?
+
+                      RESET_GPU=0
+                      if [ "$NVIDIA_INSTALLATION_STATUS" -ne 0 ]; then
+                          sudo cat /var/log/nvidia-installer.log
+                          # Fail to install NVIDIA driver, try to reset the GPU
+                          RESET_GPU=1
+                      elif [ -x "$(command -v nvidia-smi)" ]; then
+                          # Check again if nvidia-smi works even if the driver installation completes successfully
+                          INSTALLED_DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)
+                          NVIDIA_SMI_STATUS=$?
+
+                          if [ "$NVIDIA_SMI_STATUS" -ne 0 ] && [ "$NVIDIA_SMI_STATUS" -ne 14 ]; then
+                              RESET_GPU=1
+                          fi
+                      fi
+
+                      if [ "$RESET_GPU" -eq 1 ]; then
+                          NVIDIA_DEVICES=$(lspci -D | grep -i NVIDIA | cut -d' ' -f1)
+                          # The GPU can get stuck in a failure state if somehow the test crashs the GPU microcode. When this
+                          # happens, we'll try to reset all NVIDIA devices https://github.com/pytorch/pytorch/issues/88388
+                          for PCI_ID in $NVIDIA_DEVICES; do
+                              DEVICE_ENABLED=$(cat /sys/bus/pci/devices/$PCI_ID/enable)
+
+                              echo "Reseting $PCI_ID (enabled state: $DEVICE_ENABLED)"
+                              # This requires sudo permission of course
+                              echo "1" | sudo tee /sys/bus/pci/devices/$PCI_ID/reset
+                              sleep 1
+                          done
+                      fi
+
+                      sudo rm -fv /tmp/nvidia_driver
+                      set -e
+                  fi
+              )
+          }
+
+          post_install_nvidia_driver_common() {
+              (
+                  sudo modprobe nvidia || true
+                  echo "After installing NVIDIA driver"
+                  lspci
+                  lsmod
+                  modinfo nvidia || true
+
+                  (
+                      set +e
+
+                      nvidia-smi
+                      # NB: Annoyingly, nvidia-smi command returns successfully with return code 0 even in
+                      # the case where the driver has already crashed as it still can get the driver version
+                      # and some basic information like the bus ID.  However, the rest of the information
+                      # would be missing (ERR!), for example:
+                      #
+                      # +-----------------------------------------------------------------------------+
+                      # | NVIDIA-SMI 525.89.02    Driver Version: 525.89.02    CUDA Version: 12.0     |
+                      # |-------------------------------+----------------------+----------------------+
+                      # | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+                      # | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+                      # |                               |                      |               MIG M. |
+                      # |===============================+======================+======================|
+                      # |   0  ERR!                Off  | 00000000:00:1E.0 Off |                 ERR! |
+                      # |ERR!  ERR! ERR!    ERR! / ERR! |   4184MiB / 23028MiB |    ERR!      Default |
+                      # |                               |                      |                 ERR! |
+                      # +-------------------------------+----------------------+----------------------+
+                      #
+                      # +-----------------------------------------------------------------------------+
+                      # | Processes:                                                                  |
+                      # |  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+                      # |        ID   ID                                                   Usage      |
+                      # |=============================================================================|
+                      # +-----------------------------------------------------------------------------+
+                      #
+                      # This should be reported as a failure instead as it will guarantee to fail when
+                      # Docker tries to run with --gpus all
+                      #
+                      # So, the correct check here is to query one of the missing piece of info like
+                      # GPU name, so that the command can fail accordingly
+                      nvidia-smi --query-gpu=gpu_name --format=csv,noheader --id=0
+                      NVIDIA_SMI_STATUS=$?
+
+                      # Allowable exit statuses for nvidia-smi, see: https://github.com/NVIDIA/gpu-operator/issues/285
+                      if [ "$NVIDIA_SMI_STATUS" -eq 0 ] || [ "$NVIDIA_SMI_STATUS" -eq 14 ]; then
+                          echo "INFO: Ignoring allowed status ${NVIDIA_SMI_STATUS}"
+                      else
+                          echo "ERROR: nvidia-smi exited with unresolved status ${NVIDIA_SMI_STATUS}"
+                          exit ${NVIDIA_SMI_STATUS}
+                      fi
+                      set -e
+                  )
+              )
+          }
+
+          install_nvidia_driver_amzn2() {
+              (
+                  set -x
+                  pre_install_nvidia_driver_amzn2
+                  install_nvidia_driver_common
+                  post_install_nvidia_driver_common
+              )
+          }
+
+          install_nvidia_driver_ubuntu20() {
+              (
+                  set -x
+                  install_nvidia_driver_common
+                  post_install_nvidia_driver_common
+              )
+          }
+
+          echo "== Installing nvidia driver ${DRIVER_FN} =="
+          case "${DISTRIBUTION}" in
+              amzn*)
+                  install_nvidia_driver_amzn2
+                  ;;
+              ubuntu20.04)
+                  install_nvidia_driver_ubuntu20
+                  ;;
+              *)
+                  echo "ERROR: Unknown distribution ${DISTRIBUTION}"
+                  exit 1
+                  ;;
+          esac
+
+          # Install container toolkit based on distribution
+          echo "== Installing nvidia container toolkit for ${DISTRIBUTION} =="
+          case "${DISTRIBUTION}" in
+              amzn*)
+                  install_nvidia_docker2_amzn2
+                  ;;
+              ubuntu20.04)
+                  install_nvidia_docker2_ubuntu20
+                  ;;
+              *)
+                  echo "ERROR: Unknown distribution ${DISTRIBUTION}"
+                  exit 1
+                  ;;
+          esac
+
+          # Fix https://github.com/NVIDIA/nvidia-docker/issues/1648 on runners with
+          # more than one GPUs. This just needs to be run once. The command fails
+          # on subsequent runs and complains that the mode is already on, but that's
+          # ok
+          sudo nvidia-persistenced || true
+          # This should show persistence mode ON
+          nvidia-smi
+
+          # check if the container-toolkit is correctly installed and CUDA is available inside a container
+          docker run --rm -t --gpus=all public.ecr.aws/docker/library/python:3.13 nvidia-smi

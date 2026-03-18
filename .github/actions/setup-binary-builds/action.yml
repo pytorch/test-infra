@@ -1,0 +1,157 @@
+name: Set up binary builds
+
+description: Clean workspace and check out PyTorch
+
+inputs:
+  repository:
+    description: If set to any value, don't use sudo to clean the workspace
+    required: false
+    type: string
+    default: ''
+  ref:
+    description: Works as stated in actions/checkout
+    required: false
+    type: string
+    default: nightly
+  submodules:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: string
+    default: recursive
+  setup-miniconda:
+    description: Set to true if setup-miniconda is needed
+    required: false
+    type: boolean
+    default: false
+  python-version:
+    description: The target Python version
+    required: true
+    type: string
+  cuda-version:
+    description: The target CUDA version
+    required: true
+    type: string
+  arch:
+    description: The target ARCH
+    required: true
+    type: string
+  upload-to-base-bucket:
+    description: One of the parameter used by pkg-helpers
+    required: false
+    type: boolean
+    default: no
+
+runs:
+  using: composite
+  steps:
+      - name: Remove repository directory (if exists)
+        shell: bash
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euxo pipefail
+          rm -rf "${REPOSITORY}"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
+          path: ${{ inputs.repository }}
+
+      - name: Log Available Webhook Fields
+        shell: bash
+        run: |
+          echo "ENV VARS"
+          echo "${GITHUB_REF_NAME}"
+          echo "${GITHUB_REF}"
+          echo "${GITHUB_BASE_REF}"
+
+          echo "GITHUB PROVIDED"
+          echo "${{ github.ref_name }}"
+          echo "${{ github.event.ref }}"
+          echo "${{ github.ref }}"
+          echo "${{ github.base_ref }}"
+      - name: Set artifact name
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          CU_VERSION: ${{ inputs.cuda-version }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          set -euxo pipefail
+          # Set artifact name here since github actions doesn't have string manipulation tools
+          # and "/" is not allowed in artifact names. //\//_ is to replace all forward slashes,
+          # not just the first one
+          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+      - name: Setup miniconda (for pytorch_pkg_helpers)
+        if: ${{ inputs.setup-miniconda == 'true' }}
+        uses: conda-incubator/setup-miniconda@v3.1.1
+        with:
+          miniconda-version: "latest"
+          python-version: 3.9
+      - name: Clean conda environment
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          conda info | grep -i 'base environment'
+          conda clean --all --quiet --yes
+      - name: Reset channel priority
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          conda config --set channel_priority false
+      - name: Generate file from pytorch_pkg_helpers
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
+          conda create \
+            --yes --quiet \
+            --prefix "${CONDA_ENV}" \
+            "python=3.9"
+          CONDA_ENV="${CONDA_ENV}"
+          CONDA_RUN="conda run --no-capture-output -p ${CONDA_ENV}"
+          ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
+          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+          ${CONDA_RUN} python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          cat "${BUILD_ENV_FILE}"
+          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+      - name: Setup conda environment for build
+        shell: bash -l {0}
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: |
+          set -euxo pipefail
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          export CONDA_EXTRA_PARAM=""
+          conda install -y conda=25.3.0
+
+          # shellcheck disable=SC2153
+          case $PYTHON_VERSION in
+            3.14t)
+              export PYTHON_VERSION=3.14
+              export CONDA_EXTRA_PARAM=" python-freethreading"
+              ;;
+            3.13t)
+              export PYTHON_VERSION=3.13
+              # python-freethreading package for 3.13t only exist in conda-forge
+              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
+              ;;
+          esac
+
+          conda create \
+              --yes --quiet \
+              --prefix "${CONDA_ENV}" \
+              "python=${PYTHON_VERSION}" \
+              cmake=3.31.2 \
+              ninja=1.12.1 \
+              "libwebp>=1.3.2" \
+              libpng \
+              pkg-config=0.29 \
+              wheel=0.37  \
+              ${CONDA_EXTRA_PARAM}
+
+          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=conda run --no-capture-output -p ${CONDA_ENV}" >> "${GITHUB_ENV}"

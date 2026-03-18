@@ -1,0 +1,52 @@
+name: Teardown Windows
+
+description: Set up Docker workspace on linux
+
+inputs:
+  extra-delete-dir:
+    description: If set, cleaning up the workspace will delete this too
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Wait until all sessions have drained
+      shell: powershell
+      if: always()
+      run: |
+        function Get-SSH-Users {
+            # Gets ssh sessions for all users not named SYSTEM
+            Get-CimInstance -ClassName Win32_Process -Filter "Name = 'sshd.exe'" |
+                Get-CimAssociatedInstance -Association Win32_SessionProcess |
+                Get-CimAssociatedInstance -Association Win32_LoggedOnUser |
+                Where-Object {$_.Name -ne 'SYSTEM'} |
+                Measure-Object
+        }
+
+        $usersLoggedOn = Get-SSH-Users
+
+        Write-Output "Holding runner until all ssh sessions have logged out"
+        while ($usersLoggedOn.Count -gt 0) {
+            $usersLoggedOn = Get-SSH-Users
+            Write-Output "."
+            Start-Sleep -s 5
+        }
+
+    - name: Kill active ssh sessions if still around (Useful if workflow was cancelled)
+      shell: powershell
+      if: always()
+      run: |
+        function Get-SSH-Sessions {
+            try {
+                Get-Process sshd -IncludeUserName -ErrorAction 'Stop' |
+                    Where-Object UserName -notLike "*SYSTEM*" |
+                    Select-Object Id
+            } catch { @() }
+        }
+
+        $runningSessions = Get-SSH-Sessions
+
+        foreach ($session in $runningSessions) {
+            Stop-Process -id $session.Id
+        }
