@@ -46,5 +46,4 @@ jobs:
           name: Blast CLI v${{ steps.version.outputs.version }}
           files: tools/remote_execution/blast/dist/*.whl
           body: |
-            Install: `pip install blast-cli==${{ steps.version.outputs.version }}`
-            Upgrade: `pip install blast-cli --upgrade`
+            blast-cli==${{ steps.version.outputs.version }}`
