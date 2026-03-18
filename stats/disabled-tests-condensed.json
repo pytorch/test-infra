@@ -1702,13 +1702,6 @@
       "slow"
     ]
   ],
-  "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_1_add_1dim_False (__main__.MixOrderReductionTest)": [
-    "176970",
-    "https://github.com/pytorch/pytorch/issues/176970",
-    [
-      "linux"
-    ]
-  ],
   "test_rms_norm_bwd_bfloat16_split_reductions_False_shape0_max_autotune_False_initial_xblock_1_add_1dim_False (__main__.NoMixOrderReductionTest)": [
     "176971",
     "https://github.com/pytorch/pytorch/issues/176971",
