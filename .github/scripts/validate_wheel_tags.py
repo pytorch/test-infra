@@ -1,8 +1,9 @@
 """Validate wheel platform tags and macOS dylib minos.
 
-Can run in two modes:
-1. Pre-install: reads .whl files from PYTORCH_FINAL_PACKAGE_DIR
-2. Post-install: reads metadata from installed torch package via importlib.metadata
+Supports two modes:
+1. Pre-install: reads .whl files from PYTORCH_FINAL_PACKAGE_DIR (strict)
+2. Post-install: reads metadata from installed torch package (soft warnings)
+- (macOS only) dylib minos matches the wheel platform tag
 """
 
 import os
@@ -55,12 +56,10 @@ def _extract_installed_wheel_tags(package: str = "torch") -> list[str]:
 def check_wheel_platform_tag() -> None:
     """Validate that wheel Tags in WHEEL metadata match the expected platform.
 
-    Supports two modes:
-    - If PYTORCH_FINAL_PACKAGE_DIR is set, reads .whl files directly
-    - Otherwise, reads from installed torch package metadata
+    Mode 1: PYTORCH_FINAL_PACKAGE_DIR set → read .whl file (strict, raises on mismatch)
+    Mode 2: No wheel dir → read from installed torch package (soft, prints warnings)
     """
     wheel_dir = os.getenv("PYTORCH_FINAL_PACKAGE_DIR", "")
-    print(f"found value PYTORCH_FINAL_PACKAGE_DIR: {wheel_dir}")
 
     target_os = os.getenv("TARGET_OS", sys.platform)
     expected_python = f"cp{sys.version_info.major}{sys.version_info.minor}"
@@ -75,7 +74,7 @@ def check_wheel_platform_tag() -> None:
         )
         return
 
-    # Mode 1: Read from .whl file (strict mode)
+    # Mode 1: Read from .whl file (strict)
     if wheel_dir and os.path.isdir(wheel_dir):
         whls = list(Path(wheel_dir).glob("torch-*.whl"))
         if not whls:
@@ -92,18 +91,21 @@ def check_wheel_platform_tag() -> None:
         source = whl.name
         strict = True
     else:
-        # Mode 2: Read from installed package (soft mode - tags may differ post-install)
+        # Mode 2: Read from installed package (soft)
         print("PYTORCH_FINAL_PACKAGE_DIR not set, reading from installed torch package")
         try:
             tags = _extract_installed_wheel_tags("torch")
             source = "installed torch"
             strict = False
         except Exception as e:
-            print(f"Could not read installed torch metadata: {e}")
+            print(f"Could not read installed torch metadata: {e}, skipping")
             return
 
     if not tags:
-        raise RuntimeError(f"No Tag found in WHEEL metadata of {source}")
+        if strict:
+            raise RuntimeError(f"No Tag found in WHEEL metadata of {source}")
+        print(f"WARNING: No Tag found in WHEEL metadata of {source}")
+        return
 
     for tag_str in tags:
         parts = tag_str.split("-")
@@ -153,8 +155,8 @@ def check_wheel_platform_tag() -> None:
 def check_mac_wheel_minos() -> None:
     """Check that dylib minos matches the wheel platform tag on macOS.
 
-    Parses the platform tag from the .whl filename in PYTORCH_FINAL_PACKAGE_DIR,
-    then verifies each installed dylib's minos (from otool -l) matches.
+    Extracts dylibs from the .whl in PYTORCH_FINAL_PACKAGE_DIR to a temp dir,
+    then verifies each dylib's minos (from otool -l) matches the platform tag.
     """
     if sys.platform != "darwin":
         return
@@ -169,13 +171,7 @@ def check_mac_wheel_minos() -> None:
         print(f"No .whl files in {wheel_dir}, skipping wheel minos check")
         return
 
-    import torch
-
-    torch_dir = Path(os.path.dirname(torch.__file__))
-    dylibs = list(torch_dir.rglob("*.dylib"))
-    if not dylibs:
-        print("No .dylib files found, skipping minos check")
-        return
+    import tempfile
 
     for whl in whls:
         print(f"Checking wheel tag minos for: {whl.name}")
@@ -188,49 +184,60 @@ def check_mac_wheel_minos() -> None:
         expected_minos = f"{m.group(1)}.{m.group(2)}"
         print(f"Expected minos from platform tag: {expected_minos}")
 
-        mismatches = []
-        for dylib in dylibs:
-            try:
-                result = subprocess.run(
-                    ["otool", "-l", str(dylib)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
+        # Extract dylibs from wheel to temp dir
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(whl, "r") as zf:
+                dylib_names = [n for n in zf.namelist() if n.endswith(".dylib")]
+                if not dylib_names:
+                    print("No .dylib files in wheel, skipping minos check")
+                    continue
+                for name in dylib_names:
+                    zf.extract(name, tmpdir)
+
+            dylibs = list(Path(tmpdir).rglob("*.dylib"))
+            mismatches = []
+            for dylib in dylibs:
+                try:
+                    result = subprocess.run(
+                        ["otool", "-l", str(dylib)],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                except Exception:
+                    continue
+
+                minos = None
+                lines = result.stdout.splitlines()
+                for i, line in enumerate(lines):
+                    s = line.strip()
+                    if "LC_BUILD_VERSION" in s:
+                        for j in range(i + 1, min(i + 6, len(lines))):
+                            if lines[j].strip().startswith("minos"):
+                                minos = lines[j].strip().split()[1]
+                                break
+                        break
+                    if "LC_VERSION_MIN_MACOSX" in s:
+                        for j in range(i + 1, min(i + 4, len(lines))):
+                            if lines[j].strip().startswith("version"):
+                                minos = lines[j].strip().split()[1]
+                                break
+                        break
+
+                if minos and minos != expected_minos:
+                    mismatches.append(
+                        f"{dylib.name}: minos={minos}, expected={expected_minos}"
+                    )
+
+            if mismatches:
+                raise RuntimeError(
+                    f"minos/platform tag mismatch in {len(mismatches)} dylib(s):\n"
+                    + "\n".join(f"  {m}" for m in mismatches)
                 )
-            except Exception:
-                continue
-
-            minos = None
-            lines = result.stdout.splitlines()
-            for i, line in enumerate(lines):
-                s = line.strip()
-                if "LC_BUILD_VERSION" in s:
-                    for j in range(i + 1, min(i + 6, len(lines))):
-                        if lines[j].strip().startswith("minos"):
-                            minos = lines[j].strip().split()[1]
-                            break
-                    break
-                if "LC_VERSION_MIN_MACOSX" in s:
-                    for j in range(i + 1, min(i + 4, len(lines))):
-                        if lines[j].strip().startswith("version"):
-                            minos = lines[j].strip().split()[1]
-                            break
-                    break
-
-            if minos and minos != expected_minos:
-                mismatches.append(
-                    f"{dylib.name}: minos={minos}, expected={expected_minos}"
-                )
-
-        if mismatches:
-            raise RuntimeError(
-                f"minos/platform tag mismatch in {len(mismatches)} dylib(s):\n"
-                + "\n".join(f"  {m}" for m in mismatches)
+            print(
+                f"OK: All {len(dylibs)} dylib(s) have minos matching "
+                f"platform tag ({expected_minos})"
             )
-        print(
-            f"OK: All {len(dylibs)} dylib(s) have minos matching "
-            f"platform tag ({expected_minos})"
-        )
 
 
 if __name__ == "__main__":
