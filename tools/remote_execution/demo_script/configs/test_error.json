@@ -1,0 +1,21 @@
+{
+  "name": "test-error-handling",
+  "raw": true,
+  "steps": [
+    {
+      "name": "step1-pass",
+      "script": "echo 'Step 1: running...' && sleep 3 && echo 'Step 1: done!'",
+      "type": "cpu-44"
+    },
+    {
+      "name": "step2-fail",
+      "script": "echo 'Step 2: running...' && sleep 2 && echo 'Step 2: about to fail!' && exit 1",
+      "type": "cpu-44"
+    },
+    {
+      "name": "step3-never-runs",
+      "script": "echo 'Step 3: this should never run'",
+      "type": "cpu-44"
+    }
+  ]
+}
