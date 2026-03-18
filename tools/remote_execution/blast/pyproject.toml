@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "re-cli"
+name = "blast-cli"
 version = "0.1.0"
-description = "Elaine Playground CLI - Run tasks on remote infrastructure"
+description = "Blast CLI - Run tasks on remote infrastructure"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}

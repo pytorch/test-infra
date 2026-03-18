@@ -2,30 +2,44 @@
 
 Remote execution CLI for running multi-step jobs on Kubernetes.
 
+## Quick Install
+
+### Quick install (from GitHub Release)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pytorch/test-infra/main/tools/remote_execution/install.sh | bash
+```
+
+This automatically downloads and installs the latest version. Run the same command to upgrade.
+
+### Development Install
+
+Clone the repo and install in editable mode:
+
+```bash
+git clone https://github.com/pytorch/test-infra.git
+cd test-infra/tools/remote_execution
+pip install -e blast/
+```
+
 ## Prerequisites
 
 - Python 3.9+
 - AWS CLI (`aws`) — installed and configured with SSO admin role or SSO gpu role
+- `kubectl` — configured for the EKS cluster:
+  ```bash
+  aws eks update-kubeconfig --name pytorch-re-prod-production --region us-east-2
+  ```
 
 ## Quick Start
 
 ```bash
-chmod +x setup.sh
-./setup.sh
-source ~/.blast-venv/bin/activate
-
 # Run a single step with pure command
 blast run --script "echo hello" --type cpu-44 --raw --follow
 
 # Run multi-step with predefined json input
 blast run-steps --config demo_script/simple/multi_run_simple.json --follow
 ```
-
-This will:
-1. Create a virtual environment at `~/.blast-venv`
-2. Install the Blast CLI (`pip install -e blast/`)
-3. Configure `~/.kube/config` for the EKS cluster
-4. Verify the installation
 
 ## Usage
 ### Run a single step
@@ -113,7 +127,8 @@ blast cancel <run_id>         # Cancel a run
 
 ```
 remote_execution/
-├── setup.sh                 # Setup script
+├── install.sh               # One-liner install script
+├── setup.sh                 # Dev setup script (editable install)
 ├── demo_script/             # Demo scripts and JSON configs
 │   ├── simple/              # Hello-world demos
 │   │   ├── build_demo.sh

@@ -1,0 +1,39 @@
+name: Blast CLI Release
+
+on:
+  push:
+    tags:
+      - "blast-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build wheel
+        run: |
+          cd tools/remote_execution/blast
+          python -m build --wheel
+
+      - name: Smoke test
+        run: |
+          pip install tools/remote_execution/blast/dist/*.whl
+          blast --help
+
+      - name: Upload wheel to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: tools/remote_execution/blast/dist/*.whl
