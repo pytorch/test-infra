@@ -17,12 +17,14 @@ RUN dnf install -y \
         gcc-c++ \
         gdb \
         git \
+        jq \
         make \
         sudo \
         unzip \
         vim \
         wget \
         zip \
+    && dnf group install -y 'Development Tools' \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
