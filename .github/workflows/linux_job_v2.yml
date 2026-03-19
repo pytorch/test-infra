@@ -176,11 +176,15 @@ jobs:
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
-        if: ${{ inputs.gpu-arch-type != 'rocm' }}
+        if: ${{ inputs.gpu-arch-type != 'rocm' || inputs.gpu-arch-version != 'xpu' }}
 
       - name: Setup ROCM
         uses: pytorch/pytorch/.github/actions/setup-rocm@main
         if: ${{ inputs.gpu-arch-type == 'rocm' }}
+
+      - name: Setup XPU
+        uses: pytorch/pytorch/.github/actions/setup-xpu@main
+        if: ${{ inputs.gpu-arch-type == 'xpu' }}
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
