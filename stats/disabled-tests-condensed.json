@@ -220,20 +220,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addmm_decomposed_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "177022",
-    "https://github.com/pytorch/pytorch/issues/177022",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_linalg_cond_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176997",
-    "https://github.com/pytorch/pytorch/issues/176997",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
@@ -255,20 +241,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_linalg_multi_dot_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "176960",
-    "https://github.com/pytorch/pytorch/issues/176960",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_linalg_svdvals_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176961",
-    "https://github.com/pytorch/pytorch/issues/176961",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "152520",
     "https://github.com/pytorch/pytorch/issues/152520",
@@ -281,13 +253,6 @@
     "https://github.com/pytorch/pytorch/issues/177483",
     [
       "xpu"
-    ]
-  ],
-  "test_comprehensive_matmul_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "176964",
-    "https://github.com/pytorch/pytorch/issues/176964",
-    [
-      "inductor"
     ]
   ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
