@@ -30,7 +30,13 @@ from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
 from .testers.restart_checker import dispatch_workflow_restart, workflow_restart_checker
-from .utils import parse_datetime, RestartAction, RetryWithBackoff, RevertAction
+from .utils import (
+    AdvisorAction,
+    parse_datetime,
+    RestartAction,
+    RetryWithBackoff,
+    RevertAction,
+)
 
 
 # Special constant to indicate --hud-html was passed as a flag (without a value)
@@ -95,6 +101,11 @@ class DefaultConfig:
         self.revert_action = (
             RevertAction.from_str(os.environ["REVERT_ACTION"])
             if "REVERT_ACTION" in os.environ
+            else None
+        )
+        self.advisor_action = (
+            AdvisorAction.from_str(os.environ["ADVISOR_ACTION"])
+            if "ADVISOR_ACTION" in os.environ
             else None
         )
         self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
@@ -304,6 +315,16 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
         ),
     )
     workflow_parser.add_argument(
+        "--advisor-action",
+        type=AdvisorAction.from_str,
+        default=None,
+        choices=list(AdvisorAction),
+        help=(
+            "AI advisor mode: skip (default, no dispatch), log (log to CH only), "
+            "or run (dispatch workflow + log)."
+        ),
+    )
+    workflow_parser.add_argument(
         "--hud-html",
         nargs="?",
         const=HUD_HTML_NO_VALUE_FLAG,
@@ -460,6 +481,7 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         notify_issue_number=_get("notify_issue_number", DEFAULT_NOTIFY_ISSUE_NUMBER),
         restart_action=_get("restart_action", None),
         revert_action=_get("revert_action", None),
+        advisor_action=_get("advisor_action", None),
         bisection_limit=_get("bisection_limit", None),
         as_of=parse_datetime(_get("as_of")) if _get("as_of") else None,
         # Application Settings
@@ -519,6 +541,7 @@ def build_config_from_event(
         "notify_issue_number": default_config.notify_issue_number,
         "restart_action": default_config.restart_action,
         "revert_action": default_config.revert_action,
+        "advisor_action": default_config.advisor_action,
         "bisection_limit": default_config.bisection_limit,
         "as_of": None,  # Not supported in Lambda invocation
         # Application Settings
@@ -554,6 +577,8 @@ def build_config_from_event(
             config_kwargs[key] = RestartAction.from_str(value)
         elif key == "revert_action" and isinstance(value, str):
             config_kwargs[key] = RevertAction.from_str(value)
+        elif key == "advisor_action" and isinstance(value, str):
+            config_kwargs[key] = AdvisorAction.from_str(value)
         else:
             config_kwargs[key] = value
 
@@ -716,6 +741,11 @@ def main_run(
                 RevertAction.LOG
                 if config.dry_run
                 else (config.revert_action or RevertAction.LOG)
+            ),
+            advisor_action=(
+                AdvisorAction.LOG
+                if config.dry_run
+                else (config.advisor_action or AdvisorAction.RUN)
             ),
             bisection_limit=config.bisection_limit,
             as_of=config.as_of,

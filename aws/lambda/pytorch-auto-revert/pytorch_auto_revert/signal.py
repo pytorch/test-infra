@@ -41,12 +41,26 @@ class AutorevertPattern:
 
 
 @dataclass
+class DispatchAdvisor:
+    """Pure data signal requesting an AI advisor dispatch. No side effects.
+
+    Lightweight: just commit SHAs for partition membership. The full Signal
+    (with events) is available at the call site in autorevert_v2.py.
+    """
+
+    suspect_commit: str
+    failed_commits: Tuple[str, ...]  # SHAs in failed partition (newest first)
+    successful_commits: Tuple[str, ...]  # SHAs in successful partition (newest first)
+
+
+@dataclass
 class RestartCommits:
     """
     Represents an intent to restart a specific set of commits on the signal.
     """
 
     commit_shas: Set[str]
+    advisor: Optional[DispatchAdvisor] = None
 
 
 class IneligibleReason(Enum):
@@ -68,6 +82,7 @@ class IneligibleReason(Enum):
 class Ineligible:
     reason: IneligibleReason
     message: str = ""
+    advisor: Optional[DispatchAdvisor] = None
 
 
 class SignalEvent:
@@ -428,6 +443,22 @@ class Signal:
                 "insufficient history to form failed/unknown/successful partitions",
             )
 
+        # Advisor eligibility: partition exists with sufficient data and
+        # no unknown commits between failed and successful partitions.
+        # Unknown commits mean the partition boundary is uncertain —
+        # wait for restarts to resolve before dispatching advisor.
+        advisor = None
+        if (
+            partition.failure_events_count() >= 2
+            and partition.success_events_count() >= 1
+            and not partition.unknown
+        ):
+            advisor = DispatchAdvisor(
+                suspect_commit=partition.failed[-1].head_sha,
+                failed_commits=tuple(c.head_sha for c in partition.failed),
+                successful_commits=tuple(c.head_sha for c in partition.successful),
+            )
+
         restart_commits = set()
 
         # Cover the unknown gap (between failed and successful partitions)
@@ -480,24 +511,27 @@ class Signal:
             restart_commits.add(partition.failed[-1].head_sha)
 
         if restart_commits:
-            return RestartCommits(commit_shas=restart_commits)
+            return RestartCommits(commit_shas=restart_commits, advisor=advisor)
 
         if infra_check_result != InfraCheckResult.CONFIRMED:
             return Ineligible(
                 IneligibleReason.INFRA_NOT_CONFIRMED,
                 f"infra check result: {infra_check_result.value}",
+                advisor=advisor,
             )
 
         if partition.failure_events_count() < REQUIRE_FAILED_EVENTS:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_FAILURES,
                 f"not enough failures to make call: {partition.failure_events_count()}",
+                advisor=advisor,
             )
 
         if partition.success_events_count() < REQUIRE_SUCCESS_EVENTS:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_SUCCESSES,
                 f"not enough successes to make call: {partition.success_events_count()}",
+                advisor=advisor,
             )
 
         if (
@@ -507,6 +541,7 @@ class Signal:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_FAILURES,
                 "job-track signal requires at least 2 failures on the first failing commit",
+                advisor=advisor,
             )
 
         if partition.unknown:
@@ -515,6 +550,7 @@ class Signal:
             return Ineligible(
                 IneligibleReason.PENDING_GAP,
                 f"pending/missing commits present: {unknown_shas}",
+                advisor=advisor,
             )
 
         # all invariants validated, confirmed not infra, pattern exists
