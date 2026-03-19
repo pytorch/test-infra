@@ -99,3 +99,25 @@ class CHCliFactory:
             column_names=["device", "upstream_repo", "commit_sha", "workflow_name",
                           "conclusion", "status", "run_url"],
         )
+
+    @staticmethod
+    def _sql_string(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+        return f"'{escaped}'"
+
+    @classmethod
+    def update_ci_result_by_run_url(
+        cls,
+        *,
+        run_url: str,
+        status: str,
+        conclusion: str,
+    ) -> None:
+        query = (
+            "ALTER TABLE oot_ci_results "
+            f"UPDATE status = {cls._sql_string(status)}, "
+            f"conclusion = {cls._sql_string(conclusion)} "
+            f"WHERE run_url = {cls._sql_string(run_url)}"
+        )
+        cls._get_client().command(query)
+        logger.info("ClickHouse row update requested run_url=%s status=%s", run_url, status)

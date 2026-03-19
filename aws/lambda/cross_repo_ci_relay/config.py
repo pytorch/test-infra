@@ -26,6 +26,7 @@ class RelayConfig:
     clickhouse_database: str
     redis_url: str
     whitelist_ttl_seconds: int
+    in_progress_workflow_ttl_seconds: int
 
     @property
     def github_webhook_secret_bytes(self) -> bytes:
@@ -42,7 +43,7 @@ class RelayConfig:
         )
         github_app_private_key = (
             getattr(secrets, "github_app_private_key", "")
-            or _required_env("GITHUB_APP_PRIVATE_KEY", required=(route == "webhook"))
+            or _required_env("GITHUB_APP_PRIVATE_KEY", required=(route in ("webhook", "result")))
         )
         clickhouse_password = (
             getattr(secrets, "clickhouse_password", "")
@@ -50,7 +51,7 @@ class RelayConfig:
         )
         redis_url = getattr(secrets, "redis_url", "") or _required_env("REDIS_URL", required=True)
         return cls(
-            github_app_id=_required_env("GITHUB_APP_ID", required=(route == "webhook")),
+            github_app_id=_required_env("GITHUB_APP_ID", required=(route in ("webhook", "result"))),
             github_webhook_secret=github_webhook_secret,
             github_app_private_key=github_app_private_key,
             secret_store_arn=secret_store_arn,
@@ -62,4 +63,5 @@ class RelayConfig:
             clickhouse_database=_required_env("CLICKHOUSE_DATABASE", required=(route == "result")),
             redis_url=redis_url,
             whitelist_ttl_seconds=int(os.getenv("WHITELIST_TTL_SECONDS", 1200)),
+            in_progress_workflow_ttl_seconds=int(os.getenv("IN_PROGRESS_WORKFLOW_TTL_SECONDS", 10800)),
         )
