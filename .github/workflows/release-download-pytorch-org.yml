@@ -52,6 +52,9 @@ jobs:
         env:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
             set -ex
             cd release

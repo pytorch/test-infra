@@ -17,3 +17,6 @@ TO=${TO:-}
 PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
 
 aws_promote "${PACKAGE_NAME}"
+
+# Also promote to R2 (Cloudflare) if credentials are available
+r2_promote "${PACKAGE_NAME}"
