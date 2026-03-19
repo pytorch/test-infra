@@ -49,13 +49,6 @@
       "rocm"
     ]
   ],
-  "test_additive_rnumel (__main__.MixOrderReductionTest)": [
-    "177218",
-    "https://github.com/pytorch/pytorch/issues/177218",
-    [
-      "xpu"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -437,20 +430,6 @@
       "slow"
     ]
   ],
-  "test_cudagraph_memory_cleanup (__main__.TestCustomOpAutoTune)": [
-    "175949",
-    "https://github.com/pytorch/pytorch/issues/175949",
-    [
-      "xpu"
-    ]
-  ],
-  "test_cudagraph_memory_cleanup_benchmarker (__main__.TestCustomOpAutoTune)": [
-    "176139",
-    "https://github.com/pytorch/pytorch/issues/176139",
-    [
-      "xpu"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -536,20 +515,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_div7_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "176134",
-    "https://github.com/pytorch/pytorch/issues/176134",
-    [
-      "xpu"
-    ]
-  ],
-  "test_div7_xpu (__main__.GPUTests)": [
-    "176406",
-    "https://github.com/pytorch/pytorch/issues/176406",
-    [
-      "xpu"
     ]
   ],
   "test_do_not_guard_unbacked_inputs (__main__.TestUnbacked)": [
@@ -700,27 +665,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_fake_device (__main__.FakeTensorTest)": [
-    "175950",
-    "https://github.com/pytorch/pytorch/issues/175950",
-    [
-      "xpu"
-    ]
-  ],
-  "test_fake_device_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "176138",
-    "https://github.com/pytorch/pytorch/issues/176138",
-    [
-      "xpu"
-    ]
-  ],
-  "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "176147",
-    "https://github.com/pytorch/pytorch/issues/176147",
-    [
-      "xpu"
     ]
   ],
   "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
