@@ -82,3 +82,97 @@ aws_promote() {
         fi
     fi
 }
+
+r2_promote() {
+    package_name=$1
+    pytorch_version=$(get_pytorch_version)
+
+    # Check if R2 credentials are available
+    if [[ -z "${R2_ACCOUNT_ID:-}" || -z "${R2_ACCESS_KEY_ID:-}" || -z "${R2_SECRET_ACCESS_KEY:-}" ]]; then
+        echo "- WARNING: R2 credentials not configured, skipping R2 promotion"
+        return 0
+    fi
+
+    DRY_RUN=${DRY_RUN:-enabled}
+    AWS=${AWS:-aws}
+    R2_ENDPOINT_URL="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    R2_BUCKET="s3://pytorch-downloads"
+
+    # Map S3 destination path to R2 path
+    # S3: s3://pytorch/whl/ -> R2: s3://pytorch-downloads/whl/
+    r2_dest="${PYTORCH_S3_TO/s3:\/\/pytorch/${R2_BUCKET}}"
+
+    echo "=-=-=-= Promoting ${package_name} v${pytorch_version} to R2 =-=-=-="
+    echo "+ R2 destination: ${r2_dest}"
+
+    if [[ $DRY_RUN = "enabled" ]]; then
+        echo "+ DRY RUN: Would copy matching files from ${PYTORCH_S3_FROM} to R2 ${r2_dest}"
+        # List what would be copied
+        ${AWS} s3 ls "${PYTORCH_S3_FROM/\/$//}/" --recursive \
+            | grep "${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-}" || true
+        return 0
+    fi
+
+    # Save current AWS credentials (OIDC-based for S3)
+    local saved_aws_access_key_id="${AWS_ACCESS_KEY_ID:-}"
+    local saved_aws_secret_access_key="${AWS_SECRET_ACCESS_KEY:-}"
+    local saved_aws_session_token="${AWS_SESSION_TOKEN:-}"
+    local saved_aws_default_region="${AWS_DEFAULT_REGION:-}"
+
+    # Create a temporary directory for downloads
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    trap "rm -rf ${tmp_dir}" RETURN
+
+    # Download matching files from S3 (using current OIDC credentials)
+    echo "+ Downloading matching files from S3..."
+    (
+        set -x
+        ${AWS} s3 cp \
+            --recursive \
+            --exclude '*' \
+            --include "*${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-*}" \
+            "${PYTORCH_S3_FROM/\/$//}" \
+            "${tmp_dir}/"
+    )
+
+    # Switch to R2 credentials
+    export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+    export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+    unset AWS_SESSION_TOKEN
+    export AWS_DEFAULT_REGION="auto"
+
+    # Upload each file to R2 with sha256 metadata
+    echo "+ Uploading files to R2..."
+    local file_count=0
+    for pkg in "${tmp_dir}"/*; do
+        if [[ ! -f "${pkg}" ]]; then
+            continue
+        fi
+        local filename
+        filename=$(basename "${pkg}")
+        local sha256
+        sha256=$(sha256sum "${pkg}" | awk '{print $1}')
+        (
+            set -x
+            ${AWS} s3 cp "${pkg}" "${r2_dest/\/$//}/${filename}" \
+                --metadata "checksum-sha256=${sha256}" \
+                --endpoint-url "${R2_ENDPOINT_URL}"
+        )
+        file_count=$((file_count + 1))
+    done
+
+    echo "+ Uploaded ${file_count} files to R2"
+
+    # Restore original AWS credentials
+    export AWS_ACCESS_KEY_ID="${saved_aws_access_key_id}"
+    export AWS_SECRET_ACCESS_KEY="${saved_aws_secret_access_key}"
+    if [[ -n "${saved_aws_session_token}" ]]; then
+        export AWS_SESSION_TOKEN="${saved_aws_session_token}"
+    fi
+    if [[ -n "${saved_aws_default_region}" ]]; then
+        export AWS_DEFAULT_REGION="${saved_aws_default_region}"
+    else
+        unset AWS_DEFAULT_REGION
+    fi
+}
