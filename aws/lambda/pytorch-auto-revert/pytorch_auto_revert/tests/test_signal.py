@@ -587,7 +587,7 @@ class TestDispatchAdvisor(unittest.TestCase):
             status=status,
             started_at=ts(self.t0, minute),
             wf_run_id=kw.get("wf_run_id", 1),
-            job_id=kw.get("job_id", None),
+            job_id=kw.get("job_id"),
         )
 
     def test_advisor_emitted_on_restart_commits(self):
