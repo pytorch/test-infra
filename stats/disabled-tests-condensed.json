@@ -49,13 +49,6 @@
       "rocm"
     ]
   ],
-  "test_adam_ema_update_scalar_precision_beta2_0_9999 (__main__.ForeachTests)": [
-    "176391",
-    "https://github.com/pytorch/pytorch/issues/176391",
-    [
-      "xpu"
-    ]
-  ],
   "test_additive_rnumel (__main__.MixOrderReductionTest)": [
     "177218",
     "https://github.com/pytorch/pytorch/issues/177218",
