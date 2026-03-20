@@ -18,6 +18,7 @@ RUN dnf install -y \
         gdb \
         git \
         jq \
+        libomp-devel \
         make \
         sudo \
         unzip \
