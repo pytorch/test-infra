@@ -33,7 +33,7 @@ jobs:
             runner: mt-l-x86iamx-8-16
             platform: linux-x86_64
             container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-latest
-            llvm-targets: "x86"
+            llvm-targets: "X86"
           # Clang 15 - aarch64
           - clang-version: "15.0.7"
             clang-major: "15"
@@ -41,7 +41,7 @@ jobs:
             runner: mt-l-arm64g2-6-32
             platform: linux-aarch64
             container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-latest
-            llvm-targets: "aarch64"
+            llvm-targets: "AArch64"
           # Clang 18 - x86_64
           - clang-version: "18.1.8"
             clang-major: "18"
@@ -49,7 +49,7 @@ jobs:
             runner: mt-l-x86iamx-8-16
             platform: linux-x86_64
             container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-latest
-            llvm-targets: "x86"
+            llvm-targets: "X86"
           # Clang 18 - aarch64
           - clang-version: "18.1.8"
             clang-major: "18"
@@ -57,7 +57,7 @@ jobs:
             runner: mt-l-arm64g2-6-32
             platform: linux-aarch64
             container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-latest
-            llvm-targets: "aarch64"
+            llvm-targets: "AArch64"
 
     name: clang-${{ matrix.clang-major }} (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
