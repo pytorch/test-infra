@@ -14,13 +14,15 @@ For more information, please refer to this [RFC](https://github.com/pytorch/pyto
 |----------|-------------|---------|
 | `GITHUB_APP_ID` | GitHub App ID | `1234567` |
 | `SECRET_STORE_ARN` | AWS Secrets Manager secret ARN for sensitive config | `arn:aws:secretsmanager:us-east-1:123456789012:secret:cross-repo-ci-relay/app-secrets-xxxxxx` |
+| `REDIS_ENDPOINT` | Redis endpoint hostname; preferred over `REDIS_URL` when set | `my-cache.xxxxxx.use1.cache.amazonaws.com` |
+| `REDIS_LOGIN` | Redis login in `username:password` format paired with `REDIS_ENDPOINT` | `relay-user:relay-password` |
 | `UPSTREAM_REPO` | Upstream repository (`owner/repo`) | `pytorch/pytorch` |
 | `WHITELIST_URL` | GitHub blob URL to whitelist YAML | `https://github.com/<owner>/<repo>/blob/<ref>/whitelist.yaml` |
 | `WHITELIST_TTL_SECONDS` | Whitelist cache TTL in Redis (seconds) | `3600` |
 | `IN_PROGRESS_WORKFLOW_TTL_SECONDS` | Max lifetime for in-progress workflow and pending-close Redis records (seconds) | `10800` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-The webhook Lambda does not read `GITHUB_WEBHOOK_SECRET`, `GITHUB_APP_PRIVATE_KEY`, or `REDIS_URL` from environment variables. Those values are loaded only from the Secrets Manager secret addressed by `SECRET_STORE_ARN`.
+When `REDIS_ENDPOINT` is set, the webhook Lambda builds the Redis connection from `REDIS_ENDPOINT` and optional `REDIS_LOGIN`. Otherwise it falls back to `REDIS_URL`, which may still come from the Secrets Manager secret addressed by `SECRET_STORE_ARN`.
 
 ### `cross_repo_ci_result`
 
@@ -32,11 +34,13 @@ The webhook Lambda does not read `GITHUB_WEBHOOK_SECRET`, `GITHUB_APP_PRIVATE_KE
 | `CLICKHOUSE_USER` | ClickHouse username | `admin` |
 | `CLICKHOUSE_DATABASE` | ClickHouse database | `default` |
 | `SECRET_STORE_ARN` | AWS Secrets Manager secret ARN for sensitive config | `arn:aws:secretsmanager:us-east-1:123456789012:secret:cross-repo-ci-relay/app-secrets-xxxxxx` |
+| `REDIS_ENDPOINT` | Redis endpoint hostname; preferred over `REDIS_URL` when set | `my-cache.xxxxxx.use1.cache.amazonaws.com` |
+| `REDIS_LOGIN` | Redis login in `username:password` format paired with `REDIS_ENDPOINT` | `relay-user:relay-password` |
 | `WHITELIST_TTL_SECONDS` | Whitelist cache TTL in Redis (seconds) | `3600` |
 | `IN_PROGRESS_WORKFLOW_TTL_SECONDS` | Max lifetime for in-progress workflow and pending-close Redis records (seconds) | `10800` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-The result Lambda does not read `CLICKHOUSE_PASSWORD`, `REDIS_URL`, or `GITHUB_APP_PRIVATE_KEY` from environment variables. Those values are loaded only from the Secrets Manager secret addressed by `SECRET_STORE_ARN`.
+When `REDIS_ENDPOINT` is set, the result Lambda builds the Redis connection from `REDIS_ENDPOINT` and optional `REDIS_LOGIN`. Otherwise it falls back to `REDIS_URL`, which may still come from the Secrets Manager secret addressed by `SECRET_STORE_ARN`.
 
 `POST /ci/result` must include an `Authorization: Bearer <token>` header. The token must be a GitHub Actions OIDC token issued by `https://token.actions.githubusercontent.com`.
 

@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from github import Github
 from github.GithubException import GithubException
@@ -21,6 +21,30 @@ PENDING_PR_CLOSE_REDIS_KEY_PREFIX = "oot:pending_pr_close:"
 CANCELLED_WORKFLOW_REDIS_KEY_PREFIX = "oot:cancelled_workflow:"
 
 _redis_client: redis_lib.Redis | None = None
+
+
+def _build_redis_url(config: RelayConfig) -> str:
+    endpoint = (config.redis_endpoint or "").strip()
+    login = (config.redis_login or "").strip()
+
+    if endpoint:
+        if endpoint.startswith(("redis://", "rediss://")):
+            return endpoint
+
+        auth = ""
+        if login:
+            username, password = (login.split(":", 1) + [""])[:2]
+            if password:
+                auth = f"{quote(username, safe='')}:{quote(password, safe='')}@"
+            else:
+                auth = f"{quote(username, safe='')}@"
+
+        return f"redis://{auth}{endpoint}:6379/0"
+
+    if config.redis_url:
+        return config.redis_url
+
+    raise RuntimeError("Redis is not configured")
 
 
 def _read_whitelist_from_github_url(url: str) -> str:
@@ -57,7 +81,7 @@ def _read_whitelist_from_github_url(url: str) -> str:
 def get_redis(config: RelayConfig) -> redis_lib.Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis_lib.from_url(config.redis_url, decode_responses=True)
+        _redis_client = redis_lib.from_url(_build_redis_url(config), decode_responses=True)
     return _redis_client
 
 
