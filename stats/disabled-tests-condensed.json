@@ -1589,6 +1589,17 @@
       "mac"
     ]
   ],
+  "test_serialize_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
+    "178077",
+    "https://github.com/pytorch/pytorch/issues/178077",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_set_stance_eager_then_compile (__main__.DecoratorTests)": [
     "148515",
     "https://github.com/pytorch/pytorch/issues/148515",
