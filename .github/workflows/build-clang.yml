@@ -6,11 +6,6 @@ on:
       - '.github/workflows/build-clang.yml'
       - 'tools/clang-build/**'
   workflow_dispatch:
-    inputs:
-      clang-versions:
-        description: 'JSON list of clang version objects to build (overrides default matrix)'
-        required: false
-        type: string
 
 permissions:
   id-token: write
