@@ -72,7 +72,7 @@ jobs:
           # and a few dev libraries for the LLVM build.
           dnf install -y \
             cmake ninja-build python3 \
-            wget xz \
+            wget xz perl-FindBin \
             zlib-devel ncurses-devel libxml2-devel libedit-devel
 
           cmake --version
