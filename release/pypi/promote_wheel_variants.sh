@@ -105,6 +105,7 @@ declare -a TORCH_VARIANTS=(
     "cu126|manylinux_2_28_x86_64|%2Bcu126"
     "cu128|manylinux_2_28_x86_64|%2Bcu128"
     "cu130|manylinux_2_28_x86_64|%2Bcu130"
+    "cu132|manylinux_2_28_x86_64|%2Bcu132"
     "xpu|linux_x86_64|%2Bxpu"
     "rocm7.0|manylinux_2_28_x86_64|%2Brocm7.0"
     "rocm7.1|manylinux_2_28_x86_64|%2Brocm7.1"
@@ -113,11 +114,13 @@ declare -a TORCH_VARIANTS=(
     "cu126|manylinux_2_28_aarch64|%2Bcu126"
     "cu128|manylinux_2_28_aarch64|%2Bcu128"
     "cu130|manylinux_2_28_aarch64|%2Bcu130"
+    "cu132|manylinux_2_28_aarch64|%2Bcu132"
     # Windows
     "cpu|win_amd64|%2Bcpu"
     "cu126|win_amd64|%2Bcu126"
     "cu128|win_amd64|%2Bcu128"
     "cu130|win_amd64|%2Bcu130"
+    "cu132|win_amd64|%2Bcu132"
     "xpu|win_amd64|%2Bxpu"
     # macOS (no suffix for CPU-only)
     "cpu|macosx_.*_arm64|"
@@ -129,6 +132,7 @@ declare -a TORCHVISION_VARIANTS=(
     "cu126|manylinux_2_28_x86_64|%2Bcu126"
     "cu128|manylinux_2_28_x86_64|%2Bcu128"
     "cu130|manylinux_2_28_x86_64|%2Bcu130"
+    "cu132|manylinux_2_28_x86_64|%2Bcu132"
     "xpu|manylinux_2_28_x86_64|%2Bxpu"
     "rocm7.0|manylinux_2_28_x86_64|%2Brocm7.0"
     "rocm7.1|manylinux_2_28_x86_64|%2Brocm7.1"
@@ -137,11 +141,13 @@ declare -a TORCHVISION_VARIANTS=(
     "cu126|manylinux_2_28_aarch64|"
     "cu128|manylinux_2_28_aarch64|"
     "cu130|manylinux_2_28_aarch64|"
+    "cu132|manylinux_2_28_aarch64|"
     # Windows
     "cpu|win_amd64|%2Bcpu"
     "cu126|win_amd64|%2Bcu126"
     "cu128|win_amd64|%2Bcu128"
     "cu130|win_amd64|%2Bcu130"
+    "cu132|win_amd64|%2Bcu132"
     "xpu|win_amd64|%2Bxpu"
     # macOS
     "cpu|macosx_.*_arm64|"
@@ -153,6 +159,7 @@ declare -a TORCHAUDIO_VARIANTS=(
     "cu126|manylinux_2_28_x86_64|%2Bcu126"
     "cu128|manylinux_2_28_x86_64|%2Bcu128"
     "cu130|manylinux_2_28_x86_64|%2Bcu130"
+    "cu132|manylinux_2_28_x86_64|%2Bcu132"
     # Linux aarch64
     "cpu|manylinux_2_28_aarch64|%2Bcpu"
     # Windows
@@ -160,6 +167,7 @@ declare -a TORCHAUDIO_VARIANTS=(
     "cu126|win_amd64|%2Bcu126"
     "cu128|win_amd64|%2Bcu128"
     "cu130|win_amd64|%2Bcu130"
+    "cu132|win_amd64|%2Bcu132"
     # macOS
     "cpu|macosx_.*_arm64|"
 )

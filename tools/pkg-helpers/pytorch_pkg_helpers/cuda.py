@@ -16,7 +16,7 @@ def get_cuda_arch_list(
     # however we would like to keep sm_70 architecture see: https://github.com/pytorch/pytorch/issues/157517
     if sanitized_version == "12.8":
         return "7.0;7.5;8.0;8.6;9.0;10.0;12.0"
-    elif sanitized_version == "13.0":
+    elif sanitized_version == "13.0" or sanitized_version == "13.2":
         arch_list = "7.5;8.0;8.6;9.0;10.0;12.0+PTX"
         # Add sm_110 for aarch64
         if "aarch64" in platform:
