@@ -372,6 +372,13 @@
       "macos"
     ]
   ],
+  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
+    "176392",
+    "https://github.com/pytorch/pytorch/issues/176392",
+    [
+      "xpu"
+    ]
+  ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
     "106308",
     "https://github.com/pytorch/pytorch/issues/106308",
