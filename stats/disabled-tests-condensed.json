@@ -1293,6 +1293,20 @@
       "rocm"
     ]
   ],
+  "test_profiler_mark_wrapper_call_xpu_dynamic_shapes_gpu_wrapper (__main__.DynamicShapesGpuWrapperGpuTests)": [
+    "176583",
+    "https://github.com/pytorch/pytorch/issues/176583",
+    [
+      "xpu"
+    ]
+  ],
+  "test_profiler_mark_wrapper_call_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "176564",
+    "https://github.com/pytorch/pytorch/issues/176564",
+    [
+      "xpu"
+    ]
+  ],
   "test_profiler_optimizer_single_tensor_pattern (__main__.TestExperimentalUtils)": [
     "165949",
     "https://github.com/pytorch/pytorch/issues/165949",
