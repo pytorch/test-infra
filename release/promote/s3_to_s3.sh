@@ -16,7 +16,14 @@ PYTORCH_S3_FROM=${PYTORCH_S3_FROM:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${FROM}}
 TO=${TO:-}
 PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
 
-aws_promote "${PACKAGE_NAME}"
+# R2_ONLY: set to "true" to skip S3-to-S3 copy and only promote to R2
+R2_ONLY=${R2_ONLY:-false}
+
+if [[ "${R2_ONLY}" != "true" ]]; then
+    aws_promote "${PACKAGE_NAME}"
+else
+    echo "+ R2_ONLY=true, skipping S3-to-S3 promotion"
+fi
 
 # Also promote to R2 (Cloudflare) if credentials are available
 r2_promote "${PACKAGE_NAME}"

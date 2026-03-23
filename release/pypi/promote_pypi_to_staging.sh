@@ -21,22 +21,22 @@ upload_pypi_to_staging() {
 }
 
 # Uncomment these to promote to pypi
-LINUX_VERSION_SUFFIX="%2Bcu126"
+LINUX_VERSION_SUFFIX="%2Bcu130"
 CPU_VERSION_SUFFIX="%2Bcpu"
 MACOS_ARM64="macosx_.*_arm64"
 
-PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
-PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torch "${PYTORCH_VERSION}"
 
-PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
-PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
 PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
 PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchvision "${TORCHVISION_VERSION}"
 
-PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu126" upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
-PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
+PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu130" upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
 PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
 PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging torchaudio "${TORCHAUDIO_VERSION}"
 

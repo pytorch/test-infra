@@ -124,55 +124,84 @@ r2_promote() {
     tmp_dir=$(mktemp -d)
     trap "rm -rf ${tmp_dir}" RETURN
 
-    # Download matching files from S3 (using current OIDC credentials)
-    echo "+ Downloading matching files from S3..."
-    (
-        set -x
-        ${AWS} s3 cp \
-            --recursive \
-            --exclude '*' \
-            --include "*${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-*}" \
-            "${PYTORCH_S3_FROM/\/$//}" \
-            "${tmp_dir}/"
-    )
+    # List matching files from S3 first (using current OIDC credentials)
+    echo "+ Listing matching files from S3..."
+    local s3_from_path="${PYTORCH_S3_FROM/\/$//}"
+    local file_list="${tmp_dir}/file_list.txt"
+    ${AWS} s3 ls "${s3_from_path}/" --recursive \
+        | grep "${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-}" \
+        | awk '{print $NF}' > "${file_list}" || true
 
-    # Switch to R2 credentials
-    export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
-    export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
-    unset AWS_SESSION_TOKEN
-    export AWS_DEFAULT_REGION="auto"
+    local total_files
+    total_files=$(wc -l < "${file_list}")
+    echo "+ Found ${total_files} files to promote to R2"
 
-    # Upload each file to R2 with sha256 metadata
-    echo "+ Uploading files to R2..."
-    local file_count=0
-    for pkg in "${tmp_dir}"/*; do
-        if [[ ! -f "${pkg}" ]]; then
-            continue
+    if [[ ${total_files} -eq 0 ]]; then
+        echo "+ No matching files found, skipping R2 promotion"
+        return 0
+    fi
+
+    # Helper to restore S3 credentials
+    _restore_s3_creds() {
+        export AWS_ACCESS_KEY_ID="${saved_aws_access_key_id}"
+        export AWS_SECRET_ACCESS_KEY="${saved_aws_secret_access_key}"
+        if [[ -n "${saved_aws_session_token}" ]]; then
+            export AWS_SESSION_TOKEN="${saved_aws_session_token}"
+        else
+            unset AWS_SESSION_TOKEN 2>/dev/null || true
         fi
+        if [[ -n "${saved_aws_default_region}" ]]; then
+            export AWS_DEFAULT_REGION="${saved_aws_default_region}"
+        else
+            unset AWS_DEFAULT_REGION 2>/dev/null || true
+        fi
+    }
+
+    # Helper to switch to R2 credentials
+    _set_r2_creds() {
+        export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+        export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+        unset AWS_SESSION_TOKEN 2>/dev/null || true
+        export AWS_DEFAULT_REGION="auto"
+    }
+
+    # Download and upload files one at a time to avoid running out of disk space
+    echo "+ Downloading and uploading files to R2 one by one..."
+    local file_count=0
+    while IFS= read -r s3_key; do
         local filename
-        filename=$(basename "${pkg}")
-        local sha256
-        sha256=$(sha256sum "${pkg}" | awk '{print $1}')
+        filename=$(basename "${s3_key}")
+        local local_file="${tmp_dir}/${filename}"
+
+        # Download single file from S3 (using S3 credentials)
+        _restore_s3_creds
         (
             set -x
-            ${AWS} s3 cp "${pkg}" "${r2_dest/\/$//}/${filename}" \
+            ${AWS} s3 cp "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
+        )
+
+        # Compute sha256 checksum
+        local sha256
+        sha256=$(sha256sum "${local_file}" | awk '{print $1}')
+
+        # Upload to R2
+        _set_r2_creds
+        (
+            set -x
+            ${AWS} s3 cp "${local_file}" "${r2_dest/\/$//}/${filename}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
         )
+
+        # Remove local file to free disk space
+        rm -f "${local_file}"
+
         file_count=$((file_count + 1))
-    done
+        echo "+ Progress: ${file_count}/${total_files} files uploaded"
+    done < "${file_list}"
 
     echo "+ Uploaded ${file_count} files to R2"
 
     # Restore original AWS credentials
-    export AWS_ACCESS_KEY_ID="${saved_aws_access_key_id}"
-    export AWS_SECRET_ACCESS_KEY="${saved_aws_secret_access_key}"
-    if [[ -n "${saved_aws_session_token}" ]]; then
-        export AWS_SESSION_TOKEN="${saved_aws_session_token}"
-    fi
-    if [[ -n "${saved_aws_default_region}" ]]; then
-        export AWS_DEFAULT_REGION="${saved_aws_default_region}"
-    else
-        unset AWS_DEFAULT_REGION
-    fi
+    _restore_s3_creds
 }
