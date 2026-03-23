@@ -18,7 +18,7 @@ on:
         description: 'Dry run (skip push to Docker Hub)'
         required: false
         type: boolean
-        default: false
+        default: true
       channel:
         description: 'Channel to use for matrix generation'
         required: false
