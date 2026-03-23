@@ -384,6 +384,17 @@
     "https://github.com/pytorch/pytorch/issues/106308",
     []
   ],
+  "test_cuda_event_record_on_stream (__main__.TestStreams)": [
+    "178155",
+    "https://github.com/pytorch/pytorch/issues/178155",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
