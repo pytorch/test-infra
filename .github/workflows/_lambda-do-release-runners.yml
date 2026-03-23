@@ -93,6 +93,8 @@ jobs:
           { dir-name: 'keep-going-call-log-classifier', zip-name: 'keep-going-call-log-classifier' },
           { dir-name: 'buildkite-webhook-handler', zip-name: 'buildkite-webhook-handler' },
           { dir-name: 'benchmark_regression_summary_report', zip-name: 'benchmark-regression-summary-report' },
+          { dir-name: 'cross_repo_ci_relay/webhook', zip-name: 'cross-repo-ci-webhook' },
+          { dir-name: 'cross_repo_ci_relay/result', zip-name: 'cross-repo-ci-result' },
         ]
     name: Upload Release for ${{ matrix.dir-name }} lambda
     runs-on: ubuntu-latest
