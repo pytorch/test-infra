@@ -1,0 +1,105 @@
+name: Release Docker Images to Docker Hub
+
+# This workflow pulls release CUDA Docker images from GHCR,
+# retags them, and pushes to Docker Hub.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release-docker.yml
+  workflow_dispatch:
+    inputs:
+      pytorch_version:
+        description: 'PyTorch version (e.g. 2.11.0)'
+        required: true
+        type: string
+        default: '2.11.0'
+      dry_run:
+        description: 'Dry run (skip push to Docker Hub)'
+        required: false
+        type: boolean
+        default: true
+      channel:
+        description: 'Channel to use for matrix generation'
+        required: false
+        type: choice
+        default: 'release'
+        options:
+          - 'release'
+          - 'test'
+
+permissions: read-all
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_docker_release_matrix.yml
+    with:
+      channel: ${{ inputs.channel || 'release' }}
+    secrets: inherit
+
+  release-docker:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'promote-env' || '' }}
+    strategy:
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      fail-fast: false
+    name: ${{ matrix.cuda }}-cudnn${{ matrix.cudnn_version }}-${{ matrix.image_type }}
+    steps:
+      - name: Skip non-CUDA images
+        if: matrix.cuda == 'cpu'
+        run: |
+          echo "Skipping non-CUDA image"
+          echo "SKIP=true" >> "${GITHUB_ENV}"
+
+      - name: Login to GHCR
+        if: env.SKIP != 'true'
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine dry run mode
+        if: env.SKIP != 'true'
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ inputs.dry_run }}" == "true" || -z "${{ secrets.DOCKERHUB_TOKEN }}" ]]; then
+            echo "DRY_RUN=true" >> "${GITHUB_ENV}"
+            echo "Dry run enabled (pr: ${{ github.event_name == 'pull_request' }}, explicit: ${{ inputs.dry_run }}, token missing: ${{ secrets.DOCKERHUB_TOKEN == '' }})"
+          else
+            echo "DRY_RUN=false" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Login to Docker Hub
+        if: env.SKIP != 'true' && env.DRY_RUN != 'true'
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull, retag, and push image
+        if: env.SKIP != 'true'
+        env:
+          PYTORCH_VERSION: ${{ inputs.pytorch_version || '2.11.0' }}
+          CUDA: ${{ matrix.cuda }}
+          CUDNN: ${{ matrix.cudnn_version }}
+          IMAGE_TYPE: ${{ matrix.image_type }}
+        run: |
+          set -eoux pipefail
+
+          GHCR_TAG="${PYTORCH_VERSION}-cuda${CUDA}-cudnn${CUDNN}-${IMAGE_TYPE}"
+          GHCR_IMAGE="ghcr.io/pytorch/pytorch:${GHCR_TAG}"
+          DOCKERHUB_IMAGE="pytorch/pytorch:${GHCR_TAG}"
+
+          echo "Pulling ${GHCR_IMAGE}"
+          docker pull "${GHCR_IMAGE}"
+
+          echo "Tagging as ${DOCKERHUB_IMAGE}"
+          docker tag "${GHCR_IMAGE}" "${DOCKERHUB_IMAGE}"
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "[DRY RUN] Would push ${DOCKERHUB_IMAGE}"
+          else
+            echo "Pushing ${DOCKERHUB_IMAGE}"
+            docker push "${DOCKERHUB_IMAGE}"
+          fi
