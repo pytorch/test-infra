@@ -4,6 +4,9 @@ name: Release Docker Images to Docker Hub
 # retags them, and pushes to Docker Hub.
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/release-docker.yml
   workflow_dispatch:
     inputs:
       pytorch_version:
@@ -31,13 +34,13 @@ jobs:
   generate-matrix:
     uses: ./.github/workflows/generate_docker_release_matrix.yml
     with:
-      channel: ${{ inputs.channel }}
+      channel: ${{ inputs.channel || 'release' }}
     secrets: inherit
 
   release-docker:
     needs: generate-matrix
     runs-on: ubuntu-latest
-    environment: promote-env
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'promote-env' || '' }}
     strategy:
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
       fail-fast: false
@@ -60,9 +63,9 @@ jobs:
       - name: Determine dry run mode
         if: env.SKIP != 'true'
         run: |
-          if [[ "${{ inputs.dry_run }}" == "true" || -z "${{ secrets.DOCKERHUB_TOKEN }}" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ inputs.dry_run }}" == "true" || -z "${{ secrets.DOCKERHUB_TOKEN }}" ]]; then
             echo "DRY_RUN=true" >> "${GITHUB_ENV}"
-            echo "Dry run enabled (explicit: ${{ inputs.dry_run }}, token missing: ${{ secrets.DOCKERHUB_TOKEN == '' }})"
+            echo "Dry run enabled (pr: ${{ github.event_name == 'pull_request' }}, explicit: ${{ inputs.dry_run }}, token missing: ${{ secrets.DOCKERHUB_TOKEN == '' }})"
           else
             echo "DRY_RUN=false" >> "${GITHUB_ENV}"
           fi
@@ -77,7 +80,7 @@ jobs:
       - name: Pull, retag, and push image
         if: env.SKIP != 'true'
         env:
-          PYTORCH_VERSION: ${{ inputs.pytorch_version }}
+          PYTORCH_VERSION: ${{ inputs.pytorch_version || '2.11.0' }}
           CUDA: ${{ matrix.cuda }}
           CUDNN: ${{ matrix.cudnn_version }}
           IMAGE_TYPE: ${{ matrix.image_type }}
