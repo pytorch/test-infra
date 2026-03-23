@@ -547,13 +547,6 @@
     "https://github.com/pytorch/pytorch/issues/171934",
     []
   ],
-  "test_dtensor_op_db_clamp_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
-    "176974",
-    "https://github.com/pytorch/pytorch/issues/176974",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_full_like_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "167252",
     "https://github.com/pytorch/pytorch/issues/167252",
