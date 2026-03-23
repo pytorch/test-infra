@@ -1563,6 +1563,17 @@
       "linux"
     ]
   ],
+  "test_retrace_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
+    "178177",
+    "https://github.com/pytorch/pytorch/issues/178177",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_retracibility_dict_container_inp_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
     "117918",
     "https://github.com/pytorch/pytorch/issues/117918",
