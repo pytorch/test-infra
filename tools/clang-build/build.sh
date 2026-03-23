@@ -52,7 +52,7 @@ CMAKE_ARGS=(
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
     -DLLVM_ENABLE_PROJECTS="clang"
-    -DLLVM_ENABLE_RUNTIMES="openmp"
+    -DLLVM_ENABLE_RUNTIMES="compiler-rt;openmp"
     -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGETS}"
     -DLLVM_BUILD_UTILS=ON
     -DLLVM_INSTALL_UTILS=ON
@@ -92,6 +92,15 @@ else
     if ls "${INSTALL_PREFIX}"/lib64/libomp* 2>/dev/null; then
         echo "libomp found in lib64/: OK"
     fi
+fi
+
+# Verify compiler-rt sanitizer runtimes exist
+if ls "${INSTALL_PREFIX}"/lib/clang/*/lib/linux/libclang_rt.asan* 2>/dev/null; then
+    echo "compiler-rt ASan runtime: OK"
+else
+    echo "WARNING: libclang_rt.asan not found"
+    # Some builds place it under lib/clang/<version>/lib/<arch>/
+    find "${INSTALL_PREFIX}/lib/clang" -name 'libclang_rt.asan*' 2>/dev/null || true
 fi
 
 # Verify clang headers/libs exist
