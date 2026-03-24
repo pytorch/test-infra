@@ -1,0 +1,26 @@
+name: Cancel long-queued jobs
+
+on:
+  schedule:
+    # Every 4 hours
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    working-directory: torchci
+jobs:
+  cancel-queued-jobs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: yarn install --frozen-lockfile
+      - run: yarn node scripts/cancelQueuedJobs.mjs
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
