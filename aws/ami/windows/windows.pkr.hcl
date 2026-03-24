@@ -1,6 +1,6 @@
 data "amazon-ami" "windows_root_ami" {
   filters = {
-    name                = "Windows_Server-2019-English-Tesla-*"
+    name                = "Windows_Server-2019-English-Full-Base-*"
     root-device-type    = "ebs"
     virtualization-type = "hvm"
   }
