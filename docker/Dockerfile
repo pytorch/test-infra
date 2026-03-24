@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG BASE_IMAGE=quay.io/pypa/manylinux_2_34_x86_64
+ARG BASE_IMAGE=quay.io/pypa/manylinux_2_28_x86_64
 FROM ${BASE_IMAGE}
 
 # INSTALL_CUDA: set to any non-empty value (e.g. "1") to install all CUDA versions;
