@@ -51,7 +51,7 @@ jobs:
 
             # Default Version to promote
             STABLE_CUDA_VERSION=$(cd ../../tools/scripts && python3 get_stable_cuda_version.py --channel release)
-            CUDA_ARCH="cu$(echo ${STABLE_CUDA_VERSION} | sed 's/\.//')"
+            CUDA_ARCH="cu${STABLE_CUDA_VERSION//./}"
             LINUX_VERSION_SUFFIX="%2B${CUDA_ARCH}"
             CPU_VERSION_SUFFIX="%2Bcpu"
             MACOS_ARM64="macosx_.*_arm64"
