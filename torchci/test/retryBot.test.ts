@@ -440,6 +440,114 @@ describe("retry-bot", () => {
     handleScope(scope);
   });
 
+  test("rerun when a retryable step name fails", async () => {
+    mockIsPytorchbotSupportedOrg(true);
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "test";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    // Job fails on a retryable step (CUDA Compute Check)
+    workflow_jobs.jobs[4].conclusion = "failure";
+    workflow_jobs.jobs[4].steps = [
+      {
+        name: "CUDA Compute Check",
+        status: "completed",
+        conclusion: "failure",
+        number: 1,
+        started_at: "2022-10-06T18:09:54.000-07:00",
+        completed_at: "2022-10-06T18:09:54.000-07:00",
+      },
+    ];
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
+      .get(
+        `/repos/${owner}/${repo}/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(
+        200,
+        '{retryable_workflows: ["test", "benchmark"], retryable_step_names: ["CUDA Compute Check"]}'
+      )
+      .post(
+        `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[4].id}/rerun`
+      )
+      .reply(200);
+
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("rerun when retryable step fails even if test step also failed", async () => {
+    mockIsPytorchbotSupportedOrg(true);
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "test";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    // Job fails on both a retryable step and a test step
+    workflow_jobs.jobs[4].conclusion = "failure";
+    workflow_jobs.jobs[4].steps = [
+      {
+        name: "CUDA Compute Check",
+        status: "completed",
+        conclusion: "failure",
+        number: 1,
+        started_at: "2022-10-06T18:09:54.000-07:00",
+        completed_at: "2022-10-06T18:09:54.000-07:00",
+      },
+      {
+        name: "test",
+        status: "completed",
+        conclusion: "failure",
+        number: 2,
+        started_at: "2022-10-06T18:10:54.000-07:00",
+        completed_at: "2022-10-06T18:10:54.000-07:00",
+      },
+    ];
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
+      .get(
+        `/repos/${owner}/${repo}/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(
+        200,
+        '{retryable_workflows: ["test", "benchmark"], retryable_step_names: ["CUDA Compute Check"]}'
+      )
+      .post(
+        `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[4].id}/rerun`
+      )
+      .reply(200);
+
+    const mock = jest.spyOn(clickhouse, "queryClickhouseSaved");
+    mock.mockImplementation(() => Promise.resolve([]));
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
     mockIsPytorchbotSupportedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");

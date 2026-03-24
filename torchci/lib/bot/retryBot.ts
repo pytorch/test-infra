@@ -72,7 +72,8 @@ async function retryCurrentWorkflow(
   defaultBranch: string,
   workflowName: string,
   workflowJobs: any[],
-  runId: number
+  runId: number,
+  retryableStepNames: string[] = []
 ) {
   const failedJobs = workflowJobs.filter((job) =>
     FAILURE_CONCLUSIONS.includes(job.conclusion!)
@@ -135,6 +136,22 @@ async function retryCurrentWorkflow(
       }
     }
 
+    // If a retryable step name failed, always retry (e.g. CUDA Compute Check
+    // indicates a bad runner, not a code problem)
+    if (retryableStepNames.length > 0) {
+      const hasRetryableStepFailure = job.steps?.some(
+        (step: any) =>
+          step.conclusion !== null &&
+          FAILURE_CONCLUSIONS.includes(step.conclusion) &&
+          retryableStepNames.some(
+            (name) => step.name.toLowerCase() === name.toLowerCase()
+          )
+      );
+      if (hasRetryableStepFailure) {
+        return true;
+      }
+    }
+
     // if no test steps failed, can rerun
     return !doesLookLikeUserFailure(job, (step) =>
       step.name.toLowerCase().includes("test")
@@ -181,6 +198,8 @@ function retryBot(app: Probot): void {
     const config: any = await tracker.loadConfig(ctx);
     const allowedWorkflowPrefixes: string[] | undefined =
       config != null ? config["retryable_workflows"] : undefined;
+    const retryableStepNames: string[] =
+      config != null ? config["retryable_step_names"] ?? [] : [];
 
     if (allowedWorkflowPrefixes === undefined) {
       return;
@@ -225,7 +244,8 @@ function retryBot(app: Probot): void {
         defaultBranch,
         workflowName,
         workflowJobs,
-        runId
+        runId,
+        retryableStepNames
       );
     }
 
