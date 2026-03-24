@@ -2,7 +2,7 @@ CREATE TABLE misc.autorevert_events_v2
 (
     `ts` DateTime DEFAULT now(),
     `repo` LowCardinality(String) DEFAULT 'pytorch/pytorch',
-    `action` Enum8('none' = 0, 'restart' = 1, 'revert' = 2),
+    `action` Enum8('none' = 0, 'restart' = 1, 'revert' = 2, 'advisor' = 3),
     `commit_sha` FixedString(40),
     `workflows` Array(String),
     `source_signal_keys` Array(String),
