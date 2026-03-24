@@ -60,7 +60,8 @@ jobs:
             set -ex
             cd release
             # Install requirements
-            pip install awscli==1.32.18 boto3
+            pip install awscli==1.32.18
+            pip install -r s3_management/requirements.txt
 
             promote_s3() {
               local package_name
