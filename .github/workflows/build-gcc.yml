@@ -1,0 +1,111 @@
+name: Build GCC
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/build-gcc.yml'
+      - 'tools/gcc-build/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GCC 11.4 - x86_64
+          - gcc-version: "11.4.0"
+            gcc-toolset: "11"
+            arch: x86_64
+            runner: mt-l-x86iamx-8-16
+            platform: linux-x86_64
+            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-1972edf
+          # GCC 11.4 - aarch64
+          - gcc-version: "11.4.0"
+            gcc-toolset: "11"
+            arch: aarch64
+            runner: mt-l-arm64g2-6-32
+            platform: linux-aarch64
+            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-1972edf
+
+    name: gcc-${{ matrix.gcc-toolset }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.container-image }}
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install build dependencies
+        run: |
+          set -ex
+          # The test-infra CPU image is AlmaLinux 8 (manylinux_2_28) with gcc
+          # and Development Tools pre-installed. We need a few extra dev
+          # libraries for the GCC build.
+          dnf install -y \
+            wget xz bzip2 \
+            gmp-devel mpfr-devel libmpc-devel
+
+      - name: Build GCC ${{ matrix.gcc-version }}
+        run: |
+          chmod +x tools/gcc-build/build.sh
+          tools/gcc-build/build.sh \
+            "${{ matrix.gcc-version }}" \
+            "${{ matrix.gcc-toolset }}"
+
+      - name: Package artifacts
+        id: package
+        run: |
+          set -ex
+          ARTIFACT_NAME="gcc-toolset-${{ matrix.gcc-toolset }}-${{ matrix.platform }}"
+
+          cd /opt/rh/gcc-toolset-${{ matrix.gcc-toolset }}
+          tar czf "${GITHUB_WORKSPACE}/${ARTIFACT_NAME}.tar.gz" .
+
+          cd "${GITHUB_WORKSPACE}"
+          sha256sum "${ARTIFACT_NAME}.tar.gz" > "${ARTIFACT_NAME}.tar.gz.sha256"
+
+          echo "artifact-name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+
+          # Print size for visibility
+          ls -lh "${ARTIFACT_NAME}.tar.gz"
+          cat "${ARTIFACT_NAME}.tar.gz.sha256"
+
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.package.outputs.artifact-name }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            ${{ steps.package.outputs.artifact-name }}.tar.gz
+            ${{ steps.package.outputs.artifact-name }}.tar.gz.sha256
+
+      - name: Configure AWS credentials (OIDC)
+        # if: ${{ github.event_name != 'pull_request' }}
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
+
+      - name: Upload artifact to S3
+        # if: ${{ github.event_name != 'pull_request' }}
+        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
+        with:
+          if-no-files-found: error
+          s3-bucket: gha-artifacts
+          s3-prefix: gcc/${{ matrix.platform }}/gcc-toolset-${{ matrix.gcc-toolset }}
+          retention-days: 365
+          path: |
+            ${{ steps.package.outputs.artifact-name }}.tar.gz
+            ${{ steps.package.outputs.artifact-name }}.tar.gz.sha256
