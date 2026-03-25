@@ -44,6 +44,12 @@ BUILD_DIR="${WORKDIR}/build"
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
+# Newer host compilers (GCC 14+) promote some warnings to errors by default
+# (e.g. -Wincompatible-pointer-types). Pass flags to downgrade these so that
+# older GCC source (11.x) can still compile.
+EXTRA_CFLAGS="-Wno-error=incompatible-pointer-types"
+
+CFLAGS="${EXTRA_CFLAGS}" CXXFLAGS="${EXTRA_CFLAGS}" \
 "${SRCDIR}/configure" \
     --prefix="${PREFIX}" \
     --enable-languages=c,c++,fortran \
