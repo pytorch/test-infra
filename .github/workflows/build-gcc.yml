@@ -92,14 +92,14 @@ jobs:
             ${{ steps.package.outputs.artifact-name }}.tar.gz.sha256
 
       - name: Configure AWS credentials (OIDC)
-        # if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           role-to-assume: arn:aws:iam::308535385114:role/arc
           aws-region: us-east-1
 
       - name: Upload artifact to S3
-        # if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
         with:
           if-no-files-found: error
