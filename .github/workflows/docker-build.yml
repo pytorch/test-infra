@@ -17,16 +17,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # build:
-  #   if: github.event_name == 'pull_request'
-  #   uses: ./.github/workflows/_docker-build.yml
-  #   with:
-  #     push: false
-  #   permissions:
-  #     contents: read
+  build:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/_docker-build.yml
+    with:
+      push: false
+    permissions:
+      contents: read
 
   build-and-publish:
-    # if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/_docker-build.yml
     with:
       push: true
