@@ -73,15 +73,14 @@ RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
         rm -f /tmp/clang.tar.gz; \
     done
 
-# Register clang runtime library directories so the linker can find libclang_rt.asan.so
-# etc. without needing LD_LIBRARY_PATH hacks at CI time.
-RUN for CLANG_VERSION in 15 18; do \
-        INSTALL_DIR="/opt/clang-${CLANG_VERSION}" && \
-        CLANG_RT_DIR=$("${INSTALL_DIR}/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
-        if [ -n "${CLANG_RT_DIR}" ] && [ -d "${CLANG_RT_DIR}" ]; then \
-            echo "${CLANG_RT_DIR}" > "/etc/ld.so.conf.d/clang-${CLANG_VERSION}.conf"; \
-        fi; \
-    done && ldconfig
+# Register only clang-18 runtime library directory with ldconfig so the linker
+# can find libclang_rt.asan.so for ASAN builds. We intentionally skip clang-15
+# to avoid its older runtime being picked up instead of clang-18's.
+RUN CLANG_RT_DIR=$("/opt/clang-18/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
+    if [ -n "${CLANG_RT_DIR}" ] && [ -d "${CLANG_RT_DIR}" ]; then \
+        echo "${CLANG_RT_DIR}" > /etc/ld.so.conf.d/clang-18.conf; \
+    fi && \
+    ldconfig
 
 # Install uv (Python package manager) — needed before CUDA install for uv run
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
