@@ -241,6 +241,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_masked_cumprod_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "177483",
+    "https://github.com/pytorch/pytorch/issues/177483",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
