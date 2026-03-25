@@ -33,10 +33,20 @@ RUN dnf install -y \
 # The manylinux_2_28 base image (AlmaLinux 8) ships with GCC 8 as the system
 # default and bundles gcc-toolset-12 under /usr/local/bin. Install the
 # additional toolset versions that PyTorch CI requires.
+#
+# gcc-toolset-11: Pre-built from source (GCC 11.4.0) because the RPM only
+# provides 11.2.1, but PyTorch requires >= 11.3. The artifact is built by the
+# build-gcc.yml workflow and uploaded to S3. It installs into
+# /opt/rh/gcc-toolset-11/ with a compatible enable script.
+RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
+    S3_URL="https://gha-artifacts.s3.amazonaws.com/gcc/${PLATFORM}/gcc-toolset-11/gcc-toolset-11-${PLATFORM}.tar.gz" && \
+    echo "Installing gcc-toolset-11 from ${S3_URL}" && \
+    curl -fsSL "${S3_URL}" -o /tmp/gcc-toolset-11.tar.gz && \
+    mkdir -p /opt/rh/gcc-toolset-11 && \
+    tar xzf /tmp/gcc-toolset-11.tar.gz -C /opt/rh/gcc-toolset-11 && \
+    rm -f /tmp/gcc-toolset-11.tar.gz
+
 RUN dnf install -y \
-        gcc-toolset-11-gcc \
-        gcc-toolset-11-gcc-c++ \
-        gcc-toolset-11-gcc-gfortran \
         gcc-toolset-13-gcc \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-gcc-gfortran \
