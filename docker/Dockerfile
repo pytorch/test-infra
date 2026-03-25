@@ -38,13 +38,18 @@ RUN dnf install -y \
 # provides 11.2.1, but PyTorch requires >= 11.3. The artifact is built by the
 # build-gcc.yml workflow and uploaded to S3. It installs into
 # /opt/rh/gcc-toolset-11/ with a compatible enable script.
+# Also register its libstdc++.so.6 with ldconfig — the system /lib64/libstdc++.so.6
+# is from GCC 8 and too old (missing GLIBCXX_3.4.26+). Clang uses libstdc++ at
+# runtime, so binaries built with clang need a newer one visible to the linker.
 RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
     S3_URL="https://gha-artifacts.s3.amazonaws.com/gcc/${PLATFORM}/gcc-toolset-11/gcc-toolset-11-${PLATFORM}.tar.gz" && \
     echo "Installing gcc-toolset-11 from ${S3_URL}" && \
     curl -fsSL "${S3_URL}" -o /tmp/gcc-toolset-11.tar.gz && \
     mkdir -p /opt/rh/gcc-toolset-11 && \
     tar xzf /tmp/gcc-toolset-11.tar.gz -C /opt/rh/gcc-toolset-11 && \
-    rm -f /tmp/gcc-toolset-11.tar.gz
+    rm -f /tmp/gcc-toolset-11.tar.gz && \
+    echo "/opt/rh/gcc-toolset-11/root/usr/lib64" > /etc/ld.so.conf.d/gcc-toolset-11.conf && \
+    ldconfig
 
 RUN dnf install -y \
         gcc-toolset-13-gcc \
