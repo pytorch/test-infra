@@ -27,7 +27,7 @@ jobs:
             arch: x86_64
             runner: mt-l-x86iamx-8-16
             platform: linux-x86_64
-            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-latest
+            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-1972edf
             llvm-targets: "X86"
           # Clang 15 - aarch64
           - clang-version: "15.0.7"
@@ -35,7 +35,7 @@ jobs:
             arch: aarch64
             runner: mt-l-arm64g2-6-32
             platform: linux-aarch64
-            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-latest
+            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-1972edf
             llvm-targets: "AArch64"
           # Clang 18 - x86_64
           - clang-version: "18.1.8"
@@ -43,7 +43,7 @@ jobs:
             arch: x86_64
             runner: mt-l-x86iamx-8-16
             platform: linux-x86_64
-            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-latest
+            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-1972edf
             llvm-targets: "X86"
           # Clang 18 - aarch64
           - clang-version: "18.1.8"
@@ -51,7 +51,7 @@ jobs:
             arch: aarch64
             runner: mt-l-arm64g2-6-32
             platform: linux-aarch64
-            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-latest
+            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-1972edf
             llvm-targets: "AArch64"
 
     name: clang-${{ matrix.clang-major }} (${{ matrix.platform }})
@@ -67,13 +67,26 @@ jobs:
       - name: Install build dependencies
         run: |
           set -ex
-          # The test-infra CPU image is AlmaLinux 9 (manylinux_2_34) with gcc,
-          # make, and Development Tools pre-installed. We just need cmake, ninja,
-          # and a few dev libraries for the LLVM build.
+          # The test-infra CPU image is AlmaLinux 8 (manylinux_2_28) with gcc,
+          # make, and Development Tools pre-installed. We just need cmake and
+          # a few dev libraries for the LLVM build.
           dnf install -y \
-            cmake ninja-build python3 \
-            wget xz perl-FindBin \
+            cmake \
+            wget xz \
             zlib-devel ncurses-devel libxml2-devel libedit-devel
+
+      - name: Setup uv and Python 3.12
+        uses: pytorch/test-infra/.github/actions/setup-uv@main
+        with:
+          python-version: "3.12"
+          activate-environment: true
+
+      - name: Install Python build dependencies
+        run: |
+          set -ex
+          # AlmaLinux 8's ninja-build is too old (~1.8) and fails on LLVM's
+          # multiple-output rules. Install ninja >= 1.11 via uv.
+          uv pip install ninja==1.11.1.4
 
           cmake --version
           ninja --version
@@ -117,14 +130,14 @@ jobs:
             ${{ steps.package.outputs.artifact-name }}.tar.gz.sha256
 
       - name: Configure AWS credentials (OIDC)
-        if: ${{ github.event_name != 'pull_request' }}
+        # if: ${{ github.event_name != 'pull_request' }}
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           role-to-assume: arn:aws:iam::308535385114:role/arc
           aws-region: us-east-1
 
       - name: Upload artifact to S3
-        if: ${{ github.event_name != 'pull_request' }}
+        # if: ${{ github.event_name != 'pull_request' }}
         uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
         with:
           if-no-files-found: error
