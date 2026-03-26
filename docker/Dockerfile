@@ -73,12 +73,12 @@ RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
         rm -f /tmp/clang.tar.gz; \
     done
 
-# Register only clang-18 runtime library directory with ldconfig so the linker
-# can find libclang_rt.asan.so for ASAN builds. We intentionally skip clang-15
-# to avoid its older runtime being picked up instead of clang-18's.
-RUN CLANG_RT_DIR=$("/opt/clang-18/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
+# Register only clang-15 runtime library directory with ldconfig so the linker
+# can find libclang_rt.asan.so for ASAN builds. Until we upgrade to RHEL 9, we
+# can only use clang-15 for ASAN
+RUN CLANG_RT_DIR=$("/opt/clang-15/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
     if [ -n "${CLANG_RT_DIR}" ] && [ -d "${CLANG_RT_DIR}" ]; then \
-        echo "${CLANG_RT_DIR}" > /etc/ld.so.conf.d/clang-18.conf; \
+        echo "${CLANG_RT_DIR}" > /etc/ld.so.conf.d/clang-15.conf; \
     fi && \
     ldconfig
 
