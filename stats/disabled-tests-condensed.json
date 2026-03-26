@@ -1931,6 +1931,17 @@
       "rocm"
     ]
   ],
+  "test_unspec_inputs_uint8_cuda (__main__.GPUTests)": [
+    "178509",
+    "https://github.com/pytorch/pytorch/issues/178509",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_uuid_visible_devices (__main__.TestCudaMallocAsync)": [
     "169878",
     "https://github.com/pytorch/pytorch/issues/169878",
