@@ -184,7 +184,7 @@ describe("autoLabelCodevTrunkBot", () => {
   test("PR does not add ciflow/trunk on random comment (wrong content)", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.body = "random";
-    event.payload.comment.user.login = "facebook-github-bot";
+    event.payload.comment.user.login = "facebook-github-tools[bot]";
 
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -216,7 +216,7 @@ describe("autoLabelCodevTrunkBot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body =
       "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
-    event.payload.comment.user.login = "facebook-github-bot";
+    event.payload.comment.user.login = "facebook-github-tools[bot]";
     const owner = "clee2000";
     const repo = "random-testing";
     event.payload.repository.owner.login = owner;
@@ -247,7 +247,7 @@ describe("autoLabelCodevTrunkBot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body =
       "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
-    event.payload.comment.user.login = "facebook-github-bot";
+    event.payload.comment.user.login = "facebook-github-tools[bot]";
     const owner = "clee2000";
     const repo = "random-testing";
     event.payload.repository.owner.login = owner;
@@ -282,7 +282,7 @@ describe("autoLabelCodevTrunkBot", () => {
     const event = requireDeepCopy("./fixtures/issue_comment.json");
     event.payload.comment.body =
       "@clee2000 has imported this pull request. If you are a Meta employee, you can view this diff [on Phabricator](https://www.internalfb.com/diff/D64475068).";
-    event.payload.comment.user.login = "facebook-github-bot";
+    event.payload.comment.user.login = "facebook-github-tools[bot]";
     delete event.payload.issue.pull_request;
     event.payload.comment.body = "@zhouzhuojie has imported this pull request.";
 

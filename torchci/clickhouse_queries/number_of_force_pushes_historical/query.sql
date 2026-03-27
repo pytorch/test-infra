@@ -13,6 +13,7 @@ WHERE
     AND created_at < {stopTime: DateTime64(3) }
     AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
     AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
+    AND issue_comment.user.login NOT LIKE '%facebook-github-tools%'
     AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
 group by
     bucket
