@@ -46,35 +46,24 @@ fi
 # ============================================
 if ! command -v aws &> /dev/null; then
     echo "[Bootstrap] Installing AWS CLI..."
-    AWS_INSTALLED=false
-
-    # Try pip (works on vanilla python images)
-    if ! $AWS_INSTALLED; then
-        pip install awscli --quiet 2>/dev/null && AWS_INSTALLED=true
-    fi
-    # Try pip3
-    if ! $AWS_INSTALLED; then
-        pip3 install awscli --quiet 2>/dev/null && AWS_INSTALLED=true
-    fi
-    # Try pip with --break-system-packages (PEP 668 managed environments like conda)
-    if ! $AWS_INSTALLED; then
-        pip install awscli --quiet --break-system-packages 2>/dev/null && AWS_INSTALLED=true
-    fi
-    if ! $AWS_INSTALLED; then
-        pip3 install awscli --quiet --break-system-packages 2>/dev/null && AWS_INSTALLED=true
-    fi
-    # Fallback: standalone AWS CLI v2 installer (no pip needed)
-    if ! $AWS_INSTALLED; then
-        echo "[Bootstrap] pip install failed, trying standalone AWS CLI installer..."
-        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
-            && python3 -c "import zipfile; zipfile.ZipFile('/tmp/awscliv2.zip').extractall('/tmp/')" \
-            && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli 2>/dev/null \
-            && AWS_INSTALLED=true \
-            || true
-        rm -f /tmp/awscliv2.zip
+    # Ensure unzip is available
+    if ! command -v unzip &> /dev/null; then
+        if command -v apt-get &> /dev/null; then
+            apt-get update -qq && apt-get install -y -qq unzip 2>/dev/null
+        elif command -v yum &> /dev/null; then
+            yum install -y -q unzip 2>/dev/null
+        elif command -v apk &> /dev/null; then
+            apk add --quiet unzip 2>/dev/null
+        fi
     fi
 
-    if $AWS_INSTALLED; then
+    # Install standalone AWS CLI v2 via curl + unzip (works on any Linux)
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
+        && unzip -q /tmp/awscliv2.zip -d /tmp/ \
+        && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli 2>/dev/null
+    rm -f /tmp/awscliv2.zip
+
+    if command -v aws &> /dev/null; then
         echo "[Bootstrap] ✓ AWS CLI installed"
     else
         echo "[Bootstrap] Error: Failed to install AWS CLI"
