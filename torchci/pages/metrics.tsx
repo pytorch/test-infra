@@ -29,6 +29,7 @@ import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
+import { VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES } from "lib/JobClassifierUtil";
 import { useEffect, useState } from "react";
 import { default as useSWR, default as useSWRImmutable } from "swr";
 
@@ -59,6 +60,8 @@ function MasterCommitRedPanel({
       granularity,
       usePercentage,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      workflowNames:
+        VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES["pytorch/pytorch"] ?? [],
     })
   )}`;
 
@@ -495,8 +498,8 @@ export default function Page() {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify({
       ...timeParams,
-      // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: ["lint", "pull", "trunk", "linux-aarch64"],
+      workflowNames:
+        VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES["pytorch/pytorch"] ?? [],
     })
   )}`;
 

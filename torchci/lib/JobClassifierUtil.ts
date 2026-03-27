@@ -6,10 +6,19 @@ type RepoViableStrictBlockingJobsMap = {
   [key: string]: RegExp[];
 };
 
-// Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
-export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
-  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i],
+// Source of truth: https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
+export const VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES: {
+  [key: string]: string[];
+} = {
+  "pytorch/pytorch": ["pull", "trunk", "lint", "linux-aarch64"],
 };
+
+export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap =
+  Object.fromEntries(
+    Object.entries(VIABLE_STRICT_BLOCKING_WORKFLOW_NAMES).map(
+      ([repo, names]) => [repo, names.map((name) => new RegExp(name, "i"))]
+    )
+  );
 
 export function isJobViableStrictBlocking(
   jobName: string | undefined,
