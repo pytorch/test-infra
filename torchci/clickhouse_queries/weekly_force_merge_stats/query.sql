@@ -33,6 +33,7 @@ WITH issue_comments AS (
         )
         AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
         AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
+        AND issue_comment.user.login NOT LIKE '%facebook-github-tools%'
         AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
         AND startsWith(
             issue_comment.issue_url,

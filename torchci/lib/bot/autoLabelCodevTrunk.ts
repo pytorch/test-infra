@@ -78,7 +78,7 @@ function myBot(app: Probot): void {
 
     // Apply `ciflow/trunk` to PRs that have just been imported
     if (
-      context.payload.comment.user.login == "facebook-github-bot" &&
+      context.payload.comment.user.login == "facebook-github-tools[bot]" &&
       context.payload.comment.body.match("has imported this pull request") &&
       context.payload.issue.pull_request
     ) {
