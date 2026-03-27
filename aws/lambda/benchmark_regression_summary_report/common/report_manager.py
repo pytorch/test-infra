@@ -35,6 +35,30 @@ Report Status: **{{ status }}**
 {% endif %}
 """
 
+MISSING_DATA_MD_TEMPLATE = """# Benchmark Data Availability Alert
+config_id: `{{ report_id }}`
+
+**Status: insufficient_data**
+
+More than 90% of benchmark data points have insufficient data.
+This may indicate a data pipeline outage or benchmark infrastructure issue.
+
+- Total: {{ summary.total_count | default(0) }}
+- Insufficient Data: {{ summary.insufficient_data_count | default(0) }}
+- No Regression: {{ summary.no_regression_count | default(0) }}
+
+See Page https://hud.pytorch.org/benchmark/regression/report/{{ id }} for more details.
+"""
+
+NO_DATA_MD_TEMPLATE = """# Benchmark Data Availability Alert
+config_id: `{{ report_id }}`
+
+**No benchmark data found** for `{{ report_id }}` in the configured time window.
+
+This likely indicates a complete data pipeline outage or benchmark infrastructure failure.
+Please investigate the benchmark runners and data ingestion pipeline.
+"""
+
 
 class ReportManager:
     """
@@ -129,10 +153,11 @@ class ReportManager:
         return result
 
     def notify_github_comments(self, github_token: str):
-        if self.status != "regression":
+        if self.status not in ("regression", "insufficient_data"):
             logger.info(
-                "[%s] no regression found, skip notification",
+                "[%s] status is '%s', skip notification",
                 self.config_id,
+                self.status,
             )
             return
         github_notifications = self.config.policy.get_github_notification_configs()
@@ -158,9 +183,16 @@ class ReportManager:
 
         for github_notification in github_notifications:
             condition = github_notification.condition
-            # verify condition if it is set
-            regression_devices = self.metadata.get("regression_devices", [])
-            if condition:
+            # For insufficient_data alerts, skip device-level condition matching
+            # since there are no regression_devices to match against
+            if self.status == "insufficient_data":
+                logger.info(
+                    "[%s] insufficient_data alert, skipping condition check",
+                    self.config_id,
+                )
+            elif condition:
+                # verify condition if it is set
+                regression_devices = self.metadata.get("regression_devices", [])
                 is_matched = condition.match_condition(regression_devices)
                 # skip if condition is not matched
                 if not is_matched:
@@ -209,8 +241,13 @@ class ReportManager:
             r for r in self.raw_report["results"] if r.get("label") == "regression"
         ]
         url = (self.config.hud_info or {}).get("url", "")
+        template = (
+            MISSING_DATA_MD_TEMPLATE
+            if self.status == "insufficient_data"
+            else REPORT_MD_TEMPLATE
+        )
         return Template(
-            REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True
+            template, trim_blocks=True, lstrip_blocks=True
         ).render(
             id=self.id,
             url=url,
