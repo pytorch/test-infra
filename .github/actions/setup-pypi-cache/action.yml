@@ -1,0 +1,37 @@
+name: Setup PyPI Cache
+description: Configure pip and uv to use a PyPI cache proxy
+
+inputs:
+  slug:
+    description: "The cache slug used to construct the PyPI cache hostname"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure pip and uv index URLs for PyPI cache
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        CACHE_HOST="pypi-cache-${{ inputs.slug }}.pypi-cache:8080"
+        CACHE_HOSTNAME="${CACHE_HOST%%:*}"
+
+        echo "PIP_INDEX_URL=http://${CACHE_HOST}/simple/" >> "${GITHUB_ENV}"
+        echo "PIP_EXTRA_INDEX_URL=http://${CACHE_HOST}/whl/${{ inputs.slug }}/" >> "${GITHUB_ENV}"
+
+        echo "UV_DEFAULT_INDEX=http://${CACHE_HOST}/simple/" >> "${GITHUB_ENV}"
+        echo "UV_INDEX=http://${CACHE_HOST}/whl/${{ inputs.slug }}/" >> "${GITHUB_ENV}"
+
+        # Append to trusted/insecure host lists (space-separated, bare hostname without port)
+        if [[ -n "${PIP_TRUSTED_HOST:-}" ]]; then
+          echo "PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST} ${CACHE_HOSTNAME}" >> "${GITHUB_ENV}"
+        else
+          echo "PIP_TRUSTED_HOST=${CACHE_HOSTNAME}" >> "${GITHUB_ENV}"
+        fi
+
+        if [[ -n "${UV_INSECURE_HOST:-}" ]]; then
+          echo "UV_INSECURE_HOST=${UV_INSECURE_HOST} ${CACHE_HOSTNAME}" >> "${GITHUB_ENV}"
+        else
+          echo "UV_INSECURE_HOST=${CACHE_HOSTNAME}" >> "${GITHUB_ENV}"
+        fi
