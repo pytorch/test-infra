@@ -950,41 +950,6 @@
       "rocm"
     ]
   ],
-  "test_memory_plots (__main__.TestCudaMallocAsync)": [
-    "176205",
-    "https://github.com/pytorch/pytorch/issues/176205",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_memory_plots_free_segment_stack (__main__.TestCudaMallocAsync)": [
-    "137223",
-    "https://github.com/pytorch/pytorch/issues/137223",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_memory_snapshot (__main__.TestCudaMallocAsync)": [
-    "126953",
-    "https://github.com/pytorch/pytorch/issues/126953",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_memory_snapshot_with_cpp (__main__.TestCudaMallocAsync)": [
-    "137249",
-    "https://github.com/pytorch/pytorch/issues/137249",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
     "177001",
     "https://github.com/pytorch/pytorch/issues/177001",
@@ -1395,13 +1360,6 @@
     "https://github.com/pytorch/pytorch/issues/84937",
     [
       "asan"
-    ]
-  ],
-  "test_raw_amdsmi_device_uuids (__main__.TestCudaMallocAsync)": [
-    "169881",
-    "https://github.com/pytorch/pytorch/issues/169881",
-    [
-      "rocm"
     ]
   ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
@@ -1934,13 +1892,6 @@
   "test_unshard_params_respects_reshard (__main__.TestUnshardParams)": [
     "159348",
     "https://github.com/pytorch/pytorch/issues/159348",
-    [
-      "rocm"
-    ]
-  ],
-  "test_uuid_visible_devices (__main__.TestCudaMallocAsync)": [
-    "169878",
-    "https://github.com/pytorch/pytorch/issues/169878",
     [
       "rocm"
     ]
