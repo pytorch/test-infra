@@ -33,10 +33,25 @@ RUN dnf install -y \
 # The manylinux_2_28 base image (AlmaLinux 8) ships with GCC 8 as the system
 # default and bundles gcc-toolset-12 under /usr/local/bin. Install the
 # additional toolset versions that PyTorch CI requires.
+#
+# gcc-toolset-11: Pre-built from source (GCC 11.4.0) because the RPM only
+# provides 11.2.1, but PyTorch requires >= 11.3. The artifact is built by the
+# build-gcc.yml workflow and uploaded to S3. It installs into
+# /opt/rh/gcc-toolset-11/ with a compatible enable script.
+# Also register its libstdc++.so.6 with ldconfig — the system /lib64/libstdc++.so.6
+# is from GCC 8 and too old (missing GLIBCXX_3.4.26+). Clang uses libstdc++ at
+# runtime, so binaries built with clang need a newer one visible to the linker.
+RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
+    S3_URL="https://gha-artifacts.s3.amazonaws.com/gcc/${PLATFORM}/gcc-toolset-11/gcc-toolset-11-${PLATFORM}.tar.gz" && \
+    echo "Installing gcc-toolset-11 from ${S3_URL}" && \
+    curl -fsSL "${S3_URL}" -o /tmp/gcc-toolset-11.tar.gz && \
+    mkdir -p /opt/rh/gcc-toolset-11 && \
+    tar xzf /tmp/gcc-toolset-11.tar.gz -C /opt/rh/gcc-toolset-11 && \
+    rm -f /tmp/gcc-toolset-11.tar.gz && \
+    echo "/opt/rh/gcc-toolset-11/root/usr/lib64" > /etc/ld.so.conf.d/gcc-toolset-11.conf && \
+    ldconfig
+
 RUN dnf install -y \
-        gcc-toolset-11-gcc \
-        gcc-toolset-11-gcc-c++ \
-        gcc-toolset-11-gcc-gfortran \
         gcc-toolset-13-gcc \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-gcc-gfortran \
@@ -58,15 +73,14 @@ RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
         rm -f /tmp/clang.tar.gz; \
     done
 
-# Register clang runtime library directories so the linker can find libclang_rt.asan.so
-# etc. without needing LD_LIBRARY_PATH hacks at CI time.
-RUN for CLANG_VERSION in 15 18; do \
-        INSTALL_DIR="/opt/clang-${CLANG_VERSION}" && \
-        CLANG_RT_DIR=$("${INSTALL_DIR}/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
-        if [ -n "${CLANG_RT_DIR}" ] && [ -d "${CLANG_RT_DIR}" ]; then \
-            echo "${CLANG_RT_DIR}" > "/etc/ld.so.conf.d/clang-${CLANG_VERSION}.conf"; \
-        fi; \
-    done && ldconfig
+# Register only clang-15 runtime library directory with ldconfig so the linker
+# can find libclang_rt.asan.so for ASAN builds. Until we upgrade to RHEL 9, we
+# can only use clang-15 for ASAN
+RUN CLANG_RT_DIR=$("/opt/clang-15/bin/clang" --print-runtime-dir 2>/dev/null || true) && \
+    if [ -n "${CLANG_RT_DIR}" ] && [ -d "${CLANG_RT_DIR}" ]; then \
+        echo "${CLANG_RT_DIR}" > /etc/ld.so.conf.d/clang-15.conf; \
+    fi && \
+    ldconfig
 
 # Install uv (Python package manager) — needed before CUDA install for uv run
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
