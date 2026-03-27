@@ -1,10 +1,10 @@
-name: Build Clang and libomp
+name: Build GCC
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/build-clang.yml'
-      - 'tools/clang-build/**'
+      - '.github/workflows/build-gcc.yml'
+      - 'tools/gcc-build/**'
   workflow_dispatch:
 
 permissions:
@@ -21,40 +21,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Clang 15 - x86_64
-          - clang-version: "15.0.7"
-            clang-major: "15"
+          # GCC 11.4 - x86_64
+          - gcc-version: "11.4.0"
+            gcc-toolset: "11"
             arch: x86_64
             runner: mt-l-x86iamx-8-16
             platform: linux-x86_64
             container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-1972edf
-            llvm-targets: "X86"
-          # Clang 15 - aarch64
-          - clang-version: "15.0.7"
-            clang-major: "15"
+          # GCC 11.4 - aarch64
+          - gcc-version: "11.4.0"
+            gcc-toolset: "11"
             arch: aarch64
             runner: mt-l-arm64g2-6-32
             platform: linux-aarch64
             container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-1972edf
-            llvm-targets: "AArch64"
-          # Clang 18 - x86_64
-          - clang-version: "18.1.8"
-            clang-major: "18"
-            arch: x86_64
-            runner: mt-l-x86iamx-8-16
-            platform: linux-x86_64
-            container-image: ghcr.io/pytorch/test-infra:cpu-x86_64-1972edf
-            llvm-targets: "X86"
-          # Clang 18 - aarch64
-          - clang-version: "18.1.8"
-            clang-major: "18"
-            arch: aarch64
-            runner: mt-l-arm64g2-6-32
-            platform: linux-aarch64
-            container-image: ghcr.io/pytorch/test-infra:cpu-aarch64-1972edf
-            llvm-targets: "AArch64"
 
-    name: clang-${{ matrix.clang-major }} (${{ matrix.platform }})
+    name: gcc-${{ matrix.gcc-toolset }} (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     container:
       image: ${{ matrix.container-image }}
@@ -67,53 +49,33 @@ jobs:
       - name: Install build dependencies
         run: |
           set -ex
-          # The test-infra CPU image is AlmaLinux 8 (manylinux_2_28) with gcc,
-          # make, and Development Tools pre-installed. We just need cmake and
-          # a few dev libraries for the LLVM build.
+          # The test-infra CPU image is AlmaLinux 8 (manylinux_2_28) with gcc
+          # and Development Tools pre-installed. We need a few extra dev
+          # libraries for the GCC build.
           dnf install -y \
-            cmake \
-            wget xz \
-            zlib-devel ncurses-devel libxml2-devel libedit-devel
+            wget xz bzip2 \
+            gmp-devel mpfr-devel libmpc-devel
 
-      - name: Setup uv and Python 3.12
-        uses: pytorch/test-infra/.github/actions/setup-uv@main
-        with:
-          python-version: "3.12"
-          activate-environment: true
-
-      - name: Install Python build dependencies
+      - name: Build GCC ${{ matrix.gcc-version }}
         run: |
-          set -ex
-          # AlmaLinux 8's ninja-build is too old (~1.8) and fails on LLVM's
-          # multiple-output rules. Install ninja >= 1.11 via uv.
-          uv pip install ninja==1.11.1.4
-
-          cmake --version
-          ninja --version
-          gcc --version
-
-      - name: Build Clang ${{ matrix.clang-version }}
-        run: |
-          chmod +x tools/clang-build/build.sh
-          tools/clang-build/build.sh \
-            "${{ matrix.clang-version }}" \
-            "${GITHUB_WORKSPACE}/clang-install" \
-            "${{ matrix.llvm-targets }}"
+          chmod +x tools/gcc-build/build.sh
+          tools/gcc-build/build.sh \
+            "${{ matrix.gcc-version }}" \
+            "${{ matrix.gcc-toolset }}"
 
       - name: Package artifacts
         id: package
         run: |
           set -ex
-          ARTIFACT_NAME="clang-${{ matrix.clang-major }}-${{ matrix.platform }}"
+          ARTIFACT_NAME="gcc-toolset-${{ matrix.gcc-toolset }}-${{ matrix.platform }}"
 
-          cd "${GITHUB_WORKSPACE}/clang-install"
+          cd /opt/rh/gcc-toolset-${{ matrix.gcc-toolset }}
           tar czf "${GITHUB_WORKSPACE}/${ARTIFACT_NAME}.tar.gz" .
 
           cd "${GITHUB_WORKSPACE}"
           sha256sum "${ARTIFACT_NAME}.tar.gz" > "${ARTIFACT_NAME}.tar.gz.sha256"
 
           echo "artifact-name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
-          echo "artifact-path=${GITHUB_WORKSPACE}/${ARTIFACT_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
 
           # Print size for visibility
           ls -lh "${ARTIFACT_NAME}.tar.gz"
@@ -142,7 +104,7 @@ jobs:
         with:
           if-no-files-found: error
           s3-bucket: gha-artifacts
-          s3-prefix: clang/${{ matrix.platform }}/clang-${{ matrix.clang-major }}
+          s3-prefix: gcc/${{ matrix.platform }}/gcc-toolset-${{ matrix.gcc-toolset }}
           retention-days: 365
           path: |
             ${{ steps.package.outputs.artifact-name }}.tar.gz
