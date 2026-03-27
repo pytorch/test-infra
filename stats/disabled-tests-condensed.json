@@ -49,6 +49,13 @@
       "rocm"
     ]
   ],
+  "test_add_complex4_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "178575",
+    "https://github.com/pytorch/pytorch/issues/178575",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
