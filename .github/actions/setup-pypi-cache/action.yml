@@ -115,28 +115,28 @@ runs:
         mkdir -p "$HELPERS_DIR"
 
         # use_pypi_cache: run a command using only the PyPI/simple index
-        cat > "${HELPERS_DIR}/use_pypi_cache" <<'SCRIPT'
-#!/usr/bin/env bash
-exec env \
-  -u PIP_EXTRA_INDEX_URL \
-  -u UV_INDEX \
-  PIP_INDEX_URL="${PYPI_CACHE_SIMPLE_URL}" \
-  UV_DEFAULT_INDEX="${PYPI_CACHE_SIMPLE_URL}" \
-  UV_INDEX_STRATEGY="first-index" \
-  "$@"
-SCRIPT
+        {
+          echo '#!/usr/bin/env bash'
+          echo 'exec env \'
+          echo '  -u PIP_EXTRA_INDEX_URL \'
+          echo '  -u UV_INDEX \'
+          echo '  PIP_INDEX_URL="${PYPI_CACHE_SIMPLE_URL}" \'
+          echo '  UV_DEFAULT_INDEX="${PYPI_CACHE_SIMPLE_URL}" \'
+          echo '  UV_INDEX_STRATEGY="first-index" \'
+          echo '  "$@"'
+        } > "${HELPERS_DIR}/use_pypi_cache"
 
         # use_pytorch_cache: run a command using only the PyTorch wheel index
-        cat > "${HELPERS_DIR}/use_pytorch_cache" <<'SCRIPT'
-#!/usr/bin/env bash
-exec env \
-  -u PIP_EXTRA_INDEX_URL \
-  -u UV_INDEX \
-  PIP_INDEX_URL="${PYPI_CACHE_WHL_URL}" \
-  UV_DEFAULT_INDEX="${PYPI_CACHE_WHL_URL}" \
-  UV_INDEX_STRATEGY="first-index" \
-  "$@"
-SCRIPT
+        {
+          echo '#!/usr/bin/env bash'
+          echo 'exec env \'
+          echo '  -u PIP_EXTRA_INDEX_URL \'
+          echo '  -u UV_INDEX \'
+          echo '  PIP_INDEX_URL="${PYPI_CACHE_WHL_URL}" \'
+          echo '  UV_DEFAULT_INDEX="${PYPI_CACHE_WHL_URL}" \'
+          echo '  UV_INDEX_STRATEGY="first-index" \'
+          echo '  "$@"'
+        } > "${HELPERS_DIR}/use_pytorch_cache"
 
         chmod +x "${HELPERS_DIR}/use_pypi_cache" "${HELPERS_DIR}/use_pytorch_cache"
         echo "${HELPERS_DIR}" >> "$GITHUB_PATH"
