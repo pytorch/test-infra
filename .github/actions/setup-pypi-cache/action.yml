@@ -1,8 +1,15 @@
 # Composite action: configure pip/uv to use the in-cluster pypi-cache proxy.
 #
-# Defaults to CPU-only PyTorch wheels.  Pass cuda-version to switch to a
-# CUDA-specific index (e.g. "12.8.1" → service pypi-cache-cu1281, index
-# path /whl/cu128/).
+# Defaults to CPU-only PyTorch wheels.  Pass cuda-version or
+# build-environment to switch to a CUDA-specific index (e.g. "12.8" →
+# service pypi-cache-cu128, index path /whl/cu128/).
+#
+# By default both indexes (PyPI simple + PyTorch wheels) are active with
+# unsafe-best-match so uv resolves across both.  Two helper commands are
+# added to PATH for cases where you need a single explicit index:
+#
+#   use_pypi_cache uv pip install setuptools   # only PyPI/simple
+#   use_pytorch_cache pip install torch         # only PyTorch wheels
 #
 # Usage:
 #   - uses: pytorch/ci-infra/osdc/actions/setup-pypi-cache@main
@@ -22,18 +29,40 @@ inputs:
       Use "cpu" (default) for CPU-only wheels, or a dotted version like
       "12.8.1" or "12.4" to select CUDA-specific wheels.
     required: false
-    default: "cpu"
+    default: ""
+  build-environment:
+    description: >-
+      Build environment string for automatic CUDA version detection.
+      If cuda-version is not set, the CUDA version is extracted from this
+      string via regex (e.g., "linux-jammy-cuda12.8-py3.10" → "12.8").
+      If neither is set, defaults to CPU.
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
     - name: Configure pypi-cache environment
       shell: bash
+      env:
+        INPUT_CUDA_VERSION: ${{ inputs.cuda-version }}
+        INPUT_BUILD_ENV: ${{ inputs.build-environment }}
       run: |
         set -euo pipefail
-        CUDA_VERSION="${{ inputs.cuda-version }}"
+        CUDA_VERSION="$INPUT_CUDA_VERSION"
+        BUILD_ENV="$INPUT_BUILD_ENV"
 
-        # --- Validate input ---
+        # --- Auto-detect CUDA version ---
+        # Priority: explicit cuda-version > auto-detected from build-environment > "cpu"
+        if [[ -z "$CUDA_VERSION" ]]; then
+          if [[ "$BUILD_ENV" =~ cuda([0-9]+\.[0-9]+) ]]; then
+            CUDA_VERSION="${BASH_REMATCH[1]}"
+          else
+            CUDA_VERSION="cpu"
+          fi
+        fi
+
+        # --- Validate ---
         if [[ "$CUDA_VERSION" != "cpu" ]]; then
           if ! [[ "$CUDA_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
             echo "::error::Invalid cuda-version '${CUDA_VERSION}'. Expected 'cpu' or a dotted version like '12.8.1' or '12.4'."
@@ -46,28 +75,69 @@ runs:
           SERVICE_SLUG="cpu"
           INDEX_PATH="cpu"
         else
-          # Service slug: strip all dots → "12.8.1" becomes "cu1281"
-          SERVICE_SLUG="cu${CUDA_VERSION//./}"
-
-          # PyTorch index path: major.minor only → "12.8.1" becomes "cu128"
           IFS='.' read -ra PARTS <<< "$CUDA_VERSION"
+          # Normalize to major.minor only (align with PyTorch convention)
+          SERVICE_SLUG="cu${PARTS[0]}${PARTS[1]}"
           INDEX_PATH="cu${PARTS[0]}${PARTS[1]}"
         fi
 
         SERVICE_HOST="pypi-cache-${SERVICE_SLUG}.pypi-cache.svc.cluster.local"
         BASE_URL="http://${SERVICE_HOST}:8080"
 
+        SIMPLE_URL="${BASE_URL}/simple/"
+        WHL_URL="${BASE_URL}/whl/${INDEX_PATH}/"
+
         # --- Write env vars for subsequent steps ---
         {
-          echo "PIP_INDEX_URL=${BASE_URL}/simple/"
+          echo "PIP_INDEX_URL=${SIMPLE_URL}"
           echo "PIP_TRUSTED_HOST=${SERVICE_HOST}"
-          echo "PIP_EXTRA_INDEX_URL=${BASE_URL}/whl/${INDEX_PATH}/"
-          echo "UV_DEFAULT_INDEX=${BASE_URL}/simple/"
+          echo "PIP_EXTRA_INDEX_URL=${WHL_URL}"
+          echo "UV_DEFAULT_INDEX=${SIMPLE_URL}"
           echo "UV_INSECURE_HOST=${SERVICE_HOST}:8080"
-          echo "UV_INDEX=${BASE_URL}/whl/${INDEX_PATH}/"
+          echo "UV_INDEX=${WHL_URL}"
+          echo "UV_INDEX_STRATEGY=unsafe-best-match"
+          echo "PYPI_CACHE_SIMPLE_URL=${SIMPLE_URL}"
+          echo "PYPI_CACHE_WHL_URL=${WHL_URL}"
         } >> "$GITHUB_ENV"
 
-        echo "::notice::PyPI cache configured: service=${SERVICE_SLUG}, pytorch_index=${INDEX_PATH}"
-        echo "  PIP_INDEX_URL=${BASE_URL}/simple/"
-        echo "  PIP_EXTRA_INDEX_URL=${BASE_URL}/whl/${INDEX_PATH}/"
-        echo "  UV_INDEX=${BASE_URL}/whl/${INDEX_PATH}/"
+        echo "::notice::PyPI cache configured: service=${SERVICE_SLUG}, pytorch_index=${INDEX_PATH}, detected_from=${BUILD_ENV:-explicit}"
+        echo "  PIP_INDEX_URL=${SIMPLE_URL}"
+        echo "  PIP_EXTRA_INDEX_URL=${WHL_URL}"
+        echo "  UV_DEFAULT_INDEX=${SIMPLE_URL}"
+        echo "  UV_INDEX=${WHL_URL}"
+        echo "  UV_INDEX_STRATEGY=unsafe-best-match"
+
+    - name: Install pypi-cache helper scripts
+      shell: bash
+      run: |
+        set -euo pipefail
+        HELPERS_DIR="${RUNNER_TEMP}/pypi-cache-helpers"
+        mkdir -p "$HELPERS_DIR"
+
+        # use_pypi_cache: run a command using only the PyPI/simple index
+        cat > "${HELPERS_DIR}/use_pypi_cache" <<'SCRIPT'
+#!/usr/bin/env bash
+exec env \
+  -u PIP_EXTRA_INDEX_URL \
+  -u UV_INDEX \
+  PIP_INDEX_URL="${PYPI_CACHE_SIMPLE_URL}" \
+  UV_DEFAULT_INDEX="${PYPI_CACHE_SIMPLE_URL}" \
+  UV_INDEX_STRATEGY="first-index" \
+  "$@"
+SCRIPT
+
+        # use_pytorch_cache: run a command using only the PyTorch wheel index
+        cat > "${HELPERS_DIR}/use_pytorch_cache" <<'SCRIPT'
+#!/usr/bin/env bash
+exec env \
+  -u PIP_EXTRA_INDEX_URL \
+  -u UV_INDEX \
+  PIP_INDEX_URL="${PYPI_CACHE_WHL_URL}" \
+  UV_DEFAULT_INDEX="${PYPI_CACHE_WHL_URL}" \
+  UV_INDEX_STRATEGY="first-index" \
+  "$@"
+SCRIPT
+
+        chmod +x "${HELPERS_DIR}/use_pypi_cache" "${HELPERS_DIR}/use_pytorch_cache"
+        echo "${HELPERS_DIR}" >> "$GITHUB_PATH"
+        echo "::notice::Helper commands installed: use_pypi_cache, use_pytorch_cache"
