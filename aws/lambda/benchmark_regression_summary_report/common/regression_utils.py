@@ -151,6 +151,10 @@ class BenchmarkRegressionReportGenerator:
                 missing_policy.add(gi.get("metric", ""))
                 continue
 
+            # Avoid false regressions when tests recover from failure (metric value is 0) to healthy state.
+            if policy.exclude_zero:
+                points = [p for p in points if p["value"] != 0]
+
             base_item = baseline_map.get(key)
             if not base_item:
                 results.append(
@@ -165,7 +169,9 @@ class BenchmarkRegressionReportGenerator:
                 )
                 continue
             baseline_aggre_mode = policy.baseline_aggregation
-            baseline_result = self._get_baseline(base_item, baseline_aggre_mode)
+            baseline_result = self._get_baseline(
+                base_item, baseline_aggre_mode, exclude_zero=policy.exclude_zero
+            )
             if (
                 not baseline_result
                 or not baseline_result["original_point"]
@@ -345,16 +351,21 @@ class BenchmarkRegressionReportGenerator:
         data: BenchmarkRegressionPointGroup,
         mode: str = "max",
         field: str = "value",
+        exclude_zero: bool = False,
     ) -> Optional[BaselineResult]:
         """
         calculate the baseline value based on the mode
         mode: mean, p90, max, min, target, p50, p95
+        exclude_zero: exclude zero values from baseline calculation
         """
         items = [
             d
             for d in data["values"]
             if field in d and d[field] is not None and not math.isnan(float(d[field]))
         ]
+        if exclude_zero:
+            items = [d for d in items if float(d[field]) != 0]
+
         if not items:
             return None
         if mode == "max":
