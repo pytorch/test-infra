@@ -1,0 +1,4 @@
+PyYAML
+PyGithub
+python-dotenv
+redis

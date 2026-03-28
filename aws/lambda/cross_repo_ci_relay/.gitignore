@@ -1,0 +1,6 @@
+venv/
+.venv/
+deployment/
+deployment.zip
+__pycache__/
+*.pyc
