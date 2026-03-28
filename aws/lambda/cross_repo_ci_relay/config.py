@@ -1,79 +1,116 @@
-from dataclasses import dataclass
+import json
 import os
+from dataclasses import dataclass
 
+import boto3
+from botocore.config import Config
 from dotenv import find_dotenv, load_dotenv
-from secrets_manager_helper import get_runtime_secrets
 
 
-def _required_env(var_name: str, required: bool = True) -> str:
-    value = os.getenv(var_name)
-    if required and not value:
-        raise RuntimeError(f"Missing required environment variable: {var_name}")
+@dataclass(frozen=True)
+class RelaySecrets:
+    github_app_secret: str = ""
+    github_app_private_key: str = ""
+
+    @classmethod
+    def from_aws(cls, secret_store_arn: str, client=None) -> "RelaySecrets":
+        region = os.environ.get("AWS_REGION", "us-east-1")
+        try:
+            if client is None:
+                client = boto3.session.Session().client(
+                    "secretsmanager",
+                    region_name=region,
+                    config=Config(retries={"max_attempts": 3, "mode": "standard"}),
+                )
+            response = client.get_secret_value(SecretId=secret_store_arn)
+            secret = json.loads(response["SecretString"])
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"Secret at {secret_store_arn!r} contains invalid JSON: {e}"
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load secrets from AWS Secrets Manager ({secret_store_arn!r}): {e}"
+            ) from e
+        return cls(
+            github_app_secret=secret.get("GITHUB_APP_SECRET", ""),
+            github_app_private_key=secret.get("GITHUB_APP_PRIVATE_KEY", ""),
+        )
+
+
+def _require(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
     return value
 
 
 @dataclass(frozen=True)
 class RelayConfig:
     github_app_id: str
-    github_webhook_secret: str
+    github_app_secret: str
     github_app_private_key: str
     secret_store_arn: str
-    whitelist_url: str
+    allowlist_url: str
     upstream_repo: str
-    clickhouse_url: str
-    clickhouse_user: str
-    clickhouse_password: str
-    clickhouse_database: str
-    redis_url: str
     redis_endpoint: str
     redis_login: str
-    whitelist_ttl_seconds: int
-    in_progress_workflow_ttl_seconds: int
-
-    @property
-    def github_webhook_secret_bytes(self) -> bytes:
-        return (self.github_webhook_secret or "").encode()
+    allowlist_ttl_seconds: int
 
     @classmethod
-    def from_env(cls, route: str = "webhook") -> "RelayConfig":
+    def from_env(cls) -> "RelayConfig":
         load_dotenv(find_dotenv(usecwd=False), override=False)
-        secret_store_arn = os.getenv("SECRET_STORE_ARN", "")
-        secrets = get_runtime_secrets(secret_store_arn) if secret_store_arn else None
-        github_webhook_secret = (
-            getattr(secrets, "github_webhook_secret", "")
-            or _required_env("GITHUB_WEBHOOK_SECRET", required=(route == "webhook"))
-        )
-        github_app_private_key = (
-            getattr(secrets, "github_app_private_key", "")
-            or _required_env("GITHUB_APP_PRIVATE_KEY", required=(route in ("webhook", "result")))
-        )
-        clickhouse_password = (
-            getattr(secrets, "clickhouse_password", "")
-            or _required_env("CLICKHOUSE_PASSWORD", required=(route == "result"))
-        )
-        redis_endpoint = os.getenv("REDIS_ENDPOINT", "")
-        redis_login = os.getenv("REDIS_LOGIN", "")
-        redis_url = os.getenv("REDIS_URL", "") or getattr(secrets, "redis_url", "")
 
-        if not redis_endpoint and not redis_url:
-            raise RuntimeError(
-                "Missing Redis configuration: set REDIS_ENDPOINT or REDIS_URL"
+        # Env vars take priority; Secrets Manager is the fallback
+        github_app_secret = os.getenv("GITHUB_APP_SECRET", "")
+        github_app_private_key = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
+        secret_store_arn = os.getenv("SECRET_STORE_ARN", "")
+
+        if not github_app_secret or not github_app_private_key:
+            if not secret_store_arn:
+                missing = [
+                    v
+                    for v, val in [
+                        ("GITHUB_APP_SECRET", github_app_secret),
+                        ("GITHUB_APP_PRIVATE_KEY", github_app_private_key),
+                    ]
+                    if not val
+                ]
+                raise RuntimeError(
+                    f"Missing required environment variables: {', '.join(missing)} "
+                    "(set them directly or provide SECRET_STORE_ARN)"
+                )
+            secrets = RelaySecrets.from_aws(secret_store_arn)
+            github_app_secret = github_app_secret or secrets.github_app_secret
+            github_app_private_key = (
+                github_app_private_key or secrets.github_app_private_key
             )
+            missing_in_secret = [
+                v
+                for v, val in [
+                    ("GITHUB_APP_SECRET", github_app_secret),
+                    ("GITHUB_APP_PRIVATE_KEY", github_app_private_key),
+                ]
+                if not val
+            ]
+            if missing_in_secret:
+                raise RuntimeError(
+                    f"Secret at {secret_store_arn!r} is missing keys: {', '.join(missing_in_secret)}"
+                )
+
+        try:
+            allowlist_ttl_seconds = int(os.getenv("ALLOWLIST_TTL_SECONDS", "1200"))
+        except ValueError:
+            raise RuntimeError("ALLOWLIST_TTL_SECONDS must be a valid integer")
 
         return cls(
-            github_app_id=_required_env("GITHUB_APP_ID", required=(route in ("webhook", "result"))),
-            github_webhook_secret=github_webhook_secret,
+            github_app_id=_require("GITHUB_APP_ID"),
+            github_app_secret=github_app_secret,
             github_app_private_key=github_app_private_key,
             secret_store_arn=secret_store_arn,
-            whitelist_url=_required_env("WHITELIST_URL", required=True),
+            allowlist_url=_require("ALLOWLIST_URL"),
             upstream_repo=os.getenv("UPSTREAM_REPO", "pytorch/pytorch"),
-            clickhouse_url=_required_env("CLICKHOUSE_URL", required=(route == "result")),
-            clickhouse_user=_required_env("CLICKHOUSE_USER", required=(route == "result")),
-            clickhouse_password=clickhouse_password,
-            clickhouse_database=_required_env("CLICKHOUSE_DATABASE", required=(route == "result")),
-            redis_url=redis_url,
-            redis_endpoint=redis_endpoint,
-            redis_login=redis_login,
-            whitelist_ttl_seconds=int(os.getenv("WHITELIST_TTL_SECONDS", 1200)),
-            in_progress_workflow_ttl_seconds=int(os.getenv("IN_PROGRESS_WORKFLOW_TTL_SECONDS", 10800)),
+            redis_endpoint=_require("REDIS_ENDPOINT"),
+            redis_login=os.getenv("REDIS_LOGIN", ""),
+            allowlist_ttl_seconds=allowlist_ttl_seconds,
         )

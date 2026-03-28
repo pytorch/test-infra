@@ -1,7 +1,0 @@
-requests
-PyYAML
-PyGithub
-PyJWT[crypto]
-clickhouse-connect
-python-dotenv
-redis

@@ -1,4 +1,3 @@
-requests
 PyYAML
 PyGithub
 python-dotenv
