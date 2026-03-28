@@ -262,6 +262,11 @@ runner_types:
     instance_type: m7g.metal
     is_ephemeral: true
     os: linux
+  lf.linux.arm64.m8g.metal-24xl:
+    disk_size: 256
+    instance_type: m8g.metal-24xl
+    is_ephemeral: true
+    os: linux
   lf.windows.g4dn.xlarge:
     disk_size: 256
     instance_type: g4dn.xlarge
