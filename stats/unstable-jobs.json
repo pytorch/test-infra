@@ -70,5 +70,13 @@
     "trunk-rocm-sandbox",
     "linux-jammy-rocm-py3.10",
     "test"
+  ],
+  "vllm-test / vllm-x-pytorch-test / test": [
+    "huydhn",
+    "178678",
+    "https://github.com/pytorch/pytorch/issues/178678",
+    "vllm-test",
+    "vllm-x-pytorch-test",
+    "test"
   ]
 }
