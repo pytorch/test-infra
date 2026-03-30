@@ -63,6 +63,13 @@
       "xpu"
     ]
   ],
+  "test_adding_tensor_offsets_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "178761",
+    "https://github.com/pytorch/pytorch/issues/178761",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -670,6 +677,13 @@
     "https://github.com/pytorch/pytorch/issues/163765",
     [
       "rocm"
+    ]
+  ],
+  "test_errors_nn_Embedding_xpu_float32 (__main__.TestModuleXPU)": [
+    "178762",
+    "https://github.com/pytorch/pytorch/issues/178762",
+    [
+      "xpu"
     ]
   ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
