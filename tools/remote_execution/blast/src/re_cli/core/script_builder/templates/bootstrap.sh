@@ -57,6 +57,17 @@ if ! command -v aws &> /dev/null; then
         fi
     fi
 
+    # Ensure curl is available
+    if ! command -v curl &> /dev/null; then
+        if command -v apt-get &> /dev/null; then
+            apt-get install -y -qq curl 2>/dev/null
+        elif command -v yum &> /dev/null; then
+            yum install -y -q curl 2>/dev/null
+        elif command -v apk &> /dev/null; then
+            apk add --quiet curl 2>/dev/null
+        fi
+    fi
+
     # Install standalone AWS CLI v2 via curl + unzip (works on any Linux)
     curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
         && unzip -q /tmp/awscliv2.zip -d /tmp/ \
