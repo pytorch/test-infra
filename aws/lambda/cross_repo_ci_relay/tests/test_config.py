@@ -1,0 +1,41 @@
+import unittest
+from unittest.mock import patch
+
+from config import RelayConfig, RelaySecrets
+
+_ENV = {
+    "GITHUB_APP_ID": "123",
+    "GITHUB_APP_SECRET": "s",
+    "GITHUB_APP_PRIVATE_KEY": "k",
+    "ALLOWLIST_URL": "https://github.com/o/r/blob/main/f.yaml",
+    "REDIS_ENDPOINT": "cache:6379",
+}
+
+
+class TestConfig(unittest.TestCase):
+    @patch("config.load_dotenv")
+    @patch.dict("os.environ", _ENV, clear=True)
+    def test_from_env_correct_path(self, _):
+        cfg = RelayConfig.from_env()
+        self.assertEqual(cfg.github_app_id, "123")
+        self.assertEqual(cfg.upstream_repo, "pytorch/pytorch")
+
+    @patch("config.load_dotenv")
+    @patch.dict("os.environ", {}, clear=True)
+    def test_missing_vars_raises(self, _):
+        with self.assertRaises(RuntimeError):
+            RelayConfig.from_env()
+
+    @patch("config.RelaySecrets.from_aws")
+    @patch("config.load_dotenv")
+    @patch.dict("os.environ", {**_ENV, "GITHUB_APP_SECRET": "", "GITHUB_APP_PRIVATE_KEY": "",
+                                "SECRET_STORE_ARN": "arn:secret"}, clear=True)
+    def test_secrets_manager_fallback(self, _, mock_aws):
+        mock_aws.return_value = RelaySecrets(github_app_secret="s", github_app_private_key="k")
+        cfg = RelayConfig.from_env()
+        self.assertEqual(cfg.github_app_secret, "s")
+        mock_aws.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()
