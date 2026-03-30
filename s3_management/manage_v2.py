@@ -458,6 +458,12 @@ PT_R2_PACKAGES_PROD = {
     "torchvision",
     "fbgemm_gpu",
     "fbgemm_gpu_genai",
+    "triton",
+    "triton_rocm",
+    "triton_xpu",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
 }
 
 # Packages that should have their root index.html copied to subdirectories
