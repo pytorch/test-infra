@@ -49,6 +49,20 @@
       "rocm"
     ]
   ],
+  "test_add_complex4_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "178575",
+    "https://github.com/pytorch/pytorch/issues/178575",
+    [
+      "xpu"
+    ]
+  ],
+  "test_add_complex_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "178753",
+    "https://github.com/pytorch/pytorch/issues/178753",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -107,6 +121,13 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
+    ]
+  ],
+  "test_benchmark_harness_no_pickle_for_opaque_inputs (__main__.TestOpaqueObject)": [
+    "178748",
+    "https://github.com/pytorch/pytorch/issues/178748",
+    [
+      "xpu"
     ]
   ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
@@ -372,6 +393,13 @@
       "linux"
     ]
   ],
+  "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "178746",
+    "https://github.com/pytorch/pytorch/issues/178746",
+    [
+      "xpu"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
@@ -547,6 +575,13 @@
     "https://github.com/pytorch/pytorch/issues/98259",
     [
       "linux"
+    ]
+  ],
+  "test_dtensor_basic_compile (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "178745",
+    "https://github.com/pytorch/pytorch/issues/178745",
+    [
+      "xpu"
     ]
   ],
   "test_dtensor_input_mutations (__main__.TestDTensorCompileWithCompiledAutograd)": [
@@ -869,6 +904,13 @@
     "https://github.com/pytorch/pytorch/issues/175064",
     [
       "rocm"
+    ]
+  ],
+  "test_index_add_fallback (__main__.CudaReproTests)": [
+    "178747",
+    "https://github.com/pytorch/pytorch/issues/178747",
+    [
+      "xpu"
     ]
   ],
   "test_index_put_error_cuda (__main__.TestNestedTensorSubclassCUDA)": [
