@@ -50,6 +50,7 @@ class SignalMetadata:
     test_module: Optional[str] = None
     wf_run_id: Optional[int] = None
     job_id: Optional[int] = None
+    advisor_summary: Optional[str] = None  # short AI advisor verdict summary
 
 
 def _derive_job_filter(job_base_name: Optional[str]) -> Optional[str]:
@@ -293,9 +294,16 @@ class SignalActionProcessor:
             # Extract fields for job/HUD links from AutorevertPattern
             wf_run_id = None
             job_id = None
+            advisor_summary = None
             if isinstance(outcome, AutorevertPattern):
                 wf_run_id = outcome.wf_run_id
                 job_id = outcome.job_id
+                if outcome.advisor_verdict is not None:
+                    av = outcome.advisor_verdict
+                    advisor_summary = (
+                        f"AI advisor: {av.verdict.value} "
+                        f"(confidence={av.confidence:.2f})"
+                    )
 
             meta = SignalMetadata(
                 workflow_name=sig.workflow_name,
@@ -304,6 +312,7 @@ class SignalActionProcessor:
                 test_module=sig.test_module,
                 wf_run_id=wf_run_id,
                 job_id=job_id,
+                advisor_summary=advisor_summary,
             )
             if isinstance(outcome, AutorevertPattern):
                 sha = outcome.suspected_commit
@@ -1063,6 +1072,15 @@ class SignalActionProcessor:
 
             all_signals = ", ".join(all_signals_urls)
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
+
+        # Add AI advisor info if any signal was advisor-accelerated
+        advisor_summaries = [s.advisor_summary for s in sources if s.advisor_summary]
+        if advisor_summaries:
+            breaking_notification_msg += (
+                "\n**Note:** This revert was accelerated by the AI advisor: "
+                + "; ".join(advisor_summaries)
+                + "\n"
+            )
 
         try:
             if should_do_revert_on_pr:

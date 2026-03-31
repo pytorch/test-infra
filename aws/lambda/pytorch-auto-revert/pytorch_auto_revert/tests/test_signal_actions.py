@@ -1117,15 +1117,25 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         from pytorch_auto_revert.signal_extraction_types import Sha
 
         t0 = datetime(2025, 8, 19, 12, 0, 0)
-        c1 = SignalCommit("sha_aaa", t0, [
-            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10),
-        ])
-        c2 = SignalCommit("sha_bbb", t0, [
-            SignalEvent("j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=20),
-        ])
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [
+                SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10),
+            ],
+        )
+        c2 = SignalCommit(
+            "sha_bbb",
+            t0,
+            [
+                SignalEvent("j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=20),
+            ],
+        )
         signal = Signal(
-            key="test_key", workflow_name="trunk",
-            commits=[c1, c2], source=SignalSource.TEST,
+            key="test_key",
+            workflow_name="trunk",
+            commits=[c1, c2],
+            source=SignalSource.TEST,
         )
 
         extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
@@ -1150,17 +1160,28 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
 
     def test_no_verdicts_returns_signals_unchanged(self):
         from pytorch_auto_revert.signal import (
-            Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
         )
         from pytorch_auto_revert.signal_extraction import SignalExtractor
         from pytorch_auto_revert.signal_extraction_types import Sha
 
         t0 = datetime(2025, 8, 19, 12, 0, 0)
-        c1 = SignalCommit("sha_aaa", t0, [
-            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
-        ])
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [
+                SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
+            ],
+        )
         signal = Signal(
-            key="k", workflow_name="wf", commits=[c1], source=SignalSource.TEST,
+            key="k",
+            workflow_name="wf",
+            commits=[c1],
+            source=SignalSource.TEST,
         )
 
         extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)
@@ -1175,19 +1196,25 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
 
     def test_passes_signal_keys_to_datasource(self):
         from pytorch_auto_revert.signal import (
-            Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
         )
         from pytorch_auto_revert.signal_extraction import SignalExtractor
         from pytorch_auto_revert.signal_extraction_types import Sha
 
         t0 = datetime(2025, 8, 19, 12, 0, 0)
         s1 = Signal(
-            key="key_a", workflow_name="wf",
+            key="key_a",
+            workflow_name="wf",
             commits=[SignalCommit("sha1", t0, [])],
             source=SignalSource.TEST,
         )
         s2 = Signal(
-            key="key_b", workflow_name="wf",
+            key="key_b",
+            workflow_name="wf",
             commits=[SignalCommit("sha1", t0, [])],
             source=SignalSource.TEST,
         )
@@ -1205,18 +1232,29 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
 
     def test_invalid_verdict_string_defaults_to_unsure(self):
         from pytorch_auto_revert.signal import (
-            AdvisorVerdict, Signal, SignalCommit, SignalEvent,
-            SignalSource, SignalStatus,
+            AdvisorVerdict,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
         )
         from pytorch_auto_revert.signal_extraction import SignalExtractor
         from pytorch_auto_revert.signal_extraction_types import Sha
 
         t0 = datetime(2025, 8, 19, 12, 0, 0)
-        c1 = SignalCommit("sha_aaa", t0, [
-            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
-        ])
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [
+                SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
+            ],
+        )
         signal = Signal(
-            key="k", workflow_name="wf", commits=[c1], source=SignalSource.TEST,
+            key="k",
+            workflow_name="wf",
+            commits=[c1],
+            source=SignalSource.TEST,
         )
 
         extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)

@@ -66,6 +66,9 @@ class FakeDatasource(SignalExtractionDatasource):
         ids = {int(j) for j in job_ids}
         return [r for r in self._tests if int(r.job_id) in ids]
 
+    def fetch_advisor_verdicts(self, **kwargs):
+        return {}
+
 
 def J(
     *,

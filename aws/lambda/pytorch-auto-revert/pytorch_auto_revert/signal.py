@@ -50,9 +50,9 @@ class AutorevertPattern:
     - suspected_commit: the oldest commit that first started to fail.
     - older_successful_commit: the most recent successful commit before
       failures started (direct parent of the suspected commit for this signal).
-    - job_base_name: optional job base name for the signal
     - wf_run_id: optional workflow run ID from a failing event on suspected commit
     - job_id: optional job ID from a failing event on suspected commit
+    - advisor_verdict: optional AI advisor verdict that accelerated this decision
     """
 
     workflow_name: str
@@ -61,6 +61,7 @@ class AutorevertPattern:
     older_successful_commit: str
     wf_run_id: Optional[int] = None
     job_id: Optional[int] = None
+    advisor_verdict: Optional["AIAdvisorResult"] = None
 
 
 @dataclass
@@ -448,7 +449,9 @@ class Signal:
     ADVISOR_CONFIDENCE_THRESHOLD = 0.9
 
     def _build_autorevert_pattern(
-        self, partition: "PartitionedCommits"
+        self,
+        partition: "PartitionedCommits",
+        advisor_result: Optional[AIAdvisorResult] = None,
     ) -> AutorevertPattern:
         """Build an AutorevertPattern from a validated partition."""
         suspected = partition.failed[-1]
@@ -464,6 +467,7 @@ class Signal:
             older_successful_commit=partition.successful[0].head_sha,
             wf_run_id=failure_event.wf_run_id if failure_event else None,
             job_id=failure_event.job_id if failure_event else None,
+            advisor_verdict=advisor_result,
         )
 
     def _check_advisor_verdict(
@@ -490,7 +494,7 @@ class Signal:
             return None
 
         if result.verdict == AdvisorVerdict.REVERT:
-            return self._build_autorevert_pattern(partition)
+            return self._build_autorevert_pattern(partition, advisor_result=result)
 
         if result.verdict == AdvisorVerdict.NOT_RELATED:
             return Ineligible(

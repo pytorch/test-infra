@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .signal import SignalStatus
 from .utils import build_pytorch_hud_url
@@ -53,6 +53,13 @@ HUD_CSS = """
     td.cell.hl-baseline { background: #e6f7ff; }
     td.cell.hl-newer-fail { background: #fdecea; }
     td.cell.hl-restart { outline: 2px dashed #888; outline-offset: -2px; }
+    .advisor-cell { font-size: 10px; display: block; margin-top: 2px; }
+    .advisor-cell.adv-revert { color: #a40000; }
+    .advisor-cell.adv-not_related { color: #1a73e8; }
+    .advisor-cell.adv-garbage { color: #7a5a00; }
+    .advisor-cell.adv-unsure { color: #555; }
+    .advisor-dispatch { font-size: 10px; display: block; margin-top: 2px;
+        color: #1a73e8; font-style: italic; }
 """
 
 HUD_JS = (
@@ -285,10 +292,15 @@ def _note_from_outcome(outcome: Optional[Mapping[str, Any]]) -> str:
         newer = data.get("newer_failing_commits", []) or []
         suspected = data.get("suspected_commit") or "?"
         baseline = data.get("older_successful_commit") or "?"
-        return (
+        note = (
             f"Pattern: newer fail {len(newer)}; suspect {suspected[:7]}"
             f" vs baseline {baseline[:7]}"
         )
+        # Forward-compatible: advisor_verdict may not exist in older states
+        adv = data.get("advisor_verdict")
+        if adv:
+            note += f" [AI: {adv.get('verdict', '?')} @{adv.get('confidence', 0):.0%}]"
+        return note
     if outcome_type == "RestartCommits":
         commits = data.get("commit_shas", []) or []
         if commits:
@@ -316,12 +328,18 @@ def render_html_from_state(
     advisor_dispatches: Sequence[Mapping[str, Any]] = (
         state.get("advisor_dispatches", []) or []
     )
-    # Build lookup: signal_key -> advisor dispatch info
+    # Build lookups for advisor dispatches
+    # signal_key -> dispatch info (for outcome badges)
     advisor_by_signal: Dict[str, Mapping[str, Any]] = {}
+    # (signal_key, commit_sha) -> dispatch info (for in-cell rendering)
+    advisor_by_cell: Dict[Tuple[str, str], Mapping[str, Any]] = {}
     for ad in advisor_dispatches:
         sk = ad.get("signal_key", "")
+        sha = ad.get("commit_sha", "")
         if sk:
             advisor_by_signal[sk] = ad
+        if sk and sha:
+            advisor_by_cell[(sk, sha)] = ad
 
     raw_outcomes = (
         state.get("outcomes") if isinstance(state.get("outcomes"), dict) else None
@@ -446,12 +464,37 @@ def render_html_from_state(
         for col in columns:
             cells_map = col.get("cells", {}) or {}
             events = cells_map.get(sha, []) or []
+            # Forward-compatible: advisor_results may not exist in older states
+            advisor_results = col.get("advisor_results", {}) or {}
             workflow = str(col.get("workflow", ""))
             key = str(col.get("key", ""))
             sig_key = f"{workflow}:{key}" if key else workflow
             highlights_map = highlight_lookup.get(sig_key, {})
             cell_classes = " ".join(sorted(highlights_map.get(sha, [])))
-            if not events:
+
+            # Render advisor verdict badge for this cell (if available)
+            advisor_badge = ""
+            adv = advisor_results.get(sha)
+            if adv:
+                adv_verdict = adv.get("verdict", "")
+                adv_conf = adv.get("confidence", 0)
+                adv_class = f"adv-{adv_verdict}" if adv_verdict else ""
+                advisor_badge = (
+                    f'<span class="advisor-cell {adv_class}" '
+                    f'title="AI advisor: {adv_verdict} ({adv_conf:.0%})">'
+                    f"AI:{adv_verdict}</span>"
+                )
+
+            # Render advisor dispatch indicator (from advisor_dispatches)
+            dispatch = advisor_by_cell.get((sig_key, sha))
+            if dispatch and not advisor_badge:
+                # Show dispatch indicator only if no verdict badge already shown
+                advisor_badge = (
+                    '<span class="advisor-dispatch" '
+                    'title="AI advisor dispatched">AI:pending</span>'
+                )
+
+            if not events and not advisor_badge:
                 html_parts.append(f'<td class="cell {cell_classes}"></td>')
                 continue
 
@@ -484,7 +527,8 @@ def render_html_from_state(
                         f'<span class="ev" title="{title_attr}">{icon}</span>'
                     )
             html_parts.append(
-                f'<td class="cell {cell_classes}">{"".join(cell_parts)}</td>'
+                f'<td class="cell {cell_classes}">'
+                f'{"".join(cell_parts)}{advisor_badge}</td>'
             )
         html_parts.append("</tr>")
     html_parts.append("</tbody>")
