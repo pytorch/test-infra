@@ -3,11 +3,12 @@
 import os
 import shutil
 import sys
+from typing import Optional
 
 import click
 
-from . import get_client
 from ..core.core_types import console
+from . import get_client
 
 
 @click.command()
@@ -49,15 +50,27 @@ def debug(ctx, id, task):
     pod_name = _find_pod(client, job_ns, task_id)
     if not pod_name:
         console.print(f"[red]No running pod found for task {task_id}[/red]")
-        console.print("[dim]The pod may have already completed or been cleaned up.[/dim]")
+        console.print(
+            "[dim]The pod may have already completed or been cleaned up.[/dim]"
+        )
         sys.exit(1)
 
     console.print(f"[green]Found pod: {pod_name}[/green]")
 
     if shutil.which("kubectl"):
-        os.execvp("kubectl", [
-            "kubectl", "exec", "-it", pod_name, "-n", job_ns, "--", "bash",
-        ])
+        os.execvp(
+            "kubectl",
+            [
+                "kubectl",
+                "exec",
+                "-it",
+                pod_name,
+                "-n",
+                job_ns,
+                "--",
+                "bash",
+            ],
+        )
     else:
         console.print(
             "[yellow]kubectl not found, using python client "
@@ -110,7 +123,7 @@ def _exec_via_python(client, namespace: str, pod_name: str):
         print()
 
 
-def _find_pod(client, namespace: str, task_id: str) -> str | None:
+def _find_pod(client, namespace: str, task_id: str) -> Optional[str]:
     """Find a running pod for the given task_id."""
     try:
         pods = client.core_api.list_namespaced_pod(

@@ -148,9 +148,7 @@ def follow_all_steps(
                     pass  # cursor tracked internally by k8s_client
                 if "=== Job finished. Container idle for" in line:
                     console.print()
-                    console.print(
-                        "[green bold]Interactive session ready![/green bold]"
-                    )
+                    console.print("[green bold]Interactive session ready![/green bold]")
                     console.print(
                         f"[cyan]Run: blast debug -t {task_info.task_id}[/cyan]"
                     )

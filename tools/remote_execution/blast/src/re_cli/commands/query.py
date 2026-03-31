@@ -10,8 +10,8 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
-from . import get_client
 from ..core.core_types import console, get_status_color
+from . import get_client
 
 
 # =============================================================================

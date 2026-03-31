@@ -5,8 +5,8 @@ import sys
 
 import click
 
-from . import get_client
 from ..core.core_types import console
+from . import get_client
 
 
 @click.command()

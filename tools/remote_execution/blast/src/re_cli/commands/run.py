@@ -7,13 +7,12 @@ from typing import Optional
 
 import click
 
-from . import get_client
 from ..core.core_types import build_step_configs, console, StepConfig
 from ..core.git_patch import check_uncommitted_changes
 from ..core.job_runner import JobRunner
 from ..core.k8s_client import K8sClient
 from ..core.log_stream import _prompt_cancel_action
-
+from . import get_client
 from .query import save_to_history
 
 
@@ -138,7 +137,9 @@ def execute_job(
 
         idle_minutes = interactive if interactive > 0 else 60
         if idle_minutes > 240:
-            console.print("[red]Error: --interactive max is 240 minutes (4 hours)[/red]")
+            console.print(
+                "[red]Error: --interactive max is 240 minutes (4 hours)[/red]"
+            )
             sys.exit(1)
 
         last_cfg = step_configs[-1]
@@ -182,7 +183,9 @@ def execute_job(
                                 "step_index": t.step_index,
                                 "task_type": t.task_type,
                                 "env_vars": runner.task_requests[i].get("env_vars", {}),
-                                "files": step_configs[i].files if i < len(step_configs) else [],
+                                "files": step_configs[i].files
+                                if i < len(step_configs)
+                                else [],
                             }
                             for i, t in enumerate(runner.tasks_info)
                         ],

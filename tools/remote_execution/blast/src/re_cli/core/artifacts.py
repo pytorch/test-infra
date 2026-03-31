@@ -76,7 +76,7 @@ def build_artifacts_metadata(
                 "script_name": script_name,
                 "script_content": script_content,
                 "runner_content": runner_content,
-                "files": cfg.files,
+                "files": cfg.files,  # type: ignore[dict-item]
             }
         )
 
@@ -168,6 +168,7 @@ def upload_artifacts_to_s3(
                     sys.exit(1)
                 dst = os.path.join(task_scripts_dir, os.path.basename(src))
                 import shutil
+
                 shutil.copy2(src, dst)
 
         # Write task configs
