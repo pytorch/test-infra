@@ -1,1 +1,58 @@
-{}
+{
+  "RecordDebugHandles.Basic (__main__.test_jit)": [
+    "pytorch-bot",
+    "160387",
+    "https://github.com/pytorch/pytorch/issues/160387",
+    "RecordDebugHandles.Basic (__main__.test_jit)",
+    "",
+    ""
+  ],
+  "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)": [
+    "pytorch-bot",
+    "164534",
+    "https://github.com/pytorch/pytorch/issues/164534",
+    "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)",
+    "",
+    ""
+  ],
+  "distributed/_composable/fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing": [
+    "jithunnair-amd",
+    "120945",
+    "https://github.com/pytorch/pytorch/issues/120945",
+    "distributed",
+    "_composable",
+    "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
+  ],
+  "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
+    "jithunnair-amd",
+    "165040",
+    "https://github.com/pytorch/pytorch/issues/165040",
+    "rocm",
+    "linux-jammy-rocm-py3_10-gfx1100",
+    "test (default)"
+  ],
+  "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
+    "pytorch-bot",
+    "152869",
+    "https://github.com/pytorch/pytorch/issues/152869",
+    "testAssertNotRegex (__main__.CPythonTest_Assertions)",
+    "",
+    ""
+  ],
+  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)": [
+    "pytorch-bot",
+    "167297",
+    "https://github.com/pytorch/pytorch/issues/167297",
+    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)",
+    "",
+    ""
+  ],
+  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)": [
+    "pytorch-bot",
+    "167272",
+    "https://github.com/pytorch/pytorch/issues/167272",
+    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
+    "",
+    ""
+  ]
+}
