@@ -70,6 +70,13 @@
       "xpu"
     ]
   ],
+  "test_addmm_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "178855",
+    "https://github.com/pytorch/pytorch/issues/178855",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -682,6 +689,13 @@
   "test_errors_nn_Embedding_xpu_float32 (__main__.TestModuleXPU)": [
     "178762",
     "https://github.com/pytorch/pytorch/issues/178762",
+    [
+      "xpu"
+    ]
+  ],
+  "test_errors_nn_Embedding_xpu_float64 (__main__.TestModuleXPU)": [
+    "178854",
+    "https://github.com/pytorch/pytorch/issues/178854",
     [
       "xpu"
     ]
