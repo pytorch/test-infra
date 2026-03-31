@@ -98,6 +98,13 @@
       "linux"
     ]
   ],
+  "test_aoti_debug_printer_works_on_constants (__main__.TestGpuWrapper)": [
+    "178857",
+    "https://github.com/pytorch/pytorch/issues/178857",
+    [
+      "xpu"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
