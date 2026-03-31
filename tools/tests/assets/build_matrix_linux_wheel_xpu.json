@@ -54,7 +54,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.10",
@@ -180,7 +180,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.11",
@@ -306,7 +306,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.12",
@@ -432,7 +432,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.13",
@@ -558,7 +558,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.13t",
@@ -684,7 +684,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.14",
@@ -810,7 +810,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.10.0"
+      "stable_version": "2.11.0"
     },
     {
       "python_version": "3.14t",
