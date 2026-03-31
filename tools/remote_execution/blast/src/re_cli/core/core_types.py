@@ -42,6 +42,7 @@ class StepConfig:
     depends_on: Optional[str] = None
     additional: Optional[str] = None
     runner_modules: Optional[list[str]] = None  # e.g. ["header", "run_script"]
+    files: list[str] = field(default_factory=list)  # additional files to upload
 
     def get_command(self, raw_mode: bool = False) -> str:
         """Get the command to run for this step.

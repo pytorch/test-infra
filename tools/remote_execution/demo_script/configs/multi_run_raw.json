@@ -5,7 +5,7 @@
     {
       "name": "build",
       "script": "echo 'step 1: building on cpu...' && echo \"CPU count: $(nproc)\" && sleep 3 && echo 'build done!'",
-      "type": "cpu-44"
+      "type": "cpu-small"
     },
     {
       "name": "test",

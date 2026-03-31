@@ -5,30 +5,9 @@ Two main outputs:
 2. Runner script - customizable, uploaded to S3 (git clone, run script, upload outputs, etc.)
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
-
-
-class GitCloneMethod(Enum):
-    """Git clone methods for caching."""
-
-    REFERENCE = "reference"  # git clone --reference
-    COPY = "copy"  # cp -r from cache
-    FULL = "full"  # Full git clone (no cache)
-
-
-@dataclass
-class GitCloneConfig:
-    """Configuration for git cloning strategy."""
-
-    use_cache: bool = True
-    method: GitCloneMethod = GitCloneMethod.REFERENCE
-    submodule_sync: bool = True
-    submodule_recursive: bool = True
-    cache_path: str = "/var/cache/git/pytorch"
-    cache_repo_pattern: str = "pytorch/pytorch"
 
 
 @dataclass
@@ -37,7 +16,6 @@ class RunnerConfig:
 
     script_name: str
     step_name: str
-    git_config: GitCloneConfig = field(default_factory=GitCloneConfig)
 
     # Feature flags
     checkout_git_commit: bool = True
@@ -126,7 +104,6 @@ class RunnerScriptBuilder:
         config = RunnerConfig(
             script_name="test.sh",
             step_name="test",
-            git_config=GitCloneConfig(method=GitCloneMethod.COPY),
             apply_git_patch=False,
         )
         builder = RunnerScriptBuilder(config)
@@ -176,46 +153,8 @@ class RunnerScriptBuilder:
         return self._add_module("read_config")
 
     def add_git_clone(self) -> "RunnerScriptBuilder":
-        """Add module for git clone with configurable caching strategy."""
-        if not self.config.apply_git_patch:
-            return self
-
-        cfg = self.config.git_config
-
-        # Select git clone method template
-        if cfg.use_cache:
-            if cfg.method == GitCloneMethod.REFERENCE:
-                template_name = "git_clone_reference"
-            else:
-                template_name = "git_clone_copy"
-
-            method_template = _load_template(template_name, subdir="git_templates")
-            git_clone_method = _render_template(
-                method_template,
-                cache_path=cfg.cache_path,
-                cache_repo_pattern=cfg.cache_repo_pattern,
-            )
-        else:
-            # No cache - simple clone
-            git_clone_method = """
-echo "[Runner] Cloning $GIT_REPO..."
-git clone "$GIT_REPO" repo
-cd repo
-REPO_DIR="$(pwd)"
-export REPO_DIR
-"""
-
-        # Load git_clone template and render
-        git_clone_template = _load_template("git_clone", subdir="git_templates")
-        rendered = _render_template(
-            git_clone_template,
-            git_clone_method=git_clone_method,
-        )
-
-        self._modules.append(
-            f"\n# {'=' * 44}\n# MODULE: git_clone\n# {'=' * 44}\n{rendered}"
-        )
-        return self
+        """Add module for git clone (shallow)."""
+        return self._add_module("git_clone", subdir="git_templates")
 
     def add_git_checkout(self) -> "RunnerScriptBuilder":
         """Add module to checkout specific commit."""
@@ -224,26 +163,8 @@ export REPO_DIR
         return self._add_module("git_checkout", subdir="git_templates")
 
     def add_git_submodule(self) -> "RunnerScriptBuilder":
-        """Add module to update submodules with cache support."""
-        cfg = self.config.git_config
-
-        # Build submodule commands for fallback (no cache)
-        fallback_cmds = []
-        if cfg.submodule_sync:
-            fallback_cmds.append("        git submodule sync --recursive")
-        fallback_cmd = "        git submodule update --init"
-        if cfg.submodule_recursive:
-            fallback_cmd += " --recursive"
-        fallback_cmds.append(fallback_cmd)
-        fallback_commands = "\n".join(fallback_cmds)
-
-        template = _load_template("git_submodule")
-        rendered = _render_template(template, submodule_commands=fallback_commands)
-
-        self._modules.append(
-            f"\n# {'=' * 44}\n# MODULE: git_submodule\n# {'=' * 44}\n{rendered}"
-        )
-        return self
+        """Add module to update submodules (shallow, parallel)."""
+        return self._add_module("git_submodule", subdir="git_templates")
 
     def add_git_apply_patch(self) -> "RunnerScriptBuilder":
         """Add module to apply git patch after clone."""
@@ -255,11 +176,19 @@ export REPO_DIR
         """Add module to run the user script."""
         return self._add_module("run_script")
 
+    def add_debug_session(self) -> "RunnerScriptBuilder":
+        """Add module for interactive debug session after job completion."""
+        return self._add_module("debug_session")
+
     def add_upload_outputs(self) -> "RunnerScriptBuilder":
         """Add module to upload outputs to S3."""
         if not self.config.upload_outputs:
             return self
         return self._add_module("upload_outputs")
+
+    def add_exit(self) -> "RunnerScriptBuilder":
+        """Add module to exit with user script's exit code."""
+        return self._add_module("exit")
 
     def build(self) -> str:
         """Build the complete runner script."""
@@ -276,6 +205,7 @@ export REPO_DIR
         "git_apply_patch",
         "run_script",
         "upload_outputs",
+        "exit",
     ]
 
     @classmethod
@@ -283,25 +213,13 @@ export REPO_DIR
         cls,
         script_name: str,
         step_name: str,
-        git_config: Optional[GitCloneConfig] = None,
         apply_git_patch: bool = True,
     ) -> str:
-        """Create a runner script with all default modules.
-
-        Args:
-            script_name: Name of the user script to run (e.g., "build.sh")
-            step_name: Step name for logging
-            git_config: Git clone configuration
-            apply_git_patch: Whether to apply git patch
-
-        Returns:
-            Runner script content (to be uploaded to S3)
-        """
+        """Create a runner script with all default modules."""
         return cls.create_from_modules(
             modules=cls.DEFAULT_MODULES,
             script_name=script_name,
             step_name=step_name,
-            git_config=git_config,
             apply_git_patch=apply_git_patch,
         )
 
@@ -311,25 +229,12 @@ export REPO_DIR
         modules: list[str],
         script_name: str,
         step_name: str,
-        git_config: Optional[GitCloneConfig] = None,
         apply_git_patch: bool = True,
     ) -> str:
-        """Create a runner script with selected modules.
-
-        Args:
-            modules: List of module names to include (e.g. ["header", "run_script"])
-            script_name: Name of the user script to run
-            step_name: Step name for logging
-            git_config: Git clone configuration
-            apply_git_patch: Whether to apply git patch
-
-        Returns:
-            Runner script content (to be uploaded to S3)
-        """
+        """Create a runner script with selected modules."""
         config = RunnerConfig(
             script_name=script_name,
             step_name=step_name,
-            git_config=git_config or GitCloneConfig(),
             apply_git_patch=apply_git_patch,
         )
 

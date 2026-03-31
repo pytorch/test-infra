@@ -28,44 +28,41 @@ mkdir -p "$ARTIFACTS_DIR"
 # Install git if needed (required for --patch)
 # ============================================
 if ! command -v git &> /dev/null; then
-    echo "[Bootstrap] Installing git..."
     if command -v apt-get &> /dev/null; then
-        apt-get update -qq && apt-get install -y -qq git 2>&1 | sed 's/^/[Bootstrap] /'
+        apt-get update -qq && apt-get install -y -qq git &>/dev/null
     elif command -v yum &> /dev/null; then
-        yum install -y -q git 2>&1 | sed 's/^/[Bootstrap] /'
+        yum install -y -q git &>/dev/null
     elif command -v apk &> /dev/null; then
-        apk add --quiet git 2>&1 | sed 's/^/[Bootstrap] /'
+        apk add --quiet git &>/dev/null
     elif command -v conda &> /dev/null; then
-        conda install -y -q git 2>&1 | sed 's/^/[Bootstrap] /'
+        conda install -y -q git &>/dev/null
     fi
-    command -v git &> /dev/null && echo "[Bootstrap] ✓ git installed" || echo "[Bootstrap] Warning: git not available"
+    command -v git &> /dev/null || echo "[Bootstrap] Warning: git not available"
 fi
 
 # ============================================
 # Install AWS CLI if needed
 # ============================================
 if ! command -v aws &> /dev/null; then
-    echo "[Bootstrap] Installing AWS CLI..."
-    # Ensure unzip is available
-    if ! command -v unzip &> /dev/null; then
-        if command -v apt-get &> /dev/null; then
-            apt-get update -qq && apt-get install -y -qq unzip 2>/dev/null
-        elif command -v yum &> /dev/null; then
-            yum install -y -q unzip 2>/dev/null
-        elif command -v apk &> /dev/null; then
-            apk add --quiet unzip 2>/dev/null
+    # Ensure curl and unzip are available
+    for tool in curl unzip; do
+        if ! command -v "$tool" &> /dev/null; then
+            if command -v apt-get &> /dev/null; then
+                apt-get update -qq && apt-get install -y -qq "$tool" &>/dev/null
+            elif command -v yum &> /dev/null; then
+                yum install -y -q "$tool" &>/dev/null
+            elif command -v apk &> /dev/null; then
+                apk add --quiet "$tool" &>/dev/null
+            fi
         fi
-    fi
+    done
 
-    # Install standalone AWS CLI v2 via curl + unzip (works on any Linux)
     curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
         && unzip -q /tmp/awscliv2.zip -d /tmp/ \
-        && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli 2>/dev/null
+        && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli &>/dev/null
     rm -f /tmp/awscliv2.zip
 
-    if command -v aws &> /dev/null; then
-        echo "[Bootstrap] ✓ AWS CLI installed"
-    else
+    if ! command -v aws &> /dev/null; then
         echo "[Bootstrap] Error: Failed to install AWS CLI"
         exit 1
     fi
