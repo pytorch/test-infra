@@ -34,5 +34,3 @@ if [[ -d "$LOG_DIR" ]]; then
 else
     echo "[Runner] No logs to upload (LOG_DIR does not exist)"
 fi
-
-exit $SCRIPT_EXIT_CODE

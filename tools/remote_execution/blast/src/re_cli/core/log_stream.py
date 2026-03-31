@@ -138,6 +138,7 @@ def follow_all_steps(
         # Stream logs (retry/reconnect handled by k8s_client internally)
         should_follow = last_status not in FINAL_STATES
 
+        interactive_ready = False
         try:
             for ts, line in client.stream_task_logs(
                 task_info.task_id,
@@ -145,6 +146,15 @@ def follow_all_steps(
             ):
                 if ts:
                     pass  # cursor tracked internally by k8s_client
+                if "=== Job finished. Container idle for" in line:
+                    console.print()
+                    console.print("[green bold]Interactive session ready![/green bold]")
+                    console.print(
+                        f"[cyan]Run: blast debug -t {task_info.task_id}[/cyan]"
+                    )
+                    console.print()
+                    interactive_ready = True
+                    break
                 if "[Bootstrap]" in line or "[Runner]" in line:
                     console.print(f"[dim]{line.rstrip()}[/dim]")
                 else:
@@ -165,6 +175,9 @@ def follow_all_steps(
             console.print(f"[red]Log stream failed: {e}[/red]")
 
         if cancelled_by_user:
+            break
+
+        if interactive_ready:
             break
 
         # Check final status

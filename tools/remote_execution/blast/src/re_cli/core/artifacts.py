@@ -1,10 +1,11 @@
 """Artifact building, packaging, and upload for the Remote Execution CLI."""
 
+import sys
 import time
 from typing import Optional, Type
 
 from .core_types import console, StepConfig, TaskInfo
-from .script_builder import create_bootstrap, GitCloneConfig, RunnerScriptBuilder
+from .script_builder import create_bootstrap, RunnerScriptBuilder
 
 
 def build_artifacts_metadata(
@@ -75,6 +76,7 @@ def build_artifacts_metadata(
                 "script_name": script_name,
                 "script_content": script_content,
                 "runner_content": runner_content,
+                "files": cfg.files,  # type: ignore[dict-item]
             }
         )
 
@@ -157,6 +159,17 @@ def upload_artifacts_to_s3(
             runner_path = os.path.join(task_scripts_dir, "runner.sh")
             with open(runner_path, "w") as f:
                 f.write(script_data["runner_content"])
+
+            # Write additional files
+            for file_path in script_data.get("files", []):
+                src = os.path.expanduser(file_path)
+                if not os.path.isfile(src):
+                    console.print(f"[red]Error: file not found: {file_path}[/red]")
+                    sys.exit(1)
+                dst = os.path.join(task_scripts_dir, os.path.basename(src))
+                import shutil
+
+                shutil.copy2(src, dst)
 
         # Write task configs
         for task_config in artifact_data["task_configs"]:
@@ -352,7 +365,6 @@ def build_task_requests(
 def create_runner_script(
     script_name: str,
     step_name: str,
-    git_config: Optional[GitCloneConfig] = None,
 ) -> str:
     """Create the runner script that executes on the worker.
 
@@ -361,5 +373,4 @@ def create_runner_script(
     return RunnerScriptBuilder.create_default(
         script_name=script_name,
         step_name=step_name,
-        git_config=git_config,
     )
