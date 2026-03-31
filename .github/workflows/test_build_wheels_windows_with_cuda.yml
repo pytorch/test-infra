@@ -29,15 +29,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - repository: tinglvv/audio
-          env-script: packaging/vc_env_helper.bat
-          smoke-test-script: test/smoke_test/smoke_test.py
-          package-name: torchaudio
+        - repository: pytorch/vision
+          pre-script: packaging/pre_build_script.sh
+          env-script: packaging/windows/internal/vc_env_helper.bat
+          post-script: "python packaging/wheel/relocate.py"
+          smoke-test-script: test/smoke_test.py
+          package-name: torchvision
+          cache-path: ""
+          cache-key: ""
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: fix-install-win
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
