@@ -1,1 +1,82 @@
-{}
+{
+  "Build manywheel docker images for s390x / build-docker-cpu-s390x": [
+    "huydhn",
+    "154074",
+    "https://github.com/pytorch/pytorch/issues/154074",
+    "Build manywheel docker images for s390x",
+    "build-docker-cpu-s390x",
+    ""
+  ],
+  "Lint / Link checks / Lint URLs / linux-job": [
+    "huydhn",
+    "152884",
+    "https://github.com/pytorch/pytorch/issues/152884",
+    "Lint",
+    "Link checks",
+    "Lint URLs / linux-job"
+  ],
+  "Lint / Lint URLs / linux-job": [
+    "huydhn",
+    "152489",
+    "https://github.com/pytorch/pytorch/issues/152489",
+    "Lint",
+    "Lint URLs",
+    "linux-job"
+  ],
+  "inductor / inductor-cpu-test / test (cpu_inductor_torchbench)": [
+    "xmfan",
+    "174929",
+    "https://github.com/pytorch/pytorch/issues/174929",
+    "inductor",
+    "inductor-cpu-test",
+    "test (cpu_inductor_torchbench)"
+  ],
+  "inductor / inductor-test-cuda13 / test (inductor_torchbench)": [
+    "xmfan",
+    "174930",
+    "https://github.com/pytorch/pytorch/issues/174930",
+    "inductor",
+    "inductor-test-cuda13",
+    "test (inductor_torchbench)"
+  ],
+  "inductor-periodic / cuda12.8-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
+    "zou3519",
+    "161295",
+    "https://github.com/pytorch/pytorch/issues/161295",
+    "inductor-periodic",
+    "cuda12.8-py3.10-gcc9-sm80",
+    "test (inductor_torchbench_smoketest_perf)"
+  ],
+  "periodic / linux-jammy-cuda12.4-py3.10-gcc11 / test (legacy_nvidia_driver)": [
+    "atalman",
+    "163657",
+    "https://github.com/pytorch/pytorch/issues/163657",
+    "periodic",
+    "linux-jammy-cuda12.4-py3.10-gcc11",
+    "test (legacy_nvidia_driver)"
+  ],
+  "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
+    "ZainRizvi",
+    "158876",
+    "https://github.com/pytorch/pytorch/issues/158876",
+    "pull",
+    "linux-jammy-py3_9-clang9-xla",
+    "test (xla)"
+  ],
+  "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "167616",
+    "https://github.com/pytorch/pytorch/issues/167616",
+    "trunk-rocm-sandbox",
+    "linux-jammy-rocm-py3.10",
+    "test"
+  ],
+  "vllm-test / vllm-x-pytorch-test / test": [
+    "huydhn",
+    "178678",
+    "https://github.com/pytorch/pytorch/issues/178678",
+    "vllm-test",
+    "vllm-x-pytorch-test",
+    "test"
+  ]
+}
