@@ -313,6 +313,64 @@ class SignalExtractionDatasource:
         )
         return rows
 
+    def fetch_advisor_verdicts(
+        self,
+        *,
+        repo_full_name: str,
+        head_shas: List[Sha],
+        signal_keys: List[str],
+        lookback_hours: int,
+    ) -> Dict[tuple[str, str], tuple[str, float, datetime]]:
+        """Fetch AI advisor verdicts from misc.autorevert_advisor_verdicts.
+
+        Queries by both commit SHAs AND signal keys to minimize data transferred.
+
+        Returns a dict keyed by (commit_sha, signal_key) → (verdict, confidence, timestamp).
+        When multiple verdicts exist for the same (commit, signal), the most recent is used.
+        """
+        if not head_shas or not signal_keys:
+            return {}
+
+        log = logging.getLogger(__name__)
+        t0 = time.perf_counter()
+        query = """
+        SELECT
+            toString(suspect_commit) AS suspect_commit,
+            signal_key,
+            verdict,
+            confidence,
+            timestamp
+        FROM misc.autorevert_advisor_verdicts
+        WHERE repo = {repo:String}
+          AND suspect_commit IN {shas:Array(String)}
+          AND signal_key IN {keys:Array(String)}
+          AND timestamp > now() - INTERVAL {hours:UInt32} HOUR
+        ORDER BY suspect_commit, signal_key, timestamp DESC
+        """
+        params = {
+            "repo": repo_full_name,
+            "shas": [str(s) for s in head_shas],
+            "keys": signal_keys,
+            "hours": lookback_hours,
+        }
+        results: Dict[tuple[str, str], tuple[str, float, datetime]] = {}
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                for r in res.result_rows:
+                    key = (str(r[0]).strip(), str(r[1]))
+                    if key not in results:  # keep most recent (ORDER BY ... DESC)
+                        results[key] = (str(r[2]), float(r[3]), r[4])
+
+        dt = time.perf_counter() - t0
+        log.info(
+            "[extract] Advisor verdicts fetched: %d for %d commits in %.2fs",
+            len(results),
+            len(head_shas),
+            dt,
+        )
+        return results
+
     def fetch_autorevert_state_rows(
         self,
         *,

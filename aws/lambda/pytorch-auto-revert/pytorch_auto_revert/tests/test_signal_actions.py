@@ -1101,5 +1101,137 @@ class TestDispatchAdvisorsMethod(unittest.TestCase):
         self.assertEqual(d["mode"], "log")
 
 
+class TestAttachAdvisorVerdicts(unittest.TestCase):
+    """Tests for SignalExtractor._attach_advisor_verdicts."""
+
+    def test_attaches_verdict_to_matching_commit(self):
+        from pytorch_auto_revert.signal import (
+            AdvisorVerdict,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit("sha_aaa", t0, [
+            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10),
+        ])
+        c2 = SignalCommit("sha_bbb", t0, [
+            SignalEvent("j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=20),
+        ])
+        signal = Signal(
+            key="test_key", workflow_name="trunk",
+            commits=[c1, c2], source=SignalSource.TEST,
+        )
+
+        extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
+        # Mock datasource to return a verdict for (sha_aaa, test_key)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {
+            ("sha_aaa", "test_key"): ("revert", 0.95, t0),
+        }
+
+        commits = [(Sha("sha_aaa"), t0), (Sha("sha_bbb"), t0)]
+        result = extractor._attach_advisor_verdicts([signal], commits)
+
+        self.assertEqual(len(result), 1)
+        s = result[0]
+        # sha_aaa should have advisor_result
+        self.assertIsNotNone(s.commits[0].advisor_result)
+        self.assertEqual(s.commits[0].advisor_result.verdict, AdvisorVerdict.REVERT)
+        self.assertAlmostEqual(s.commits[0].advisor_result.confidence, 0.95)
+        self.assertEqual(s.commits[0].advisor_result.signal_key, "test_key")
+        # sha_bbb should NOT have advisor_result
+        self.assertIsNone(s.commits[1].advisor_result)
+
+    def test_no_verdicts_returns_signals_unchanged(self):
+        from pytorch_auto_revert.signal import (
+            Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit("sha_aaa", t0, [
+            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
+        ])
+        signal = Signal(
+            key="k", workflow_name="wf", commits=[c1], source=SignalSource.TEST,
+        )
+
+        extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {}
+
+        result = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
+
+        # Should return same signals (no modification)
+        self.assertIs(result[0], signal)
+        self.assertIsNone(result[0].commits[0].advisor_result)
+
+    def test_passes_signal_keys_to_datasource(self):
+        from pytorch_auto_revert.signal import (
+            Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        s1 = Signal(
+            key="key_a", workflow_name="wf",
+            commits=[SignalCommit("sha1", t0, [])],
+            source=SignalSource.TEST,
+        )
+        s2 = Signal(
+            key="key_b", workflow_name="wf",
+            commits=[SignalCommit("sha1", t0, [])],
+            source=SignalSource.TEST,
+        )
+
+        extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {}
+
+        extractor._attach_advisor_verdicts([s1, s2], [(Sha("sha1"), t0)])
+
+        call_kwargs = extractor._datasource.fetch_advisor_verdicts.call_args[1]
+        self.assertIn("signal_keys", call_kwargs)
+        self.assertCountEqual(call_kwargs["signal_keys"], ["key_a", "key_b"])
+        self.assertEqual(call_kwargs["head_shas"], [Sha("sha1")])
+
+    def test_invalid_verdict_string_defaults_to_unsure(self):
+        from pytorch_auto_revert.signal import (
+            AdvisorVerdict, Signal, SignalCommit, SignalEvent,
+            SignalSource, SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit("sha_aaa", t0, [
+            SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1),
+        ])
+        signal = Signal(
+            key="k", workflow_name="wf", commits=[c1], source=SignalSource.TEST,
+        )
+
+        extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {
+            ("sha_aaa", "k"): ("bogus_verdict", 0.5, t0),
+        }
+
+        result = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
+
+        self.assertIsNotNone(result[0].commits[0].advisor_result)
+        self.assertEqual(
+            result[0].commits[0].advisor_result.verdict, AdvisorVerdict.UNSURE
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

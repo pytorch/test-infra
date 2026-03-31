@@ -6,6 +6,29 @@ from typing import Callable, List, Optional, Set, Tuple, Union
 from .bisection_planner import GapBisectionPlanner
 
 
+class AdvisorVerdict(Enum):
+    """Verdict from the AI advisor workflow."""
+
+    REVERT = "revert"
+    UNSURE = "unsure"
+    NOT_RELATED = "not_related"
+    GARBAGE = "garbage"
+
+
+@dataclass(frozen=True)
+class AIAdvisorResult:
+    """Result from a previously-dispatched AI advisor run, read from ClickHouse.
+
+    Attached to SignalCommit so that process_valid_autorevert_pattern() can
+    use the advisor's analysis to make faster revert/skip decisions.
+    """
+
+    verdict: AdvisorVerdict
+    confidence: float
+    timestamp: datetime  # when the verdict was produced
+    signal_key: str  # the signal key this verdict applies to
+
+
 class SignalStatus(Enum):
     """signal status enum"""
 
@@ -76,6 +99,8 @@ class IneligibleReason(Enum):
         "insufficient_successes"  # not enough successes to make call
     )
     PENDING_GAP = "pending_gap"  # unknown/pending commits present
+    ADVISOR_NOT_RELATED = "advisor_not_related"  # AI advisor says not related
+    ADVISOR_GARBAGE = "advisor_garbage"  # AI advisor says signal is garbage
 
 
 @dataclass
@@ -128,7 +153,13 @@ class SignalEvent:
 class SignalCommit:
     """All events for a single commit, ordered oldest → newest by start time."""
 
-    def __init__(self, head_sha: str, timestamp: datetime, events: List[SignalEvent]):
+    def __init__(
+        self,
+        head_sha: str,
+        timestamp: datetime,
+        events: List[SignalEvent],
+        advisor_result: Optional[AIAdvisorResult] = None,
+    ):
         self.head_sha = head_sha
         self.timestamp = timestamp
         # enforce events ordered by time, then by wf_run_id (oldest first)
@@ -139,6 +170,8 @@ class SignalCommit:
         self.statuses = {}
         for e in self.events:
             self.statuses[e.status] = self.statuses.get(e.status, 0) + 1
+        # Optional AI advisor result for this (commit, signal) pair
+        self.advisor_result = advisor_result
 
     @property
     def has_pending(self) -> bool:
@@ -384,8 +417,10 @@ class Signal:
         picking_failed = True  # simple state machine
 
         # first broadly partition into failed and successful
+        # A commit with both success and failure (flaky) stays in the failed
+        # partition — only pure successes trigger the transition.
         for c in self.commits:
-            if c.has_success:
+            if c.has_success and not c.has_failure:
                 picking_failed = False
             elif c.has_failure and not picking_failed:
                 # encountered a failure after the streak of successes
@@ -409,24 +444,93 @@ class Signal:
 
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
+    # Minimum confidence threshold for acting on advisor verdicts
+    ADVISOR_CONFIDENCE_THRESHOLD = 0.9
+
+    def _build_autorevert_pattern(
+        self, partition: "PartitionedCommits"
+    ) -> AutorevertPattern:
+        """Build an AutorevertPattern from a validated partition."""
+        suspected = partition.failed[-1]
+        newer_failures = [c.head_sha for c in partition.failed[:-1]]
+        failure_event = next(
+            (e for e in suspected.events if e.is_failure and e.job_id is not None),
+            None,
+        )
+        return AutorevertPattern(
+            workflow_name=self.workflow_name,
+            newer_failing_commits=newer_failures,
+            suspected_commit=suspected.head_sha,
+            older_successful_commit=partition.successful[0].head_sha,
+            wf_run_id=failure_event.wf_run_id if failure_event else None,
+            job_id=failure_event.job_id if failure_event else None,
+        )
+
+    def _check_advisor_verdict(
+        self, partition: "PartitionedCommits"
+    ) -> Optional[Union[AutorevertPattern, Ineligible]]:
+        """Check if an AI advisor verdict is available for the suspect commit.
+
+        Returns:
+            - AutorevertPattern if advisor says "revert" with sufficient confidence
+            - Ineligible if advisor says "not_related" or "garbage" (within 2h window)
+            - None if no verdict, verdict is "unsure", or confidence below threshold
+        """
+        suspected = partition.failed[-1]
+        result = suspected.advisor_result
+        if result is None:
+            return None
+
+        # Only act on the verdict if it matches this signal
+        if result.signal_key != self.key:
+            return None
+
+        # Ignore low-confidence verdicts
+        if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD:
+            return None
+
+        if result.verdict == AdvisorVerdict.REVERT:
+            return self._build_autorevert_pattern(partition)
+
+        if result.verdict == AdvisorVerdict.NOT_RELATED:
+            return Ineligible(
+                IneligibleReason.ADVISOR_NOT_RELATED,
+                f"AI advisor says not related (confidence={result.confidence:.2f})",
+            )
+
+        if result.verdict == AdvisorVerdict.GARBAGE:
+            # Garbage verdict blocks the signal for 2 hours since the verdict timestamp
+            from datetime import timezone
+
+            now = datetime.now(timezone.utc)
+            verdict_age = now - result.timestamp.replace(tzinfo=timezone.utc)
+            if verdict_age.total_seconds() < 2 * 3600:
+                return Ineligible(
+                    IneligibleReason.ADVISOR_GARBAGE,
+                    f"AI advisor says garbage signal, suppressed for 2h "
+                    f"(confidence={result.confidence:.2f}, "
+                    f"age={int(verdict_age.total_seconds() / 60)}min)",
+                )
+            # Garbage verdict expired — fall through to normal processing
+
+        # "unsure" or expired garbage → continue normally
+        return None
+
     def process_valid_autorevert_pattern(
         self, *, bisection_limit: Optional[int] = None
     ) -> Union[AutorevertPattern, RestartCommits, Ineligible]:
         """
         Detect valid autorevert pattern in the Signal.
 
-        Validates all invariants before checking for the pattern.
+        Validates invariants, checks AI advisor verdicts, and determines
+        appropriate action.
 
         Returns one of:
             - AutorevertPattern: a confirmed pattern ready for action
             - RestartCommits: a suggested set of commits to restart to reduce uncertainty
             - Ineligible: reason + optional message when no pattern is actionable yet
         """
-        if self.detect_flaky():
-            return Ineligible(
-                IneligibleReason.FLAKY,
-                "signal is flaky (mixed outcomes on same commit)",
-            )
+        # Early exits that prevent partition computation
         if self.detect_fixed():
             return Ineligible(
                 IneligibleReason.FIXED, "signal appears recovered at head"
@@ -443,7 +547,12 @@ class Signal:
                 "insufficient history to form failed/unknown/successful partitions",
             )
 
-        # Advisor eligibility: partition exists with sufficient data and
+        # --- AI advisor verdict check (before flakiness and other heuristics) ---
+        advisor_decision = self._check_advisor_verdict(partition)
+        if advisor_decision is not None:
+            return advisor_decision
+
+        # Advisor dispatch eligibility: partition exists with sufficient data and
         # no unknown commits between failed and successful partitions.
         # Unknown commits mean the partition boundary is uncertain —
         # wait for restarts to resolve before dispatching advisor.
@@ -457,6 +566,15 @@ class Signal:
                 suspect_commit=partition.failed[-1].head_sha,
                 failed_commits=tuple(c.head_sha for c in partition.failed),
                 successful_commits=tuple(c.head_sha for c in partition.successful),
+            )
+
+        # Flakiness check — placed after advisor check/dispatch so that
+        # advisor can still evaluate flaky-looking signals
+        if self.detect_flaky():
+            return Ineligible(
+                IneligibleReason.FLAKY,
+                "signal is flaky (mixed outcomes on same commit)",
+                advisor=advisor,
             )
 
         restart_commits = set()
@@ -554,21 +672,4 @@ class Signal:
             )
 
         # all invariants validated, confirmed not infra, pattern exists
-        # failed is newest -> older; the last element is the suspected commit
-        suspected = partition.failed[-1]
-        newer_failures = [c.head_sha for c in partition.failed[:-1]]
-
-        # Extract job_id and wf_run_id from a failing event on the suspected commit
-        failure_event = next(
-            (e for e in suspected.events if e.is_failure and e.job_id is not None),
-            None,
-        )
-
-        return AutorevertPattern(
-            workflow_name=self.workflow_name,
-            newer_failing_commits=newer_failures,
-            suspected_commit=suspected.head_sha,
-            older_successful_commit=partition.successful[0].head_sha,
-            wf_run_id=failure_event.wf_run_id if failure_event else None,
-            job_id=failure_event.job_id if failure_event else None,
-        )
+        return self._build_autorevert_pattern(partition)

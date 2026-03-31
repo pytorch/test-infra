@@ -1,7 +1,9 @@
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from pytorch_auto_revert.signal import (
+    AdvisorVerdict,
+    AIAdvisorResult,
     AutorevertPattern,
     DispatchAdvisor,
     Ineligible,
@@ -772,7 +774,8 @@ class TestDispatchAdvisor(unittest.TestCase):
         s = Signal(key="job", workflow_name="wf", commits=[c_flaky, c_base])
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
-        self.assertEqual(res.reason, IneligibleReason.FLAKY)
+        # Flaky commit has success → detect_fixed() returns True (early exit before partition)
+        self.assertEqual(res.reason, IneligibleReason.FIXED)
         self.assertIsNone(res.advisor)
 
     def test_advisor_has_correct_partition_shas(self):
@@ -813,6 +816,289 @@ class TestDispatchAdvisor(unittest.TestCase):
             self.assertEqual(advisor.failed_commits, ("fail_1", "fail_2"))
             self.assertEqual(advisor.successful_commits, ("succ_1", "succ_2"))
             self.assertEqual(advisor.suspect_commit, "fail_2")
+
+
+class TestAdvisorVerdictIntegration(unittest.TestCase):
+    """Tests for AI advisor verdict handling in process_valid_autorevert_pattern."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    def _ev(self, name: str, status: SignalStatus, minute: int) -> SignalEvent:
+        return SignalEvent(
+            name=name,
+            status=status,
+            started_at=ts(self.t0, minute),
+            wf_run_id=1,
+        )
+
+    def _make_signal_with_advisor(
+        self, verdict: AdvisorVerdict, confidence: float = 0.95
+    ) -> Signal:
+        """Build a signal with 3 failures and 2 successes where the suspect
+        commit has an advisor result."""
+        advisor_result = AIAdvisorResult(
+            verdict=verdict,
+            confidence=confidence,
+            timestamp=self.t0,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        return Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+
+    def test_advisor_revert_produces_autorevert_pattern(self):
+        """When advisor says 'revert', produce AutorevertPattern immediately."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.REVERT)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_mid")
+        self.assertEqual(res.older_successful_commit, "sha_old")
+        self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
+
+    def test_advisor_not_related_produces_ineligible(self):
+        """When advisor says 'not_related', return Ineligible."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.NOT_RELATED)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_NOT_RELATED)
+
+    def test_advisor_garbage_produces_ineligible_within_2h(self):
+        """When advisor says 'garbage' and verdict is < 2h old, suppress signal."""
+        # Use a recent timestamp
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.GARBAGE,
+            confidence=0.95,
+            timestamp=datetime.now(tz=timezone.utc),
+            signal_key="job",
+        )
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 4),
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 2),
+                self._ev("job", SignalStatus.SUCCESS, 3),
+            ],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_fail, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_GARBAGE)
+
+    def test_advisor_garbage_expires_after_2h(self):
+        """When garbage verdict is > 2h old, it expires and normal processing resumes."""
+        old_timestamp = datetime.now(tz=timezone.utc) - timedelta(hours=3)
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.GARBAGE,
+            confidence=0.95,
+            timestamp=old_timestamp,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # Garbage expired — should proceed to AutorevertPattern
+        self.assertIsInstance(res, AutorevertPattern)
+
+    def test_advisor_unsure_continues_normal_processing(self):
+        """When advisor says 'unsure', continue with normal autorevert logic."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.UNSURE)
+        res = s.process_valid_autorevert_pattern()
+        # With 3 failures and 2 successes, should produce AutorevertPattern
+        self.assertIsInstance(res, AutorevertPattern)
+
+    def test_advisor_low_confidence_ignored(self):
+        """Advisor verdict below confidence threshold is ignored."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.NOT_RELATED, confidence=0.5)
+        res = s.process_valid_autorevert_pattern()
+        # Low confidence NOT_RELATED should be ignored → normal AutorevertPattern
+        self.assertIsInstance(res, AutorevertPattern)
+
+    def test_advisor_high_confidence_revert_acts(self):
+        """Advisor 'revert' at exactly the threshold acts."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.REVERT, confidence=0.9)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_mid")
+
+    def test_advisor_wrong_signal_key_ignored(self):
+        """Advisor result for a different signal_key is ignored."""
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.NOT_RELATED,
+            confidence=0.99,
+            timestamp=self.t0,
+            signal_key="different_signal",  # doesn't match "job"
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # NOT_RELATED verdict is for wrong signal, should be ignored
+        self.assertIsInstance(res, AutorevertPattern)
+
+    def test_flaky_check_after_advisor(self):
+        """Flaky check happens after advisor, so advisor can still fire on flaky signals."""
+        # Signal with a flaky commit (suspect) that has an advisor revert verdict
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        # Suspect commit is flaky (both success and failure) — with partition fix,
+        # it stays in the failed partition because it has failures
+        c_suspect_flaky = SignalCommit(
+            head_sha="sha_suspect",
+            timestamp=ts(self.t0, -5),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 2),
+                self._ev("job", SignalStatus.FAILURE, 3),
+            ],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("job", SignalStatus.SUCCESS, 1)],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_suspect_flaky, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # Advisor said revert on the suspect → AutorevertPattern
+        # even though the signal has a flaky commit
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_suspect")
+
+    def test_no_advisor_result_continues_normally(self):
+        """Without advisor result, processing is unchanged."""
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            # No advisor_result
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
 
 
 if __name__ == "__main__":
