@@ -276,6 +276,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_linalg_multi_dot_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "178971",
+    "https://github.com/pytorch/pytorch/issues/178971",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "152520",
     "https://github.com/pytorch/pytorch/issues/152520",
