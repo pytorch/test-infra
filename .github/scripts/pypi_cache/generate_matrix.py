@@ -29,7 +29,11 @@ def main() -> None:
         required=True,
         help="Space-separated full CUDA versions (e.g. '12.8.1 13.0.2')",
     )
-    parser.add_argument("--image-sha", required=True)
+    parser.add_argument(
+        "--image-tag",
+        default="latest",
+        help="Container image tag (default: 'latest')",
+    )
     args = parser.parse_args()
 
     include = []
@@ -50,7 +54,7 @@ def main() -> None:
                     "variant": variant,
                     "arch": arch,
                     "runner": runner,
-                    "image": f"ghcr.io/pytorch/test-infra:cuda-{arch}-{args.image_sha}",
+                    "image": f"ghcr.io/pytorch/test-infra:cuda-{arch}-{args.image_tag}",
                     "cuda_dir": f"/usr/local/cuda-{major}.{minor}",
                 }
             )
@@ -62,7 +66,7 @@ def main() -> None:
                 "variant": "cpu",
                 "arch": arch,
                 "runner": runner,
-                "image": f"ghcr.io/pytorch/test-infra:cpu-{arch}-{args.image_sha}",
+                "image": f"ghcr.io/pytorch/test-infra:cpu-{arch}-{args.image_tag}",
                 "cuda_dir": "",
             }
         )

@@ -5,12 +5,17 @@ on:
   pull_request:
     paths:
       - .github/workflows/build-pypi-cache.yml
-      - .github/scripts/build_pypi_cache.sh
-      - .github/scripts/generate_pypi_cache_matrix.py
+      - .github/scripts/pypi_cache/**
       - .github/scripts/repair_manylinux_2_28.sh
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild: 'package==version' to rebuild one, '*' to rebuild all, empty for normal behavior"
+        type: string
+        default: ""
+        required: false
 
 concurrency:
   # TODO: Remove pr-specific concurrency key before merging
@@ -23,7 +28,6 @@ permissions:
 env:
   CUDA_VERSIONS: "12.8.1 13.0.2"
   PYTHON_VERSIONS: "3.10 3.11 3.12 3.13 3.13t 3.14 3.14t"
-  IMAGE_SHA: "1972edf"
   S3_BUCKET: "pytorch-pypi-wheel-cache"
   S3_REGION: "us-east-2"
   AWS_ROLE: "arn:aws:iam::308535385114:role/gha_workflow_pypi_wheel_cache"
@@ -39,9 +43,8 @@ jobs:
       - name: Generate matrix
         id: generate
         run: |
-          matrix=$(python3 .github/scripts/generate_pypi_cache_matrix.py \
-            --cuda-versions "${CUDA_VERSIONS}" \
-            --image-sha "${IMAGE_SHA}")
+          matrix=$(python3 .github/scripts/pypi_cache/generate_matrix.py \
+            --cuda-versions "${CUDA_VERSIONS}")
           echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
 
   build:
@@ -59,6 +62,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Install system packages
+        run: |
+          sed 's/#.*//; /^[[:space:]]*$/d' .github/scripts/pypi_cache/system_packages.txt | xargs yum install -y
+
+      - name: Install Python build dependencies
+        run: |
+          for py in /opt/python/*/bin/pip; do
+            "${py}" install -r .github/scripts/pypi_cache/build_requirements.txt
+          done
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
@@ -75,4 +88,14 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           ARCH: ${{ matrix.arch }}
           CUDA_DIR: ${{ matrix.cuda_dir }}
-        run: bash .github/scripts/build_pypi_cache.sh
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
+        run: bash .github/scripts/pypi_cache/build.sh
+
+      - name: Build failure summary
+        if: always()
+        run: |
+          if [ -s /tmp/pypi-cache-failure-summary.txt ]; then
+            echo "::warning::Failed builds for ${{ matrix.variant }}/${{ matrix.arch }}:"
+            echo ""
+            cat /tmp/pypi-cache-failure-summary.txt
+          fi

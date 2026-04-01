@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# build_pypi_cache.sh
+# pypi_cache/build.sh
 #
 # Builds PyPI wheels for every requested package/Python-version combination
 # and uploads them to an S3-backed wheel cache.  Wheels that already exist in
@@ -22,6 +22,7 @@ WHEEL_DIR="${BUILD_DIR}/wheels"
 PACKAGES_FILE="${BUILD_DIR}/packages.txt"
 
 mkdir -p "${BUILD_DIR}"
+: > /tmp/pypi-cache-failure-summary.txt
 cleanup() { rm -rf "${BUILD_DIR}"; }
 trap cleanup EXIT
 
@@ -120,6 +121,8 @@ echo "==> Existing wheels in S3: $(wc -l < "${existing}")"
 built=0
 skipped=0
 failed=0
+failures_log="${BUILD_DIR}/failures.log"
+: > "${failures_log}"
 
 for pyver in ${PYTHON_VERSIONS}; do
     py_bin=$(python_path "${pyver}")
@@ -142,14 +145,17 @@ for pyver in ${PYTHON_VERSIONS}; do
         out="${WHEEL_DIR}/${pyver}"
         mkdir -p "${out}"
 
-        if wheel_exists "${norm}" "${pkg_version}" "${tag}" "${ARCH}" "${existing}"; then
-            ((skipped++)) || true
-            continue
+        if [[ "${FORCE_REBUILD:-}" != "*" && "${FORCE_REBUILD:-}" != "${entry}" ]]; then
+            if wheel_exists "${norm}" "${pkg_version}" "${tag}" "${ARCH}" "${existing}"; then
+                ((skipped++)) || true
+                continue
+            fi
         fi
 
         echo "    Building ${entry} for ${tag} ..."
         if ! "${py_bin}" -m pip wheel --no-deps --wheel-dir "${out}" "${entry}"; then
             echo "::warning::Failed to build ${entry} for Python ${pyver}"
+            echo "${entry}	${pyver}" >> "${failures_log}"
             ((failed++)) || true
             rm -rf "${out:?}"/*
             continue
@@ -160,7 +166,7 @@ for pyver in ${PYTHON_VERSIONS}; do
             whl_name=$(basename "${whl}")
 
             if [[ "${whl_name}" == *-linux_* ]]; then
-                (cd "${BUILD_DIR}" && bash "${SCRIPT_DIR}/repair_manylinux_2_28.sh" "${whl}")
+                (cd "${BUILD_DIR}" && bash "${SCRIPT_DIR}/../repair_manylinux_2_28.sh" "${whl}")
                 whl_name="${whl_name/-linux_/-manylinux_2_28_}"
                 whl="${out}/${whl_name}"
             fi
@@ -183,7 +189,18 @@ done
 # ---------------------------------------------------------------------------
 echo ""
 echo "==> Build complete:  built=${built}  skipped=${skipped}  failed=${failed}"
+
+# Write formatted failure summary for the workflow summary step
 if (( failed > 0 )); then
-    echo "::warning::${failed} package(s) failed to build — see log for details"
+    sort "${failures_log}" | awk -F'\t' '
+    {
+        pkg = $1; pyver = $2
+        if (pkg != prev) {
+            if (prev != "") print ""
+            print pkg ":"
+            prev = pkg
+        }
+        print "  - " pyver
+    }' > /tmp/pypi-cache-failure-summary.txt
 fi
 exit 0
