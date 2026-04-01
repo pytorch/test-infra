@@ -332,6 +332,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_nn_functional_multi_margin_loss_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "178992",
+    "https://github.com/pytorch/pytorch/issues/178992",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
     "117732",
     "https://github.com/pytorch/pytorch/issues/117732",
