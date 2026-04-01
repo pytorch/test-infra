@@ -8,8 +8,8 @@ import sys
 
 
 ARCH_RUNNERS = {
-    "x86_64": "l-x86iavx512-46-85",
-    "aarch64": "l-arm64g3-61-463",
+    "x86_64": "mt-l-x86iavx512-46-85",
+    "aarch64": "mt-l-arm64g3-61-463",
 }
 
 # major.minor with optional .patch
