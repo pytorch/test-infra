@@ -186,7 +186,7 @@ for pyver in ${PYTHON_VERSIONS}; do
         echo "    Building ${entry} for ${tag} ..."
         if ! "${py_bin}" -m pip wheel --no-deps --wheel-dir "${out}" "${entry}"; then
             echo "::warning::Failed to build ${entry} for Python ${pyver}"
-            echo "${entry}	${pyver}" >> "${failures_log}"
+            printf "%s\t%s\n" "${entry}" "${pyver}" >> "${failures_log}"
             ((failed++)) || true
             rm -rf "${out:?}"/*
             continue
