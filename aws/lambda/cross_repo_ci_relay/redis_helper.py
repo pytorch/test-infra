@@ -37,14 +37,28 @@ def _parse_endpoint(endpoint: str) -> tuple[str, int]:
     return host, port
 
 
+def _parse_login(login: str) -> tuple[str, str]:
+    login = login.strip()
+    if not login:
+        return "", ""
+
+    if ":" in login:
+        username, password = login.split(":", 1)
+        return username, password
+
+    # ElastiCache auth_token config provides only a password, not a username.
+    return "", login
+
+
 def _build_url(config: RelayConfig) -> str:
     host, port = _parse_endpoint(config.redis_endpoint or "")
     auth = ""
-    login = (config.redis_login or "").strip()
-    if login:
-        username, password = (login.split(":", 1) + [""])[:2]
-        if password:
+    username, password = _parse_login(config.redis_login or "")
+    if username or password:
+        if password and username:
             auth = f"{quote(username, safe='')}:{quote(password, safe='')}@"
+        elif password:
+            auth = f":{quote(password, safe='')}@"
         else:
             auth = f"{quote(username, safe='')}@"
     # Use TLS (rediss://) on AWS Lambda where ElastiCache requires it;
