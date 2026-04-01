@@ -1653,6 +1653,13 @@
       "linux"
     ]
   ],
+  "test_sdpa_prev_15_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "178974",
+    "https://github.com/pytorch/pytorch/issues/178974",
+    [
+      "xpu"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
