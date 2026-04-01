@@ -112,7 +112,7 @@ make clean
 
 3. Start the server:
    ```bash
-   uvicorn local_server:webhook_app --port 8000 --reload
+   python3 local_server.py
    ```
 
 4. Point your GitHub App's webhook URL to the smee.io channel, then open or update a pull request in the upstream repo to trigger a full relay cycle.

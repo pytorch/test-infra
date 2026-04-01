@@ -54,13 +54,10 @@ def _build_url(config: RelayConfig) -> str:
     host, port = _parse_endpoint(config.redis_endpoint or "")
     auth = ""
     username, password = _parse_login(config.redis_login or "")
-    if username or password:
-        if password and username:
-            auth = f"{quote(username, safe='')}:{quote(password, safe='')}@"
-        elif password:
-            auth = f":{quote(password, safe='')}@"
-        else:
-            auth = f"{quote(username, safe='')}@"
+    if password and username:
+        auth = f"{quote(username, safe='')}:{quote(password, safe='')}@"
+    elif password:
+        auth = f":{quote(password, safe='')}@"
     # Use TLS (rediss://) on AWS Lambda where ElastiCache requires it;
     # fall back to plain redis:// for local development.
     # AWS_LAMBDA_FUNCTION_NAME is automatically set by the Lambda runtime.
