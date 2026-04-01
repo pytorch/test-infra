@@ -6,6 +6,7 @@ import json
 import re
 import sys
 
+
 ARCH_RUNNERS = {
     "x86_64": "l-x86iavx512-46-85",
     "aarch64": "l-arm64g3-61-463",
@@ -23,8 +24,11 @@ def cuda_stub(version: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cuda-versions", required=True,
-                        help="Space-separated full CUDA versions (e.g. '12.8.1 13.0.2')")
+    parser.add_argument(
+        "--cuda-versions",
+        required=True,
+        help="Space-separated full CUDA versions (e.g. '12.8.1 13.0.2')",
+    )
     parser.add_argument("--image-sha", required=True)
     args = parser.parse_args()
 
@@ -41,23 +45,27 @@ def main() -> None:
         major, minor = parts[0], parts[1]
         variant = cuda_stub(cuda_ver)
         for arch, runner in ARCH_RUNNERS.items():
-            include.append({
-                "variant": variant,
-                "arch": arch,
-                "runner": runner,
-                "image": f"ghcr.io/pytorch/test-infra:cuda-{arch}-{args.image_sha}",
-                "cuda_dir": f"/usr/local/cuda-{major}.{minor}",
-            })
+            include.append(
+                {
+                    "variant": variant,
+                    "arch": arch,
+                    "runner": runner,
+                    "image": f"ghcr.io/pytorch/test-infra:cuda-{arch}-{args.image_sha}",
+                    "cuda_dir": f"/usr/local/cuda-{major}.{minor}",
+                }
+            )
 
     # CPU entries
     for arch, runner in ARCH_RUNNERS.items():
-        include.append({
-            "variant": "cpu",
-            "arch": arch,
-            "runner": runner,
-            "image": f"ghcr.io/pytorch/test-infra:cpu-{arch}-{args.image_sha}",
-            "cuda_dir": "",
-        })
+        include.append(
+            {
+                "variant": "cpu",
+                "arch": arch,
+                "runner": runner,
+                "image": f"ghcr.io/pytorch/test-infra:cpu-{arch}-{args.image_sha}",
+                "cuda_dir": "",
+            }
+        )
 
     print(json.dumps({"include": include}))
 
