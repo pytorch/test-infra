@@ -89,6 +89,7 @@ promote_pypi() {
 # promote_s3 fbgemm_gpu_genai whl "${FBGEMMGPU_VERSION}"
 # promote_s3 "libtorch-*" libtorch "${PYTORCH_VERSION}"
 # promote_s3 "torch_tensorrt" whl "${TENSORRT_VERSION}"
+# promote_s3 "torch_tensorrt_rtx" whl "${TENSORRT_VERSION}"
 # promote_s3 "torchao" whl "${TORCHAO_VERSION}"
 
 
