@@ -46,11 +46,10 @@ jobs:
 
   build:
     needs: generate-matrix
-    # TODO: Remove pull_request skip before merging
-    if: github.event_name != 'pull_request'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
-    environment: pytorchbot-env
+    # TODO: Restore to just 'pytorchbot-env' before merging
+    environment: ${{ github.event_name != 'pull_request' && 'pytorchbot-env' || '' }}
     permissions:
       id-token: write
       contents: read
