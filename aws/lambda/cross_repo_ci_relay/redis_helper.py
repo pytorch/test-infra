@@ -1,4 +1,5 @@
 import logging
+import os
 from urllib.parse import quote
 
 import redis as redis_lib
@@ -46,7 +47,11 @@ def _build_url(config: RelayConfig) -> str:
             auth = f"{quote(username, safe='')}:{quote(password, safe='')}@"
         else:
             auth = f"{quote(username, safe='')}@"
-    return f"rediss://{auth}{host}:{port}/0"
+    # Use TLS (rediss://) on AWS Lambda where ElastiCache requires it;
+    # fall back to plain redis:// for local development.
+    # AWS_LAMBDA_FUNCTION_NAME is automatically set by the Lambda runtime.
+    scheme = "rediss" if os.environ.get("AWS_LAMBDA_FUNCTION_NAME") else "redis"
+    return f"{scheme}://{auth}{host}:{port}/0"
 
 
 def create_client(config: RelayConfig) -> redis_lib.Redis:
