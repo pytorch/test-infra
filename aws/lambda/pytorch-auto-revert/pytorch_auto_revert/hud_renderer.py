@@ -528,7 +528,7 @@ def render_html_from_state(
                     )
             html_parts.append(
                 f'<td class="cell {cell_classes}">'
-                f'{"".join(cell_parts)}{advisor_badge}</td>'
+                f"{''.join(cell_parts)}{advisor_badge}</td>"
             )
         html_parts.append("</tr>")
     html_parts.append("</tbody>")

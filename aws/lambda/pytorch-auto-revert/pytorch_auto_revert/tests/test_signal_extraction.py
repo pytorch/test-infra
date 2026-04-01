@@ -25,9 +25,15 @@ def ts(base: datetime, minutes: int) -> datetime:
 class FakeDatasource(SignalExtractionDatasource):
     """Test double for the datasource returning provided rows."""
 
-    def __init__(self, jobs: List[JobRow], tests: List[TestRow]):
+    def __init__(
+        self,
+        jobs: List[JobRow],
+        tests: List[TestRow],
+        advisor_verdicts: Optional[dict] = None,
+    ):
         self._jobs = jobs
         self._tests = tests
+        self._advisor_verdicts = advisor_verdicts or {}
 
     def fetch_commits_in_time_range(
         self,
@@ -67,7 +73,7 @@ class FakeDatasource(SignalExtractionDatasource):
         return [r for r in self._tests if int(r.job_id) in ids]
 
     def fetch_advisor_verdicts(self, **kwargs):
-        return {}
+        return self._advisor_verdicts
 
 
 def J(
@@ -124,9 +130,14 @@ class TestSignalExtraction(unittest.TestCase):
     def setUp(self) -> None:
         self.t0 = datetime(2025, 8, 20, 12, 0, 0)
 
-    def _extract(self, jobs: List[JobRow], tests: List[TestRow]):
+    def _extract(
+        self,
+        jobs: List[JobRow],
+        tests: List[TestRow],
+        advisor_verdicts: Optional[dict] = None,
+    ):
         se = SignalExtractor(workflows=["trunk"], lookback_hours=24)
-        se._datasource = FakeDatasource(jobs, tests)
+        se._datasource = FakeDatasource(jobs, tests, advisor_verdicts)
         return se.extract()
 
     def _find_job_signal(self, signals, wf: str, base: JobBaseName):
@@ -923,6 +934,133 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(self._find_job_signal(signals, "trunk", base))
         # [test] job signal should NOT be emitted (no test failures)
         self.assertIsNone(self._find_job_signal(signals, "trunk", f"{base} [test]"))
+
+    def test_advisor_verdict_attached_to_correct_commit(self):
+        """Advisor verdict from datasource is attached to the matching (commit, signal)."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        # Advisor says revert for C2 on the job signal
+        advisor_verdicts = {
+            ("C2", base): ("revert", 0.95, self.t0),
+        }
+        signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+
+        # C2 should have advisor_result
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNotNone(c2.advisor_result)
+        self.assertEqual(c2.advisor_result.verdict.value, "revert")
+        self.assertAlmostEqual(c2.advisor_result.confidence, 0.95)
+        self.assertEqual(c2.advisor_result.signal_key, base)
+
+        # C1 should NOT have advisor_result
+        c1 = next(c for c in sig.commits if c.head_sha == "C1")
+        self.assertIsNone(c1.advisor_result)
+
+    def test_advisor_verdict_not_attached_to_wrong_signal(self):
+        """Advisor verdict for signal A is not attached to signal B."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        # Advisor verdict is for a completely different signal key
+        advisor_verdicts = {
+            ("C2", "some_other_signal"): ("not_related", 0.99, self.t0),
+        }
+        signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+
+        # C2 should NOT have advisor_result (wrong signal key)
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNone(c2.advisor_result)
+
+    def test_advisor_verdict_on_test_signal(self):
+        """Advisor verdict is attached to test-track signals."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        tests = [
+            T(
+                job=1,
+                run=200,
+                attempt=1,
+                file="test_foo.py",
+                name="test_bar",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=2,
+                run=100,
+                attempt=1,
+                file="test_foo.py",
+                name="test_bar",
+                failure_runs=0,
+                success_runs=1,
+            ),
+        ]
+        test_key = "test_foo.py::test_bar"
+        advisor_verdicts = {
+            ("C2", test_key): ("garbage", 0.92, self.t0),
+        }
+        signals = self._extract(jobs, tests, advisor_verdicts=advisor_verdicts)
+        sig = self._find_test_signal(signals, "trunk", test_key)
+        self.assertIsNotNone(sig)
+
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNotNone(c2.advisor_result)
+        self.assertEqual(c2.advisor_result.verdict.value, "garbage")
+        self.assertEqual(c2.advisor_result.signal_key, test_key)
 
 
 if __name__ == "__main__":
