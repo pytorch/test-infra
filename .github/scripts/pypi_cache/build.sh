@@ -20,6 +20,8 @@ BUILD_DIR="/tmp/pypi-cache-build"
 WANTS_DIR="${BUILD_DIR}/wants"
 WHEEL_DIR="${BUILD_DIR}/wheels"
 PACKAGES_FILE="${BUILD_DIR}/packages.txt"
+SKIP_FILE="${SCRIPT_DIR}/skip_python_versions.txt"
+EXPANDED_SKIP="${BUILD_DIR}/expanded_skip.txt"
 
 mkdir -p "${BUILD_DIR}"
 : > /tmp/pypi-cache-failure-summary.txt
@@ -105,6 +107,27 @@ fi
 echo "==> Merged package list ($(wc -l < "${PACKAGES_FILE}") entries)"
 
 # ---------------------------------------------------------------------------
+# Step 2b: Preprocess skip list (highest precedence — not overridden by force)
+# ---------------------------------------------------------------------------
+: > "${EXPANDED_SKIP}"
+if [[ -f "${SKIP_FILE}" ]]; then
+    while IFS= read -r _line; do
+        _line="${_line%%#*}"
+        _line="$(echo "${_line}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+        [[ -z "${_line}" ]] && continue
+
+        read -r _skip_pkg _skip_pyvers <<< "${_line}"
+        [[ "${_skip_pkg}" != *==* ]] && continue
+        _norm_name=$(normalize_name "${_skip_pkg%%==*}")
+        _skip_ver="${_skip_pkg##*==}"
+        for _sv in ${_skip_pyvers}; do
+            echo "${_norm_name}==${_skip_ver}:${_sv}" >> "${EXPANDED_SKIP}"
+        done
+    done < "${SKIP_FILE}"
+    echo "==> Skip list loaded ($(wc -l < "${EXPANDED_SKIP}") entries)"
+fi
+
+# ---------------------------------------------------------------------------
 # Step 3: Cache existing S3 wheel listing
 # ---------------------------------------------------------------------------
 existing="${BUILD_DIR}/existing_wheels.txt"
@@ -120,6 +143,7 @@ echo "==> Existing wheels in S3: $(wc -l < "${existing}")"
 # ---------------------------------------------------------------------------
 built=0
 skipped=0
+excluded=0
 failed=0
 failures_log="${BUILD_DIR}/failures.log"
 : > "${failures_log}"
@@ -144,6 +168,13 @@ for pyver in ${PYTHON_VERSIONS}; do
         norm=$(normalize_name "${pkg_name}")
         out="${WHEEL_DIR}/${pyver}"
         mkdir -p "${out}"
+
+        # Skip list has highest precedence (not overridden by force_rebuild)
+        if grep -qFx "${norm}==${pkg_version}:${pyver}" "${EXPANDED_SKIP}" 2>/dev/null; then
+            echo "    Excluding ${entry} for ${pyver} (unsupported)"
+            ((excluded++)) || true
+            continue
+        fi
 
         if [[ "${FORCE_REBUILD:-}" != "*" && "${FORCE_REBUILD:-}" != "${entry}" ]]; then
             if wheel_exists "${norm}" "${pkg_version}" "${tag}" "${ARCH}" "${existing}"; then
@@ -188,7 +219,7 @@ done
 # Step 5: Summary
 # ---------------------------------------------------------------------------
 echo ""
-echo "==> Build complete:  built=${built}  skipped=${skipped}  failed=${failed}"
+echo "==> Build complete:  built=${built}  skipped=${skipped}  excluded=${excluded}  failed=${failed}"
 
 # Write formatted failure summary for the workflow summary step
 if (( failed > 0 )); then
