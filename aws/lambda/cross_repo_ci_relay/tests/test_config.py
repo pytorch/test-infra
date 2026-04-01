@@ -13,24 +13,21 @@ _ENV = {
 
 
 class TestConfig(unittest.TestCase):
-    @patch("config.load_dotenv")
     @patch.dict("os.environ", _ENV, clear=True)
-    def test_from_env_correct_path(self, _):
+    def test_from_env_correct_path(self):
         cfg = RelayConfig.from_env()
         self.assertEqual(cfg.github_app_id, "123")
         self.assertEqual(cfg.upstream_repo, "pytorch/pytorch")
 
-    @patch("config.load_dotenv")
     @patch.dict("os.environ", {}, clear=True)
-    def test_missing_vars_raises(self, _):
+    def test_missing_vars_raises(self):
         with self.assertRaises(RuntimeError):
             RelayConfig.from_env()
 
     @patch("config.RelaySecrets.from_aws")
-    @patch("config.load_dotenv")
     @patch.dict("os.environ", {**_ENV, "GITHUB_APP_SECRET": "", "GITHUB_APP_PRIVATE_KEY": "",
                                 "SECRET_STORE_ARN": "arn:secret"}, clear=True)
-    def test_secrets_manager_fallback(self, _, mock_aws):
+    def test_secrets_manager_fallback(self, mock_aws):
         mock_aws.return_value = RelaySecrets(github_app_secret="s", github_app_private_key="k")
         cfg = RelayConfig.from_env()
         self.assertEqual(cfg.github_app_secret, "s")

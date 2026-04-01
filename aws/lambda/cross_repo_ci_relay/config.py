@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import boto3
 from botocore.config import Config
-from dotenv import find_dotenv, load_dotenv
 
 
 @dataclass(frozen=True)
@@ -59,8 +58,6 @@ class RelayConfig:
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
-        load_dotenv(find_dotenv(usecwd=False), override=False)
-
         # Env vars take priority; Secrets Manager is the fallback
         github_app_secret = os.getenv("GITHUB_APP_SECRET", "")
         github_app_private_key = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
@@ -102,6 +99,12 @@ class RelayConfig:
             allowlist_ttl_seconds = int(os.getenv("ALLOWLIST_TTL_SECONDS", "1200"))
         except ValueError:
             raise RuntimeError("ALLOWLIST_TTL_SECONDS must be a valid integer")
+
+        # The allowlist is fetched from GitHub without authentication, so cache churn must
+        # stay comfortably below GitHub's unauthenticated 60 requests/hour rate limit.
+        # Enforce a 15-minute floor so an overly aggressive TTL change does not create
+        # avoidable rate-limit risk in production.
+        allowlist_ttl_seconds = max(allowlist_ttl_seconds, 900)
 
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),

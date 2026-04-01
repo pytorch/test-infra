@@ -146,6 +146,10 @@ def _fetch(url: str) -> str:
 
 
 def load_allowlist(config: RelayConfig) -> AllowlistMap:
+    # The allowlist source is fetched from GitHub without authentication, so repeated
+    # cache misses can run into the unauthenticated 60 requests/hour rate limit.
+    # Keep Redis as the primary read path and rely on config-level TTL flooring to
+    # prevent overly aggressive refetch intervals.
     yaml_str = redis_helper.get_cached_yaml(config)
     if yaml_str is None:
         logger.info("allowlist cache miss - loading from %s", config.allowlist_url)

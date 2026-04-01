@@ -8,6 +8,8 @@ from config import RelayConfig
 logger = logging.getLogger(__name__)
 
 _ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
+_cached_client: redis_lib.Redis | None = None
+_cached_client_url: str | None = None
 
 
 def _parse_endpoint(endpoint: str) -> tuple[str, int]:
@@ -48,13 +50,23 @@ def _build_url(config: RelayConfig) -> str:
 
 
 def create_client(config: RelayConfig) -> redis_lib.Redis:
-    """Create a new Redis client from the given config."""
-    return redis_lib.from_url(
-        _build_url(config),
+    """Create or reuse a Redis client for the given config."""
+    global _cached_client
+    global _cached_client_url
+
+    redis_url = _build_url(config)
+    if _cached_client is not None and _cached_client_url == redis_url:
+        return _cached_client
+
+    client = redis_lib.from_url(
+        redis_url,
         decode_responses=True,
         socket_connect_timeout=2,
         socket_timeout=2,
     )
+    _cached_client = client
+    _cached_client_url = redis_url
+    return client
 
 
 def get_cached_yaml(
@@ -66,7 +78,7 @@ def get_cached_yaml(
             client = create_client(config)
         value = client.get(_ALLOWLIST_CACHE_KEY)
         if value is not None:
-            logger.debug("allowlist cache hit key=%s", _ALLOWLIST_CACHE_KEY)
+            logger.info("allowlist cache hit key=%s", _ALLOWLIST_CACHE_KEY)
         return value
     except redis_lib.exceptions.RedisError as exc:
         logger.warning("redis cache read failed, falling back to source: %s", exc)
@@ -81,7 +93,7 @@ def set_cached_yaml(
         if client is None:
             client = create_client(config)
         client.setex(_ALLOWLIST_CACHE_KEY, config.allowlist_ttl_seconds, yaml_str)
-        logger.debug(
+        logger.info(
             "allowlist cached %d bytes key=%s", len(yaml_str), _ALLOWLIST_CACHE_KEY
         )
     except redis_lib.exceptions.RedisError as exc:

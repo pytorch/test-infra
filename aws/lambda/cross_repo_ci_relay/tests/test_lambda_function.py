@@ -4,6 +4,7 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
+import lambda_function
 from lambda_function import lambda_handler
 from utils import HTTPException
 
@@ -35,6 +36,9 @@ def _event(*, method="POST", path="/github/webhook", body=None, headers=None):
 
 
 class TestLambdaHandler(unittest.TestCase):
+    def setUp(self):
+        lambda_function._cached_config = None
+
     def test_route_error_404_and_405(self):
         self.assertEqual(lambda_handler(_event(path="/other"), None)["statusCode"], 404)
         self.assertEqual(lambda_handler(_event(method="GET"), None)["statusCode"], 405)
@@ -60,6 +64,20 @@ class TestLambdaHandler(unittest.TestCase):
         with patch.dict("lambda_function._EVENT_HANDLERS",
                         {"pull_request": MagicMock(side_effect=HTTPException(502, "err"))}):
             self.assertEqual(lambda_handler(_event(), None)["statusCode"], 502)
+
+    @patch("lambda_function.RelayConfig.from_env")
+    def test_config_cached_across_warm_invocations(self, mock_env):
+        mock_env.return_value = _cfg()
+        with patch.dict(
+            "lambda_function._EVENT_HANDLERS",
+            {"pull_request": MagicMock(return_value={"ok": True})},
+        ):
+            first = lambda_handler(_event(), None)
+            second = lambda_handler(_event(), None)
+
+        self.assertEqual(first["statusCode"], 200)
+        self.assertEqual(second["statusCode"], 200)
+        mock_env.assert_called_once()
 
 
 if __name__ == "__main__":

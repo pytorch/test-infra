@@ -12,7 +12,10 @@ from config import RelayConfig
 from utils import HTTPException
 
 
+logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
+
+_cached_config: RelayConfig | None = None
 
 
 def _verify_signature(secret: str, body: bytes, signature: str) -> None:
@@ -30,6 +33,13 @@ _JSON_HEADERS = {"content-type": "application/json"}
 _EVENT_HANDLERS: dict[str, Callable[[RelayConfig, dict], dict]] = {
     "pull_request": pr_handler.handle,
 }
+
+
+def _get_config() -> RelayConfig:
+    global _cached_config
+    if _cached_config is None:
+        _cached_config = RelayConfig.from_env()
+    return _cached_config
 
 
 def lambda_handler(event, context):
@@ -60,7 +70,7 @@ def lambda_handler(event, context):
         }
 
     try:
-        config = RelayConfig.from_env()
+        config = _get_config()
 
         _verify_signature(
             config.github_app_secret, body_bytes, headers.get("x-hub-signature-256", "")
@@ -70,7 +80,7 @@ def lambda_handler(event, context):
         repo = (payload.get("repository") or {}).get("full_name", "")
 
         if repo.lower() != config.upstream_repo.lower():
-            logger.debug("repo=%s not upstream, ignored", repo)
+            logger.info("repo=%s not upstream, ignored", repo)
             return {
                 "statusCode": 200,
                 "headers": _JSON_HEADERS,
@@ -80,7 +90,7 @@ def lambda_handler(event, context):
         event_type = headers.get("x-github-event", "")
         handler = _EVENT_HANDLERS.get(event_type)
         if handler is None:
-            logger.debug("event=%s ignored", event_type)
+            logger.info("event=%s ignored", event_type)
             return {
                 "statusCode": 200,
                 "headers": _JSON_HEADERS,

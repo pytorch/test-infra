@@ -121,7 +121,7 @@ def handle(config: RelayConfig, payload: dict) -> dict:
     event: PREvent = extract_pr_fields(payload)
 
     if event.action not in ("opened", "reopened", "synchronize"):
-        logger.debug("pull_request action=%s ignored", event.action)
+        logger.info("pull_request action=%s ignored", event.action)
         return {"ignored": True}
 
     dispatched, failed = _dispatch_to_allowlist(
@@ -136,6 +136,9 @@ def handle(config: RelayConfig, payload: dict) -> dict:
         },
         action=event.action,
     )
+
+    if failed and dispatched:
+        logger.warning("partial dispatch: %d succeeded, %d failed", len(dispatched), len(failed))
 
     if failed and not dispatched:
         logger.error("no downstream dispatch succeeded failed=%s", failed)

@@ -36,7 +36,7 @@ def create_repository_dispatch(
     gh_client: github.Github | None = None,
 ) -> None:
     """Trigger a repository_dispatch event via PyGithub."""
-    logger.debug(
+    logger.info(
         "repository_dispatch repo=%s event_type=%s", repo_full_name, event_type
     )
     if gh_client is None:
