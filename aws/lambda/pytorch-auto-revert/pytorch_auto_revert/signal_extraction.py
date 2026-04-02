@@ -12,7 +12,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
-from .signal import Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus
+from .signal import (
+    AdvisorVerdict,
+    AIAdvisorResult,
+    Signal,
+    SignalCommit,
+    SignalEvent,
+    SignalSource,
+    SignalStatus,
+)
 from .signal_extraction_datasource import SignalExtractionDatasource
 from .signal_extraction_types import (
     JobBaseName,
@@ -107,7 +115,10 @@ class SignalExtractor:
 
         # Inject synthetic PENDING events for workflow runs that are known to be
         # pending but have no events in a given signal (e.g. multi-stage workflows).
-        return self._inject_pending_workflow_events(signals, jobs)
+        signals = self._inject_pending_workflow_events(signals, jobs)
+
+        # Attach AI advisor verdicts to SignalCommit objects
+        return self._attach_advisor_verdicts(signals, commits)
 
     # -----------------------------
     # Deduplication (GitHub-specific)
@@ -218,6 +229,71 @@ class SignalExtractor:
                     )
                 )
 
+            out.append(
+                Signal(
+                    key=s.key,
+                    workflow_name=s.workflow_name,
+                    commits=new_commits,
+                    job_base_name=s.job_base_name,
+                    test_module=s.test_module,
+                    source=s.source,
+                )
+            )
+        return out
+
+    # -----------------------------
+    # Advisor verdict attachment
+    # -----------------------------
+    def _attach_advisor_verdicts(
+        self,
+        signals: List[Signal],
+        commits: List[Tuple[Sha, datetime]],
+    ) -> List[Signal]:
+        """Fetch advisor verdicts from CH and attach to SignalCommit objects.
+
+        For each (commit_sha, signal_key) pair that has a verdict in
+        misc.autorevert_advisor_verdicts, sets the advisor_result field
+        on the corresponding SignalCommit.
+        """
+        head_shas = [sha for sha, _ in commits]
+        signal_keys = list({s.key for s in signals})
+        verdicts = self._datasource.fetch_advisor_verdicts(
+            repo_full_name=self.repo_full_name,
+            head_shas=head_shas,
+            signal_keys=signal_keys,
+            lookback_hours=self.lookback_hours,
+        )
+        if not verdicts:
+            return signals
+
+        out: List[Signal] = []
+        for s in signals:
+            new_commits: List[SignalCommit] = []
+            for c in s.commits:
+                key = (c.head_sha.strip(), s.key)
+                v = verdicts.get(key)
+                if v is not None:
+                    verdict_str, confidence, ts = v
+                    try:
+                        advisor_verdict = AdvisorVerdict(verdict_str)
+                    except ValueError:
+                        advisor_verdict = AdvisorVerdict.UNSURE
+                    advisor_result = AIAdvisorResult(
+                        verdict=advisor_verdict,
+                        confidence=confidence,
+                        timestamp=ts,
+                        signal_key=s.key,
+                    )
+                    new_commits.append(
+                        SignalCommit(
+                            head_sha=c.head_sha,
+                            timestamp=c.timestamp,
+                            events=c.events,
+                            advisor_result=advisor_result,
+                        )
+                    )
+                else:
+                    new_commits.append(c)
             out.append(
                 Signal(
                     key=s.key,

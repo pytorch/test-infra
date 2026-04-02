@@ -78,6 +78,11 @@ class RunStateLogger:
                     data["wf_run_id"] = outcome.wf_run_id
                 if outcome.job_id is not None:
                     data["job_id"] = outcome.job_id
+                if outcome.advisor_verdict is not None:
+                    data["advisor_verdict"] = {
+                        "verdict": outcome.advisor_verdict.verdict.value,
+                        "confidence": outcome.advisor_verdict.confidence,
+                    }
                 serialized = {
                     "type": "AutorevertPattern",
                     "data": data,
@@ -105,8 +110,9 @@ class RunStateLogger:
                     },
                 }
 
-            # Per-commit events for this signal
+            # Per-commit events and advisor results for this signal
             cells: Dict[str, List[Dict]] = {}
+            advisor_results_map: Dict[str, Dict] = {}
             for c in sig.commits:
                 evs = []
                 for e in c.events:
@@ -124,6 +130,13 @@ class RunStateLogger:
                     evs.append(ev)
                 if evs:
                     cells[c.head_sha] = evs
+                # Capture advisor result if present (forward-compatible: absent in old states)
+                if c.advisor_result is not None:
+                    advisor_results_map[c.head_sha] = {
+                        "verdict": c.advisor_result.verdict.value,
+                        "confidence": c.advisor_result.confidence,
+                        "signal_key": c.advisor_result.signal_key,
+                    }
 
             col = {
                 "workflow": sig.workflow_name,
@@ -135,6 +148,9 @@ class RunStateLogger:
                 col["job_base_name"] = sig.job_base_name
             if ineligible is not None:
                 col["ineligible"] = ineligible
+            # Optional: per-commit advisor results (forward-compatible)
+            if advisor_results_map:
+                col["advisor_results"] = advisor_results_map
             cols.append(col)
 
             sig_key = f"{sig.workflow_name}:{sig.key}"
