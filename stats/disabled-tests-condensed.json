@@ -1004,6 +1004,13 @@
       "dynamo"
     ]
   ],
+  "test_lazy_compile_kernel_name_collision_across_modules (__main__.TestLazyCompileKernelCollision)": [
+    "179101",
+    "https://github.com/pytorch/pytorch/issues/179101",
+    [
+      "xpu"
+    ]
+  ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
     "176200",
     "https://github.com/pytorch/pytorch/issues/176200",
