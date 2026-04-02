@@ -105,6 +105,13 @@
       "xpu"
     ]
   ],
+  "test_as_strided_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "179117",
+    "https://github.com/pytorch/pytorch/issues/179117",
+    [
+      "xpu"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
