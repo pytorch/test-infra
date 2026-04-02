@@ -714,20 +714,6 @@
       "rocm"
     ]
   ],
-  "test_errors_nn_Embedding_xpu_float32 (__main__.TestModuleXPU)": [
-    "178762",
-    "https://github.com/pytorch/pytorch/issues/178762",
-    [
-      "xpu"
-    ]
-  ],
-  "test_errors_nn_Embedding_xpu_float64 (__main__.TestModuleXPU)": [
-    "178854",
-    "https://github.com/pytorch/pytorch/issues/178854",
-    [
-      "xpu"
-    ]
-  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
