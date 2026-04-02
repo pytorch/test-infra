@@ -489,8 +489,8 @@ class Signal:
         if result.signal_key != self.key:
             return None
 
-        # Ignore low-confidence verdicts
-        if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD:
+        # Ignore low-confidence verdicts (use epsilon to handle Float32 precision)
+        if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD - 1e-6:
             return None
 
         if result.verdict == AdvisorVerdict.REVERT:
