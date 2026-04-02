@@ -49,7 +49,6 @@ ROCM_ARCHES_DICT = {
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
-    "12.9": {"cuda": "12.9.1", "cudnn": "9"},
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
 }
@@ -168,15 +167,6 @@ def initialize_globals(
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
-    if (
-        channel != "release"
-        and (os == LINUX or os == LINUX_AARCH64)
-        and not getting_started
-    ):
-        # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
-        # in 2.10
-        CUDA_ARCHES.append("12.9")
-        CUDA_AARCH64_ARCHES.append("12.9-aarch64")
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
