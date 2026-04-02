@@ -1,7 +1,6 @@
 name: Build PyPI wheel cache
 
 on:
-  # TODO: Remove pull_request trigger before merging
   pull_request:
     paths:
       - .github/workflows/build-pypi-cache.yml
