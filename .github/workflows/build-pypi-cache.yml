@@ -5,7 +5,6 @@ on:
     paths:
       - .github/workflows/build-pypi-cache.yml
       - .github/scripts/pypi_cache/**
-      - .github/scripts/repair_manylinux_2_28.sh
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
