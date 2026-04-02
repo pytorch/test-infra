@@ -199,6 +199,12 @@ for pyver in ${PYTHON_VERSIONS}; do
             [[ -f "${whl}" ]] || continue
             whl_name=$(basename "${whl}")
 
+            if [[ "${whl_name}" == *-linux_* ]]; then
+                (cd "${BUILD_DIR}" && bash "${SCRIPT_DIR}/../repair_manylinux_2_28.sh" "${whl}")
+                whl_name="${whl_name/-linux_/-manylinux_2_28_}"
+                whl="${out}/${whl_name}"
+            fi
+
             if aws s3 cp "${whl}" "s3://${S3_BUCKET}/${VARIANT}/${whl_name}"; then
                 echo "${whl_name}" >> "${existing}"
                 ((built++)) || true
