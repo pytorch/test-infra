@@ -76,6 +76,9 @@ wheel_exists() {
     grep -qiE "^${norm}-${escaped_ver}(-[^-]+)?-[^-]*-${tag}-.*manylinux.*${arch}\.whl" "${listing}" 2>/dev/null && return 0
     # Match pure-Python wheels: py3-none-any or py2.py3-none-any
     grep -qiE "^${norm}-${escaped_ver}-py[23][^-]*-none-any\.whl" "${listing}" 2>/dev/null && return 0
+    # Match platform-specific but Python-version-independent wheels: py3-none-manylinux_*
+    # (e.g. Rust/Go binaries distributed as wheels like uv, ruff)
+    grep -qiE "^${norm}-${escaped_ver}-py[23][^-]*-none-.*manylinux.*${arch}\.whl" "${listing}" 2>/dev/null && return 0
     return 1
 }
 
