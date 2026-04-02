@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Union
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -110,9 +112,7 @@ def load_skip_list(skip_file: Path) -> set[str]:
     return result
 
 
-def write_failure_summary(
-    failures: list[tuple[str, str]], path: Path
-) -> None:
+def write_failure_summary(failures: list[tuple[str, str]], path: Path) -> None:
     """Write a formatted failure summary grouped by package."""
     if not failures:
         path.write_text("")
@@ -142,7 +142,7 @@ def run_cmd(
     *,
     check: bool = True,
     capture: bool = False,
-    cwd: str | Path | None = None,
+    cwd: Union[str, Path, None] = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run a command, returning the CompletedProcess."""
     return subprocess.run(
@@ -154,9 +154,7 @@ def run_cmd(
     )
 
 
-def aws_s3_cp(
-    src: str, dst: str, *, recursive: bool = False
-) -> None:
+def aws_s3_cp(src: str, dst: str, *, recursive: bool = False) -> None:
     """``aws s3 cp`` wrapper.  Raises on failure."""
     cmd = ["aws", "s3", "cp", src, dst]
     if recursive:
@@ -170,9 +168,7 @@ def aws_s3_ls(path: str) -> list[str]:
     Returns an empty list when the prefix does not exist or the command
     fails (mirrors the ``|| true`` in the original bash).
     """
-    result = run_cmd(
-        ["aws", "s3", "ls", path], check=False, capture=True
-    )
+    result = run_cmd(["aws", "s3", "ls", path], check=False, capture=True)
     if result.returncode != 0:
         return []
     names: list[str] = []
@@ -236,15 +232,22 @@ def fetch_existing_wheels(s3_bucket: str, variant: str) -> list[str]:
 def build_wheel(py_bin: str, entry: str, wheel_dir: Path) -> bool:
     """Run ``pip wheel --no-deps``.  Return True on success, False on failure."""
     result = run_cmd(
-        [py_bin, "-m", "pip", "wheel", "--no-deps", "--wheel-dir", str(wheel_dir), entry],
+        [
+            py_bin,
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--wheel-dir",
+            str(wheel_dir),
+            entry,
+        ],
         check=False,
     )
     return result.returncode == 0
 
 
-def repair_if_needed(
-    whl_path: Path, script_dir: Path, build_dir: Path
-) -> Path:
+def repair_if_needed(whl_path: Path, script_dir: Path, build_dir: Path) -> Path:
     """Run the manylinux repair script if the wheel has a ``-linux_`` tag.
 
     Returns the (possibly renamed) wheel path.
