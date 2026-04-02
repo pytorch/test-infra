@@ -8,6 +8,7 @@ import lambda_function
 from lambda_function import lambda_handler
 from utils import HTTPException
 
+
 SECRET = "test-key"
 REPO = "pytorch/pytorch"
 
@@ -25,14 +26,30 @@ def _cfg():
 
 def _event(*, method="POST", path="/github/webhook", body=None, headers=None):
     if body is None:
-        body = json.dumps({"repository": {"full_name": REPO}, "action": "opened",
-            "pull_request": {"head": {"sha": "a", "ref": "f"}, "base": {"ref": "m"}, "number": 1},
-            "installation": {"id": 1}})
-    hdrs = {"x-hub-signature-256": _sign(body.encode()), "x-github-event": "pull_request"}
+        body = json.dumps(
+            {
+                "repository": {"full_name": REPO},
+                "action": "opened",
+                "pull_request": {
+                    "head": {"sha": "a", "ref": "f"},
+                    "base": {"ref": "m"},
+                    "number": 1,
+                },
+                "installation": {"id": 1},
+            }
+        )
+    hdrs = {
+        "x-hub-signature-256": _sign(body.encode()),
+        "x-github-event": "pull_request",
+    }
     if headers:
         hdrs.update(headers)
-    return {"requestContext": {"http": {"method": method, "path": path}},
-            "body": body, "isBase64Encoded": False, "headers": hdrs}
+    return {
+        "requestContext": {"http": {"method": method, "path": path}},
+        "body": body,
+        "isBase64Encoded": False,
+        "headers": hdrs,
+    }
 
 
 class TestLambdaHandler(unittest.TestCase):
@@ -53,7 +70,7 @@ class TestLambdaHandler(unittest.TestCase):
     def test_success_delegates_to_handler(self, mock_env):
         mock_env.return_value = _cfg()
         mock_handle = MagicMock(return_value={"ok": True})
-        with patch.dict("lambda_function._EVENT_HANDLERS", {"pull_request": mock_handle}):
+        with patch("lambda_function.event_handler.handle", mock_handle):
             resp = lambda_handler(_event(), None)
         self.assertEqual(resp["statusCode"], 200)
         mock_handle.assert_called_once()
@@ -61,16 +78,18 @@ class TestLambdaHandler(unittest.TestCase):
     @patch("lambda_function.RelayConfig.from_env")
     def test_http_exception_forwarded(self, mock_env):
         mock_env.return_value = _cfg()
-        with patch.dict("lambda_function._EVENT_HANDLERS",
-                        {"pull_request": MagicMock(side_effect=HTTPException(502, "err"))}):
+        with patch(
+            "lambda_function.event_handler.handle",
+            MagicMock(side_effect=HTTPException(502, "err")),
+        ):
             self.assertEqual(lambda_handler(_event(), None)["statusCode"], 502)
 
     @patch("lambda_function.RelayConfig.from_env")
     def test_config_cached_across_warm_invocations(self, mock_env):
         mock_env.return_value = _cfg()
-        with patch.dict(
-            "lambda_function._EVENT_HANDLERS",
-            {"pull_request": MagicMock(return_value={"ok": True})},
+        with patch(
+            "lambda_function.event_handler.handle",
+            MagicMock(return_value={"ok": True}),
         ):
             first = lambda_handler(_event(), None)
             second = lambda_handler(_event(), None)

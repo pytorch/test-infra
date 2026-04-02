@@ -3,8 +3,12 @@ from unittest.mock import MagicMock
 
 import redis as redis_lib
 import redis_helper
-
-from redis_helper import _ALLOWLIST_CACHE_KEY, create_client, get_cached_yaml, set_cached_yaml
+from redis_helper import (
+    _ALLOWLIST_CACHE_KEY,
+    create_client,
+    get_cached_yaml,
+    set_cached_yaml,
+)
 
 
 def _cfg():

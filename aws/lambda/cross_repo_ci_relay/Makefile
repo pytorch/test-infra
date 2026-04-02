@@ -1,5 +1,5 @@
-SHARED := config.py utils.py redis_helper.py allowlist.py gh_helper.py pr_handler.py
-PIP_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp --python-version 3.10
+SHARED := config.py utils.py redis_helper.py allowlist.py gh_helper.py event_handler.py
+PIP_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp --python-version 3.13
 AWS_REGION := us-east-1
 FUNCTION_NAME := cross_repo_ci_webhook
 

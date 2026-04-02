@@ -42,7 +42,7 @@ make deployment.zip
 
 Deploy to AWS Lambda (requires AWS CLI v2 configured with permissions)
 ```bash
-make deploy AWS_REGION=us-east-1 FUNCTION_NAME=cross_repo_ci_webhook
+make deploy AWS_REGION=us-east-1 FUNCTION_NAME=crcr-prod-crcr-webhook
 ```
 
 Run all unit tests under tests/ folder
@@ -103,6 +103,7 @@ make clean
    # Relay
    UPSTREAM_REPO=<owner/repo>
    ALLOWLIST_URL=https://github.com/<owner>/<repo>/blob/main/allowlist.yaml
+   MAX_DISPATCH_WORKERS=32
 
    # Redis (local, no TLS)
    REDIS_ENDPOINT=localhost:6379

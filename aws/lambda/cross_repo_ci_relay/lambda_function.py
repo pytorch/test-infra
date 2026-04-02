@@ -5,9 +5,8 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import Callable
 
-import pr_handler
+import event_handler
 from config import RelayConfig
 from utils import HTTPException
 
@@ -29,10 +28,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> None:
 
 
 _JSON_HEADERS = {"content-type": "application/json"}
-
-_EVENT_HANDLERS: dict[str, Callable[[RelayConfig, dict], dict]] = {
-    "pull_request": pr_handler.handle,
-}
+_SUPPORTED_EVENTS = frozenset({"pull_request", "push"})
 
 
 def _get_config() -> RelayConfig:
@@ -55,7 +51,9 @@ def lambda_handler(event, context):
     )
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
 
-    logger.info("request method=%s path=%s", method, path)
+    delivery = headers.get("x-github-delivery", "")
+    logger.info("request method=%s path=%s delivery=%s", method, path, delivery)
+
     if method != "POST" or path != "/github/webhook":
         if path == "/github/webhook":
             return {
@@ -67,6 +65,15 @@ def lambda_handler(event, context):
             "statusCode": 404,
             "headers": _JSON_HEADERS,
             "body": json.dumps({"detail": "Not found"}),
+        }
+
+    event_type = headers.get("x-github-event", "")
+    if event_type not in _SUPPORTED_EVENTS:
+        logger.info("event=%s ignored before verification", event_type)
+        return {
+            "statusCode": 200,
+            "headers": _JSON_HEADERS,
+            "body": json.dumps({"ignored": True}),
         }
 
     try:
@@ -87,17 +94,12 @@ def lambda_handler(event, context):
                 "body": json.dumps({"ignored": True}),
             }
 
-        event_type = headers.get("x-github-event", "")
-        handler = _EVENT_HANDLERS.get(event_type)
-        if handler is None:
-            logger.info("event=%s ignored", event_type)
-            return {
-                "statusCode": 200,
-                "headers": _JSON_HEADERS,
-                "body": json.dumps({"ignored": True}),
-            }
-
-        result = handler(config, payload)
+        result = event_handler.handle(
+            config,
+            payload,
+            event_type=event_type,
+            delivery_id=delivery,
+        )
         return {"statusCode": 200, "headers": _JSON_HEADERS, "body": json.dumps(result)}
 
     except json.JSONDecodeError:
@@ -112,8 +114,8 @@ def lambda_handler(event, context):
             "headers": _JSON_HEADERS,
             "body": json.dumps({"detail": exc.detail}),
         }
-    except Exception as exc:
-        logger.exception("unhandled error: %s", exc)
+    except Exception:
+        logger.exception("unhandled error")
         return {
             "statusCode": 500,
             "headers": _JSON_HEADERS,

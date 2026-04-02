@@ -113,4 +113,6 @@ def set_cached_yaml(
             "allowlist cached %d bytes key=%s", len(yaml_str), _ALLOWLIST_CACHE_KEY
         )
     except redis_lib.exceptions.RedisError as exc:
-        logger.warning("redis cache write failed, continuing without cache: %s", exc)
+        logger.warning(
+            "redis cache write failed, continuing without cache: %s", str(exc)
+        )

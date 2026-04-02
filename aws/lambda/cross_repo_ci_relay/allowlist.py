@@ -79,10 +79,13 @@ class AllowlistMap:
             [o for e in entries for o in e.oncalls],
         )
 
-    def get_from_level(self, level: AllowlistLevel) -> tuple[list[str], list[str]]:
+    def get_repos_at_or_above_level(
+        self, level: AllowlistLevel
+    ) -> tuple[list[str], list[str]]:
         """Return (backends, oncalls) for the given level and all lower-priority levels.
 
-        Example: get_from_level(AllowlistLevel.L2) returns repos/oncalls from L2, L3, L4.
+        Example: get_repos_at_or_above_level(AllowlistLevel.L2) returns
+        repos/oncalls from L2, L3, L4.
         """
         levels = list(AllowlistLevel)
         repos: list[str] = []

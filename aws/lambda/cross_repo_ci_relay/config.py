@@ -10,6 +10,7 @@ from botocore.config import Config
 class RelaySecrets:
     github_app_secret: str = ""
     github_app_private_key: str = ""
+    redis_login: str = ""
 
     @classmethod
     def from_aws(cls, secret_store_arn: str, client=None) -> "RelaySecrets":
@@ -34,6 +35,7 @@ class RelaySecrets:
         return cls(
             github_app_secret=secret.get("GITHUB_APP_SECRET", ""),
             github_app_private_key=secret.get("GITHUB_APP_PRIVATE_KEY", ""),
+            redis_login=secret.get("REDIS_LOGIN", ""),
         )
 
 
@@ -49,27 +51,29 @@ class RelayConfig:
     github_app_id: str
     github_app_secret: str
     github_app_private_key: str
-    secret_store_arn: str
     allowlist_url: str
     upstream_repo: str
     redis_endpoint: str
     redis_login: str
     allowlist_ttl_seconds: int
+    max_dispatch_workers: int
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
         # Env vars take priority; Secrets Manager is the fallback
         github_app_secret = os.getenv("GITHUB_APP_SECRET", "")
         github_app_private_key = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
+        redis_login = os.getenv("REDIS_LOGIN", "")
         secret_store_arn = os.getenv("SECRET_STORE_ARN", "")
 
-        if not github_app_secret or not github_app_private_key:
+        if not github_app_secret or not github_app_private_key or not redis_login:
             if not secret_store_arn:
                 missing = [
                     v
                     for v, val in [
                         ("GITHUB_APP_SECRET", github_app_secret),
                         ("GITHUB_APP_PRIVATE_KEY", github_app_private_key),
+                        ("REDIS_LOGIN", redis_login),
                     ]
                     if not val
                 ]
@@ -82,11 +86,13 @@ class RelayConfig:
             github_app_private_key = (
                 github_app_private_key or secrets.github_app_private_key
             )
+            redis_login = redis_login or secrets.redis_login
             missing_in_secret = [
                 v
                 for v, val in [
                     ("GITHUB_APP_SECRET", github_app_secret),
                     ("GITHUB_APP_PRIVATE_KEY", github_app_private_key),
+                    ("REDIS_LOGIN", redis_login),
                 ]
                 if not val
             ]
@@ -110,10 +116,10 @@ class RelayConfig:
             github_app_id=_require("GITHUB_APP_ID"),
             github_app_secret=github_app_secret,
             github_app_private_key=github_app_private_key,
-            secret_store_arn=secret_store_arn,
             allowlist_url=_require("ALLOWLIST_URL"),
             upstream_repo=os.getenv("UPSTREAM_REPO", "pytorch/pytorch"),
             redis_endpoint=_require("REDIS_ENDPOINT"),
-            redis_login=os.getenv("REDIS_LOGIN", ""),
+            redis_login=redis_login,
             allowlist_ttl_seconds=allowlist_ttl_seconds,
+            max_dispatch_workers=int(os.getenv("MAX_DISPATCH_WORKERS", "32")),
         )

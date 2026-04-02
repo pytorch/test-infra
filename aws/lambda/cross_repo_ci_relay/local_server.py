@@ -1,5 +1,8 @@
-from fastapi import FastAPI, APIRouter, Request
+import json
 from dotenv import find_dotenv, load_dotenv
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import JSONResponse
+
 
 load_dotenv(find_dotenv(usecwd=True))
 
@@ -23,7 +26,11 @@ async def github_webhook(req: Request):
         "body": body.decode("utf-8"),
         "isBase64Encoded": False,
     }
-    return lambda_function.lambda_handler(event, None)
+
+    result = lambda_function.lambda_handler(event, None)
+    return JSONResponse(
+        status_code=result["statusCode"], content=json.loads(result["body"])
+    )
 
 
 # ================= FastAPI apps =================
