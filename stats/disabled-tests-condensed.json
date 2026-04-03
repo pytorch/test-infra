@@ -49,13 +49,6 @@
       "rocm"
     ]
   ],
-  "test_add_complex4_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "178575",
-    "https://github.com/pytorch/pytorch/issues/178575",
-    [
-      "xpu"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -75,13 +68,6 @@
     "https://github.com/pytorch/pytorch/issues/91486",
     [
       "linux"
-    ]
-  ],
-  "test_as_strided_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "179117",
-    "https://github.com/pytorch/pytorch/issues/179117",
-    [
-      "xpu"
     ]
   ],
   "test_attn_cuda (__main__.TestMin)": [
@@ -255,25 +241,11 @@
       "linux"
     ]
   ],
-  "test_comprehensive_linalg_multi_dot_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "178971",
-    "https://github.com/pytorch/pytorch/issues/178971",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "152520",
     "https://github.com/pytorch/pytorch/issues/152520",
     [
       "inductor"
-    ]
-  ],
-  "test_comprehensive_masked_cumprod_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "177483",
-    "https://github.com/pytorch/pytorch/issues/177483",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -309,13 +281,6 @@
     "https://github.com/pytorch/pytorch/issues/175354",
     [
       "linux"
-    ]
-  ],
-  "test_comprehensive_nn_functional_multi_margin_loss_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "178992",
-    "https://github.com/pytorch/pytorch/issues/178992",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
@@ -407,25 +372,11 @@
       "linux"
     ]
   ],
-  "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
-    "178746",
-    "https://github.com/pytorch/pytorch/issues/178746",
-    [
-      "xpu"
-    ]
-  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
     [
       "macos"
-    ]
-  ],
-  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
-    "176392",
-    "https://github.com/pytorch/pytorch/issues/176392",
-    [
-      "xpu"
     ]
   ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
