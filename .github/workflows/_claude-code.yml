@@ -32,6 +32,10 @@ on:
         description: 'Shell commands to run before Claude (e.g. install lintrunner)'
         type: string
         default: ''
+      append_system_prompt:
+        description: 'Additional text appended to the system prompt'
+        type: string
+        default: ''
 
 jobs:
   claude-code:
@@ -182,7 +186,9 @@ jobs:
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
         env:
-          INPUT_APPEND_SYSTEM_PROMPT: ${{ steps.ghstack-check.outputs.ghstack_notice }}
+          INPUT_APPEND_SYSTEM_PROMPT: |
+              ${{ steps.ghstack-check.outputs.ghstack_notice }}
+              ${{ inputs.append_system_prompt }}
 
       - name: Upload usage metrics
         if: always()
