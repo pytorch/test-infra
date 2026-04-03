@@ -97,7 +97,11 @@ def get_cached_yaml(
             logger.info("allowlist cache hit key=%s", _ALLOWLIST_CACHE_KEY)
         return value
     except redis_lib.exceptions.RedisError as exc:
-        logger.warning("redis cache read failed, falling back to source: %s", exc)
+        error_message = str(exc)
+        logger.warning(
+            "redis cache read failed, falling back to source: %s",
+            error_message,
+        )
         return None
 
 
@@ -113,6 +117,8 @@ def set_cached_yaml(
             "allowlist cached %d bytes key=%s", len(yaml_str), _ALLOWLIST_CACHE_KEY
         )
     except redis_lib.exceptions.RedisError as exc:
+        error_message = str(exc)
         logger.warning(
-            "redis cache write failed, continuing without cache: %s", str(exc)
+            "redis cache write failed, continuing without cache: %s",
+            error_message,
         )

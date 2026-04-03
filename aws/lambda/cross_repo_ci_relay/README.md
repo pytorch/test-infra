@@ -63,7 +63,7 @@ make clean
 
 #### Local
 
-- Python 3.10+
+- Python 3.13
 - A running Redis instance:
   ```bash
   # Using the built-in "default" user with a password:
@@ -110,6 +110,7 @@ make clean
    REDIS_LOGIN=default:<password>
    ALLOWLIST_TTL_SECONDS=1200
    ```
+   **Note**: `ALLOWLIST_URL` is required for local development which should point to a GitHub URL that can be different from the real one.
 
 3. Start the server:
    ```bash

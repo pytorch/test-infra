@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import json
 import logging
-import os
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
 import gh_helper
@@ -11,7 +11,7 @@ from utils import EventDispatchPayload, HTTPException
 
 
 logger = logging.getLogger(__name__)
-_PULL_REQUEST_ALLOW_ACTIONS = frozenset({"opened", "reopened", "synchronize"})
+_PULL_REQUEST_ALLOW_ACTIONS = frozenset({"opened", "reopened", "synchronize", "closed"})
 
 
 def _dispatch_one(
@@ -51,11 +51,9 @@ def _dispatch_to_allowlist(
 
     dispatched: list[dict] = []
     failed: list[dict] = []
-    # Limit max workers to avoid overwhelming GitHub API and
-    # to prevent excessive resource usage in the Lambda function
-    max_workers = min(
-        len(targets), 2 * (os.cpu_count() or 1), config.max_dispatch_workers
-    )
+    # Dispatch is I/O bound on GitHub API calls, so cap workers by the number
+    # of targets and the configured maximum.
+    max_workers = min(len(targets), config.max_dispatch_workers)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         future_to_repo = {
             pool.submit(
@@ -104,13 +102,27 @@ def handle(
             logger.info("pull_request action=%s ignored", action)
             return {"ignored": True}
 
+    client_payload: EventDispatchPayload = {
+        "event_type": event_type,
+        "delivery_id": delivery_id,
+        "payload": payload,
+    }
+    # GitHub repository_dispatch accepts at most 65 KB of JSON in client_payload.
+    # We currently pass through the full webhook payload, so this size log helps
+    # diagnose future failures if large pull_request events start breaching that limit.
+    payload_size_bytes = len(
+        json.dumps(client_payload, separators=(",", ":")).encode("utf-8")
+    )
+    logger.info(
+        "dispatch payload size event_type=%s delivery=%s bytes=%d",
+        event_type,
+        delivery_id,
+        payload_size_bytes,
+    )
+
     dispatched, failed = _dispatch_to_allowlist(
         config=config,
-        client_payload={
-            "event_type": event_type,
-            "delivery_id": delivery_id,
-            "payload": payload,
-        },
+        client_payload=client_payload,
     )
 
     if failed and dispatched:
