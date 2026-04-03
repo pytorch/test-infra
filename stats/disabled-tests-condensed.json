@@ -56,27 +56,6 @@
       "xpu"
     ]
   ],
-  "test_add_complex_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "178753",
-    "https://github.com/pytorch/pytorch/issues/178753",
-    [
-      "xpu"
-    ]
-  ],
-  "test_adding_tensor_offsets_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "178761",
-    "https://github.com/pytorch/pytorch/issues/178761",
-    [
-      "xpu"
-    ]
-  ],
-  "test_addmm_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "178855",
-    "https://github.com/pytorch/pytorch/issues/178855",
-    [
-      "xpu"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -96,13 +75,6 @@
     "https://github.com/pytorch/pytorch/issues/91486",
     [
       "linux"
-    ]
-  ],
-  "test_aoti_debug_printer_works_on_constants (__main__.TestGpuWrapper)": [
-    "178857",
-    "https://github.com/pytorch/pytorch/issues/178857",
-    [
-      "xpu"
     ]
   ],
   "test_as_strided_xpu_gpu_wrapper (__main__.TestGpuWrapper)": [
