@@ -14,6 +14,11 @@ on:
         type: string
         default: ""
         required: false
+      manywheel_version:
+        description: "Manylinux platform tag version (e.g. '2_28', '2_34')"
+        type: string
+        default: "2_28"
+        required: false
 
 concurrency:
   # TODO: Remove pr-specific concurrency key before merging
@@ -88,6 +93,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           CUDA_DIR: ${{ matrix.cuda_dir }}
           FORCE_REBUILD: ${{ inputs.force_rebuild }}
+          MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
         run: python3 .github/scripts/pypi_cache/build.py
 
       - name: Build failure summary

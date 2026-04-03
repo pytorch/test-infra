@@ -254,12 +254,13 @@ def repair_if_needed(whl_path: Path, script_dir: Path, build_dir: Path) -> Path:
     """
     if "-linux_" not in whl_path.name:
         return whl_path
-    repair_script = script_dir.parent / "repair_manylinux_2_28.sh"
+    manywheel_ver = os.environ.get("MANYWHEEL_VERSION", "2_28")
+    repair_script = script_dir.parent / f"repair_manylinux_{manywheel_ver}.sh"
     run_cmd(
         ["bash", str(repair_script), str(whl_path)],
         cwd=str(build_dir),
     )
-    new_name = whl_path.name.replace("-linux_", "-manylinux_2_28_", 1)
+    new_name = whl_path.name.replace("-linux_", f"-manylinux_{manywheel_ver}_", 1)
     return whl_path.parent / new_name
 
 
