@@ -5,7 +5,6 @@ import textwrap
 from pathlib import Path
 
 import pytest
-
 from build import (
     cp_tag,
     load_skip_list,
@@ -19,6 +18,7 @@ from build import (
 # ---------------------------------------------------------------------------
 # python_path
 # ---------------------------------------------------------------------------
+
 
 class TestPythonPath:
     def test_standard(self):
@@ -38,6 +38,7 @@ class TestPythonPath:
 # cp_tag
 # ---------------------------------------------------------------------------
 
+
 class TestCpTag:
     def test_standard(self):
         assert cp_tag("3.13") == "cp313"
@@ -55,6 +56,7 @@ class TestCpTag:
 # ---------------------------------------------------------------------------
 # normalize_name
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeName:
     def test_uppercase(self):
@@ -133,14 +135,17 @@ class TestWheelMatches:
 # load_skip_list
 # ---------------------------------------------------------------------------
 
+
 class TestLoadSkipList:
     def test_basic(self, tmp_path: Path):
         skip = tmp_path / "skip.txt"
-        skip.write_text(textwrap.dedent("""\
+        skip.write_text(
+            textwrap.dedent("""\
             # Comment line
             numpy==2.4.4  3.10
             numba==0.60.0  3.13 3.13t
-        """))
+        """)
+        )
         result = load_skip_list(skip)
         assert result == {
             "numpy==2.4.4:3.10",
@@ -150,12 +155,14 @@ class TestLoadSkipList:
 
     def test_blank_lines_and_comments(self, tmp_path: Path):
         skip = tmp_path / "skip.txt"
-        skip.write_text(textwrap.dedent("""\
+        skip.write_text(
+            textwrap.dedent("""\
 
             # Only comments
 
             numpy==2.4.4  3.10  # inline comment
-        """))
+        """)
+        )
         result = load_skip_list(skip)
         assert result == {"numpy==2.4.4:3.10"}
 
@@ -179,6 +186,7 @@ class TestLoadSkipList:
 # ---------------------------------------------------------------------------
 # write_failure_summary
 # ---------------------------------------------------------------------------
+
 
 class TestWriteFailureSummary:
     def test_no_failures(self, tmp_path: Path):
