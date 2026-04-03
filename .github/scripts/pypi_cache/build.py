@@ -208,7 +208,21 @@ def setup_cuda(cuda_dir: str) -> None:
 def download_and_merge_wants(
     s3_bucket: str, wants_dir: Path, packages_file: Path
 ) -> list[str]:
-    """Download ``wants/*.txt`` from S3, merge, deduplicate, return entries."""
+    """Download ``wants/*.txt`` from S3, merge, deduplicate, return entries.
+
+    The ``wants/*.txt`` files are produced by the **wants-collector** service
+    in the ``pytorch/ci-infra`` repository.  It runs as a Kubernetes pod that
+    periodically scans EFS access logs for PyPI download requests, filters out
+    packages that already have pre-built wheels, and uploads the remaining
+    entries to ``s3://pytorch-pypi-wheel-cache/wants/{cluster_id}.txt``.
+    The files auto-expire after 7 days.
+
+    See:
+      - Service source:
+        https://github.com/pytorch/ci-infra/blob/main/modules/pypi-cache/scripts/python/wants_collector.py
+      - Kubernetes deployment:
+        https://github.com/pytorch/ci-infra/blob/main/modules/pypi-cache/kubernetes/wants-collector-deployment.yaml.tpl
+    """
     wants_dir.mkdir(parents=True, exist_ok=True)
     aws_s3_cp(f"s3://{s3_bucket}/wants/", str(wants_dir) + "/", recursive=True)
 
