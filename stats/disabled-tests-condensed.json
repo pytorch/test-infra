@@ -1632,20 +1632,6 @@
       "linux"
     ]
   ],
-  "test_sdpa_prev_15_gpu (__main__.SDPAPatternRewriterGpuTests)": [
-    "178974",
-    "https://github.com/pytorch/pytorch/issues/178974",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sdpa_rewriter_10_gpu (__main__.SDPAPatternRewriterGpuTests)": [
-    "178984",
-    "https://github.com/pytorch/pytorch/issues/178984",
-    [
-      "xpu"
-    ]
-  ],
   "test_sdpa_rewriter_11_gpu (__main__.SDPAPatternRewriterGpuTests)": [
     "179213",
     "https://github.com/pytorch/pytorch/issues/179213",
