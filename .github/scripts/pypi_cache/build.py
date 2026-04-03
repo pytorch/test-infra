@@ -321,6 +321,16 @@ def main() -> None:
             setup_cuda(cuda_dir)
 
         # Step 2: Download and merge wants
+        # NOTE: The wants list only records package names+versions, not
+        # per-Python-version availability.  We intentionally build every
+        # package for every configured Python version even though some
+        # wheels may already exist on PyPI.  This is fine because:
+        #   - At serve time PyPI is the preferred index; redundant wheels
+        #     in S3 are simply never fetched by pip.
+        #   - Each combination is built at most once (existing S3 wheels
+        #     are skipped above), so the extra compute cost is negligible.
+        #   - Tracking per-version PyPI availability in the wants list
+        #     would add significant complexity for no practical benefit.
         wheel_dir.mkdir(parents=True, exist_ok=True)
         packages = download_and_merge_wants(s3_bucket, wants_dir, packages_file)
         print(f"==> Merged package list ({len(packages)} entries)")
