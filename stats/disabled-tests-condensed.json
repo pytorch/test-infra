@@ -372,11 +372,25 @@
       "linux"
     ]
   ],
+  "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "178746",
+    "https://github.com/pytorch/pytorch/issues/178746",
+    [
+      "xpu"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
     [
       "macos"
+    ]
+  ],
+  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
+    "176392",
+    "https://github.com/pytorch/pytorch/issues/176392",
+    [
+      "xpu"
     ]
   ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
