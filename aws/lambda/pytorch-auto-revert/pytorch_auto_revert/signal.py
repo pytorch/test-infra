@@ -446,7 +446,7 @@ class Signal:
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
     # Minimum confidence threshold for acting on advisor verdicts
-    ADVISOR_CONFIDENCE_THRESHOLD = 0.9
+    ADVISOR_CONFIDENCE_THRESHOLD = 0.89
 
     def _build_autorevert_pattern(
         self,
