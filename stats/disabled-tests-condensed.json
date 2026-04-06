@@ -854,6 +854,13 @@
       "dynamo"
     ]
   ],
+  "test_hf_bert_ddp_aot_eager (__main__.TestFakeDistributedSingleProc)": [
+    "179484",
+    "https://github.com/pytorch/pytorch/issues/179484",
+    [
+      "linux"
+    ]
+  ],
   "test_hoist_conv_packed_params (__main__.TestOptimizer)": [
     "157247",
     "https://github.com/pytorch/pytorch/issues/157247",
