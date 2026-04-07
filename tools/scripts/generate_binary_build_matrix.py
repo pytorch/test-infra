@@ -37,7 +37,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2"],
     "test": ["12.6", "13.0", "13.2"],
-    "release": ["12.6", "13.0"],
+    "release": ["12.6", "12.8", "13.0"],
 }
 
 ROCM_ARCHES_DICT = {
@@ -48,6 +48,7 @@ ROCM_ARCHES_DICT = {
 
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
+    "12.8": {"cuda": "12.8.0", "cudnn": "9"},
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
 }
