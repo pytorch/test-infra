@@ -332,9 +332,47 @@ export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, 
   }
 }
 
+export async function ensureDeleteOnTermination(
+  ec2: EC2,
+  instanceId: string,
+  awsRegion: string,
+): Promise<void> {
+  try {
+    const attr = await ec2.describeInstanceAttribute({
+      InstanceId: instanceId,
+      Attribute: 'blockDeviceMapping',
+    });
+
+    const devices = attr.BlockDeviceMappings ?? [];
+    const needsFix = devices.filter((d) => d.Ebs && d.Ebs.DeleteOnTermination === false);
+
+    if (needsFix.length === 0) return;
+
+    const mappings = needsFix.map((d) => ({
+      DeviceName: d.DeviceName,
+      Ebs: { DeleteOnTermination: true },
+    }));
+
+    await ec2.modifyInstanceAttribute({
+      InstanceId: instanceId,
+      BlockDeviceMappings: mappings,
+    });
+
+    console.info(
+      `[${awsRegion}] Fixed DeleteOnTermination on ${needsFix.length} volume(s) for ${instanceId}`,
+    );
+  } catch (e) {
+    // Log but don't block termination — this is a best-effort fix.
+    // If it fails, the next scale-down run or the cleanup script will catch it.
+    console.warn(`[${awsRegion}] Failed to fix DeleteOnTermination for ${instanceId}: ${e}`);
+  }
+}
+
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
     const ec2 = new EC2({ region: runner.awsRegion });
+
+    await ensureDeleteOnTermination(ec2, runner.instanceId, runner.awsRegion);
 
     await expBackOff(() => {
       return metrics.trackRequestRegion(
