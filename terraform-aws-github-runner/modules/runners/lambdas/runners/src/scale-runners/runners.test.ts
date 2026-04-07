@@ -1,6 +1,7 @@
 import {
   RunnerInputParameters,
   createRunner,
+  ensureDeleteOnTermination,
   findAmiID,
   listRunners,
   listSSMParameters,
@@ -26,6 +27,8 @@ const mockEC2 = {
   deleteTags: jest.fn().mockResolvedValue({}),
   createReplaceRootVolumeTask: jest.fn().mockResolvedValue({}),
   describeInstances: jest.fn().mockResolvedValue({}),
+  describeInstanceAttribute: jest.fn().mockResolvedValue({ BlockDeviceMappings: [] }),
+  modifyInstanceAttribute: jest.fn().mockResolvedValue({}),
   runInstances: jest.fn().mockResolvedValue({}),
   terminateInstances: jest.fn().mockResolvedValue({}),
   describeImages: jest.fn().mockImplementation(() =>
@@ -328,10 +331,81 @@ describe('listSSMParameters', () => {
   });
 });
 
+describe('ensureDeleteOnTermination', () => {
+  beforeEach(() => {
+    mockEC2.describeInstanceAttribute.mockClear();
+    mockEC2.modifyInstanceAttribute.mockClear();
+  });
+
+  it('does nothing when all volumes have DeleteOnTermination=true', async () => {
+    mockEC2.describeInstanceAttribute.mockResolvedValueOnce({
+      BlockDeviceMappings: [{ DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: true, VolumeId: 'vol-111' } }],
+    });
+
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
+
+    expect(mockEC2.describeInstanceAttribute).toBeCalledWith({
+      InstanceId: 'i-1234',
+      Attribute: 'blockDeviceMapping',
+    });
+    expect(mockEC2.modifyInstanceAttribute).not.toBeCalled();
+  });
+
+  it('fixes volumes with DeleteOnTermination=false', async () => {
+    mockEC2.describeInstanceAttribute.mockResolvedValueOnce({
+      BlockDeviceMappings: [{ DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: false, VolumeId: 'vol-111' } }],
+    });
+
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-5678', 'us-east-1', metrics);
+
+    expect(mockEC2.modifyInstanceAttribute).toBeCalledWith({
+      InstanceId: 'i-5678',
+      BlockDeviceMappings: [{ DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: true } }],
+    });
+  });
+
+  it('only fixes volumes that need fixing', async () => {
+    mockEC2.describeInstanceAttribute.mockResolvedValueOnce({
+      BlockDeviceMappings: [
+        { DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: true, VolumeId: 'vol-111' } },
+        { DeviceName: '/dev/sdb', Ebs: { DeleteOnTermination: false, VolumeId: 'vol-222' } },
+      ],
+    });
+
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-9999', 'us-east-1', metrics);
+
+    expect(mockEC2.modifyInstanceAttribute).toBeCalledWith({
+      InstanceId: 'i-9999',
+      BlockDeviceMappings: [{ DeviceName: '/dev/sdb', Ebs: { DeleteOnTermination: true } }],
+    });
+  });
+
+  it('does nothing when no block devices returned', async () => {
+    mockEC2.describeInstanceAttribute.mockResolvedValueOnce({ BlockDeviceMappings: [] });
+
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
+
+    expect(mockEC2.modifyInstanceAttribute).not.toBeCalled();
+  });
+
+  it('does not throw on failure — logs warning instead', async () => {
+    mockEC2.describeInstanceAttribute.mockRejectedValueOnce(new Error('API error'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
+
+    expect(warnSpy).toBeCalledWith(expect.stringContaining('Failed to fix DeleteOnTermination'));
+    expect(mockEC2.modifyInstanceAttribute).not.toBeCalled();
+    warnSpy.mockRestore();
+  });
+});
+
 describe('terminateRunner', () => {
   beforeEach(() => {
     mockSSMdescribeParametersRet.mockClear();
     mockEC2.terminateInstances.mockClear();
+    mockEC2.describeInstanceAttribute.mockClear().mockResolvedValue({ BlockDeviceMappings: [] });
+    mockEC2.modifyInstanceAttribute.mockClear();
     const config = {
       environment: 'gi-ci',
       minimumRunningTimeInMinutes: 45,
@@ -341,12 +415,32 @@ describe('terminateRunner', () => {
     resetRunnersCaches();
   });
 
-  it('calls terminateInstances', async () => {
+  it('calls ensureDeleteOnTermination before terminateInstances', async () => {
     const runner: RunnerInfo = {
       awsRegion: Config.Instance.awsRegion,
       instanceId: 'i-1234',
       environment: 'gi-ci',
     };
+    await terminateRunner(runner, metrics);
+
+    expect(mockEC2.describeInstanceAttribute).toBeCalledWith({
+      InstanceId: 'i-1234',
+      Attribute: 'blockDeviceMapping',
+    });
+    expect(mockEC2.terminateInstances).toBeCalledWith({
+      InstanceIds: [runner.instanceId],
+    });
+  });
+
+  it('still terminates even if ensureDeleteOnTermination fails', async () => {
+    mockEC2.describeInstanceAttribute.mockRejectedValueOnce(new Error('API error'));
+    const runner: RunnerInfo = {
+      awsRegion: Config.Instance.awsRegion,
+      instanceId: 'i-1234',
+      environment: 'gi-ci',
+    };
+    jest.spyOn(console, 'warn').mockImplementation();
+
     await terminateRunner(runner, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledWith({

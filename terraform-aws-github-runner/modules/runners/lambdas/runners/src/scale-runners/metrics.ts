@@ -896,6 +896,70 @@ export class Metrics {
     this.countEntry(`aws.ec2.perException.runInstances.exception`, count, new Map([['Exception', exceptionName]]));
   }
 
+  /* istanbul ignore next */
+  ec2DescribeInstanceAttributeAWSCallSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.describeInstanceAttribute.count`, 1);
+    this.countEntry(`aws.ec2.describeInstanceAttribute.success`, 1);
+    this.addEntry(`aws.ec2.describeInstanceAttribute.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstanceAttribute.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstanceAttribute.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeInstanceAttribute.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2DescribeInstanceAttributeAWSCallFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.describeInstanceAttribute.count`, 1);
+    this.countEntry(`aws.ec2.describeInstanceAttribute.failure`, 1);
+    this.addEntry(`aws.ec2.describeInstanceAttribute.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstanceAttribute.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstanceAttribute.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeInstanceAttribute.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2ModifyInstanceAttributeAWSCallSuccess(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.modifyInstanceAttribute.count`, 1);
+    this.countEntry(`aws.ec2.modifyInstanceAttribute.success`, 1);
+    this.addEntry(`aws.ec2.modifyInstanceAttribute.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.modifyInstanceAttribute.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.modifyInstanceAttribute.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.modifyInstanceAttribute.wallclock`, ms, dimensions);
+  }
+
+  /* istanbul ignore next */
+  ec2ModifyInstanceAttributeAWSCallFailure(awsRegion: string, ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.ec2.calls.total`, 1);
+    this.countEntry(`aws.ec2.modifyInstanceAttribute.count`, 1);
+    this.countEntry(`aws.ec2.modifyInstanceAttribute.failure`, 1);
+    this.addEntry(`aws.ec2.modifyInstanceAttribute.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.modifyInstanceAttribute.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.modifyInstanceAttribute.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.modifyInstanceAttribute.wallclock`, ms, dimensions);
+  }
+
   // RUN
   /* istanbul ignore next */
   getRunnerTypesSuccess() {
