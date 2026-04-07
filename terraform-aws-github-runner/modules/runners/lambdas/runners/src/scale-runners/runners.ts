@@ -377,9 +377,7 @@ export async function ensureDeleteOnTermination(
       );
     });
 
-    console.info(
-      `[${awsRegion}] Fixed DeleteOnTermination on ${needsFix.length} volume(s) for ${instanceId}`,
-    );
+    console.info(`[${awsRegion}] Fixed DeleteOnTermination on ${needsFix.length} volume(s) for ${instanceId}`);
   } catch (e) {
     // Log but don't block termination — this is a best-effort fix.
     // If it fails, the next scale-down run or the cleanup script will catch it.

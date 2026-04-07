@@ -339,9 +339,7 @@ describe('ensureDeleteOnTermination', () => {
 
   it('does nothing when all volumes have DeleteOnTermination=true', async () => {
     mockEC2.describeInstanceAttribute.mockResolvedValueOnce({
-      BlockDeviceMappings: [
-        { DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: true, VolumeId: 'vol-111' } },
-      ],
+      BlockDeviceMappings: [{ DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: true, VolumeId: 'vol-111' } }],
     });
 
     await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
@@ -355,9 +353,7 @@ describe('ensureDeleteOnTermination', () => {
 
   it('fixes volumes with DeleteOnTermination=false', async () => {
     mockEC2.describeInstanceAttribute.mockResolvedValueOnce({
-      BlockDeviceMappings: [
-        { DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: false, VolumeId: 'vol-111' } },
-      ],
+      BlockDeviceMappings: [{ DeviceName: '/dev/xvda', Ebs: { DeleteOnTermination: false, VolumeId: 'vol-111' } }],
     });
 
     await ensureDeleteOnTermination(mockEC2 as any, 'i-5678', 'us-east-1', metrics);
