@@ -26,12 +26,14 @@ jobs:
             install_cuda: ""
             variant_tag: cpu-x86_64
             buildkit_addr: tcp://buildkitd-amd64.buildkit:1234
+            dockerfile: Dockerfile
           - runner: mt-l-arm64g2-6-32
             platform: linux/arm64
             base_image: quay.io/pypa/manylinux_2_28_aarch64
             install_cuda: ""
             variant_tag: cpu-aarch64
             buildkit_addr: tcp://buildkitd-arm64.buildkit:1234
+            dockerfile: Dockerfile.aarch64
           # --- CUDA (all versions in one image, self-hosted DinD runners) ---
           - runner: mt-l-x86iamx-8-16
             platform: linux/amd64
@@ -39,12 +41,14 @@ jobs:
             install_cuda: "1"
             variant_tag: cuda-x86_64
             buildkit_addr: tcp://buildkitd-amd64.buildkit:1234
+            dockerfile: Dockerfile
           - runner: mt-l-arm64g2-6-32
             platform: linux/arm64
             base_image: quay.io/pypa/manylinux_2_28_aarch64
             install_cuda: "1"
             variant_tag: cuda-aarch64
             buildkit_addr: tcp://buildkitd-arm64.buildkit:1234
+            dockerfile: Dockerfile.aarch64
     container:
       image: "ghcr.io/actions/actions-runner:latest"
     steps:
@@ -81,6 +85,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./docker
+          file: ./docker/${{ matrix.dockerfile }}
           platforms: ${{ matrix.platform }}
           push: ${{ inputs.push }}
           tags: ${{ steps.meta.outputs.tags || '' }}
