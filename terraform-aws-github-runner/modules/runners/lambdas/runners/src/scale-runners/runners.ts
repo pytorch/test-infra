@@ -336,11 +336,21 @@ export async function ensureDeleteOnTermination(
   ec2: EC2,
   instanceId: string,
   awsRegion: string,
+  metrics: Metrics,
 ): Promise<void> {
   try {
-    const attr = await ec2.describeInstanceAttribute({
-      InstanceId: instanceId,
-      Attribute: 'blockDeviceMapping',
+    const attr = await expBackOff(() => {
+      return metrics.trackRequestRegion(
+        awsRegion,
+        metrics.ec2DescribeInstanceAttributeAWSCallSuccess,
+        metrics.ec2DescribeInstanceAttributeAWSCallFailure,
+        () => {
+          return ec2.describeInstanceAttribute({
+            InstanceId: instanceId,
+            Attribute: 'blockDeviceMapping',
+          });
+        },
+      );
     });
 
     const devices = attr.BlockDeviceMappings ?? [];
@@ -353,9 +363,18 @@ export async function ensureDeleteOnTermination(
       Ebs: { DeleteOnTermination: true },
     }));
 
-    await ec2.modifyInstanceAttribute({
-      InstanceId: instanceId,
-      BlockDeviceMappings: mappings,
+    await expBackOff(() => {
+      return metrics.trackRequestRegion(
+        awsRegion,
+        metrics.ec2ModifyInstanceAttributeAWSCallSuccess,
+        metrics.ec2ModifyInstanceAttributeAWSCallFailure,
+        () => {
+          return ec2.modifyInstanceAttribute({
+            InstanceId: instanceId,
+            BlockDeviceMappings: mappings,
+          });
+        },
+      );
     });
 
     console.info(
@@ -372,7 +391,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
   try {
     const ec2 = new EC2({ region: runner.awsRegion });
 
-    await ensureDeleteOnTermination(ec2, runner.instanceId, runner.awsRegion);
+    await ensureDeleteOnTermination(ec2, runner.instanceId, runner.awsRegion, metrics);
 
     await expBackOff(() => {
       return metrics.trackRequestRegion(

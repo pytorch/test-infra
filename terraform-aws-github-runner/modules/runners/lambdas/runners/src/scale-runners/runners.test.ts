@@ -344,7 +344,7 @@ describe('ensureDeleteOnTermination', () => {
       ],
     });
 
-    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1');
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
 
     expect(mockEC2.describeInstanceAttribute).toBeCalledWith({
       InstanceId: 'i-1234',
@@ -360,7 +360,7 @@ describe('ensureDeleteOnTermination', () => {
       ],
     });
 
-    await ensureDeleteOnTermination(mockEC2 as any, 'i-5678', 'us-east-1');
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-5678', 'us-east-1', metrics);
 
     expect(mockEC2.modifyInstanceAttribute).toBeCalledWith({
       InstanceId: 'i-5678',
@@ -376,7 +376,7 @@ describe('ensureDeleteOnTermination', () => {
       ],
     });
 
-    await ensureDeleteOnTermination(mockEC2 as any, 'i-9999', 'us-east-1');
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-9999', 'us-east-1', metrics);
 
     expect(mockEC2.modifyInstanceAttribute).toBeCalledWith({
       InstanceId: 'i-9999',
@@ -387,7 +387,7 @@ describe('ensureDeleteOnTermination', () => {
   it('does nothing when no block devices returned', async () => {
     mockEC2.describeInstanceAttribute.mockResolvedValueOnce({ BlockDeviceMappings: [] });
 
-    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1');
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
 
     expect(mockEC2.modifyInstanceAttribute).not.toBeCalled();
   });
@@ -396,7 +396,7 @@ describe('ensureDeleteOnTermination', () => {
     mockEC2.describeInstanceAttribute.mockRejectedValueOnce(new Error('API error'));
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1');
+    await ensureDeleteOnTermination(mockEC2 as any, 'i-1234', 'us-east-1', metrics);
 
     expect(warnSpy).toBeCalledWith(expect.stringContaining('Failed to fix DeleteOnTermination'));
     expect(mockEC2.modifyInstanceAttribute).not.toBeCalled();
