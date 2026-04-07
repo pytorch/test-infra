@@ -35,8 +35,8 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["12.6", "12.8", "13.0", "13.2"],
-    "test": ["12.6", "12.8", "13.0", "13.2"],
+    "nightly": ["12.6", "13.0", "13.2"],
+    "test": ["12.6", "13.0", "13.2"],
     "release": ["12.6", "12.8", "13.0"],
 }
 
@@ -59,7 +59,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "13.0",
 }
 
-CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64", "13.0-aarch64", "13.2-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
