@@ -1,0 +1,118 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=quay.io/pypa/manylinux_2_28_aarch64
+FROM ${BASE_IMAGE}
+
+# INSTALL_CUDA: set to any non-empty value (e.g. "1") to install all CUDA versions;
+# leave empty for CPU-only images.
+ARG INSTALL_CUDA
+
+# Language variables
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US.UTF-8
+
+# System dependencies (adapted from PyTorch CI aarch64 Dockerfiles)
+RUN dnf install -y \
+        autoconf \
+        automake \
+        bison \
+        bzip2 \
+        curl \
+        diffutils \
+        file \
+        gcc \
+        gcc-c++ \
+        gdb \
+        git \
+        jq \
+        less \
+        libffi-devel \
+        libgomp \
+        make \
+        openssl-devel \
+        patch \
+        perl \
+        sudo \
+        unzip \
+        util-linux \
+        vim \
+        wget \
+        which \
+        xz \
+        yasm \
+        zip \
+        zstd \
+    && dnf group install -y 'Development Tools' \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Install GCC toolset versions needed by CI.
+RUN dnf install -y \
+        gcc-toolset-13-gcc \
+        gcc-toolset-13-gcc-c++ \
+        gcc-toolset-13-gcc-gfortran \
+        gcc-toolset-13-gdb \
+        gcc-toolset-14-gcc \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-gcc-gfortran \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Default to gcc-toolset-13
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:$LD_LIBRARY_PATH
+
+# Build a newer libgomp than the one shipped with AlmaLinux 8
+RUN --mount=type=bind,source=install_libgomp.sh,target=/tmp/install_libgomp.sh \
+    bash /tmp/install_libgomp.sh
+
+# git236+ refuses to run git commands in repos owned by other users
+RUN git config --global --add safe.directory "*"
+
+# Install scons (needed for building ARM Compute Library)
+RUN python3.9 -m pip install scons==4.7.0 \
+    && ln -sf /opt/python/cp39-cp39/bin/scons /usr/local/bin
+
+# Install ARM Compute Library (ACL)
+RUN --mount=type=bind,source=install_acl.sh,target=/tmp/install_acl.sh \
+    bash /tmp/install_acl.sh
+
+# Install OpenBLAS (CPU builds only)
+RUN --mount=type=bind,source=install_openblas.sh,target=/tmp/install_openblas.sh \
+    if [ -z "${INSTALL_CUDA}" ]; then \
+        bash /tmp/install_openblas.sh; \
+    fi
+
+# Install uv (Python package manager) — needed before CUDA install for uv run
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install NVPL (NVIDIA Performance Libraries) for CUDA builds only
+RUN --mount=type=bind,source=install_nvpl.sh,target=/tmp/install_nvpl.sh \
+    if [ -n "${INSTALL_CUDA}" ]; then \
+        bash /tmp/install_nvpl.sh; \
+    fi
+
+# Install CUDA stack (skipped when INSTALL_CUDA is empty)
+RUN --mount=type=bind,source=install_cuda.py,target=/tmp/install_cuda.py \
+    if [ -n "${INSTALL_CUDA}" ]; then \
+        uv run /tmp/install_cuda.py; \
+    fi
+
+# Patch libstdc++ for CXX11 ABI symbol workaround
+# See: https://github.com/pytorch/pytorch/issues/133437
+RUN --mount=type=bind,source=patch_libstdc.sh,target=/tmp/patch_libstdc.sh \
+    bash /tmp/patch_libstdc.sh
+
+# Install sccache (do this last so /opt/cache/bin gets PATH priority)
+RUN --mount=type=bind,source=install_cache.py,target=/tmp/install_cache.py \
+    uv run /tmp/install_cache.py
+ENV PATH="/opt/cache/bin:${PATH}"
+
+# Library and CUDA paths
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/OpenBLAS/lib:/acl/build/:/opt/nvpl/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV CUDA_HOME="/usr/local/cuda"
+ENV USE_SYSTEM_NCCL=1
+ENV NCCL_INCLUDE_DIR="/usr/local/cuda/include"
+ENV NCCL_LIB_DIR="/usr/local/cuda/lib64"
