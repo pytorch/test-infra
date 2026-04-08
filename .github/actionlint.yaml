@@ -12,3 +12,5 @@ self-hosted-runner:
     # Below are OSDC ARC runner
     - mt-l-x86iamx-8-16
     - mt-l-arm64g2-6-32
+    - rel-l-x86iavx512-8-64
+    - rel-l-arm64g4-16-62
