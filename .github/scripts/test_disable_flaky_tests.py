@@ -22,7 +22,7 @@ class TestDisableFlakyTests(unittest.TestCase):
                 disable_flaky_tests.main()
                 return 0
             except SystemExit as e:
-                return e.code
+                return int(e.code) if e.code is not None else 1
 
     def test_missing_auth_token(self):
         code = self._run_main({"X_HUD_BOT_TOKEN": "tok"})
