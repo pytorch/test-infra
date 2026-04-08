@@ -151,11 +151,18 @@ for v in volumes:
     ct_str = ct_str.replace("Z", "+00:00")
     ct = datetime.fromisoformat(ct_str)
     if ct <= cutoff:
+        name_tag = ""
+        for t in v.get("Tags", []):
+            if t.get("Key") == "Name":
+                name_tag = t.get("Value", "")
+                break
         filtered.append({
             "VolumeId": v["VolumeId"],
             "Size": v["Size"],
             "VolumeType": v["VolumeType"],
             "CreateTime": v["CreateTime"],
+            "Name": name_tag,
+            "Tags": v.get("Tags", []),
         })
 
 total_gb = sum(v["Size"] for v in filtered)
