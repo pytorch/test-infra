@@ -15,6 +15,7 @@ import click
 
 from .commands.cancel import cancel
 from .commands.debug import debug
+from .commands.download import download
 from .commands.query import history, logs, run_status, task_status
 from .commands.run import run_single, run_steps
 from .core.core_types import console
@@ -52,6 +53,7 @@ cli.add_command(task_status, "task-status")
 cli.add_command(run_status, "status")
 cli.add_command(logs, "stream")
 cli.add_command(history, "history")
+cli.add_command(download, "download")
 
 
 if __name__ == "__main__":
