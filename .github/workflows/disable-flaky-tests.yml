@@ -11,8 +11,9 @@ jobs:
   cron:
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch and file issues for flaky tests
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/flaky-tests/disable' \
-          --header 'Authorization: ${{ secrets.FLAKY_TEST_BOT_KEY }}'
+        env:
+          FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+        run: python .github/scripts/disable_flaky_tests.py
