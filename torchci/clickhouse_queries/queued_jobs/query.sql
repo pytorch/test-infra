@@ -130,8 +130,8 @@ arc_queued_jobs AS (
             --- Container init is always the first 2 steps (Set up job +
             --- Initialize containers). If only those steps exist, actual
             --- work hasn't started yet. The 10 min cap guards against stale
-            --- step data in ClickHouse — if a job has been around longer
-            --- than that, the step count is likely outdated.
+            --- step data in ClickHouse — the job is either running ok or fails
+            --- already if it has less than 2 steps after 10 minutes
             (job.status = 'in_progress'
              AND LENGTH(job.steps) > 0
              AND LENGTH(job.steps) <= 2
