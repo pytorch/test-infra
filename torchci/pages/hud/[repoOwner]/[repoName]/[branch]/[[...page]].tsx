@@ -15,8 +15,15 @@ import JobConclusion from "components/job/JobConclusion";
 import JobFilterInput from "components/job/JobFilterInput";
 import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
+import {
+  AdvisorVerdict,
+  AdvisorVerdictRow,
+  buildVerdictsBySha,
+  deduplicateVerdicts,
+  matchVerdictToJob,
+} from "lib/advisorVerdictUtils";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import {
   getGroupingData,
   groups,
@@ -56,6 +63,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import useSWR from "swr";
@@ -76,6 +84,14 @@ export function JobCell({
   repoName?: string;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const advisorVerdictsBySha = useContext(AdvisorVerdictsContext);
+
+  // Match AI advisor verdict to this job cell (only show on failed jobs)
+  const verdictsForSha = advisorVerdictsBySha.get(sha);
+  const advisorVerdict =
+    verdictsForSha && isFailedJob(job)
+      ? matchVerdictToJob(job.name ?? "", verdictsForSha, job.failureCaptures)
+      : undefined;
 
   // Build cell style classes
   const cellClasses = [];
@@ -84,6 +100,9 @@ export function JobCell({
   }
   if (isAutorevertSignal) {
     cellClasses.push(styles.autorevertSignal);
+  }
+  if (advisorVerdict) {
+    cellClasses.push(styles.advisorVerdict);
   }
   const cellStyle = cellClasses.join(" ");
 
@@ -97,6 +116,7 @@ export function JobCell({
             job={job}
             sha={pinnedId.sha || sha}
             isAutorevertSignal={isAutorevertSignal}
+            advisorVerdict={advisorVerdict}
             repoOwner={repoOwner}
             repoName={repoName}
           />
@@ -116,6 +136,20 @@ export function JobCell({
             }
             jobData={job}
           />
+          {advisorVerdict && (
+            <div
+              className={`${styles.advisorBadge} ${
+                styles[
+                  `advisorVerdict_${advisorVerdict.verdict}` as keyof typeof styles
+                ] ?? ""
+              }`}
+              title={`AI: ${advisorVerdict.verdict} (${Math.round(
+                advisorVerdict.confidence * 100
+              )}%)`}
+            >
+              ai
+            </div>
+          )}
         </div>
       </TooltipTarget>
     </td>
@@ -417,6 +451,11 @@ export const MonsterFailuresContext = createContext<
   [boolean, ((_value: boolean) => void) | undefined]
 >([false, undefined]);
 
+// AI Advisor verdicts context: sha -> verdicts[]
+export const AdvisorVerdictsContext = createContext<
+  Map<string, AdvisorVerdict[]>
+>(new Map());
+
 export const GroupingContext = createContext<{
   groupNameMapping: Map<string, Array<string>>;
   expandedGroups: Set<string>;
@@ -622,6 +661,21 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     data?.flatMap((row) => Array.from(row.nameToJobs.keys()))
   );
 
+  // Lazy-load AI advisor verdicts for commits on screen
+  const shas = useMemo(() => data?.map((row) => row.sha) ?? [], [data]);
+  const { data: advisorRows } = useClickHouseAPIImmutable<AdvisorVerdictRow>(
+    "advisor_verdicts_for_hud",
+    {
+      repo: `${params.repoOwner}/${params.repoName}`,
+      shas: shas,
+    },
+    shas.length > 0
+  );
+  const advisorVerdictsBySha = useMemo(() => {
+    if (!advisorRows || advisorRows.length === 0) return new Map();
+    return buildVerdictsBySha(deduplicateVerdicts(advisorRows));
+  }, [advisorRows]);
+
   const [hideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [hideNonViableStrict] = useHideNonViableStrictPreference();
@@ -746,20 +800,22 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   }
 
   return (
-    <GroupingContext.Provider
-      value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
-    >
-      <table className={styles.hudTable} style={{ overflow: "auto" }}>
-        <GroupHudTableColumns names={names} />
-        <GroupHudTableHeader names={names} />
-        <HudTableBody
-          shaGrid={shaGrid}
-          names={names}
-          unstableIssues={unstableIssuesData ?? []}
-          repoOwner={params.repoOwner}
-          repoName={params.repoName}
-        />
-      </table>
-    </GroupingContext.Provider>
+    <AdvisorVerdictsContext.Provider value={advisorVerdictsBySha}>
+      <GroupingContext.Provider
+        value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
+      >
+        <table className={styles.hudTable} style={{ overflow: "auto" }}>
+          <GroupHudTableColumns names={names} />
+          <GroupHudTableHeader names={names} />
+          <HudTableBody
+            shaGrid={shaGrid}
+            names={names}
+            unstableIssues={unstableIssuesData ?? []}
+            repoOwner={params.repoOwner}
+            repoName={params.repoName}
+          />
+        </table>
+      </GroupingContext.Provider>
+    </AdvisorVerdictsContext.Provider>
   );
 }

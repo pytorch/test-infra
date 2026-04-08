@@ -225,3 +225,40 @@
   flex-direction: column;
   gap: 0.5rem;
 }
+
+/* AI Advisor verdict overlay */
+.advisorVerdict {
+  position: relative;
+}
+
+.advisorBadge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 2px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.advisorVerdict_revert {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.advisorVerdict_not_related {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.advisorVerdict_garbage {
+  background: #6d4c41;
+  color: #fff;
+}
+
+.advisorVerdict_unsure {
+  background: #616161;
+  color: #fff;
+}
