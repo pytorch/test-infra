@@ -17,7 +17,7 @@ HUD_URL = "https://www.torch-ci.com/api/flaky-tests/disable"
 
 def main() -> None:
     auth_token = os.environ.get("FLAKY_TEST_BOT_KEY", "")
-    hud_bot_token = os.environ.get("X_HUD_BOT_TOKEN", "")
+    hud_bot_token = os.environ.get("HUD_API_TOKEN", "")
 
     if not auth_token:
         print("::error::FLAKY_TEST_BOT_KEY is not set")

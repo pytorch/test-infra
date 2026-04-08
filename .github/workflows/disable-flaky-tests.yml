@@ -10,11 +10,10 @@ on:
 jobs:
   cron:
     runs-on: ubuntu-22.04
-    environment: hud
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch and file issues for flaky tests
         env:
           FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
-          X_HUD_BOT_TOKEN: ${{ secrets.X_HUD_BOT_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
         run: python .github/scripts/disable_flaky_tests.py

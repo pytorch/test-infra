@@ -25,7 +25,7 @@ class TestDisableFlakyTests(unittest.TestCase):
                 return int(e.code) if e.code is not None else 1
 
     def test_missing_auth_token(self):
-        code = self._run_main({"X_HUD_BOT_TOKEN": "tok"})
+        code = self._run_main({"HUD_API_TOKEN": "tok"})
         self.assertEqual(code, 1)
 
     def test_success(self):
@@ -42,7 +42,7 @@ class TestDisableFlakyTests(unittest.TestCase):
         try:
             with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:18771"):
                 code = self._run_main(
-                    {"FLAKY_TEST_BOT_KEY": "key", "X_HUD_BOT_TOKEN": "tok"}
+                    {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
                 )
             self.assertEqual(code, 0)
         finally:
@@ -64,7 +64,7 @@ class TestDisableFlakyTests(unittest.TestCase):
         try:
             with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:18772"):
                 code = self._run_main(
-                    {"FLAKY_TEST_BOT_KEY": "key", "X_HUD_BOT_TOKEN": "tok"}
+                    {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
                 )
             self.assertEqual(code, 1)
         finally:
@@ -84,7 +84,7 @@ class TestDisableFlakyTests(unittest.TestCase):
         try:
             with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:18773"):
                 code = self._run_main(
-                    {"FLAKY_TEST_BOT_KEY": "key", "X_HUD_BOT_TOKEN": "tok"}
+                    {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
                 )
             self.assertEqual(code, 1)
         finally:
@@ -104,7 +104,7 @@ class TestDisableFlakyTests(unittest.TestCase):
         try:
             with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:18774"):
                 code = self._run_main(
-                    {"FLAKY_TEST_BOT_KEY": "key", "X_HUD_BOT_TOKEN": "tok"}
+                    {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
                 )
             self.assertEqual(code, 1)
         finally:
@@ -113,7 +113,7 @@ class TestDisableFlakyTests(unittest.TestCase):
     def test_connection_refused(self):
         with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:19999"):
             code = self._run_main(
-                {"FLAKY_TEST_BOT_KEY": "key", "X_HUD_BOT_TOKEN": "tok"}
+                {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
             )
         self.assertEqual(code, 1)
 
@@ -137,7 +137,7 @@ class TestDisableFlakyTests(unittest.TestCase):
         try:
             with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:18775"):
                 self._run_main(
-                    {"FLAKY_TEST_BOT_KEY": "myauth", "X_HUD_BOT_TOKEN": "mybot"}
+                    {"FLAKY_TEST_BOT_KEY": "myauth", "HUD_API_TOKEN": "mybot"}
                 )
             self.assertEqual(received_headers["Authorization"], "myauth")
             self.assertEqual(received_headers["x-hud-internal-bot"], "mybot")
