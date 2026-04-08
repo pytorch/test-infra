@@ -1,6 +1,6 @@
-import { Popover } from "@mui/material";
+import { Popover, Tooltip } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
-import { AdvisorVerdict, advisorRunUrl } from "lib/advisorVerdictUtils";
+import { AdvisorVerdict } from "lib/advisorVerdictUtils";
 import { useState } from "react";
 import styles from "./autorevert.module.css";
 import {
@@ -59,11 +59,27 @@ export default function AutorevertCell({
       }[highlight]
     : "";
 
+  // Build tooltip content listing all events
+  const tooltipContent = events.length > 0 ? (
+    <div style={{ fontSize: "0.85em", lineHeight: 1.5 }}>
+      {events.map((ev, i) => {
+        const { icon } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
+        return (
+          <div key={i} style={{ whiteSpace: "nowrap" }}>
+            {icon} {ev.status} — {ev.started_at}
+            {ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}
+            <br />
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>{ev.name}</span>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   // Render all events (no aggregation — retries visible)
   const eventIcons = events.map((ev, i) => {
     const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
     const url = eventUrl(repo, ev);
-    const title = `${ev.name}\n${ev.started_at}${ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}`;
 
     if (url) {
       return (
@@ -73,14 +89,13 @@ export default function AutorevertCell({
           target="_blank"
           rel="noopener noreferrer"
           className={`${styles.eventIcon} ${cls}`}
-          title={title}
         >
           {icon}
         </a>
       );
     }
     return (
-      <span key={i} className={`${styles.eventIcon} ${cls}`} title={title}>
+      <span key={i} className={`${styles.eventIcon} ${cls}`}>
         {icon}
       </span>
     );
@@ -115,11 +130,23 @@ export default function AutorevertCell({
     return <td className={`${styles.colSignal} ${highlightClass}`} />;
   }
 
+  const cellInner = (
+    <span>
+      {eventIcons}
+      {advisorBadge}
+    </span>
+  );
+
   return (
     <>
       <td className={`${styles.colSignal} ${highlightClass}`}>
-        {eventIcons}
-        {advisorBadge}
+        {tooltipContent ? (
+          <Tooltip title={tooltipContent} arrow placement="bottom">
+            {cellInner}
+          </Tooltip>
+        ) : (
+          cellInner
+        )}
       </td>
       {fullAdvisorVerdict && (
         <Popover

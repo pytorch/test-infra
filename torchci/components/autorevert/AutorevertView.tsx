@@ -6,7 +6,7 @@ import {
 import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import AutorevertControls from "./AutorevertControls";
 import AutorevertGrid from "./AutorevertGrid";
@@ -14,11 +14,13 @@ import { AutorevertStateResponse } from "./types";
 
 dayjs.extend(utc);
 
+const DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull"];
+
 export default function AutorevertView() {
   const [timestamp, setTimestamp] = useState(dayjs());
-  const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([]);
+  const [selectedWorkflows, setSelectedWorkflows] =
+    useState<string[]>(DEFAULT_WORKFLOWS);
   const [signalFilter, setSignalFilter] = useState("");
-  const [workflowsInitialized, setWorkflowsInitialized] = useState(false);
 
   // Fetch merged autorevert state
   const stateUrl = useMemo(() => {
@@ -39,20 +41,6 @@ export default function AutorevertView() {
       revalidateOnFocus: false,
     });
 
-  // Initialize workflow selection from available workflows
-  const handleStateData = useCallback(
-    (data: AutorevertStateResponse | undefined) => {
-      if (data && !workflowsInitialized && data.availableWorkflows.length > 0) {
-        setSelectedWorkflows(data.availableWorkflows);
-        setWorkflowsInitialized(true);
-      }
-    },
-    [workflowsInitialized]
-  );
-  // Call on each render when data changes
-  if (stateData && !workflowsInitialized) {
-    handleStateData(stateData);
-  }
 
   // Fetch full advisor verdicts for commit linking
   const commitShas = stateData?.commits || [];

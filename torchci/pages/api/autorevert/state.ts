@@ -58,14 +58,20 @@ function mergeStates(
     }
   }
 
-  // Merge commits (union, deduplicated, sorted by timestamp desc)
+  // Merge commits from state commit lists only (not from commit_times keys,
+  // which may include commits without events)
   const commitTimes: Record<string, string> = {};
+  const commitSet = new Set<string>();
   for (const state of byWorkflowSet.values()) {
     Object.assign(commitTimes, state.commit_times || {});
+    for (const sha of state.commits || []) {
+      commitSet.add(sha);
+    }
   }
-  const allCommits = Object.keys(commitTimes).sort(
+  const allCommits = Array.from(commitSet).sort(
     (a, b) =>
-      new Date(commitTimes[b]).getTime() - new Date(commitTimes[a]).getTime()
+      new Date(commitTimes[b] || 0).getTime() -
+      new Date(commitTimes[a] || 0).getTime()
   );
 
   // Merge columns, applying workflow filter

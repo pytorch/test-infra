@@ -24,21 +24,22 @@ function outcomeTooltip(
   col: SignalColumn,
   outcome: any | undefined
 ): string {
-  if (!outcome) return `${col.workflow}: ${col.key}`;
+  const header = `${col.workflow}: ${col.key}`;
+  if (!outcome) return header;
   if (outcome.type === "AutorevertPattern") {
     const d = outcome.data;
     const adv = d.advisor_verdict
       ? ` [AI: ${d.advisor_verdict.verdict} @${Math.round(d.advisor_verdict.confidence * 100)}%]`
       : "";
-    return `REVERT: suspect ${d.suspected_commit?.slice(0, 7)} vs baseline ${d.older_successful_commit?.slice(0, 7)}${adv}`;
+    return `${header}\n\nREVERT: suspect ${d.suspected_commit?.slice(0, 7)} vs baseline ${d.older_successful_commit?.slice(0, 7)}${adv}`;
   }
   if (outcome.type === "RestartCommits") {
-    return `RESTART: ${outcome.data.commit_shas?.map((s: string) => s.slice(0, 7)).join(", ")}`;
+    return `${header}\n\nRESTART: ${outcome.data.commit_shas?.map((s: string) => s.slice(0, 7)).join(", ")}`;
   }
   if (outcome.type === "Ineligible") {
-    return `${outcome.data.reason}: ${outcome.data.message}`;
+    return `${header}\n\n${outcome.data.reason}: ${outcome.data.message}`;
   }
-  return col.key;
+  return header;
 }
 
 function formatCommitTime(isoTime: string): string {

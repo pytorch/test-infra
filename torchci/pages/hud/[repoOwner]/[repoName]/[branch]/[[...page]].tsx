@@ -401,25 +401,34 @@ function FiltersAndSettings({}: {}) {
     <div className={styles.hudControlsRow}>
       <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
       {isPyTorchMain && (
-        <button
-          className={`${autorevertStyles.autorevertToggle} ${
-            autorevertView ? autorevertStyles.autorevertToggleActive : ""
-          }`}
-          onClick={() => {
-            const next = !autorevertView;
-            setAutorevertView(next);
-            // Update URL param for shareability
-            const url = new URL(window.location.href);
-            if (next) {
-              url.searchParams.set("autorevert", "1");
-            } else {
+        <div className={autorevertStyles.toggleWrapper}>
+          <button
+            className={`${autorevertStyles.toggleOption} ${
+              !autorevertView ? autorevertStyles.toggleOptionActive : ""
+            }`}
+            onClick={() => {
+              setAutorevertView(false);
+              const url = new URL(window.location.href);
               url.searchParams.delete("autorevert");
-            }
-            window.history.replaceState({}, "", url.toString());
-          }}
-        >
-          ⚡ Autorevert
-        </button>
+              window.history.replaceState({}, "", url.toString());
+            }}
+          >
+            HUD
+          </button>
+          <button
+            className={`${autorevertStyles.toggleOption} ${
+              autorevertView ? autorevertStyles.toggleOptionActive : ""
+            }`}
+            onClick={() => {
+              setAutorevertView(true);
+              const url = new URL(window.location.href);
+              url.searchParams.set("autorevert", "1");
+              window.history.replaceState({}, "", url.toString());
+            }}
+          >
+            Autorevert
+          </button>
+        </div>
       )}
       <SettingsPanel
         settingGroups={{

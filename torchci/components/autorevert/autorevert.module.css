@@ -30,31 +30,31 @@
 }
 
 .colSignal {
-  width: 14px;
-  min-width: 14px;
-  max-width: 14px;
-  padding: 0;
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  padding: 1px 2px;
   text-align: center;
   vertical-align: middle;
 }
 
 /* Rotated signal column headers */
 .signalHeader {
-  height: 180px;
+  height: 200px;
   white-space: nowrap;
   vertical-align: bottom;
-  padding: 0 1px;
+  padding: 0 2px;
 }
 
 .signalHeaderInner {
-  transform: translate(3px, 0px) rotate(315deg);
+  transform: translate(5px, 0px) rotate(315deg);
   transform-origin: bottom left;
-  width: 14px;
-  font-size: 0.7rem;
+  width: 20px;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--text-color, #333);
-  overflow: hidden;
-  text-overflow: clip;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 /* Outcome badge row */
@@ -210,33 +210,43 @@
   background-color: rgba(211, 47, 47, 0.12);
 }
 
-/* Toggle button */
-.autorevertToggle {
+/* Toggle switch: HUD <-> Autorevert */
+.toggleWrapper {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  gap: 0;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid var(--border-color, #ccc);
+  user-select: none;
+  margin-left: auto; /* push to far right */
+}
+
+.toggleOption {
+  padding: 5px 14px;
+  color: var(--text-color-secondary, #666);
   background: transparent;
-  color: var(--text-color, #333);
   transition: all 0.15s;
+  border: none;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
 }
 
-.autorevertToggle:hover {
-  border-color: #1976d2;
-  color: #1976d2;
+.toggleOption:hover {
+  color: var(--text-color, #333);
 }
 
-.autorevertToggleActive {
+.toggleOptionActive {
   background: #1976d2;
   color: #fff;
-  border-color: #1976d2;
 }
 
-.autorevertToggleActive:hover {
+.toggleOptionActive:hover {
   background: #1565c0;
+  color: #fff;
 }
