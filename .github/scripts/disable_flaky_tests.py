@@ -20,8 +20,7 @@ def main() -> None:
     hud_bot_token = os.environ.get("HUD_API_TOKEN", "")
 
     if not auth_token:
-        print("::error::FLAKY_TEST_BOT_KEY is not set")
-        sys.exit(1)
+        sys.exit("::error::FLAKY_TEST_BOT_KEY is not set")
 
     headers = {
         "Authorization": auth_token,
@@ -39,8 +38,7 @@ def main() -> None:
         body = e.read().decode("utf-8", errors="replace") if e.fp else ""
         status = e.code
     except urllib.error.URLError as e:
-        print(f"::error::Connection failed: {e.reason}")
-        sys.exit(1)
+        sys.exit(f"::error::Connection failed: {e.reason}")
 
     if status != 200:
         print(f"::error::Request failed with HTTP {status}")
@@ -51,8 +49,7 @@ def main() -> None:
     # instead of forwarding the request, so a status check alone won't catch it.
     # This broke the bot silently from Mar 11 to Apr 8 2026.
     if "Vercel Security Checkpoint" in body:
-        print("::error::Request was blocked by Vercel bot protection")
-        sys.exit(1)
+        sys.exit("::error::Request was blocked by Vercel bot protection")
 
     print(f"Successfully called {HUD_URL} (HTTP {status})")
 
