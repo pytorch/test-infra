@@ -10,9 +10,11 @@ on:
 jobs:
   cron:
     runs-on: ubuntu-22.04
+    environment: hud
     steps:
+      - uses: actions/checkout@v4
       - name: Fetch and file issues for flaky tests
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/flaky-tests/disable' \
-          --header 'Authorization: ${{ secrets.FLAKY_TEST_BOT_KEY }}'
+        env:
+          FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          X_HUD_BOT_TOKEN: ${{ secrets.X_HUD_BOT_TOKEN }}
+        run: python .github/scripts/disable_flaky_tests.py
