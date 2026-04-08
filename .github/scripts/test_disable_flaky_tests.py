@@ -112,9 +112,7 @@ class TestDisableFlakyTests(unittest.TestCase):
 
     def test_connection_refused(self):
         with patch.object(disable_flaky_tests, "HUD_URL", "http://127.0.0.1:19999"):
-            code = self._run_main(
-                {"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"}
-            )
+            code = self._run_main({"FLAKY_TEST_BOT_KEY": "key", "HUD_API_TOKEN": "tok"})
         self.assertEqual(code, 1)
 
     def test_headers_sent(self):
