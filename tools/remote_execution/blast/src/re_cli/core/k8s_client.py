@@ -299,7 +299,7 @@ class K8sClient:
     # RunQuery Operations
     # =========================================================================
 
-    def query_task_status(self, task_id: str) -> Optional[dict]:
+    def query_task_status(self, task_id: str, *, include_downloads: bool = False, tail_lines: int = 0) -> Optional[dict]:
         """Query task status via RunQuery CRD."""
         crd_name = f"query-{uuid.uuid4().hex[:8]}"
 
@@ -308,6 +308,10 @@ class K8sClient:
             "task_id": task_id,
             "ttlSecondsAfterFinished": 60,
         }
+        if include_downloads:
+            spec["include_downloads"] = True
+        if tail_lines > 0:
+            spec["tail_lines"] = tail_lines
 
         self._apply_crd("RunQuery", "runqueries", crd_name, spec)
 
@@ -335,7 +339,7 @@ class K8sClient:
             "run_id": result.get("run_id"),
         }
 
-    def query_run_status(self, run_id: str) -> Optional[dict]:
+    def query_run_status(self, run_id: str, *, include_downloads: bool = False) -> Optional[dict]:
         """Query run status via RunQuery CRD."""
         crd_name = f"query-{uuid.uuid4().hex[:8]}"
 
@@ -344,6 +348,8 @@ class K8sClient:
             "run_id": run_id,
             "ttlSecondsAfterFinished": 60,
         }
+        if include_downloads:
+            spec["include_downloads"] = True
 
         self._apply_crd("RunQuery", "runqueries", crd_name, spec)
 

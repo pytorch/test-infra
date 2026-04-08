@@ -65,7 +65,11 @@ def resolve_pr_url(pr_url: str) -> tuple[str, str]:
 
     data = resp.json()
     head_sha = data["head"]["sha"]
-    repo_url = data["head"]["repo"]["clone_url"]
+    head_repo = data["head"]["repo"]
+    if head_repo is None:
+        console.print("[red]Error: PR head repo is unavailable (fork may have been deleted)[/red]")
+        sys.exit(1)
+    repo_url = head_repo["clone_url"]
     # Strip .git suffix for consistency
     if repo_url.endswith(".git"):
         repo_url = repo_url[:-4]

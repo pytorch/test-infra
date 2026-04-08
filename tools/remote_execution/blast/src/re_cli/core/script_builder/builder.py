@@ -7,7 +7,7 @@ Two main outputs:
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 
 @dataclass

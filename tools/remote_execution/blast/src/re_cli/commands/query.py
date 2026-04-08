@@ -89,19 +89,15 @@ def _parse_time(ts: str):
 # =============================================================================
 
 
-def print_task_detail(client, task_id: str):
-    """Print detailed task status with history."""
-    task = client.query_task_status(task_id)
-    if not task:
-        console.print(f"[dim]  Task {task_id}: not found[/dim]")
-        return
-
+def _print_task_panel(task: dict):
+    """Print task status panel with history."""
+    task_id = task.get("id", "?")
     current_status = task.get("current_status", "unknown")
     status_color = get_status_color(current_status)
 
     console.print(
         Panel.fit(
-            f"[bold]Task ID:[/bold] {task.get('id')}\n"
+            f"[bold]Task ID:[/bold] {task_id}\n"
             f"[bold]Name:[/bold] {task.get('name')}\n"
             f"[bold]Status:[/bold] [{status_color}]{current_status}[/{status_color}]\n"
             f"[bold]Run ID:[/bold] {task.get('run_id', 'N/A')}\n"
@@ -133,6 +129,15 @@ def print_task_detail(client, task_id: str):
         console.print(table)
 
 
+def print_task_detail(client, task_id: str):
+    """Print detailed task status with history."""
+    task = client.query_task_status(task_id)
+    if not task:
+        console.print(f"[dim]  Task {task_id}: not found[/dim]")
+        return
+    _print_task_panel(task)
+
+
 # =============================================================================
 # Click commands
 # =============================================================================
@@ -140,8 +145,9 @@ def print_task_detail(client, task_id: str):
 
 @click.command()
 @click.argument("task_id", type=str)
+@click.option("--log-tail", default=0, type=int, help="Show last N lines of logs (for running tasks)")
 @click.pass_context
-def task_status(ctx, task_id):
+def task_status(ctx, task_id, log_tail):
     """Get task status with history."""
     as_json = ctx.obj.get("as_json", False)
 
@@ -149,13 +155,28 @@ def task_status(ctx, task_id):
 
     try:
         if as_json:
-            task = client.query_task_status(task_id)
+            task = client.query_task_status(task_id, tail_lines=log_tail)
             print(json.dumps(task or {"error": "not found"}, indent=2))
-        print_task_detail(client, task_id)
+            return
+        task = client.query_task_status(task_id, tail_lines=log_tail)
+        if not task:
+            console.print(f"[dim]  Task {task_id}: not found[/dim]")
+            return
+        _print_task_panel(task)
+        if log_tail > 0:
+            if task.get("tail_logs"):
+                console.print(Panel(task["tail_logs"], title="Tail Logs", border_style="dim"))
+            elif task.get("current_status") in ("completed", "failed"):
+                run_id = task.get("run_id", "<run-id>")
+                console.print(
+                    f"[dim]Pod cleaned up. Use: blast download {run_id} "
+                    f"--task {task_id} --logs[/dim]"
+                )
     except Exception as e:
         if as_json:
             print(json.dumps({"error": str(e)}))
-        console.print(f"[red]Error: {e}[/red]")
+        else:
+            console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
 
