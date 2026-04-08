@@ -8,8 +8,8 @@ processed (as opposed to being silently swallowed by Vercel's bot protection).
 
 import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 
 HUD_URL = "https://www.torch-ci.com/api/flaky-tests/disable"
