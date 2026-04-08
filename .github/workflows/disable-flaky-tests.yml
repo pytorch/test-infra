@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     environment: hud
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch and file issues for flaky tests
         env:
           FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
