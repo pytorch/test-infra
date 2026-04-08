@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 from typing import Optional
 
@@ -14,6 +15,66 @@ from ..core.k8s_client import K8sClient
 from ..core.log_stream import _prompt_cancel_action
 from . import get_client
 from .query import save_to_history
+
+
+# =============================================================================
+# PR URL helpers
+# =============================================================================
+
+
+def resolve_pr_url(pr_url: str) -> tuple[str, str]:
+    """Parse a GitHub PR URL and return (repo_url, head_commit_sha).
+
+    Accepts URLs like:
+        https://github.com/pytorch/pytorch/pull/12345
+
+    Calls the GitHub API to get the head branch's latest commit SHA.
+    Uses GH_TOKEN/GITHUB_TOKEN env var for authentication if available.
+    """
+    match = re.match(
+        r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url
+    )
+    if not match:
+        console.print(
+            f"[red]Error: invalid PR URL: {pr_url}[/red]\n"
+            "[dim]Expected format: https://github.com/owner/repo/pull/NUMBER[/dim]"
+        )
+        sys.exit(1)
+
+    owner, repo_name, pr_number = match.group(1), match.group(2), match.group(3)
+    api_url = f"https://api.github.com/repos/{owner}/{repo_name}/pulls/{pr_number}"
+
+    import requests
+
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    resp = requests.get(api_url, headers=headers, timeout=15)
+    if resp.status_code != 200:
+        console.print(
+            f"[red]Error: GitHub API returned {resp.status_code} for PR #{pr_number}[/red]\n"
+            f"[dim]{api_url}[/dim]"
+        )
+        if resp.status_code == 404:
+            console.print(
+                "[dim]PR not found. If this is a private repo, set GH_TOKEN.[/dim]"
+            )
+        sys.exit(1)
+
+    data = resp.json()
+    head_sha = data["head"]["sha"]
+    repo_url = data["head"]["repo"]["clone_url"]
+    # Strip .git suffix for consistency
+    if repo_url.endswith(".git"):
+        repo_url = repo_url[:-4]
+
+    console.print(
+        f"[dim]PR #{pr_number}: {data['title']}[/dim]\n"
+        f"[dim]  repo: {repo_url}  commit: {head_sha[:12]}[/dim]"
+    )
+    return repo_url, head_sha
 
 
 # =============================================================================
@@ -267,6 +328,12 @@ def execute_job(
 )
 @click.option("--commit", default=None, help="Git commit SHA")
 @click.option("--repo", "-r", default=None, help="Git repo URL")
+@click.option(
+    "--pr",
+    "pr_url",
+    default=None,
+    help="GitHub PR URL (extracts repo + commit automatically)",
+)
 @click.option("--raw", is_flag=True, default=False, help="Raw mode: skip S3 upload")
 @click.option("--dry-run", is_flag=True, default=False, help="Dry run")
 @click.option(
@@ -298,6 +365,7 @@ def run_single(
     repo_cache,
     commit,
     repo,
+    pr_url,
     raw,
     dry_run,
     interactive,
@@ -308,8 +376,18 @@ def run_single(
     Examples:
         blast run --script build.sh --type cpu-44 --follow
         blast run --config single-step.json --follow
+        blast run --pr https://github.com/pytorch/pytorch/pull/12345 -c 'python test.py' -f
     """
     as_json = ctx.obj.get("as_json", False)
+
+    # Resolve --pr to --repo and --commit
+    if pr_url:
+        if repo or commit:
+            console.print(
+                "[red]Error: --pr cannot be used with --repo or --commit[/red]"
+            )
+            sys.exit(1)
+        repo, commit = resolve_pr_url(pr_url)
 
     # Load from config file if provided
     steps_json = []
@@ -491,6 +569,12 @@ def run_single(
     help="Git repo URL",
 )
 @click.option(
+    "--pr",
+    "pr_url",
+    default=None,
+    help="GitHub PR URL (extracts repo + commit automatically)",
+)
+@click.option(
     "--raw",
     is_flag=True,
     default=False,
@@ -532,6 +616,7 @@ def run_steps(
     repo_cache,
     commit,
     repo,
+    pr_url,
     raw,
     dry_run,
     depends_on,
@@ -547,8 +632,18 @@ def run_steps(
             --step build --script ./build.sh --type cpu \\
             --step test --script ./test.sh --type gpu-l6 \\
             --follow
+        blast run-steps --pr https://github.com/pytorch/pytorch/pull/12345 --config job.json
     """
     as_json = ctx.obj.get("as_json", False)
+
+    # Resolve --pr to --repo and --commit
+    if pr_url:
+        if repo or commit:
+            console.print(
+                "[red]Error: --pr cannot be used with --repo or --commit[/red]"
+            )
+            sys.exit(1)
+        repo, commit = resolve_pr_url(pr_url)
 
     # Load from config file if provided, and override CLI flags if present
     if config_file:
