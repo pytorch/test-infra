@@ -1,0 +1,242 @@
+/* Autorevert Signal Grid styles */
+
+.gridWrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.signalGrid {
+  table-layout: fixed;
+  border-collapse: collapse;
+  line-height: 1.2;
+  font-size: 0.85rem;
+}
+
+/* Column widths */
+.colTime {
+  width: 5.5ch;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-color-secondary, #666);
+  padding: 2px 4px;
+}
+
+.colSha {
+  width: 7ch;
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+}
+
+.colSignal {
+  width: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Rotated signal column headers */
+.signalHeader {
+  height: 180px;
+  white-space: nowrap;
+  vertical-align: bottom;
+  padding: 0 1px;
+}
+
+.signalHeaderInner {
+  transform: translate(3px, 0px) rotate(315deg);
+  transform-origin: bottom left;
+  width: 14px;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-color, #333);
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+/* Outcome badge row */
+.outcomeBadge {
+  display: inline-block;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.outcomeRevert {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.outcomeRestart {
+  background: #1976d2;
+  color: #fff;
+}
+
+.outcomeIneligible {
+  background: var(--border-color, #ccc);
+  color: var(--text-color-secondary, #666);
+}
+
+/* Cell highlights */
+.cellSuspected {
+  background-color: rgba(211, 47, 47, 0.15);
+}
+
+.cellBaseline {
+  background-color: rgba(25, 118, 210, 0.12);
+}
+
+.cellNewerFail {
+  background-color: rgba(211, 47, 47, 0.08);
+}
+
+.cellRestart {
+  outline: 2px dashed var(--color-warning, #ed6c02);
+  outline-offset: -2px;
+}
+
+/* Status icons */
+.eventIcon {
+  font-family: monospace;
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.eventIcon:hover {
+  opacity: 0.7;
+}
+
+.statusSuccess {
+  color: var(--color-success, #3ba272);
+}
+
+.statusFailure {
+  color: var(--color-failure, #ee6666);
+}
+
+.statusPending {
+  color: var(--color-pending, #f0c674);
+}
+
+/* Advisor badges in cells */
+.advisorBadge {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0px 2px;
+  border-radius: 2px;
+  margin-left: 1px;
+  cursor: pointer;
+  vertical-align: top;
+  line-height: 1.3;
+}
+
+.advRevert {
+  background: rgba(211, 47, 47, 0.2);
+  color: #d32f2f;
+}
+
+.advNotRelated {
+  background: rgba(56, 142, 60, 0.2);
+  color: #388e3c;
+}
+
+.advGarbage {
+  background: rgba(141, 110, 99, 0.2);
+  color: #8d6e63;
+}
+
+.advUnsure {
+  background: rgba(117, 117, 117, 0.2);
+  color: #757575;
+}
+
+.advPending {
+  font-style: italic;
+  color: var(--text-color-secondary, #999);
+  font-size: 0.5rem;
+}
+
+/* Outcome detail popover */
+.outcomeDetail {
+  max-width: 400px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Controls bar */
+.controlsBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.timestampNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+/* Commit row */
+.commitRow {
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.commitRow:hover {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+/* Dark mode overrides */
+:global(.dark-mode) .cellSuspected {
+  background-color: rgba(211, 47, 47, 0.25);
+}
+
+:global(.dark-mode) .cellBaseline {
+  background-color: rgba(25, 118, 210, 0.2);
+}
+
+:global(.dark-mode) .cellNewerFail {
+  background-color: rgba(211, 47, 47, 0.12);
+}
+
+/* Toggle button */
+.autorevertToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-color, #ccc);
+  background: transparent;
+  color: var(--text-color, #333);
+  transition: all 0.15s;
+}
+
+.autorevertToggle:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.autorevertToggleActive {
+  background: #1976d2;
+  color: #fff;
+  border-color: #1976d2;
+}
+
+.autorevertToggleActive:hover {
+  background: #1565c0;
+}

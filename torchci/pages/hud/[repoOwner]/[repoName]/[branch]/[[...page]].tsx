@@ -1,3 +1,5 @@
+import AutorevertView from "components/autorevert/AutorevertView";
+import autorevertStyles from "components/autorevert/autorevert.module.css";
 import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
@@ -378,6 +380,7 @@ function FiltersAndSettings({}: {}) {
   const params = packHudParams(router.query);
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [autorevertView, setAutorevertView] = useContext(AutorevertViewContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns, setHideGreenColumns] =
@@ -388,9 +391,36 @@ function FiltersAndSettings({}: {}) {
     params.nameFilter
   );
 
+  // Only show autorevert toggle for pytorch/pytorch main
+  const isPyTorchMain =
+    params.repoOwner === "pytorch" &&
+    params.repoName === "pytorch" &&
+    params.branch === "main";
+
   return (
     <div className={styles.hudControlsRow}>
       <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
+      {isPyTorchMain && (
+        <button
+          className={`${autorevertStyles.autorevertToggle} ${
+            autorevertView ? autorevertStyles.autorevertToggleActive : ""
+          }`}
+          onClick={() => {
+            const next = !autorevertView;
+            setAutorevertView(next);
+            // Update URL param for shareability
+            const url = new URL(window.location.href);
+            if (next) {
+              url.searchParams.set("autorevert", "1");
+            } else {
+              url.searchParams.delete("autorevert");
+            }
+            window.history.replaceState({}, "", url.toString());
+          }}
+        >
+          ⚡ Autorevert
+        </button>
+      )}
       <SettingsPanel
         settingGroups={{
           // You need to specify both checkBoxName and key for each setting.
@@ -530,9 +560,17 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
   (_) => {},
 ]);
 
+export const AutorevertViewContext = createContext<
+  [boolean, (val: boolean) => void]
+>([false, (_) => {}]);
+
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  // Initialize autorevert view from URL param
+  const [autorevertView, setAutorevertView] = useState(
+    router.query.autorevert === "1"
+  );
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,
@@ -583,26 +621,40 @@ export default function Hud() {
           <MergeLFContext.Provider
             value={[mergeEphemeralLF, setMergeEphemeralLF]}
           >
-            {params.branch !== undefined && (
-              <div onClick={handleClick}>
-                <div style={{ display: "flex", alignItems: "flex-end" }}>
-                  <HudHeader params={params} />
-                  <CopyPermanentLink
-                    params={params}
-                    style={{ marginLeft: "10px" }}
-                  />
+            <AutorevertViewContext.Provider
+              value={[autorevertView, setAutorevertView]}
+            >
+              {params.branch !== undefined && (
+                <div onClick={handleClick}>
+                  <div style={{ display: "flex", alignItems: "flex-end" }}>
+                    <HudHeader params={params} />
+                    <CopyPermanentLink
+                      params={params}
+                      style={{ marginLeft: "10px" }}
+                    />
+                  </div>
+                  <div style={{ position: "relative", clear: "both" }}>
+                    <FiltersAndSettings />
+                    {autorevertView ? (
+                      <AutorevertView />
+                    ) : (
+                      <>
+                        <GroupedHudTable params={params} />
+                      </>
+                    )}
+                  </div>
+                  {!autorevertView && (
+                    <>
+                      <PageSelector params={params} baseUrl="hud" />
+                      <br />
+                      <div>
+                        <em>This page automatically updates.</em>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div style={{ position: "relative", clear: "both" }}>
-                  <FiltersAndSettings />
-                  <GroupedHudTable params={params} />
-                </div>
-                <PageSelector params={params} baseUrl="hud" />
-                <br />
-                <div>
-                  <em>This page automatically updates.</em>
-                </div>
-              </div>
-            )}
+              )}
+            </AutorevertViewContext.Provider>
           </MergeLFContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>

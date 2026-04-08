@@ -1,0 +1,12 @@
+{
+  "params": {
+    "repo": "String",
+    "ts": "DateTime"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "ts": "2026-04-08T21:00:00"
+    }
+  ]
+}
