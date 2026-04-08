@@ -145,7 +145,12 @@ def print_task_detail(client, task_id: str):
 
 @click.command()
 @click.argument("task_id", type=str)
-@click.option("--log-tail", default=0, type=int, help="Show last N lines of logs (for running tasks)")
+@click.option(
+    "--log-tail",
+    default=0,
+    type=int,
+    help="Show last N lines of logs (for running tasks)",
+)
 @click.pass_context
 def task_status(ctx, task_id, log_tail):
     """Get task status with history."""
@@ -165,7 +170,9 @@ def task_status(ctx, task_id, log_tail):
         _print_task_panel(task)
         if log_tail > 0:
             if task.get("tail_logs"):
-                console.print(Panel(task["tail_logs"], title="Tail Logs", border_style="dim"))
+                console.print(
+                    Panel(task["tail_logs"], title="Tail Logs", border_style="dim")
+                )
             elif task.get("current_status") in ("completed", "failed"):
                 run_id = task.get("run_id", "<run-id>")
                 console.print(

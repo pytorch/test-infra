@@ -66,7 +66,13 @@ def download(ctx, run_id, task_id, output_dir, include_logs):
             status = task.get("current_status", "unknown")
             if status not in ("completed", "failed"):
                 if as_json:
-                    print(json.dumps({"error": f"Task {task_id} is '{status}', not completed/failed"}))
+                    print(
+                        json.dumps(
+                            {
+                                "error": f"Task {task_id} is '{status}', not completed/failed"
+                            }
+                        )
+                    )
                 else:
                     console.print(
                         f"[yellow]Task {task_id} is '{status}' — "
@@ -76,7 +82,9 @@ def download(ctx, run_id, task_id, output_dir, include_logs):
 
             downloads = task.get("downloads", {})
             if as_json:
-                print(json.dumps({"task_id": task_id, "downloads": downloads}, indent=2))
+                print(
+                    json.dumps({"task_id": task_id, "downloads": downloads}, indent=2)
+                )
                 return
 
             if not downloads.get("outputs") and not downloads.get("logs"):
@@ -122,9 +130,7 @@ def download(ctx, run_id, task_id, output_dir, include_logs):
 
                 if not downloads.get("outputs") and not downloads.get("logs"):
                     if status in ("completed", "failed"):
-                        console.print(
-                            f"[dim]  {t.get('name', tid)}: no outputs[/dim]"
-                        )
+                        console.print(f"[dim]  {t.get('name', tid)}: no outputs[/dim]")
                     continue
 
                 task_dir = out_path / tid

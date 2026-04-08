@@ -299,7 +299,9 @@ class K8sClient:
     # RunQuery Operations
     # =========================================================================
 
-    def query_task_status(self, task_id: str, *, include_downloads: bool = False, tail_lines: int = 0) -> Optional[dict]:
+    def query_task_status(
+        self, task_id: str, *, include_downloads: bool = False, tail_lines: int = 0
+    ) -> Optional[dict]:
         """Query task status via RunQuery CRD."""
         crd_name = f"query-{uuid.uuid4().hex[:8]}"
 
@@ -339,7 +341,9 @@ class K8sClient:
             "run_id": result.get("run_id"),
         }
 
-    def query_run_status(self, run_id: str, *, include_downloads: bool = False) -> Optional[dict]:
+    def query_run_status(
+        self, run_id: str, *, include_downloads: bool = False
+    ) -> Optional[dict]:
         """Query run status via RunQuery CRD."""
         crd_name = f"query-{uuid.uuid4().hex[:8]}"
 

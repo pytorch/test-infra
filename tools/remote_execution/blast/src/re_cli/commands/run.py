@@ -31,9 +31,7 @@ def resolve_pr_url(pr_url: str) -> tuple[str, str]:
     Calls the GitHub API to get the head branch's latest commit SHA.
     Uses GH_TOKEN/GITHUB_TOKEN env var for authentication if available.
     """
-    match = re.match(
-        r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url
-    )
+    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
     if not match:
         console.print(
             f"[red]Error: invalid PR URL: {pr_url}[/red]\n"
@@ -67,7 +65,9 @@ def resolve_pr_url(pr_url: str) -> tuple[str, str]:
     head_sha = data["head"]["sha"]
     head_repo = data["head"]["repo"]
     if head_repo is None:
-        console.print("[red]Error: PR head repo is unavailable (fork may have been deleted)[/red]")
+        console.print(
+            "[red]Error: PR head repo is unavailable (fork may have been deleted)[/red]"
+        )
         sys.exit(1)
     repo_url = head_repo["clone_url"]
     # Strip .git suffix for consistency
