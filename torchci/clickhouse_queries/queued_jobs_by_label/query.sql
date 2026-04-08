@@ -77,10 +77,13 @@ arc_queued_jobs AS (
             --- Phase 2: picked up by runner but still initializing containers.
             --- Container init is always the first 2 steps (Set up job +
             --- Initialize containers). If only those steps exist, actual
-            --- work hasn't started yet.
+            --- work hasn't started yet. The 10 min cap guards against stale
+            --- step data in ClickHouse — the job is either running ok or fails
+            --- already if it has less than 2 steps after 10 minutes
             (job.status = 'in_progress'
              AND LENGTH(job.steps) > 0
-             AND LENGTH(job.steps) <= 2)
+             AND LENGTH(job.steps) <= 2
+             AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
         )
 )
 SELECT
