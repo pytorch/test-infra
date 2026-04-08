@@ -200,7 +200,9 @@ import json, sys
 with open(sys.argv[1]) as f:
     vols = json.load(f)[:20]
 for v in vols:
-    print(f\"  {v['VolumeId']}  {v['Size']:>5} GiB  {v['VolumeType']}  created {v['CreateTime']}\")
+    name = v.get('Name', '')
+    name_str = f'  name={name}' if name else ''
+    print(f\"  {v['VolumeId']}  {v['Size']:>5} GiB  {v['VolumeType']}  created {v['CreateTime']}{name_str}\")
 " "$FILTERED_FILE"
   echo ""
   log "Full list written to: $FILTERED_FILE"
