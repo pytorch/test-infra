@@ -47,6 +47,9 @@ def main() -> None:
         print(body[:2000])
         sys.exit(1)
 
+    # Vercel's bot protection returns HTTP 200 with a CAPTCHA challenge page
+    # instead of forwarding the request, so a status check alone won't catch it.
+    # This broke the bot silently from Mar 11 to Apr 8 2026.
     if "Vercel Security Checkpoint" in body:
         print("::error::Request was blocked by Vercel bot protection")
         sys.exit(1)
