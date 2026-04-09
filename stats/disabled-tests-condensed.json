@@ -809,6 +809,14 @@
       "slow"
     ]
   ],
+  "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179799",
+    "https://github.com/pytorch/pytorch/issues/179799",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -977,6 +985,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
+    "179797",
+    "https://github.com/pytorch/pytorch/issues/179797",
+    [
+      "linux"
     ]
   ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
@@ -1468,6 +1483,15 @@
       "rocm"
     ]
   ],
+  "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
+    "151378",
+    "https://github.com/pytorch/pytorch/issues/151378",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
     "151512",
     "https://github.com/pytorch/pytorch/issues/151512",
@@ -1497,6 +1521,15 @@
       "linux",
       "mac",
       "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_remove_noop_view_dtype_cuda (__main__.GPUTests)": [
+    "151541",
+    "https://github.com/pytorch/pytorch/issues/151541",
+    [
+      "linux",
       "rocm",
       "slow"
     ]
