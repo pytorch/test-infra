@@ -79,16 +79,19 @@ export default function AutorevertView() {
     );
 
   // Lazy-load autorevert events (restarts, reverts, advisor dispatches)
-  // for the time range covered by visible commits
+  // for the time range covered by visible commits.
+  // commitTimes values are UTC strings without Z suffix — append Z for correct parsing.
   const timeRange = useMemo(() => {
     if (!stateValid || commitShas.length === 0) return null;
     const times = Object.values(stateData.commitTimes)
-      .map((t) => new Date(t).getTime())
+      .map((t) => new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime())
       .filter((t) => !isNaN(t));
     if (times.length === 0) return null;
+    const fmt = (ms: number) =>
+      new Date(ms).toISOString().replace("T", " ").replace("Z", "");
     return {
-      start: new Date(Math.min(...times)).toISOString().replace("T", " ").replace("Z", ""),
-      end: new Date(Math.max(...times) + 3600000).toISOString().replace("T", " ").replace("Z", ""),
+      start: fmt(Math.min(...times)),
+      end: fmt(Math.max(...times) + 3600000),
     };
   }, [stateValid, stateData?.commitTimes, commitShas]);
 

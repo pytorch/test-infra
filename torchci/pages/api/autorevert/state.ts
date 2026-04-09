@@ -126,10 +126,13 @@ function mergeStates(
     }
   }
   // Sort by timestamp desc (newest first)
+  // Append Z to ensure UTC parsing (CH timestamps lack timezone suffix)
+  const parseUtc = (t: string) =>
+    new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime();
   commitOrder.sort(
     (a, b) =>
-      new Date(commitTimes[b] || 0).getTime() -
-      new Date(commitTimes[a] || 0).getTime()
+      parseUtc(commitTimes[b] || "1970-01-01") -
+      parseUtc(commitTimes[a] || "1970-01-01")
   );
   // Find which commits have events in the filtered columns
   const commitsWithEvents = new Set<string>();

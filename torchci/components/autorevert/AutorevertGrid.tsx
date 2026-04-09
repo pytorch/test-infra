@@ -92,14 +92,15 @@ export default function AutorevertGrid({
 
     for (let i = 0; i < commits.length; i++) {
       const sha = commits[i];
-      const commitTime = new Date(times[sha] || 0).getTime();
+      const parseUtc = (t: string) => new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime();
+      const commitTime = parseUtc(times[sha] || "1970-01-01");
       // Next newer commit's time (or Infinity for the newest commit)
       const newerTime =
-        i > 0 ? new Date(times[commits[i - 1]] || 0).getTime() : Infinity;
+        i > 0 ? parseUtc(times[commits[i - 1]] || "1970-01-01") : Infinity;
 
       const counts: EventCounts = { restart: 0, revert: 0, advisor: 0 };
       for (const ev of autorevertEvents) {
-        const evTime = new Date(ev.ts).getTime();
+        const evTime = new Date(ev.ts + (ev.ts.endsWith("Z") ? "" : "Z")).getTime();
         if (evTime >= commitTime && evTime < newerTime) {
           if (ev.action in counts) {
             counts[ev.action as keyof EventCounts]++;
