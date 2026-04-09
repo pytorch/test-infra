@@ -183,7 +183,7 @@ export default function AutorevertGrid({
       .filter(Boolean);
     if (terms.length === 0) return state.columns;
     return state.columns.filter((col) => {
-      const text = `${col.workflow} ${col.key}`.toLowerCase();
+      const text = `${col.workflow}: ${col.key}`.toLowerCase();
       return terms.some((term) => text.includes(term));
     });
   }, [state.columns, signalFilter]);
