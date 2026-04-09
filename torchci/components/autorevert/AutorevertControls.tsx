@@ -119,7 +119,7 @@ export default function AutorevertControls({
       <TextField
         size="small"
         label="Signal filter"
-        placeholder="e.g. test_cuda inductor"
+        placeholder="e.g. test_cuda | inductor"
         value={signalFilter}
         onChange={(e) => onSignalFilterChange(e.target.value)}
         sx={{ width: 200 }}

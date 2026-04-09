@@ -87,10 +87,12 @@ export default function AutorevertGrid({
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
     if (!signalFilter) return state.columns;
-    // Support multiple space-separated terms — column matches if ANY term matches
+    // Support multiple pipe-separated terms — column matches if ANY term matches.
+    // Pipe is used because both commas and spaces appear in signal keys.
     const terms = signalFilter
       .toLowerCase()
-      .split(/\s+/)
+      .split("|")
+      .map((t) => t.trim())
       .filter(Boolean);
     if (terms.length === 0) return state.columns;
     return state.columns.filter((col) => {
