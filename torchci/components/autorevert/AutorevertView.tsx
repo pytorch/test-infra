@@ -61,7 +61,7 @@ function readUrlParams(): {
   const sha = params.get(PARAM_SHA);
   if (sha) result.highlightSha = sha;
 
-  if (params.get(PARAM_HIDE_TIMELINE) === "1") result.hideTimeline = true;
+  if (params.has(PARAM_HIDE_TIMELINE)) result.hideTimeline = true;
 
   return result;
 }
