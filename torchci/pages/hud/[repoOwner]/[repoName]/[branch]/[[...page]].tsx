@@ -566,6 +566,10 @@ export default function Hud() {
   const [autorevertView, setAutorevertView] = useState(() =>
     isAutorevertActive(router.query)
   );
+  // Sync autorevert state when route changes (e.g. clicking "home")
+  useEffect(() => {
+    setAutorevertView(isAutorevertActive(router.query));
+  }, [router.query]);
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,

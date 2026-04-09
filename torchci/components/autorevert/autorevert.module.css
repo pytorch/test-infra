@@ -432,6 +432,8 @@
   cursor: pointer;
   user-select: none;
   margin-left: auto; /* push to far right */
+  position: relative;
+  z-index: 10;
 }
 
 .toggleOption {
