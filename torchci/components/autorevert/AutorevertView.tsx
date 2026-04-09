@@ -6,7 +6,7 @@ import {
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import AutorevertControls from "./AutorevertControls";
 import AutorevertGrid from "./AutorevertGrid";
@@ -17,6 +17,52 @@ dayjs.extend(utc);
 
 const DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull"];
 
+// URL param keys (prefixed with ar_ to avoid conflicts with HUD params)
+const PARAM_TS = "ar_ts";
+const PARAM_WF = "ar_wf";
+const PARAM_SF = "ar_sf";
+
+/** Read autorevert params from current URL */
+function readUrlParams(): {
+  ts?: dayjs.Dayjs;
+  workflows?: string[];
+  signalFilter?: string;
+} {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search);
+  const result: ReturnType<typeof readUrlParams> = {};
+
+  const tsStr = params.get(PARAM_TS);
+  if (tsStr) {
+    const parsed = dayjs(tsStr);
+    if (parsed.isValid()) result.ts = parsed;
+  }
+
+  const wfStr = params.get(PARAM_WF);
+  if (wfStr) {
+    result.workflows = wfStr.split(",").filter(Boolean);
+  }
+
+  const sf = params.get(PARAM_SF);
+  if (sf) result.signalFilter = sf;
+
+  return result;
+}
+
+/** Update URL params without navigation */
+function updateUrlParams(updates: Record<string, string | null>) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null || value === "") {
+      url.searchParams.delete(key);
+    } else {
+      url.searchParams.set(key, value);
+    }
+  }
+  window.history.replaceState({}, "", url.toString());
+}
+
 interface CommitInfoRow {
   sha: string;
   message: string;
@@ -25,10 +71,47 @@ interface CommitInfoRow {
 }
 
 export default function AutorevertView() {
-  const [timestamp, setTimestamp] = useState(dayjs());
-  const [selectedWorkflows, setSelectedWorkflows] =
-    useState<string[]>(DEFAULT_WORKFLOWS);
-  const [signalFilter, setSignalFilter] = useState("");
+  // Initialize state from URL params
+  const urlParams = useMemo(() => readUrlParams(), []);
+
+  const [timestamp, setTimestamp] = useState(urlParams.ts || dayjs());
+  const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>(
+    urlParams.workflows || DEFAULT_WORKFLOWS
+  );
+  const [signalFilter, setSignalFilter] = useState(
+    urlParams.signalFilter || ""
+  );
+
+  // Sync state changes to URL
+  const handleTimestampChange = useCallback((ts: dayjs.Dayjs) => {
+    setTimestamp(ts);
+    updateUrlParams({
+      [PARAM_TS]: ts.utc().format("YYYY-MM-DDTHH:mm:ss[Z]"),
+    });
+  }, []);
+
+  const handleWorkflowsChange = useCallback((wf: string[]) => {
+    setSelectedWorkflows(wf);
+    updateUrlParams({
+      [PARAM_WF]: wf.length > 0 ? wf.join(",") : null,
+    });
+  }, []);
+
+  const handleSignalFilterChange = useCallback((sf: string) => {
+    setSignalFilter(sf);
+    updateUrlParams({ [PARAM_SF]: sf || null });
+  }, []);
+
+  // Set initial URL params on mount if not already present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has(PARAM_TS)) {
+      updateUrlParams({
+        [PARAM_TS]: timestamp.utc().format("YYYY-MM-DDTHH:mm:ss[Z]"),
+        [PARAM_WF]: selectedWorkflows.join(","),
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch merged autorevert state
   const stateUrl = useMemo(() => {
@@ -78,9 +161,7 @@ export default function AutorevertView() {
       commitShas.length > 0
     );
 
-  // Lazy-load autorevert events (restarts, reverts, advisor dispatches)
-  // for the time range covered by visible commits.
-  // commitTimes values are UTC strings without Z suffix — append Z for correct parsing.
+  // Lazy-load autorevert events and run timestamps
   const timeRange = useMemo(() => {
     if (!stateValid || commitShas.length === 0) return null;
     const times = Object.values(stateData.commitTimes)
@@ -88,7 +169,11 @@ export default function AutorevertView() {
       .filter((t) => !isNaN(t));
     if (times.length === 0) return null;
     const fmt = (ms: number) =>
-      new Date(ms).toISOString().replace("T", " ").replace("Z", "").replace(/\.\d+$/, "");
+      new Date(ms)
+        .toISOString()
+        .replace("T", " ")
+        .replace("Z", "")
+        .replace(/\.\d+$/, "");
     return {
       start: fmt(Math.min(...times)),
       end: fmt(Math.max(...times) + 3600000),
@@ -112,7 +197,6 @@ export default function AutorevertView() {
     timeRange !== null
   );
 
-  // Fetch autorevert run timestamps (state snapshot times) for the dots line
   const { data: runTimestamps } = useClickHouseAPIImmutable<{
     ts: string;
     workflows: string[];
@@ -132,7 +216,8 @@ export default function AutorevertView() {
     : null;
 
   const handleTimestampFromGrid = (isoTime: string) => {
-    setTimestamp(dayjs(ensureUtc(isoTime)).local());
+    const ts = dayjs(ensureUtc(isoTime)).local();
+    handleTimestampChange(ts);
   };
 
   return (
@@ -168,12 +253,12 @@ export default function AutorevertView() {
 
       <AutorevertControls
         timestamp={timestamp}
-        onTimestampChange={setTimestamp}
+        onTimestampChange={handleTimestampChange}
         availableWorkflows={stateData?.availableWorkflows || []}
         selectedWorkflows={selectedWorkflows}
-        onWorkflowsChange={setSelectedWorkflows}
+        onWorkflowsChange={handleWorkflowsChange}
         signalFilter={signalFilter}
-        onSignalFilterChange={setSignalFilter}
+        onSignalFilterChange={handleSignalFilterChange}
       />
 
       {stateLoading && !stateData && (
