@@ -218,7 +218,11 @@ export default function EventTimeline({
   return (
     <div
       className={styles.timeline}
-      style={{ width: TIMELINE_WIDTH, minWidth: TIMELINE_WIDTH }}
+      style={{
+        width: TIMELINE_WIDTH,
+        minWidth: TIMELINE_WIDTH,
+        height: tableHeight,
+      }}
     >
       {/* Title */}
       <div className={styles.tlTitle}>Activity</div>
