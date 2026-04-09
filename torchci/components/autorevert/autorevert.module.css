@@ -69,6 +69,46 @@
   font-weight: 600;
 }
 
+/* Event timeline (left of grid) */
+.timelineGridContainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.timeline {
+  position: relative;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color, #ddd);
+}
+
+.tlBadge {
+  position: absolute;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: default;
+  pointer-events: auto;
+  line-height: 1.4;
+}
+
+.tlRevert {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.tlRestart {
+  background: #1976d2;
+  color: #fff;
+}
+
+.tlAdvisor {
+  background: #7b1fa2;
+  color: #fff;
+}
+
 /* Rotated signal column headers */
 .signalHeader {
   height: 200px;

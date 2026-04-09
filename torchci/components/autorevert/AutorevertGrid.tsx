@@ -6,15 +6,15 @@ import {
 } from "lib/advisorVerdictUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import AutorevertCell from "./AutorevertCell";
+import EventTimeline from "./EventTimeline";
 import styles from "./autorevert.module.css";
 import {
   AutorevertEventRow,
   AutorevertStateResponse,
   CellHighlight,
   ensureUtc,
-  EventCounts,
   getHighlightsForOutcome,
   parseChTimestamp,
   SignalColumn,
@@ -81,39 +81,7 @@ export default function AutorevertGrid({
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
   const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
-
-  // Build event counts between consecutive commits
-  // For each commit, count events that happened between this commit's time
-  // and the next (newer) commit's time
-  const eventCountsByCommit = useMemo(() => {
-    const map = new Map<string, EventCounts>();
-    if (!autorevertEvents || autorevertEvents.length === 0) return map;
-
-    const commits = state.commits;
-    const times = state.commitTimes;
-
-    for (let i = 0; i < commits.length; i++) {
-      const sha = commits[i];
-      const commitTime = parseChTimestamp(times[sha]);
-      // Next newer commit's time (or Infinity for the newest commit)
-      const newerTime =
-        i > 0 ? parseChTimestamp(times[commits[i - 1]]) : Infinity;
-
-      const counts: EventCounts = { restart: 0, revert: 0, advisor: 0 };
-      for (const ev of autorevertEvents) {
-        const evTime = parseChTimestamp(ev.ts);
-        if (evTime >= commitTime && evTime < newerTime) {
-          if (ev.action in counts) {
-            counts[ev.action as keyof EventCounts]++;
-          }
-        }
-      }
-      if (counts.restart > 0 || counts.revert > 0 || counts.advisor > 0) {
-        map.set(sha, counts);
-      }
-    }
-    return map;
-  }, [autorevertEvents, state.commits, state.commitTimes]);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
@@ -171,11 +139,19 @@ export default function AutorevertGrid({
 
   return (
     <div className={styles.gridWrapper}>
-      <table className={styles.signalGrid}>
+      <div className={styles.timelineGridContainer}>
+        {autorevertEvents && autorevertEvents.length > 0 && (
+          <EventTimeline
+            events={autorevertEvents}
+            commits={state.commits}
+            commitTimes={state.commitTimes}
+            tableRef={tableRef}
+          />
+        )}
+      <table className={styles.signalGrid} ref={tableRef}>
         <colgroup>
           <col className={styles.colTime} />
           <col className={styles.colSha} />
-          <col className={styles.colEvents} />
           {filteredColumns.map((col, i) => {
             const sigKey = `${col.workflow}:${col.key}`;
             return (
@@ -195,7 +171,6 @@ export default function AutorevertGrid({
           <tr>
             <th className={styles.colTime} />
             <th className={styles.colSha} />
-            <th className={styles.signalHeader} />
             {filteredColumns.map((col, i) => {
               const sigKey = `${col.workflow}:${col.key}`;
               const outcome = state.outcomes[sigKey];
@@ -221,7 +196,6 @@ export default function AutorevertGrid({
           <tr>
             <th className={styles.colTime} />
             <th className={styles.colSha} />
-            <th className={styles.colEvents} />
             {filteredColumns.map((col, i) => {
               const { label, cls } =
                 OUTCOME_LABELS[col.outcome] || OUTCOME_LABELS.ineligible;
@@ -241,13 +215,8 @@ export default function AutorevertGrid({
           </tr>
         </thead>
         <tbody>
-          {state.commits.map((sha, rowIdx) => {
+          {state.commits.map((sha) => {
             const time = state.commitTimes[sha];
-            // Previous (newer) commit time for event tooltip
-            const newerTime =
-              rowIdx > 0
-                ? state.commitTimes[state.commits[rowIdx - 1]]
-                : undefined;
             const shortSha = sha.slice(0, 7);
             const commitUrl = `https://github.com/${repo}/commit/${sha}`;
             const shaVerdicts = verdictsBySha.get(sha.trim()) || [];
@@ -353,58 +322,6 @@ export default function AutorevertGrid({
                     </a>
                   )}
                 </td>
-                <td className={styles.colEvents}>
-                  {(() => {
-                    const counts = eventCountsByCommit.get(sha);
-                    if (!counts) return null;
-                    const parts: JSX.Element[] = [];
-                    if (counts.revert > 0)
-                      parts.push(
-                        <span key="r" className={styles.evtRevert}>
-                          {counts.revert} RVT
-                        </span>
-                      );
-                    if (counts.restart > 0)
-                      parts.push(
-                        <span key="s" className={styles.evtRestart}>
-                          {counts.restart} RST
-                        </span>
-                      );
-                    if (counts.advisor > 0)
-                      parts.push(
-                        <span key="a" className={styles.evtAdvisor}>
-                          {counts.advisor} AI
-                        </span>
-                      );
-                    if (parts.length === 0) return null;
-                    return (
-                      <Tooltip
-                        title={
-                          <span style={{ fontSize: "0.9rem" }}>
-                            Events between {formatLocalTime(time)}{" "}
-                            {newerTime
-                              ? `and ${formatLocalTime(newerTime)}`
-                              : "and now"}
-                            {" — click to navigate"}
-                          </span>
-                        }
-                        arrow
-                      >
-                        <span
-                          className={styles.evtBadges}
-                          style={{ cursor: onTimestampChange ? "pointer" : undefined }}
-                          onClick={() => {
-                            if (onTimestampChange && time) {
-                              onTimestampChange(time);
-                            }
-                          }}
-                        >
-                          {parts}
-                        </span>
-                      </Tooltip>
-                    );
-                  })()}
-                </td>
                 {filteredColumns.map((col, i) => {
                   const sigKey = `${col.workflow}:${col.key}`;
                   const events = col.cells?.[sha] || [];
@@ -442,6 +359,7 @@ export default function AutorevertGrid({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
