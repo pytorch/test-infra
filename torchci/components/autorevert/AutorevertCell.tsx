@@ -300,11 +300,13 @@ export default function AutorevertCell({
     <>
       <td
         className={`${styles.colSignal} ${highlightClass} ${isExpanded ? styles.colSignalExpanded : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          setPopoverAnchor(popoverAnchor ? null : e.currentTarget);
+        onMouseEnter={(e) => setPopoverAnchor(e.currentTarget)}
+        onMouseLeave={(e) => {
+          // Don't close if mouse moved into the popover itself
+          const related = e.relatedTarget as HTMLElement | null;
+          if (related?.closest?.(".MuiPopover-paper")) return;
+          setPopoverAnchor(null);
         }}
-        style={{ cursor: "pointer" }}
       >
         {eventIcons}
         {hiddenCount >= 2 && (
@@ -326,7 +328,14 @@ export default function AutorevertCell({
         onClose={() => setPopoverAnchor(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         transformOrigin={{ vertical: "top", horizontal: "center" }}
-        onClick={(e) => e.stopPropagation()}
+        disableRestoreFocus
+        sx={{ pointerEvents: "none" }}
+        slotProps={{
+          paper: {
+            sx: { pointerEvents: "auto" },
+            onMouseLeave: () => setPopoverAnchor(null),
+          },
+        }}
       >
         {popoverContent}
       </Popover>
