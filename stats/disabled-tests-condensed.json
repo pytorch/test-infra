@@ -855,6 +855,14 @@
       "rocm"
     ]
   ],
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_hessian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
     "153644",
     "https://github.com/pytorch/pytorch/issues/153644",
@@ -988,8 +996,8 @@
     ]
   ],
   "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
-    "179797",
-    "https://github.com/pytorch/pytorch/issues/179797",
+    "179798",
+    "https://github.com/pytorch/pytorch/issues/179798",
     [
       "linux"
     ]
@@ -997,6 +1005,14 @@
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
     "179745",
     "https://github.com/pytorch/pytorch/issues/179745",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_memory_stats (__main__.TestCuda)": [
+    "179812",
+    "https://github.com/pytorch/pytorch/issues/179812",
     [
       "linux",
       "slow"
@@ -1555,6 +1571,13 @@
       "linux"
     ]
   ],
+  "test_replicate_fully_shard_init (__main__.ReplicateFullyShardInit)": [
+    "179810",
+    "https://github.com/pytorch/pytorch/issues/179810",
+    [
+      "linux"
+    ]
+  ],
   "test_requires_grad_loop (test_jit.TestScript)": [
     "91492",
     "https://github.com/pytorch/pytorch/issues/91492",
@@ -1644,6 +1667,13 @@
     "https://github.com/pytorch/pytorch/issues/167783",
     [
       "rocm"
+    ]
+  ],
+  "test_sparse_matmul_cpu_complex64 (__main__.TestSparseCPU)": [
+    "179809",
+    "https://github.com/pytorch/pytorch/issues/179809",
+    [
+      "dynamo"
     ]
   ],
   "test_sparse_matmul_cpu_float32 (__main__.TestSparseCPU)": [
