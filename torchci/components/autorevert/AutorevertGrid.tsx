@@ -68,6 +68,7 @@ interface AutorevertGridProps {
   advisorVerdicts?: AdvisorVerdict[];
   commitInfos?: CommitInfo[];
   autorevertEvents?: AutorevertEventRow[];
+  runTimestamps?: Array<{ ts: string; workflows: string[] }>;
   onTimestampChange?: (ts: string) => void;
 }
 
@@ -77,6 +78,7 @@ export default function AutorevertGrid({
   advisorVerdicts,
   commitInfos,
   autorevertEvents,
+  runTimestamps,
   onTimestampChange,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
@@ -140,12 +142,14 @@ export default function AutorevertGrid({
   return (
     <div className={styles.gridWrapper}>
       <div className={styles.timelineGridContainer}>
-        {autorevertEvents && autorevertEvents.length > 0 && (
+        {(autorevertEvents?.length || runTimestamps?.length) && (
           <EventTimeline
-            events={autorevertEvents}
+            events={autorevertEvents || []}
+            runTimestamps={runTimestamps}
             commits={state.commits}
             commitTimes={state.commitTimes}
             tableRef={tableRef}
+            onTimestampSelect={onTimestampChange}
           />
         )}
       <table className={styles.signalGrid} ref={tableRef}>

@@ -1,7 +1,7 @@
 import { Tooltip } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./autorevert.module.css";
-import { AutorevertEventRow, ensureUtc, parseChTimestamp } from "./types";
+import { AutorevertEventRow, parseChTimestamp } from "./types";
 
 const ACTION_STYLE: Record<
   string,
@@ -13,32 +13,41 @@ const ACTION_STYLE: Record<
 };
 
 interface TimelineEvent {
-  ts: number; // UTC millis
+  ts: number;
   action: string;
   commitSha: string;
   signalKeys: string[];
-  raw: AutorevertEventRow;
+}
+
+interface RunTimestamp {
+  ts: string;
+  workflows: string[];
 }
 
 interface EventTimelineProps {
   events: AutorevertEventRow[];
-  commits: string[]; // newest first
+  runTimestamps?: RunTimestamp[];
+  commits: string[];
   commitTimes: Record<string, string>;
   tableRef: React.RefObject<HTMLTableElement | null>;
+  onTimestampSelect?: (utcTs: string) => void;
 }
 
-/**
- * Renders autorevert events as badges on a proportional timeline
- * to the left of the signal grid table.
- *
- * The vertical position of each badge is interpolated between
- * the table rows of the surrounding commits based on the event timestamp.
- */
+function formatLocalTime(tsMs: number): string {
+  return new Date(tsMs).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function EventTimeline({
   events,
+  runTimestamps,
   commits,
   commitTimes,
   tableRef,
+  onTimestampSelect,
 }: EventTimelineProps) {
   const [rowPositions, setRowPositions] = useState<Map<string, number>>(
     new Map()
@@ -46,7 +55,6 @@ export default function EventTimeline({
   const [headerHeight, setHeaderHeight] = useState(0);
   const [tableHeight, setTableHeight] = useState(0);
 
-  // Measure row positions from the table DOM
   useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
@@ -69,7 +77,11 @@ export default function EventTimeline({
       rows.forEach((row, i) => {
         if (i < commits.length) {
           const rect = row.getBoundingClientRect();
-          const midY = rect.top + rect.height / 2 - tableTop + thead.getBoundingClientRect().height;
+          const midY =
+            rect.top +
+            rect.height / 2 -
+            tableTop +
+            thead.getBoundingClientRect().height;
           positions.set(commits[i], midY);
         }
       });
@@ -77,53 +89,27 @@ export default function EventTimeline({
     };
 
     measure();
-    // Re-measure on resize
     const observer = new ResizeObserver(measure);
     observer.observe(table);
     return () => observer.disconnect();
   }, [tableRef, commits]);
 
-  if (events.length === 0 || rowPositions.size === 0) return null;
+  if (rowPositions.size === 0) return null;
 
-  // Parse commit timestamps (newest first, so index 0 = latest time)
+  // Time range from commits
   const commitTimestamps = commits.map((sha) =>
     parseChTimestamp(commitTimes[sha])
   );
+  const newestTs = commitTimestamps[0];
+  const oldestTs = commitTimestamps[commitTimestamps.length - 1];
 
-  // Parse events
-  const timelineEvents: TimelineEvent[] = events
-    .map((ev) => ({
-      ts: parseChTimestamp(ev.ts),
-      action: ev.action,
-      commitSha: ev.commit_sha,
-      signalKeys: ev.source_signal_keys,
-      raw: ev,
-    }))
-    .filter((ev) => {
-      // Only show events within the time range of visible commits
-      const newest = commitTimestamps[0];
-      const oldest = commitTimestamps[commitTimestamps.length - 1];
-      return ev.ts >= oldest && ev.ts <= newest + 3600000; // +1h buffer
-    })
-    .sort((a, b) => b.ts - a.ts); // newest first
-
-  /**
-   * Interpolate Y position for a timestamp between commit rows.
-   * Finds the two surrounding commits and linearly interpolates.
-   */
   function getYForTimestamp(tsMs: number): number {
-    // Commits are newest→oldest, timestamps are decreasing
-    // Find the two commits that bracket this timestamp
     for (let i = 0; i < commitTimestamps.length - 1; i++) {
       const newerTs = commitTimestamps[i];
       const olderTs = commitTimestamps[i + 1];
-      const newerSha = commits[i];
-      const olderSha = commits[i + 1];
-
       if (tsMs <= newerTs && tsMs >= olderTs) {
-        const newerY = rowPositions.get(newerSha) ?? 0;
-        const olderY = rowPositions.get(olderSha) ?? 0;
-        // Linear interpolation
+        const newerY = rowPositions.get(commits[i]) ?? 0;
+        const olderY = rowPositions.get(commits[i + 1]) ?? 0;
         const ratio =
           newerTs === olderTs
             ? 0.5
@@ -131,92 +117,154 @@ export default function EventTimeline({
         return newerY + ratio * (olderY - newerY);
       }
     }
-
-    // Above newest commit
-    if (tsMs > commitTimestamps[0]) {
-      const topY = rowPositions.get(commits[0]) ?? headerHeight;
-      return Math.max(headerHeight, topY - 10);
+    if (tsMs > newestTs) {
+      return Math.max(headerHeight, (rowPositions.get(commits[0]) ?? headerHeight) - 10);
     }
-
-    // Below oldest commit
-    const bottomY =
-      rowPositions.get(commits[commits.length - 1]) ?? tableHeight;
-    return bottomY;
+    return rowPositions.get(commits[commits.length - 1]) ?? tableHeight;
   }
 
-  // Position events, handling horizontal stacking for overlaps
-  interface PositionedEvent extends TimelineEvent {
+  // Parse and filter events
+  const timelineEvents: TimelineEvent[] = events
+    .map((ev) => ({
+      ts: parseChTimestamp(ev.ts),
+      action: ev.action,
+      commitSha: ev.commit_sha,
+      signalKeys: ev.source_signal_keys,
+    }))
+    .filter((ev) => ev.ts >= oldestTs && ev.ts <= newestTs + 3600000)
+    .sort((a, b) => b.ts - a.ts);
+
+  // Position events with horizontal stacking
+  const MIN_GAP = 16;
+  interface Positioned extends TimelineEvent {
     y: number;
     column: number;
   }
-
-  const positioned: PositionedEvent[] = [];
-  const MIN_VERTICAL_GAP = 16; // minimum pixels between badges
-
+  const positioned: Positioned[] = [];
   for (const ev of timelineEvents) {
     const y = getYForTimestamp(ev.ts);
-
-    // Find horizontal column — avoid vertical overlap with existing badges
     let column = 0;
     for (const existing of positioned) {
-      if (
-        Math.abs(existing.y - y) < MIN_VERTICAL_GAP &&
-        existing.column === column
-      ) {
+      if (Math.abs(existing.y - y) < MIN_GAP && existing.column === column) {
         column++;
       }
     }
     positioned.push({ ...ev, y, column });
   }
 
+  // Parse run timestamps for the dots line
+  const runDots = (runTimestamps || [])
+    .map((r) => ({
+      ts: parseChTimestamp(r.ts),
+      workflows: r.workflows,
+    }))
+    .filter((r) => r.ts >= oldestTs && r.ts <= newestTs + 3600000)
+    .sort((a, b) => b.ts - a.ts);
+
   const maxColumn = Math.max(0, ...positioned.map((e) => e.column));
-  const timelineWidth = (maxColumn + 1) * 36 + 8;
+  const badgesWidth = (maxColumn + 1) * 36;
+  const runsLineWidth = 14;
+  const timelineWidth = badgesWidth + runsLineWidth + 12;
+
+  const handleClick = (tsMs: number) => {
+    if (onTimestampSelect) {
+      const iso = new Date(tsMs).toISOString();
+      onTimestampSelect(iso);
+    }
+  };
 
   return (
     <div
       className={styles.timeline}
       style={{ width: timelineWidth, minWidth: timelineWidth }}
     >
+      {/* Title */}
+      <div className={styles.tlTitle}>Activity</div>
+
+      {/* Runs line — vertical line with dots for each autorevert run */}
+      <div
+        className={styles.runsLine}
+        style={{
+          top: headerHeight,
+          height: tableHeight - headerHeight,
+          right: 0,
+        }}
+      >
+        {runDots.map((dot, i) => {
+          const y = getYForTimestamp(dot.ts) - headerHeight;
+          return (
+            <Tooltip
+              key={i}
+              title={
+                <span style={{ fontSize: "0.85rem" }}>
+                  Autorevert run · {formatLocalTime(dot.ts)}
+                  <br />
+                  Click to view this snapshot
+                </span>
+              }
+              arrow
+              placement="left"
+            >
+              <span
+                className={styles.runDot}
+                style={{ top: y - 3 }}
+                onClick={() => handleClick(dot.ts)}
+              />
+            </Tooltip>
+          );
+        })}
+      </div>
+
+      {/* Event badges */}
       {positioned.map((ev, i) => {
         const style = ACTION_STYLE[ev.action] || ACTION_STYLE.restart;
-        const localTime = new Date(ev.ts).toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-        const tooltipContent = (
-          <div style={{ fontSize: "0.85rem" }}>
-            <div style={{ fontWeight: 600 }}>
-              {style.label} · {localTime}
-            </div>
-            <div style={{ marginTop: 2, opacity: 0.8 }}>
-              {ev.commitSha.slice(0, 7)}
-            </div>
-            {ev.signalKeys.length > 0 && (
-              <div
-                style={{
-                  marginTop: 4,
-                  maxWidth: 300,
-                  fontSize: "0.8rem",
-                  wordBreak: "break-word",
-                }}
-              >
-                {ev.signalKeys.map((k, j) => (
-                  <div key={j}>{k}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
         return (
-          <Tooltip key={i} title={tooltipContent} arrow placement="left">
+          <Tooltip
+            key={i}
+            title={
+              <div style={{ fontSize: "0.85rem" }}>
+                <div style={{ fontWeight: 600 }}>
+                  {style.label} · {formatLocalTime(ev.ts)}
+                </div>
+                <div style={{ marginTop: 2, opacity: 0.8 }}>
+                  {ev.commitSha.slice(0, 7)}
+                </div>
+                {ev.signalKeys.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      maxWidth: 300,
+                      fontSize: "0.8rem",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {ev.signalKeys.map((k, j) => (
+                      <div key={j}>{k}</div>
+                    ))}
+                  </div>
+                )}
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: "#90caf9",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  Click to view snapshot
+                </div>
+              </div>
+            }
+            arrow
+            placement="left"
+          >
             <span
               className={`${styles.tlBadge} ${style.cls}`}
               style={{
                 top: ev.y - 7,
-                right: ev.column * 36 + 4,
+                right: ev.column * 36 + runsLineWidth + 8,
+                cursor: "pointer",
               }}
+              onClick={() => handleClick(ev.ts)}
             >
               {style.short}
             </span>

@@ -112,6 +112,21 @@ export default function AutorevertView() {
     timeRange !== null
   );
 
+  // Fetch autorevert run timestamps (state snapshot times) for the dots line
+  const { data: runTimestamps } = useClickHouseAPIImmutable<{
+    ts: string;
+    workflows: string[];
+  }>(
+    "autorevert_run_timestamps",
+    {
+      repo: "pytorch/pytorch",
+      startTime: timeRange?.start || "",
+      endTime: timeRange?.end || "",
+      filterWorkflows: selectedWorkflows,
+    },
+    timeRange !== null
+  );
+
   const snapshotTime = stateData?.ts
     ? dayjs(ensureUtc(stateData.ts)).local().format("YYYY-MM-DD h:mm:ss A")
     : null;
@@ -172,6 +187,7 @@ export default function AutorevertView() {
           advisorVerdicts={advisorVerdicts}
           commitInfos={commitInfoRows}
           autorevertEvents={autorevertEvents as any}
+          runTimestamps={runTimestamps as any}
           onTimestampChange={handleTimestampFromGrid}
         />
       )}

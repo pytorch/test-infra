@@ -82,6 +82,41 @@
   border-right: 1px solid var(--border-color, #ddd);
 }
 
+.tlTitle {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-color-secondary, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.runsLine {
+  position: absolute;
+  width: 10px;
+  border-left: 2px solid var(--border-color, #ddd);
+  margin-left: auto;
+}
+
+.runDot {
+  position: absolute;
+  left: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-color-secondary, #999);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.runDot:hover {
+  transform: scale(1.8);
+  background: #1976d2;
+}
+
 .tlBadge {
   position: absolute;
   font-size: 0.6rem;
@@ -89,7 +124,6 @@
   padding: 1px 4px;
   border-radius: 3px;
   white-space: nowrap;
-  cursor: default;
   pointer-events: auto;
   line-height: 1.4;
 }
