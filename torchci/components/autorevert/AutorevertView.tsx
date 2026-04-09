@@ -49,6 +49,9 @@ export default function AutorevertView() {
       revalidateOnFocus: false,
     });
 
+  // Guard: API may return error object or partial data
+  const stateValid = stateData?.columns && stateData?.commits;
+
   // Lazy-load AI advisor verdicts for commits on screen
   const commitShas = stateValid ? stateData.commits : [];
   const { data: verdictRows } = useClickHouseAPIImmutable<AdvisorVerdictRow>(
@@ -74,9 +77,6 @@ export default function AutorevertView() {
       },
       commitShas.length > 0
     );
-
-  // Guard: API may return error object or partial data
-  const stateValid = stateData?.columns && stateData?.commits;
 
   const snapshotTime = stateData?.ts
     ? dayjs(stateData.ts).utc().format("YYYY-MM-DD HH:mm:ss UTC")
