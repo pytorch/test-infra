@@ -139,6 +139,8 @@
   white-space: nowrap;
   pointer-events: none;
   writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  transform-origin: top right;
   letter-spacing: 0.03em;
 }
 
