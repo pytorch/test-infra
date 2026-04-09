@@ -6,7 +6,7 @@ import {
 } from "lib/advisorVerdictUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AutorevertCell from "./AutorevertCell";
 import EventTimeline from "./EventTimeline";
 import styles from "./autorevert.module.css";
@@ -27,26 +27,100 @@ const OUTCOME_LABELS: Record<string, { label: string; cls: string }> = {
   ineligible: { label: "N/A", cls: styles.outcomeIneligible },
 };
 
+const INELIGIBLE_REASONS: Record<string, string> = {
+  flaky: "This signal shows mixed results (pass and fail) on the same commit — autorevert cannot determine if this is a real regression.",
+  fixed: "This signal is now passing on the most recent commit — the issue appears resolved.",
+  no_successes: "No passing runs found in the lookback window — autorevert needs a known-good baseline to detect regressions.",
+  no_partition: "Not enough commit history to determine a failure pattern.",
+  infra_not_confirmed: "The failure may be an infrastructure issue — waiting for confirmation.",
+  insufficient_failures: "Not enough failures to make a confident call — autorevert needs more data.",
+  insufficient_successes: "Not enough passing runs to establish a baseline.",
+  pending_gap: "Some commits between the failure and baseline have pending CI — waiting for results.",
+  advisor_not_related: "AI advisor determined this failure is not related to the suspect commit.",
+  advisor_garbage: "AI advisor flagged this signal as unreliable (infrastructure flake).",
+};
+
 function outcomeTooltip(
   col: SignalColumn,
   outcome: any | undefined
-): string {
-  const header = `${col.workflow}: ${col.key}`;
-  if (!outcome) return header;
+): React.ReactNode {
+  const header = (
+    <div style={{ fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
+      {col.workflow}: {col.key}
+    </div>
+  );
+  if (!outcome)
+    return (
+      <div style={{ fontSize: "0.85rem" }}>
+        {header}
+        <div style={{ opacity: 0.7 }}>No active autorevert pattern.</div>
+      </div>
+    );
+
   if (outcome.type === "AutorevertPattern") {
     const d = outcome.data;
-    const adv = d.advisor_verdict
-      ? ` [AI: ${d.advisor_verdict.verdict} @${Math.round(d.advisor_verdict.confidence * 100)}%]`
-      : "";
-    return `${header}\n\nREVERT: suspect ${d.suspected_commit?.slice(0, 7)} vs baseline ${d.older_successful_commit?.slice(0, 7)}${adv}`;
+    const newerCount = d.newer_failing_commits?.length || 0;
+    return (
+      <div style={{ fontSize: "0.85rem" }}>
+        {header}
+        <div style={{ color: "#f44336", fontWeight: 600, marginBottom: 4 }}>
+          Decision: REVERT
+        </div>
+        <div>
+          This signal started failing at commit{" "}
+          <code>{d.suspected_commit?.slice(0, 7)}</code>
+          {newerCount > 0 &&
+            ` and continued failing on ${newerCount} newer commit${newerCount > 1 ? "s" : ""}`}
+          . It was passing on baseline{" "}
+          <code>{d.older_successful_commit?.slice(0, 7)}</code>.
+        </div>
+        {d.advisor_verdict && (
+          <div style={{ marginTop: 4, opacity: 0.9 }}>
+            AI advisor: <strong>{d.advisor_verdict.verdict}</strong> (
+            {Math.round(d.advisor_verdict.confidence * 100)}% confidence)
+          </div>
+        )}
+      </div>
+    );
   }
+
   if (outcome.type === "RestartCommits") {
-    return `${header}\n\nRESTART: ${outcome.data.commit_shas?.map((s: string) => s.slice(0, 7)).join(", ")}`;
+    const shas = outcome.data.commit_shas || [];
+    return (
+      <div style={{ fontSize: "0.85rem" }}>
+        {header}
+        <div style={{ color: "#1976d2", fontWeight: 600, marginBottom: 4 }}>
+          Decision: RESTART
+        </div>
+        <div>
+          Autorevert needs more data — restarting CI on{" "}
+          {shas.length} commit{shas.length !== 1 ? "s" : ""} (
+          {shas.map((s: string) => s.slice(0, 7)).join(", ")}) to confirm the
+          failure pattern.
+        </div>
+      </div>
+    );
   }
+
   if (outcome.type === "Ineligible") {
-    return `${header}\n\n${outcome.data.reason}: ${outcome.data.message}`;
+    const reason = outcome.data.reason || "";
+    const explanation = INELIGIBLE_REASONS[reason] || outcome.data.message;
+    return (
+      <div style={{ fontSize: "0.85rem" }}>
+        {header}
+        <div style={{ color: "#757575", fontWeight: 600, marginBottom: 4 }}>
+          Status: Not actionable ({reason.replace(/_/g, " ")})
+        </div>
+        <div>{explanation}</div>
+      </div>
+    );
   }
-  return header;
+
+  return (
+    <div style={{ fontSize: "0.85rem" }}>
+      {header}
+    </div>
+  );
 }
 
 /** Format UTC timestamp as local time for tooltips */
@@ -69,6 +143,7 @@ interface AutorevertGridProps {
   autorevertEvents?: AutorevertEventRow[];
   runTimestamps?: Array<{ ts: string; workflows: string[] }>;
   onTimestampChange?: (ts: string) => void;
+  highlightSha?: string;
 }
 
 export default function AutorevertGrid({
@@ -79,10 +154,22 @@ export default function AutorevertGrid({
   autorevertEvents,
   runTimestamps,
   onTimestampChange,
+  highlightSha,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
   const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  const highlightRowRef = useRef<HTMLTableRowElement>(null);
+
+  // Scroll highlighted commit into view on mount
+  useEffect(() => {
+    if (highlightSha && highlightRowRef.current) {
+      highlightRowRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [highlightSha]);
 
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
@@ -292,7 +379,11 @@ export default function AutorevertGrid({
             ) : undefined;
 
             return (
-              <tr key={sha} className={styles.commitRow}>
+              <tr
+                key={sha}
+                ref={sha === highlightSha ? highlightRowRef : undefined}
+                className={`${styles.commitRow} ${sha === highlightSha ? styles.commitRowHighlighted : ""}`}
+              >
                 <td className={styles.colTime}>
                   {time && timeTooltip ? (
                     <Tooltip title={timeTooltip} arrow disableInteractive={false}>
@@ -353,6 +444,9 @@ export default function AutorevertGrid({
                       fullAdvisorVerdict={fullVerdict}
                       repo={repo}
                       isExpanded={expandedColumn === sigKey}
+                      signalKey={col.key}
+                      workflowName={col.workflow}
+                      commitSha={sha}
                       onExpandColumn={() =>
                         setExpandedColumn(
                           expandedColumn === sigKey ? null : sigKey

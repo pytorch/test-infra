@@ -1,4 +1,6 @@
-import { Box, Chip, Skeleton, Typography } from "@mui/material";
+import { Alert, Box, Chip, Collapse, Skeleton, Typography } from "@mui/material";
+import AutorevertLegend from "./AutorevertLegend";
+import CommitSummary from "./CommitSummary";
 import {
   AdvisorVerdictRow,
   deduplicateVerdicts,
@@ -21,12 +23,14 @@ const DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull"];
 const PARAM_TS = "ar_ts";
 const PARAM_WF = "ar_wf";
 const PARAM_SF = "ar_sf";
+const PARAM_SHA = "ar_sha";
 
 /** Read autorevert params from current URL */
 function readUrlParams(): {
   ts?: dayjs.Dayjs;
   workflows?: string[];
   signalFilter?: string;
+  highlightSha?: string;
 } {
   if (typeof window === "undefined") return {};
   const params = new URLSearchParams(window.location.search);
@@ -45,6 +49,9 @@ function readUrlParams(): {
 
   const sf = params.get(PARAM_SF);
   if (sf) result.signalFilter = sf;
+
+  const sha = params.get(PARAM_SHA);
+  if (sha) result.highlightSha = sha;
 
   return result;
 }
@@ -78,6 +85,7 @@ export default function AutorevertView() {
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>(
     urlParams.workflows || DEFAULT_WORKFLOWS
   );
+  const highlightSha = urlParams.highlightSha || null;
   const [signalFilter, setSignalFilter] = useState(
     urlParams.signalFilter || ""
   );
@@ -220,8 +228,22 @@ export default function AutorevertView() {
     handleTimestampChange(ts);
   };
 
+  // Show/hide explanation (remember preference)
+  const [showExplanation, setShowExplanation] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ar_hideExplanation") !== "1";
+    }
+    return true;
+  });
+  const toggleExplanation = () => {
+    const next = !showExplanation;
+    setShowExplanation(next);
+    localStorage.setItem("ar_hideExplanation", next ? "0" : "1");
+  };
+
   return (
     <Box sx={{ mt: 1 }}>
+      {/* Header */}
       <Box
         sx={{
           display: "flex",
@@ -230,26 +252,57 @@ export default function AutorevertView() {
           mb: 1,
         }}
       >
-        <Typography variant="subtitle2" color="text.secondary">
+        <Typography variant="h6" fontWeight="bold">
           Autorevert Signal Grid
         </Typography>
         <Chip label="BETA" color="warning" size="small" />
         {snapshotTime && (
           <Typography
-            variant="caption"
+            variant="body2"
             color="text.secondary"
             sx={{ ml: 1, fontFamily: "monospace" }}
           >
-            Snapshot: {snapshotTime}
+            Snapshot at {snapshotTime}
           </Typography>
         )}
         {stateValid && (
-          <Typography variant="caption" color="text.secondary">
-            ({stateData.columns.length} signals, {stateData.commits.length}{" "}
-            commits)
+          <Typography variant="body2" color="text.secondary">
+            · {stateData.columns.length} signals ·{" "}
+            {stateData.commits.length} commits
           </Typography>
         )}
+        <Typography
+          variant="caption"
+          sx={{
+            ml: "auto",
+            cursor: "pointer",
+            color: "var(--link-color, #1a73e8)",
+          }}
+          onClick={toggleExplanation}
+        >
+          {showExplanation ? "Hide guide" : "Show guide"}
+        </Typography>
       </Box>
+
+      {/* Explanation banner */}
+      <Collapse in={showExplanation}>
+        <Alert
+          severity="info"
+          variant="outlined"
+          sx={{ mb: 1, fontSize: "0.85rem" }}
+        >
+          This grid shows a snapshot of the{" "}
+          <strong>autorevert system state</strong>. Columns are CI signals
+          being monitored. Rows are recent commits (newest at top). Autorevert
+          detects when a commit breaks a signal and automatically reverts it.
+          Cell colors indicate the autorevert&apos;s analysis: which commit is
+          suspected, which is the known-good baseline, and which newer commits
+          are also affected.
+        </Alert>
+      </Collapse>
+
+      {/* Legend */}
+      <AutorevertLegend />
 
       <AutorevertControls
         timestamp={timestamp}
@@ -265,6 +318,19 @@ export default function AutorevertView() {
         <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
       )}
 
+      {/* Commit summary section when ar_sha is in URL */}
+      {stateValid && highlightSha && (
+        <CommitSummary
+          sha={highlightSha}
+          state={stateData}
+          commitInfo={commitInfoRows?.find(
+            (c: CommitInfoRow) => c.sha === highlightSha
+          )}
+          advisorVerdicts={advisorVerdicts}
+          repo="pytorch/pytorch"
+        />
+      )}
+
       {stateValid && (
         <AutorevertGrid
           state={stateData}
@@ -274,6 +340,7 @@ export default function AutorevertView() {
           autorevertEvents={autorevertEvents as any}
           runTimestamps={runTimestamps as any}
           onTimestampChange={handleTimestampFromGrid}
+          highlightSha={highlightSha || undefined}
         />
       )}
 

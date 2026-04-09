@@ -1,3 +1,4 @@
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { Tooltip } from "@mui/material";
 import { useEffect, useState } from "react";
 import styles from "./autorevert.module.css";
@@ -224,8 +225,33 @@ export default function EventTimeline({
         height: tableHeight,
       }}
     >
-      {/* Title */}
-      <div className={styles.tlTitle}>Activity</div>
+      {/* Title with info tooltip */}
+      <div className={styles.tlTitle}>
+        <span>Actions</span>
+        <Tooltip
+          title={
+            <span style={{ fontSize: "0.85rem", lineHeight: 1.5 }}>
+              Shows when autorevert ran (dots on the line) and what actions it
+              took.
+              <br />
+              <strong>RST</strong> = restarted CI to confirm failure
+              <br />
+              <strong>RVT</strong> = triggered a revert
+              <br />
+              <strong>AI</strong> = dispatched AI advisor for analysis
+              <br />
+              <br />
+              Click any dot or badge to jump to that snapshot.
+            </span>
+          }
+          arrow
+          placement="bottom"
+        >
+          <InfoOutlinedIcon
+            sx={{ fontSize: 11, ml: 0.3, opacity: 0.6, cursor: "help" }}
+          />
+        </Tooltip>
+      </div>
 
       {/* Runs line */}
       <div

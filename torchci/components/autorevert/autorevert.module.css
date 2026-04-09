@@ -153,6 +153,42 @@
   color: #fff;
 }
 
+/* Legend bar */
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  line-height: 1.8;
+}
+
+.legendGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendLabel {
+  font-weight: 600;
+  color: var(--text-color-secondary, #666);
+  margin-right: 2px;
+}
+
+.legendDivider {
+  color: var(--border-color, #ccc);
+  margin: 0 4px;
+}
+
+.legendBadge {
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: default;
+}
+
 /* Rotated signal column headers */
 .signalHeader {
   height: 200px;
@@ -333,6 +369,15 @@
 
 .commitRow:hover {
   background-color: rgba(128, 128, 128, 0.05);
+}
+
+.commitRowHighlighted {
+  border-left: 3px solid #1976d2;
+  background-color: rgba(25, 118, 210, 0.06);
+}
+
+:global(.dark-mode) .commitRowHighlighted {
+  background-color: rgba(25, 118, 210, 0.12);
 }
 
 /* Dark mode overrides */
