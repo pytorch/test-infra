@@ -39,6 +39,36 @@
   overflow: hidden;
 }
 
+/* Events column */
+.colEvents {
+  width: auto;
+  white-space: nowrap;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  vertical-align: middle;
+}
+
+.evtBadges {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.evtRevert {
+  color: #d32f2f;
+  font-weight: 700;
+}
+
+.evtRestart {
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.evtAdvisor {
+  color: #7b1fa2;
+  font-weight: 600;
+}
+
 /* Rotated signal column headers */
 .signalHeader {
   height: 200px;

@@ -78,6 +78,37 @@ export default function AutorevertView() {
       commitShas.length > 0
     );
 
+  // Lazy-load autorevert events (restarts, reverts, advisor dispatches)
+  // for the time range covered by visible commits
+  const timeRange = useMemo(() => {
+    if (!stateValid || commitShas.length === 0) return null;
+    const times = Object.values(stateData.commitTimes)
+      .map((t) => new Date(t).getTime())
+      .filter((t) => !isNaN(t));
+    if (times.length === 0) return null;
+    return {
+      start: new Date(Math.min(...times)).toISOString().replace("T", " ").replace("Z", ""),
+      end: new Date(Math.max(...times) + 3600000).toISOString().replace("T", " ").replace("Z", ""),
+    };
+  }, [stateValid, stateData?.commitTimes, commitShas]);
+
+  const { data: autorevertEvents } = useClickHouseAPIImmutable<{
+    ts: string;
+    action: string;
+    commit_sha: string;
+    workflows: string[];
+    source_signal_keys: string[];
+  }>(
+    "autorevert_events_in_range",
+    {
+      repo: "pytorch/pytorch",
+      startTime: timeRange?.start || "",
+      endTime: timeRange?.end || "",
+      filterWorkflows: selectedWorkflows,
+    },
+    timeRange !== null
+  );
+
   const snapshotTime = stateData?.ts
     ? dayjs(stateData.ts).local().format("YYYY-MM-DD h:mm:ss A")
     : null;
@@ -138,6 +169,7 @@ export default function AutorevertView() {
           signalFilter={signalFilter}
           advisorVerdicts={advisorVerdicts}
           commitInfos={commitInfoRows}
+          autorevertEvents={autorevertEvents as any}
           onTimestampChange={handleTimestampFromGrid}
         />
       )}

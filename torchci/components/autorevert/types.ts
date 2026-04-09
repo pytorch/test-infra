@@ -94,6 +94,23 @@ export type CellHighlight =
   | "newer-fail"
   | "restart";
 
+// --- Autorevert Events (from misc.autorevert_events_v2) ---
+
+export interface AutorevertEventRow {
+  ts: string;
+  action: "restart" | "revert" | "advisor";
+  commit_sha: string;
+  workflows: string[];
+  source_signal_keys: string[];
+}
+
+/** Counts of autorevert events between two commit timestamps */
+export interface EventCounts {
+  restart: number;
+  revert: number;
+  advisor: number;
+}
+
 /**
  * Parse run_id from event name format:
  * "wf=<workflow> kind=<kind> id=<signal_id> run=<run_id> attempt=<attempt>"

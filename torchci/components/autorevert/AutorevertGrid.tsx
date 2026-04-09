@@ -10,9 +10,10 @@ import { useMemo, useState } from "react";
 import AutorevertCell from "./AutorevertCell";
 import styles from "./autorevert.module.css";
 import {
-  AdvisorDispatch,
+  AutorevertEventRow,
   AutorevertStateResponse,
   CellHighlight,
+  EventCounts,
   getHighlightsForOutcome,
   SignalColumn,
 } from "./types";
@@ -64,6 +65,7 @@ interface AutorevertGridProps {
   signalFilter: string;
   advisorVerdicts?: AdvisorVerdict[];
   commitInfos?: CommitInfo[];
+  autorevertEvents?: AutorevertEventRow[];
   onTimestampChange?: (ts: string) => void;
 }
 
@@ -72,10 +74,44 @@ export default function AutorevertGrid({
   signalFilter,
   advisorVerdicts,
   commitInfos,
+  autorevertEvents,
   onTimestampChange,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
   const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
+
+  // Build event counts between consecutive commits
+  // For each commit, count events that happened between this commit's time
+  // and the next (newer) commit's time
+  const eventCountsByCommit = useMemo(() => {
+    const map = new Map<string, EventCounts>();
+    if (!autorevertEvents || autorevertEvents.length === 0) return map;
+
+    const commits = state.commits;
+    const times = state.commitTimes;
+
+    for (let i = 0; i < commits.length; i++) {
+      const sha = commits[i];
+      const commitTime = new Date(times[sha] || 0).getTime();
+      // Next newer commit's time (or Infinity for the newest commit)
+      const newerTime =
+        i > 0 ? new Date(times[commits[i - 1]] || 0).getTime() : Infinity;
+
+      const counts: EventCounts = { restart: 0, revert: 0, advisor: 0 };
+      for (const ev of autorevertEvents) {
+        const evTime = new Date(ev.ts).getTime();
+        if (evTime >= commitTime && evTime < newerTime) {
+          if (ev.action in counts) {
+            counts[ev.action as keyof EventCounts]++;
+          }
+        }
+      }
+      if (counts.restart > 0 || counts.revert > 0 || counts.advisor > 0) {
+        map.set(sha, counts);
+      }
+    }
+    return map;
+  }, [autorevertEvents, state.commits, state.commitTimes]);
 
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
@@ -137,6 +173,7 @@ export default function AutorevertGrid({
         <colgroup>
           <col className={styles.colTime} />
           <col className={styles.colSha} />
+          <col className={styles.colEvents} />
           {filteredColumns.map((col, i) => {
             const sigKey = `${col.workflow}:${col.key}`;
             return (
@@ -156,6 +193,7 @@ export default function AutorevertGrid({
           <tr>
             <th className={styles.colTime} />
             <th className={styles.colSha} />
+            <th className={styles.signalHeader} />
             {filteredColumns.map((col, i) => {
               const sigKey = `${col.workflow}:${col.key}`;
               const outcome = state.outcomes[sigKey];
@@ -181,6 +219,7 @@ export default function AutorevertGrid({
           <tr>
             <th className={styles.colTime} />
             <th className={styles.colSha} />
+            <th className={styles.colEvents} />
             {filteredColumns.map((col, i) => {
               const { label, cls } =
                 OUTCOME_LABELS[col.outcome] || OUTCOME_LABELS.ineligible;
@@ -306,6 +345,54 @@ export default function AutorevertGrid({
                       {shortSha}
                     </a>
                   )}
+                </td>
+                <td className={styles.colEvents}>
+                  {(() => {
+                    const counts = eventCountsByCommit.get(sha);
+                    if (!counts) return null;
+                    const parts: JSX.Element[] = [];
+                    if (counts.revert > 0)
+                      parts.push(
+                        <span key="r" className={styles.evtRevert}>
+                          {counts.revert} RVT
+                        </span>
+                      );
+                    if (counts.restart > 0)
+                      parts.push(
+                        <span key="s" className={styles.evtRestart}>
+                          {counts.restart} RST
+                        </span>
+                      );
+                    if (counts.advisor > 0)
+                      parts.push(
+                        <span key="a" className={styles.evtAdvisor}>
+                          {counts.advisor} AI
+                        </span>
+                      );
+                    if (parts.length === 0) return null;
+                    return (
+                      <Tooltip
+                        title={
+                          <span style={{ fontSize: "0.9rem" }}>
+                            Events after this commit — click to navigate
+                          </span>
+                        }
+                        arrow
+                      >
+                        <span
+                          className={styles.evtBadges}
+                          style={{ cursor: onTimestampChange ? "pointer" : undefined }}
+                          onClick={() => {
+                            if (onTimestampChange && time) {
+                              onTimestampChange(time);
+                            }
+                          }}
+                        >
+                          {parts}
+                        </span>
+                      </Tooltip>
+                    );
+                  })()}
                 </td>
                 {filteredColumns.map((col, i) => {
                   const sigKey = `${col.workflow}:${col.key}`;
