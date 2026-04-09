@@ -168,7 +168,13 @@ export default function AutorevertCell({
           {workflowName}:{signalKey}
         </div>
       )}
-      {highlight && (
+      {highlight === "restart" && (
+        <div style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+          <span className={`${styles.tlBadge} ${styles.tlRestart}`}>RST</span>
+          <span style={{ fontSize: "0.8rem" }}>Targeted for CI restart</span>
+        </div>
+      )}
+      {highlight && highlight !== "restart" && (
         <div
           style={{
             fontSize: "0.8rem",
@@ -252,11 +258,14 @@ export default function AutorevertCell({
           </div>
 
           {advisorWasDispatched && (
-            <div style={{ fontSize: "0.8rem", marginBottom: 6, opacity: 0.8 }}>
-              Autorevert dispatched an AI advisor to analyze this failure.
-              {!fullAdvisorVerdict &&
-                !advisorResult &&
-                " The verdict has not been received yet."}
+            <div style={{ marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <span className={`${styles.tlBadge} ${styles.tlAdvisor}`} style={{ marginTop: 2, flexShrink: 0 }}>AI</span>
+              <span style={{ fontSize: "0.8rem" }}>
+                Autorevert dispatched an AI advisor to analyze this failure.
+                {!fullAdvisorVerdict &&
+                  !advisorResult &&
+                  " The verdict has not been received yet."}
+              </span>
             </div>
           )}
 
