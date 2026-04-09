@@ -41,6 +41,7 @@ interface EventTimelineProps {
   commitTimes: Record<string, string>;
   tableRef: React.RefObject<HTMLTableElement | null>;
   onTimestampSelect?: (utcTs: string) => void;
+  currentSnapshotTs?: string; // the currently displayed snapshot timestamp
 }
 
 function formatLocalTime(tsMs: number): string {
@@ -62,6 +63,7 @@ export default function EventTimeline({
   commitTimes,
   tableRef,
   onTimestampSelect,
+  currentSnapshotTs,
 }: EventTimelineProps) {
   const [rowPositions, setRowPositions] = useState<Map<string, number>>(
     new Map()
@@ -148,10 +150,24 @@ export default function EventTimeline({
   }
 
   // Parse run timestamps for dots
+  const currentTs = currentSnapshotTs
+    ? parseChTimestamp(currentSnapshotTs)
+    : null;
   const runDots = (runTimestamps || [])
-    .map((r) => ({ ts: parseChTimestamp(r.ts), workflows: r.workflows }))
+    .map((r) => ({
+      ts: parseChTimestamp(r.ts),
+      workflows: r.workflows,
+      isCurrent: currentTs !== null && Math.abs(parseChTimestamp(r.ts) - currentTs) < 2000,
+    }))
     .filter((r) => r.ts >= oldestTs && r.ts <= newestTs + 3600000)
     .sort((a, b) => b.ts - a.ts);
+
+  // Ensure current snapshot has a dot even if not in runTimestamps
+  const hasCurrentDot = runDots.some((d) => d.isCurrent);
+  if (currentTs && !hasCurrentDot && currentTs >= oldestTs && currentTs <= newestTs + 3600000) {
+    runDots.push({ ts: currentTs, workflows: [], isCurrent: true });
+    runDots.sort((a, b) => b.ts - a.ts);
+  }
 
   // Group events by nearest run snapshot, then build per-group badges
   const filteredEvents = events
@@ -269,22 +285,43 @@ export default function EventTimeline({
               key={i}
               title={
                 <span style={{ fontSize: "0.85rem" }}>
-                  Autorevert run · {formatLocalTime(dot.ts)}
-                  <br />
-                  Click to view this snapshot
+                  {dot.isCurrent
+                    ? "Current snapshot"
+                    : "Autorevert run"}{" "}
+                  · {formatLocalTime(dot.ts)}
+                  {!dot.isCurrent && (
+                    <>
+                      <br />
+                      Click to view this snapshot
+                    </>
+                  )}
                 </span>
               }
               arrow
               placement="left"
             >
               <span
-                className={styles.runDot}
-                style={{ top: y - 3 }}
-                onClick={() => handleClick(dot.ts)}
+                className={`${styles.runDot} ${dot.isCurrent ? styles.runDotCurrent : ""}`}
+                style={{ top: y - (dot.isCurrent ? 4 : 3) }}
+                onClick={() => !dot.isCurrent && handleClick(dot.ts)}
               />
             </Tooltip>
           );
         })}
+        {/* "here" label for current snapshot */}
+        {currentTs && (() => {
+          const currentDot = runDots.find((d) => d.isCurrent);
+          if (!currentDot) return null;
+          const y = getYForTimestamp(currentDot.ts) - headerHeight;
+          return (
+            <span
+              className={styles.hereLabel}
+              style={{ top: y - 5 }}
+            >
+              here →
+            </span>
+          );
+        })()}
       </div>
 
       {/* Grouped event badges — absolutely positioned, overflow hidden on left */}

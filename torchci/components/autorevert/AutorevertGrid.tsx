@@ -241,6 +241,7 @@ export default function AutorevertGrid({
           commitTimes={state.commitTimes}
           tableRef={tableRef}
           onTimestampSelect={onTimestampChange}
+          currentSnapshotTs={state.ts}
         />
       <table className={styles.signalGrid} ref={tableRef}>
         <colgroup>
@@ -280,7 +281,9 @@ export default function AutorevertGrid({
                   style={{ cursor: "pointer" }}
                 >
                   <Tooltip title={tip} arrow placement="top">
-                    <div className={styles.signalHeaderInner}>{col.key}</div>
+                    <div className={styles.signalHeaderInner}>
+                      {col.workflow}: {col.key}
+                    </div>
                   </Tooltip>
                 </th>
               );

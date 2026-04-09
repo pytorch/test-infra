@@ -101,7 +101,13 @@ export default function CommitSummary({
             </a>
           </>
         )}
-        {title && !prNum && `: ${title.slice(0, 80)}`}
+        {title && (
+          <span style={{ fontWeight: 400, marginLeft: 6 }}>
+            {title
+              .replace(/\s*\(#\d+\)\s*$/, "")
+              .slice(0, 100)}
+          </span>
+        )}
       </Typography>
 
       {commitInfo && (
@@ -155,9 +161,15 @@ export default function CommitSummary({
         </Typography>
       )}
 
-      {/* AI advisor verdicts */}
+      {/* AI advisor verdicts with signal context */}
       {shaVerdicts.map((v, i) => (
         <Box key={i} sx={{ mt: 1 }}>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.85rem" }}
+          >
+            Signal: {v.workflowName}: {v.signalKey}
+          </Typography>
           <AdvisorSection
             verdict={v}
             repoOwner={repo.split("/")[0]}

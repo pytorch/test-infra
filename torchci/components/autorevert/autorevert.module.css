@@ -118,6 +118,28 @@
   background: #1976d2;
 }
 
+.runDotCurrent {
+  width: 8px;
+  height: 8px;
+  left: -5px;
+  background: #1976d2;
+  box-shadow: 0 0 4px rgba(25, 118, 210, 0.6);
+}
+
+.runDotCurrent:hover {
+  transform: scale(1.3);
+}
+
+.hereLabel {
+  position: absolute;
+  right: 14px;
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: #1976d2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Snapshot event group — positioned vertically, flows badges horizontally */
 .tlGroup {
   position: absolute;
