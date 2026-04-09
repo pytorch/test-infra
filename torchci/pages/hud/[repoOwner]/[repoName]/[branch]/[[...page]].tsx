@@ -576,10 +576,15 @@ export const AutorevertViewContext = createContext<
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
-  // Initialize autorevert view from URL param
-  const [autorevertView, setAutorevertView] = useState(
-    router.query.autorevert === "1"
-  );
+  // Initialize autorevert view from URL param.
+  // router.query is empty on first render (SSR), so also check window.location
+  // to handle direct navigation to permalink URLs.
+  const [autorevertView, setAutorevertView] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("autorevert") === "1";
+    }
+    return false;
+  });
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,
