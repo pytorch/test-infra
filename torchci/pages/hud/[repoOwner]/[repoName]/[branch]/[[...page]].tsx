@@ -399,9 +399,11 @@ function FiltersAndSettings({}: {}) {
 
   return (
     <div className={styles.hudControlsRow}>
-      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
-      <SettingsPanel
-        settingGroups={{
+      {!autorevertView && (
+        <>
+          <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
+          <SettingsPanel
+            settingGroups={{
           // You need to specify both checkBoxName and key for each setting.
           // `checkbox name` is used by CheckBoxSelector while `key` is
           // used to uniquely identify the component in the settings panel.
@@ -452,6 +454,8 @@ function FiltersAndSettings({}: {}) {
         isOpen={settingsPanelOpen}
         onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
       />
+        </>
+      )}
       {isPyTorchMain && (
         <div className={autorevertStyles.toggleWrapper}>
           <button

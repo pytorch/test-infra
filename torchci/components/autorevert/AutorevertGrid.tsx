@@ -87,12 +87,16 @@ export default function AutorevertGrid({
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
     if (!signalFilter) return state.columns;
-    const lower = signalFilter.toLowerCase();
-    return state.columns.filter(
-      (col) =>
-        col.key.toLowerCase().includes(lower) ||
-        col.workflow.toLowerCase().includes(lower)
-    );
+    // Support multiple space-separated terms — column matches if ANY term matches
+    const terms = signalFilter
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (terms.length === 0) return state.columns;
+    return state.columns.filter((col) => {
+      const text = `${col.workflow} ${col.key}`.toLowerCase();
+      return terms.some((term) => text.includes(term));
+    });
   }, [state.columns, signalFilter]);
 
   // Build highlights per column
