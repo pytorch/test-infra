@@ -56,6 +56,13 @@
       "mac"
     ]
   ],
+  "test_allow_reuse_disable_if_exceed_peak_cuda (__main__.GPUTests)": [
+    "179776",
+    "https://github.com/pytorch/pytorch/issues/179776",
+    [
+      "inductor"
+    ]
+  ],
   "test_allreduce_float8 (__main__.ProcessGroupNCCLOpTest)": [
     "157879",
     "https://github.com/pytorch/pytorch/issues/157879",
@@ -170,6 +177,15 @@
   "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
     "176112",
     "https://github.com/pytorch/pytorch/issues/176112",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_clear_saved_tensors_on_access_double_access_error (__main__.TestAutogradWithCompiledAutograd)": [
+    "176142",
+    "https://github.com/pytorch/pytorch/issues/176142",
     [
       "asan",
       "linux",
@@ -561,6 +577,13 @@
     "https://github.com/pytorch/pytorch/issues/171934",
     []
   ],
+  "test_dtensor_op_db_bmm_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "179779",
+    "https://github.com/pytorch/pytorch/issues/179779",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_op_db_full_like_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "167252",
     "https://github.com/pytorch/pytorch/issues/167252",
@@ -611,6 +634,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_empty_conv_input_search_space_DEFAULT_kernel_size_1 (__main__.TestMaxAutotuneAsyncPipelined)": [
+    "179777",
+    "https://github.com/pytorch/pytorch/issues/179777",
+    [
+      "inductor"
     ]
   ],
   "test_emulate_precision_casts_mean_ratio_chain (__main__.CudaReproTests)": [
@@ -942,16 +972,16 @@
     ]
   ],
   "test_memory_plots (__main__.TestCudaAllocator)": [
-    "179739",
-    "https://github.com/pytorch/pytorch/issues/179739",
+    "179744",
+    "https://github.com/pytorch/pytorch/issues/179744",
     [
       "linux",
       "slow"
     ]
   ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
-    "179740",
-    "https://github.com/pytorch/pytorch/issues/179740",
+    "179745",
+    "https://github.com/pytorch/pytorch/issues/179745",
     [
       "linux",
       "slow"
@@ -1067,6 +1097,13 @@
     "https://github.com/pytorch/pytorch/issues/168045",
     [
       "linux"
+    ]
+  ],
+  "test_name_conflicts (__main__.TestNamedTuple)": [
+    "179778",
+    "https://github.com/pytorch/pytorch/issues/179778",
+    [
+      "dynamo"
     ]
   ],
   "test_nan_assert_bfloat16 (__main__.ProcessGroupNCCLGroupTest)": [
@@ -1547,6 +1584,15 @@
       "linux"
     ]
   ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_source_multithreaded_multiple_preexisting_work_in_main_thread_False (__main__.TestProfiler)": [
     "119526",
     "https://github.com/pytorch/pytorch/issues/119526",
@@ -1565,6 +1611,13 @@
     "https://github.com/pytorch/pytorch/issues/167783",
     [
       "rocm"
+    ]
+  ],
+  "test_sparse_matmul_cpu_float32 (__main__.TestSparseCPU)": [
+    "176967",
+    "https://github.com/pytorch/pytorch/issues/176967",
+    [
+      "dynamo"
     ]
   ],
   "test_sparse_mul_sparse_cuda_float64 (__main__.TestSparseCUDA)": [
