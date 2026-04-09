@@ -59,47 +59,60 @@ export default function AutorevertCell({
       }[highlight]
     : "";
 
-  // Build tooltip content listing all events
-  const tooltipContent = events.length > 0 ? (
-    <div style={{ fontSize: "0.85em", lineHeight: 1.5 }}>
-      {events.map((ev, i) => {
-        const { icon } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
-        return (
-          <div key={i} style={{ whiteSpace: "nowrap" }}>
-            {icon} {ev.status} — {ev.started_at}
-            {ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}
-            <br />
-            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>{ev.name}</span>
-          </div>
-        );
-      })}
-    </div>
-  ) : null;
+  const MAX_VISIBLE_EVENTS = 2;
+  const hasOverflow = events.length > MAX_VISIBLE_EVENTS;
+  // Show last N events (most recent) when there are too many
+  const visibleEvents = hasOverflow
+    ? events.slice(events.length - MAX_VISIBLE_EVENTS)
+    : events;
 
-  // Render all events (no aggregation — retries visible)
-  const eventIcons = events.map((ev, i) => {
+  function renderEventIcon(ev: CellEvent, i: number) {
     const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
     const url = eventUrl(repo, ev);
+    const tip = `${ev.status} — ${ev.started_at}${ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}\n${ev.name}`;
 
     if (url) {
       return (
-        <a
-          key={i}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${styles.eventIcon} ${cls}`}
-        >
-          {icon}
-        </a>
+        <Tooltip key={i} title={<span style={{ fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{tip}</span>} arrow>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${styles.eventIcon} ${cls}`}
+          >
+            {icon}
+          </a>
+        </Tooltip>
       );
     }
     return (
-      <span key={i} className={`${styles.eventIcon} ${cls}`}>
-        {icon}
-      </span>
+      <Tooltip key={i} title={<span style={{ fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{tip}</span>} arrow>
+        <span className={`${styles.eventIcon} ${cls}`}>
+          {icon}
+        </span>
+      </Tooltip>
     );
-  });
+  }
+
+  const eventIcons = (
+    <>
+      {hasOverflow && (
+        <Tooltip
+          title={
+            <span style={{ fontSize: "0.9rem" }}>
+              {events.length - MAX_VISIBLE_EVENTS} earlier event(s) hidden
+            </span>
+          }
+          arrow
+        >
+          <span className={styles.eventIcon} style={{ opacity: 0.4, fontSize: "0.7rem" }}>
+            +{events.length - MAX_VISIBLE_EVENTS}
+          </span>
+        </Tooltip>
+      )}
+      {visibleEvents.map((ev, i) => renderEventIcon(ev, i))}
+    </>
+  );
 
   // Advisor badge
   let advisorBadge = null;
@@ -130,23 +143,11 @@ export default function AutorevertCell({
     return <td className={`${styles.colSignal} ${highlightClass}`} />;
   }
 
-  const cellInner = (
-    <span>
-      {eventIcons}
-      {advisorBadge}
-    </span>
-  );
-
   return (
     <>
       <td className={`${styles.colSignal} ${highlightClass}`}>
-        {tooltipContent ? (
-          <Tooltip title={tooltipContent} arrow placement="bottom">
-            {cellInner}
-          </Tooltip>
-        ) : (
-          cellInner
-        )}
+        {eventIcons}
+        {advisorBadge}
       </td>
       {fullAdvisorVerdict && (
         <Popover

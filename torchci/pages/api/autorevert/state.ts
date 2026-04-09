@@ -50,29 +50,23 @@ function mergeStates(
     return null;
   }
 
-  // Collect all unique workflows across all states
+  // Collect all unique workflows from both the top-level workflows array
+  // (monitored workflows) and column data (workflows with active signals).
+  // The top-level array includes workflows like "Lint" that may not have
+  // active signals but are still monitored.
   const allWorkflows = new Set<string>();
-  for (const state of byWorkflowSet.values()) {
+  for (const [setKey, state] of byWorkflowSet.entries()) {
+    // Add workflows from the top-level workflows array (stored as the set key)
+    try {
+      const wfArray = JSON.parse(setKey);
+      for (const wf of wfArray) allWorkflows.add(wf);
+    } catch {
+      // fallback: extract from columns
+    }
     for (const col of state.columns || []) {
       if (col.workflow) allWorkflows.add(col.workflow);
     }
   }
-
-  // Merge commits from state commit lists only (not from commit_times keys,
-  // which may include commits without events)
-  const commitTimes: Record<string, string> = {};
-  const commitSet = new Set<string>();
-  for (const state of byWorkflowSet.values()) {
-    Object.assign(commitTimes, state.commit_times || {});
-    for (const sha of state.commits || []) {
-      commitSet.add(sha);
-    }
-  }
-  const allCommits = Array.from(commitSet).sort(
-    (a, b) =>
-      new Date(commitTimes[b] || 0).getTime() -
-      new Date(commitTimes[a] || 0).getTime()
-  );
 
   // Merge columns, applying workflow filter
   const columns: any[] = [];
@@ -109,6 +103,25 @@ function mergeStates(
     if (a.workflow !== b.workflow) return a.workflow.localeCompare(b.workflow);
     return a.key.localeCompare(b.key);
   });
+
+  // Build commit list: only commits that appear in at least one column's cells
+  const commitTimes: Record<string, string> = {};
+  for (const state of byWorkflowSet.values()) {
+    Object.assign(commitTimes, state.commit_times || {});
+  }
+  const commitsWithEvents = new Set<string>();
+  for (const col of columns) {
+    for (const sha of Object.keys(col.cells || {})) {
+      if ((col.cells[sha] || []).length > 0) {
+        commitsWithEvents.add(sha);
+      }
+    }
+  }
+  const allCommits = Array.from(commitsWithEvents).sort(
+    (a, b) =>
+      new Date(commitTimes[b] || 0).getTime() -
+      new Date(commitTimes[a] || 0).getTime()
+  );
 
   // Get the most recent timestamp
   let latestTs = "";

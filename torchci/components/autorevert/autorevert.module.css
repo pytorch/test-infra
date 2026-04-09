@@ -30,12 +30,13 @@
 }
 
 .colSignal {
-  width: 20px;
-  min-width: 20px;
-  max-width: 20px;
-  padding: 1px 2px;
+  width: 26px;
+  min-width: 26px;
+  padding: 2px 3px;
   text-align: center;
   vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* Rotated signal column headers */
@@ -43,14 +44,14 @@
   height: 200px;
   white-space: nowrap;
   vertical-align: bottom;
-  padding: 0 2px;
+  padding: 0 3px;
 }
 
 .signalHeaderInner {
   transform: translate(5px, 0px) rotate(315deg);
   transform-origin: bottom left;
-  width: 20px;
-  font-size: 0.75rem;
+  width: 26px;
+  font-size: 0.8rem;
   font-weight: 400;
   color: var(--text-color, #333);
   overflow: visible;
@@ -104,7 +105,7 @@
 /* Status icons */
 .eventIcon {
   font-family: monospace;
-  font-size: 0.85rem;
+  font-size: 1rem;
   text-decoration: none;
   cursor: pointer;
 }
