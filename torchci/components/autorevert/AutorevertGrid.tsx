@@ -150,6 +150,7 @@ interface AutorevertGridProps {
   runTimestamps?: Array<{ ts: string; workflows: string[] }>;
   onTimestampChange?: (ts: string) => void;
   highlightSha?: string;
+  hideTimeline?: boolean;
 }
 
 export default function AutorevertGrid({
@@ -161,6 +162,7 @@ export default function AutorevertGrid({
   runTimestamps,
   onTimestampChange,
   highlightSha,
+  hideTimeline,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
   const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
@@ -233,15 +235,17 @@ export default function AutorevertGrid({
   return (
     <div className={styles.gridWrapper}>
       <div className={styles.timelineGridContainer}>
-        <EventTimeline
-          events={autorevertEvents || []}
-          runTimestamps={runTimestamps}
-          commits={state.commits}
-          commitTimes={state.commitTimes}
-          tableRef={tableRef}
-          onTimestampSelect={onTimestampChange}
-          currentSnapshotTs={state.ts}
-        />
+        {!hideTimeline && (
+          <EventTimeline
+            events={autorevertEvents || []}
+            runTimestamps={runTimestamps}
+            commits={state.commits}
+            commitTimes={state.commitTimes}
+            tableRef={tableRef}
+            onTimestampSelect={onTimestampChange}
+            currentSnapshotTs={state.ts}
+          />
+        )}
         <table className={styles.signalGrid} ref={tableRef}>
           <colgroup>
             <col className={styles.colTime} />

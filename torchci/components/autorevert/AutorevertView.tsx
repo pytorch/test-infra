@@ -30,6 +30,7 @@ const PARAM_TS = "ar_ts";
 const PARAM_WF = "ar_wf";
 const PARAM_SF = "ar_sf";
 const PARAM_SHA = "ar_sha";
+const PARAM_HIDE_TIMELINE = "ar_notl";
 
 /** Read autorevert params from current URL */
 function readUrlParams(): {
@@ -37,6 +38,7 @@ function readUrlParams(): {
   workflows?: string[];
   signalFilter?: string;
   highlightSha?: string;
+  hideTimeline?: boolean;
 } {
   if (typeof window === "undefined") return {};
   const params = new URLSearchParams(window.location.search);
@@ -58,6 +60,8 @@ function readUrlParams(): {
 
   const sha = params.get(PARAM_SHA);
   if (sha) result.highlightSha = sha;
+
+  if (params.get(PARAM_HIDE_TIMELINE) === "1") result.hideTimeline = true;
 
   return result;
 }
@@ -92,6 +96,7 @@ export default function AutorevertView() {
     urlParams.workflows || DEFAULT_WORKFLOWS
   );
   const highlightSha = urlParams.highlightSha || null;
+  const hideTimeline = urlParams.hideTimeline || false;
   const [signalFilter, setSignalFilter] = useState(
     urlParams.signalFilter || ""
   );
@@ -346,6 +351,7 @@ export default function AutorevertView() {
           runTimestamps={runTimestamps as any}
           onTimestampChange={handleTimestampFromGrid}
           highlightSha={highlightSha || undefined}
+          hideTimeline={hideTimeline}
         />
       )}
 
