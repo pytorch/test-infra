@@ -48,9 +48,10 @@ function outcomeTooltip(
   return header;
 }
 
-/** Format timestamp for the "go here" tooltip — same parsing as LocalTimeHuman */
+/** Format UTC timestamp as local time for tooltips */
 function formatLocalTime(isoTime: string): string {
-  return dayjs(isoTime).local().format("YYYY-MM-DD h:mm A");
+  const utcStr = isoTime + (isoTime.endsWith("Z") ? "" : "Z");
+  return dayjs(utcStr).local().format("YYYY-MM-DD h:mm A");
 }
 
 interface CommitInfo {
@@ -240,8 +241,13 @@ export default function AutorevertGrid({
           </tr>
         </thead>
         <tbody>
-          {state.commits.map((sha) => {
+          {state.commits.map((sha, rowIdx) => {
             const time = state.commitTimes[sha];
+            // Previous (newer) commit time for event tooltip
+            const newerTime =
+              rowIdx > 0
+                ? state.commitTimes[state.commits[rowIdx - 1]]
+                : undefined;
             const shortSha = sha.slice(0, 7);
             const commitUrl = `https://github.com/${repo}/commit/${sha}`;
             const shaVerdicts = verdictsBySha.get(sha.trim()) || [];
@@ -315,11 +321,11 @@ export default function AutorevertGrid({
                   {time && timeTooltip ? (
                     <Tooltip title={timeTooltip} arrow disableInteractive={false}>
                       <span style={{ cursor: "pointer" }}>
-                        <LocalTimeHuman timestamp={time} />
+                        <LocalTimeHuman timestamp={time + (time.endsWith("Z") ? "" : "Z")} />
                       </span>
                     </Tooltip>
                   ) : time ? (
-                    <LocalTimeHuman timestamp={time} />
+                    <LocalTimeHuman timestamp={time + (time.endsWith("Z") ? "" : "Z")} />
                   ) : (
                     ""
                   )}
@@ -375,7 +381,11 @@ export default function AutorevertGrid({
                       <Tooltip
                         title={
                           <span style={{ fontSize: "0.9rem" }}>
-                            Events after this commit — click to navigate
+                            Events between {formatLocalTime(time)}{" "}
+                            {newerTime
+                              ? `and ${formatLocalTime(newerTime)}`
+                              : "and now"}
+                            {" — click to navigate"}
                           </span>
                         }
                         arrow

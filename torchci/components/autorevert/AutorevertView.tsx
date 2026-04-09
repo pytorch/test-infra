@@ -117,8 +117,9 @@ export default function AutorevertView() {
     : null;
 
   const handleTimestampFromGrid = (isoTime: string) => {
-    // Parse the same way LocalTimeHuman does
-    setTimestamp(dayjs(isoTime).local());
+    // CH timestamps are UTC without Z — parse as UTC, convert to local for picker
+    const utcStr = isoTime + (isoTime.endsWith("Z") ? "" : "Z");
+    setTimestamp(dayjs(utcStr).local());
   };
 
   return (
