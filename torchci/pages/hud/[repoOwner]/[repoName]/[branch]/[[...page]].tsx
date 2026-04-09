@@ -640,6 +640,7 @@ export default function Hud() {
                     <CopyPermanentLink
                       params={params}
                       style={{ marginLeft: "10px" }}
+                      autorevertView={autorevertView}
                     />
                   </div>
                   <div style={{ position: "relative", clear: "both" }}>
@@ -689,10 +690,19 @@ function useLatestCommitSha(params: HudParams) {
 function CopyPermanentLink({
   params,
   style,
+  autorevertView,
 }: {
   params: HudParams;
   style?: React.CSSProperties;
+  autorevertView?: boolean;
 }) {
+  // In autorevert view, the current URL already contains all state
+  // (ar_ts, ar_wf, ar_sf, autorevert=1) — just copy it directly.
+  if (autorevertView) {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    return <CopyLink textToCopy={url} compressed={false} style={style} />;
+  }
+
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
   const latestCommitSha = useLatestCommitSha(params);
