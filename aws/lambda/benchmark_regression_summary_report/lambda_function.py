@@ -13,7 +13,8 @@ from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiRespons
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from common.regression_utils import BenchmarkRegressionReportGenerator
-from common.report_manager import ReportManager
+from common.report_manager import NO_DATA_MD_TEMPLATE, ReportManager
+from jinja2 import Template
 from dateutil.parser import isoparse
 
 
@@ -143,6 +144,7 @@ class BenchmarkSummaryProcessor:
             self.log_info(
                 f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
+            self._notify_no_data(cc, config, "target", ls, le)
             return
         baseline, bs, be = self.get_baseline(
             config, self.end_time, self.hud_access_token
@@ -152,6 +154,7 @@ class BenchmarkSummaryProcessor:
             self.log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
+            self._notify_no_data(cc, config, "baseline", bs, be)
             return
         generator = BenchmarkRegressionReportGenerator(
             config=config, target_ts=target, baseline_ts=baseline
@@ -257,6 +260,67 @@ class BenchmarkSummaryProcessor:
             return True
         self.log_info(f"expect latest data to be after {cutoff}, but got {latest_ts}")
         return False
+
+    def _no_data_already_alerted(
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+        config_id: str,
+        today_str: str,
+    ) -> bool:
+        """Check if a no-data alert was already sent today for this config."""
+        table = BENCHMARK_REGRESSION_REPORT_TABLE
+        sql = f"""
+            SELECT 1
+            FROM {table}
+            WHERE report_id = %(report_id)s
+            AND type = 'no_data_alert'
+            AND stamp = toDate(%(today)s)
+            LIMIT 1
+        """
+        res = cc.query(
+            sql,
+            parameters={"report_id": config_id, "today": today_str},
+        )
+        return bool(res.result_rows)
+
+    def _notify_no_data(
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+        config: BenchmarkConfig,
+        data_type: str,
+        range_start: int,
+        range_end: int,
+    ) -> None:
+        """Post a GitHub comment when HUD API returns zero benchmark data."""
+        today_str = dt.datetime.fromtimestamp(
+            self.end_time, tz=dt.timezone.utc
+        ).strftime("%Y-%m-%d")
+
+        # Dedup: one alert per day per config
+        if self._no_data_already_alerted(cc, config.id, today_str):
+            self.log_info(
+                f"no-data alert already sent today ({today_str}) for {config.id}, skipping"
+            )
+            return
+
+        github_notifications = config.policy.get_github_notification_configs()
+        if not github_notifications:
+            self.log_info("no github notification config found, skip no-data alert")
+            return
+
+        content = Template(
+            NO_DATA_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True
+        ).render(report_id=config.id)
+
+        github_token = ENVS["GITHUB_TOKEN"]
+        for github_notification in github_notifications:
+            try:
+                github_notification.create_github_comment(content, github_token)
+                self.log_info(
+                    f"no-data alert sent to {github_notification.repo}/issues/{github_notification.issue_number}"
+                )
+            except Exception as e:
+                self.log_error(f"failed to send no-data alert: {e}")
 
     def _fetch_from_benchmark_ts_api(
         self,
