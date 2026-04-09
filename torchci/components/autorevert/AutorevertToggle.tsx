@@ -54,7 +54,9 @@ export default function AutorevertToggle({
         }`}
         onClick={() => {
           onToggle(true);
-          const base = `/hud/${repoOwner}/${repoName}/${encodeURIComponent(branch)}/autorevert`;
+          const base = `/hud/${repoOwner}/${repoName}/${encodeURIComponent(
+            branch
+          )}/autorevert`;
           const url = new URL(base, window.location.origin);
           const current = new URLSearchParams(window.location.search);
           for (const key of ["ar_ts", "ar_wf", "ar_sf"]) {

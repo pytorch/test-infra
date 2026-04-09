@@ -134,9 +134,7 @@ export default function EventTimeline({
         const newerY = rowPositions.get(commits[i]) ?? 0;
         const olderY = rowPositions.get(commits[i + 1]) ?? 0;
         const ratio =
-          newerTs === olderTs
-            ? 0.5
-            : (newerTs - tsMs) / (newerTs - olderTs);
+          newerTs === olderTs ? 0.5 : (newerTs - tsMs) / (newerTs - olderTs);
         return newerY + ratio * (olderY - newerY);
       }
     }
@@ -157,14 +155,21 @@ export default function EventTimeline({
     .map((r) => ({
       ts: parseChTimestamp(r.ts),
       workflows: r.workflows,
-      isCurrent: currentTs !== null && Math.abs(parseChTimestamp(r.ts) - currentTs) < 2000,
+      isCurrent:
+        currentTs !== null &&
+        Math.abs(parseChTimestamp(r.ts) - currentTs) < 2000,
     }))
     .filter((r) => r.ts >= oldestTs && r.ts <= newestTs + 3600000)
     .sort((a, b) => b.ts - a.ts);
 
   // Ensure current snapshot has a dot even if not in runTimestamps
   const hasCurrentDot = runDots.some((d) => d.isCurrent);
-  if (currentTs && !hasCurrentDot && currentTs >= oldestTs && currentTs <= newestTs + 3600000) {
+  if (
+    currentTs &&
+    !hasCurrentDot &&
+    currentTs >= oldestTs &&
+    currentTs <= newestTs + 3600000
+  ) {
     runDots.push({ ts: currentTs, workflows: [], isCurrent: true });
     runDots.sort((a, b) => b.ts - a.ts);
   }
@@ -285,10 +290,8 @@ export default function EventTimeline({
               key={i}
               title={
                 <span style={{ fontSize: "0.85rem" }}>
-                  {dot.isCurrent
-                    ? "Current snapshot"
-                    : "Autorevert run"}{" "}
-                  · {formatLocalTime(dot.ts)}
+                  {dot.isCurrent ? "Current snapshot" : "Autorevert run"} ·{" "}
+                  {formatLocalTime(dot.ts)}
                   {!dot.isCurrent && (
                     <>
                       <br />
@@ -301,7 +304,9 @@ export default function EventTimeline({
               placement="left"
             >
               <span
-                className={`${styles.runDot} ${dot.isCurrent ? styles.runDotCurrent : ""}`}
+                className={`${styles.runDot} ${
+                  dot.isCurrent ? styles.runDotCurrent : ""
+                }`}
                 style={{ top: y - (dot.isCurrent ? 4 : 3) }}
                 onClick={() => !dot.isCurrent && handleClick(dot.ts)}
               />
@@ -309,28 +314,22 @@ export default function EventTimeline({
           );
         })}
         {/* "here" label for current snapshot */}
-        {currentTs && (() => {
-          const currentDot = runDots.find((d) => d.isCurrent);
-          if (!currentDot) return null;
-          const y = getYForTimestamp(currentDot.ts) - headerHeight;
-          return (
-            <span
-              className={styles.hereLabel}
-              style={{ top: y - 10 }}
-            >
-              ← showing this snapshot
-            </span>
-          );
-        })()}
+        {currentTs &&
+          (() => {
+            const currentDot = runDots.find((d) => d.isCurrent);
+            if (!currentDot) return null;
+            const y = getYForTimestamp(currentDot.ts) - headerHeight;
+            return (
+              <span className={styles.hereLabel} style={{ top: y - 10 }}>
+                ← showing this snapshot
+              </span>
+            );
+          })()}
       </div>
 
       {/* Grouped event badges — absolutely positioned, overflow hidden on left */}
       {snapshotGroups.map((group, gi) => (
-        <div
-          key={gi}
-          className={styles.tlGroup}
-          style={{ top: group.y - 8 }}
-        >
+        <div key={gi} className={styles.tlGroup} style={{ top: group.y - 8 }}>
           {group.counts.map((c, ci) => {
             const st = ACTION_STYLE[c.action] || ACTION_STYLE.restart;
             const groupSignals = group.events
@@ -343,8 +342,7 @@ export default function EventTimeline({
                   <div style={{ fontSize: "0.85rem" }}>
                     <div style={{ fontWeight: 600 }}>
                       {c.count} {st.label}
-                      {c.count > 1 ? "s" : ""} ·{" "}
-                      {formatLocalTime(group.runTs)}
+                      {c.count > 1 ? "s" : ""} · {formatLocalTime(group.runTs)}
                     </div>
                     {groupSignals.length > 0 && (
                       <div

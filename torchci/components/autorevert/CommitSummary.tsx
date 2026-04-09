@@ -103,17 +103,14 @@ export default function CommitSummary({
         )}
         {title && (
           <span style={{ fontWeight: 400, marginLeft: 6 }}>
-            {title
-              .replace(/\s*\(#\d+\)\s*$/, "")
-              .slice(0, 100)}
+            {title.replace(/\s*\(#\d+\)\s*$/, "").slice(0, 100)}
           </span>
         )}
       </Typography>
 
       {commitInfo && (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {commitInfo.author} ·{" "}
-          {formatLocalTime(commitInfo.time)}
+          {commitInfo.author} · {formatLocalTime(commitInfo.time)}
         </Typography>
       )}
 
@@ -129,8 +126,8 @@ export default function CommitSummary({
               sx={{ backgroundColor: "#d32f2f", color: "#fff", mr: 1 }}
             />
             <Typography variant="body2" component="span">
-              Signal <strong>{key.split(":").slice(1).join(":")}</strong>{" "}
-              failed on this commit
+              Signal <strong>{key.split(":").slice(1).join(":")}</strong> failed
+              on this commit
               {newerCount > 0 &&
                 ` and ${newerCount} newer commit${newerCount > 1 ? "s" : ""}`}
               . It was passing on baseline{" "}
@@ -149,8 +146,8 @@ export default function CommitSummary({
             sx={{ backgroundColor: "#1976d2", color: "#fff", mr: 1 }}
           />
           <Typography variant="body2" component="span">
-            Signal <strong>{key.split(":").slice(1).join(":")}</strong>{" "}
-            — CI being restarted to confirm failure pattern.
+            Signal <strong>{key.split(":").slice(1).join(":")}</strong> — CI
+            being restarted to confirm failure pattern.
           </Typography>
         </Box>
       ))}
@@ -166,7 +163,12 @@ export default function CommitSummary({
         <Box key={i} sx={{ mt: 1 }}>
           <Typography
             variant="body2"
-            sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.85rem", color: "#d32f2f" }}
+            sx={{
+              mb: 0.5,
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              color: "#d32f2f",
+            }}
           >
             Failure: {v.workflowName}:{v.signalKey}
           </Typography>

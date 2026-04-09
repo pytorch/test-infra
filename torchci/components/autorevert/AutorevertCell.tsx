@@ -1,7 +1,7 @@
 import { Popover } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
 import { AdvisorVerdict } from "lib/advisorVerdictUtils";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styles from "./autorevert.module.css";
 import {
   CellEvent,
@@ -82,6 +82,7 @@ export default function AutorevertCell({
   commitSha,
 }: AutorevertCellProps) {
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const highlightCls = highlight
     ? {
@@ -104,8 +105,7 @@ export default function AutorevertCell({
   // Advisor badge (non-clickable — tooltip/popover handles details)
   let advisorBadge = null;
   if (fullAdvisorVerdict) {
-    const cls =
-      ADV_VERDICT_CLS[fullAdvisorVerdict.verdict] || styles.advUnsure;
+    const cls = ADV_VERDICT_CLS[fullAdvisorVerdict.verdict] || styles.advUnsure;
     const short = ADV_VERDICT_SHORT[fullAdvisorVerdict.verdict] || "?";
     advisorBadge = (
       <span className={`${styles.advisorBadge} ${cls}`}>{short}</span>
@@ -169,7 +169,14 @@ export default function AutorevertCell({
         </div>
       )}
       {highlight === "restart" && (
-        <div style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+        <div
+          style={{
+            marginBottom: 6,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <span className={`${styles.tlBadge} ${styles.tlRestart}`}>RST</span>
           <span style={{ fontSize: "0.8rem" }}>Targeted for CI restart</span>
         </div>
@@ -258,8 +265,20 @@ export default function AutorevertCell({
           </div>
 
           {advisorWasDispatched && (
-            <div style={{ marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 6 }}>
-              <span className={`${styles.tlBadge} ${styles.tlAdvisor}`} style={{ marginTop: 2, flexShrink: 0 }}>AI</span>
+            <div
+              style={{
+                marginBottom: 6,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 6,
+              }}
+            >
+              <span
+                className={`${styles.tlBadge} ${styles.tlAdvisor}`}
+                style={{ marginTop: 2, flexShrink: 0 }}
+              >
+                AI
+              </span>
               <span style={{ fontSize: "0.8rem" }}>
                 Autorevert dispatched an AI advisor to analyze this failure.
                 {!fullAdvisorVerdict &&
@@ -291,10 +310,20 @@ export default function AutorevertCell({
   return (
     <>
       <td
-        className={`${styles.colSignal} ${highlightClass} ${isExpanded ? styles.colSignalExpanded : ""}`}
-        onMouseEnter={(e) => setPopoverAnchor(e.currentTarget)}
+        className={`${styles.colSignal} ${highlightClass} ${
+          isExpanded ? styles.colSignalExpanded : ""
+        }`}
+        onMouseEnter={(e) => {
+          const target = e.currentTarget;
+          hoverTimerRef.current = setTimeout(() => {
+            setPopoverAnchor(target);
+          }, 300);
+        }}
         onMouseLeave={(e) => {
-          // Don't close if mouse moved into the popover itself
+          if (hoverTimerRef.current) {
+            clearTimeout(hoverTimerRef.current);
+            hoverTimerRef.current = null;
+          }
           const related = e.relatedTarget as HTMLElement | null;
           if (related?.closest?.(".MuiPopover-paper")) return;
           setPopoverAnchor(null);

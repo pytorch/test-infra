@@ -169,15 +169,15 @@ describe("parseFilterTerms", () => {
 
 describe("signalMatchesFilter", () => {
   it("matches substring in signal id", () => {
-    expect(
-      signalMatchesFilter("trunk:linux-jammy / test", ["jammy"])
-    ).toBe(true);
+    expect(signalMatchesFilter("trunk:linux-jammy / test", ["jammy"])).toBe(
+      true
+    );
   });
 
   it("matches workflow prefix", () => {
-    expect(
-      signalMatchesFilter("pull:linux-jammy / test", ["pull:"])
-    ).toBe(true);
+    expect(signalMatchesFilter("pull:linux-jammy / test", ["pull:"])).toBe(
+      true
+    );
   });
 
   it("matches full signal id", () => {
@@ -189,17 +189,14 @@ describe("signalMatchesFilter", () => {
   });
 
   it("returns false when no term matches", () => {
-    expect(
-      signalMatchesFilter("trunk:linux-jammy / test", ["windows"])
-    ).toBe(false);
+    expect(signalMatchesFilter("trunk:linux-jammy / test", ["windows"])).toBe(
+      false
+    );
   });
 
   it("matches any of multiple terms (OR)", () => {
     expect(
-      signalMatchesFilter("trunk:linux-jammy / test", [
-        "windows",
-        "jammy",
-      ])
+      signalMatchesFilter("trunk:linux-jammy / test", ["windows", "jammy"])
     ).toBe(true);
   });
 
@@ -208,8 +205,8 @@ describe("signalMatchesFilter", () => {
   });
 
   it("is case-insensitive", () => {
-    expect(
-      signalMatchesFilter("TRUNK:Linux-Jammy / test", ["trunk"])
-    ).toBe(true);
+    expect(signalMatchesFilter("TRUNK:Linux-Jammy / test", ["trunk"])).toBe(
+      true
+    );
   });
 });

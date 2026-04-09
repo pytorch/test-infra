@@ -21,8 +21,8 @@ function ColorBox({
         border: dashed
           ? "2px dashed #1976d2"
           : border
-            ? `2px solid ${border}`
-            : undefined,
+          ? `2px solid ${border}`
+          : undefined,
         verticalAlign: "middle",
         marginRight: 3,
       }}

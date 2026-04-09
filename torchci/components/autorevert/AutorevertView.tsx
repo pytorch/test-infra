@@ -1,19 +1,25 @@
-import { Alert, Box, Chip, Collapse, Skeleton, Typography } from "@mui/material";
-import AutorevertLegend from "./AutorevertLegend";
-import CommitSummary from "./CommitSummary";
+import {
+  Alert,
+  Box,
+  Chip,
+  Collapse,
+  Skeleton,
+  Typography,
+} from "@mui/material";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import {
   AdvisorVerdictRow,
   deduplicateVerdicts,
 } from "lib/advisorVerdictUtils";
-import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import AutorevertControls from "./AutorevertControls";
 import AutorevertGrid from "./AutorevertGrid";
+import AutorevertLegend from "./AutorevertLegend";
+import CommitSummary from "./CommitSummary";
 import { AutorevertStateResponse, ensureUtc } from "./types";
-import { fetcher } from "lib/GeneralUtils";
 
 dayjs.extend(utc);
 
@@ -159,15 +165,14 @@ export default function AutorevertView() {
   );
 
   // Lazy-load commit info (title, author, PR number) for tooltips
-  const { data: commitInfoRows } =
-    useClickHouseAPIImmutable<CommitInfoRow>(
-      "commit_info_for_shas",
-      {
-        repo: "pytorch/pytorch",
-        shas: commitShas,
-      },
-      commitShas.length > 0
-    );
+  const { data: commitInfoRows } = useClickHouseAPIImmutable<CommitInfoRow>(
+    "commit_info_for_shas",
+    {
+      repo: "pytorch/pytorch",
+      shas: commitShas,
+    },
+    commitShas.length > 0
+  );
 
   // Lazy-load autorevert events and run timestamps
   const timeRange = useMemo(() => {
@@ -267,8 +272,8 @@ export default function AutorevertView() {
         )}
         {stateValid && (
           <Typography variant="body2" color="text.secondary">
-            · {stateData.columns.length} signals ·{" "}
-            {stateData.commits.length} commits
+            · {stateData.columns.length} signals · {stateData.commits.length}{" "}
+            commits
           </Typography>
         )}
         <Typography
@@ -292,10 +297,10 @@ export default function AutorevertView() {
           sx={{ mb: 1, fontSize: "0.85rem" }}
         >
           This grid shows a snapshot of the{" "}
-          <strong>autorevert system state</strong>. Columns are CI signals
-          being monitored. Rows are recent commits (newest at top). Autorevert
-          detects when a commit breaks a signal and automatically reverts it.
-          Cell colors indicate the autorevert&apos;s analysis: which commit is
+          <strong>autorevert system state</strong>. Columns are CI signals being
+          monitored. Rows are recent commits (newest at top). Autorevert detects
+          when a commit breaks a signal and automatically reverts it. Cell
+          colors indicate the autorevert&apos;s analysis: which commit is
           suspected, which is the known-good baseline, and which newer commits
           are also affected.
         </Alert>
@@ -345,10 +350,7 @@ export default function AutorevertView() {
       )}
 
       {!stateLoading && !stateValid && (
-        <Typography
-          color="text.secondary"
-          sx={{ py: 4, textAlign: "center" }}
-        >
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
           No autorevert state found for this timestamp.
         </Typography>
       )}

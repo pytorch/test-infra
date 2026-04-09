@@ -88,11 +88,7 @@ export interface AdvisorDispatch {
 
 // --- Cell Highlight ---
 
-export type CellHighlight =
-  | "suspected"
-  | "baseline"
-  | "newer-fail"
-  | "restart";
+export type CellHighlight = "suspected" | "baseline" | "newer-fail" | "restart";
 
 // --- Autorevert Events (from misc.autorevert_events_v2) ---
 
@@ -171,10 +167,7 @@ export function parseRunId(eventName: string): number | null {
 /**
  * Build GitHub Actions URL for an event.
  */
-export function eventUrl(
-  repo: string,
-  event: CellEvent
-): string | null {
+export function eventUrl(repo: string, event: CellEvent): string | null {
   const runId = parseRunId(event.name);
   if (!runId) return null;
   if (event.job_id) {

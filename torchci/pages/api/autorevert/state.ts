@@ -145,7 +145,10 @@ function mergeStates(
   }
   // Trim from the bottom: find the last (oldest) commit with events
   let lastEventIdx = commitOrder.length - 1;
-  while (lastEventIdx >= 0 && !commitsWithEvents.has(commitOrder[lastEventIdx])) {
+  while (
+    lastEventIdx >= 0 &&
+    !commitsWithEvents.has(commitOrder[lastEventIdx])
+  ) {
     lastEventIdx--;
   }
   const allCommits = commitOrder.slice(0, lastEventIdx + 1);
@@ -188,10 +191,7 @@ export default async function handler(
   const cacheKey = `state:${repo}:${ts}:${JSON.stringify(workflows || [])}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    res.setHeader(
-      "Cache-Control",
-      "s-maxage=30, stale-while-revalidate=120"
-    );
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.status(200).json(cached);
   }
 
@@ -214,10 +214,7 @@ export default async function handler(
 
     cache.set(cacheKey, { data: merged, ts: Date.now() });
 
-    res.setHeader(
-      "Cache-Control",
-      "s-maxage=30, stale-while-revalidate=120"
-    );
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.status(200).json(merged);
   } catch (error: any) {
     console.error("Error fetching autorevert state:", error);
