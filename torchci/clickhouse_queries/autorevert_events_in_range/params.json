@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "startTime": "String",
+    "endTime": "String",
+    "filterWorkflows": "Array(String)"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "startTime": "2026-04-08 00:00:00",
+      "endTime": "2026-04-09 00:00:00",
+      "filterWorkflows": ["Lint", "trunk", "pull"]
+    }
+  ]
+}

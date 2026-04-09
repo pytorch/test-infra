@@ -285,7 +285,7 @@ export function packHudParams(input: any) {
     repoOwner: input.repoOwner as string,
     repoName: input.repoName as string,
     branch: input.branch as string,
-    page: parseInt((input.page as string) ?? 1),
+    page: parseInt((input.page as string) ?? 1) || 1,
     per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
@@ -338,6 +338,22 @@ function formatHudURL(
 
   if (params.mergeEphemeralLF) {
     base += `&mergeEphemeralLF=true`;
+  }
+
+  // Preserve autorevert view params so router.push doesn't strip them.
+  // Check both query params (legacy) and path segment (clean URL).
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    const current = new URLSearchParams(window.location.search);
+    const isAutorevertPath = path.endsWith("/autorevert");
+    if (isAutorevertPath || current.get("autorevert") === "1") {
+      for (const key of ["autorevert", "ar_ts", "ar_wf", "ar_sf"]) {
+        const val = current.get(key);
+        if (val !== null) {
+          base += `&${key}=${encodeURIComponent(val)}`;
+        }
+      }
+    }
   }
 
   return base;

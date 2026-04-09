@@ -1,3 +1,7 @@
+import AutorevertToggle, {
+  isAutorevertActive,
+} from "components/autorevert/AutorevertToggle";
+import AutorevertView from "components/autorevert/AutorevertView";
 import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
@@ -378,6 +382,7 @@ function FiltersAndSettings({}: {}) {
   const params = packHudParams(router.query);
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [autorevertView, setAutorevertView] = useContext(AutorevertViewContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns, setHideGreenColumns] =
@@ -388,61 +393,85 @@ function FiltersAndSettings({}: {}) {
     params.nameFilter
   );
 
+  // Only show autorevert toggle for pytorch/pytorch main
+  const isPyTorchMain =
+    params.repoOwner === "pytorch" &&
+    params.repoName === "pytorch" &&
+    params.branch === "main";
+
   return (
     <div className={styles.hudControlsRow}>
-      <JobFilterInput currentFilter={jobFilter} handleSubmit={handleSubmit} />
-      <SettingsPanel
-        settingGroups={{
-          // You need to specify both checkBoxName and key for each setting.
-          // `checkbox name` is used by CheckBoxSelector while `key` is
-          // used to uniquely identify the component in the settings panel.
-          // As far as I can CheckBoxSelector cannot read or write `key` but
-          // React requires us to set key since it's a list element, so we
-          // end up with some unfortunate duplication.
-          "View Options": [
-            <CheckBoxSelector
-              value={useGrouping}
-              setValue={(value) => setUseGrouping(value)}
-              checkBoxName="groupView"
-              key="groupView"
-              labelText={"Use grouped view"}
-            />,
-            <MonsterFailuresCheckbox key="monsterFailures" />,
-          ],
-          "Filter Options": [
-            <CheckBoxSelector
-              value={hideUnstable}
-              setValue={(value) => setHideUnstable(value)}
-              checkBoxName="hideUnstable"
-              key="hideUnstable"
-              labelText={"Hide unstable jobs"}
-            />,
-            <CheckBoxSelector
-              value={hideGreenColumns}
-              setValue={(value) => setHideGreenColumns(value)}
-              checkBoxName="hideGreenColumns"
-              key="hideGreenColumns"
-              labelText={"Hide green columns"}
-            />,
-            <CheckBoxSelector
-              value={hideNonViableStrict}
-              setValue={(value) => setHideNonViableStrict(value)}
-              checkBoxName="hideNonViableStrict"
-              key="hideNonViableStrict"
-              labelText={"Hide non-viable-strict jobs"}
-            />,
-            <CheckBoxSelector
-              value={mergeEphemeralLF}
-              setValue={setMergeEphemeralLF}
-              checkBoxName="mergeEphemeralLF"
-              key="mergeEphemeralLF"
-              labelText={"Condense LF, ephemeral jobs"}
-            />,
-          ],
-        }}
-        isOpen={settingsPanelOpen}
-        onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
-      />
+      {!autorevertView && (
+        <>
+          <JobFilterInput
+            currentFilter={jobFilter}
+            handleSubmit={handleSubmit}
+          />
+          <SettingsPanel
+            settingGroups={{
+              // You need to specify both checkBoxName and key for each setting.
+              // `checkbox name` is used by CheckBoxSelector while `key` is
+              // used to uniquely identify the component in the settings panel.
+              // As far as I can CheckBoxSelector cannot read or write `key` but
+              // React requires us to set key since it's a list element, so we
+              // end up with some unfortunate duplication.
+              "View Options": [
+                <CheckBoxSelector
+                  value={useGrouping}
+                  setValue={(value) => setUseGrouping(value)}
+                  checkBoxName="groupView"
+                  key="groupView"
+                  labelText={"Use grouped view"}
+                />,
+                <MonsterFailuresCheckbox key="monsterFailures" />,
+              ],
+              "Filter Options": [
+                <CheckBoxSelector
+                  value={hideUnstable}
+                  setValue={(value) => setHideUnstable(value)}
+                  checkBoxName="hideUnstable"
+                  key="hideUnstable"
+                  labelText={"Hide unstable jobs"}
+                />,
+                <CheckBoxSelector
+                  value={hideGreenColumns}
+                  setValue={(value) => setHideGreenColumns(value)}
+                  checkBoxName="hideGreenColumns"
+                  key="hideGreenColumns"
+                  labelText={"Hide green columns"}
+                />,
+                <CheckBoxSelector
+                  value={hideNonViableStrict}
+                  setValue={(value) => setHideNonViableStrict(value)}
+                  checkBoxName="hideNonViableStrict"
+                  key="hideNonViableStrict"
+                  labelText={"Hide non-viable-strict jobs"}
+                />,
+                <CheckBoxSelector
+                  value={mergeEphemeralLF}
+                  setValue={setMergeEphemeralLF}
+                  checkBoxName="mergeEphemeralLF"
+                  key="mergeEphemeralLF"
+                  labelText={"Condense LF, ephemeral jobs"}
+                />,
+              ],
+            }}
+            isOpen={settingsPanelOpen}
+            onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
+          />
+        </>
+      )}
+      {isPyTorchMain && (
+        <AutorevertToggle
+          active={autorevertView}
+          onToggle={setAutorevertView}
+          repoOwner={params.repoOwner}
+          repoName={params.repoName}
+          branch={params.branch}
+          page={params.page}
+          per_page={params.per_page}
+        />
+      )}
     </div>
   );
 }
@@ -530,9 +559,20 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
   (_) => {},
 ]);
 
+export const AutorevertViewContext = createContext<
+  [boolean, (val: boolean) => void]
+>([false, (_) => {}]);
+
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  const [autorevertView, setAutorevertView] = useState(() =>
+    isAutorevertActive(router.query)
+  );
+  // Sync autorevert state when route changes (e.g. clicking "home")
+  useEffect(() => {
+    setAutorevertView(isAutorevertActive(router.query));
+  }, [router.query]);
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,
@@ -583,26 +623,39 @@ export default function Hud() {
           <MergeLFContext.Provider
             value={[mergeEphemeralLF, setMergeEphemeralLF]}
           >
-            {params.branch !== undefined && (
-              <div onClick={handleClick}>
-                <div style={{ display: "flex", alignItems: "flex-end" }}>
-                  <HudHeader params={params} />
-                  <CopyPermanentLink
-                    params={params}
-                    style={{ marginLeft: "10px" }}
-                  />
+            <AutorevertViewContext.Provider
+              value={[autorevertView, setAutorevertView]}
+            >
+              {params.branch !== undefined && (
+                <div onClick={handleClick}>
+                  <div style={{ display: "flex", alignItems: "flex-end" }}>
+                    <HudHeader params={params} />
+                    <CopyPermanentLink
+                      params={params}
+                      style={{ marginLeft: "10px" }}
+                      autorevertView={autorevertView}
+                    />
+                  </div>
+                  <div style={{ position: "relative", clear: "both" }}>
+                    <FiltersAndSettings />
+                    {autorevertView ? (
+                      <AutorevertView />
+                    ) : (
+                      <GroupedHudTable params={params} />
+                    )}
+                  </div>
+                  {!autorevertView && (
+                    <>
+                      <PageSelector params={params} baseUrl="hud" />
+                      <br />
+                      <div>
+                        <em>This page automatically updates.</em>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div style={{ position: "relative", clear: "both" }}>
-                  <FiltersAndSettings />
-                  <GroupedHudTable params={params} />
-                </div>
-                <PageSelector params={params} baseUrl="hud" />
-                <br />
-                <div>
-                  <em>This page automatically updates.</em>
-                </div>
-              </div>
-            )}
+              )}
+            </AutorevertViewContext.Provider>
           </MergeLFContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
@@ -628,17 +681,27 @@ function useLatestCommitSha(params: HudParams) {
 function CopyPermanentLink({
   params,
   style,
+  autorevertView,
 }: {
   params: HudParams;
   style?: React.CSSProperties;
+  autorevertView?: boolean;
 }) {
+  // Hook must be called unconditionally (React rules of hooks)
+  const latestCommitSha = useLatestCommitSha(params);
+
+  // In autorevert view, copy the current URL which has all ar_* params
+  if (autorevertView) {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    return <CopyLink textToCopy={url} compressed={false} style={style} />;
+  }
+
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
-  const latestCommitSha = useLatestCommitSha(params);
   if (latestCommitSha === null) {
     return <></>;
   }
-  let permaParams = { ...params, branch: latestCommitSha };
+  const permaParams = { ...params, branch: latestCommitSha };
 
   const domain = window.location.origin;
   const path = formatHudUrlForRoute("hud", permaParams);

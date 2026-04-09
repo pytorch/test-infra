@@ -1,0 +1,534 @@
+/* Autorevert Signal Grid styles */
+
+.gridWrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.signalGrid {
+  table-layout: fixed;
+  border-collapse: collapse;
+  line-height: 1.2;
+  font-size: 0.85rem;
+}
+
+/* Column widths */
+.colTime {
+  width: 5.5ch;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-color-secondary, #666);
+  padding: 2px 4px;
+}
+
+.colSha {
+  width: 7ch;
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+}
+
+.colSignal {
+  width: 26px;
+  min-width: 26px;
+  padding: 2px 3px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Events column */
+.colEvents {
+  width: auto;
+  white-space: nowrap;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  vertical-align: middle;
+}
+
+.evtBadges {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.evtRevert {
+  color: #d32f2f;
+  font-weight: 700;
+}
+
+.evtRestart {
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.evtAdvisor {
+  color: #7b1fa2;
+  font-weight: 600;
+}
+
+/* Event timeline (left of grid) */
+.timelineGridContainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.timeline {
+  position: relative;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color, #ddd);
+  overflow: hidden; /* clip badges that overflow on the left */
+}
+
+.tlTitle {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-color-secondary, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.runsLine {
+  position: absolute;
+  width: 10px;
+  border-left: 2px solid var(--border-color, #ddd);
+  margin-left: auto;
+}
+
+.runDot {
+  position: absolute;
+  left: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-color-secondary, #999);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.runDot:hover {
+  transform: scale(1.8);
+  background: #1976d2;
+}
+
+.runDotCurrent {
+  width: 8px;
+  height: 8px;
+  left: -5px;
+  background: #1976d2;
+  box-shadow: 0 0 4px rgba(25, 118, 210, 0.6);
+}
+
+.runDotCurrent:hover {
+  transform: scale(1.3);
+}
+
+.hereLabel {
+  position: absolute;
+  right: 12px;
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #1976d2;
+  white-space: nowrap;
+  pointer-events: none;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  transform-origin: top right;
+  letter-spacing: 0.03em;
+}
+
+/* Snapshot event group — positioned vertically, flows badges horizontally */
+.tlGroup {
+  position: absolute;
+  right: 18px;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+  align-items: center;
+}
+
+.tlBadge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: auto;
+  line-height: 1.4;
+}
+
+.tlRevert {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.tlRestart {
+  background: #1976d2;
+  color: #fff;
+}
+
+.tlAdvisor {
+  background: #7b1fa2;
+  color: #fff;
+}
+
+/* Legend bar */
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  line-height: 1.8;
+}
+
+.legendGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendLabel {
+  font-weight: 600;
+  color: var(--text-color-secondary, #666);
+  margin-right: 2px;
+}
+
+.legendDivider {
+  color: var(--border-color, #ccc);
+  margin: 0 4px;
+}
+
+.legendBadge {
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: default;
+}
+
+/* Rotated signal column headers */
+.signalHeader {
+  height: 200px;
+  white-space: nowrap;
+  vertical-align: bottom;
+  padding: 0 3px;
+}
+
+.signalHeaderInner {
+  transform: translate(5px, 0px) rotate(315deg);
+  transform-origin: bottom left;
+  width: 26px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-color, #333);
+  overflow: visible;
+  white-space: nowrap;
+}
+
+/* Outcome badge row */
+.outcomeBadge {
+  display: inline-block;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.outcomeRevert {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.outcomeRestart {
+  background: #1976d2;
+  color: #fff;
+}
+
+.outcomeIneligible {
+  background: var(--border-color, #ccc);
+  color: var(--text-color-secondary, #666);
+}
+
+/* Cell highlights */
+.cellSuspected {
+  background-color: rgba(211, 47, 47, 0.15);
+}
+
+.cellBaseline {
+  background-color: rgba(25, 118, 210, 0.12);
+}
+
+.cellNewerFail {
+  background-color: rgba(211, 47, 47, 0.08);
+}
+
+.cellRestart {
+  outline: 2px dashed #1976d2;
+  outline-offset: -2px;
+}
+
+.cellAdvisorDispatch {
+  outline: 2px dashed #7b1fa2;
+  outline-offset: -2px;
+}
+
+/* Status icons */
+.eventIcon {
+  font-family: monospace;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.eventIcon:hover {
+  opacity: 0.7;
+}
+
+/* Overflow indicator */
+.overflowBadge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-color-secondary, #999);
+  cursor: pointer;
+  opacity: 0.6;
+  vertical-align: middle;
+}
+
+.overflowBadge:hover {
+  opacity: 1;
+  color: #1976d2;
+}
+
+/* Expanded column */
+.colSignalExpanded {
+  max-width: none;
+  width: auto;
+  background-color: rgba(25, 118, 210, 0.04);
+}
+
+.statusSuccess {
+  color: var(--color-success, #3ba272);
+}
+
+.statusFailure {
+  color: var(--color-failure, #ee6666);
+}
+
+.statusPending {
+  color: var(--color-pending, #f0c674);
+}
+
+/* Advisor badges in cells */
+.advisorBadge {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0px 2px;
+  border-radius: 2px;
+  margin-left: 1px;
+  cursor: pointer;
+  vertical-align: top;
+  line-height: 1.3;
+}
+
+.advRevert {
+  background: rgba(211, 47, 47, 0.2);
+  color: #d32f2f;
+}
+
+.advNotRelated {
+  background: rgba(56, 142, 60, 0.2);
+  color: #388e3c;
+}
+
+.advGarbage {
+  background: rgba(141, 110, 99, 0.2);
+  color: #8d6e63;
+}
+
+.advUnsure {
+  background: rgba(117, 117, 117, 0.2);
+  color: #757575;
+}
+
+.advPending {
+  font-style: italic;
+  color: var(--text-color-secondary, #999);
+  font-size: 0.5rem;
+}
+
+.advDispatched {
+  background: rgba(123, 31, 162, 0.2);
+  color: #7b1fa2;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Cell tooltip (absolute positioned, no modal backdrop — doesn't block scrolling) */
+.cellWrapper {
+  position: relative;
+}
+
+.cellTooltipContainer {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  z-index: 100;
+  pointer-events: none;
+  padding-bottom: 4px;
+}
+
+.cellTooltip {
+  background: var(--tooltip-bg, #333);
+  color: var(--tooltip-color, #fff);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  max-width: 450px;
+  width: max-content;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.cellTooltipContent a {
+  color: var(--link-color, #90caf9);
+}
+
+.cellTooltipSectionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.cellTooltipBadgeRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+/* Outcome detail popover */
+.outcomeDetail {
+  max-width: 400px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Controls bar */
+.controlsBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.timestampNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+/* Commit row */
+.commitRow {
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.commitRow:hover {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+.commitRowHighlighted {
+  border-left: 3px solid #1976d2;
+  background-color: rgba(25, 118, 210, 0.06);
+}
+
+:global(.dark-mode) .commitRowHighlighted {
+  background-color: rgba(25, 118, 210, 0.12);
+}
+
+/* Dark mode overrides */
+:global(.dark-mode) .cellSuspected {
+  background-color: rgba(211, 47, 47, 0.25);
+}
+
+:global(.dark-mode) .cellBaseline {
+  background-color: rgba(25, 118, 210, 0.2);
+}
+
+:global(.dark-mode) .cellNewerFail {
+  background-color: rgba(211, 47, 47, 0.12);
+}
+
+/* Toggle switch: HUD <-> Autorevert */
+.toggleWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  margin-left: auto; /* push to far right */
+  position: relative;
+  z-index: 10;
+  background: var(--background-color, #fff);
+  box-shadow: 0 0 12px 8px var(--background-color, #fff);
+}
+
+.toggleOption {
+  padding: 5px 14px;
+  color: var(--text-color-secondary, #666);
+  background: transparent;
+  transition: all 0.15s;
+  border: none;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+}
+
+.toggleOption:hover {
+  color: var(--text-color, #333);
+}
+
+.toggleOptionActive {
+  background: #1976d2;
+  color: #fff;
+}
+
+.toggleOptionActive:hover {
+  background: #1565c0;
+  color: #fff;
+}
