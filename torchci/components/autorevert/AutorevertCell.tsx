@@ -41,13 +41,7 @@ interface AutorevertCellProps {
   onExpandColumn?: () => void;
 }
 
-function EventIcon({
-  ev,
-  repo,
-}: {
-  ev: CellEvent;
-  repo: string;
-}) {
+function EventIcon({ ev, repo }: { ev: CellEvent; repo: string }) {
   const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
   const url = eventUrl(repo, ev);
   const tip = [
@@ -111,15 +105,18 @@ export default function AutorevertCell({
     : events.slice(events.length - MAX_VISIBLE);
   const hiddenCount = events.length - visibleEvents.length;
 
-  // Advisor badge
+  // Advisor badge: prefer fullAdvisorVerdict (from CH, has summary/reasoning),
+  // fall back to advisorResult (from state JSON, may be stale or absent).
   let advisorBadge = null;
-  if (advisorResult) {
-    const cls = ADV_VERDICT_CLS[advisorResult.verdict] || styles.advUnsure;
-    const short = ADV_VERDICT_SHORT[advisorResult.verdict] || "?";
+  const hasVerdict = fullAdvisorVerdict || advisorResult;
+
+  if (fullAdvisorVerdict) {
+    const cls =
+      ADV_VERDICT_CLS[fullAdvisorVerdict.verdict] || styles.advUnsure;
+    const short = ADV_VERDICT_SHORT[fullAdvisorVerdict.verdict] || "?";
     advisorBadge = (
       <span
         className={`${styles.advisorBadge} ${cls}`}
-        title={`AI: ${advisorResult.verdict} (${Math.round(advisorResult.confidence * 100)}%)`}
         onClick={(e) => {
           e.stopPropagation();
           setPopoverAnchor(e.currentTarget);
@@ -128,14 +125,36 @@ export default function AutorevertCell({
         {short}
       </span>
     );
+  } else if (advisorResult) {
+    const cls = ADV_VERDICT_CLS[advisorResult.verdict] || styles.advUnsure;
+    const short = ADV_VERDICT_SHORT[advisorResult.verdict] || "?";
+    advisorBadge = (
+      <Tooltip
+        title={
+          <span style={{ fontSize: "0.9rem" }}>
+            AI: {advisorResult.verdict} (
+            {Math.round(advisorResult.confidence * 100)}%)
+          </span>
+        }
+        arrow
+      >
+        <span className={`${styles.advisorBadge} ${cls}`}>{short}</span>
+      </Tooltip>
+    );
   } else if (advisorDispatchPending) {
     advisorBadge = (
-      <span
-        className={`${styles.advisorBadge} ${styles.advPending}`}
-        title="AI advisor dispatched, awaiting result"
+      <Tooltip
+        title={
+          <span style={{ fontSize: "0.9rem" }}>
+            AI advisor dispatched, awaiting result
+          </span>
+        }
+        arrow
       >
-        …
-      </span>
+        <span className={`${styles.advisorBadge} ${styles.advPending}`}>
+          …
+        </span>
+      </Tooltip>
     );
   }
 
