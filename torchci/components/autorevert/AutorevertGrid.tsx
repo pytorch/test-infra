@@ -16,7 +16,6 @@ import {
   CellHighlight,
   ensureUtc,
   getHighlightsForOutcome,
-  parseChTimestamp,
   SignalColumn,
 } from "./types";
 
