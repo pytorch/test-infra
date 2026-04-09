@@ -29,17 +29,23 @@ interface ParsedState {
  * into a unified response.
  */
 function mergeStates(
-  rows: Array<{ state: string; workflows: string[]; ts: string }>,
+  rows: Array<{
+    state: string;
+    workflows: string[];
+    snapshot_ts?: string;
+    ts?: string;
+  }>,
   workflowFilter?: string[]
 ): any {
   // Deduplicate: keep the most recent row per workflow set
   const byWorkflowSet = new Map<string, ParsedState & { ts: string }>();
   for (const row of rows) {
-    const key = JSON.stringify(row.workflows.sort());
+    const key = JSON.stringify([...row.workflows].sort());
     if (!byWorkflowSet.has(key)) {
       try {
         const parsed: ParsedState = JSON.parse(row.state);
-        byWorkflowSet.set(key, { ...parsed, ts: row.ts });
+        const rowTs = row.snapshot_ts || row.ts || "";
+        byWorkflowSet.set(key, { ...parsed, ts: rowTs });
       } catch {
         // Skip malformed state
       }
@@ -189,7 +195,7 @@ export default async function handler(
   try {
     const rows = await queryClickhouseSaved("autorevert_state_for_ts", {
       repo,
-      ts: ts.replace("T", " ").replace("Z", ""),
+      target_ts: ts.replace("T", " ").replace("Z", ""),
     });
 
     const merged = mergeStates(
