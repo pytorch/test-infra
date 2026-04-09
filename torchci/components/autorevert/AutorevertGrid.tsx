@@ -13,8 +13,10 @@ import {
   AutorevertEventRow,
   AutorevertStateResponse,
   CellHighlight,
+  ensureUtc,
   EventCounts,
   getHighlightsForOutcome,
+  parseChTimestamp,
   SignalColumn,
 } from "./types";
 
@@ -50,8 +52,7 @@ function outcomeTooltip(
 
 /** Format UTC timestamp as local time for tooltips */
 function formatLocalTime(isoTime: string): string {
-  const utcStr = isoTime + (isoTime.endsWith("Z") ? "" : "Z");
-  return dayjs(utcStr).local().format("YYYY-MM-DD h:mm A");
+  return dayjs(ensureUtc(isoTime)).local().format("YYYY-MM-DD h:mm A");
 }
 
 interface CommitInfo {
@@ -93,15 +94,14 @@ export default function AutorevertGrid({
 
     for (let i = 0; i < commits.length; i++) {
       const sha = commits[i];
-      const parseUtc = (t: string) => new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime();
-      const commitTime = parseUtc(times[sha] || "1970-01-01");
+      const commitTime = parseChTimestamp(times[sha]);
       // Next newer commit's time (or Infinity for the newest commit)
       const newerTime =
-        i > 0 ? parseUtc(times[commits[i - 1]] || "1970-01-01") : Infinity;
+        i > 0 ? parseChTimestamp(times[commits[i - 1]]) : Infinity;
 
       const counts: EventCounts = { restart: 0, revert: 0, advisor: 0 };
       for (const ev of autorevertEvents) {
-        const evTime = new Date(ev.ts + (ev.ts.endsWith("Z") ? "" : "Z")).getTime();
+        const evTime = parseChTimestamp(ev.ts);
         if (evTime >= commitTime && evTime < newerTime) {
           if (ev.action in counts) {
             counts[ev.action as keyof EventCounts]++;
@@ -321,11 +321,11 @@ export default function AutorevertGrid({
                   {time && timeTooltip ? (
                     <Tooltip title={timeTooltip} arrow disableInteractive={false}>
                       <span style={{ cursor: "pointer" }}>
-                        <LocalTimeHuman timestamp={time + (time.endsWith("Z") ? "" : "Z")} />
+                        <LocalTimeHuman timestamp={ensureUtc(time)} />
                       </span>
                     </Tooltip>
                   ) : time ? (
-                    <LocalTimeHuman timestamp={time + (time.endsWith("Z") ? "" : "Z")} />
+                    <LocalTimeHuman timestamp={ensureUtc(time)} />
                   ) : (
                     ""
                   )}

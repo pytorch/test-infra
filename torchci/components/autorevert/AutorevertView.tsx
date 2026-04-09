@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import AutorevertControls from "./AutorevertControls";
 import AutorevertGrid from "./AutorevertGrid";
-import { AutorevertStateResponse } from "./types";
+import { AutorevertStateResponse, ensureUtc } from "./types";
 import { fetcher } from "lib/GeneralUtils";
 
 dayjs.extend(utc);
@@ -84,7 +84,7 @@ export default function AutorevertView() {
   const timeRange = useMemo(() => {
     if (!stateValid || commitShas.length === 0) return null;
     const times = Object.values(stateData.commitTimes)
-      .map((t) => new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime())
+      .map((t) => new Date(ensureUtc(t)).getTime())
       .filter((t) => !isNaN(t));
     if (times.length === 0) return null;
     const fmt = (ms: number) =>
@@ -113,13 +113,11 @@ export default function AutorevertView() {
   );
 
   const snapshotTime = stateData?.ts
-    ? dayjs(stateData.ts).local().format("YYYY-MM-DD h:mm:ss A")
+    ? dayjs(ensureUtc(stateData.ts)).local().format("YYYY-MM-DD h:mm:ss A")
     : null;
 
   const handleTimestampFromGrid = (isoTime: string) => {
-    // CH timestamps are UTC without Z — parse as UTC, convert to local for picker
-    const utcStr = isoTime + (isoTime.endsWith("Z") ? "" : "Z");
-    setTimestamp(dayjs(utcStr).local());
+    setTimestamp(dayjs(ensureUtc(isoTime)).local());
   };
 
   return (

@@ -113,11 +113,14 @@ function mergeStates(
   // Build commit list from state, trimming from the bottom
   // (oldest commits with no events in any column are removed,
   // but middle gaps are preserved — those may have pending events)
+  // Normalize commit timestamps to include Z suffix (CH omits it)
   const commitTimes: Record<string, string> = {};
   const commitOrder: string[] = [];
   const commitOrderSet = new Set<string>();
   for (const state of byWorkflowSet.values()) {
-    Object.assign(commitTimes, state.commit_times || {});
+    for (const [sha, ts] of Object.entries(state.commit_times || {})) {
+      commitTimes[sha] = ts && !ts.endsWith("Z") ? ts + "Z" : ts;
+    }
     for (const sha of state.commits || []) {
       if (!commitOrderSet.has(sha)) {
         commitOrderSet.add(sha);
@@ -125,14 +128,11 @@ function mergeStates(
       }
     }
   }
-  // Sort by timestamp desc (newest first)
-  // Append Z to ensure UTC parsing (CH timestamps lack timezone suffix)
-  const parseUtc = (t: string) =>
-    new Date(t + (t.endsWith("Z") ? "" : "Z")).getTime();
+  // Sort by timestamp desc (newest first) — timestamps already normalized with Z
   commitOrder.sort(
     (a, b) =>
-      parseUtc(commitTimes[b] || "1970-01-01") -
-      parseUtc(commitTimes[a] || "1970-01-01")
+      new Date(commitTimes[b] || "1970-01-01Z").getTime() -
+      new Date(commitTimes[a] || "1970-01-01Z").getTime()
   );
   // Find which commits have events in the filtered columns
   const commitsWithEvents = new Set<string>();

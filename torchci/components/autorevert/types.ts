@@ -112,6 +112,21 @@ export interface EventCounts {
 }
 
 /**
+ * Ensure a timestamp string is parseable as UTC.
+ * ClickHouse returns timestamps without Z suffix — this appends it.
+ */
+export function ensureUtc(ts: string): string {
+  return ts && !ts.endsWith("Z") ? ts + "Z" : ts;
+}
+
+/**
+ * Parse a CH timestamp as UTC milliseconds.
+ */
+export function parseChTimestamp(ts: string): number {
+  return new Date(ensureUtc(ts || "1970-01-01")).getTime();
+}
+
+/**
  * Parse run_id from event name format:
  * "wf=<workflow> kind=<kind> id=<signal_id> run=<run_id> attempt=<attempt>"
  */
