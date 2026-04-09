@@ -47,9 +47,9 @@ function outcomeTooltip(
   return header;
 }
 
-/** Format a UTC timestamp as local time string for the "go here" tooltip */
+/** Format timestamp for the "go here" tooltip — same parsing as LocalTimeHuman */
 function formatLocalTime(isoTime: string): string {
-  return dayjs.utc(isoTime).local().format("YYYY-MM-DD h:mm A");
+  return dayjs(isoTime).local().format("YYYY-MM-DD h:mm A");
 }
 
 interface CommitInfo {
