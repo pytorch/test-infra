@@ -460,8 +460,17 @@ function FiltersAndSettings({}: {}) {
             }`}
             onClick={() => {
               setAutorevertView(false);
-              const url = new URL(window.location.href);
+              // Navigate to normal HUD URL (strip autorevert path and params)
+              const hudUrl = formatHudUrlForRoute("hud", {
+                ...params,
+                page: 1,
+              });
+              // Remove ar_* params from the clean HUD URL
+              const url = new URL(hudUrl, window.location.origin);
               url.searchParams.delete("autorevert");
+              url.searchParams.delete("ar_ts");
+              url.searchParams.delete("ar_wf");
+              url.searchParams.delete("ar_sf");
               window.history.replaceState({}, "", url.toString());
             }}
           >
@@ -473,8 +482,15 @@ function FiltersAndSettings({}: {}) {
             }`}
             onClick={() => {
               setAutorevertView(true);
-              const url = new URL(window.location.href);
-              url.searchParams.set("autorevert", "1");
+              // Switch to /autorevert path
+              const base = `/hud/${params.repoOwner}/${params.repoName}/${encodeURIComponent(params.branch)}/autorevert`;
+              const url = new URL(base, window.location.origin);
+              // Preserve any existing ar_* params
+              const current = new URLSearchParams(window.location.search);
+              for (const key of ["ar_ts", "ar_wf", "ar_sf"]) {
+                const val = current.get(key);
+                if (val) url.searchParams.set(key, val);
+              }
               window.history.replaceState({}, "", url.toString());
             }}
           >
@@ -576,9 +592,17 @@ export const AutorevertViewContext = createContext<
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
-  // Initialize autorevert view from URL params.
-  // Activate if autorevert=1 OR if any ar_* params are present (permalink).
+  // Initialize autorevert view from URL.
+  // Activate if:
+  //   - route is /hud/.../autorevert (clean URL)
+  //   - autorevert=1 query param (legacy)
+  //   - any ar_* query params present (permalink)
   const [autorevertView, setAutorevertView] = useState(() => {
+    const pageSegment = router.query.page;
+    const isAutorevertRoute =
+      (Array.isArray(pageSegment) && pageSegment[0] === "autorevert") ||
+      pageSegment === "autorevert";
+    if (isAutorevertRoute) return true;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       return (
