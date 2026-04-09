@@ -1,8 +1,11 @@
 import { Tooltip, Typography } from "@mui/material";
+import { LocalTimeHuman } from "components/common/TimeUtils";
 import {
   AdvisorVerdict,
   buildVerdictsBySha,
 } from "lib/advisorVerdictUtils";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { useMemo, useState } from "react";
 import AutorevertCell from "./AutorevertCell";
 import styles from "./autorevert.module.css";
@@ -13,6 +16,8 @@ import {
   getHighlightsForOutcome,
   SignalColumn,
 } from "./types";
+
+dayjs.extend(utc);
 
 const OUTCOME_LABELS: Record<string, { label: string; cls: string }> = {
   revert: { label: "REV", cls: styles.outcomeRevert },
@@ -42,14 +47,9 @@ function outcomeTooltip(
   return header;
 }
 
-function formatCommitTime(isoTime: string): string {
-  const d = new Date(isoTime);
-  return d.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-  });
+/** Format a UTC timestamp as local time string for the "go here" tooltip */
+function formatLocalTime(isoTime: string): string {
+  return dayjs.utc(isoTime).local().format("YYYY-MM-DD h:mm A");
 }
 
 interface CommitInfo {
@@ -249,7 +249,7 @@ export default function AutorevertGrid({
             // Time tooltip with "go here" option
             const timeTooltip = time ? (
               <div style={{ fontSize: "0.9rem" }}>
-                <div>{new Date(time).toISOString()}</div>
+                <div>{formatLocalTime(time)}</div>
                 {onTimestampChange && (
                   <div
                     style={{
@@ -275,11 +275,11 @@ export default function AutorevertGrid({
                   {time && timeTooltip ? (
                     <Tooltip title={timeTooltip} arrow disableInteractive={false}>
                       <span style={{ cursor: "pointer" }}>
-                        {formatCommitTime(time)}
+                        <LocalTimeHuman timestamp={time} />
                       </span>
                     </Tooltip>
                   ) : time ? (
-                    formatCommitTime(time)
+                    <LocalTimeHuman timestamp={time} />
                   ) : (
                     ""
                   )}

@@ -79,11 +79,13 @@ export default function AutorevertView() {
     );
 
   const snapshotTime = stateData?.ts
-    ? dayjs(stateData.ts).utc().format("YYYY-MM-DD HH:mm:ss UTC")
+    ? dayjs.utc(stateData.ts).local().format("YYYY-MM-DD h:mm:ss A")
     : null;
 
   const handleTimestampFromGrid = (isoTime: string) => {
-    setTimestamp(dayjs(isoTime));
+    // State timestamps are UTC — parse as UTC, then convert to local
+    // so the DateTimePicker stays in local time
+    setTimestamp(dayjs.utc(isoTime).local());
   };
 
   return (
