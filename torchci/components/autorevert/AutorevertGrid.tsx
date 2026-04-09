@@ -151,6 +151,7 @@ interface AutorevertGridProps {
   onTimestampChange?: (ts: string) => void;
   highlightSha?: string;
   hideTimeline?: boolean;
+  revertFocus?: boolean;
 }
 
 export default function AutorevertGrid({
@@ -163,6 +164,7 @@ export default function AutorevertGrid({
   onTimestampChange,
   highlightSha,
   hideTimeline,
+  revertFocus,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
   const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
@@ -179,15 +181,54 @@ export default function AutorevertGrid({
     }
   }, [highlightSha]);
 
-  // Filter columns by signal filter text
+  // Filter columns by signal filter text + revert focus
   const filteredColumns = useMemo(() => {
-    if (!signalFilter) return state.columns;
-    const terms = parseFilterTerms(signalFilter);
-    if (terms.length === 0) return state.columns;
-    return state.columns.filter((col) =>
-      signalMatchesFilter(signalId(col.workflow, col.key), terms)
-    );
-  }, [state.columns, signalFilter]);
+    let cols = state.columns;
+
+    // Revert focus: only show signals with "revert" outcome or AI "revert" verdict
+    if (revertFocus) {
+      cols = cols.filter((col) => {
+        const sigKey = signalId(col.workflow, col.key);
+        const outcome = state.outcomes[sigKey];
+        if (outcome?.type === "AutorevertPattern") return true;
+        // Check for AI revert verdict in state-embedded results
+        if (col.advisorResults) {
+          for (const adv of Object.values(col.advisorResults)) {
+            if (adv.verdict === "revert") return true;
+          }
+        }
+        // Check CH-fetched verdicts
+        if (advisorVerdicts) {
+          for (const v of advisorVerdicts) {
+            if (
+              v.signalKey === col.key &&
+              v.workflowName === col.workflow &&
+              v.verdict === "revert"
+            )
+              return true;
+          }
+        }
+        return false;
+      });
+    }
+
+    if (signalFilter) {
+      const terms = parseFilterTerms(signalFilter);
+      if (terms.length > 0) {
+        cols = cols.filter((col) =>
+          signalMatchesFilter(signalId(col.workflow, col.key), terms)
+        );
+      }
+    }
+
+    return cols;
+  }, [
+    state.columns,
+    state.outcomes,
+    signalFilter,
+    revertFocus,
+    advisorVerdicts,
+  ]);
 
   // Build highlights per column
   const highlightMaps = useMemo(() => {
