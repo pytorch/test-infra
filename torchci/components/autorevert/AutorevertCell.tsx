@@ -1,6 +1,6 @@
+import { Tooltip } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
 import { AdvisorVerdict } from "lib/advisorVerdictUtils";
-import { useRef, useState } from "react";
 import styles from "./autorevert.module.css";
 import {
   CellEvent,
@@ -79,9 +79,6 @@ export default function AutorevertCell({
   signalKey,
   workflowName,
 }: AutorevertCellProps) {
-  const [visible, setVisible] = useState(false);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const highlightCls = highlight
     ? {
         suspected: styles.cellSuspected,
@@ -152,7 +149,7 @@ export default function AutorevertCell({
 
   // Tooltip content
   const tooltipContent = (
-    <div className={styles.cellTooltipContent}>
+    <div style={{ fontSize: "0.85rem", lineHeight: 1.6, maxWidth: 420 }}>
       {signalKey && (
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
           {workflowName}:{signalKey}
@@ -206,7 +203,7 @@ export default function AutorevertCell({
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "var(--link-color, #1a73e8)" }}
+                      style={{ color: "#90caf9" }}
                     >
                       View logs →
                     </a>
@@ -229,7 +226,7 @@ export default function AutorevertCell({
           style={{
             marginTop: 8,
             paddingTop: 8,
-            borderTop: "1px solid var(--border-color, #ddd)",
+            borderTop: "1px solid rgba(255,255,255,0.15)",
           }}
         >
           <div className={styles.cellTooltipSectionLabel}>
@@ -269,47 +266,39 @@ export default function AutorevertCell({
     </div>
   );
 
-  function handleMouseOver() {
-    hoverTimerRef.current = setTimeout(() => setVisible(true), 200);
-  }
-
-  function handleMouseLeave() {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    setVisible(false);
-  }
-
   return (
     <td
       className={`${styles.colSignal} ${highlightClass} ${
         isExpanded ? styles.colSignalExpanded : ""
-      } ${styles.cellWrapper}`}
-      onMouseOver={handleMouseOver}
-      onMouseLeave={handleMouseLeave}
+      }`}
     >
-      {eventIcons}
-      {hiddenCount >= 2 && (
-        <span
-          className={styles.overflowBadge}
-          onClick={(e) => {
-            e.stopPropagation();
-            onExpandColumn?.();
-          }}
-        >
-          +{hiddenCount}
+      <Tooltip
+        title={tooltipContent}
+        arrow
+        placement="bottom"
+        enterDelay={200}
+        slotProps={{
+          tooltip: {
+            sx: { maxWidth: 450, fontSize: "inherit" },
+          },
+        }}
+      >
+        <span>
+          {eventIcons}
+          {hiddenCount >= 2 && (
+            <span
+              className={styles.overflowBadge}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpandColumn?.();
+              }}
+            >
+              +{hiddenCount}
+            </span>
+          )}
+          {advisorBadge}
         </span>
-      )}
-      {advisorBadge}
-      {visible && (
-        <div
-          className={styles.cellTooltipContainer}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={styles.cellTooltip}>{tooltipContent}</div>
-        </div>
-      )}
+      </Tooltip>
     </td>
   );
 }
