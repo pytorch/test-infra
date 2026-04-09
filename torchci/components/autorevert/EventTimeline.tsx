@@ -316,9 +316,9 @@ export default function EventTimeline({
           return (
             <span
               className={styles.hereLabel}
-              style={{ top: y - 5 }}
+              style={{ top: y + 6 }}
             >
-              ← this snapshot
+              showing this snapshot
             </span>
           );
         })()}

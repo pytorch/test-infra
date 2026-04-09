@@ -132,14 +132,13 @@
 
 .hereLabel {
   position: absolute;
-  right: 16px;
+  right: 12px;
   font-size: 0.5rem;
   font-weight: 600;
   color: #1976d2;
   white-space: nowrap;
   pointer-events: none;
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
+  writing-mode: vertical-rl;
   letter-spacing: 0.03em;
 }
 
