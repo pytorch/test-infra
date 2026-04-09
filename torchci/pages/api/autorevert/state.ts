@@ -104,11 +104,28 @@ function mergeStates(
     return a.key.localeCompare(b.key);
   });
 
-  // Build commit list: only commits that appear in at least one column's cells
+  // Build commit list from state, trimming from the bottom
+  // (oldest commits with no events in any column are removed,
+  // but middle gaps are preserved — those may have pending events)
   const commitTimes: Record<string, string> = {};
+  const commitOrder: string[] = [];
+  const commitOrderSet = new Set<string>();
   for (const state of byWorkflowSet.values()) {
     Object.assign(commitTimes, state.commit_times || {});
+    for (const sha of state.commits || []) {
+      if (!commitOrderSet.has(sha)) {
+        commitOrderSet.add(sha);
+        commitOrder.push(sha);
+      }
+    }
   }
+  // Sort by timestamp desc (newest first)
+  commitOrder.sort(
+    (a, b) =>
+      new Date(commitTimes[b] || 0).getTime() -
+      new Date(commitTimes[a] || 0).getTime()
+  );
+  // Find which commits have events in the filtered columns
   const commitsWithEvents = new Set<string>();
   for (const col of columns) {
     for (const sha of Object.keys(col.cells || {})) {
@@ -117,11 +134,12 @@ function mergeStates(
       }
     }
   }
-  const allCommits = Array.from(commitsWithEvents).sort(
-    (a, b) =>
-      new Date(commitTimes[b] || 0).getTime() -
-      new Date(commitTimes[a] || 0).getTime()
-  );
+  // Trim from the bottom: find the last (oldest) commit with events
+  let lastEventIdx = commitOrder.length - 1;
+  while (lastEventIdx >= 0 && !commitsWithEvents.has(commitOrder[lastEventIdx])) {
+    lastEventIdx--;
+  }
+  const allCommits = commitOrder.slice(0, lastEventIdx + 1);
 
   // Get the most recent timestamp
   let latestTs = "";

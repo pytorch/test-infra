@@ -3,7 +3,7 @@ import {
   AdvisorVerdictRow,
   deduplicateVerdicts,
 } from "lib/advisorVerdictUtils";
-import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
+import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useMemo, useState } from "react";
@@ -11,10 +11,18 @@ import useSWR from "swr";
 import AutorevertControls from "./AutorevertControls";
 import AutorevertGrid from "./AutorevertGrid";
 import { AutorevertStateResponse } from "./types";
+import { fetcher } from "lib/GeneralUtils";
 
 dayjs.extend(utc);
 
 const DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull"];
+
+interface CommitInfoRow {
+  sha: string;
+  message: string;
+  author: string;
+  time: string;
+}
 
 export default function AutorevertView() {
   const [timestamp, setTimestamp] = useState(dayjs());
@@ -41,8 +49,7 @@ export default function AutorevertView() {
       revalidateOnFocus: false,
     });
 
-
-  // Fetch full advisor verdicts for commit linking
+  // Lazy-load AI advisor verdicts for commits on screen
   const commitShas = stateData?.commits || [];
   const { data: verdictRows } = useClickHouseAPIImmutable<AdvisorVerdictRow>(
     "advisor_verdicts_for_hud",
@@ -57,9 +64,24 @@ export default function AutorevertView() {
     [verdictRows]
   );
 
+  // Lazy-load commit info (title, author, PR number) for tooltips
+  const { data: commitInfoRows } =
+    useClickHouseAPIImmutable<CommitInfoRow>(
+      "commit_info_for_shas",
+      {
+        repo: "pytorch/pytorch",
+        shas: commitShas,
+      },
+      commitShas.length > 0
+    );
+
   const snapshotTime = stateData?.ts
     ? dayjs(stateData.ts).utc().format("YYYY-MM-DD HH:mm:ss UTC")
     : null;
+
+  const handleTimestampFromGrid = (isoTime: string) => {
+    setTimestamp(dayjs(isoTime));
+  };
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -111,6 +133,8 @@ export default function AutorevertView() {
           state={stateData}
           signalFilter={signalFilter}
           advisorVerdicts={advisorVerdicts}
+          commitInfos={commitInfoRows}
+          onTimestampChange={handleTimestampFromGrid}
         />
       )}
 

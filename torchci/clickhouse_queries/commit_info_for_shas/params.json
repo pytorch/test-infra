@@ -1,0 +1,12 @@
+{
+  "params": {
+    "shas": "Array(String)",
+    "repo": "String"
+  },
+  "tests": [
+    {
+      "shas": ["4fdbeb7393919717a7ae4e49e982b46cd3dc2f31"],
+      "repo": "pytorch/pytorch"
+    }
+  ]
+}

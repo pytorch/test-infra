@@ -32,18 +32,22 @@ export default function AutorevertControls({
   signalFilter,
   onSignalFilterChange,
 }: AutorevertControlsProps) {
-  const stepMinutes = 5;
-
   return (
     <div className={styles.controlsBar}>
       {/* Timestamp navigator */}
       <div className={styles.timestampNav}>
-        <Tooltip title={`Step back ${stepMinutes} minutes`}>
+        <Tooltip title="Back 1 hour">
           <IconButton
             size="small"
-            onClick={() =>
-              onTimestampChange(timestamp.subtract(stepMinutes, "minute"))
-            }
+            onClick={() => onTimestampChange(timestamp.subtract(1, "hour"))}
+          >
+            ◀◀
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Back 5 minutes">
+          <IconButton
+            size="small"
+            onClick={() => onTimestampChange(timestamp.subtract(5, "minute"))}
           >
             ◀
           </IconButton>
@@ -64,14 +68,20 @@ export default function AutorevertControls({
           />
         </LocalizationProvider>
 
-        <Tooltip title={`Step forward ${stepMinutes} minutes`}>
+        <Tooltip title="Forward 5 minutes">
           <IconButton
             size="small"
-            onClick={() =>
-              onTimestampChange(timestamp.add(stepMinutes, "minute"))
-            }
+            onClick={() => onTimestampChange(timestamp.add(5, "minute"))}
           >
             ▶
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Forward 1 hour">
+          <IconButton
+            size="small"
+            onClick={() => onTimestampChange(timestamp.add(1, "hour"))}
+          >
+            ▶▶
           </IconButton>
         </Tooltip>
 

@@ -3,7 +3,7 @@ import {
   AdvisorVerdict,
   buildVerdictsBySha,
 } from "lib/advisorVerdictUtils";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import AutorevertCell from "./AutorevertCell";
 import styles from "./autorevert.module.css";
 import {
@@ -52,18 +52,30 @@ function formatCommitTime(isoTime: string): string {
   });
 }
 
+interface CommitInfo {
+  sha: string;
+  message: string;
+  author: string;
+  time: string;
+}
+
 interface AutorevertGridProps {
   state: AutorevertStateResponse;
   signalFilter: string;
   advisorVerdicts?: AdvisorVerdict[];
+  commitInfos?: CommitInfo[];
+  onTimestampChange?: (ts: string) => void;
 }
 
 export default function AutorevertGrid({
   state,
   signalFilter,
   advisorVerdicts,
+  commitInfos,
+  onTimestampChange,
 }: AutorevertGridProps) {
   const repo = state.meta.repo;
+  const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
 
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
@@ -87,7 +99,7 @@ export default function AutorevertGrid({
     return maps;
   }, [filteredColumns, state.outcomes]);
 
-  // Build advisor dispatch lookup: (signal_key, commit_sha) → true
+  // Build advisor dispatch lookup
   const dispatchLookup = useMemo(() => {
     const set = new Set<string>();
     for (const d of state.advisorDispatches || []) {
@@ -101,6 +113,15 @@ export default function AutorevertGrid({
     () => buildVerdictsBySha(advisorVerdicts || []),
     [advisorVerdicts]
   );
+
+  // Build commit info lookup
+  const commitInfoMap = useMemo(() => {
+    const map = new Map<string, CommitInfo>();
+    for (const ci of commitInfos || []) {
+      map.set(ci.sha, ci);
+    }
+    return map;
+  }, [commitInfos]);
 
   if (filteredColumns.length === 0) {
     return (
@@ -116,9 +137,19 @@ export default function AutorevertGrid({
         <colgroup>
           <col className={styles.colTime} />
           <col className={styles.colSha} />
-          {filteredColumns.map((_, i) => (
-            <col key={i} className={styles.colSignal} />
-          ))}
+          {filteredColumns.map((col, i) => {
+            const sigKey = `${col.workflow}:${col.key}`;
+            return (
+              <col
+                key={i}
+                className={
+                  expandedColumn === sigKey
+                    ? styles.colSignalExpanded
+                    : styles.colSignal
+                }
+              />
+            );
+          })}
         </colgroup>
         <thead>
           {/* Signal name headers (rotated) */}
@@ -129,8 +160,16 @@ export default function AutorevertGrid({
               const sigKey = `${col.workflow}:${col.key}`;
               const outcome = state.outcomes[sigKey];
               const tip = outcomeTooltip(col, outcome);
+              const isExpanded = expandedColumn === sigKey;
               return (
-                <th key={i} className={styles.signalHeader}>
+                <th
+                  key={i}
+                  className={`${styles.signalHeader} ${isExpanded ? styles.colSignalExpanded : ""}`}
+                  onClick={() =>
+                    setExpandedColumn(isExpanded ? null : sigKey)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
                   <Tooltip title={tip} arrow placement="top">
                     <div className={styles.signalHeaderInner}>{col.key}</div>
                   </Tooltip>
@@ -166,21 +205,107 @@ export default function AutorevertGrid({
             const shortSha = sha.slice(0, 7);
             const commitUrl = `https://github.com/${repo}/commit/${sha}`;
             const shaVerdicts = verdictsBySha.get(sha.trim()) || [];
+            const ci = commitInfoMap.get(sha);
+
+            // Parse PR number and title from commit message
+            const prMatch = ci?.message?.match(
+              /\(#(\d+)\)/
+            );
+            const prNum = prMatch ? prMatch[1] : null;
+            const title = ci?.message?.split("\n")[0] || "";
+
+            const commitTooltip = ci ? (
+              <div style={{ fontSize: "0.9rem", maxWidth: 400 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {title}
+                </div>
+                <div style={{ opacity: 0.8, fontSize: "0.85rem" }}>
+                  {ci.author} · {ci.time}
+                </div>
+                {prNum && (
+                  <div style={{ marginTop: 6 }}>
+                    <a
+                      href={`https://github.com/${repo}/pull/${prNum}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#1a73e8" }}
+                    >
+                      PR #{prNum}
+                    </a>
+                    {" · "}
+                    <a
+                      href={`https://hud.pytorch.org/hud/${repo}/${sha}/1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#1a73e8" }}
+                    >
+                      HUD
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : undefined;
+
+            // Time tooltip with "go here" option
+            const timeTooltip = time ? (
+              <div style={{ fontSize: "0.9rem" }}>
+                <div>{new Date(time).toISOString()}</div>
+                {onTimestampChange && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      color: "#1a73e8",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTimestampChange(time);
+                    }}
+                  >
+                    Go here →
+                  </div>
+                )}
+              </div>
+            ) : undefined;
 
             return (
               <tr key={sha} className={styles.commitRow}>
                 <td className={styles.colTime}>
-                  {time ? formatCommitTime(time) : ""}
+                  {time && timeTooltip ? (
+                    <Tooltip title={timeTooltip} arrow disableInteractive={false}>
+                      <span style={{ cursor: "pointer" }}>
+                        {formatCommitTime(time)}
+                      </span>
+                    </Tooltip>
+                  ) : time ? (
+                    formatCommitTime(time)
+                  ) : (
+                    ""
+                  )}
                 </td>
                 <td className={styles.colSha}>
-                  <a
-                    href={commitUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "var(--link-color, #1a73e8)" }}
-                  >
-                    {shortSha}
-                  </a>
+                  {commitTooltip ? (
+                    <Tooltip title={commitTooltip} arrow>
+                      <a
+                        href={commitUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--link-color, #1a73e8)" }}
+                      >
+                        {shortSha}
+                      </a>
+                    </Tooltip>
+                  ) : (
+                    <a
+                      href={commitUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "var(--link-color, #1a73e8)" }}
+                    >
+                      {shortSha}
+                    </a>
+                  )}
                 </td>
                 {filteredColumns.map((col, i) => {
                   const sigKey = `${col.workflow}:${col.key}`;
@@ -190,7 +315,6 @@ export default function AutorevertGrid({
                   const dispatchPending =
                     dispatchLookup.has(`${sigKey}:${sha}`) && !advisorResult;
 
-                  // Find full verdict from dedicated CH table
                   const fullVerdict = shaVerdicts.find(
                     (v) =>
                       v.signalKey === col.key &&
@@ -206,6 +330,12 @@ export default function AutorevertGrid({
                       advisorDispatchPending={dispatchPending}
                       fullAdvisorVerdict={fullVerdict}
                       repo={repo}
+                      isExpanded={expandedColumn === sigKey}
+                      onExpandColumn={() =>
+                        setExpandedColumn(
+                          expandedColumn === sigKey ? null : sigKey
+                        )
+                      }
                     />
                   );
                 })}

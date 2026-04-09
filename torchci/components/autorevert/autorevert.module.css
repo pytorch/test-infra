@@ -114,6 +114,29 @@
   opacity: 0.7;
 }
 
+/* Overflow indicator */
+.overflowBadge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-color-secondary, #999);
+  cursor: pointer;
+  opacity: 0.6;
+  vertical-align: middle;
+}
+
+.overflowBadge:hover {
+  opacity: 1;
+  color: #1976d2;
+}
+
+/* Expanded column */
+.colSignalExpanded {
+  max-width: none;
+  width: auto;
+  background-color: rgba(25, 118, 210, 0.04);
+}
+
 .statusSuccess {
   color: var(--color-success, #3ba272);
 }

@@ -35,9 +35,52 @@ interface AutorevertCellProps {
   highlight?: CellHighlight;
   advisorResult?: ColumnAdvisorResult;
   advisorDispatchPending?: boolean;
-  // Full advisor verdict from the dedicated CH table (has run_id, summary, etc.)
   fullAdvisorVerdict?: AdvisorVerdict;
   repo: string;
+  isExpanded?: boolean;
+  onExpandColumn?: () => void;
+}
+
+function EventIcon({
+  ev,
+  repo,
+}: {
+  ev: CellEvent;
+  repo: string;
+}) {
+  const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
+  const url = eventUrl(repo, ev);
+  const tip = [
+    `${ev.status}${ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}`,
+    ev.started_at,
+    ev.name,
+  ].join("\n");
+
+  const inner = url ? (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${styles.eventIcon} ${cls}`}
+    >
+      {icon}
+    </a>
+  ) : (
+    <span className={`${styles.eventIcon} ${cls}`}>{icon}</span>
+  );
+
+  return (
+    <Tooltip
+      title={
+        <span style={{ fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>
+          {tip}
+        </span>
+      }
+      arrow
+    >
+      {inner}
+    </Tooltip>
+  );
 }
 
 export default function AutorevertCell({
@@ -47,6 +90,8 @@ export default function AutorevertCell({
   advisorDispatchPending,
   fullAdvisorVerdict,
   repo,
+  isExpanded,
+  onExpandColumn,
 }: AutorevertCellProps) {
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
@@ -59,60 +104,12 @@ export default function AutorevertCell({
       }[highlight]
     : "";
 
-  const MAX_VISIBLE_EVENTS = 2;
-  const hasOverflow = events.length > MAX_VISIBLE_EVENTS;
-  // Show last N events (most recent) when there are too many
-  const visibleEvents = hasOverflow
-    ? events.slice(events.length - MAX_VISIBLE_EVENTS)
-    : events;
-
-  function renderEventIcon(ev: CellEvent, i: number) {
-    const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
-    const url = eventUrl(repo, ev);
-    const tip = `${ev.status} — ${ev.started_at}${ev.run_attempt ? ` (attempt ${ev.run_attempt})` : ""}\n${ev.name}`;
-
-    if (url) {
-      return (
-        <Tooltip key={i} title={<span style={{ fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{tip}</span>} arrow>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles.eventIcon} ${cls}`}
-          >
-            {icon}
-          </a>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip key={i} title={<span style={{ fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{tip}</span>} arrow>
-        <span className={`${styles.eventIcon} ${cls}`}>
-          {icon}
-        </span>
-      </Tooltip>
-    );
-  }
-
-  const eventIcons = (
-    <>
-      {hasOverflow && (
-        <Tooltip
-          title={
-            <span style={{ fontSize: "0.9rem" }}>
-              {events.length - MAX_VISIBLE_EVENTS} earlier event(s) hidden
-            </span>
-          }
-          arrow
-        >
-          <span className={styles.eventIcon} style={{ opacity: 0.4, fontSize: "0.7rem" }}>
-            +{events.length - MAX_VISIBLE_EVENTS}
-          </span>
-        </Tooltip>
-      )}
-      {visibleEvents.map((ev, i) => renderEventIcon(ev, i))}
-    </>
-  );
+  const MAX_VISIBLE = 2;
+  const showAll = isExpanded || events.length <= MAX_VISIBLE;
+  const visibleEvents = showAll
+    ? events
+    : events.slice(events.length - MAX_VISIBLE);
+  const hiddenCount = events.length - visibleEvents.length;
 
   // Advisor badge
   let advisorBadge = null;
@@ -133,7 +130,10 @@ export default function AutorevertCell({
     );
   } else if (advisorDispatchPending) {
     advisorBadge = (
-      <span className={`${styles.advisorBadge} ${styles.advPending}`} title="AI advisor dispatched, awaiting result">
+      <span
+        className={`${styles.advisorBadge} ${styles.advPending}`}
+        title="AI advisor dispatched, awaiting result"
+      >
         …
       </span>
     );
@@ -145,8 +145,32 @@ export default function AutorevertCell({
 
   return (
     <>
-      <td className={`${styles.colSignal} ${highlightClass}`}>
-        {eventIcons}
+      <td
+        className={`${styles.colSignal} ${highlightClass} ${isExpanded ? styles.colSignalExpanded : ""}`}
+      >
+        {visibleEvents.map((ev, i) => (
+          <EventIcon key={i} ev={ev} repo={repo} />
+        ))}
+        {hiddenCount >= 2 && (
+          <Tooltip
+            title={
+              <span style={{ fontSize: "0.9rem" }}>
+                {hiddenCount} earlier events — click to expand column
+              </span>
+            }
+            arrow
+          >
+            <span
+              className={styles.overflowBadge}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpandColumn?.();
+              }}
+            >
+              +{hiddenCount}
+            </span>
+          </Tooltip>
+        )}
         {advisorBadge}
       </td>
       {fullAdvisorVerdict && (
