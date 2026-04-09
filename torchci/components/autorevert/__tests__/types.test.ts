@@ -4,7 +4,10 @@ import {
   getHighlightsForOutcome,
   Outcome,
   parseChTimestamp,
+  parseFilterTerms,
   parseRunId,
+  signalId,
+  signalMatchesFilter,
 } from "../types";
 
 describe("ensureUtc", () => {
@@ -124,5 +127,89 @@ describe("getHighlightsForOutcome", () => {
 
   it("returns empty map for undefined", () => {
     expect(getHighlightsForOutcome(undefined).size).toBe(0);
+  });
+});
+
+describe("signalId", () => {
+  it("builds workflow:key format", () => {
+    expect(signalId("trunk", "linux-jammy / test")).toBe(
+      "trunk:linux-jammy / test"
+    );
+  });
+
+  it("handles empty workflow", () => {
+    expect(signalId("", "test")).toBe(":test");
+  });
+});
+
+describe("parseFilterTerms", () => {
+  it("splits on pipe", () => {
+    expect(parseFilterTerms("test_cuda | inductor")).toEqual([
+      "test_cuda",
+      "inductor",
+    ]);
+  });
+
+  it("trims whitespace", () => {
+    expect(parseFilterTerms("  foo  |  bar  ")).toEqual(["foo", "bar"]);
+  });
+
+  it("handles single term", () => {
+    expect(parseFilterTerms("test_cuda")).toEqual(["test_cuda"]);
+  });
+
+  it("handles empty string", () => {
+    expect(parseFilterTerms("")).toEqual([]);
+  });
+
+  it("lowercases terms", () => {
+    expect(parseFilterTerms("TRUNK")).toEqual(["trunk"]);
+  });
+});
+
+describe("signalMatchesFilter", () => {
+  it("matches substring in signal id", () => {
+    expect(
+      signalMatchesFilter("trunk:linux-jammy / test", ["jammy"])
+    ).toBe(true);
+  });
+
+  it("matches workflow prefix", () => {
+    expect(
+      signalMatchesFilter("pull:linux-jammy / test", ["pull:"])
+    ).toBe(true);
+  });
+
+  it("matches full signal id", () => {
+    expect(
+      signalMatchesFilter("trunk:linux-jammy / test", [
+        "trunk:linux-jammy / test",
+      ])
+    ).toBe(true);
+  });
+
+  it("returns false when no term matches", () => {
+    expect(
+      signalMatchesFilter("trunk:linux-jammy / test", ["windows"])
+    ).toBe(false);
+  });
+
+  it("matches any of multiple terms (OR)", () => {
+    expect(
+      signalMatchesFilter("trunk:linux-jammy / test", [
+        "windows",
+        "jammy",
+      ])
+    ).toBe(true);
+  });
+
+  it("returns true for empty terms (no filter)", () => {
+    expect(signalMatchesFilter("anything", [])).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(
+      signalMatchesFilter("TRUNK:Linux-Jammy / test", ["trunk"])
+    ).toBe(true);
   });
 });

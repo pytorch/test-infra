@@ -16,6 +16,9 @@ import {
   CellHighlight,
   ensureUtc,
   getHighlightsForOutcome,
+  parseFilterTerms,
+  signalId,
+  signalMatchesFilter,
   SignalColumn,
 } from "./types";
 
@@ -46,7 +49,7 @@ function outcomeTooltip(
 ): React.ReactNode {
   const header = (
     <div style={{ fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
-      {col.workflow}: {col.key}
+      {signalId(col.workflow, col.key)}
     </div>
   );
   if (!outcome)
@@ -174,25 +177,18 @@ export default function AutorevertGrid({
   // Filter columns by signal filter text
   const filteredColumns = useMemo(() => {
     if (!signalFilter) return state.columns;
-    // Support multiple pipe-separated terms — column matches if ANY term matches.
-    // Pipe is used because both commas and spaces appear in signal keys.
-    const terms = signalFilter
-      .toLowerCase()
-      .split("|")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const terms = parseFilterTerms(signalFilter);
     if (terms.length === 0) return state.columns;
-    return state.columns.filter((col) => {
-      const text = `${col.workflow}: ${col.key}`.toLowerCase();
-      return terms.some((term) => text.includes(term));
-    });
+    return state.columns.filter((col) =>
+      signalMatchesFilter(signalId(col.workflow, col.key), terms)
+    );
   }, [state.columns, signalFilter]);
 
   // Build highlights per column
   const highlightMaps = useMemo(() => {
     const maps: Map<string, Map<string, CellHighlight>> = new Map();
     for (const col of filteredColumns) {
-      const sigKey = `${col.workflow}:${col.key}`;
+      const sigKey = signalId(col.workflow, col.key);
       const outcome = state.outcomes[sigKey];
       maps.set(sigKey, getHighlightsForOutcome(outcome));
     }
@@ -248,7 +244,7 @@ export default function AutorevertGrid({
           <col className={styles.colTime} />
           <col className={styles.colSha} />
           {filteredColumns.map((col, i) => {
-            const sigKey = `${col.workflow}:${col.key}`;
+            const sigKey = signalId(col.workflow, col.key);
             return (
               <col
                 key={i}
@@ -267,7 +263,7 @@ export default function AutorevertGrid({
             <th className={styles.colTime} />
             <th className={styles.colSha} />
             {filteredColumns.map((col, i) => {
-              const sigKey = `${col.workflow}:${col.key}`;
+              const sigKey = signalId(col.workflow, col.key);
               const outcome = state.outcomes[sigKey];
               const tip = outcomeTooltip(col, outcome);
               const isExpanded = expandedColumn === sigKey;
@@ -282,7 +278,7 @@ export default function AutorevertGrid({
                 >
                   <Tooltip title={tip} arrow placement="top">
                     <div className={styles.signalHeaderInner}>
-                      {col.workflow}: {col.key}
+                      {signalId(col.workflow, col.key)}
                     </div>
                   </Tooltip>
                 </th>
@@ -296,7 +292,7 @@ export default function AutorevertGrid({
             {filteredColumns.map((col, i) => {
               const { label, cls } =
                 OUTCOME_LABELS[col.outcome] || OUTCOME_LABELS.ineligible;
-              const sigKey = `${col.workflow}:${col.key}`;
+              const sigKey = signalId(col.workflow, col.key);
               const outcome = state.outcomes[sigKey];
               const tip = outcomeTooltip(col, outcome);
               return (
@@ -424,7 +420,7 @@ export default function AutorevertGrid({
                   )}
                 </td>
                 {filteredColumns.map((col, i) => {
-                  const sigKey = `${col.workflow}:${col.key}`;
+                  const sigKey = signalId(col.workflow, col.key);
                   const events = col.cells?.[sha] || [];
                   const highlight = highlightMaps.get(sigKey)?.get(sha);
                   const advisorResult = col.advisorResults?.[sha];

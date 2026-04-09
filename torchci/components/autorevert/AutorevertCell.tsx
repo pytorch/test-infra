@@ -82,7 +82,7 @@ export default function AutorevertCell({
 }: AutorevertCellProps) {
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
 
-  const highlightClass = highlight
+  const highlightCls = highlight
     ? {
         suspected: styles.cellSuspected,
         baseline: styles.cellBaseline,
@@ -90,6 +90,9 @@ export default function AutorevertCell({
         restart: styles.cellRestart,
       }[highlight]
     : "";
+  // Show dashed purple border for advisor dispatch (similar to restart dashed border)
+  const dispatchCls = advisorDispatchPending ? styles.cellAdvisorDispatch : "";
+  const highlightClass = `${highlightCls} ${dispatchCls}`;
 
   const MAX_VISIBLE = 2;
   const showAll = isExpanded || events.length <= MAX_VISIBLE;
@@ -104,7 +107,7 @@ export default function AutorevertCell({
       {/* Signal + commit context */}
       {signalKey && (
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
-          {workflowName}: {signalKey}
+          {workflowName}:{signalKey}
         </div>
       )}
       {highlight && (
@@ -207,8 +210,12 @@ export default function AutorevertCell({
         </div>
       )}
       {advisorDispatchPending && !advisorResult && !fullAdvisorVerdict && (
-        <div style={{ marginTop: 4, fontSize: "0.8rem", opacity: 0.7 }}>
-          AI advisor dispatched, awaiting result…
+        <div style={{ marginTop: 4, fontSize: "0.8rem" }}>
+          <strong style={{ color: "#7b1fa2" }}>AI Advisor: dispatched</strong>
+          <div style={{ opacity: 0.8, marginTop: 2 }}>
+            An AI advisor has been dispatched to analyze whether this commit
+            caused the failure. The verdict has not been received yet.
+          </div>
         </div>
       )}
     </div>
@@ -237,7 +244,9 @@ export default function AutorevertCell({
     advisorBadge = <span className={`${styles.advisorBadge} ${cls}`}>{short}</span>;
   } else if (advisorDispatchPending) {
     advisorBadge = (
-      <span className={`${styles.advisorBadge} ${styles.advPending}`}>…</span>
+      <span className={`${styles.advisorBadge} ${styles.advDispatched}`}>
+        AI
+      </span>
     );
   }
 

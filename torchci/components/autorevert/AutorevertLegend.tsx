@@ -87,6 +87,20 @@ export default function AutorevertLegend() {
           <span>
             <ColorBox dashed /> restart target
           </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 12,
+                height: 12,
+                borderRadius: 2,
+                border: "2px dashed #7b1fa2",
+                verticalAlign: "middle",
+                marginRight: 3,
+              }}
+            />{" "}
+            AI dispatched
+          </span>
         </span>
 
         <span className={styles.legendDivider}>|</span>
@@ -137,9 +151,9 @@ export default function AutorevertLegend() {
             tooltip="AI advisor is unsure — autorevert continues normal flow"
           />
           <Badge
-            label="…"
-            cls={styles.advPending}
-            tooltip="AI advisor dispatched, awaiting result"
+            label="AI"
+            cls={styles.advDispatched}
+            tooltip="AI advisor dispatched, awaiting result (pulsing)"
           />
         </span>
       </div>

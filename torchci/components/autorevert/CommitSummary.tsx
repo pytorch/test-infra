@@ -168,7 +168,7 @@ export default function CommitSummary({
             variant="body2"
             sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.85rem", color: "#d32f2f" }}
           >
-            Failure: {v.workflowName}: {v.signalKey}
+            Failure: {v.workflowName}:{v.signalKey}
           </Typography>
           <AdvisorSection
             verdict={v}

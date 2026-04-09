@@ -278,6 +278,11 @@
   outline-offset: -2px;
 }
 
+.cellAdvisorDispatch {
+  outline: 2px dashed #7b1fa2;
+  outline-offset: -2px;
+}
+
 /* Status icons */
 .eventIcon {
   font-family: monospace;
@@ -362,6 +367,17 @@
   font-style: italic;
   color: var(--text-color-secondary, #999);
   font-size: 0.5rem;
+}
+
+.advDispatched {
+  background: rgba(123, 31, 162, 0.2);
+  color: #7b1fa2;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* Outcome detail popover */

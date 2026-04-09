@@ -127,6 +127,39 @@ export function parseChTimestamp(ts: string): number {
 }
 
 /**
+ * Build the canonical signal key from workflow and key parts.
+ * Format: "workflow:key" — used consistently for display, filtering,
+ * and dispatch lookup.
+ */
+export function signalId(workflow: string, key: string): string {
+  return `${workflow}:${key}`;
+}
+
+/**
+ * Check if a signal ID matches a filter term (case-insensitive substring).
+ */
+export function signalMatchesFilter(
+  signalId: string,
+  filterTerms: string[]
+): boolean {
+  if (filterTerms.length === 0) return true;
+  const lower = signalId.toLowerCase();
+  return filterTerms.some((term) => lower.includes(term));
+}
+
+/**
+ * Parse filter text into normalized terms.
+ * Uses | (pipe) as separator since both commas and spaces appear in signal keys.
+ */
+export function parseFilterTerms(filter: string): string[] {
+  return filter
+    .toLowerCase()
+    .split("|")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
  * Parse run_id from event name format:
  * "wf=<workflow> kind=<kind> id=<signal_id> run=<run_id> attempt=<attempt>"
  */
