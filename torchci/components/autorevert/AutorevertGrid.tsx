@@ -234,7 +234,7 @@ export default function AutorevertGrid({
                     </a>
                     {" · "}
                     <a
-                      href={`https://hud.pytorch.org/hud/${repo}/${sha}/1`}
+                      href={`https://hud.pytorch.org/${repo}/commit/${sha}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: "#1a73e8" }}

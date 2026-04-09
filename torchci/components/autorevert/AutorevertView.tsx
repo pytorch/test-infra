@@ -50,7 +50,7 @@ export default function AutorevertView() {
     });
 
   // Lazy-load AI advisor verdicts for commits on screen
-  const commitShas = stateData?.commits || [];
+  const commitShas = stateValid ? stateData.commits : [];
   const { data: verdictRows } = useClickHouseAPIImmutable<AdvisorVerdictRow>(
     "advisor_verdicts_for_hud",
     {
@@ -74,6 +74,9 @@ export default function AutorevertView() {
       },
       commitShas.length > 0
     );
+
+  // Guard: API may return error object or partial data
+  const stateValid = stateData?.columns && stateData?.commits;
 
   const snapshotTime = stateData?.ts
     ? dayjs(stateData.ts).utc().format("YYYY-MM-DD HH:mm:ss UTC")
@@ -106,7 +109,7 @@ export default function AutorevertView() {
             Snapshot: {snapshotTime}
           </Typography>
         )}
-        {stateData && (
+        {stateValid && (
           <Typography variant="caption" color="text.secondary">
             ({stateData.columns.length} signals, {stateData.commits.length}{" "}
             commits)
@@ -128,7 +131,7 @@ export default function AutorevertView() {
         <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
       )}
 
-      {stateData && (
+      {stateValid && (
         <AutorevertGrid
           state={stateData}
           signalFilter={signalFilter}
@@ -138,7 +141,7 @@ export default function AutorevertView() {
         />
       )}
 
-      {!stateLoading && !stateData && (
+      {!stateLoading && !stateValid && (
         <Typography
           color="text.secondary"
           sx={{ py: 4, textAlign: "center" }}
