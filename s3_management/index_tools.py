@@ -60,6 +60,7 @@ import os
 import sys
 import urllib.request
 import urllib.error
+import re
 from os import path
 from re import match
 from typing import List, Optional
@@ -486,16 +487,97 @@ def recompute_missing_sha256(prefix: str) -> None:
 # S3 / R2 sync verification and repair
 # ===================================================================
 
-def _check_single_key(key: str) -> tuple:
-    """Download a key from both S3 and R2, compute SHA256, return comparison.
+def _parse_index_sha256s(html: str) -> dict:
+    """Parse SHA256 hashes from a PEP 503 index.html page.
+
+    Returns a dict mapping wheel **filename** (basename) to its SHA256
+    hex digest.  Also maps ``<name>.whl.metadata`` files using the
+    ``data-dist-info-metadata`` / ``data-core-metadata`` attribute.
+    Files without a ``#sha256=`` fragment are omitted.
+    """
+    result: dict = {}
+    for tag in re.finditer(r"<a\s+([^>]+)>", html):
+        attrs = tag.group(1)
+
+        href_m = re.search(r'href="([^"]*)"', attrs)
+        if not href_m:
+            continue
+        href = href_m.group(1)
+
+        # .whl SHA256 from href fragment  (#sha256=...)
+        frag_m = re.search(r"#sha256=([a-f0-9]+)", href)
+        clean_href = href.split("#")[0]
+        filename = clean_href.rsplit("/", 1)[-1]
+        if not filename.endswith(".whl"):
+            continue
+
+        if frag_m:
+            result[filename] = frag_m.group(1)
+
+        # .whl.metadata SHA256 from data-dist-info-metadata or data-core-metadata
+        meta_m = re.search(
+            r'data-(?:dist-info-metadata|core-metadata)="sha256=([a-f0-9]+)"',
+            attrs,
+        )
+        if meta_m:
+            result[f"{filename}.metadata"] = meta_m.group(1)
+
+    return result
+
+
+def _fetch_s3_index_sha256s(
+    matching_keys: List[str], package_name: str
+) -> dict:
+    """Fetch S3 index.html pages and build a {basename: sha256} map.
+
+    For each unique subdirectory in *matching_keys*, fetches
+    ``<subdir>/<package>/index.html`` from S3 and parses the SHA256
+    hashes embedded in the HTML.
+    """
+    compat_name = package_name.lower().replace("_", "-")
+
+    # Determine which index.html files we need
+    index_keys: set = set()
+    for key in matching_keys:
+        dirname = path.dirname(key)  # e.g. "whl/cu129"
+        index_keys.add(f"{dirname}/{compat_name}/index.html")
+
+    # Fetch and parse each index
+    basename_to_sha: dict = {}
+    for idx_key in sorted(index_keys):
+        try:
+            html = (
+                BUCKET.Object(key=idx_key)
+                .get()["Body"]
+                .read()
+                .decode("utf-8")
+            )
+            parsed = _parse_index_sha256s(html)
+            basename_to_sha.update(parsed)
+            print(
+                f"  Loaded {len(parsed)} hash(es) from s3://{BUCKET.name}/{idx_key}"
+            )
+        except Exception as exc:
+            print(f"  WARNING: Could not fetch {idx_key}: {exc}")
+
+    return basename_to_sha
+
+
+def _check_single_key(key: str, s3_sha256: Optional[str] = None) -> tuple:
+    """Compare SHA256 of a key between S3 and R2.
+
+    If *s3_sha256* is provided (read from index.html), the S3 download
+    is skipped.  Otherwise the file is downloaded from S3 to compute
+    the hash.
 
     Returns:
         (key, s3_sha256, r2_sha256_or_None, status)
         status is one of "OK", "MISMATCH", "MISSING_ON_R2"
     """
-    # Download from S3 and hash
-    s3_response = BUCKET.Object(key=key).get()
-    s3_sha256 = _compute_sha256_from_stream(s3_response["Body"])
+    # S3 hash: prefer pre-computed value from index, fall back to download
+    if s3_sha256 is None:
+        s3_response = BUCKET.Object(key=key).get()
+        s3_sha256 = _compute_sha256_from_stream(s3_response["Body"])
 
     # Download from R2 and hash
     try:
@@ -538,11 +620,14 @@ def check_r2_sync(
 ) -> None:
     """Compare SHA256 of files between S3 and R2 for a specific package/version.
 
-    Downloads each matching .whl and .whl.metadata file from both S3 and
-    R2, computes SHA256 from the actual content, and reports mismatches.
+    Reads S3 SHA256 hashes from the package index.html (no large
+    downloads needed from S3).  Downloads each matching file from R2,
+    computes SHA256 from actual content, and compares.  Falls back to
+    downloading from S3 only when a hash is missing from the index
+    (e.g. nightly builds).
 
     When *fix* is True, mismatched or missing files are copied from S3
-    (source of truth) to R2.
+    (source of truth) to R2, and the Cloudflare CDN cache is purged.
 
     Args:
         prefix: S3 prefix (e.g., "whl", "whl/test")
@@ -570,12 +655,32 @@ def check_r2_sync(
     )
     print()
 
-    # Check each key in parallel (limit concurrency to avoid overwhelming I/O)
+    # Read S3 SHA256 from index.html instead of downloading every wheel
+    print("INFO: Fetching SHA256 hashes from S3 index.html pages ...")
+    index_sha256s = _fetch_s3_index_sha256s(matching_keys, package_name)
+
+    fallback_count = 0
+    for key in matching_keys:
+        if path.basename(key) not in index_sha256s:
+            fallback_count += 1
+    if fallback_count:
+        print(
+            f"  {fallback_count} file(s) not in index — will download from S3 "
+            "to compute SHA256"
+        )
+    print()
+
+    # Check each key in parallel (only R2 downloads needed for most files)
     max_workers = min(6, len(matching_keys)) or 1
     results: list = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_key = {
-            executor.submit(_check_single_key, key): key for key in matching_keys
+            executor.submit(
+                _check_single_key,
+                key,
+                s3_sha256=index_sha256s.get(path.basename(key)),
+            ): key
+            for key in matching_keys
         }
         for future in concurrent.futures.as_completed(future_to_key):
             key = future_to_key[future]
