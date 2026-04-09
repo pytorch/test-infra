@@ -1,5 +1,7 @@
+import AutorevertToggle, {
+  isAutorevertActive,
+} from "components/autorevert/AutorevertToggle";
 import AutorevertView from "components/autorevert/AutorevertView";
-import autorevertStyles from "components/autorevert/autorevert.module.css";
 import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
@@ -457,50 +459,15 @@ function FiltersAndSettings({}: {}) {
         </>
       )}
       {isPyTorchMain && (
-        <div className={autorevertStyles.toggleWrapper}>
-          <button
-            className={`${autorevertStyles.toggleOption} ${
-              !autorevertView ? autorevertStyles.toggleOptionActive : ""
-            }`}
-            onClick={() => {
-              setAutorevertView(false);
-              // Navigate to normal HUD URL (strip autorevert path and params)
-              const hudUrl = formatHudUrlForRoute("hud", {
-                ...params,
-                page: 1,
-              });
-              // Remove ar_* params from the clean HUD URL
-              const url = new URL(hudUrl, window.location.origin);
-              url.searchParams.delete("autorevert");
-              url.searchParams.delete("ar_ts");
-              url.searchParams.delete("ar_wf");
-              url.searchParams.delete("ar_sf");
-              window.history.replaceState({}, "", url.toString());
-            }}
-          >
-            HUD
-          </button>
-          <button
-            className={`${autorevertStyles.toggleOption} ${
-              autorevertView ? autorevertStyles.toggleOptionActive : ""
-            }`}
-            onClick={() => {
-              setAutorevertView(true);
-              // Switch to /autorevert path
-              const base = `/hud/${params.repoOwner}/${params.repoName}/${encodeURIComponent(params.branch)}/autorevert`;
-              const url = new URL(base, window.location.origin);
-              // Preserve any existing ar_* params
-              const current = new URLSearchParams(window.location.search);
-              for (const key of ["ar_ts", "ar_wf", "ar_sf"]) {
-                const val = current.get(key);
-                if (val) url.searchParams.set(key, val);
-              }
-              window.history.replaceState({}, "", url.toString());
-            }}
-          >
-            Autorevert
-          </button>
-        </div>
+        <AutorevertToggle
+          active={autorevertView}
+          onToggle={setAutorevertView}
+          repoOwner={params.repoOwner}
+          repoName={params.repoName}
+          branch={params.branch}
+          page={params.page}
+          per_page={params.per_page}
+        />
       )}
     </div>
   );
@@ -596,28 +563,9 @@ export const AutorevertViewContext = createContext<
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
-  // Initialize autorevert view from URL.
-  // Activate if:
-  //   - route is /hud/.../autorevert (clean URL)
-  //   - autorevert=1 query param (legacy)
-  //   - any ar_* query params present (permalink)
-  const [autorevertView, setAutorevertView] = useState(() => {
-    const pageSegment = router.query.page;
-    const isAutorevertRoute =
-      (Array.isArray(pageSegment) && pageSegment[0] === "autorevert") ||
-      pageSegment === "autorevert";
-    if (isAutorevertRoute) return true;
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      return (
-        params.get("autorevert") === "1" ||
-        params.has("ar_ts") ||
-        params.has("ar_wf") ||
-        params.has("ar_sf")
-      );
-    }
-    return false;
-  });
+  const [autorevertView, setAutorevertView] = useState(() =>
+    isAutorevertActive(router.query)
+  );
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,
@@ -686,9 +634,7 @@ export default function Hud() {
                     {autorevertView ? (
                       <AutorevertView />
                     ) : (
-                      <>
-                        <GroupedHudTable params={params} />
-                      </>
+                      <GroupedHudTable params={params} />
                     )}
                   </div>
                   {!autorevertView && (
@@ -734,8 +680,10 @@ function CopyPermanentLink({
   style?: React.CSSProperties;
   autorevertView?: boolean;
 }) {
-  // In autorevert view, the current URL already contains all state
-  // (ar_ts, ar_wf, ar_sf, autorevert=1) — just copy it directly.
+  // Hook must be called unconditionally (React rules of hooks)
+  const latestCommitSha = useLatestCommitSha(params);
+
+  // In autorevert view, copy the current URL which has all ar_* params
   if (autorevertView) {
     const url = typeof window !== "undefined" ? window.location.href : "";
     return <CopyLink textToCopy={url} compressed={false} style={style} />;
@@ -743,11 +691,10 @@ function CopyPermanentLink({
 
   // Branch and tag pointers can change over time.
   // For a permanent, we take the latest immutable commit as our reference
-  const latestCommitSha = useLatestCommitSha(params);
   if (latestCommitSha === null) {
     return <></>;
   }
-  let permaParams = { ...params, branch: latestCommitSha };
+  const permaParams = { ...params, branch: latestCommitSha };
 
   const domain = window.location.origin;
   const path = formatHudUrlForRoute("hud", permaParams);
