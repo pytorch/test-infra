@@ -49,6 +49,7 @@ interface AutorevertCellProps {
   highlight?: CellHighlight;
   advisorResult?: ColumnAdvisorResult;
   advisorDispatchPending?: boolean;
+  advisorWasDispatched?: boolean;
   fullAdvisorVerdict?: AdvisorVerdict;
   repo: string;
   isExpanded?: boolean;
@@ -71,6 +72,7 @@ export default function AutorevertCell({
   highlight,
   advisorResult,
   advisorDispatchPending,
+  advisorWasDispatched,
   fullAdvisorVerdict,
   repo,
   isExpanded,
@@ -89,7 +91,7 @@ export default function AutorevertCell({
         restart: styles.cellRestart,
       }[highlight]
     : "";
-  const dispatchCls = advisorDispatchPending ? styles.cellAdvisorDispatch : "";
+  const dispatchCls = advisorWasDispatched ? styles.cellAdvisorDispatch : "";
   const highlightClass = `${highlightCls} ${dispatchCls}`;
 
   const MAX_VISIBLE = 2;
@@ -227,8 +229,8 @@ export default function AutorevertCell({
         </div>
       )}
 
-      {/* AI Advisor — full component with expandable reasoning */}
-      {fullAdvisorVerdict && (
+      {/* AI Advisor section */}
+      {(fullAdvisorVerdict || advisorResult || advisorWasDispatched) && (
         <div
           style={{
             marginTop: 8,
@@ -248,49 +250,30 @@ export default function AutorevertCell({
           >
             AI Advisor Analysis
           </div>
-          <AdvisorSection
-            verdict={fullAdvisorVerdict}
-            repoOwner={repo.split("/")[0]}
-            repoName={repo.split("/")[1]}
-          />
-        </div>
-      )}
 
-      {/* State-only advisor result (no full verdict from CH) */}
-      {advisorResult && !fullAdvisorVerdict && (
-        <div
-          style={{
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: "1px solid var(--border-color, #ddd)",
-            fontSize: "0.8rem",
-          }}
-        >
-          <strong>AI Advisor:</strong> {advisorResult.verdict} (
-          {Math.round(advisorResult.confidence * 100)}%)
-        </div>
-      )}
+          {advisorWasDispatched && (
+            <div style={{ fontSize: "0.8rem", marginBottom: 6, opacity: 0.8 }}>
+              Autorevert dispatched an AI advisor to analyze this failure.
+              {!fullAdvisorVerdict &&
+                !advisorResult &&
+                " The verdict has not been received yet."}
+            </div>
+          )}
 
-      {/* Dispatch pending */}
-      {advisorDispatchPending && !advisorResult && !fullAdvisorVerdict && (
-        <div
-          style={{
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: "1px solid var(--border-color, #ddd)",
-          }}
-        >
-          <span
-            className={`${styles.advisorBadge} ${styles.advDispatched}`}
-            style={{ marginRight: 6 }}
-          >
-            AI
-          </span>
-          <strong style={{ color: "#7b1fa2" }}>Advisor dispatched</strong>
-          <div style={{ opacity: 0.8, marginTop: 2, fontSize: "0.8rem" }}>
-            An AI advisor has been dispatched to analyze whether this commit
-            caused the failure. The verdict has not been received yet.
-          </div>
+          {fullAdvisorVerdict && (
+            <AdvisorSection
+              verdict={fullAdvisorVerdict}
+              repoOwner={repo.split("/")[0]}
+              repoName={repo.split("/")[1]}
+            />
+          )}
+
+          {advisorResult && !fullAdvisorVerdict && (
+            <div style={{ fontSize: "0.8rem" }}>
+              <strong>Verdict:</strong> {advisorResult.verdict} (
+              {Math.round(advisorResult.confidence * 100)}%)
+            </div>
+          )}
         </div>
       )}
     </div>

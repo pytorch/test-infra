@@ -424,8 +424,10 @@ export default function AutorevertGrid({
                   const events = col.cells?.[sha] || [];
                   const highlight = highlightMaps.get(sigKey)?.get(sha);
                   const advisorResult = col.advisorResults?.[sha];
+                  const wasDispatched =
+                    dispatchLookup.has(`${sigKey}:${sha}`);
                   const dispatchPending =
-                    dispatchLookup.has(`${sigKey}:${sha}`) && !advisorResult;
+                    wasDispatched && !advisorResult;
 
                   const fullVerdict = shaVerdicts.find(
                     (v) =>
@@ -440,6 +442,7 @@ export default function AutorevertGrid({
                       highlight={highlight}
                       advisorResult={advisorResult}
                       advisorDispatchPending={dispatchPending}
+                      advisorWasDispatched={wasDispatched}
                       fullAdvisorVerdict={fullVerdict}
                       repo={repo}
                       isExpanded={expandedColumn === sigKey}
