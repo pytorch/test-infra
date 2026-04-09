@@ -432,6 +432,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_diagonal_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "179850",
+    "https://github.com/pytorch/pytorch/issues/179850",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_index_fill_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176195",
     "https://github.com/pytorch/pytorch/issues/176195",
@@ -440,9 +448,25 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_index_put_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "179851",
+    "https://github.com/pytorch/pytorch/issues/179851",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_cudagraph_indexing_ops_select_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "179852",
+    "https://github.com/pytorch/pytorch/issues/179852",
     [
       "linux",
       "slow"
@@ -863,6 +887,14 @@
       "slow"
     ]
   ],
+  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179853",
+    "https://github.com/pytorch/pytorch/issues/179853",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_hessian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
     "153644",
     "https://github.com/pytorch/pytorch/issues/153644",
@@ -1011,8 +1043,8 @@
     ]
   ],
   "test_memory_stats (__main__.TestCuda)": [
-    "179812",
-    "https://github.com/pytorch/pytorch/issues/179812",
+    "179813",
+    "https://github.com/pytorch/pytorch/issues/179813",
     [
       "linux",
       "slow"
@@ -1422,6 +1454,14 @@
       "asan"
     ]
   ],
+  "test_record_stream (__main__.TestCuda)": [
+    "134746",
+    "https://github.com/pytorch/pytorch/issues/134746",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
     "120318",
     "https://github.com/pytorch/pytorch/issues/120318",
@@ -1574,6 +1614,13 @@
   "test_replicate_fully_shard_init (__main__.ReplicateFullyShardInit)": [
     "179810",
     "https://github.com/pytorch/pytorch/issues/179810",
+    [
+      "linux"
+    ]
+  ],
+  "test_replicate_ignore_module (__main__.ReplicateFullyShardInit)": [
+    "179854",
+    "https://github.com/pytorch/pytorch/issues/179854",
     [
       "linux"
     ]
