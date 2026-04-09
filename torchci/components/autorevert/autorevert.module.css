@@ -80,6 +80,7 @@
   position: relative;
   flex-shrink: 0;
   border-right: 1px solid var(--border-color, #ddd);
+  overflow: hidden; /* clip badges that overflow on the left */
 }
 
 .tlTitle {

@@ -27,10 +27,8 @@ interface RunTimestamp {
   workflows: string[];
 }
 
-/** A group of events belonging to the same autorevert snapshot */
 interface SnapshotGroup {
-  runTs: number; // snapshot timestamp (ms)
-  y: number; // vertical position
+  runTs: number;
   counts: { action: string; count: number }[];
   events: AutorevertEventRow[];
 }
@@ -52,11 +50,9 @@ function formatLocalTime(tsMs: number): string {
   });
 }
 
-// Fixed width: 4 badge slots + runs line + padding
-const BADGE_SLOT_WIDTH = 38;
-const MAX_BADGES = 4;
+// Fixed width — always reserved so the grid doesn't jump
 const RUNS_LINE_WIDTH = 14;
-const TIMELINE_WIDTH = MAX_BADGES * BADGE_SLOT_WIDTH + RUNS_LINE_WIDTH + 8;
+const TIMELINE_WIDTH = 180;
 
 export default function EventTimeline({
   events,
@@ -111,9 +107,16 @@ export default function EventTimeline({
     return () => observer.disconnect();
   }, [tableRef, commits]);
 
-  if (rowPositions.size === 0) return null;
+  // Always render the container for stable width
+  if (rowPositions.size === 0) {
+    return (
+      <div
+        className={styles.timeline}
+        style={{ width: TIMELINE_WIDTH, minWidth: TIMELINE_WIDTH }}
+      />
+    );
+  }
 
-  // Time range from commits
   const commitTimestamps = commits.map((sha) =>
     parseChTimestamp(commitTimes[sha])
   );
@@ -143,26 +146,21 @@ export default function EventTimeline({
     return rowPositions.get(commits[commits.length - 1]) ?? tableHeight;
   }
 
-  // Parse run timestamps
+  // Parse run timestamps for dots
   const runDots = (runTimestamps || [])
-    .map((r) => ({
-      ts: parseChTimestamp(r.ts),
-      workflows: r.workflows,
-    }))
+    .map((r) => ({ ts: parseChTimestamp(r.ts), workflows: r.workflows }))
     .filter((r) => r.ts >= oldestTs && r.ts <= newestTs + 3600000)
     .sort((a, b) => b.ts - a.ts);
 
-  // Group events by nearest run snapshot
+  // Group events by nearest run snapshot, then build per-group badges
   const filteredEvents = events
     .map((ev) => ({ ...ev, tsMs: parseChTimestamp(ev.ts) }))
     .filter((ev) => ev.tsMs >= oldestTs && ev.tsMs <= newestTs + 3600000);
 
-  const snapshotGroups: SnapshotGroup[] = [];
+  const snapshotGroups: (SnapshotGroup & { y: number })[] = [];
   if (runDots.length > 0 && filteredEvents.length > 0) {
-    // Assign each event to the nearest run snapshot
     const groupMap = new Map<number, AutorevertEventRow[]>();
     for (const ev of filteredEvents) {
-      // Find closest run timestamp <= event timestamp
       let bestRun = runDots[0].ts;
       for (const dot of runDots) {
         if (dot.ts <= ev.tsMs) {
@@ -176,7 +174,6 @@ export default function EventTimeline({
     }
 
     for (const [runTs, groupEvents] of groupMap) {
-      // Count by action type
       const countMap = new Map<string, number>();
       for (const ev of groupEvents) {
         countMap.set(ev.action, (countMap.get(ev.action) || 0) + 1);
@@ -198,6 +195,20 @@ export default function EventTimeline({
     }
   }
 
+  // Position groups with vertical anti-overlap (same as before for individual badges)
+  const MIN_GAP = 18;
+  const positionedYs: number[] = [];
+  for (const group of snapshotGroups) {
+    let y = group.y;
+    for (const existingY of positionedYs) {
+      if (Math.abs(existingY - y) < MIN_GAP) {
+        y = existingY + MIN_GAP;
+      }
+    }
+    group.y = y;
+    positionedYs.push(y);
+  }
+
   const handleClick = (tsMs: number) => {
     if (onTimestampSelect) {
       onTimestampSelect(new Date(tsMs).toISOString());
@@ -212,7 +223,7 @@ export default function EventTimeline({
       {/* Title */}
       <div className={styles.tlTitle}>Activity</div>
 
-      {/* Runs line — vertical line with dots for each autorevert run */}
+      {/* Runs line */}
       <div
         className={styles.runsLine}
         style={{
@@ -246,14 +257,14 @@ export default function EventTimeline({
         })}
       </div>
 
-      {/* Grouped event badges per snapshot */}
+      {/* Grouped event badges — absolutely positioned, overflow hidden on left */}
       {snapshotGroups.map((group, gi) => (
         <div
           key={gi}
           className={styles.tlGroup}
           style={{ top: group.y - 8 }}
         >
-          {group.counts.slice(0, MAX_BADGES).map((c, ci) => {
+          {group.counts.map((c, ci) => {
             const st = ACTION_STYLE[c.action] || ACTION_STYLE.restart;
             const groupSignals = group.events
               .filter((e) => e.action === c.action)
@@ -277,11 +288,9 @@ export default function EventTimeline({
                           wordBreak: "break-word",
                         }}
                       >
-                        {groupSignals
-                          .slice(0, 5)
-                          .map((k, j) => (
-                            <div key={j}>{k}</div>
-                          ))}
+                        {groupSignals.slice(0, 5).map((k, j) => (
+                          <div key={j}>{k}</div>
+                        ))}
                         {groupSignals.length > 5 && (
                           <div style={{ opacity: 0.7 }}>
                             +{groupSignals.length - 5} more
@@ -308,7 +317,8 @@ export default function EventTimeline({
                   style={{ cursor: "pointer" }}
                   onClick={() => handleClick(group.runTs)}
                 >
-                  {c.count > 1 ? `${c.count}` : ""} {st.short}
+                  {c.count > 1 ? `${c.count} ` : ""}
+                  {st.short}
                 </span>
               </Tooltip>
             );

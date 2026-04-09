@@ -147,16 +147,14 @@ export default function AutorevertGrid({
   return (
     <div className={styles.gridWrapper}>
       <div className={styles.timelineGridContainer}>
-        {(autorevertEvents?.length || runTimestamps?.length) && (
-          <EventTimeline
-            events={autorevertEvents || []}
-            runTimestamps={runTimestamps}
-            commits={state.commits}
-            commitTimes={state.commitTimes}
-            tableRef={tableRef}
-            onTimestampSelect={onTimestampChange}
-          />
-        )}
+        <EventTimeline
+          events={autorevertEvents || []}
+          runTimestamps={runTimestamps}
+          commits={state.commits}
+          commitTimes={state.commitTimes}
+          tableRef={tableRef}
+          onTimestampSelect={onTimestampChange}
+        />
       <table className={styles.signalGrid} ref={tableRef}>
         <colgroup>
           <col className={styles.colTime} />
