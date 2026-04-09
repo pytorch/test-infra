@@ -5,23 +5,34 @@ import { AutorevertEventRow, parseChTimestamp } from "./types";
 
 const ACTION_STYLE: Record<
   string,
-  { label: string; cls: string; short: string }
+  { label: string; cls: string; short: string; order: number }
 > = {
-  revert: { label: "Revert", cls: styles.tlRevert, short: "RVT" },
-  restart: { label: "Restart", cls: styles.tlRestart, short: "RST" },
-  advisor: { label: "AI Advisor", cls: styles.tlAdvisor, short: "AI" },
+  revert: { label: "Revert", cls: styles.tlRevert, short: "RVT", order: 0 },
+  advisor: {
+    label: "AI Advisor",
+    cls: styles.tlAdvisor,
+    short: "AI",
+    order: 1,
+  },
+  restart: {
+    label: "Restart",
+    cls: styles.tlRestart,
+    short: "RST",
+    order: 2,
+  },
 };
-
-interface TimelineEvent {
-  ts: number;
-  action: string;
-  commitSha: string;
-  signalKeys: string[];
-}
 
 interface RunTimestamp {
   ts: string;
   workflows: string[];
+}
+
+/** A group of events belonging to the same autorevert snapshot */
+interface SnapshotGroup {
+  runTs: number; // snapshot timestamp (ms)
+  y: number; // vertical position
+  counts: { action: string; count: number }[];
+  events: AutorevertEventRow[];
 }
 
 interface EventTimelineProps {
@@ -40,6 +51,12 @@ function formatLocalTime(tsMs: number): string {
     hour12: true,
   });
 }
+
+// Fixed width: 4 badge slots + runs line + padding
+const BADGE_SLOT_WIDTH = 38;
+const MAX_BADGES = 4;
+const RUNS_LINE_WIDTH = 14;
+const TIMELINE_WIDTH = MAX_BADGES * BADGE_SLOT_WIDTH + RUNS_LINE_WIDTH + 8;
 
 export default function EventTimeline({
   events,
@@ -118,41 +135,15 @@ export default function EventTimeline({
       }
     }
     if (tsMs > newestTs) {
-      return Math.max(headerHeight, (rowPositions.get(commits[0]) ?? headerHeight) - 10);
+      return Math.max(
+        headerHeight,
+        (rowPositions.get(commits[0]) ?? headerHeight) - 10
+      );
     }
     return rowPositions.get(commits[commits.length - 1]) ?? tableHeight;
   }
 
-  // Parse and filter events
-  const timelineEvents: TimelineEvent[] = events
-    .map((ev) => ({
-      ts: parseChTimestamp(ev.ts),
-      action: ev.action,
-      commitSha: ev.commit_sha,
-      signalKeys: ev.source_signal_keys,
-    }))
-    .filter((ev) => ev.ts >= oldestTs && ev.ts <= newestTs + 3600000)
-    .sort((a, b) => b.ts - a.ts);
-
-  // Position events with horizontal stacking
-  const MIN_GAP = 16;
-  interface Positioned extends TimelineEvent {
-    y: number;
-    column: number;
-  }
-  const positioned: Positioned[] = [];
-  for (const ev of timelineEvents) {
-    const y = getYForTimestamp(ev.ts);
-    let column = 0;
-    for (const existing of positioned) {
-      if (Math.abs(existing.y - y) < MIN_GAP && existing.column === column) {
-        column++;
-      }
-    }
-    positioned.push({ ...ev, y, column });
-  }
-
-  // Parse run timestamps for the dots line
+  // Parse run timestamps
   const runDots = (runTimestamps || [])
     .map((r) => ({
       ts: parseChTimestamp(r.ts),
@@ -161,22 +152,62 @@ export default function EventTimeline({
     .filter((r) => r.ts >= oldestTs && r.ts <= newestTs + 3600000)
     .sort((a, b) => b.ts - a.ts);
 
-  const maxColumn = Math.max(0, ...positioned.map((e) => e.column));
-  const badgesWidth = (maxColumn + 1) * 36;
-  const runsLineWidth = 14;
-  const timelineWidth = badgesWidth + runsLineWidth + 12;
+  // Group events by nearest run snapshot
+  const filteredEvents = events
+    .map((ev) => ({ ...ev, tsMs: parseChTimestamp(ev.ts) }))
+    .filter((ev) => ev.tsMs >= oldestTs && ev.tsMs <= newestTs + 3600000);
+
+  const snapshotGroups: SnapshotGroup[] = [];
+  if (runDots.length > 0 && filteredEvents.length > 0) {
+    // Assign each event to the nearest run snapshot
+    const groupMap = new Map<number, AutorevertEventRow[]>();
+    for (const ev of filteredEvents) {
+      // Find closest run timestamp <= event timestamp
+      let bestRun = runDots[0].ts;
+      for (const dot of runDots) {
+        if (dot.ts <= ev.tsMs) {
+          bestRun = dot.ts;
+          break;
+        }
+      }
+      const list = groupMap.get(bestRun) || [];
+      list.push(ev);
+      groupMap.set(bestRun, list);
+    }
+
+    for (const [runTs, groupEvents] of groupMap) {
+      // Count by action type
+      const countMap = new Map<string, number>();
+      for (const ev of groupEvents) {
+        countMap.set(ev.action, (countMap.get(ev.action) || 0) + 1);
+      }
+      const counts = Array.from(countMap.entries())
+        .map(([action, count]) => ({ action, count }))
+        .sort(
+          (a, b) =>
+            (ACTION_STYLE[a.action]?.order ?? 9) -
+            (ACTION_STYLE[b.action]?.order ?? 9)
+        );
+
+      snapshotGroups.push({
+        runTs,
+        y: getYForTimestamp(runTs),
+        counts,
+        events: groupEvents,
+      });
+    }
+  }
 
   const handleClick = (tsMs: number) => {
     if (onTimestampSelect) {
-      const iso = new Date(tsMs).toISOString();
-      onTimestampSelect(iso);
+      onTimestampSelect(new Date(tsMs).toISOString());
     }
   };
 
   return (
     <div
       className={styles.timeline}
-      style={{ width: timelineWidth, minWidth: timelineWidth }}
+      style={{ width: TIMELINE_WIDTH, minWidth: TIMELINE_WIDTH }}
     >
       {/* Title */}
       <div className={styles.tlTitle}>Activity</div>
@@ -215,62 +246,75 @@ export default function EventTimeline({
         })}
       </div>
 
-      {/* Event badges */}
-      {positioned.map((ev, i) => {
-        const style = ACTION_STYLE[ev.action] || ACTION_STYLE.restart;
-        return (
-          <Tooltip
-            key={i}
-            title={
-              <div style={{ fontSize: "0.85rem" }}>
-                <div style={{ fontWeight: 600 }}>
-                  {style.label} · {formatLocalTime(ev.ts)}
-                </div>
-                <div style={{ marginTop: 2, opacity: 0.8 }}>
-                  {ev.commitSha.slice(0, 7)}
-                </div>
-                {ev.signalKeys.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      maxWidth: 300,
-                      fontSize: "0.8rem",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {ev.signalKeys.map((k, j) => (
-                      <div key={j}>{k}</div>
-                    ))}
+      {/* Grouped event badges per snapshot */}
+      {snapshotGroups.map((group, gi) => (
+        <div
+          key={gi}
+          className={styles.tlGroup}
+          style={{ top: group.y - 8 }}
+        >
+          {group.counts.slice(0, MAX_BADGES).map((c, ci) => {
+            const st = ACTION_STYLE[c.action] || ACTION_STYLE.restart;
+            const groupSignals = group.events
+              .filter((e) => e.action === c.action)
+              .flatMap((e) => e.source_signal_keys);
+            return (
+              <Tooltip
+                key={ci}
+                title={
+                  <div style={{ fontSize: "0.85rem" }}>
+                    <div style={{ fontWeight: 600 }}>
+                      {c.count} {st.label}
+                      {c.count > 1 ? "s" : ""} ·{" "}
+                      {formatLocalTime(group.runTs)}
+                    </div>
+                    {groupSignals.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 4,
+                          maxWidth: 300,
+                          fontSize: "0.8rem",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {groupSignals
+                          .slice(0, 5)
+                          .map((k, j) => (
+                            <div key={j}>{k}</div>
+                          ))}
+                        {groupSignals.length > 5 && (
+                          <div style={{ opacity: 0.7 }}>
+                            +{groupSignals.length - 5} more
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        marginTop: 4,
+                        color: "#90caf9",
+                        fontSize: "0.8rem",
+                      }}
+                    >
+                      Click to view snapshot
+                    </div>
                   </div>
-                )}
-                <div
-                  style={{
-                    marginTop: 4,
-                    color: "#90caf9",
-                    fontSize: "0.8rem",
-                  }}
+                }
+                arrow
+                placement="left"
+              >
+                <span
+                  className={`${styles.tlBadge} ${st.cls}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => handleClick(group.runTs)}
                 >
-                  Click to view snapshot
-                </div>
-              </div>
-            }
-            arrow
-            placement="left"
-          >
-            <span
-              className={`${styles.tlBadge} ${style.cls}`}
-              style={{
-                top: ev.y - 7,
-                right: ev.column * 36 + runsLineWidth + 8,
-                cursor: "pointer",
-              }}
-              onClick={() => handleClick(ev.ts)}
-            >
-              {style.short}
-            </span>
-          </Tooltip>
-        );
-      })}
+                  {c.count > 1 ? `${c.count}` : ""} {st.short}
+                </span>
+              </Tooltip>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

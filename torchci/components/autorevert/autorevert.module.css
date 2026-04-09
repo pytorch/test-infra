@@ -117,8 +117,17 @@
   background: #1976d2;
 }
 
-.tlBadge {
+/* Snapshot event group — positioned vertically, flows badges horizontally */
+.tlGroup {
   position: absolute;
+  right: 18px;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+  align-items: center;
+}
+
+.tlBadge {
   font-size: 0.6rem;
   font-weight: 700;
   padding: 1px 4px;
