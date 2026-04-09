@@ -274,7 +274,7 @@
 }
 
 .cellRestart {
-  outline: 2px dashed var(--color-warning, #ed6c02);
+  outline: 2px dashed #1976d2;
   outline-offset: -2px;
 }
 

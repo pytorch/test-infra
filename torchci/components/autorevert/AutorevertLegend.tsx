@@ -19,7 +19,7 @@ function ColorBox({
         borderRadius: 2,
         backgroundColor: color,
         border: dashed
-          ? "2px dashed var(--color-warning, #ed6c02)"
+          ? "2px dashed #1976d2"
           : border
             ? `2px solid ${border}`
             : undefined,
