@@ -385,6 +385,54 @@
   }
 }
 
+/* Cell tooltip (absolute positioned, no modal backdrop — doesn't block scrolling) */
+.cellWrapper {
+  position: relative;
+}
+
+.cellTooltipContainer {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  z-index: 100;
+  pointer-events: none;
+  padding-bottom: 4px;
+}
+
+.cellTooltip {
+  background: var(--tooltip-bg, #333);
+  color: var(--tooltip-color, #fff);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  max-width: 450px;
+  width: max-content;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.cellTooltipContent a {
+  color: var(--link-color, #90caf9);
+}
+
+.cellTooltipSectionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.cellTooltipBadgeRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
 /* Outcome detail popover */
 .outcomeDetail {
   max-width: 400px;

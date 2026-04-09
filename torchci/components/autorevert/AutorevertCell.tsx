@@ -1,4 +1,3 @@
-import { Popover } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
 import { AdvisorVerdict } from "lib/advisorVerdictUtils";
 import { useRef, useState } from "react";
@@ -79,9 +78,8 @@ export default function AutorevertCell({
   onExpandColumn,
   signalKey,
   workflowName,
-  commitSha,
 }: AutorevertCellProps) {
-  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [visible, setVisible] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const highlightCls = highlight
@@ -102,7 +100,7 @@ export default function AutorevertCell({
     : events.slice(events.length - MAX_VISIBLE);
   const hiddenCount = events.length - visibleEvents.length;
 
-  // Advisor badge (non-clickable — tooltip/popover handles details)
+  // Advisor badge
   let advisorBadge = null;
   if (fullAdvisorVerdict) {
     const cls = ADV_VERDICT_CLS[fullAdvisorVerdict.verdict] || styles.advUnsure;
@@ -128,7 +126,7 @@ export default function AutorevertCell({
     return <td className={`${styles.colSignal} ${highlightClass}`} />;
   }
 
-  // Render event icons (clickable links to GHA)
+  // Event icons
   const eventIcons = visibleEvents.map((ev, i) => {
     const { icon, cls } = STATUS_ICONS[ev.status] || STATUS_ICONS.pending;
     const url = eventUrl(repo, ev);
@@ -152,33 +150,19 @@ export default function AutorevertCell({
     );
   });
 
-  // Popover content — rich cell details
-  const popoverContent = (
-    <div
-      style={{
-        padding: 12,
-        maxWidth: 450,
-        fontSize: "0.85rem",
-        lineHeight: 1.6,
-      }}
-    >
-      {/* Signal + commit context */}
+  // Tooltip content
+  const tooltipContent = (
+    <div className={styles.cellTooltipContent}>
       {signalKey && (
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
           {workflowName}:{signalKey}
         </div>
       )}
+
       {highlight === "restart" && (
-        <div
-          style={{
-            marginBottom: 6,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
+        <div className={styles.cellTooltipBadgeRow}>
           <span className={`${styles.tlBadge} ${styles.tlRestart}`}>RST</span>
-          <span style={{ fontSize: "0.8rem" }}>Targeted for CI restart</span>
+          <span>Targeted for CI restart</span>
         </div>
       )}
       {highlight && highlight !== "restart" && (
@@ -194,7 +178,6 @@ export default function AutorevertCell({
         </div>
       )}
 
-      {/* Events list */}
       {events.length > 0 && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontWeight: 600, fontSize: "0.8rem", opacity: 0.7 }}>
@@ -211,8 +194,7 @@ export default function AutorevertCell({
                 <span className={STATUS_ICONS[ev.status]?.cls}>
                   {STATUS_ICONS[ev.status]?.icon}
                 </span>{" "}
-                {STATUS_LABELS[ev.status] || ev.status}
-                {" — "}
+                {STATUS_LABELS[ev.status] || ev.status} —{" "}
                 {formatTime(ev.started_at)}
                 {ev.run_attempt && ev.run_attempt > 1
                   ? ` (attempt ${ev.run_attempt}, restarted by autorevert)`
@@ -242,7 +224,6 @@ export default function AutorevertCell({
         </div>
       )}
 
-      {/* AI Advisor section */}
       {(fullAdvisorVerdict || advisorResult || advisorWasDispatched) && (
         <div
           style={{
@@ -251,35 +232,16 @@ export default function AutorevertCell({
             borderTop: "1px solid var(--border-color, #ddd)",
           }}
         >
-          <div
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              opacity: 0.6,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              marginBottom: 4,
-            }}
-          >
+          <div className={styles.cellTooltipSectionLabel}>
             AI Advisor Analysis
           </div>
 
           {advisorWasDispatched && (
-            <div
-              style={{
-                marginBottom: 6,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 6,
-              }}
-            >
-              <span
-                className={`${styles.tlBadge} ${styles.tlAdvisor}`}
-                style={{ marginTop: 2, flexShrink: 0 }}
-              >
+            <div className={styles.cellTooltipBadgeRow}>
+              <span className={`${styles.tlBadge} ${styles.tlAdvisor}`}>
                 AI
               </span>
-              <span style={{ fontSize: "0.8rem" }}>
+              <span>
                 Autorevert dispatched an AI advisor to analyze this failure.
                 {!fullAdvisorVerdict &&
                   !advisorResult &&
@@ -307,59 +269,47 @@ export default function AutorevertCell({
     </div>
   );
 
+  function handleMouseOver() {
+    hoverTimerRef.current = setTimeout(() => setVisible(true), 200);
+  }
+
+  function handleMouseLeave() {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setVisible(false);
+  }
+
   return (
-    <>
-      <td
-        className={`${styles.colSignal} ${highlightClass} ${
-          isExpanded ? styles.colSignalExpanded : ""
-        }`}
-        onMouseEnter={(e) => {
-          const target = e.currentTarget;
-          hoverTimerRef.current = setTimeout(() => {
-            setPopoverAnchor(target);
-          }, 300);
-        }}
-        onMouseLeave={(e) => {
-          if (hoverTimerRef.current) {
-            clearTimeout(hoverTimerRef.current);
-            hoverTimerRef.current = null;
-          }
-          const related = e.relatedTarget as HTMLElement | null;
-          if (related?.closest?.(".MuiPopover-paper")) return;
-          setPopoverAnchor(null);
-        }}
-      >
-        {eventIcons}
-        {hiddenCount >= 2 && (
-          <span
-            className={styles.overflowBadge}
-            onClick={(e) => {
-              e.stopPropagation();
-              onExpandColumn?.();
-            }}
-          >
-            +{hiddenCount}
-          </span>
-        )}
-        {advisorBadge}
-      </td>
-      <Popover
-        open={Boolean(popoverAnchor)}
-        anchorEl={popoverAnchor}
-        onClose={() => setPopoverAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        transformOrigin={{ vertical: "top", horizontal: "center" }}
-        disableRestoreFocus
-        sx={{ pointerEvents: "none" }}
-        slotProps={{
-          paper: {
-            sx: { pointerEvents: "auto" },
-            onMouseLeave: () => setPopoverAnchor(null),
-          },
-        }}
-      >
-        {popoverContent}
-      </Popover>
-    </>
+    <td
+      className={`${styles.colSignal} ${highlightClass} ${
+        isExpanded ? styles.colSignalExpanded : ""
+      } ${styles.cellWrapper}`}
+      onMouseOver={handleMouseOver}
+      onMouseLeave={handleMouseLeave}
+    >
+      {eventIcons}
+      {hiddenCount >= 2 && (
+        <span
+          className={styles.overflowBadge}
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpandColumn?.();
+          }}
+        >
+          +{hiddenCount}
+        </span>
+      )}
+      {advisorBadge}
+      {visible && (
+        <div
+          className={styles.cellTooltipContainer}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.cellTooltip}>{tooltipContent}</div>
+        </div>
+      )}
+    </td>
   );
 }
