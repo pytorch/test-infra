@@ -21,7 +21,7 @@ from typing import Union
 # Constants
 # ---------------------------------------------------------------------------
 
-BUILD_DIR = Path("/tmp/pypi-cache-build")
+BUILD_DIR = tempfile.TemporaryDirectory("pypi-cache-build")
 FAILURE_SUMMARY_PATH = Path("/tmp/pypi-cache-failure-summary.txt")
 
 # ---------------------------------------------------------------------------
