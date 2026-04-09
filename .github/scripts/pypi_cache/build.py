@@ -31,8 +31,12 @@ FAILURE_SUMMARY_PATH = Path("/tmp/pypi-cache-failure-summary.txt")
 
 def python_path(ver: str) -> str:
     """Convert a version like '3.13' or '3.13t' to the manylinux interpreter path."""
-    tag = cp_tag(ver)
-    return f"/opt/python/{tag.strip('t')}-{tag}/bin/python"
+    suffix = ""
+    if ver.endswith("t"):
+        suffix = "t"
+        ver = ver[:-1]
+    digits = ver.replace(".", "")
+    return f"/opt/python/cp{digits}-cp{digits}{suffix}/bin/python"
 
 
 def cp_tag(ver: str) -> str:
