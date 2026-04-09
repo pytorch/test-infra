@@ -340,5 +340,16 @@ function formatHudURL(
     base += `&mergeEphemeralLF=true`;
   }
 
+  // Preserve autorevert view params so router.push doesn't strip them
+  if (typeof window !== "undefined") {
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["autorevert", "ar_ts", "ar_wf", "ar_sf"]) {
+      const val = current.get(key);
+      if (val !== null) {
+        base += `&${key}=${encodeURIComponent(val)}`;
+      }
+    }
+  }
+
   return base;
 }
