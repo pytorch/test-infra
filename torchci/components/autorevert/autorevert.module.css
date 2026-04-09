@@ -132,12 +132,15 @@
 
 .hereLabel {
   position: absolute;
-  right: 14px;
-  font-size: 0.55rem;
+  right: 16px;
+  font-size: 0.5rem;
   font-weight: 600;
   color: #1976d2;
   white-space: nowrap;
   pointer-events: none;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  letter-spacing: 0.03em;
 }
 
 /* Snapshot event group — positioned vertically, flows badges horizontally */

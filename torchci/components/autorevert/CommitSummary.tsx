@@ -166,9 +166,9 @@ export default function CommitSummary({
         <Box key={i} sx={{ mt: 1 }}>
           <Typography
             variant="body2"
-            sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.85rem" }}
+            sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.85rem", color: "#d32f2f" }}
           >
-            Signal: {v.workflowName}: {v.signalKey}
+            Failure: {v.workflowName}: {v.signalKey}
           </Typography>
           <AdvisorSection
             verdict={v}
