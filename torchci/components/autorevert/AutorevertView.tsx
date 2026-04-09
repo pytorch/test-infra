@@ -88,7 +88,7 @@ export default function AutorevertView() {
       .filter((t) => !isNaN(t));
     if (times.length === 0) return null;
     const fmt = (ms: number) =>
-      new Date(ms).toISOString().replace("T", " ").replace("Z", "");
+      new Date(ms).toISOString().replace("T", " ").replace("Z", "").replace(/\.\d+$/, "");
     return {
       start: fmt(Math.min(...times)),
       end: fmt(Math.max(...times) + 3600000),
