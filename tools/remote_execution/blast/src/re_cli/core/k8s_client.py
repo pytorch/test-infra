@@ -7,6 +7,8 @@ Provides methods to interact with CRDs:
 - Logs via API extension
 """
 
+import base64
+import collections
 import time
 import uuid
 from dataclasses import dataclass
@@ -16,6 +18,11 @@ from kubernetes import client, config  # type: ignore[import-untyped]
 
 from .core_types import console
 
+# Default EKS cluster settings for RE service
+_DEFAULT_CLUSTER_NAME = "pytorch-re-prod-production"
+_DEFAULT_CLUSTER_ENDPOINT = "https://27AA21635A8B6A637F0ADC00DA80A293.gr7.us-east-2.eks.amazonaws.com"
+_DEFAULT_REGION = "us-east-2"
+
 
 @dataclass
 class K8sConfig:
@@ -24,15 +31,160 @@ class K8sConfig:
     timeout: int = 30  # seconds to wait for CRD status
 
 
+@dataclass
+class CredentialsConfig:
+    """Configuration for AWS credentials-based authentication."""
+    access_key: str = ""
+    secret_key: str = ""
+    role_arn: str = ""
+    cluster_name: str = _DEFAULT_CLUSTER_NAME
+    cluster_endpoint: str = _DEFAULT_CLUSTER_ENDPOINT
+    region: str = _DEFAULT_REGION
+    ca_data: str = ""  # base64-encoded cluster CA certificate
+
+
 class K8sClient:
     """Client for interacting with CRDs and API extensions."""
 
     CRD_GROUP = "remote-execution.io"
     CRD_VERSION = "v1"
 
+    # Rate limit: max calls per minute for credentials-based clients
+    _RATE_LIMIT_MAX_CALLS = 30
+    _RATE_LIMIT_WINDOW = 60  # seconds
+
     def __init__(self, cfg: K8sConfig):
         self.config = cfg
+        self._credentials: Optional[CredentialsConfig] = None
+        self._call_timestamps: collections.deque = collections.deque()
         self._load_client()
+
+    @classmethod
+    def from_credentials(
+        cls,
+        access_key: str,
+        secret_key: str,
+        role_arn: str = "",
+        cluster_name: str = _DEFAULT_CLUSTER_NAME,
+        cluster_endpoint: str = _DEFAULT_CLUSTER_ENDPOINT,
+        region: str = _DEFAULT_REGION,
+        ca_data: str = "",
+        cfg: Optional[K8sConfig] = None,
+    ) -> "K8sClient":
+        """Create a K8sClient using AWS credentials instead of kubeconfig.
+
+        Args:
+            access_key: AWS access key ID
+            secret_key: AWS secret access key
+            role_arn: IAM role ARN to assume (optional, uses credentials directly if empty)
+            cluster_name: EKS cluster name
+            cluster_endpoint: EKS API server endpoint URL
+            region: AWS region
+            ca_data: Base64-encoded cluster CA certificate (optional, disables TLS verify if empty)
+            cfg: K8sConfig for namespace/timeout settings
+        """
+        instance = cls.__new__(cls)
+        instance.config = cfg or K8sConfig()
+        instance._credentials = CredentialsConfig(
+            access_key=access_key,
+            secret_key=secret_key,
+            role_arn=role_arn,
+            cluster_name=cluster_name,
+            cluster_endpoint=cluster_endpoint,
+            region=region,
+            ca_data=ca_data,
+        )
+        instance._load_client_from_credentials()
+        return instance
+
+    def _get_eks_token(self, creds_config: CredentialsConfig) -> str:
+        """Generate an EKS bearer token using AWS credentials.
+
+        Uses the same mechanism as `aws eks get-token`: a presigned
+        GetCallerIdentity URL encoded as a K8s bearer token.
+        """
+        import boto3
+        from botocore.signers import RequestSigner
+
+        # If role_arn provided, assume it first
+        if creds_config.role_arn:
+            sts = boto3.client(
+                "sts",
+                aws_access_key_id=creds_config.access_key,
+                aws_secret_access_key=creds_config.secret_key,
+                region_name=creds_config.region,
+            )
+            assumed = sts.assume_role(
+                RoleArn=creds_config.role_arn,
+                RoleSessionName="blast-api",
+                DurationSeconds=3600,
+            )
+            session = boto3.Session(
+                aws_access_key_id=assumed["Credentials"]["AccessKeyId"],
+                aws_secret_access_key=assumed["Credentials"]["SecretAccessKey"],
+                aws_session_token=assumed["Credentials"]["SessionToken"],
+                region_name=creds_config.region,
+            )
+        else:
+            session = boto3.Session(
+                aws_access_key_id=creds_config.access_key,
+                aws_secret_access_key=creds_config.secret_key,
+                region_name=creds_config.region,
+            )
+
+        sts_client = session.client("sts")
+        service_id = sts_client.meta.service_model.service_id
+
+        signer = RequestSigner(
+            service_id,
+            creds_config.region,
+            "sts",
+            "v4",
+            session.get_credentials(),
+            session.events,
+        )
+
+        url = signer.generate_presigned_url(
+            {
+                "method": "GET",
+                "url": f"https://sts.{creds_config.region}.amazonaws.com/"
+                       f"?Action=GetCallerIdentity&Version=2011-06-15",
+                "body": {},
+                "headers": {"x-k8s-aws-id": creds_config.cluster_name},
+            },
+            region_name=creds_config.region,
+            expires_in=60,
+            operation_name="",
+        )
+
+        return "k8s-aws-v1." + base64.urlsafe_b64encode(url.encode()).rstrip(b"=").decode()
+
+    def _load_client_from_credentials(self):
+        """Load K8s client using AWS credentials (no kubeconfig file needed)."""
+        console.print("[K8s] Loading from credentials...", end=" ")
+        start = time.time()
+
+        token = self._get_eks_token(self._credentials)
+
+        configuration = client.Configuration()
+        configuration.host = self._credentials.cluster_endpoint
+        configuration.api_key = {"BearerToken": token}
+        configuration.api_key_prefix = {"BearerToken": "Bearer"}
+
+        if self._credentials.ca_data:
+            import tempfile
+            ca_bytes = base64.b64decode(self._credentials.ca_data)
+            ca_file = tempfile.NamedTemporaryFile(delete=False, suffix=".crt")
+            ca_file.write(ca_bytes)
+            ca_file.close()
+            configuration.ssl_ca_cert = ca_file.name
+        else:
+            configuration.verify_ssl = False
+
+        self.api_client = client.ApiClient(configuration)
+        self.custom_api = client.CustomObjectsApi(self.api_client)
+        self.core_api = client.CoreV1Api(self.api_client)
+        console.print(f"({time.time() - start:.1f}s)")
 
     def _load_client(self):
         """Load kubeconfig and create API clients."""
@@ -46,11 +198,14 @@ class K8sClient:
         self.core_api = client.CoreV1Api(self.api_client)
 
     def _reload_client(self):
-        """Reload kubeconfig to get a fresh token."""
-        config.load_kube_config()
-        self.api_client = client.ApiClient()
-        self.custom_api = client.CustomObjectsApi(self.api_client)
-        self.core_api = client.CoreV1Api(self.api_client)
+        """Reload client to get a fresh token."""
+        if self._credentials:
+            self._load_client_from_credentials()
+        else:
+            config.load_kube_config()
+            self.api_client = client.ApiClient()
+            self.custom_api = client.CustomObjectsApi(self.api_client)
+            self.core_api = client.CoreV1Api(self.api_client)
 
     def _get_token(self) -> Optional[str]:
         """Get the current bearer token from api_client configuration."""
@@ -59,6 +214,25 @@ class K8sClient:
         if token and token.startswith("Bearer "):
             token = token[7:]
         return token
+
+    def _check_rate_limit(self):
+        """Enforce rate limit for credentials-based clients.
+
+        Only applied to user-initiated operations (create/cancel/query),
+        not internal polling (_wait_for_status).
+        """
+        if not self._credentials:
+            return
+        now = time.time()
+        while self._call_timestamps and self._call_timestamps[0] < now - self._RATE_LIMIT_WINDOW:
+            self._call_timestamps.popleft()
+        if len(self._call_timestamps) >= self._RATE_LIMIT_MAX_CALLS:
+            wait = self._call_timestamps[0] + self._RATE_LIMIT_WINDOW - now
+            raise RuntimeError(
+                f"Rate limit exceeded: {self._RATE_LIMIT_MAX_CALLS} calls per {self._RATE_LIMIT_WINDOW}s. "
+                f"Retry in {wait:.0f}s."
+            )
+        self._call_timestamps.append(now)
 
     def _call_with_retry(self, fn):
         """Call fn, retry once with fresh token on 401/403, this mainly due to auth token expiring."""
@@ -72,6 +246,7 @@ class K8sClient:
 
     def _apply_crd(self, kind: str, plural: str, name: str, spec: dict) -> dict:
         """Apply a CRD and return the created object."""
+        self._check_rate_limit()
         body = {
             "apiVersion": f"{self.CRD_GROUP}/{self.CRD_VERSION}",
             "kind": kind,
