@@ -152,13 +152,6 @@
       "mac"
     ]
   ],
-  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCUDA)": [
-    "155953",
-    "https://github.com/pytorch/pytorch/issues/155953",
-    [
-      "rocm"
-    ]
-  ],
   "test_captured_scalar_grad_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
     "176197",
     "https://github.com/pytorch/pytorch/issues/176197",
