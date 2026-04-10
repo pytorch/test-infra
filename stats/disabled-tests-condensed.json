@@ -1384,6 +1384,14 @@
       "linux"
     ]
   ],
+  "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179909",
+    "https://github.com/pytorch/pytorch/issues/179909",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
