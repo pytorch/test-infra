@@ -561,6 +561,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_masked_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "179988",
+    "https://github.com/pytorch/pytorch/issues/179988",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -572,6 +580,14 @@
   "test_cudagraph_indexing_ops_select_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "179852",
     "https://github.com/pytorch/pytorch/issues/179852",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_cudagraph_indexing_ops_slice_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "179989",
+    "https://github.com/pytorch/pytorch/issues/179989",
     [
       "linux",
       "slow"
@@ -1216,6 +1232,14 @@
       "slow"
     ]
   ],
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "179878",
     "https://github.com/pytorch/pytorch/issues/179878",
@@ -1303,6 +1327,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_memory_stats_multigpu (__main__.TestCudaMultiGPU)": [
+    "129860",
+    "https://github.com/pytorch/pytorch/issues/129860",
+    [
+      "linux"
     ]
   ],
   "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
@@ -1575,9 +1606,25 @@
       "linux"
     ]
   ],
+  "test_opcheck_fails_basic_cuda (__main__.TestCustomOpTestingCUDA)": [
+    "179991",
+    "https://github.com/pytorch/pytorch/issues/179991",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "179909",
     "https://github.com/pytorch/pytorch/issues/179909",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179992",
+    "https://github.com/pytorch/pytorch/issues/179992",
     [
       "asan",
       "linux"
@@ -1932,6 +1979,7 @@
     "179948",
     "https://github.com/pytorch/pytorch/issues/179948",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -1968,8 +2016,8 @@
     ]
   ],
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotuneAsyncPipelined)": [
-    "179966",
-    "https://github.com/pytorch/pytorch/issues/179966",
+    "179967",
+    "https://github.com/pytorch/pytorch/issues/179967",
     [
       "rocm"
     ]
@@ -2011,6 +2059,14 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_set_per_process_memory_fraction (__main__.TestCuda)": [
+    "135115",
+    "https://github.com/pytorch/pytorch/issues/135115",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_set_stance_eager_then_compile (__main__.DecoratorTests)": [
