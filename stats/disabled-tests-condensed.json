@@ -520,6 +520,13 @@
       "linux"
     ]
   ],
+  "test_device_capability_supported_dtypes (__main__.TestAccelerator)": [
+    "179888",
+    "https://github.com/pytorch/pytorch/issues/179888",
+    [
+      "xpu"
+    ]
+  ],
   "test_disable_enable_torch_function_ctx (__main__.TestTorchFunctionMode)": [
     "176965",
     "https://github.com/pytorch/pytorch/issues/176965",
