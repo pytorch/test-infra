@@ -953,6 +953,20 @@
       "rocm"
     ]
   ],
+  "test_hops_compile_backend_aot_eager_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHigherOrderOpsOpInfoCUDA)": [
+    "179925",
+    "https://github.com/pytorch/pytorch/issues/179925",
+    [
+      "rocm"
+    ]
+  ],
+  "test_hops_compile_backend_inductor_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHigherOrderOpsOpInfoCUDA)": [
+    "179927",
+    "https://github.com/pytorch/pytorch/issues/179927",
+    [
+      "rocm"
+    ]
+  ],
   "test_host_memory_stats (__main__.TestCuda)": [
     "148607",
     "https://github.com/pytorch/pytorch/issues/148607",
