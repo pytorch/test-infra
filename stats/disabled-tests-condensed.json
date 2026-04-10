@@ -614,6 +614,7 @@
     [
       "asan",
       "linux",
+      "rocm",
       "slow"
     ]
   ],
