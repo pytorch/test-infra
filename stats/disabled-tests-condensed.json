@@ -88,6 +88,13 @@
       "windows"
     ]
   ],
+  "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "179876",
+    "https://github.com/pytorch/pytorch/issues/179876",
+    [
+      "dynamo"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -513,6 +520,13 @@
       "linux"
     ]
   ],
+  "test_disable_enable_torch_function_ctx (__main__.TestTorchFunctionMode)": [
+    "176965",
+    "https://github.com/pytorch/pytorch/issues/176965",
+    [
+      "dynamo"
+    ]
+  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -834,6 +848,13 @@
       "slow"
     ]
   ],
+  "test_grad_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "179877",
+    "https://github.com/pytorch/pytorch/issues/179877",
+    [
+      "dynamo"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -968,6 +989,13 @@
     "https://github.com/pytorch/pytorch/issues/156438",
     []
   ],
+  "test_interim_result_with_future_pattern (__main__.DeferredRecordingTest)": [
+    "179875",
+    "https://github.com/pytorch/pytorch/issues/179875",
+    [
+      "linux"
+    ]
+  ],
   "test_intra_node_comm_all_reduce (__main__.CommTest)": [
     "115859",
     "https://github.com/pytorch/pytorch/issues/115859",
@@ -975,11 +1003,25 @@
       "rocm"
     ]
   ],
+  "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
+    "179878",
+    "https://github.com/pytorch/pytorch/issues/179878",
+    [
+      "dynamo"
+    ]
+  ],
   "test_lazy_compile_kernel_name_collision_across_modules (__main__.TestLazyCompileKernelCollision)": [
     "179101",
     "https://github.com/pytorch/pytorch/issues/179101",
     [
       "xpu"
+    ]
+  ],
+  "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
+    "179874",
+    "https://github.com/pytorch/pytorch/issues/179874",
+    [
+      "dynamo"
     ]
   ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -1103,6 +1145,15 @@
     "https://github.com/pytorch/pytorch/issues/131104",
     [
       "dynamo"
+    ]
+  ],
+  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118253",
+    "https://github.com/pytorch/pytorch/issues/118253",
+    [
+      "asan",
+      "dynamo",
+      "linux"
     ]
   ],
   "test_modes_return_notimplemented (__main__.TestTorchFunctionMode)": [
@@ -1253,6 +1304,13 @@
     "https://github.com/pytorch/pytorch/issues/162584",
     [
       "linux"
+    ]
+  ],
+  "test_nn_parse_to (__main__.TestTorchFunctionMode)": [
+    "179880",
+    "https://github.com/pytorch/pytorch/issues/179880",
+    [
+      "dynamo"
     ]
   ],
   "test_noncontiguous_samples_cholesky_solve_cuda_complex64 (__main__.TestCommonCUDA)": [
@@ -1963,6 +2021,13 @@
       "rocm"
     ]
   ],
+  "test_unbacked_dtensor_op_db_norm_nuc_cpu_float32 (__main__.TestUnbackedDTensorOpsCPU)": [
+    "179881",
+    "https://github.com/pytorch/pytorch/issues/179881",
+    [
+      "linux"
+    ]
+  ],
   "test_unbacked_symbol_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "177003",
     "https://github.com/pytorch/pytorch/issues/177003",
@@ -2039,6 +2104,13 @@
     "https://github.com/pytorch/pytorch/issues/164556",
     [
       "rocm"
+    ]
+  ],
+  "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "179879",
+    "https://github.com/pytorch/pytorch/issues/179879",
+    [
+      "dynamo"
     ]
   ]
 }
