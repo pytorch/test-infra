@@ -56,6 +56,13 @@
       "rocm"
     ]
   ],
+  "test_activation_functions (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180022",
+    "https://github.com/pytorch/pytorch/issues/180022",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -172,11 +179,74 @@
       "rocm"
     ]
   ],
+  "test_bias_addmm_lookup_table_entry (__main__.TestLookupTableE2E)": [
+    "180030",
+    "https://github.com/pytorch/pytorch/issues/180030",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
     "163230",
     "https://github.com/pytorch/pytorch/issues/163230",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_fmod_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180032",
+    "https://github.com/pytorch/pytorch/issues/180032",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_fmod_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180033",
+    "https://github.com/pytorch/pytorch/issues/180033",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180034",
+    "https://github.com/pytorch/pytorch/issues/180034",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180035",
+    "https://github.com/pytorch/pytorch/issues/180035",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180036",
+    "https://github.com/pytorch/pytorch/issues/180036",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180037",
+    "https://github.com/pytorch/pytorch/issues/180037",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180038",
+    "https://github.com/pytorch/pytorch/issues/180038",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180039",
+    "https://github.com/pytorch/pytorch/issues/180039",
+    [
       "rocm"
     ]
   ],
@@ -234,9 +304,79 @@
       "slow"
     ]
   ],
+  "test_combo_autotune_many_subkernels (__main__.ComboKernelTestsMaxAutotune)": [
+    "180021",
+    "https://github.com/pytorch/pytorch/issues/180021",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
+    "180017",
+    "https://github.com/pytorch/pytorch/issues/180017",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180023",
+    "https://github.com/pytorch/pytorch/issues/180023",
+    [
+      "rocm"
+    ]
+  ],
   "test_combo_kernel_max_autotune (__main__.ComboKernelTestsMaxAutotune)": [
     "179952",
     "https://github.com/pytorch/pytorch/issues/179952",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTests)": [
+    "180018",
+    "https://github.com/pytorch/pytorch/issues/180018",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180024",
+    "https://github.com/pytorch/pytorch/issues/180024",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_per_config_subkernel_poi (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180025",
+    "https://github.com/pytorch/pytorch/issues/180025",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_yz_overflow (__main__.ComboKernelTests)": [
+    "180019",
+    "https://github.com/pytorch/pytorch/issues/180019",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_yz_overflow (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180026",
+    "https://github.com/pytorch/pytorch/issues/180026",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernels_pointwise_only_pointwise_only_False_expected_kernel_count_2 (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180027",
+    "https://github.com/pytorch/pytorch/issues/180027",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernels_pointwise_only_pointwise_only_True_expected_kernel_count_3 (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180028",
+    "https://github.com/pytorch/pytorch/issues/180028",
     [
       "rocm"
     ]
@@ -669,6 +809,13 @@
       "linux"
     ]
   ],
+  "test_determinism_log1p_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180040",
+    "https://github.com/pytorch/pytorch/issues/180040",
+    [
+      "rocm"
+    ]
+  ],
   "test_device_capability_supported_dtypes (__main__.TestAccelerator)": [
     "179888",
     "https://github.com/pytorch/pytorch/issues/179888",
@@ -822,12 +969,47 @@
       "linux"
     ]
   ],
+  "test_dynamic_shapes_activations (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
+    "180014",
+    "https://github.com/pytorch/pytorch/issues/180014",
+    [
+      "rocm"
+    ]
+  ],
+  "test_dynamic_shapes_mutated (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
+    "180015",
+    "https://github.com/pytorch/pytorch/issues/180015",
+    [
+      "rocm"
+    ]
+  ],
+  "test_dynamic_shapes_reduce (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
+    "180016",
+    "https://github.com/pytorch/pytorch/issues/180016",
+    [
+      "rocm"
+    ]
+  ],
   "test_dynamic_shapes_with_max_autotune_cuda (__main__.TestFlexAttentionCUDA)": [
     "176198",
     "https://github.com/pytorch/pytorch/issues/176198",
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_eager_equivalence_exp_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180041",
+    "https://github.com/pytorch/pytorch/issues/180041",
+    [
+      "rocm"
+    ]
+  ],
+  "test_eager_equivalence_log10_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180042",
+    "https://github.com/pytorch/pytorch/issues/180042",
+    [
+      "rocm"
     ]
   ],
   "test_empty_conv_input_search_space_DEFAULT_kernel_size_1 (__main__.TestMaxAutotuneAsyncPipelined)": [
@@ -1479,6 +1661,13 @@
       "dynamo"
     ]
   ],
+  "test_mutated_args (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180029",
+    "https://github.com/pytorch/pytorch/issues/180029",
+    [
+      "rocm"
+    ]
+  ],
   "test_mutated_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
     "180012",
     "https://github.com/pytorch/pytorch/issues/180012",
@@ -2041,6 +2230,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotune)": [
+    "180031",
+    "https://github.com/pytorch/pytorch/issues/180031",
+    [
+      "rocm"
     ]
   ],
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotuneAsyncPipelined)": [
