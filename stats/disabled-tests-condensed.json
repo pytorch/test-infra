@@ -77,6 +77,13 @@
       "linux"
     ]
   ],
+  "test_async_returns_futures (__main__.TestAsyncCheckpointerSpecific)": [
+    "179976",
+    "https://github.com/pytorch/pytorch/issues/179976",
+    [
+      "rocm"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -227,6 +234,20 @@
       "rocm"
     ]
   ],
+  "test_compile_bernoulli (__main__.DistTensorRandomOpCompileTest)": [
+    "179981",
+    "https://github.com/pytorch/pytorch/issues/179981",
+    [
+      "rocm"
+    ]
+  ],
+  "test_compile_bernoulli_float (__main__.DistTensorRandomOpCompileTest)": [
+    "179987",
+    "https://github.com/pytorch/pytorch/issues/179987",
+    [
+      "rocm"
+    ]
+  ],
   "test_compile_cpu (__main__.ReplicateTest)": [
     "160597",
     "https://github.com/pytorch/pytorch/issues/160597",
@@ -234,9 +255,30 @@
       "linux"
     ]
   ],
+  "test_compile_native_dropout (__main__.DistTensorRandomOpCompileTest)": [
+    "179985",
+    "https://github.com/pytorch/pytorch/issues/179985",
+    [
+      "rocm"
+    ]
+  ],
   "test_compile_normal_ (__main__.DistTensorRandomOpCompileTest)": [
     "179973",
     "https://github.com/pytorch/pytorch/issues/179973",
+    [
+      "rocm"
+    ]
+  ],
+  "test_compile_rand_like (__main__.DistTensorRandomOpCompileTest)": [
+    "179977",
+    "https://github.com/pytorch/pytorch/issues/179977",
+    [
+      "rocm"
+    ]
+  ],
+  "test_compile_randint_like (__main__.DistTensorRandomOpCompileTest)": [
+    "179984",
+    "https://github.com/pytorch/pytorch/issues/179984",
     [
       "rocm"
     ]
@@ -1081,6 +1123,13 @@
   "test_hops_compile_backend_inductor_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHigherOrderOpsOpInfoCUDA)": [
     "179927",
     "https://github.com/pytorch/pytorch/issues/179927",
+    [
+      "rocm"
+    ]
+  ],
+  "test_hops_in_bwd_inline_asm_elementwise_simple_cuda_float32 (__main__.TestCompiledAutogradOpInfoCUDA)": [
+    "179982",
+    "https://github.com/pytorch/pytorch/issues/179982",
     [
       "rocm"
     ]
@@ -2044,6 +2093,13 @@
       "win"
     ]
   ],
+  "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
+    "179979",
+    "https://github.com/pytorch/pytorch/issues/179979",
+    [
+      "rocm"
+    ]
+  ],
   "test_structured_metadata_matches_chrome_trace (__main__.TestProfilerEventsParity)": [
     "179944",
     "https://github.com/pytorch/pytorch/issues/179944",
@@ -2165,6 +2221,20 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
+    ]
+  ],
+  "test_tokenization (__main__.ReproTests)": [
+    "179983",
+    "https://github.com/pytorch/pytorch/issues/179983",
+    [
+      "rocm"
+    ]
+  ],
+  "test_tokenization_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "179986",
+    "https://github.com/pytorch/pytorch/issues/179986",
+    [
+      "rocm"
     ]
   ],
   "test_torch_dispatch_ignore_compile_internals (__main__.TorchDispatchModeTests)": [
@@ -2290,6 +2360,13 @@
   "test_unary_ufunc_numerical_log_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "179942",
     "https://github.com/pytorch/pytorch/issues/179942",
+    [
+      "rocm"
+    ]
+  ],
+  "test_unary_ufunc_numerical_rsqrt_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "179980",
+    "https://github.com/pytorch/pytorch/issues/179980",
     [
       "rocm"
     ]
