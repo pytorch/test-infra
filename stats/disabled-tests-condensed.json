@@ -137,6 +137,13 @@
       "xpu"
     ]
   ],
+  "test_benchmark_with_cudagraphs_uses_cuda_graph_benchmarking (__main__.TestCustomOpAutoTune)": [
+    "179943",
+    "https://github.com/pytorch/pytorch/issues/179943",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
     "163230",
     "https://github.com/pytorch/pytorch/issues/163230",
@@ -472,6 +479,13 @@
       "slow"
     ]
   ],
+  "test_cudagraph_memory_cleanup (__main__.TestCustomOpAutoTune)": [
+    "179945",
+    "https://github.com/pytorch/pytorch/issues/179945",
+    [
+      "rocm"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -614,7 +628,6 @@
     [
       "asan",
       "linux",
-      "rocm",
       "slow"
     ]
   ],
@@ -785,6 +798,20 @@
   "test_forward_mode_AD_cholesky_solve_cuda_float64 (__main__.TestFwdGradientsCUDA)": [
     "164235",
     "https://github.com/pytorch/pytorch/issues/164235",
+    [
+      "rocm"
+    ]
+  ],
+  "test_fp8_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "179939",
+    "https://github.com/pytorch/pytorch/issues/179939",
+    [
+      "rocm"
+    ]
+  ],
+  "test_fp8_view_of_param_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "179938",
+    "https://github.com/pytorch/pytorch/issues/179938",
     [
       "rocm"
     ]
@@ -1861,6 +1888,13 @@
       "win"
     ]
   ],
+  "test_structured_metadata_matches_chrome_trace (__main__.TestProfilerEventsParity)": [
+    "179944",
+    "https://github.com/pytorch/pytorch/issues/179944",
+    [
+      "rocm"
+    ]
+  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -2086,6 +2120,20 @@
   "test_two_layer_fully_shard_cudagraph (__main__.TestFullyShardCudaGraph)": [
     "173761",
     "https://github.com/pytorch/pytorch/issues/173761",
+    [
+      "rocm"
+    ]
+  ],
+  "test_unary_ufunc_numerical_log_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "179942",
+    "https://github.com/pytorch/pytorch/issues/179942",
+    [
+      "rocm"
+    ]
+  ],
+  "test_unary_ufunc_numerical_rsqrt_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "179940",
+    "https://github.com/pytorch/pytorch/issues/179940",
     [
       "rocm"
     ]
