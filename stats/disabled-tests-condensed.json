@@ -534,6 +534,13 @@
       "dynamo"
     ]
   ],
+  "test_disable_subclass_mode (__main__.TestTorchFunctionMode)": [
+    "179896",
+    "https://github.com/pytorch/pytorch/issues/179896",
+    [
+      "dynamo"
+    ]
+  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -1010,6 +1017,14 @@
       "rocm"
     ]
   ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "179878",
     "https://github.com/pytorch/pytorch/issues/179878",
@@ -1037,6 +1052,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
+    "179895",
+    "https://github.com/pytorch/pytorch/issues/179895",
+    [
+      "dynamo"
     ]
   ],
   "test_mark_unbacked_slice_cuda (__main__.TestInductorDynamicCUDA)": [
@@ -1161,6 +1183,14 @@
       "asan",
       "dynamo",
       "linux"
+    ]
+  ],
+  "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
+    "179898",
+    "https://github.com/pytorch/pytorch/issues/179898",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_modes_return_notimplemented (__main__.TestTorchFunctionMode)": [
@@ -1343,6 +1373,15 @@
       "rocm",
       "slow",
       "xpu"
+    ]
+  ],
+  "test_opcheck_fails_basic_cpu (__main__.TestCustomOpTestingCPU)": [
+    "119159",
+    "https://github.com/pytorch/pytorch/issues/119159",
+    [
+      "asan",
+      "dynamo",
+      "linux"
     ]
   ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
