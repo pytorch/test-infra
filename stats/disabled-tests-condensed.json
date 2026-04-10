@@ -49,6 +49,13 @@
       "rocm"
     ]
   ],
+  "test_activation_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
+    "180011",
+    "https://github.com/pytorch/pytorch/issues/180011",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -75,6 +82,13 @@
     "https://github.com/pytorch/pytorch/issues/91486",
     [
       "linux"
+    ]
+  ],
+  "test_aot_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
+    "180010",
+    "https://github.com/pytorch/pytorch/issues/180010",
+    [
+      "rocm"
     ]
   ],
   "test_async_returns_futures (__main__.TestAsyncCheckpointerSpecific)": [
@@ -987,6 +1001,13 @@
       "rocm"
     ]
   ],
+  "test_get_memory_stats (__main__.ProcessGroupNCCLGroupTest)": [
+    "180009",
+    "https://github.com/pytorch/pytorch/issues/180009",
+    [
+      "rocm"
+    ]
+  ],
   "test_get_mode_stack (__main__.TestTorchFunctionMode)": [
     "133994",
     "https://github.com/pytorch/pytorch/issues/133994",
@@ -1456,6 +1477,13 @@
     "https://github.com/pytorch/pytorch/issues/150877",
     [
       "dynamo"
+    ]
+  ],
+  "test_mutated_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
+    "180012",
+    "https://github.com/pytorch/pytorch/issues/180012",
+    [
+      "rocm"
     ]
   ],
   "test_mv_tensor_accessor_cuda (__main__.TestLibtorchAgnosticCUDA)": [
@@ -2018,6 +2046,20 @@
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotuneAsyncPipelined)": [
     "179967",
     "https://github.com/pytorch/pytorch/issues/179967",
+    [
+      "rocm"
+    ]
+  ],
+  "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
+    "180013",
+    "https://github.com/pytorch/pytorch/issues/180013",
+    [
+      "rocm"
+    ]
+  ],
+  "test_scaled_mm (__main__.DistMatrixOpsTest)": [
+    "180006",
+    "https://github.com/pytorch/pytorch/issues/180006",
     [
       "rocm"
     ]
