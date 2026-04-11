@@ -98,6 +98,15 @@
       "rocm"
     ]
   ],
+  "test_artificial_grid_cpp_wrapper (__main__.TestTritonHeuristics)": [
+    "121709",
+    "https://github.com/pytorch/pytorch/issues/121709",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_async_returns_futures (__main__.TestAsyncCheckpointerSpecific)": [
     "179976",
     "https://github.com/pytorch/pytorch/issues/179976",
@@ -2326,6 +2335,13 @@
       "rocm"
     ]
   ],
+  "test_replicate_multi_module (__main__.ReplicateFullyShardInit)": [
+    "180127",
+    "https://github.com/pytorch/pytorch/issues/180127",
+    [
+      "rocm"
+    ]
+  ],
   "test_require_stride_order_non_owning (__main__.CPUReproTests)": [
     "179957",
     "https://github.com/pytorch/pytorch/issues/179957",
@@ -2485,6 +2501,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_skip_cpp_wrapper (__main__.CudaGraphTreeTests)": [
+    "180125",
+    "https://github.com/pytorch/pytorch/issues/180125",
+    [
+      "rocm"
     ]
   ],
   "test_skip_grad_in_check (__main__.TestTEFuserDynamic)": [
@@ -2782,6 +2805,13 @@
     "https://github.com/pytorch/pytorch/issues/179696",
     [
       "inductor"
+    ]
+  ],
+  "test_triton_kernel_dtype_view_cfg_cpp_wrapper (__main__.KernelTests)": [
+    "180126",
+    "https://github.com/pytorch/pytorch/issues/180126",
+    [
+      "rocm"
     ]
   ],
   "test_triu_tril_large_matrix_64bit_cuda (__main__.TestLinalgCUDA)": [
