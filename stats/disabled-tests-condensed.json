@@ -623,6 +623,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_add_fp16_native (__main__.TestInlineAsmElementwise)": [
+    "180116",
+    "https://github.com/pytorch/pytorch/issues/180116",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
