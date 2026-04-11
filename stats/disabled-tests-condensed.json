@@ -632,6 +632,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_add_f32 (__main__.TestInlineAsmElementwise)": [
+    "180132",
+    "https://github.com/pytorch/pytorch/issues/180132",
+    [
+      "rocm"
+    ]
+  ],
   "test_correctness_add_fp16_native (__main__.TestInlineAsmElementwise)": [
     "180116",
     "https://github.com/pytorch/pytorch/issues/180116",
