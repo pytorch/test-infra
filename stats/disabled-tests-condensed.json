@@ -660,6 +660,13 @@
       "macos"
     ]
   ],
+  "test_cpp_wrapper_cuda (__main__.FreezingGpuTests)": [
+    "180128",
+    "https://github.com/pytorch/pytorch/issues/180128",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
     "176392",
     "https://github.com/pytorch/pytorch/issues/176392",
