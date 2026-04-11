@@ -630,6 +630,20 @@
       "rocm"
     ]
   ],
+  "test_correctness_add_pack2 (__main__.TestInlineAsmElementwise)": [
+    "180124",
+    "https://github.com/pytorch/pytorch/issues/180124",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpp_wrapper (__main__.TestMemoryPlanning)": [
+    "180122",
+    "https://github.com/pytorch/pytorch/issues/180122",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
@@ -2937,6 +2951,13 @@
   "test_unshard_params_respects_reshard (__main__.TestUnshardParams)": [
     "159348",
     "https://github.com/pytorch/pytorch/issues/159348",
+    [
+      "rocm"
+    ]
+  ],
+  "test_uuid_visible_devices (__main__.TestCudaAllocator)": [
+    "180123",
+    "https://github.com/pytorch/pytorch/issues/180123",
     [
       "rocm"
     ]
