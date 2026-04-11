@@ -646,6 +646,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_bf16_upcast (__main__.TestInlineAsmElementwise)": [
+    "180131",
+    "https://github.com/pytorch/pytorch/issues/180131",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpp_wrapper (__main__.TestMemoryPlanning)": [
     "180122",
     "https://github.com/pytorch/pytorch/issues/180122",
