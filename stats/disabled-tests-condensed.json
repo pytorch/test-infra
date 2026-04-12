@@ -2722,6 +2722,13 @@
       "mac"
     ]
   ],
+  "test_throw_on_cudamalloc_oom (__main__.TestCudaAllocator)": [
+    "180161",
+    "https://github.com/pytorch/pytorch/issues/180161",
+    [
+      "rocm"
+    ]
+  ],
   "test_tokenization (__main__.ReproTests)": [
     "179983",
     "https://github.com/pytorch/pytorch/issues/179983",
