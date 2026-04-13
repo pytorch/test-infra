@@ -660,6 +660,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_exponent_extract (__main__.TestInlineAsmElementwise)": [
+    "180228",
+    "https://github.com/pytorch/pytorch/issues/180228",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpp_wrapper (__main__.TestMemoryPlanning)": [
     "180122",
     "https://github.com/pytorch/pytorch/issues/180122",
@@ -2221,6 +2228,13 @@
     "https://github.com/pytorch/pytorch/issues/84937",
     [
       "asan"
+    ]
+  ],
+  "test_raw_amdsmi_device_uuids (__main__.TestCudaAllocator)": [
+    "180227",
+    "https://github.com/pytorch/pytorch/issues/180227",
+    [
+      "rocm"
     ]
   ],
   "test_record_stream (__main__.TestCuda)": [
