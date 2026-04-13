@@ -10,13 +10,43 @@ import {
 
 nock.disableNetConnect();
 
-function mockDeleteLabel(repoFullName: string, number: number, label: string) {
+function mockListComments(
+  repoFullName: string,
+  prNum: number,
+  comments: any[] = []
+) {
   return nock("https://api.github.com")
-    .delete(
-      `/repos/${repoFullName}/issues/${number}/labels/${encodeURIComponent(
-        label
-      )}`
-    )
+    .get(`/repos/${repoFullName}/issues/${prNum}/comments?per_page=100`)
+    .reply(200, comments);
+}
+
+function mockCreateComment(
+  repoFullName: string,
+  prNum: number,
+  bodyContains?: string
+) {
+  return nock("https://api.github.com")
+    .post(`/repos/${repoFullName}/issues/${prNum}/comments`, (body) => {
+      if (bodyContains) {
+        expect(body.body).toContain(bodyContains);
+      }
+      return true;
+    })
+    .reply(200, { id: 1 });
+}
+
+function mockUpdateComment(
+  repoFullName: string,
+  commentId: number,
+  bodyContains?: string
+) {
+  return nock("https://api.github.com")
+    .patch(`/repos/${repoFullName}/issues/comments/${commentId}`, (body) => {
+      if (bodyContains) {
+        expect(body.body).toContain(bodyContains);
+      }
+      return true;
+    })
     .reply(200);
 }
 
@@ -240,10 +270,14 @@ describe("Push trigger integration tests", () => {
         })
         .reply(200);
     }
+
+    // After syncing tags, should check for pending comment to resolve
+    mockListComments("suo/actions-test", prNum);
+
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
-  test("synchronization of PR requires permissions", async () => {
+  test("synchronization of PR without permissions skips tag sync but keeps labels", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.synchronize");
     mockApprovedWorkflowRuns(
       payload.repository.full_name,
@@ -255,16 +289,8 @@ describe("Push trigger integration tests", () => {
       payload.pull_request.user.login,
       "read"
     );
-    mockDeleteLabel(
-      payload.repository.full_name,
-      payload.pull_request.number,
-      "ciflow/test"
-    );
-    mockDeleteLabel(
-      payload.repository.full_name,
-      payload.pull_request.number,
-      "ciflow/1"
-    );
+    // No label removal or tag creation should happen -- labels are kept,
+    // tags are simply not created until workflows are approved.
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
@@ -323,6 +349,68 @@ describe("Push trigger integration tests", () => {
         )}`
       )
       .reply(404, { message: "There is nothing here" });
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("sync event with approval resolves pending comment", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.synchronize");
+    const prNum = payload.pull_request.number;
+    const labels = ["ciflow/test", "ciflow/1"];
+
+    mockHasApprovedWorkflowRun(payload.repository.full_name);
+
+    for (const label of labels) {
+      nock("https://api.github.com")
+        .get(
+          `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
+            `tags/${label}/${prNum}`
+          )}`
+        )
+        .reply(200, [
+          {
+            ref: `refs/tags/${label}/${prNum}`,
+            node_id: "123",
+            object: { sha: "abc" },
+          },
+        ]);
+    }
+
+    for (const label of labels) {
+      nock("https://api.github.com")
+        .delete(
+          `/repos/suo/actions-test/git/refs/${encodeURIComponent(
+            `tags/${label}/${prNum}`
+          )}`
+        )
+        .reply(200);
+    }
+
+    for (const label of labels) {
+      nock("https://api.github.com")
+        .post("/repos/suo/actions-test/git/refs", (body) => {
+          expect(body).toMatchObject({
+            ref: `refs/tags/${label}/${prNum}`,
+            sha: payload.pull_request.head.sha,
+          });
+          return true;
+        })
+        .reply(200);
+    }
+
+    // Should look for and resolve pending comment
+    const pendingCommentId = 42;
+    mockListComments("suo/actions-test", prNum, [
+      {
+        id: pendingCommentId,
+        body: "<!-- ciflow-pending -->\nWorkflows awaiting approval",
+      },
+    ]);
+    mockUpdateComment(
+      "suo/actions-test",
+      pendingCommentId,
+      "CI has now been triggered"
+    );
+
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
@@ -393,6 +481,46 @@ describe("Push trigger integration tests", () => {
       })
       .reply(200);
 
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("CIFlow label without approval keeps label and posts pending comment", async () => {
+    // Deep-clone fixture to avoid mutating the cached require() result
+    const payload = JSON.parse(
+      JSON.stringify(
+        require("./fixtures/push-trigger/pull_request.labeled")
+      )
+    );
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/trunk";
+    payload.pull_request.user.login = "new_contributor";
+    const prNum = payload.pull_request.number;
+    const head_sha = payload.pull_request.head.sha;
+    const login = payload.pull_request.user.login;
+
+    nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}');
+
+    mockPermissions("suo/actions-test", login, "read");
+
+    mockApprovedWorkflowRuns(
+      "suo/actions-test",
+      head_sha,
+      false
+    );
+
+    // Should search for existing pending comment
+    mockListComments("suo/actions-test", prNum);
+
+    // Should post a NEW pending comment (not remove the label)
+    mockCreateComment("suo/actions-test", prNum, "awaiting approval");
+
+    // No tag creation or label removal should happen
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 });

@@ -162,16 +162,34 @@ describe("label-bot", () => {
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
 
+    // With the new behavior, labels are still added even without approval,
+    // but a comment warns that CI won't be triggered until approved.
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/labels`)
       .reply(200, existingRepoLabelsResponse)
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"body":"To add these label(s) (ciflow/trunk`
+          `{"body":"The ciflow label(s) ciflow/trunk will be added, but CI won't be triggered`
         );
         return true;
       })
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(body).toMatchObject({
+          labels: ["enhancement", "ciflow/trunk"],
+        });
+        return true;
+      })
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(body).toMatchObject({ content: "+1" });
+          return true;
+        }
+      )
       .reply(200, {});
     const additionalScopes = [
       utils.mockPermissions(
