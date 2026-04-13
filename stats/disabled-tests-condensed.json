@@ -1585,6 +1585,13 @@
       "slow"
     ]
   ],
+  "test_jacobian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
+    "153707",
+    "https://github.com/pytorch/pytorch/issues/153707",
+    [
+      "dynamo"
+    ]
+  ],
   "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "179878",
     "https://github.com/pytorch/pytorch/issues/179878",
@@ -1996,6 +2003,14 @@
       "linux"
     ]
   ],
+  "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180196",
+    "https://github.com/pytorch/pytorch/issues/180196",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
@@ -2360,6 +2375,7 @@
     "180127",
     "https://github.com/pytorch/pytorch/issues/180127",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -2955,8 +2971,8 @@
     ]
   ],
   "test_unary_ufunc_numerical_rsqrt_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "179980",
-    "https://github.com/pytorch/pytorch/issues/179980",
+    "180071",
+    "https://github.com/pytorch/pytorch/issues/180071",
     [
       "rocm"
     ]
@@ -3065,6 +3081,20 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180194",
+    "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180195",
+    "https://github.com/pytorch/pytorch/issues/180195",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_exhaustive_cholesky_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
