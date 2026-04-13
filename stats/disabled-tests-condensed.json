@@ -1592,6 +1592,14 @@
       "dynamo"
     ]
   ],
+  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180204",
+    "https://github.com/pytorch/pytorch/issues/180204",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "179878",
     "https://github.com/pytorch/pytorch/issues/179878",
@@ -2011,6 +2019,14 @@
       "linux"
     ]
   ],
+  "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180206",
+    "https://github.com/pytorch/pytorch/issues/180206",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
@@ -2379,6 +2395,13 @@
       "rocm"
     ]
   ],
+  "test_replicate_single_module (__main__.ReplicateFullyShardInit)": [
+    "180205",
+    "https://github.com/pytorch/pytorch/issues/180205",
+    [
+      "linux"
+    ]
+  ],
   "test_require_stride_order_non_owning (__main__.CPUReproTests)": [
     "179957",
     "https://github.com/pytorch/pytorch/issues/179957",
@@ -2409,6 +2432,15 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_retracibility_dict_container_inp_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "117918",
+    "https://github.com/pytorch/pytorch/issues/117918",
+    [
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotune)": [
@@ -2821,6 +2853,13 @@
     "https://github.com/pytorch/pytorch/issues/148901",
     [
       "inductor"
+    ]
+  ],
+  "test_transforms_dont_support_saved_tensor_hooks_transform_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180203",
+    "https://github.com/pytorch/pytorch/issues/180203",
+    [
+      "dynamo"
     ]
   ],
   "test_triton_alltoall (__main__.NVSHMEMTritonTest)": [
