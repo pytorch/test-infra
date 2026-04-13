@@ -781,6 +781,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_scatter_add_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "180260",
+    "https://github.com/pytorch/pytorch/issues/180260",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -1175,6 +1183,13 @@
       "rocm"
     ]
   ],
+  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180259",
+    "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
+    ]
+  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
@@ -1214,6 +1229,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_file_reader_no_memory_leak (__main__.TestScript)": [
+    "138885",
+    "https://github.com/pytorch/pytorch/issues/138885",
+    [
+      "linux"
     ]
   ],
   "test_fixed_striding (__main__.TestWithNCCL)": [
@@ -1421,8 +1443,8 @@
     ]
   ],
   "test_graph_rng_after_failed_capture (__main__.TestCuda)": [
-    "180222",
-    "https://github.com/pytorch/pytorch/issues/180222",
+    "180232",
+    "https://github.com/pytorch/pytorch/issues/180232",
     [
       "rocm"
     ]
@@ -1614,6 +1636,14 @@
       "slow"
     ]
   ],
+  "test_jacrev_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180264",
+    "https://github.com/pytorch/pytorch/issues/180264",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "179878",
     "https://github.com/pytorch/pytorch/issues/179878",
@@ -1660,6 +1690,14 @@
   "test_mark_unbacked_slice_cuda (__main__.TestInductorDynamicCUDA)": [
     "176202",
     "https://github.com/pytorch/pytorch/issues/176202",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_max_split_expandable (__main__.TestCudaAllocator)": [
+    "180261",
+    "https://github.com/pytorch/pytorch/issues/180261",
     [
       "linux",
       "slow"
@@ -1794,6 +1832,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_modes_handle_first (__main__.TestTorchFunctionMode)": [
+    "162624",
+    "https://github.com/pytorch/pytorch/issues/162624",
+    [
+      "dynamo"
     ]
   ],
   "test_modes_return_notimplemented (__main__.TestTorchFunctionMode)": [
@@ -2044,6 +2089,14 @@
   "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180214",
     "https://github.com/pytorch/pytorch/issues/180214",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180262",
+    "https://github.com/pytorch/pytorch/issues/180262",
     [
       "asan",
       "linux"
@@ -2427,6 +2480,13 @@
   "test_replicate_single_module (__main__.ReplicateFullyShardInit)": [
     "180205",
     "https://github.com/pytorch/pytorch/issues/180205",
+    [
+      "linux"
+    ]
+  ],
+  "test_replicate_with_kwargs (__main__.ReplicateFullyShardInit)": [
+    "180265",
+    "https://github.com/pytorch/pytorch/issues/180265",
     [
       "linux"
     ]
