@@ -487,9 +487,7 @@ describe("Push trigger integration tests", () => {
   test("CIFlow label without approval keeps label and posts pending comment", async () => {
     // Deep-clone fixture to avoid mutating the cached require() result
     const payload = JSON.parse(
-      JSON.stringify(
-        require("./fixtures/push-trigger/pull_request.labeled")
-      )
+      JSON.stringify(require("./fixtures/push-trigger/pull_request.labeled"))
     );
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/trunk";
@@ -508,11 +506,7 @@ describe("Push trigger integration tests", () => {
 
     mockPermissions("suo/actions-test", login, "read");
 
-    mockApprovedWorkflowRuns(
-      "suo/actions-test",
-      head_sha,
-      false
-    );
+    mockApprovedWorkflowRuns("suo/actions-test", head_sha, false);
 
     // Should search for existing pending comment
     mockListComments("suo/actions-test", prNum);
