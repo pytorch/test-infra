@@ -1413,6 +1413,13 @@
       "slow"
     ]
   ],
+  "test_graph_rng_after_failed_capture (__main__.TestCuda)": [
+    "180222",
+    "https://github.com/pytorch/pytorch/issues/180222",
+    [
+      "rocm"
+    ]
+  ],
   "test_graph_two_successive (__main__.TestCuda)": [
     "159113",
     "https://github.com/pytorch/pytorch/issues/159113",
