@@ -2027,6 +2027,14 @@
       "linux"
     ]
   ],
+  "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180214",
+    "https://github.com/pytorch/pytorch/issues/180214",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
@@ -3141,6 +3149,13 @@
     "https://github.com/pytorch/pytorch/issues/164556",
     [
       "rocm"
+    ]
+  ],
+  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180213",
+    "https://github.com/pytorch/pytorch/issues/180213",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
