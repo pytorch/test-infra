@@ -32,7 +32,7 @@ export default function ClaudeBillingPage() {
           }}
         >
           <Typography variant="h4" component="h1">
-            Claude Code Review Billing
+            Claude Code Review — Estimated Costs
           </Typography>
           <Button
             href={grafanaUrl}
@@ -44,9 +44,19 @@ export default function ClaudeBillingPage() {
           </Button>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Track Claude AI usage costs for code review, issue triage, and other
-          GitHub Actions workflows. Costs are tracked per invocation with
-          breakdowns by workflow, user, and repository.
+          Estimated Claude AI usage costs for code review, issue triage, and
+          other GitHub Actions workflows, calculated from token counts in public
+          GitHub Actions logs multiplied by{" "}
+          <a
+            href="https://www.anthropic.com/pricing"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Anthropic&apos;s list prices
+          </a>
+          . These figures do not reflect actual billing and may differ from
+          invoiced amounts. Breakdowns are shown per invocation, workflow, user,
+          and repository.
         </Typography>
         <Box
           sx={{
