@@ -517,4 +517,81 @@ describe("Push trigger integration tests", () => {
     // No tag creation or label removal should happen
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
+
+  test("workflow_run with empty pull_requests falls back to SHA lookup", async () => {
+    const head_sha = "abc123def456";
+    const prNum = 42;
+    const repoFullName = "suo/actions-test";
+
+    const payload = {
+      action: "requested",
+      workflow_run: {
+        event: "pull_request",
+        head_sha: head_sha,
+        head_branch: "feature-branch",
+        head_repository: {
+          owner: { login: "fork-user" },
+        },
+        pull_requests: [],
+      },
+      repository: {
+        owner: { login: "suo" },
+        name: "actions-test",
+        full_name: repoFullName,
+      },
+    };
+
+    // Fall back: lookup PRs by fork owner and branch
+    nock("https://api.github.com")
+      .get(
+        `/repos/${repoFullName}/pulls?head=${encodeURIComponent(
+          "fork-user:feature-branch"
+        )}&state=open`
+      )
+      .reply(200, [{ number: prNum }]);
+
+    // Fetch PR data
+    nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/pulls/${prNum}`)
+      .reply(200, {
+        state: "open",
+        head: { sha: head_sha },
+        labels: [{ name: "ciflow/trunk" }],
+      });
+
+    // syncTag: check existing tags
+    nock("https://api.github.com")
+      .get(
+        `/repos/${repoFullName}/git/matching-refs/${encodeURIComponent(
+          `tags/ciflow/trunk/${prNum}`
+        )}`
+      )
+      .reply(200, []);
+
+    // syncTag: create tag
+    nock("https://api.github.com")
+      .post(`/repos/${repoFullName}/git/refs`, (body) => {
+        expect(body).toMatchObject({
+          ref: `refs/tags/ciflow/trunk/${prNum}`,
+          sha: head_sha,
+        });
+        return true;
+      })
+      .reply(200);
+
+    // Resolve pending comment
+    mockListComments(repoFullName, prNum, [
+      {
+        id: 99,
+        body: "<!-- ciflow-pending -->\nWorkflows awaiting approval",
+      },
+    ]);
+    mockUpdateComment(repoFullName, 99, "CI has now been triggered");
+
+    await probot.receive({
+      name: "workflow_run" as any,
+      id: "456",
+      payload: payload as any,
+    });
+  });
 });

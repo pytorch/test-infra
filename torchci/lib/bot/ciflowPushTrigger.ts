@@ -297,14 +297,34 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
     return;
   }
 
-  const pullRequests = payload.workflow_run.pull_requests;
-  if (!pullRequests || pullRequests.length === 0) {
+  let prNumbers: number[] = (payload.workflow_run.pull_requests ?? []).map(
+    (pr: any) => pr.number
+  );
+
+  // For cross-fork PRs, the pull_requests array is empty.
+  // Fall back to searching for PRs by the fork's owner and branch name.
+  if (prNumbers.length === 0) {
+    const headRepo = payload.workflow_run.head_repository;
+    const headBranch = payload.workflow_run.head_branch;
+    if (headRepo && headBranch) {
+      const head = `${headRepo.owner.login}:${headBranch}`;
+      context.log.info(
+        `workflow_run has empty pull_requests, looking up PRs with head=${head}`
+      );
+      const prs = await context.octokit.pulls.list(
+        context.repo({ head, state: "open" })
+      );
+      prNumbers = prs.data.map((pr) => pr.number);
+    }
+  }
+
+  if (prNumbers.length === 0) {
     return;
   }
 
-  for (const pr of pullRequests) {
+  for (const prNum of prNumbers) {
     const prData = await context.octokit.pulls.get(
-      context.repo({ pull_number: pr.number })
+      context.repo({ pull_number: prNum })
     );
 
     if (prData.data.state === "closed") {
@@ -320,13 +340,13 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
     }
 
     const headSha = prData.data.head.sha;
-    const tags = ciflowLabels.map((l: string) => labelToTag(l, pr.number));
+    const tags = ciflowLabels.map((l: string) => labelToTag(l, prNum));
     const promises = tags.map(
       async (tag: string) => await syncTag(context as any, tag, headSha)
     );
     await Promise.all(promises);
 
-    await resolvePendingComment(context as any, pr.number);
+    await resolvePendingComment(context as any, prNum);
   }
 }
 
