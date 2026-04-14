@@ -1255,6 +1255,13 @@
       "dynamo"
     ]
   ],
+  "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180336",
+    "https://github.com/pytorch/pytorch/issues/180336",
+    [
+      "dynamo"
+    ]
+  ],
   "test_fixed_striding (__main__.TestWithNCCL)": [
     "179949",
     "https://github.com/pytorch/pytorch/issues/179949",
@@ -2159,6 +2166,14 @@
   "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180323",
     "https://github.com/pytorch/pytorch/issues/180323",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyViewCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180338",
+    "https://github.com/pytorch/pytorch/issues/180338",
     [
       "asan",
       "linux"
@@ -3327,6 +3342,13 @@
     "https://github.com/pytorch/pytorch/issues/164556",
     [
       "rocm"
+    ]
+  ],
+  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180337",
+    "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
