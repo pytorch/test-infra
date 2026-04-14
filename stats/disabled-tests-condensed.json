@@ -1245,6 +1245,13 @@
       "linux"
     ]
   ],
+  "test_flex_attention_with_dynamic_max_autotune_graph_partition_xpu (__main__.TestLearnableBiasesXPU)": [
+    "175719",
+    "https://github.com/pytorch/pytorch/issues/175719",
+    [
+      "xpu"
+    ]
+  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -2674,6 +2681,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_shapes (__main__.TestBmmOuterProduct)": [
+    "180318",
+    "https://github.com/pytorch/pytorch/issues/180318",
+    [
+      "xpu"
     ]
   ],
   "test_skip_cpp_wrapper (__main__.CudaGraphTreeTests)": [
