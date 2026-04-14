@@ -5,8 +5,8 @@ import {
   Container,
   Typography,
 } from "@mui/material";
-import Head from "next/head";
 import { signIn, useSession } from "next-auth/react";
+import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import { useDarkMode } from "../lib/DarkModeContext";
 
@@ -148,8 +148,9 @@ export default function ClaudeBillingPage() {
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
             You are signed in as{" "}
-            <strong>{session.data.user.name || session.data.user.email}</strong>,
-            but you need write permissions to pytorch/pytorch to view this page.
+            <strong>{session.data.user.name || session.data.user.email}</strong>
+            , but you need write permissions to pytorch/pytorch to view this
+            page.
           </Typography>
           <Box
             sx={{
