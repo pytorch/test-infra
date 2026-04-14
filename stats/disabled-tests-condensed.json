@@ -2215,6 +2215,13 @@
       "rocm"
     ]
   ],
+  "test_permuted_inputs (__main__.TestBmmOuterProduct)": [
+    "180329",
+    "https://github.com/pytorch/pytorch/issues/180329",
+    [
+      "xpu"
+    ]
+  ],
   "test_pre_dispatch_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
     "179965",
     "https://github.com/pytorch/pytorch/issues/179965",
