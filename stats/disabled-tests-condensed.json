@@ -70,6 +70,14 @@
       "mac"
     ]
   ],
+  "test_allocate_in_thread_to_pool (__main__.TestBlockStateAbsorption)": [
+    "158764",
+    "https://github.com/pytorch/pytorch/issues/158764",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_allow_reuse_disable_if_exceed_peak_cuda (__main__.GPUTests)": [
     "179776",
     "https://github.com/pytorch/pytorch/issues/179776",
@@ -284,6 +292,15 @@
     "176197",
     "https://github.com/pytorch/pytorch/issues/176197",
     [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "158909",
+    "https://github.com/pytorch/pytorch/issues/158909",
+    [
+      "asan",
       "linux",
       "slow"
     ]
@@ -1231,6 +1248,13 @@
       "linux"
     ]
   ],
+  "test_find_learning_rate_ensembling_AlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180320",
+    "https://github.com/pytorch/pytorch/issues/180320",
+    [
+      "dynamo"
+    ]
+  ],
   "test_fixed_striding (__main__.TestWithNCCL)": [
     "179949",
     "https://github.com/pytorch/pytorch/issues/179949",
@@ -1651,6 +1675,14 @@
       "dynamo"
     ]
   ],
+  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180324",
+    "https://github.com/pytorch/pytorch/issues/180324",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_kineto_kernel_metadata_in_trace (__main__.TestProfiler)": [
     "180072",
     "https://github.com/pytorch/pytorch/issues/180072",
@@ -1792,6 +1824,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_mempool_no_split (__main__.TestMemPool)": [
+    "180325",
+    "https://github.com/pytorch/pytorch/issues/180325",
+    [
+      "linux"
     ]
   ],
   "test_mempool_with_allocator (__main__.TestMemPool)": [
@@ -2112,6 +2151,14 @@
   "test_opcheck_opinfo_NumpySplitCopyWithIntCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180301",
     "https://github.com/pytorch/pytorch/issues/180301",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180323",
+    "https://github.com/pytorch/pytorch/issues/180323",
     [
       "asan",
       "linux"
@@ -2980,6 +3027,13 @@
       "dynamo"
     ]
   ],
+  "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
+    "180321",
+    "https://github.com/pytorch/pytorch/issues/180321",
+    [
+      "dynamo"
+    ]
+  ],
   "test_triton_alltoall (__main__.NVSHMEMTritonTest)": [
     "158840",
     "https://github.com/pytorch/pytorch/issues/158840",
@@ -3243,6 +3297,13 @@
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
     "180194",
     "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180322",
+    "https://github.com/pytorch/pytorch/issues/180322",
     [
       "dynamo"
     ]
