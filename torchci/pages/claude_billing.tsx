@@ -44,9 +44,11 @@ export default function ClaudeBillingPage() {
           </Button>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Track Claude AI usage costs for code review, issue triage, and other
-          GitHub Actions workflows. Costs are tracked per invocation with
-          breakdowns by workflow, user, and repository.
+          Estimated Claude AI usage costs for code review, issue triage, and
+          other GitHub Actions workflows. These figures are{" "}
+          <strong>estimates only</strong>, calculated from token counts observed
+          in public GitHub Actions runs multiplied by list price. They do not
+          reflect actual billing data or any negotiated pricing.
         </Typography>
         <Box
           sx={{
