@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
 import logging
 
-import event_handler
-from config import RelayConfig
-from utils import HTTPException
+from utils.config import get_config
+from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
+from . import event_handler
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
-
-_cached_config: RelayConfig | None = None
 
 
 def _verify_signature(secret: str, body: bytes, signature: str) -> None:
@@ -27,29 +24,11 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> None:
         raise HTTPException(status_code=401, detail="Bad signature")
 
 
-_JSON_HEADERS = {"content-type": "application/json"}
 _SUPPORTED_EVENTS = frozenset({"pull_request", "push"})
 
 
-def _get_config() -> RelayConfig:
-    global _cached_config
-    if _cached_config is None:
-        _cached_config = RelayConfig.from_env()
-    return _cached_config
-
-
 def lambda_handler(event, context):
-    http = event.get("requestContext", {}).get("http", {})
-    method = http.get("method", "").upper()
-    path = http.get("path", "")
-
-    raw_body = event.get("body") or ""
-    body_bytes = (
-        base64.b64decode(raw_body)
-        if event.get("isBase64Encoded")
-        else raw_body.encode("utf-8")
-    )
-    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    method, path, body_bytes, headers = parse_lambda_event(event)
 
     delivery = headers.get("x-github-delivery", "")
     logger.info("request method=%s path=%s delivery=%s", method, path, delivery)
@@ -58,12 +37,12 @@ def lambda_handler(event, context):
         if path == "/github/webhook":
             return {
                 "statusCode": 405,
-                "headers": _JSON_HEADERS,
+                "headers": JSON_HEADERS,
                 "body": json.dumps({"detail": "Method not allowed"}),
             }
         return {
             "statusCode": 404,
-            "headers": _JSON_HEADERS,
+            "headers": JSON_HEADERS,
             "body": json.dumps({"detail": "Not found"}),
         }
 
@@ -72,12 +51,12 @@ def lambda_handler(event, context):
         logger.info("event=%s ignored before verification", event_type)
         return {
             "statusCode": 200,
-            "headers": _JSON_HEADERS,
+            "headers": JSON_HEADERS,
             "body": json.dumps({"ignored": True}),
         }
 
     try:
-        config = _get_config()
+        config = get_config()
 
         _verify_signature(
             config.github_app_secret, body_bytes, headers.get("x-hub-signature-256", "")
@@ -90,7 +69,7 @@ def lambda_handler(event, context):
             logger.info("repo=%s not upstream, ignored", repo)
             return {
                 "statusCode": 200,
-                "headers": _JSON_HEADERS,
+                "headers": JSON_HEADERS,
                 "body": json.dumps({"ignored": True}),
             }
 
@@ -100,24 +79,28 @@ def lambda_handler(event, context):
             event_type=event_type,
             delivery_id=delivery,
         )
-        return {"statusCode": 200, "headers": _JSON_HEADERS, "body": json.dumps(result)}
+        return {"statusCode": 200, "headers": JSON_HEADERS, "body": json.dumps(result)}
 
     except json.JSONDecodeError:
+        logger.warning("invalid JSON body in webhook request")
         return {
             "statusCode": 400,
-            "headers": _JSON_HEADERS,
+            "headers": JSON_HEADERS,
             "body": json.dumps({"detail": "Invalid JSON body"}),
         }
     except HTTPException as exc:
+        logger.warning(
+            "http exception status=%d detail=%s", exc.status_code, exc.detail
+        )
         return {
             "statusCode": exc.status_code,
-            "headers": _JSON_HEADERS,
+            "headers": JSON_HEADERS,
             "body": json.dumps({"detail": exc.detail}),
         }
     except Exception:
         logger.exception("unhandled error")
         return {
             "statusCode": 500,
-            "headers": _JSON_HEADERS,
+            "headers": JSON_HEADERS,
             "body": json.dumps({"detail": "Internal server error"}),
         }

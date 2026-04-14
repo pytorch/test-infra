@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
-import gh_helper
-from allowlist import AllowlistLevel, load_allowlist
-from config import RelayConfig
-from utils import EventDispatchPayload, HTTPException
+from utils import gh_helper, redis_helper
+from utils.allowlist import AllowlistLevel, load_allowlist
+from utils.config import RelayConfig
+from utils.misc import EventDispatchPayload, HTTPException, TimingPhase
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,17 @@ def _dispatch_one(
         repo_full_name=downstream_repo,
         event_type=event_type,
         client_payload=client_payload,
+    )
+
+    # Record dispatch timestamp for timing calculations (best-effort).
+    # Keyed by X-GitHub-Delivery (globally unique per webhook delivery) so
+    # retries/reruns with the same head_sha don't collide.
+    redis_helper.set_timing(
+        config,
+        client_payload.get("delivery_id"),
+        downstream_repo,
+        TimingPhase.DISPATCH,
+        time.time(),
     )
 
 
@@ -77,13 +89,12 @@ def _dispatch_to_allowlist(
                 )
                 dispatched.append({"repo": downstream_repo})
             except Exception as e:
-                error_message = str(e)
-                logger.error(
-                    "dispatch failed event_type=%s repo=%s error=%s",
+                logger.exception(
+                    "dispatch failed event_type=%s repo=%s",
                     event_type,
                     downstream_repo,
-                    error_message,
                 )
+                error_message = str(e)
                 failed.append(
                     {
                         "repo": downstream_repo,

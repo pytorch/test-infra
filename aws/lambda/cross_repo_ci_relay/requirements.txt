@@ -2,3 +2,4 @@ PyYAML==6.0.3
 PyGithub==2.9.0
 redis==7.4.0
 boto3==1.42.78
+PyJWT==2.10.1
