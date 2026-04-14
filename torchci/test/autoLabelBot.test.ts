@@ -1120,7 +1120,9 @@ describe("auto-label-bot: labeler.yml config", () => {
   });
 
   test("getLabelsFromLabelerConfig multiple match but no workflow permissions", async () => {
-    // Matches both module: dynamo and ciflow/inductor, but removes ciflow due to lacking perms
+    // Matches both module: dynamo and ciflow/inductor. ciflow labels are now
+    // kept even without workflow permissions -- the ciflowPushTrigger will
+    // defer tag creation until workflows are approved.
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     const prFiles = requireDeepCopy("./fixtures/pull_files");
     prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
@@ -1128,22 +1130,8 @@ describe("auto-label-bot: labeler.yml config", () => {
     const prNumber = 31;
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
-    nock("https://api.github.com")
-      .get((uri) => uri.startsWith(`/repos/${repoFullName}/actions/runs`))
-      .reply(200, {
-        workflow_runs: [
-          {
-            event: "pull_request",
-            conclusion: "action_required",
-          },
-        ],
-      })
-      .get(`/repos/${repoFullName}/collaborators/zzj-bot/permission`)
-      .reply(200, {
-        permission: "read",
-      });
     const scope2 = utils.mockAddLabels(
-      ["module: dynamo"],
+      ["module: dynamo", "ciflow/inductor"],
       repoFullName,
       prNumber
     );

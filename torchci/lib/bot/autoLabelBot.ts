@@ -1,4 +1,3 @@
-import assert from "assert";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
 import { addLabelErrComment, hasRequiredLabels } from "./checkLabelsUtils";
@@ -225,9 +224,9 @@ export async function canRunWorkflows(
 async function filterCIFlowLabels(
   isIssue: boolean,
   labels: string[],
-  context?: Context<"pull_request">,
-  owner?: string,
-  repo?: string
+  _context?: Context<"pull_request">,
+  _owner?: string,
+  _repo?: string
 ) {
   const noCIFlowLabels = labels.filter((l) => !l.startsWith("ciflow/"));
   if (noCIFlowLabels.length === labels.length) {
@@ -238,11 +237,9 @@ async function filterCIFlowLabels(
     return noCIFlowLabels;
   }
 
-  assert(context && owner && repo, "context, owner, and repo must be provided");
-
-  if (!(await canRunWorkflows(context))) {
-    return noCIFlowLabels;
-  }
+  // Allow ciflow labels to be added to PRs even without workflow approval.
+  // The ciflowPushTrigger will defer tag creation and post a pending comment
+  // until workflows are approved, rather than stripping the labels.
   return labels;
 }
 

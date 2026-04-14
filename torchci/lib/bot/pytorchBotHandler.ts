@@ -472,14 +472,17 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         ctx.payload?.comment?.user?.login
       ))
     ) {
-      return await this.addComment(
-        "To add these label(s) (" +
+      // Still add the labels (they represent user intent), but inform
+      // that CI won't be triggered until workflows are approved.
+      // The ciflowPushTrigger will handle posting a detailed pending comment.
+      await this.addComment(
+        "The ciflow label(s) " +
           ciflowLabels.join(", ") +
-          ") to the PR, please first approve the " +
-          "workflows that are awaiting approval (scroll to the bottom of this page).\n\n" +
-          "This helps ensure we don't trigger CI on this PR until it is actually authorized to do so. " +
+          " will be added, but CI won't be triggered until " +
+          "the workflows are approved (scroll to the bottom of this page).\n\n" +
           "Please ping one of the reviewers if you do not have access to approve and run workflows."
       );
+      // Don't return -- let the labels be added below
     }
     if (invalidLabels.length > 0) {
       await this.addComment(
