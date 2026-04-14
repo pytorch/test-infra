@@ -792,6 +792,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "180365",
+    "https://github.com/pytorch/pytorch/issues/180365",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -2029,6 +2037,13 @@
       "dynamo"
     ]
   ],
+  "test_nested_mempool (__main__.TestMemPool)": [
+    "180367",
+    "https://github.com/pytorch/pytorch/issues/180367",
+    [
+      "linux"
+    ]
+  ],
   "test_nested_tuple_output (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "176969",
     "https://github.com/pytorch/pytorch/issues/176969",
@@ -2382,6 +2397,14 @@
       "slow"
     ]
   ],
+  "test_record_stream_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
+    "138557",
+    "https://github.com/pytorch/pytorch/issues/138557",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
     "120318",
     "https://github.com/pytorch/pytorch/issues/120318",
@@ -2603,17 +2626,6 @@
       "rocm"
     ]
   ],
-  "test_retrace_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "178177",
-    "https://github.com/pytorch/pytorch/issues/178177",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
-  ],
   "test_retracibility_dict_container_inp_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
     "117918",
     "https://github.com/pytorch/pytorch/issues/117918",
@@ -2712,17 +2724,6 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
-    ]
-  ],
-  "test_serialize_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "178077",
-    "https://github.com/pytorch/pytorch/issues/178077",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
     ]
   ],
   "test_set_per_process_memory_fraction (__main__.TestCuda)": [
@@ -3342,6 +3343,14 @@
     "https://github.com/pytorch/pytorch/issues/164556",
     [
       "rocm"
+    ]
+  ],
+  "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180366",
+    "https://github.com/pytorch/pytorch/issues/180366",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
