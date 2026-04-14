@@ -509,13 +509,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_masked_cumprod_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "177483",
-    "https://github.com/pytorch/pytorch/issues/177483",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
@@ -609,13 +602,6 @@
     "https://github.com/pytorch/pytorch/issues/104366",
     [
       "rocm"
-    ]
-  ],
-  "test_copy_cat_fusion (__main__.FusionTests)": [
-    "177653",
-    "https://github.com/pytorch/pytorch/issues/177653",
-    [
-      "xpu"
     ]
   ],
   "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
@@ -1190,6 +1176,13 @@
       "dynamo"
     ]
   ],
+  "test_ensemble_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180299",
+    "https://github.com/pytorch/pytorch/issues/180299",
+    [
+      "dynamo"
+    ]
+  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
@@ -1687,6 +1680,13 @@
       "dynamo"
     ]
   ],
+  "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180300",
+    "https://github.com/pytorch/pytorch/issues/180300",
+    [
+      "dynamo"
+    ]
+  ],
   "test_mark_unbacked_slice_cuda (__main__.TestInductorDynamicCUDA)": [
     "176202",
     "https://github.com/pytorch/pytorch/issues/176202",
@@ -1696,8 +1696,8 @@
     ]
   ],
   "test_max_split_expandable (__main__.TestCudaAllocator)": [
-    "180261",
-    "https://github.com/pytorch/pytorch/issues/180261",
+    "180263",
+    "https://github.com/pytorch/pytorch/issues/180263",
     [
       "linux",
       "slow"
@@ -2102,6 +2102,14 @@
       "linux"
     ]
   ],
+  "test_opcheck_opinfo_NumpySplitCopyWithIntCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180301",
+    "https://github.com/pytorch/pytorch/issues/180301",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
@@ -2487,6 +2495,13 @@
   "test_replicate_with_kwargs (__main__.ReplicateFullyShardInit)": [
     "180265",
     "https://github.com/pytorch/pytorch/issues/180265",
+    [
+      "linux"
+    ]
+  ],
+  "test_replicate_wrong_device_id_type (__main__.ReplicateFullyShardInit)": [
+    "176155",
+    "https://github.com/pytorch/pytorch/issues/176155",
     [
       "linux"
     ]
