@@ -823,6 +823,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_scatter_reduce_amax_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "180487",
+    "https://github.com/pytorch/pytorch/issues/180487",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -859,6 +867,14 @@
     "https://github.com/pytorch/pytorch/issues/179947",
     [
       "rocm"
+    ]
+  ],
+  "test_custom_function_boxed_grads (__main__.TestAutogradWithCompiledAutograd)": [
+    "180489",
+    "https://github.com/pytorch/pytorch/issues/180489",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
@@ -1053,6 +1069,14 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_dynamic_lstm_serdes_strict (__main__.SerDesExportTestExport)": [
+    "180488",
+    "https://github.com/pytorch/pytorch/issues/180488",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
@@ -1318,6 +1342,13 @@
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180491",
+    "https://github.com/pytorch/pytorch/issues/180491",
     [
       "dynamo"
     ]
@@ -2863,13 +2894,6 @@
       "xpu"
     ]
   ],
-  "test_skip_cpp_wrapper (__main__.CudaGraphTreeTests)": [
-    "180125",
-    "https://github.com/pytorch/pytorch/issues/180125",
-    [
-      "rocm"
-    ]
-  ],
   "test_skip_grad_in_check (__main__.TestTEFuserDynamic)": [
     "156436",
     "https://github.com/pytorch/pytorch/issues/156436",
@@ -3481,6 +3505,14 @@
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180490",
+    "https://github.com/pytorch/pytorch/issues/180490",
     [
       "linux",
       "slow"
