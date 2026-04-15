@@ -351,13 +351,6 @@
       "rocm"
     ]
   ],
-  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
-    "180017",
-    "https://github.com/pytorch/pytorch/issues/180017",
-    [
-      "rocm"
-    ]
-  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180023",
     "https://github.com/pytorch/pytorch/issues/180023",
@@ -372,13 +365,6 @@
       "rocm"
     ]
   ],
-  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTests)": [
-    "180018",
-    "https://github.com/pytorch/pytorch/issues/180018",
-    [
-      "rocm"
-    ]
-  ],
   "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180024",
     "https://github.com/pytorch/pytorch/issues/180024",
@@ -389,13 +375,6 @@
   "test_combo_kernel_per_config_subkernel_poi (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180025",
     "https://github.com/pytorch/pytorch/issues/180025",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_yz_overflow (__main__.ComboKernelTests)": [
-    "180019",
-    "https://github.com/pytorch/pytorch/issues/180019",
     [
       "rocm"
     ]
