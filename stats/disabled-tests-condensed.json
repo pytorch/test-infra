@@ -1302,8 +1302,8 @@
     ]
   ],
   "test_find_learning_rate_ensembling_Dropout_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180435",
-    "https://github.com/pytorch/pytorch/issues/180435",
+    "180436",
+    "https://github.com/pytorch/pytorch/issues/180436",
     [
       "dynamo"
     ]
@@ -2676,6 +2676,13 @@
     "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
+    ]
+  ],
+  "test_resnet18_per_sample_grads_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180459",
+    "https://github.com/pytorch/pytorch/issues/180459",
+    [
+      "dynamo"
     ]
   ],
   "test_resume (__main__.ProcessGroupNCCLGroupTest)": [
