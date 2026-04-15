@@ -67,7 +67,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          BRANCH_NAME="automated/release-changes-${RELEASE_VERSION}"
+          BRANCH_NAME="automated/changes-${RELEASE_VERSION}"
 
           # Check for an existing open PR from this branch
           EXISTING_PR=$(gh pr list \
