@@ -140,6 +140,13 @@
       "dynamo"
     ]
   ],
+  "test_autoheuristic (__main__.AutoHeuristicTest)": [
+    "180475",
+    "https://github.com/pytorch/pytorch/issues/180475",
+    [
+      "rocm"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
