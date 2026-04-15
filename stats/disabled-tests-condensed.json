@@ -2749,6 +2749,13 @@
       "mac"
     ]
   ],
+  "test_serialize_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
+    "178077",
+    "https://github.com/pytorch/pytorch/issues/178077",
+    [
+      "rocm"
+    ]
+  ],
   "test_set_per_process_memory_fraction (__main__.TestCuda)": [
     "135115",
     "https://github.com/pytorch/pytorch/issues/135115",
@@ -3203,6 +3210,13 @@
   "test_unary_ufunc_numerical_log10_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "180065",
     "https://github.com/pytorch/pytorch/issues/180065",
+    [
+      "rocm"
+    ]
+  ],
+  "test_unary_ufunc_numerical_log1p_backend_inductor_default_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
+    "180419",
+    "https://github.com/pytorch/pytorch/issues/180419",
     [
       "rocm"
     ]
