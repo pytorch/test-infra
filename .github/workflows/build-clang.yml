@@ -76,7 +76,7 @@ jobs:
             zlib-devel ncurses-devel libxml2-devel libedit-devel
 
       - name: Setup uv and Python 3.12
-        uses: pytorch/test-infra/.github/actions/setup-uv@main
+        uses: pytorch/test-infra/.github/actions/setup-uv@release/2.12
         with:
           python-version: "3.12"
           activate-environment: true

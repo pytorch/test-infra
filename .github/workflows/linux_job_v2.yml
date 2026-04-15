@@ -179,11 +179,11 @@ jobs:
         if: ${{ inputs.gpu-arch-type != 'rocm' && inputs.gpu-arch-type != 'xpu' }}
 
       - name: Setup ROCM
-        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        uses: pytorch/pytorch/.github/actions/setup-rocm@release/2.12
         if: ${{ inputs.gpu-arch-type == 'rocm' }}
 
       - name: Setup XPU
-        uses: pytorch/pytorch/.github/actions/setup-xpu@main
+        uses: pytorch/pytorch/.github/actions/setup-xpu@release/2.12
         if: ${{ inputs.gpu-arch-type == 'xpu' }}
 
       - name: Setup SSH
