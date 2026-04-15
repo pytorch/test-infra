@@ -169,6 +169,8 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       fetchOptions.filter = 'blob:none'
     }
 
+    fetchOptions.fetchTags = settings.fetchTags
+
     if (settings.fetchDepth <= 0) {
       let refSpec: string[] = settings.singleBranch
         ? refHelper.getRefSpec(
@@ -191,7 +193,6 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       }
     } else {
       fetchOptions.fetchDepth = settings.fetchDepth
-      fetchOptions.fetchTags = settings.fetchTags
       const refSpec = refHelper.getRefSpec(
         settings.ref,
         settings.commit,
