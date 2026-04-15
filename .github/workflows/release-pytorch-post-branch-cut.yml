@@ -7,11 +7,6 @@ on:
         description: 'Release version (e.g., 2.12). Determines release branch name and version bump.'
         required: true
         type: string
-      branch_cut:
-        description: 'Cut the release branch (set to false if already cut)'
-        required: false
-        default: true
-        type: boolean
       dry_run:
         description: 'Dry run - log actions without pushing branches or creating PRs'
         required: false
@@ -23,28 +18,8 @@ permissions:
   contents: read
 
 jobs:
-  cut-release-branch:
-    if: ${{ inputs.branch_cut }}
-    runs-on: ubuntu-latest
-    environment: trigger-nightly
-    steps:
-      - name: Checkout pytorch/pytorch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: pytorch/pytorch
-          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-          fetch-depth: 0
-
-      - name: Cut release branch
-        env:
-          RELEASE_VERSION: ${{ inputs.release_version }}
-          DRY_RUN: ${{ inputs.dry_run && 'enabled' || 'disabled' }}
-        run: |
-          bash scripts/release/cut-release-branch.sh
-
   create-release-changes-pr:
-    needs: [cut-release-branch]
-    if: ${{ always() && !inputs.dry_run && (needs.cut-release-branch.result == 'success' || needs.cut-release-branch.result == 'skipped') }}
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment: trigger-nightly
     steps:
@@ -140,8 +115,7 @@ jobs:
           fi
 
   create-version-bump-pr:
-    needs: [cut-release-branch]
-    if: ${{ always() && !inputs.dry_run && (needs.cut-release-branch.result == 'success' || needs.cut-release-branch.result == 'skipped') }}
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment: trigger-nightly
     steps:
