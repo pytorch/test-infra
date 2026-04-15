@@ -3,64 +3,79 @@ import { queryClickhouse } from "lib/clickhouse";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-// Fetch job results for a specific job name across multiple SHAs
+const SHA_REGEX = /^[0-9a-f]{4,40}$/i;
+
+function isValidSha(sha: string): boolean {
+  return SHA_REGEX.test(sha);
+}
+
+interface JobEvent {
+  conclusion: string;
+  htmlUrl: string;
+  logUrl: string;
+  failureCaptures: string[];
+  failureLines: string[];
+}
+
 async function fetchJobStatusForShas(
   repo: string,
   jobName: string,
-  shas: string[]
-): Promise<
-  Record<
-    string,
-    {
-      conclusion: string;
-      htmlUrl: string;
-      logUrl: string;
-      failureCaptures: string[];
-      failureLines: string[];
-    }[]
-  >
-> {
+  shas: string[],
+): Promise<Record<string, JobEvent[]>> {
   if (shas.length === 0) return {};
 
-  const shaList = shas.map((s) => `'${s}'`).join(",");
   const query = `
     SELECT
       workflow.head_sha AS sha,
       job.conclusion_kg AS conclusion,
       job.html_url AS htmlUrl,
       job.log_url AS logUrl,
-      job.torchci_classification_kg.'captures' AS failureCaptures,
-      arrayMap(x -> x, if(job.torchci_classification_kg.'line' = '', [], [job.torchci_classification_kg.'line'])) AS failureLines
+      job.torchci_classification_kg.'captures'
+        AS failureCaptures,
+      arrayMap(
+        x -> x,
+        if(
+          job.torchci_classification_kg.'line' = '',
+          [],
+          [job.torchci_classification_kg.'line']
+        )
+      ) AS failureLines
     FROM workflow_job job FINAL
-    INNER JOIN workflow_run workflow FINAL ON workflow.id = job.run_id
+    INNER JOIN workflow_run workflow FINAL
+      ON workflow.id = job.run_id
     WHERE
-      workflow.head_sha IN (${shaList})
+      workflow.head_sha IN ({shas: Array(String)})
       AND workflow.repository.full_name = {repo: String}
-      AND CONCAT(workflow.name, ' / ', job.name) = {jobName: String}
+      AND CONCAT(workflow.name, ' / ', job.name)
+        = {jobName: String}
     ORDER BY job.started_at DESC
   `;
 
-  const rows = await queryClickhouse(query, { repo, jobName });
+  const rows = await queryClickhouse(query, {
+    repo,
+    jobName,
+    shas,
+  });
 
-  const result: Record<string, any[]> = {};
+  const result: Record<string, JobEvent[]> = {};
   for (const row of rows) {
     const sha = row.sha as string;
     if (!result[sha]) result[sha] = [];
     result[sha].push({
-      conclusion: row.conclusion || "pending",
-      htmlUrl: row.htmlUrl,
-      logUrl: row.logUrl,
-      failureCaptures: row.failureCaptures || [],
-      failureLines: row.failureLines || [],
+      conclusion: (row.conclusion as string) || "pending",
+      htmlUrl: row.htmlUrl as string,
+      logUrl: row.logUrl as string,
+      failureCaptures:
+        (row.failureCaptures as string[]) || [],
+      failureLines: (row.failureLines as string[]) || [],
     });
   }
   return result;
 }
 
-// Fetch recent trunk commits for this repo
 async function fetchRecentTrunkShas(
   repo: string,
-  limit: number = 5
+  limit: number = 5,
 ): Promise<string[]> {
   const query = `
     SELECT DISTINCT head_sha
@@ -78,66 +93,93 @@ async function fetchRecentTrunkShas(
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   if (req.method !== "POST") {
-    return void res.status(405).json({ error: "Method not allowed" });
+    return void res
+      .status(405)
+      .json({ error: "Method not allowed" });
   }
 
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return void res.status(403).json({ error: "Authorization required" });
+    return void res
+      .status(403)
+      .json({ error: "Authorization required" });
   }
 
   const owner = req.query["repoOwner"] as string;
   const repo = req.query["repoName"] as string;
   if (!owner || !repo) {
-    return void res.status(400).json({ error: "Missing repo parameters" });
-  }
-
-  const { prNumber, headSha, mergeBaseSha, jobName, workflowName } = req.body;
-  if (!prNumber || !headSha || !jobName) {
     return void res
       .status(400)
-      .json({ error: "Missing required fields: prNumber, headSha, jobName" });
+      .json({ error: "Missing repo parameters" });
   }
 
-  // Verify user has write permissions
-  const octokit = await getOctokitWithUserToken(authorization);
+  const {
+    prNumber,
+    headSha,
+    mergeBaseSha,
+    jobName,
+    workflowName,
+  } = req.body;
+  if (!prNumber || !headSha || !jobName) {
+    return void res.status(400).json({
+      error:
+        "Missing required fields: prNumber, headSha, jobName",
+    });
+  }
+
+  if (!isValidSha(headSha)) {
+    return void res
+      .status(400)
+      .json({ error: "Invalid headSha format" });
+  }
+  if (mergeBaseSha && !isValidSha(mergeBaseSha)) {
+    return void res
+      .status(400)
+      .json({ error: "Invalid mergeBaseSha format" });
+  }
+
+  const octokit =
+    await getOctokitWithUserToken(authorization);
   const user = await octokit.rest.users.getAuthenticated();
   if (!user?.data?.login) {
-    return void res.status(403).json({ error: "Invalid credentials" });
-  }
-
-  const hasWritePerms = await hasWritePermissionsUsingOctokit(
-    octokit,
-    user.data.login,
-    owner,
-    repo
-  );
-  if (!hasWritePerms) {
     return void res
       .status(403)
-      .json({ error: "Write permission required to dispatch advisor" });
+      .json({ error: "Invalid credentials" });
+  }
+
+  const hasWritePerms =
+    await hasWritePermissionsUsingOctokit(
+      octokit,
+      user.data.login,
+      owner,
+      repo,
+    );
+  if (!hasWritePerms) {
+    return void res.status(403).json({
+      error:
+        "Write permission required to dispatch advisor",
+    });
   }
 
   try {
     const repoFullName = `${owner}/${repo}`;
-
-    // Gather SHAs to query: head, merge base, and recent trunk
-    const trunkShas = await fetchRecentTrunkShas(repoFullName, 5);
+    const trunkShas = await fetchRecentTrunkShas(
+      repoFullName,
+      5,
+    );
     const allShas = [headSha];
     if (mergeBaseSha) allShas.push(mergeBaseSha);
     allShas.push(...trunkShas);
 
-    // Fetch job status across all SHAs
     const jobStatus = await fetchJobStatusForShas(
       repoFullName,
       jobName,
-      allShas
+      allShas,
     );
 
-    // Build signal pattern JSON (compatible with autorevert advisor workflow)
     const mkEvents = (sha: string) =>
       (jobStatus[sha] || []).map((e) => ({
         url: e.htmlUrl,
@@ -164,7 +206,8 @@ export default async function handler(
         {
           sha: headSha,
           is_suspect: true,
-          partition: "pr_head: the PR head commit under investigation",
+          partition:
+            "pr_head: the PR head commit under investigation",
           timestamp: new Date().toISOString(),
           events: mkEvents(headSha),
         },
@@ -174,7 +217,8 @@ export default async function handler(
           ? [
               {
                 sha: mergeBaseSha,
-                partition: "merge_base: the merge base commit",
+                partition:
+                  "merge_base: the merge base commit",
                 events: mkEvents(mergeBaseSha),
               },
             ]
@@ -182,13 +226,14 @@ export default async function handler(
         ...trunkCommits.filter(
           (c) =>
             c.events.length > 0 &&
-            c.events.some((e) => e.conclusion === "success")
+            c.events.some(
+              (e) => e.conclusion === "success",
+            ),
         ),
       ],
       trunk_status: trunkCommits,
     };
 
-    // Dispatch the workflow using the bot token
     const botOctokit = await getOctokit(owner, repo);
     await botOctokit.rest.actions.createWorkflowDispatch({
       owner,
@@ -213,7 +258,9 @@ export default async function handler(
     return void res.status(500).json({
       error: "Failed to dispatch advisor workflow",
       details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 }
