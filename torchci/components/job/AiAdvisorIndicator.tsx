@@ -1,4 +1,9 @@
-import { Button, Chip, CircularProgress, Tooltip } from "@mui/material";
+import {
+  Button,
+  Chip,
+  CircularProgress,
+  Tooltip,
+} from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -8,7 +13,11 @@ import useSWR from "swr";
 interface AdvisorVerdict {
   suspectCommit: string;
   signalKey: string;
-  verdict: "revert" | "unsure" | "not_related" | "garbage";
+  verdict:
+    | "revert"
+    | "unsure"
+    | "not_related"
+    | "garbage";
   confidence: number;
   summary: string;
   causalReasoning: string;
@@ -16,7 +25,10 @@ interface AdvisorVerdict {
   timestamp: string;
 }
 
-const VERDICT_COLORS: Record<string, "error" | "warning" | "success" | "default"> = {
+const VERDICT_COLORS: Record<
+  string,
+  "error" | "warning" | "success" | "default"
+> = {
   revert: "error",
   unsure: "warning",
   not_related: "success",
@@ -30,9 +42,15 @@ const VERDICT_LABELS: Record<string, string> = {
   garbage: "Garbage Signal",
 };
 
-function VerdictChip({ verdict }: { verdict: AdvisorVerdict }) {
-  const color = VERDICT_COLORS[verdict.verdict] || "default";
-  const label = VERDICT_LABELS[verdict.verdict] || verdict.verdict;
+function VerdictChip({
+  verdict,
+}: {
+  verdict: AdvisorVerdict;
+}) {
+  const color =
+    VERDICT_COLORS[verdict.verdict] || "default";
+  const label =
+    VERDICT_LABELS[verdict.verdict] || verdict.verdict;
   const runUrl = `https://github.com/pytorch/pytorch/actions/runs/${verdict.runId}`;
 
   return (
@@ -40,10 +58,19 @@ function VerdictChip({ verdict }: { verdict: AdvisorVerdict }) {
       title={
         <div>
           <div>
-            <strong>{label}</strong> (confidence: {(verdict.confidence * 100).toFixed(0)}%)
+            <strong>{label}</strong> (confidence:{" "}
+            {(verdict.confidence * 100).toFixed(0)}%)
           </div>
-          <div style={{ marginTop: 4 }}>{verdict.summary}</div>
-          <div style={{ marginTop: 4, fontSize: "0.85em", opacity: 0.8 }}>
+          <div style={{ marginTop: 4 }}>
+            {verdict.summary}
+          </div>
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: "0.85em",
+              opacity: 0.8,
+            }}
+          >
             {new Date(verdict.timestamp).toLocaleString()}
             {" · "}
             <a
@@ -91,18 +118,17 @@ export default function AiAdvisorIndicator({
   const [dispatched, setDispatched] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch existing verdicts for this PR
   const { data: verdicts } = useSWR<AdvisorVerdict[]>(
     prNumber
       ? `/api/${repoOwner}/${repoName}/pull/advisor-runs?prNumber=${prNumber}`
       : null,
     fetcher,
-    { refreshInterval: 60_000 }
+    { refreshInterval: 60_000 },
   );
 
-  // Find verdict matching this specific job
   const matchingVerdict = verdicts?.find(
-    (v) => v.signalKey === jobName && v.suspectCommit === sha
+    (v) =>
+      v.signalKey === jobName && v.suspectCommit === sha,
   );
 
   const isAuthenticated =
@@ -111,7 +137,8 @@ export default function AiAdvisorIndicator({
     session.data["user"] !== undefined;
 
   const handleDispatch = async () => {
-    if (!isAuthenticated || dispatching || dispatched) return;
+    if (!isAuthenticated || dispatching || dispatched)
+      return;
 
     setDispatching(true);
     setError("");
@@ -123,7 +150,9 @@ export default function AiAdvisorIndicator({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: session.data!["accessToken"] as string,
+            Authorization: session.data![
+              "accessToken"
+            ] as string,
           },
           body: JSON.stringify({
             prNumber,
@@ -132,7 +161,7 @@ export default function AiAdvisorIndicator({
             jobName,
             workflowName: workflowName || "",
           }),
-        }
+        },
       );
 
       if (!res.ok) {
@@ -149,32 +178,45 @@ export default function AiAdvisorIndicator({
   };
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      {matchingVerdict && <VerdictChip verdict={matchingVerdict} />}
-      {!matchingVerdict && !dispatched && isAuthenticated && (
-        <Tooltip title="Run AI advisor to analyze this failure">
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleDispatch}
-            disabled={dispatching}
-            sx={{
-              ml: 1,
-              textTransform: "none",
-              fontSize: "0.75rem",
-              py: 0,
-              minHeight: 24,
-            }}
-          >
-            {dispatching ? (
-              <CircularProgress size={14} sx={{ mr: 0.5 }} />
-            ) : (
-              "🤖"
-            )}{" "}
-            AI Analyze
-          </Button>
-        </Tooltip>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      {matchingVerdict && (
+        <VerdictChip verdict={matchingVerdict} />
       )}
+      {!matchingVerdict &&
+        !dispatched &&
+        isAuthenticated && (
+          <Tooltip title="Run AI advisor to analyze this failure">
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleDispatch}
+              disabled={dispatching}
+              sx={{
+                ml: 1,
+                textTransform: "none",
+                fontSize: "0.75rem",
+                py: 0,
+                minHeight: 24,
+              }}
+            >
+              {dispatching ? (
+                <CircularProgress
+                  size={14}
+                  sx={{ mr: 0.5 }}
+                />
+              ) : (
+                "🤖"
+              )}{" "}
+              AI Analyze
+            </Button>
+          </Tooltip>
+        )}
       {dispatched && (
         <Chip
           label="AI: Dispatched"
