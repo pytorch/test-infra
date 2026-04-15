@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install jinja2 typing_extensions
+          python -m pip install jinja2==3.1.6 typing_extensions==4.15.0
 
       - name: Configure git
         run: |
