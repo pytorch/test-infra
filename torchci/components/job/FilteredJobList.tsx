@@ -4,6 +4,7 @@ import useScrollTo from "lib/useScrollTo";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import LogViewer from "../common/log/LogViewer";
+import AiAdvisorIndicator from "./AiAdvisorIndicator";
 import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
@@ -21,10 +22,19 @@ function FailedJobInfo({
 }) {
   const router = useRouter();
   useScrollTo();
-  const { repoOwner, repoName } = router.query;
+  const { repoOwner, repoName, prNumber } = router.query;
+  const prNum = prNumber ? parseInt(prNumber as string, 10) : 0;
   return (
     <li key={job.id} id={job.id}>
       <JobSummary job={job} unstableIssues={unstableIssues} />
+      {prNum > 0 && job.name && job.sha && (
+        <AiAdvisorIndicator
+          jobName={job.name}
+          sha={job.sha}
+          prNumber={prNum}
+          workflowName={job.workflowName}
+        />
+      )}
       <div>
         <JobLinks job={job} />
       </div>
