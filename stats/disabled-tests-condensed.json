@@ -1907,6 +1907,13 @@
       "linux"
     ]
   ],
+  "test_mempool_tensor_factory (__main__.SymmMemPoolTest)": [
+    "180464",
+    "https://github.com/pytorch/pytorch/issues/180464",
+    [
+      "rocm"
+    ]
+  ],
   "test_mempool_with_allocator (__main__.TestMemPool)": [
     "154566",
     "https://github.com/pytorch/pytorch/issues/154566",
@@ -2688,6 +2695,13 @@
   "test_resume (__main__.ProcessGroupNCCLGroupTest)": [
     "179953",
     "https://github.com/pytorch/pytorch/issues/179953",
+    [
+      "rocm"
+    ]
+  ],
+  "test_retrace_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
+    "178177",
+    "https://github.com/pytorch/pytorch/issues/178177",
     [
       "rocm"
     ]
