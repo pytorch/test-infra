@@ -621,6 +621,15 @@
       "rocm"
     ]
   ],
+  "test_conv3d_unary_dynamic_shapes_cpu (__main__.TestDynamicPatternMatcherGenericCPU)": [
+    "158329",
+    "https://github.com/pytorch/pytorch/issues/158329",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "178746",
     "https://github.com/pytorch/pytorch/issues/178746",
@@ -1263,6 +1272,13 @@
       "dynamo"
     ]
   ],
+  "test_find_learning_rate_ensembling_AlphaDropout_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180415",
+    "https://github.com/pytorch/pytorch/issues/180415",
+    [
+      "dynamo"
+    ]
+  ],
   "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180336",
     "https://github.com/pytorch/pytorch/issues/180336",
@@ -1717,6 +1733,13 @@
     "https://github.com/pytorch/pytorch/issues/179874",
     [
       "dynamo"
+    ]
+  ],
+  "test_lazy_template_fusion_multiple_candidates_use_async_compile_True (__main__.TestPrologueFusion)": [
+    "180413",
+    "https://github.com/pytorch/pytorch/issues/180413",
+    [
+      "inductor"
     ]
   ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -2997,6 +3020,14 @@
     "https://github.com/pytorch/pytorch/issues/121876",
     [
       "dynamo"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
+    "180414",
+    "https://github.com/pytorch/pytorch/issues/180414",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
