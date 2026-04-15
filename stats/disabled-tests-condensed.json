@@ -1041,6 +1041,14 @@
       "rocm"
     ]
   ],
+  "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
+    "176959",
+    "https://github.com/pytorch/pytorch/issues/176959",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_dynamic_shape_m_20480_k_5_n_2_should_decompose_True_has_bias_False (__main__.TestDecomposeMemMM)": [
     "153735",
     "https://github.com/pytorch/pytorch/issues/153735",
@@ -1273,8 +1281,8 @@
     ]
   ],
   "test_find_learning_rate_ensembling_AlphaDropout_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180415",
-    "https://github.com/pytorch/pytorch/issues/180415",
+    "180416",
+    "https://github.com/pytorch/pytorch/issues/180416",
     [
       "dynamo"
     ]
@@ -1282,6 +1290,20 @@
   "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180336",
     "https://github.com/pytorch/pytorch/issues/180336",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_find_learning_rate_ensembling_Dropout_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180435",
+    "https://github.com/pytorch/pytorch/issues/180435",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180437",
+    "https://github.com/pytorch/pytorch/issues/180437",
     [
       "dynamo"
     ]
@@ -1740,6 +1762,13 @@
     "https://github.com/pytorch/pytorch/issues/180413",
     [
       "inductor"
+    ]
+  ],
+  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180438",
+    "https://github.com/pytorch/pytorch/issues/180438",
+    [
+      "dynamo"
     ]
   ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -2658,6 +2687,15 @@
       "slow"
     ]
   ],
+  "test_retracibility_nested_list_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
+    "160050",
+    "https://github.com/pytorch/pytorch/issues/160050",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotune)": [
     "180031",
     "https://github.com/pytorch/pytorch/issues/180031",
@@ -3403,6 +3441,14 @@
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
+    ]
+  ],
+  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180439",
+    "https://github.com/pytorch/pytorch/issues/180439",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
