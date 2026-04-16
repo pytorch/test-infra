@@ -92,6 +92,11 @@ RUN --mount=type=bind,source=install_cuda.py,target=/tmp/install_cuda.py \
         uv run /tmp/install_cuda.py; \
     fi
 
+# Patch libstdc++ for CXX11 ABI symbol workaround
+# See: https://github.com/pytorch/pytorch/issues/133437
+RUN --mount=type=bind,source=patch_libstdc.sh,target=/tmp/patch_libstdc.sh \
+    bash /tmp/patch_libstdc.sh
+
 # Install sccache (do this last so /opt/cache/bin gets PATH priority)
 RUN --mount=type=bind,source=install_cache.py,target=/tmp/install_cache.py \
     uv run /tmp/install_cache.py
