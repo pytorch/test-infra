@@ -856,6 +856,14 @@
       "linux"
     ]
   ],
+  "test_custom_function_boxed_grads_cleanup_on_error (__main__.TestAutogradWithCompiledAutograd)": [
+    "180521",
+    "https://github.com/pytorch/pytorch/issues/180521",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -1012,6 +1020,13 @@
     "171934",
     "https://github.com/pytorch/pytorch/issues/171934",
     []
+  ],
+  "test_dtensor_op_db_baddbmm_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "180522",
+    "https://github.com/pytorch/pytorch/issues/180522",
+    [
+      "linux"
+    ]
   ],
   "test_dtensor_op_db_bmm_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "179779",
@@ -1791,6 +1806,13 @@
   "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180438",
     "https://github.com/pytorch/pytorch/issues/180438",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180519",
+    "https://github.com/pytorch/pytorch/issues/180519",
     [
       "dynamo"
     ]
