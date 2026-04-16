@@ -11,13 +11,14 @@ class RelaySecrets:
     github_app_secret: str = ""
     github_app_private_key: str = ""
     redis_login: str = ""
+    hud_bot_key: str = ""
 
     @classmethod
     def from_aws(cls, secret_store_arn: str, client=None) -> "RelaySecrets":
         region = os.environ.get("AWS_REGION", "us-east-1")
         try:
             if client is None:
-                client = boto3.session.Session().client(
+                client = boto3.client(
                     "secretsmanager",
                     region_name=region,
                     config=Config(retries={"max_attempts": 3, "mode": "standard"}),
@@ -36,6 +37,7 @@ class RelaySecrets:
             github_app_secret=secret.get("GITHUB_APP_SECRET", ""),
             github_app_private_key=secret.get("GITHUB_APP_PRIVATE_KEY", ""),
             redis_login=secret.get("REDIS_LOGIN", ""),
+            hud_bot_key=secret.get("HUD_BOT_KEY", ""),
         )
 
 
@@ -57,6 +59,9 @@ class RelayConfig:
     redis_login: str
     allowlist_ttl_seconds: int
     max_dispatch_workers: int
+    hud_api_url: str
+    hud_bot_key: str
+    oot_status_ttl: int
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
@@ -65,6 +70,7 @@ class RelayConfig:
         github_app_private_key = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
         redis_login = os.getenv("REDIS_LOGIN", "")
         secret_store_arn = os.getenv("SECRET_STORE_ARN", "")
+        hud_bot_key = os.getenv("HUD_BOT_KEY", "")
 
         if not github_app_secret or not github_app_private_key or not redis_login:
             if not secret_store_arn:
@@ -87,12 +93,14 @@ class RelayConfig:
                 github_app_private_key or secrets.github_app_private_key
             )
             redis_login = redis_login or secrets.redis_login
+            hud_bot_key = hud_bot_key or secrets.hud_bot_key
             missing_in_secret = [
                 v
                 for v, val in [
                     ("GITHUB_APP_SECRET", github_app_secret),
                     ("GITHUB_APP_PRIVATE_KEY", github_app_private_key),
                     ("REDIS_LOGIN", redis_login),
+                    ("HUD_BOT_KEY", hud_bot_key),
                 ]
                 if not val
             ]
@@ -112,6 +120,14 @@ class RelayConfig:
         # avoidable rate-limit risk in production.
         allowlist_ttl_seconds = max(allowlist_ttl_seconds, 900)
 
+        # GitHub can keep a workflow job in `pending` state for up to 3 days before
+        # auto-cancelling it, so OOT-status records must live at least that long.
+        # Default to 3 days (259200 s).
+        try:
+            oot_status_ttl = int(os.getenv("OOT_STATUS_TTL", "259200"))
+        except ValueError:
+            raise RuntimeError("OOT_STATUS_TTL must be a valid integer")
+
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
             github_app_secret=github_app_secret,
@@ -122,4 +138,17 @@ class RelayConfig:
             redis_login=redis_login,
             allowlist_ttl_seconds=allowlist_ttl_seconds,
             max_dispatch_workers=int(os.getenv("MAX_DISPATCH_WORKERS", "32")),
+            hud_api_url=os.getenv("HUD_API_URL", ""),
+            hud_bot_key=hud_bot_key,
+            oot_status_ttl=oot_status_ttl,
         )
+
+
+_cached_config: RelayConfig | None = None
+
+
+def get_config() -> RelayConfig:
+    global _cached_config
+    if _cached_config is None:
+        _cached_config = RelayConfig.from_env()
+    return _cached_config

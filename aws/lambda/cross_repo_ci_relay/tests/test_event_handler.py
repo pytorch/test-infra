@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import call, MagicMock, patch
 
-from event_handler import handle
+from webhook.event_handler import handle
 
 
 def _cfg():
@@ -9,6 +9,7 @@ def _cfg():
     cfg.github_app_id = "12345"
     cfg.github_app_private_key = "fake-key"
     cfg.max_dispatch_workers = 4
+    cfg.github_app_secret = "test-secret"
     return cfg
 
 
@@ -32,9 +33,9 @@ class TestEventHandler(unittest.TestCase):
             {"ignored": True},
         )
 
-    @patch("event_handler.gh_helper.create_repository_dispatch")
-    @patch("event_handler.gh_helper.get_repo_access_token", return_value="tok")
-    @patch("event_handler.load_allowlist")
+    @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
+    @patch("webhook.event_handler.gh_helper.get_repo_access_token", return_value="tok")
+    @patch("webhook.event_handler.load_allowlist")
     def test_dispatch_success(self, mock_load, _tok, mock_dispatch):
         mock_load.return_value = MagicMock(
             get_repos_at_or_above_level=MagicMock(return_value=(["org/a"], []))
@@ -43,12 +44,12 @@ class TestEventHandler(unittest.TestCase):
         self.assertTrue(result["ok"])
         mock_dispatch.assert_called_once()
 
-    @patch("event_handler.gh_helper.create_repository_dispatch")
+    @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
     @patch(
-        "event_handler.gh_helper.get_repo_access_token",
+        "webhook.event_handler.gh_helper.get_repo_access_token",
         side_effect=["tok-a", "tok-b"],
     )
-    @patch("event_handler.load_allowlist")
+    @patch("webhook.event_handler.load_allowlist")
     def test_dispatch_mints_token_per_downstream_repo(
         self, mock_load, mock_get_repo_access_token, mock_dispatch
     ):

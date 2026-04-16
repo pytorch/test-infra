@@ -2,8 +2,9 @@ import unittest
 from unittest.mock import MagicMock
 
 import redis as redis_lib
-import redis_helper
-from redis_helper import (
+from utils import redis_helper
+from utils.misc import TimingPhase
+from utils.redis_helper import (
     _ALLOWLIST_CACHE_KEY,
     create_client,
     get_cached_yaml,
@@ -54,6 +55,53 @@ class TestCachedYaml(unittest.TestCase):
         self.assertIs(first, client)
         self.assertIs(second, client)
         mock_from_url.assert_called_once()
+
+
+class TestTimingHelpers(unittest.TestCase):
+    def setUp(self):
+        redis_helper._cached_client = None
+        redis_helper._cached_client_url = None
+
+    def test_set_timing_swallows_redis_error(self):
+        from utils.redis_helper import set_timing
+
+        client = MagicMock()
+        client.setex.side_effect = redis_lib.exceptions.RedisError("boom")
+        cfg = MagicMock()
+        cfg.redis_endpoint = "host:6379"
+        cfg.redis_login = ""
+        cfg.oot_status_ttl = 3600
+
+        # must not raise — signature is (config, delivery_id, downstream_repo, phase, ts, client)
+        set_timing(cfg, "del-123", "org/repo", TimingPhase.DISPATCH, 1234.5, client)
+
+    def test_get_timing_returns_none_on_cache_miss(self):
+        from utils.redis_helper import get_timing
+
+        client = MagicMock()
+        client.get.return_value = None
+        cfg = MagicMock()
+        cfg.redis_endpoint = "host:6379"
+        cfg.redis_login = ""
+
+        result = get_timing(cfg, "del-123", "org/repo", TimingPhase.DISPATCH, client)
+
+        self.assertIsNone(result)
+
+    def test_get_timing_swallows_redis_error(self):
+        # Timing is a best-effort reporting enrichment — a Redis outage must
+        # degrade gracefully to None rather than breaking the result handler.
+        from utils.redis_helper import get_timing
+
+        client = MagicMock()
+        client.get.side_effect = redis_lib.exceptions.RedisError("timeout")
+        cfg = MagicMock()
+        cfg.redis_endpoint = "host:6379"
+        cfg.redis_login = ""
+
+        self.assertIsNone(
+            get_timing(cfg, "del-123", "org/repo", TimingPhase.DISPATCH, client)
+        )
 
 
 if __name__ == "__main__":

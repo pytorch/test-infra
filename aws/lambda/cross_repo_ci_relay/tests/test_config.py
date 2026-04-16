@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from config import RelayConfig, RelaySecrets
+from utils.config import RelayConfig, RelaySecrets
 
 
 _ENV = {
@@ -27,7 +27,7 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             RelayConfig.from_env()
 
-    @patch("config.RelaySecrets.from_aws")
+    @patch("utils.config.RelaySecrets.from_aws")
     @patch.dict(
         "os.environ",
         {
@@ -43,6 +43,7 @@ class TestConfig(unittest.TestCase):
             github_app_secret="s",
             github_app_private_key="k",
             redis_login="secret-pass",
+            hud_bot_key="hud-key",
         )
         cfg = RelayConfig.from_env()
         self.assertEqual(cfg.github_app_secret, "s")

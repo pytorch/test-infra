@@ -1,6 +1,6 @@
 import unittest
 
-from allowlist import AllowlistLevel, AllowlistMap
+from utils.allowlist import AllowlistLevel, AllowlistMap
 
 
 class TestAllowlistMap(unittest.TestCase):
