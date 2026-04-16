@@ -8,11 +8,7 @@ import useSWR from "swr";
 interface AdvisorVerdict {
   suspectCommit: string;
   signalKey: string;
-  verdict:
-    | "revert"
-    | "unsure"
-    | "not_related"
-    | "garbage";
+  verdict: "revert" | "unsure" | "not_related" | "garbage";
   confidence: number;
   summary: string;
   causalReasoning: string;
@@ -37,15 +33,9 @@ const VERDICT_LABELS: Record<string, string> = {
   garbage: "Garbage Signal",
 };
 
-function VerdictChip({
-  verdict,
-}: {
-  verdict: AdvisorVerdict;
-}) {
-  const color =
-    VERDICT_COLORS[verdict.verdict] || "default";
-  const label =
-    VERDICT_LABELS[verdict.verdict] || verdict.verdict;
+function VerdictChip({ verdict }: { verdict: AdvisorVerdict }) {
+  const color = VERDICT_COLORS[verdict.verdict] || "default";
+  const label = VERDICT_LABELS[verdict.verdict] || verdict.verdict;
   const runUrl = `https://github.com/pytorch/pytorch/actions/runs/${verdict.runId}`;
 
   return (
@@ -56,9 +46,7 @@ function VerdictChip({
             <strong>{label}</strong> (confidence:{" "}
             {(verdict.confidence * 100).toFixed(0)}%)
           </div>
-          <div style={{ marginTop: 4 }}>
-            {verdict.summary}
-          </div>
+          <div style={{ marginTop: 4 }}>{verdict.summary}</div>
           <div
             style={{
               marginTop: 4,
@@ -131,8 +119,7 @@ export default function AiAdvisorIndicator({
     session.data["user"] !== undefined;
 
   const handleDispatch = async () => {
-    if (!isAuthenticated || dispatching || dispatched)
-      return;
+    if (!isAuthenticated || dispatching || dispatched) return;
 
     setDispatching(true);
     setError("");
@@ -177,38 +164,31 @@ export default function AiAdvisorIndicator({
         gap: 4,
       }}
     >
-      {matchingVerdict && (
-        <VerdictChip verdict={matchingVerdict} />
+      {matchingVerdict && <VerdictChip verdict={matchingVerdict} />}
+      {!matchingVerdict && !dispatched && isAuthenticated && (
+        <Tooltip title="Run AI advisor to analyze this failure">
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleDispatch}
+            disabled={dispatching}
+            sx={{
+              ml: 1,
+              textTransform: "none",
+              fontSize: "0.75rem",
+              py: 0,
+              minHeight: 24,
+            }}
+          >
+            {dispatching ? (
+              <CircularProgress size={14} sx={{ mr: 0.5 }} />
+            ) : (
+              "🤖"
+            )}{" "}
+            AI Analyze
+          </Button>
+        </Tooltip>
       )}
-      {!matchingVerdict &&
-        !dispatched &&
-        isAuthenticated && (
-          <Tooltip title="Run AI advisor to analyze this failure">
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleDispatch}
-              disabled={dispatching}
-              sx={{
-                ml: 1,
-                textTransform: "none",
-                fontSize: "0.75rem",
-                py: 0,
-                minHeight: 24,
-              }}
-            >
-              {dispatching ? (
-                <CircularProgress
-                  size={14}
-                  sx={{ mr: 0.5 }}
-                />
-              ) : (
-                "🤖"
-              )}{" "}
-              AI Analyze
-            </Button>
-          </Tooltip>
-        )}
       {dispatched && (
         <Chip
           label="AI: Dispatched"

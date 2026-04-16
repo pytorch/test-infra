@@ -65,8 +65,7 @@ async function fetchJobStatusForShas(
       conclusion: (row.conclusion as string) || "pending",
       htmlUrl: row.htmlUrl as string,
       logUrl: row.logUrl as string,
-      failureCaptures:
-        (row.failureCaptures as string[]) || [],
+      failureCaptures: (row.failureCaptures as string[]) || [],
       failureLines: (row.failureLines as string[]) || [],
     });
   }
@@ -96,80 +95,55 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return void res
-      .status(405)
-      .json({ error: "Method not allowed" });
+    return void res.status(405).json({ error: "Method not allowed" });
   }
 
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return void res
-      .status(403)
-      .json({ error: "Authorization required" });
+    return void res.status(403).json({ error: "Authorization required" });
   }
 
   const owner = req.query["repoOwner"] as string;
   const repo = req.query["repoName"] as string;
   if (!owner || !repo) {
-    return void res
-      .status(400)
-      .json({ error: "Missing repo parameters" });
+    return void res.status(400).json({ error: "Missing repo parameters" });
   }
 
-  const {
-    prNumber,
-    headSha,
-    mergeBaseSha,
-    jobName,
-    workflowName,
-  } = req.body;
+  const { prNumber, headSha, mergeBaseSha, jobName, workflowName } = req.body;
   if (!prNumber || !headSha || !jobName) {
     return void res.status(400).json({
-      error:
-        "Missing required fields: prNumber, headSha, jobName",
+      error: "Missing required fields: prNumber, headSha, jobName",
     });
   }
 
   if (!isValidSha(headSha)) {
-    return void res
-      .status(400)
-      .json({ error: "Invalid headSha format" });
+    return void res.status(400).json({ error: "Invalid headSha format" });
   }
   if (mergeBaseSha && !isValidSha(mergeBaseSha)) {
-    return void res
-      .status(400)
-      .json({ error: "Invalid mergeBaseSha format" });
+    return void res.status(400).json({ error: "Invalid mergeBaseSha format" });
   }
 
-  const octokit =
-    await getOctokitWithUserToken(authorization);
+  const octokit = await getOctokitWithUserToken(authorization);
   const user = await octokit.rest.users.getAuthenticated();
   if (!user?.data?.login) {
-    return void res
-      .status(403)
-      .json({ error: "Invalid credentials" });
+    return void res.status(403).json({ error: "Invalid credentials" });
   }
 
-  const hasWritePerms =
-    await hasWritePermissionsUsingOctokit(
-      octokit,
-      user.data.login,
-      owner,
-      repo
-    );
+  const hasWritePerms = await hasWritePermissionsUsingOctokit(
+    octokit,
+    user.data.login,
+    owner,
+    repo
+  );
   if (!hasWritePerms) {
     return void res.status(403).json({
-      error:
-        "Write permission required to dispatch advisor",
+      error: "Write permission required to dispatch advisor",
     });
   }
 
   try {
     const repoFullName = `${owner}/${repo}`;
-    const trunkShas = await fetchRecentTrunkShas(
-      repoFullName,
-      5
-    );
+    const trunkShas = await fetchRecentTrunkShas(repoFullName, 5);
     const allShas = [headSha];
     if (mergeBaseSha) allShas.push(mergeBaseSha);
     allShas.push(...trunkShas);
@@ -206,8 +180,7 @@ export default async function handler(
         {
           sha: headSha,
           is_suspect: true,
-          partition:
-            "pr_head: the PR head commit under investigation",
+          partition: "pr_head: the PR head commit under investigation",
           timestamp: new Date().toISOString(),
           events: mkEvents(headSha),
         },
@@ -217,8 +190,7 @@ export default async function handler(
           ? [
               {
                 sha: mergeBaseSha,
-                partition:
-                  "merge_base: the merge base commit",
+                partition: "merge_base: the merge base commit",
                 events: mkEvents(mergeBaseSha),
               },
             ]
@@ -226,9 +198,7 @@ export default async function handler(
         ...trunkCommits.filter(
           (c) =>
             c.events.length > 0 &&
-            c.events.some(
-              (e) => e.conclusion === "success"
-            )
+            c.events.some((e) => e.conclusion === "success")
         ),
       ],
       trunk_status: trunkCommits,
@@ -258,9 +228,7 @@ export default async function handler(
     return void res.status(500).json({
       error: "Failed to dispatch advisor workflow",
       details:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 }
