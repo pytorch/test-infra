@@ -99,13 +99,6 @@
       "linux"
     ]
   ],
-  "test_aot_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "180010",
-    "https://github.com/pytorch/pytorch/issues/180010",
-    [
-      "rocm"
-    ]
-  ],
   "test_artificial_grid_cpp_wrapper (__main__.TestTritonHeuristics)": [
     "121709",
     "https://github.com/pytorch/pytorch/issues/121709",
@@ -201,13 +194,6 @@
     "https://github.com/pytorch/pytorch/issues/178748",
     [
       "xpu"
-    ]
-  ],
-  "test_benchmark_with_cudagraphs_uses_cuda_graph_benchmarking (__main__.TestCustomOpAutoTune)": [
-    "179943",
-    "https://github.com/pytorch/pytorch/issues/179943",
-    [
-      "rocm"
     ]
   ],
   "test_bias_addmm_lookup_table_entry (__main__.TestLookupTableE2E)": [
@@ -354,6 +340,13 @@
   "test_combo_autotune_many_subkernels (__main__.ComboKernelTestsMaxAutotune)": [
     "180021",
     "https://github.com/pytorch/pytorch/issues/180021",
+    [
+      "rocm"
+    ]
+  ],
+  "test_combo_kernel_coordesc_tunes_largest_subkernel_first (__main__.ComboKernelTestsMaxAutotune)": [
+    "180559",
+    "https://github.com/pytorch/pytorch/issues/180559",
     [
       "rocm"
     ]
@@ -630,13 +623,6 @@
       "slow"
     ]
   ],
-  "test_correctness_add_bf16_native (__main__.TestInlineAsmElementwise)": [
-    "179946",
-    "https://github.com/pytorch/pytorch/issues/179946",
-    [
-      "rocm"
-    ]
-  ],
   "test_correctness_add_f32 (__main__.TestInlineAsmElementwise)": [
     "180132",
     "https://github.com/pytorch/pytorch/issues/180132",
@@ -832,20 +818,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_cudagraph_memory_cleanup (__main__.TestCustomOpAutoTune)": [
-    "179945",
-    "https://github.com/pytorch/pytorch/issues/179945",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cudagraph_memory_cleanup_benchmarker (__main__.TestCustomOpAutoTune)": [
-    "179947",
-    "https://github.com/pytorch/pytorch/issues/179947",
-    [
-      "rocm"
     ]
   ],
   "test_custom_function_boxed_grads (__main__.TestAutogradWithCompiledAutograd)": [
@@ -1658,27 +1630,6 @@
       "rocm"
     ]
   ],
-  "test_hops_compile_backend_aot_eager_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHigherOrderOpsOpInfoCUDA)": [
-    "179925",
-    "https://github.com/pytorch/pytorch/issues/179925",
-    [
-      "rocm"
-    ]
-  ],
-  "test_hops_compile_backend_inductor_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHigherOrderOpsOpInfoCUDA)": [
-    "179927",
-    "https://github.com/pytorch/pytorch/issues/179927",
-    [
-      "rocm"
-    ]
-  ],
-  "test_hops_in_bwd_inline_asm_elementwise_simple_cuda_float32 (__main__.TestCompiledAutogradOpInfoCUDA)": [
-    "179982",
-    "https://github.com/pytorch/pytorch/issues/179982",
-    [
-      "rocm"
-    ]
-  ],
   "test_host_memory_stats (__main__.TestCuda)": [
     "148607",
     "https://github.com/pytorch/pytorch/issues/148607",
@@ -2409,13 +2360,6 @@
     "https://github.com/pytorch/pytorch/issues/180329",
     [
       "xpu"
-    ]
-  ],
-  "test_pre_dispatch_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
-    "179965",
-    "https://github.com/pytorch/pytorch/issues/179965",
-    [
-      "rocm"
     ]
   ],
   "test_pre_grad (__main__.TestCompilerBisector)": [
