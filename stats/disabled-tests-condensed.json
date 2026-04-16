@@ -1058,6 +1058,14 @@
       "rocm"
     ]
   ],
+  "test_dynamic_lstm_retraceability_strict (__main__.RetraceExportTestExport)": [
+    "176998",
+    "https://github.com/pytorch/pytorch/issues/176998",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_dynamic_lstm_serdes_strict (__main__.SerDesExportTestExport)": [
     "180488",
     "https://github.com/pytorch/pytorch/issues/180488",
@@ -1069,6 +1077,14 @@
   "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
     "176959",
     "https://github.com/pytorch/pytorch/issues/176959",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_training_ir_to_decomp_strict (__main__.TrainingIRToRunDecompExportTestExport)": [
+    "180541",
+    "https://github.com/pytorch/pytorch/issues/180541",
     [
       "asan",
       "linux"
@@ -1804,10 +1820,18 @@
     ]
   ],
   "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180519",
-    "https://github.com/pytorch/pytorch/issues/180519",
+    "180520",
+    "https://github.com/pytorch/pytorch/issues/180520",
     [
       "dynamo"
+    ]
+  ],
+  "test_linalg_solve_triangular_large_cuda_complex128 (__main__.TestLinalgCUDA)": [
+    "150959",
+    "https://github.com/pytorch/pytorch/issues/150959",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -1828,6 +1852,13 @@
   "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
     "180300",
     "https://github.com/pytorch/pytorch/issues/180300",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_maml_omniglot_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180539",
+    "https://github.com/pytorch/pytorch/issues/180539",
     [
       "dynamo"
     ]
@@ -3399,6 +3430,13 @@
       "rocm"
     ]
   ],
+  "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_False_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180540",
+    "https://github.com/pytorch/pytorch/issues/180540",
+    [
+      "dynamo"
+    ]
+  ],
   "test_uuid_visible_devices (__main__.TestCudaAllocator)": [
     "180123",
     "https://github.com/pytorch/pytorch/issues/180123",
@@ -3507,6 +3545,14 @@
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180490",
     "https://github.com/pytorch/pytorch/issues/180490",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180542",
+    "https://github.com/pytorch/pytorch/issues/180542",
     [
       "linux",
       "slow"
