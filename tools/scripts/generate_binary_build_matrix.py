@@ -107,7 +107,7 @@ WIN_CPU_RUNNER = "windows.4xlarge"
 WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
-PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"

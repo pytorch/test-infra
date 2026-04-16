@@ -9,7 +9,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_10-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -23,7 +23,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_10-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -37,7 +37,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_10-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -51,7 +51,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_10-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -65,7 +65,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_10-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -79,7 +79,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_11-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -93,7 +93,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_11-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -107,7 +107,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_11-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -121,7 +121,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_11-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -135,7 +135,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_11-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -149,7 +149,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_12-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -163,7 +163,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_12-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -177,7 +177,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_12-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -191,7 +191,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_12-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -205,7 +205,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_12-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -219,7 +219,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -233,7 +233,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -247,7 +247,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -261,7 +261,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -275,7 +275,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -289,7 +289,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13t-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -303,7 +303,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13t-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -317,7 +317,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13t-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -331,7 +331,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13t-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -345,7 +345,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_13t-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -359,7 +359,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -373,7 +373,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -387,7 +387,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -401,7 +401,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -415,7 +415,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -429,7 +429,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14t-cuda12_6",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -443,7 +443,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14t-cuda13_0",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -457,7 +457,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14t-cuda13_2",
       "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -471,7 +471,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14t-rocm7_1",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
@@ -485,7 +485,7 @@
       "package_type": "manywheel",
       "build_name": "manywheel-py3_14t-rocm7_2",
       "validation_runner": "linux.2xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.11.0"
