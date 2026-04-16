@@ -11,6 +11,10 @@ cd test_poetry
 TEST_SUFFIX=""
 if [[ ${TORCH_ONLY} == 'true' ]]; then
     TEST_SUFFIX=" --package torchonly"
+elif [[ ${INCLUDE_TORCHAUDIO:-} == 'true' ]]; then
+    TEST_SUFFIX=""
+else
+    TEST_SUFFIX=" --package torch_torchvision"
 fi
 
 RELEASE_SUFFIX=""
@@ -21,8 +25,10 @@ fi
 
 if [[ ${TORCH_ONLY} == 'true' ]]; then
     poetry --quiet add torch${RELEASE_SUFFIX}
-else
+elif [[ ${INCLUDE_TORCHAUDIO:-} == 'true' ]]; then
     poetry --quiet add torch${RELEASE_SUFFIX} torchaudio torchvision
+else
+    poetry --quiet add torch${RELEASE_SUFFIX} torchvision
 fi
 
 pushd ${PWD}/../.ci/pytorch/

@@ -9,7 +9,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_10-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -23,7 +23,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_10-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -37,7 +37,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_11-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -51,7 +51,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_11-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -65,7 +65,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_12-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -79,7 +79,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_12-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -93,7 +93,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_13-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -107,7 +107,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_13-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -121,7 +121,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_13t-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -135,7 +135,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_13t-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -149,7 +149,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_14-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -163,7 +163,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_14-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -177,7 +177,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_14t-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
@@ -191,7 +191,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_14t-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
       "stable_version": "2.11.0"
