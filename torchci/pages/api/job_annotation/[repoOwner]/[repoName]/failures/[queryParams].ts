@@ -1,23 +1,12 @@
+import { queryClickhouseSaved } from "lib/clickhouse";
 import { getDynamoClient } from "lib/dynamo";
 import { JobData } from "lib/types";
 import { NextApiRequest, NextApiResponse } from "next";
-import getRocksetClient from "lib/rockset";
-import { RocksetParam } from "lib/rockset";
-import rocksetVersions from "rockset/prodVersions.json";
 
-async function fetchFailureJobs(
-  queryParams: RocksetParam[]
-): Promise<JobData[]> {
-  const rocksetClient = getRocksetClient();
-  const failedJobs = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "failed_workflow_jobs",
-    rocksetVersions.commons.failed_workflow_jobs,
-    {
-      parameters: queryParams,
-    }
-  );
-  return failedJobs.results ?? [];
+async function fetchFailureJobs(queryParams: {
+  [key: string]: any;
+}): Promise<JobData[]> {
+  return await queryClickhouseSaved("failed_workflow_jobs", queryParams);
 }
 
 export default async function handler(

@@ -20,7 +20,6 @@ Remove-Item C:\amazon-cloudwatch-agent.msi
 . "$PsHome\Microsoft.PowerShell_profile.ps1"
 
 ${install_config_runner}
-${post_install}
 
 Stop-Transcript
 </powershell>

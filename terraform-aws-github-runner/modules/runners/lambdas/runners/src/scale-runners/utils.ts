@@ -8,14 +8,17 @@ export interface Repo {
 export interface RunnerInfo {
   applicationDeployDatetime?: string;
   awsRegion: string;
+  az?: string;
+  ebsVolumeReplacementRequestTimestamp?: number;
   environment?: string;
+  ephemeralRunnerFinished?: number;
   ghRunnerId?: string;
   instanceId: string;
+  instanceManagement?: string;
   launchTime?: Date;
   org?: string;
   repo?: string;
   runnerType?: string;
-  instanceManagement?: string;
 }
 
 export function getRepoKey(repo: Repo): string {
@@ -91,9 +94,6 @@ export function getRepo(repoDef: string, repoName?: string): Repo {
     }
 
     const repoArr = repoDef.split('/');
-    if (repoArr.length != 2) {
-      throw Error('getRepo: repoDef string must be in the format "owner/repo_name"');
-    }
     return { owner: repoArr[0], repo: repoArr[1] };
   } catch (e) {
     console.error(`[getRepo]: ${e}`);
@@ -160,4 +160,8 @@ export function shuffleArrayInPlace<T>(arr: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+export function sleep(time: number | undefined) {
+  return new Promise((resolve) => setTimeout(resolve, time));
 }

@@ -1,0 +1,201 @@
+/**
+ * Types for the Autorevert Signal Grid view.
+ *
+ * The autorevert state is stored as JSON blobs in misc.autorevert_state.
+ * The API merges multiple workflow-set rows into a unified response.
+ */
+
+// --- API Response ---
+
+export interface AutorevertStateResponse {
+  ts: string; // actual snapshot timestamp
+  commits: string[]; // SHA list, newest first
+  commitTimes: Record<string, string>; // sha → ISO8601
+  columns: SignalColumn[];
+  outcomes: Record<string, Outcome>; // "workflow:key" → outcome
+  advisorDispatches: AdvisorDispatch[];
+  availableWorkflows: string[]; // for filter UI
+  meta: {
+    lookbackHours: number;
+    repo: string;
+  };
+}
+
+// --- Signal Column ---
+
+export interface SignalColumn {
+  workflow: string;
+  key: string;
+  outcome: "revert" | "restart" | "ineligible";
+  cells: Record<string, CellEvent[]>; // sha → events
+  jobBaseName?: string;
+  ineligible?: { reason: string; message: string };
+  advisorResults?: Record<string, ColumnAdvisorResult>; // sha → result
+}
+
+export interface CellEvent {
+  status: "success" | "failure" | "pending";
+  started_at: string;
+  name: string;
+  ended_at?: string;
+  job_id?: number;
+  run_attempt?: number;
+}
+
+export interface ColumnAdvisorResult {
+  verdict: "revert" | "not_related" | "garbage" | "unsure";
+  confidence: number;
+  signal_key: string;
+}
+
+// --- Outcomes ---
+
+export type Outcome =
+  | { type: "AutorevertPattern"; data: AutorevertPatternData }
+  | { type: "RestartCommits"; data: RestartData }
+  | { type: "Ineligible"; data: IneligibleData };
+
+export interface AutorevertPatternData {
+  workflow_name: string;
+  suspected_commit: string;
+  older_successful_commit: string;
+  newer_failing_commits: string[];
+  wf_run_id?: number;
+  job_id?: number;
+  advisor_verdict?: {
+    verdict: string;
+    confidence: number;
+  };
+}
+
+export interface RestartData {
+  commit_shas: string[];
+}
+
+export interface IneligibleData {
+  reason: string;
+  message: string;
+}
+
+// --- Advisor ---
+
+export interface AdvisorDispatch {
+  signal_key: string;
+  commit_sha: string;
+  workflow_name: string;
+  mode: "run" | "log";
+}
+
+// --- Cell Highlight ---
+
+export type CellHighlight = "suspected" | "baseline" | "newer-fail" | "restart";
+
+// --- Autorevert Events (from misc.autorevert_events_v2) ---
+
+export interface AutorevertEventRow {
+  ts: string;
+  action: "restart" | "revert" | "advisor";
+  commit_sha: string;
+  workflows: string[];
+  source_signal_keys: string[];
+}
+
+/** Counts of autorevert events between two commit timestamps */
+export interface EventCounts {
+  restart: number;
+  revert: number;
+  advisor: number;
+}
+
+/**
+ * Ensure a timestamp string is parseable as UTC.
+ * ClickHouse returns timestamps without Z suffix — this appends it.
+ */
+export function ensureUtc(ts: string): string {
+  return ts && !ts.endsWith("Z") ? ts + "Z" : ts;
+}
+
+/**
+ * Parse a CH timestamp as UTC milliseconds.
+ */
+export function parseChTimestamp(ts: string): number {
+  return new Date(ensureUtc(ts || "1970-01-01")).getTime();
+}
+
+/**
+ * Build the canonical signal key from workflow and key parts.
+ * Format: "workflow:key" — used consistently for display, filtering,
+ * and dispatch lookup.
+ */
+export function signalId(workflow: string, key: string): string {
+  return `${workflow}:${key}`;
+}
+
+/**
+ * Check if a signal ID matches a filter term (case-insensitive substring).
+ */
+export function signalMatchesFilter(
+  signalId: string,
+  filterTerms: string[]
+): boolean {
+  if (filterTerms.length === 0) return true;
+  const lower = signalId.toLowerCase();
+  return filterTerms.some((term) => lower.includes(term));
+}
+
+/**
+ * Parse filter text into normalized terms.
+ * Uses | (pipe) as separator since both commas and spaces appear in signal keys.
+ */
+export function parseFilterTerms(filter: string): string[] {
+  return filter
+    .toLowerCase()
+    .split("|")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Parse run_id from event name format:
+ * "wf=<workflow> kind=<kind> id=<signal_id> run=<run_id> attempt=<attempt>"
+ */
+export function parseRunId(eventName: string): number | null {
+  const match = eventName.match(/run=(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Build GitHub Actions URL for an event.
+ */
+export function eventUrl(repo: string, event: CellEvent): string | null {
+  const runId = parseRunId(event.name);
+  if (!runId) return null;
+  if (event.job_id) {
+    return `https://github.com/${repo}/actions/runs/${runId}/job/${event.job_id}`;
+  }
+  return `https://github.com/${repo}/actions/runs/${runId}`;
+}
+
+/**
+ * Compute cell highlights from an outcome.
+ */
+export function getHighlightsForOutcome(
+  outcome: Outcome | undefined
+): Map<string, CellHighlight> {
+  const highlights = new Map<string, CellHighlight>();
+  if (!outcome) return highlights;
+
+  if (outcome.type === "AutorevertPattern") {
+    const data = outcome.data;
+    highlights.set(data.suspected_commit, "suspected");
+    highlights.set(data.older_successful_commit, "baseline");
+    for (const sha of data.newer_failing_commits) {
+      highlights.set(sha, "newer-fail");
+    }
+  } else if (outcome.type === "RestartCommits") {
+    for (const sha of outcome.data.commit_shas) {
+      highlights.set(sha, "restart");
+    }
+  }
+  return highlights;
+}

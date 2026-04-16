@@ -1,0 +1,1067 @@
+import unittest
+from datetime import datetime, timedelta
+from typing import Iterable, List, Optional
+
+from pytorch_auto_revert.signal import SignalStatus
+from pytorch_auto_revert.signal_extraction import SignalExtractor
+from pytorch_auto_revert.signal_extraction_datasource import SignalExtractionDatasource
+from pytorch_auto_revert.signal_extraction_types import (
+    JobBaseName,
+    JobId,
+    JobName,
+    JobRow,
+    RunAttempt,
+    Sha,
+    TestRow,
+    WfRunId,
+    WorkflowName,
+)
+
+
+def ts(base: datetime, minutes: int) -> datetime:
+    return base + timedelta(minutes=minutes)
+
+
+class FakeDatasource(SignalExtractionDatasource):
+    """Test double for the datasource returning provided rows."""
+
+    def __init__(
+        self,
+        jobs: List[JobRow],
+        tests: List[TestRow],
+        advisor_verdicts: Optional[dict] = None,
+    ):
+        self._jobs = jobs
+        self._tests = tests
+        self._advisor_verdicts = advisor_verdicts or {}
+
+    def fetch_commits_in_time_range(
+        self,
+        *,
+        repo_full_name: str,
+        lookback_hours: int,
+        as_of: Optional[datetime] = None,
+    ) -> List[tuple[Sha, datetime]]:
+        # Extract unique commits from jobs in the order they appear
+        seen = set()
+        commits = []
+        for j in self._jobs:
+            if j.head_sha not in seen:
+                seen.add(j.head_sha)
+                commits.append((j.head_sha, j.started_at))
+        return commits
+
+    def fetch_jobs_for_workflows(
+        self,
+        *,
+        workflows: Iterable[str],
+        lookback_hours: int,
+        repo_full_name: str,
+        head_shas: List[Sha],
+        as_of: Optional[datetime] = None,
+    ) -> List[JobRow]:
+        return list(self._jobs)
+
+    def fetch_tests_for_job_ids(
+        self,
+        job_ids: List[JobId],
+        *,
+        failed_job_ids: List[JobId],
+        lookback_hours: int = 24,
+    ) -> List[TestRow]:
+        ids = {int(j) for j in job_ids}
+        return [r for r in self._tests if int(r.job_id) in ids]
+
+    def fetch_advisor_verdicts(self, **kwargs):
+        return self._advisor_verdicts
+
+
+def J(
+    *,
+    sha: str,
+    wf: str = "trunk",
+    run: int,
+    job: int,
+    attempt: int,
+    name: str = "linux-test",
+    status: str = "completed",
+    conclusion: str = "success",
+    started_at: datetime,
+    rule: str = "",
+):
+    return JobRow(
+        head_sha=Sha(sha),
+        workflow_name=WorkflowName(wf),
+        wf_run_id=WfRunId(run),
+        job_id=JobId(job),
+        run_attempt=RunAttempt(attempt),
+        name=JobName(name),
+        status=status,
+        conclusion=conclusion,
+        started_at=started_at,
+        created_at=started_at,
+        rule=rule,
+    )
+
+
+def T(
+    *,
+    job: int,
+    run: int,
+    attempt: int,
+    file: str,
+    name: str,
+    failure_runs: int,
+    success_runs: int = 0,
+):
+    return TestRow(
+        job_id=JobId(job),
+        wf_run_id=WfRunId(run),
+        workflow_run_attempt=RunAttempt(attempt),
+        file=file,
+        classname="",
+        name=name,
+        failure_runs=failure_runs,
+        success_runs=success_runs,
+    )
+
+
+class TestSignalExtraction(unittest.TestCase):
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 20, 12, 0, 0)
+
+    def _extract(
+        self,
+        jobs: List[JobRow],
+        tests: List[TestRow],
+        advisor_verdicts: Optional[dict] = None,
+    ):
+        se = SignalExtractor(workflows=["trunk"], lookback_hours=24)
+        se._datasource = FakeDatasource(jobs, tests, advisor_verdicts)
+        return se.extract()
+
+    def _find_job_signal(self, signals, wf: str, base: JobBaseName):
+        for s in signals:
+            if s.workflow_name == wf and s.key == base:
+                return s
+        return None
+
+    def _find_test_signal(self, signals, wf: str, test_key: str):
+        for s in signals:
+            if s.workflow_name == wf and s.key == test_key:
+                return s
+        return None
+
+    def test_commit_order_is_stable(self):
+        # Two commits newer->older; include a failure so the job signal is emitted
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(sha="C1", run=100, job=2, attempt=1, started_at=ts(self.t0, 5)),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["C2", "C1"])
+
+    def test_attempt_boundary_two_events_time_ordered(self):
+        # One commit with attempt1(failure) then attempt2(success)
+        jobs = [
+            J(
+                sha="C",
+                run=300,
+                job=10,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+            ),
+            J(
+                sha="C",
+                run=300,
+                job=11,
+                attempt=2,
+                started_at=ts(self.t0, 2),
+                conclusion="success",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        self.assertEqual(len(sig.commits), 1)
+        events = sig.commits[0].events
+        self.assertEqual(len(events), 2)
+        # time-ordered: failure then success
+        self.assertEqual(events[0].status, SignalStatus.FAILURE)
+        self.assertEqual(events[1].status, SignalStatus.SUCCESS)
+        # carry attempt ids in names
+        self.assertIn("attempt=1", events[0].name)
+        self.assertIn("attempt=2", events[1].name)
+
+    def test_keep_going_failure_test_track_and_job_test_signal(self):
+        # in_progress + KG-adjusted failure for a test-classified job
+        jobs = [
+            J(
+                sha="K1",
+                run=400,
+                job=20,
+                attempt=1,
+                started_at=ts(self.t0, 3),
+                status="in_progress",
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=20,
+                run=400,
+                attempt=1,
+                file="f.py",
+                name="test_a",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        # test signal present with FAILURE
+        test_sig = self._find_test_signal(signals, "trunk", "f.py::test_a")
+        self.assertIsNotNone(test_sig)
+        self.assertEqual(test_sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Non-test job signal is not emitted (test-only failure)
+        self.assertIsNone(self._find_job_signal(signals, "trunk", jobs[0].base_name))
+        # Test-failure job-track signal is emitted under "[test]" key
+        job_test_sig = self._find_job_signal(
+            signals, "trunk", f"{jobs[0].base_name} [test]"
+        )
+        self.assertIsNotNone(job_test_sig)
+        k1 = next(c for c in job_test_sig.commits if c.head_sha == "K1")
+        self.assertEqual(k1.events[0].status, SignalStatus.FAILURE)
+
+    def test_cancelled_attempt_yields_no_event(self):
+        # Include a separate failing commit so the job signal is emitted
+        jobs = [
+            J(
+                sha="X2",
+                run=501,
+                job=31,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="X1",
+                run=500,
+                job=30,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                status="completed",
+                conclusion="cancelled",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        # find X1 commit in the signal and ensure it has no events
+        x1 = next(c for c in sig.commits if c.head_sha == "X1")
+        self.assertEqual(x1.events, [])
+
+    def test_non_test_inclusion_gate(self):
+        # (a) only test failures -> test-failure job signal emitted (not non-test job signal)
+        jobs_a = [
+            J(
+                sha="A2",
+                run=600,
+                job=40,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="A1",
+                run=610,
+                job=41,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests_a = [
+            T(
+                job=40,
+                run=600,
+                attempt=1,
+                file="f.py",
+                name="test_x",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=41,
+                run=610,
+                attempt=1,
+                file="f.py",
+                name="test_x",
+                failure_runs=1,
+                success_runs=0,
+            ),
+        ]
+        signals_a = self._extract(jobs_a, tests_a)
+        # Non-test job signal is not emitted (test-only failures)
+        self.assertIsNone(
+            self._find_job_signal(signals_a, "trunk", jobs_a[0].base_name)
+        )
+        # Test-failure job-track signal is emitted under "[test]" key
+        job_test_sig = self._find_job_signal(
+            signals_a, "trunk", f"{jobs_a[0].base_name} [test]"
+        )
+        self.assertIsNotNone(job_test_sig)
+        a2 = next(c for c in job_test_sig.commits if c.head_sha == "A2")
+        self.assertEqual(a2.events[0].status, SignalStatus.FAILURE)
+
+        # (b) includes a non-test failure -> job signal emitted
+        jobs_b = [
+            J(
+                sha="B2",
+                run=700,
+                job=50,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra-flake",  # non-test classification
+            ),
+            J(
+                sha="B1",
+                run=710,
+                job=51,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals_b = self._extract(jobs_b, tests=[])
+        self.assertIsNotNone(
+            self._find_job_signal(signals_b, "trunk", jobs_b[0].base_name)
+        )
+
+    def test_job_track_treats_test_failures_as_success(self):
+        # When a base has a non-test (infra) failure somewhere (so a job signal is emitted),
+        # attempts that fail due to tests should NOT appear as FAILURES in the job track.
+        # They should be treated as SUCCESS at the job-track level, leaving the failure to test-track.
+        jobs = [
+            # Newer commit: infra-caused failure (non-test classification)
+            J(
+                sha="Z2",
+                run=9100,
+                job=801,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="infra",  # non-test
+            ),
+            # Older commit: failure caused by tests (test classification)
+            J(
+                sha="Z1",
+                run=9000,
+                job=800,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",  # test-caused
+            ),
+        ]
+
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        # Expect commits newest->older
+        self.assertEqual([c.head_sha for c in sig.commits], ["Z2", "Z1"])
+        # Newer infra failure remains FAILURE
+        self.assertEqual(len(sig.commits[0].events), 1)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Older test-caused failure is mapped to SUCCESS in job track
+        self.assertEqual(len(sig.commits[1].events), 1)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
+
+    def test_commits_without_jobs_are_included(self):
+        # Verify that commits with no jobs at all are still included in signals
+        # Simulate case where C2 has a failure, C3 has no jobs (e.g., periodic workflow),
+        # and C1 has success
+        jobs = [
+            J(
+                sha="C2",
+                run=900,
+                job=70,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="C1",
+                run=910,
+                job=71,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+
+        # Create a fake datasource that returns an extra commit without jobs
+        t0 = self.t0  # capture t0 for closure
+        se = SignalExtractor(workflows=["trunk"], lookback_hours=24)
+
+        class FakeDatasourceWithExtraCommit(FakeDatasource):
+            def fetch_commits_in_time_range(
+                self,
+                *,
+                repo_full_name: str,
+                lookback_hours: int,
+                as_of: Optional[datetime] = None,
+            ):
+                # Return commits C2, C3 (no jobs), C1 in newest->older order
+                return [
+                    (Sha("C2"), ts(t0, 10)),
+                    (Sha("C3"), ts(t0, 5)),
+                    (Sha("C1"), ts(t0, 1)),
+                ]
+
+        se._datasource = FakeDatasourceWithExtraCommit(jobs, [])
+        signals = se.extract()
+
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        # Should have 3 commits: C2 (with events), C3 (no events), C1 (with events)
+        self.assertEqual(len(sig.commits), 3)
+        self.assertEqual([c.head_sha for c in sig.commits], ["C2", "C3", "C1"])
+        # C2 should have failure event
+        self.assertEqual(len(sig.commits[0].events), 1)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # C3 should have no events (commit without jobs)
+        self.assertEqual(len(sig.commits[1].events), 0)
+        # C1 should have success event
+        self.assertEqual(len(sig.commits[2].events), 1)
+        self.assertEqual(sig.commits[2].events[0].status, SignalStatus.SUCCESS)
+
+    def test_test_track_mapping_failure_then_success(self):
+        # Same test fails on newer commit and passes on older commit
+        jobs = [
+            J(
+                sha="N2",
+                run=800,
+                job=60,
+                attempt=1,
+                started_at=ts(self.t0, 11),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="N1",
+                run=810,
+                job=61,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        tests = [
+            T(
+                job=60,
+                run=800,
+                attempt=1,
+                file="g.py",
+                name="test_y",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=61,
+                run=810,
+                attempt=1,
+                file="g.py",
+                name="test_y",
+                failure_runs=0,
+                success_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(signals, "trunk", "g.py::test_y")
+        self.assertIsNotNone(test_sig)
+        # order newest -> older
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["N2", "N1"])
+        # newer failure, older success
+        self.assertEqual(test_sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        self.assertEqual(test_sig.commits[1].events[0].status, SignalStatus.SUCCESS)
+
+    def test_inject_pending_workflow_event_when_missing_in_signal(self):
+        # Multi-stage workflow: newest commit has a pending workflow run (build stage),
+        # tests not yet scheduled -> no events for that wf_run_id in the test signal.
+        # Older commit has a test failure so the test signal exists.
+        jobs = [
+            # Newest commit: pending build job under wf_run_id=200
+            J(
+                sha="H2",
+                wf="trunk",
+                run=200,
+                job=901,
+                attempt=1,
+                name="linux-build",
+                status="in_progress",
+                conclusion="",
+                started_at=ts(self.t0, 20),
+            ),
+            # Older commit: test job that failed with a concrete test verdict
+            J(
+                sha="H1",
+                wf="trunk",
+                run=190,
+                job=902,
+                attempt=1,
+                name="linux-test",
+                status="completed",
+                conclusion="failure",
+                started_at=ts(self.t0, 10),
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=902,
+                run=190,
+                attempt=1,
+                file="m.py",
+                name="test_synthetic_pending",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(
+            signals, "trunk", "m.py::test_synthetic_pending"
+        )
+        self.assertIsNotNone(test_sig)
+        # Expect two commits in newest->older order
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["H2", "H1"])
+
+        # For the newest commit (H2): we should have a synthetic pending event for wf_run_id=200
+        c_new = test_sig.commits[0]
+        self.assertEqual(len(c_new.events), 1)
+        self.assertEqual(c_new.events[0].status, SignalStatus.PENDING)
+        self.assertEqual(c_new.events[0].wf_run_id, 200)
+
+    def test_test_track_combines_shards_failure_wins(self):
+        # Same commit/run/attempt/test_id present on two shards of the same base:
+        # - shard A reports success
+        # - shard B reports failure
+        # When combining, the attempt should reflect a FAILURE event (and we still
+        # retain SUCCESS if it was also observed).
+        base_name = "linux-test (dynamo_wrapped, 1, 3)"  # numeric tokens may be ignored/merged by base logic
+
+        jobs = [
+            # Both jobs share the same commit, workflow run, attempt and base name
+            J(
+                sha="C",
+                run=5000,
+                job=1001,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",  # marks base as test-track candidate
+            ),
+            J(
+                sha="C",
+                run=5000,
+                job=1002,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 12),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+
+        tests = [
+            # Same test id across two shards: one success and one failure
+            T(
+                job=1001,
+                run=5000,
+                attempt=1,
+                file="h.py",
+                name="test_merge",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=1002,
+                run=5000,
+                attempt=1,
+                file="h.py",
+                name="test_merge",
+                failure_runs=0,
+                success_runs=1,
+            ),
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(signals, "trunk", "h.py::test_merge")
+        self.assertIsNotNone(test_sig)
+        # Single commit present
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["C"])
+        events = test_sig.commits[0].events
+        # Expect exactly one FAILURE event for the attempt (failure dominates)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].status, SignalStatus.FAILURE)
+
+    def test_test_track_combines_shards_success_single_event(self):
+        # Two shards for the same test attempt both succeed; ensure we emit
+        # a single SUCCESS event for that attempt (no duplication).
+        base_name = "linux-test (dynamo_wrapped, 1, 3)"
+
+        jobs = [
+            # Mark base as test-track by using a test failure classification on one job
+            # (selection signal only). Actual test rows are successes.
+            J(
+                sha="C2",
+                run=6000,
+                job=1101,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C2",
+                run=6000,
+                job=1102,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 12),
+                conclusion="success",
+                rule="",
+            ),
+            # Older commit with the same test failing at least once so the test id is included
+            J(
+                sha="C1",
+                run=5990,
+                job=1103,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+
+        tests = [
+            # Both shards report success for the same test id
+            T(
+                job=1101,
+                run=6000,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=0,
+                success_runs=1,
+            ),
+            T(
+                job=1102,
+                run=6000,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=0,
+                success_runs=1,
+            ),
+            # Older commit has a failure for the same test id to ensure inclusion
+            T(
+                job=1103,
+                run=5990,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=1,
+                success_runs=0,
+            ),
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(signals, "trunk", "h2.py::test_merge_success")
+        self.assertIsNotNone(test_sig)
+        # Should contain both commits, newest first
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["C2", "C1"])
+        # Find C2 and verify only a single SUCCESS event is emitted for the attempt
+        c2 = test_sig.commits[0]
+        events = c2.events
+        # Expect exactly one SUCCESS event for the attempt
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].status, SignalStatus.SUCCESS)
+
+    def test_test_retry_success_emits_only_success(self):
+        # When a test fails on first try but succeeds on retry within the same
+        # job, the aggregated outcome has both failure_runs > 0 and success_runs > 0.
+        # Consistent with HUD (which classifies this as "flaky", not "failure")
+        # and job conclusion (which is "success" when retry passes), we should
+        # emit only a SUCCESS event.
+        jobs = [
+            # Newer commit: job fails overall (other test fails), but test_retry
+            # passes on retry (failure_runs=1, success_runs=1)
+            J(
+                sha="R2",
+                run=2000,
+                job=500,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: same test fails persistently (no retry success)
+            J(
+                sha="R1",
+                run=2100,
+                job=501,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            # R2: test failed then retried successfully
+            T(
+                job=500,
+                run=2000,
+                attempt=1,
+                file="t.py",
+                name="test_retry",
+                failure_runs=1,
+                success_runs=1,
+            ),
+            # R1: test failed, no successful retry
+            T(
+                job=501,
+                run=2100,
+                attempt=1,
+                file="t.py",
+                name="test_retry",
+                failure_runs=1,
+                success_runs=0,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "t.py::test_retry")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["R2", "R1"])
+        # R2: retry passed → only SUCCESS (not FAILURE+SUCCESS)
+        self.assertEqual(len(sig.commits[0].events), 1)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.SUCCESS)
+        # R1: no retry success → FAILURE
+        self.assertEqual(len(sig.commits[1].events), 1)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.FAILURE)
+
+    def test_test_retry_success_everywhere_produces_no_signal(self):
+        # When a test retries successfully on every commit, it has no persistent
+        # failures and should not produce a test signal at all.
+        jobs = [
+            J(
+                sha="S2",
+                run=3000,
+                job=600,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="S1",
+                run=3100,
+                job=601,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            # Both commits: test fails then retries successfully
+            T(
+                job=600,
+                run=3000,
+                attempt=1,
+                file="flaky.py",
+                name="test_always_retries",
+                failure_runs=1,
+                success_runs=1,
+            ),
+            T(
+                job=601,
+                run=3100,
+                attempt=1,
+                file="flaky.py",
+                name="test_always_retries",
+                failure_runs=1,
+                success_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        self.assertIsNone(
+            self._find_test_signal(signals, "trunk", "flaky.py::test_always_retries")
+        )
+
+    def test_job_test_signal_green_base_for_new_test(self):
+        # The motivating scenario: a job succeeds on older commits, then a new test
+        # is introduced that fails. The [test] job signal should show SUCCESS on
+        # older commits and FAILURE on newer ones, providing the green base that
+        # enables autorevert pattern detection.
+        jobs = [
+            # Newer commit: job fails due to new test
+            J(
+                sha="N2",
+                run=1200,
+                job=200,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: same job passed (test didn't exist yet)
+            J(
+                sha="N1",
+                run=1100,
+                job=201,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        # Non-test job signal should NOT be emitted (failure is test-only)
+        self.assertIsNone(self._find_job_signal(signals, "trunk", base))
+
+        # [test] job signal should be emitted with green base
+        sig = self._find_job_signal(signals, "trunk", f"{base} [test]")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["N2", "N1"])
+        # Newer commit: FAILURE (test-caused)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Older commit: SUCCESS (job passed, test didn't exist)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
+
+    def test_job_test_signal_maps_non_test_failure_to_failure(self):
+        # On the [test] track, non-test (infra/build) failures should also map to
+        # FAILURE because they may mask underlying test failures on the same commit.
+        jobs = [
+            # Newer commit: test-caused failure
+            J(
+                sha="M2",
+                run=1300,
+                job=300,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # Older commit: infra/build failure (non-test) — may mask test failures
+            J(
+                sha="M1",
+                run=1400,
+                job=301,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        sig = self._find_job_signal(signals, "trunk", f"{base} [test]")
+        self.assertIsNotNone(sig)
+        self.assertEqual([c.head_sha for c in sig.commits], ["M2", "M1"])
+        # Newer: FAILURE (test-caused)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # Older: FAILURE (build failure may mask test failures)
+        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.FAILURE)
+
+    def test_no_job_test_signal_when_only_non_test_failures(self):
+        # When all failures are non-test (infra), no [test] signal should be emitted.
+        jobs = [
+            J(
+                sha="P2",
+                run=1500,
+                job=400,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="P1",
+                run=1600,
+                job=401,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+
+        # Non-test job signal is emitted (infra failure)
+        self.assertIsNotNone(self._find_job_signal(signals, "trunk", base))
+        # [test] job signal should NOT be emitted (no test failures)
+        self.assertIsNone(self._find_job_signal(signals, "trunk", f"{base} [test]"))
+
+    def test_advisor_verdict_attached_to_correct_commit(self):
+        """Advisor verdict from datasource is attached to the matching (commit, signal)."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        # Advisor says revert for C2 on the job signal
+        advisor_verdicts = {
+            ("C2", base): ("revert", 0.95, self.t0),
+        }
+        signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+
+        # C2 should have advisor_result
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNotNone(c2.advisor_result)
+        self.assertEqual(c2.advisor_result.verdict.value, "revert")
+        self.assertAlmostEqual(c2.advisor_result.confidence, 0.95)
+        self.assertEqual(c2.advisor_result.signal_key, base)
+
+        # C1 should NOT have advisor_result
+        c1 = next(c for c in sig.commits if c.head_sha == "C1")
+        self.assertIsNone(c1.advisor_result)
+
+    def test_advisor_verdict_not_attached_to_wrong_signal(self):
+        """Advisor verdict for signal A is not attached to signal B."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        # Advisor verdict is for a completely different signal key
+        advisor_verdicts = {
+            ("C2", "some_other_signal"): ("not_related", 0.99, self.t0),
+        }
+        signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+
+        # C2 should NOT have advisor_result (wrong signal key)
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNone(c2.advisor_result)
+
+    def test_advisor_verdict_on_test_signal(self):
+        """Advisor verdict is attached to test-track signals."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        tests = [
+            T(
+                job=1,
+                run=200,
+                attempt=1,
+                file="test_foo.py",
+                name="test_bar",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=2,
+                run=100,
+                attempt=1,
+                file="test_foo.py",
+                name="test_bar",
+                failure_runs=0,
+                success_runs=1,
+            ),
+        ]
+        test_key = "test_foo.py::test_bar"
+        advisor_verdicts = {
+            ("C2", test_key): ("garbage", 0.92, self.t0),
+        }
+        signals = self._extract(jobs, tests, advisor_verdicts=advisor_verdicts)
+        sig = self._find_test_signal(signals, "trunk", test_key)
+        self.assertIsNotNone(sig)
+
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        self.assertIsNotNone(c2.advisor_result)
+        self.assertEqual(c2.advisor_result.verdict.value, "garbage")
+        self.assertEqual(c2.advisor_result.signal_key, test_key)
+
+
+if __name__ == "__main__":
+    unittest.main()

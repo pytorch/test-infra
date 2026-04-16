@@ -1,0 +1,4 @@
+libjpeg-turbo-devel
+libxml2-devel
+libxslt-devel
+openblas-devel

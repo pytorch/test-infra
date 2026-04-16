@@ -26,12 +26,25 @@ export function nockTracker(
 }
 
 export function requireDeepCopy(fileName: string) {
-  return JSON.parse(JSON.stringify(require(fileName)));
+  return deepCopy(require(fileName));
 }
 
-export function handleScope(scope: nock.Scope) {
-  if (!scope.isDone()) {
-    console.error("pending mocks: %j", scope.pendingMocks());
+export function deepCopy<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+export function handleScope(scope: nock.Scope | nock.Scope[]) {
+  function scopeIsDone(s: nock.Scope) {
+    if (!s.isDone()) {
+      console.error("pending mocks: %j", s.pendingMocks());
+    }
+    s.done();
   }
-  scope.done();
+  if (Array.isArray(scope)) {
+    for (const s of scope) {
+      scopeIsDone(s);
+    }
+  } else {
+    scopeIsDone(scope);
+  }
 }

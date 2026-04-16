@@ -1,0 +1,106 @@
+name: Build PyPI wheel cache
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-pypi-cache.yml
+      - .github/scripts/pypi_cache/**
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild: 'package==version' to rebuild one, '*' to rebuild all, empty for normal behavior"
+        type: string
+        default: ""
+        required: false
+      manywheel_version:
+        description: "Manylinux platform tag version (e.g. '2_28', '2_34')"
+        type: string
+        default: "2_28"
+        required: false
+
+concurrency:
+  # TODO: Remove pr-specific concurrency key before merging
+  group: ${{ github.event_name == 'pull_request' && format('pypi-cache-pr-{0}', github.event.pull_request.number) || 'pypi-cache-build' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CUDA_VERSIONS: "12.6.3 12.8.1 13.0.2"
+  PYTHON_VERSIONS: "3.10 3.11 3.12 3.13 3.13t 3.14 3.14t"
+  S3_BUCKET: "pytorch-pypi-wheel-cache"
+  S3_REGION: "us-east-2"
+  AWS_ROLE: "arn:aws:iam::308535385114:role/gha_workflow_pypi_wheel_cache"
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Generate matrix
+        id: generate
+        run: |
+          matrix=$(python3 .github/scripts/pypi_cache/generate_matrix.py \
+            --cuda-versions "${CUDA_VERSIONS}")
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+
+  build:
+    needs: generate-matrix
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      fail-fast: false
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install system packages
+        run: |
+          sed 's/#.*//; /^[[:space:]]*$/d' .github/scripts/pypi_cache/system_packages.txt | xargs yum install -y
+
+      - name: Install Python build dependencies
+        run: |
+          for py in /opt/python/*/bin/pip; do
+            "${py}" install -r .github/scripts/pypi_cache/build_requirements.txt
+          done
+
+      - name: Install AWS CLI
+        run: |
+          /opt/python/cp312-cp312/bin/pip install awscli==1.38.23
+          echo "/opt/python/cp312-cp312/bin" >> "${GITHUB_PATH}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.S3_REGION }}
+          role-duration-seconds: 10800
+
+      - name: Build and upload wheels
+        env:
+          VARIANT: ${{ matrix.variant }}
+          ARCH: ${{ matrix.arch }}
+          CUDA_DIR: ${{ matrix.cuda_dir }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
+          MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
+        run: python3 .github/scripts/pypi_cache/build.py
+
+      - name: Build failure summary
+        if: always()
+        run: |
+          if [ -s /tmp/pypi-cache-failure-summary.txt ]; then
+            echo "::warning::Failed builds for ${{ matrix.variant }}/${{ matrix.arch }}:"
+            echo ""
+            cat /tmp/pypi-cache-failure-summary.txt
+          fi

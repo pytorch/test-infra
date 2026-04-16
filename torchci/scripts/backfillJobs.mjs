@@ -4,27 +4,42 @@
 
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
-import { Octokit, App } from "octokit";
+import { createClient } from "@clickhouse/client";
 import { createAppAuth } from "@octokit/auth-app";
-import rockset from "@rockset/client";
+import { App, Octokit } from "octokit";
 import { request } from "urllib";
 
 function getDynamoClient() {
   return DynamoDBDocument.from(
     new DynamoDB({
-      credentials: {
-        accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY,
-      },
       region: "us-east-1",
     })
   );
 }
 
+function getClickhouseClient() {
+  return createClient({
+    host: process.env.CLICKHOUSE_HUD_USER_URL,
+    username: process.env.CLICKHOUSE_HUD_USER_USERNAME,
+    password: process.env.CLICKHOUSE_HUD_USER_PASSWORD,
+  });
+}
+
+export async function queryClickhouse(query, params) {
+  const clickhouseClient = getClickhouseClient();
+  const res = await clickhouseClient.query({
+    query,
+    format: "JSONEachRow",
+    query_params: params,
+    clickhouse_settings: { output_format_json_quote_64bit_integers: 0 },
+  });
+
+  return await res.json();
+}
+
 async function getOctokit(owner, repo) {
   let privateKey = process.env.PRIVATE_KEY;
   privateKey = Buffer.from(privateKey, "base64").toString();
-
   const app = new App({
     appId: process.env.APP_ID,
     privateKey,
@@ -44,7 +59,6 @@ async function getOctokit(owner, repo) {
   });
 }
 
-const client = rockset.default(process.env.ROCKSET_API_KEY);
 const dClient = getDynamoClient();
 const octokit = await getOctokit("pytorch", "pytorch");
 
@@ -57,68 +71,118 @@ async function backfillWorkflowJob(
 ) {
   console.log(`Checking job ${id}`);
 
-  let job = await octokit.rest.actions.getJobForWorkflowRun({
-    owner: owner,
-    repo: repo_name,
-    job_id: id,
-  });
-  job = job.data;
-
-  if (skipBackfill(job)) {
-    console.log(`Skipping backfill for job ${id}`);
-    return;
-  }
-
-  const payload = job;
   const table = "torchci-workflow-job";
 
-  const thing = {
-    TableName: table,
-    Item: {
-      dynamoKey: dynamo_key,
-      ...payload,
-    },
-  };
-  console.log(`Writing job ${id} to DynamoDB`);
-  console.log(thing);
-  await dClient.put(thing);
+  try {
+    let job = await octokit.rest.actions.getJobForWorkflowRun({
+      owner: owner,
+      repo: repo_name,
+      job_id: id,
+    });
+    job = job.data;
+
+    if (skipBackfill(job)) {
+      console.log(`Skipping backfill for job ${id}`);
+      return;
+    }
+
+    const payload = job;
+
+    const thing = {
+      TableName: table,
+      Item: {
+        dynamoKey: dynamo_key,
+        ...payload,
+      },
+    };
+    console.log(`Writing job ${id} to DynamoDB`);
+    console.log(thing);
+    await dClient.put(thing);
+  } catch (error) {
+    console.log(`Failed to find job id ${id}: ${error}`);
+    console.log(`Marking job id ${id} as incomplete`);
+    console.log(`Querying dynamo entry for job id ${id}`);
+
+    let rows = await queryClickhouse(
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}' and j.id = ${id}`,
+      {}
+    );
+
+    if (rows.length === 0) {
+      console.log(`No entry found in CH for job id ${id}`);
+      return;
+    }
+
+    const result = rows[0];
+
+    console.log(`Writing job ${id} to DynamoDB:`);
+    const thing = {
+      TableName: table,
+      Item: {
+        ...result,
+        data_quality: "incomplete",
+        backfill: false,
+      },
+    };
+    console.log(thing);
+    await dClient.put(thing);
+    return;
+  }
 }
 
 console.log("::group::Backfilling jobs without a conclusion...");
-const jobsWithNoConclusion = await client.queries.query({
-  sql: {
-    query: `
+
+const jobsWithNoConclusion = await queryClickhouse(
+  `with pending_jobs as (
+    SELECT
+        j.id as id,
+        j.run_id as run_id,
+        j.dynamoKey as dynamoKey
+    FROM
+        workflow_job j final
+    WHERE
+        j.conclusion = ''
+        and j.backfill
+        and j.id in (
+            select
+                id
+            from
+                materialized_views.workflow_job_by_started_at
+            where
+                started_at < CURRENT_TIMESTAMP() - INTERVAL 3 HOUR
+                and started_at > CURRENT_TIMESTAMP() - INTERVAL 1 DAY
+        )
+    ORDER BY
+        j.started_at ASC
+    LIMIT
+        200
+)
 SELECT
-    j.id,
-    w.repository.name as repo_name,
-    w.repository.owner.login as owner,
+    j.id as id,
+    w. repository. 'name' as repo_name,
+    w. repository. 'owner'.'login' as owner,
     j.dynamoKey as dynamo_key
 FROM
-    workflow_job j
-    INNER JOIN workflow_run w on j.run_id = w.id
+    workflow_run w final
+    INNER JOIN pending_jobs j on j.run_id = w.id
 WHERE
-    j.conclusion IS NULL
-    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
-    AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
-    AND w.repository.name = 'pytorch'
-ORDER BY
-    j._event_time DESC
-LIMIT 10000
-`,
-  },
-});
+    w.id in (
+        select
+            run_id
+        from
+            pending_jobs
+    )
+    and w.repository. 'name' = 'pytorch'
+  `,
+  {}
+);
 
 // Await in a loop???
 // Yes: when GitHub has outages and fails to deliver webhooks en masse, we can
 // get rate limited while trying to backfill. Since backfilling is not
 // latency-sensitive, it's fine to just processed them serially to ensure we
 // make forward progress.
-for (const {
-  id,
-  repo_name,
-  owner,
-  dynamo_key,
-} of jobsWithNoConclusion.results) {
+for (const { id, repo_name, owner, dynamo_key } of jobsWithNoConclusion) {
   // Some jobs just never get marked completed due to bugs in the GHA backend.
   // Just skip them.
   await backfillWorkflowJob(
@@ -134,31 +198,46 @@ console.log("::endgroup::");
 console.log("::group::Backfilling queued jobs...");
 // Also try to backfill queued jobs specifically, with a tighter time bound.
 // This is so our queue time stats are as accurate as possible.
-const queuedJobs = await client.queries.query({
-  sql: {
-    query: `
+const queuedJobs = await queryClickhouse(
+  `with pending_jobs as (
+    SELECT
+        j.id as id,
+        j.run_id as run_id,
+        j.dynamoKey as dynamoKey
+    FROM
+        workflow_job j final
+    WHERE
+        j.status = 'queued'
+        and j.backfill
+        and j.id in (
+            select
+                id
+            from
+                materialized_views.workflow_job_by_started_at
+            where
+                started_at < CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE
+                and started_at > CURRENT_TIMESTAMP() - INTERVAL 7 DAY
+        )
+)
 SELECT
-    j.id,
-    w.repository.name as repo_name,
-    w.repository.owner.login as owner,
+    j.id as id,
+    w.repository. 'name' as repo_name,
+    w.repository. 'owner'.'login' as owner,
     j.dynamoKey as dynamo_key
 FROM
-    workflow_job j
-    INNER JOIN workflow_run w on j.run_id = w.id
+    workflow_run w final
+    INNER JOIN pending_jobs j on j.run_id = w.id
 WHERE
-    j.status = 'queued'
-    AND w.status != 'completed'
-    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-    AND w.repository.name = 'pytorch'
-ORDER BY
-    j._event_time DESC
-LIMIT 10000
-`,
-  },
-});
+    w.status != 'completed'
+    AND w.repository. 'name' = 'pytorch'
+    AND w.id in (select run_id from pending_jobs)
+LIMIT
+    200`,
+  {}
+);
 
 // See above for why we're awaiting in a loop.
-for (const { id, repo_name, owner, dynamo_key } of queuedJobs.results) {
+for (const { id, repo_name, owner, dynamo_key } of queuedJobs) {
   await backfillWorkflowJob(
     id,
     repo_name,
@@ -170,30 +249,43 @@ for (const { id, repo_name, owner, dynamo_key } of queuedJobs.results) {
 console.log("::endgroup::");
 
 console.log("::group::Backfill unclassified logs...");
-const unclassifiedJobs = await client.queries.query({
-  sql: {
-    query: `
+const unclassifiedJobs = await queryClickhouse(
+  `with jobs as (
+    select
+        j.id as id,
+        j.run_id as run_id
+    from
+        default .workflow_job j final
+    where
+        j.torchci_classification.line = ''
+        and j.backfill
+        and j.conclusion in [ 'failure',
+        'cancelled' ]
+        and j.name != 'ciflow_should_run'
+        and j.name != 'generate-test-matrix'
+        and j.completed_at > now() - Interval 30 MINUTE
+        and j.completed_at < now() - Interval 5 MINUTE
+)
 select
-    j.id,
+    j.id as id
 from
-    commons.workflow_job j
-    join commons.workflow_run w on w.id = j.run_id
+    default .workflow_run w final
+    join jobs j on w.id = j.run_id
 where
-    j.torchci_classification is null
-    and j.conclusion in ('failure', 'cancelled')
-    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 30 MINUTE
-    and j.name != 'ciflow_should_run'
-    and j.name != 'generate-test-matrix'
-    and w.event != 'workflow_run'
+    w.event != 'workflow_run'
     and w.event != 'repository_dispatch'
-    and w.head_repository.full_name = 'pytorch/pytorch'
-`,
-  },
-});
-console.log(
-  `There are ${unclassifiedJobs.results.length} jobs with unclassified logs`
+    and w.head_repository. 'full_name' = 'pytorch/pytorch'
+    and w.id in (
+        select
+            run_id
+        from
+            jobs
+    )`,
+  {}
 );
-for (const job of unclassifiedJobs.results) {
+
+console.log(`There are ${unclassifiedJobs.length} jobs with unclassified logs`);
+for (const job of unclassifiedJobs) {
   console.log(`Attempting to backfill log of ${job.id}`);
   try {
     const a = await request(

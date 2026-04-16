@@ -1,33 +1,33 @@
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
-import useSWR from "swr";
-import _ from "lodash";
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { useCallback, useRef, useState } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import GranularityPicker from "components/common/GranularityPicker";
+import { formatTimeForCharts } from "components/common/TimeUtils";
+import styles from "components/hud.module.css";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
-  Granularity,
   getTooltipMarker,
+  Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
-import React from "react";
-import { TimeRangePicker } from "../../../metrics";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import GranularityPicker from "components/GranularityPicker";
-import {
-  GridRenderCellParams,
-  GridCellParams,
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
-import styles from "components/hud.module.css";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { fetcher } from "lib/GeneralUtils";
 import { approximateFailureByTypePercent } from "lib/metricUtils";
 import { JobAnnotation } from "lib/types";
+import { useRouter } from "next/router";
+import { useCallback, useState } from "react";
+import useSWR from "swr";
+import { TimeRangePicker } from "../../../metrics";
 
-const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
+const PRIMARY_WORKFLOWS = [
+  "lint",
+  "pull",
+  "trunk",
+  "linux-binary-libtorch-release",
+  "linux-binary-manywheel",
+  "linux-aarch64",
+];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
 const UNSTABLE_WORKFLOWS = ["unstable"];
 const LAST_WEEK = 7;
@@ -39,7 +39,6 @@ const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 function GroupReliabilityPanel({
   title,
   queryName,
-  queryCollection,
   queryParams,
   metricHeaderName,
   metricName,
@@ -47,13 +46,12 @@ function GroupReliabilityPanel({
 }: {
   title: string;
   queryName: string;
-  queryCollection: string;
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   metricHeaderName: string;
   metricName: string;
   filter: any;
 }) {
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -93,32 +91,32 @@ function GroupReliabilityPanel({
           field: metricName,
           headerName: metricHeaderName,
           flex: 1,
-          valueFormatter: (params: GridValueFormatterParams<any>) => {
-            return Number(params.value).toFixed(2);
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
           },
         },
         {
           field: JobAnnotation.BROKEN_TRUNK,
           headerName: "~Broken Trunk %",
           flex: 1,
-          valueFormatter: (params: GridValueFormatterParams<any>) => {
-            return Number(params.value).toFixed(2);
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
           },
         },
         {
           field: JobAnnotation.TEST_FLAKE,
           headerName: "~Flaky %",
           flex: 1,
-          valueFormatter: (params: GridValueFormatterParams<any>) => {
-            return Number(params.value).toFixed(2);
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
           },
         },
         {
           field: JobAnnotation.INFRA_BROKEN,
           headerName: "~Outage %",
           flex: 1,
-          valueFormatter: (params: GridValueFormatterParams<any>) => {
-            return Number(params.value).toFixed(2);
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
           },
         },
         {
@@ -127,7 +125,7 @@ function GroupReliabilityPanel({
           flex: 5,
           // valueFormatter only treat the return value as string, so we need
           // to use renderCell here to get the JSX
-          renderCell: (params: GridRenderCellParams<string>) => {
+          renderCell: (params: GridRenderCellParams<any, string>) => {
             const jobName = params.value;
             if (jobName === undefined) {
               return `Invalid job name ${jobName}`;
@@ -136,7 +134,7 @@ function GroupReliabilityPanel({
             const encodedJobName = encodeURIComponent(jobName);
             return <a href={URL_PREFIX + encodedJobName}>{jobName}</a>;
           },
-          cellClassName: (params: GridCellParams<string>) => {
+          cellClassName: (params: GridCellParams<any, string>) => {
             const jobName = params.value;
             if (jobName === undefined) {
               return "";
@@ -182,7 +180,7 @@ function GraphPanel({
       trigger: "item",
       formatter: (params: any) =>
         `${params.seriesName}` +
-        `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
+        `<br/>${formatTimeForCharts(params.value[0])}<br/>` +
         `${getTooltipMarker(params.color)}` +
         `<b>${params.value[1]}</b>`,
     },
@@ -204,14 +202,14 @@ function Graphs({
   filter,
   toggleFilter,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   checkboxRef: any;
   filter: any;
   toggleFilter: any;
 }) {
   const queryName = "master_commit_red_percent_groups";
-  const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
   const { data, error } = useSWR(url, fetcher, {
@@ -231,13 +229,9 @@ function Graphs({
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
+  // align with the data we get from the database
+  const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
+  const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
   const redFieldName = "red";
   const timeFieldName = "granularity_bucket";
@@ -258,12 +252,12 @@ function Graphs({
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={9} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 9 }} height={ROW_HEIGHT}>
         <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
           <GraphPanel title={"%"} series={displayRedPercentages} />
         </Paper>
       </Grid>
-      <Grid item xs={3} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 3 }} height={ROW_HEIGHT}>
         <div
           style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
           ref={checkboxRef}
@@ -317,28 +311,11 @@ export default function Page() {
     setFilter(next);
   }
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    granularity: granularity,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   const allWorkflows =
     PRIMARY_WORKFLOWS.concat(SECONDARY_WORKFLOWS).concat(UNSTABLE_WORKFLOWS);
@@ -351,7 +328,6 @@ export default function Page() {
   }, [jobName]);
 
   const queryName = "master_commit_red_jobs";
-  const queryCollection = "commons";
   const metricName = "red";
   const metricHeaderName = "Failures %";
 
@@ -375,15 +351,12 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid item xs={6} height={ROW_HEIGHT + ROW_GAP}>
+      <Grid size={{ xs: 6 }} height={ROW_HEIGHT + ROW_GAP}>
         <Graphs
-          queryParams={queryParams.concat([
-            {
-              name: "workflowNames",
-              type: "string",
-              value: allWorkflows.join(","),
-            },
-          ])}
+          queryParams={{
+            workflowNames: allWorkflows,
+            ...queryParams,
+          }}
           granularity={granularity}
           checkboxRef={checkboxRef}
           filter={filter}
@@ -392,54 +365,42 @@ export default function Page() {
       </Grid>
 
       <Grid container spacing={2}>
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
             queryName={queryName}
-            queryCollection={queryCollection}
-            queryParams={queryParams.concat([
-              {
-                name: "workflowNames",
-                type: "string",
-                value: PRIMARY_WORKFLOWS.join(","),
-              },
-            ])}
+            queryParams={{
+              workflowNames: PRIMARY_WORKFLOWS,
+              ...queryParams,
+            }}
             metricName={metricName}
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
             queryName={queryName}
-            queryCollection={queryCollection}
-            queryParams={queryParams.concat([
-              {
-                name: "workflowNames",
-                type: "string",
-                value: SECONDARY_WORKFLOWS.join(","),
-              },
-            ])}
+            queryParams={{
+              workflowNames: SECONDARY_WORKFLOWS,
+              ...queryParams,
+            }}
             metricName={metricName}
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={"Unstable jobs"}
             queryName={queryName}
-            queryCollection={queryCollection}
-            queryParams={queryParams.concat([
-              {
-                name: "workflowNames",
-                type: "string",
-                value: UNSTABLE_WORKFLOWS.join(","),
-              },
-            ])}
+            queryParams={{
+              workflowNames: UNSTABLE_WORKFLOWS,
+              ...queryParams,
+            }}
             metricName={metricName}
             metricHeaderName={metricHeaderName}
             filter={filter}

@@ -1,0 +1,16 @@
+{
+  "params": {
+    "limit": "Int32",
+    "name": "String",
+    "suite": "String",
+    "file": "String"
+  },
+  "tests": [
+    {
+      "limit": 100,
+      "name": "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32",
+      "suite": "TestModuleCUDA",
+      "file": "test_modules.py"
+    }
+  ]
+}

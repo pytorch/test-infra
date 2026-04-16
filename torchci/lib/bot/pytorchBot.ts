@@ -1,8 +1,11 @@
 import { Probot } from "probot";
 import { getInputArgs } from "./cliParser";
 import PytorchBotHandler from "./pytorchBotHandler";
+import { CachedConfigTracker } from "./utils";
 
 function pytorchBot(app: Probot): void {
+  const cachedConfigTracker = new CachedConfigTracker(app);
+
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -20,8 +23,9 @@ function pytorchBot(app: Probot): void {
       commentId,
       commentBody,
       useReactions: true,
+      cachedConfigTracker,
     });
-
+    const is_pr_comment = ctx.payload.issue.pull_request != null;
     const skipUsers = [
       54816060, // pytorch-bot
       97764156, // pytorchmergebot
@@ -35,13 +39,7 @@ function pytorchBot(app: Probot): void {
     if (inputArgs.length == 0) {
       return;
     }
-
-    if (!ctx.payload.issue.pull_request) {
-      // Issue, not pull request.
-      return await pytorchbotHandler.handleConfused(false);
-    }
-
-    await pytorchbotHandler.handlePytorchCommands(inputArgs);
+    await pytorchbotHandler.handlePytorchCommands(inputArgs, is_pr_comment);
   });
 
   app.on(
@@ -63,6 +61,7 @@ function pytorchBot(app: Probot): void {
         commentId,
         commentBody: reviewBody ?? "",
         useReactions: false,
+        cachedConfigTracker,
       });
       if (reviewBody == null) {
         return;

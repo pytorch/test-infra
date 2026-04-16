@@ -1,5 +1,5 @@
 import { ArgumentParser, RawTextHelpFormatter, SUPPRESS } from "argparse";
-import { revertClassifications } from "./Constants";
+import { cherryPickClassifications, revertClassifications } from "./Constants";
 
 // The default ArgumentParser is designed to be used from the command line, so
 // when it encounters an error it calls process.exit. We want to throw an
@@ -17,7 +17,7 @@ const parser = new NonExitingArgumentParser({
   description:
     "In order to invoke the bot on your PR, include a line that starts with\n" +
     "@pytorchbot anywhere in a comment. That line will form the command; no\n" +
-    "multi-line commands are allowed. " +
+    "multi-line commands are allowed. Some commands may be used on issues as specified below." +
     `
 
 Example:
@@ -119,14 +119,14 @@ rebase.add_argument("-h", "--help", {
 
 const label = commands.add_parser("label", {
   help: "Add label to a PR",
-  description: "Adds label to a PR",
+  description: "Adds label to a PR or Issue [Can be used on Issues]",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
 label.add_argument("labels", {
   type: "string",
   nargs: "+",
-  help: "Labels to add to given Pull Request",
+  help: "Labels to add to given Pull Request or Issue [Can be used on Issues]",
 });
 label.add_argument("-h", "--help", {
   action: "store_true",
@@ -147,6 +147,54 @@ drCi.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
+// lint (also accepts fix-lint and apply-lint)
+const lint = commands.add_parser("lint", {
+  help: "Apply lint fixes to a PR",
+  description:
+    "Apply lint fixes to the PR. This will trigger a workflow that automatically\n" +
+    "applies lint fixes and pushes them to the PR branch.\n\n" +
+    "Aliases: @pytorchbot fix-lint, @pytorchbot apply-lint",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+lint.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+commands.add_parser("fix-lint", {
+  help: SUPPRESS,
+  add_help: false,
+});
+commands.add_parser("apply-lint", {
+  help: SUPPRESS,
+  add_help: false,
+});
+
+// cherry-pick
+const cherryPick = commands.add_parser("cherry-pick", {
+  help: "Cherry pick a PR onto a release branch",
+  description:
+    "Cherry pick a pull request onto a release branch for inclusion in a release\n",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+cherryPick.add_argument("--onto", "--into", {
+  required: true,
+  help: "Branch you would like to cherry pick onto (Example: release/2.1)",
+});
+cherryPick.add_argument("--fixes", {
+  help: "Link to the issue that your PR fixes (Example: https://github.com/pytorch/pytorch/issues/110666)",
+});
+cherryPick.add_argument("-c", "--classification", {
+  required: true,
+  choices: Object.keys(cherryPickClassifications),
+  help: "A machine-friendly classification of the cherry-pick reason.",
+});
+cherryPick.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
@@ -154,7 +202,7 @@ parser.add_argument("-h", "--help", {
   action: "store_true",
 });
 
-const botCommandPattern = new RegExp(/^ *@pytorch(merge|)bot.*$/m);
+const botCommandPattern = new RegExp(/^ *@pytorch(merge|)bot .+$/m);
 
 export function getInputArgs(commentBody: string): string {
   const match = commentBody.match(botCommandPattern);
@@ -189,5 +237,11 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
+## Lint
+\`\`\`
+${lint.format_help()}\`\`\`
+## cherry-pick
+\`\`\`
+${cherryPick.format_help()}\`\`\`
 `;
 }

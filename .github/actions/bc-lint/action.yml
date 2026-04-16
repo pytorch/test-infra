@@ -1,5 +1,5 @@
 name: 'BC Lint Action'
-description: 'A reusable action for running the BC Lint workflow. 
+description: 'A reusable action for running the BC Lint workflow.
     See https://github.com/pytorch/test-infra/wiki/BC-Linter for more information.'
 inputs:
   repo:
@@ -19,22 +19,26 @@ inputs:
     description: 'Link to the docs to display in case of failure'
     required: false
     default: ''
+  config_dir:
+    description: 'Directory to load .bc-linter.yml from (defaults to repository root)'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
     - name: Checkout pytorch/test-infra repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: pytorch/test-infra
         path: _test-infra
 
     - name: Checkout ${{ inputs.repo }}
-      uses: malfet/checkout@silent-checkout
+      uses: actions/checkout@v4
       with:
         ref: ${{ inputs.head_sha }}
         fetch-depth: -1
         submodules: false
-        quiet-checkout: true
+        show-progress: false
         path: _repo
 
     - name: Merge PR changes onto base
@@ -61,11 +65,13 @@ runs:
       shell: bash
       run: |
         set -eux
+        python3 -m pip install -r ../_test-infra/tools/stronghold/requirements.runtime.txt
         ../_test-infra/tools/stronghold/bin/build-check-api-compatibility
         ../_test-infra/tools/stronghold/bin/check-api-compatibility \
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
-            ${{ inputs.suppression == 'true' && '--suppressed' || '' }}
+            ${{ inputs.suppression == 'true' && '--suppressed' || '' }} \
+            ${{ inputs.config_dir != '' && format('--config-dir={0}', inputs.config_dir) || '' }}
 
     - name: Display documentation link if failed
       if: ${{ failure() && inputs.docs_link }}

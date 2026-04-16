@@ -1,0 +1,14 @@
+{
+  "params": {
+    "numMinutes": "Int64",
+    "prNumbers": "Array(Int64)",
+    "repo": "String"
+  },
+  "tests": [
+    {
+      "numMinutes": 30,
+      "prNumbers": [],
+      "repo": "pytorch/pytorch"
+    }
+  ]
+}

@@ -1,66 +1,31 @@
 import { Grid } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
 
 const ROW_HEIGHT = 240;
 
 export default function Kpis() {
   // Looking at data from the past six months
-  const [startTime, setStartTime] = useState(dayjs().subtract(6, "month"));
-  const [stopTime, setStopTime] = useState(dayjs());
+  const [startTime, _setStartTime] = useState(dayjs().subtract(6, "month"));
+  const [stopTime, _setStopTime] = useState(dayjs());
 
-  const timeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
-
-  // deprecate this in Q3 2023
-  const contributionTimeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: "2022-07-03T00:00:00.000Z",
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
+  const timeParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
-          title={"% of force merges with failures (Weekly)"}
-          queryName={"force_merge_red_percent"}
-          queryCollection={"metrics"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"granularity_bucket"}
-          yAxisFieldName={"force_merges_red"}
-          yAxisRenderer={(unit) => {
-            return `${unit * 100} %`;
-          }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"% of commits red on trunk (Weekly)"}
           queryName={"master_commit_red_percent"}
-          queryCollection={"metrics"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...timeParams,
+            granularity: "week",
+            workflowNames: ["lint", "pull", "trunk"],
+          }}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"metric"}
@@ -71,12 +36,11 @@ export default function Kpis() {
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"# of force merges (Weekly)"}
           queryName={"number_of_force_pushes_historical"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={timeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"count"}
@@ -84,33 +48,80 @@ export default function Kpis() {
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Time to Red Signal - (Weekly, pull workflow)"}
+          queryName={"ttrs_percentiles"}
+          queryParams={{
+            ...timeParams,
+            one_bucket: false,
+            percentile_to_get: 0,
+            workflow: "pull",
+          }}
+          granularity={"week"}
+          timeFieldName={"bucket"}
+          yAxisFieldName={"ttrs_mins"}
+          yAxisRenderer={(duration) => duration}
+          groupByFieldName="percentile"
+          // Format data so that we can display all percentiles in the same
+          // chart. Goes from 1 row per timestamp with all percentiles in the
+          // row to 4 rows per timestamp with one percentile in each row.
+          dataReader={(data) => {
+            const percentiles = ["p25", "p50", "p75", "p90"];
+            return data
+              .map((d) =>
+                percentiles.map((p) => {
+                  return {
+                    ...d,
+                    percentile: p,
+                    ttrs_mins: d[p],
+                  };
+                })
+              )
+              .flat();
+          }}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"% of force merges (Weekly, 2 week rolling avg)"}
+          queryName={"weekly_force_merge_stats"}
+          queryParams={{
+            ...timeParams,
+            one_bucket: false,
+            merge_type: "",
+            granularity: "week",
+          }}
+          granularity={"week"}
+          timeFieldName={"granularity_bucket"}
+          yAxisFieldName={"metric"}
+          yAxisRenderer={(unit) => {
+            return `${unit} %`;
+          }}
+          groupByFieldName={"name"}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Avg time-to-signal - E2E (Weekly)"}
           queryName={"time_to_signal"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[
-            {
-              name: "buildOrAll",
-              type: "string",
-              value: "all",
-            },
-            ...timeParams,
-          ]}
+          queryParams={timeParams}
           granularity={"week"}
           timeFieldName={"week_bucket"}
           yAxisFieldName={"avg_tts"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
+          groupByFieldName="branch"
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"# of reverts (2 week moving avg)"}
           queryName={"num_reverts"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={timeParams}
           granularity={"week"}
           timeFieldName={"bucket"}
           yAxisFieldName={"num"}
@@ -119,28 +130,35 @@ export default function Kpis() {
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"viable/strict lag (Daily)"}
           queryName={"strict_lag_historical"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
+          queryParams={{
+            ...timeParams,
+            // Missing data prior to 2024-10-01 due to migration to ClickHouse
+            ...(startTime < dayjs("2024-10-01") && {
+              startTime: dayjs("2024-10-01")
+                .utc()
+                .format("YYYY-MM-DDTHH:mm:ss.SSS"),
+            }),
+            repoFullName: "pytorch/pytorch",
+          }}
           granularity={"day"}
           timeFieldName={"push_time"}
           yAxisFieldName={"diff_hr"}
           yAxisLabel={"Hours"}
           yAxisRenderer={(unit) => `${unit}`}
           // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-          additionalOptions={{ yAxis: { max: 7 } }}
+          additionalOptions={{ yAxis: { max: 10 } }}
         />
       </Grid>
 
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Weekly external PR count (4 week moving average)"}
           queryName={"external_contribution_stats"}
-          queryParams={[...contributionTimeParams]}
-          queryCollection={"metrics"}
+          queryParams={timeParams}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
           yAxisFieldName={"pr_count"}
@@ -149,12 +167,11 @@ export default function Kpis() {
         />
       </Grid>
 
-      <Grid item xs={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Monthly external PR count"}
           queryName={"monthly_contribution_stats"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...contributionTimeParams]}
+          queryParams={timeParams}
           granularity={"month"}
           timeFieldName={"year_and_month"}
           timeFieldDisplayFormat={"MMMM YYYY"}
@@ -164,31 +181,16 @@ export default function Kpis() {
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"Minutes Devs spent waiting on CI per PR (Weekly)"}
-          queryName={"ci_wait_time"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"bucket"}
-          yAxisFieldName={"duration_mins"}
+          title={"Total number of open disabled tests (Daily)"}
+          queryName={"disabled_test_historical"}
+          queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
+          granularity={"day"}
+          timeFieldName={"day"}
+          yAxisFieldName={"count"}
           yAxisRenderer={(duration) => duration}
-          groupByFieldName={"percentile"}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
-          title={"Number of commits per PR (Weekly)"}
-          queryName={"ci_wait_time"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"bucket"}
-          yAxisFieldName={"num_commits"}
-          yAxisRenderer={(duration) => duration}
-          groupByFieldName={"percentile"}
+          fillMissingData={false}
         />
       </Grid>
     </Grid>

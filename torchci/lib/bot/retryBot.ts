@@ -1,9 +1,41 @@
 import { Probot } from "probot";
-import { getFlakyJobsFromPreviousWorkflow } from "../jobUtils";
-import { CachedConfigTracker } from "./utils";
+import { queryClickhouseSaved } from "../clickhouse";
+import { CachedConfigTracker, isPyTorchbotSupportedOrg } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
+
+// If these jobs fail, they will always be retried
+const ALWAYS_RETRY_JOBS = [
+  // From @laithsakka, we want to retry this job in a different runner as it could
+  // fail flakily sometimes
+  "pr_time_benchmarks",
+];
+
+async function getFlakyJobsFromPreviousWorkflow(
+  owner: string,
+  repo: string,
+  branch: string,
+  workflowName: string,
+  workflowId: number
+): Promise<any> {
+  const flakyJobs = await queryClickhouseSaved("flaky_workflows_jobs", {
+    branches: [branch],
+    maxAttempt: 1, // If the job was retried and still failed, it wasn't flaky
+    nextWorkflowId: workflowId, // Query the flaky status of jobs from the previous workflow
+    numHours: 24, // The default value
+    repo: `${owner}/${repo}`,
+    workflowId: 0,
+    workflowNames: [workflowName],
+  });
+
+  if (flakyJobs === undefined || flakyJobs.length === 0) {
+    return [];
+  }
+
+  // The query returns all the flaky jobs from the previous workflow
+  return flakyJobs;
+}
 
 async function retryPreviousWorkflow(
   ctx: any,
@@ -40,7 +72,8 @@ async function retryCurrentWorkflow(
   defaultBranch: string,
   workflowName: string,
   workflowJobs: any[],
-  runId: number
+  runId: number,
+  retryableStepNames: string[] = []
 ) {
   const failedJobs = workflowJobs.filter((job) =>
     FAILURE_CONCLUSIONS.includes(job.conclusion!)
@@ -53,7 +86,7 @@ async function retryCurrentWorkflow(
 
   const doesLookLikeUserFailure = (
     job: any,
-    isCodeValiationStep: (step: any) => boolean
+    isCodeValiationStep: (_step: any) => boolean
   ) => {
     // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
     return (
@@ -79,13 +112,6 @@ async function retryCurrentWorkflow(
       return true;
     }
 
-    // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
-    if (workflowName.toLocaleLowerCase() === "lint") {
-      return !doesLookLikeUserFailure(job, (step) =>
-        step.name.toLowerCase().includes("(nonretryable)")
-      );
-    }
-
     // for builds, don't rerun if it failed on the actual build step
     if (
       job.name.toLocaleLowerCase().startsWith("build") &&
@@ -95,6 +121,35 @@ async function retryCurrentWorkflow(
     ) {
       // we continue our retry checks even if this test passes in case this is a build-and-test job
       return false;
+    }
+
+    // don't rerun unstable jobs as this is not needed
+    if (job.name.toLocaleLowerCase().includes("unstable")) {
+      return false;
+    }
+
+    for (const flakyJobName of ALWAYS_RETRY_JOBS) {
+      // if the job is a known flaky one, we want to retry it whenever if fails,
+      // even if the failed step is a test step
+      if (job.name.toLocaleLowerCase().includes(flakyJobName)) {
+        return true;
+      }
+    }
+
+    // If a retryable step name failed, always retry (e.g. CUDA Compute Check
+    // indicates a bad runner, not a code problem)
+    if (retryableStepNames.length > 0) {
+      const hasRetryableStepFailure = job.steps?.some(
+        (step: any) =>
+          step.conclusion !== null &&
+          FAILURE_CONCLUSIONS.includes(step.conclusion) &&
+          retryableStepNames.some(
+            (name) => step.name.toLowerCase() === name.toLowerCase()
+          )
+      );
+      if (hasRetryableStepFailure) {
+        return true;
+      }
     }
 
     // if no test steps failed, can rerun
@@ -128,16 +183,23 @@ function retryBot(app: Probot): void {
   const tracker = new CachedConfigTracker(app);
 
   app.on("workflow_run.completed", async (ctx) => {
+    const owner = ctx.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
     const defaultBranch = ctx.payload.repository.default_branch;
-    const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
 
     const config: any = await tracker.loadConfig(ctx);
     const allowedWorkflowPrefixes: string[] | undefined =
       config != null ? config["retryable_workflows"] : undefined;
+    const retryableStepNames: string[] =
+      config != null ? config["retryable_step_names"] ?? [] : [];
 
     if (allowedWorkflowPrefixes === undefined) {
       return;
@@ -182,7 +244,8 @@ function retryBot(app: Probot): void {
         defaultBranch,
         workflowName,
         workflowJobs,
-        runId
+        runId,
+        retryableStepNames
       );
     }
 

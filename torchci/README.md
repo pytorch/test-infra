@@ -3,12 +3,15 @@
 ### Prerequisites
 
 Here is a checklist of all the different services used by the HUD. Ask
-@janeyx99 or @suo for help getting access to these services.
+@pytorch/pytorch-dev-infra for help getting access to these services.
 
-- [Rockset](https://rockset.com/): primary data and metrics backend.
-- [Vercel](https://vercel.com/): hosting the website.
-- [Sematext](https://sematext.com/): log drain for our Vercel instance.
-- [AWS](http://aws.com/): data pipelines for populating Rockset, Lambda, S3, etc.
+- [ClickHouse](https://console.clickhouse.cloud/): primary data and metrics backend.
+- [Vercel](https://vercel.com/): hosting the website. If you are a metamate,
+  make a post [like
+  this](https://fb.workplace.com/groups/osssupport/posts/27574509675504286) in the
+  [Open Source - Support](https://fb.workplace.com/groups/773769332671684) group
+  to get access to Vercel.
+- [AWS](http://aws.com/): data pipelines for populating ClickHouse, Lambda, S3, etc.
 
 ### Quickstart
 
@@ -33,6 +36,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 result! Any edits you make to the code will be reflected immediately in the
 browser. You can also run our test suite with `yarn test`.
 
+You can find additional yarn commands in `package.json` under the `scripts`
+section, such as `yarn format` to run the linter.
+
 We use Next.js as our framework. To learn more about Next.js, take a look at the
 following resources:
 
@@ -51,14 +57,16 @@ To run tests first make sure you're in the `torchci` folder and then:
 - To run a specific test in a specific file:
   - `yarn test <path-to-file> -t "<part-of-test-name>"`
   - e.g. `yarn test test/autoLabelBot.test.ts -t "triage"`
-  - Note: This will run all tests that contain the string you entered
+  - Note: This will run all tests that regex match the string you enter
+
+The [underlying command](https://github.com/pytorch/test-infra/blob/05023d3001e0128018ad9e04a5ae2319a443e3f4/torchci/package.json#L9) of `yarn test` is `npx jest` ([jest docs](https://jestjs.io/docs/cli)).
 
 ### Testing Probot
 
 The easiest way to develop probot actions is to use `nock` to mock out
 interactions with the GitHub API and develop completely locally. If you _do_
 need real webhooks, the easiest thing to do is [follow these
-instructions](https://probot.github.io/docs/development/#manually-configuring-a-github-app)
+instructions](https://github.com/pytorch/test-infra/wiki/Testing-Probot-Locally)
 to configure a repo to send webhooks to a Smee proxy, which will then forward
 them to your local server.
 
@@ -68,41 +76,54 @@ We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
 
-Logs for the Vercel instance can be found in [Sematext](https://sematext.com/).
+## How to edit ClickHouse queries
 
-## How to edit Rockset query lambdas
+If you are familiar with the old setup for Rockset, ClickHouse does not have
+versioned query lambdas. Instead, queries are defined in `clickhouse_queries/`
+and HUD sends the entire query text to ClickHouse in the same way Rockset did
+for queries not defined using a query lambda.
 
-The source of truth for our query lambdas is in `rockset/`. We use the Rockset
-CLI to deploy these queries to Rockset. To get started:
+Each query should have a folder in `clickhouse_queries/` with two files: one
+containing the query and the other containing a json dictionary with a
+dictionary `params`, mapping parameters to their types, and a list `tests` of
+sample values for the query.
 
-- Follow the steps to [install and authenticate the Rockset
-  CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
-- Optionally, install the [Rockset VSCode
-  extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
+To edit the query, only these files need to be changed. The change will be
+reflected immediately in your local development and in the Vercel preview when
+you submit your PR.
 
-Then, you have two options for editing your query, locally or in the Rockset
-console.
+If you want to test your query in ClickHouse Cloud's console, you need to copy
+the query text into the console. If you make changes, you will have to copy the
+query back into the file.
 
-### Work on the query locally
+To get access to ClickHouse Cloud's console, please see
+[here](https://github.com/pytorch/test-infra/wiki/Querying-ClickHouse-database-for-fun-and-profit#prerequisites).
 
-1. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
-   parameter definitions are found in `rockset/<workspace>`.
-2. You can test your query lambda using the [Rockset
-   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
-3. Run `yarn node scripts/uploadQueryLambda.mjs`. This will upload _all_ of the
-   local query lambdas to Rockset and update `rockset/prodVersions.json` to
-   point to the new versions.
+### `params.json`
 
-### Work on the query in Rockset console
+An example `params.json` file with params and tests:
 
-1. Edit the query on console.rockset.com.
-2. Save the query, creating a new version.
-3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`. (You can skip `<version>` if you want the latest version). This will auto-update sql and lambda files in the `rockset/<workspace>` dir and the query version in `rockset/prodVersion.json`.
-4. Commit the updated files.
+```
+{
+  "params": {
+    "A": "DateTime64(3)"
+  },
+  "tests": [
+    {"A": "2024-01-01 00:00:00.000"},
+    {"A": "2024-01-07 00:00:00.000"},
+    {"A": "2025-01-01 00:00:00.000"},
+    {"A": {"from_now": 0}}
+  ]
+}
+```
+
+A test can set a parameter to be a dictionary with the field `from_now` to get a
+dynamic timestamp where the entry is the difference from now in days. For
+example `from_now: 0` is now and `from_now: -7` would be 7 days in the past.
 
 ## Alerts
 
-The scripts/check_alerts.py queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
+Code is in `test-infra/tools/torchci/check_alerts.py`. It queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
 SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
 Github Issue.
 

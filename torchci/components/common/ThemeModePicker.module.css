@@ -1,0 +1,26 @@
+.togglePlaceholder {
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0.5rem;
+  opacity: 0;
+}
+
+.iconGroup {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.sunIcon {
+  position: absolute;
+  left: -2px;
+  top: 2px;
+}
+
+.moonIcon {
+  position: absolute;
+  right: -3px;
+  bottom: 0px;
+}

@@ -1,0 +1,27 @@
+name: Test Setup Python
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/setup-python/*
+      - .github/workflows/test-setup-python.yml
+
+jobs:
+  setup-python-job:
+    runs-on: macos-m1-stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+        with:
+          python-version: '3.11.5'
+          pip-requirements-file: .github/workflows/test-pip-requirements-macOS.txt
+      - name: Print env (including PATH)
+        run: env
+      - name: Show python, python3, pip and pip3 locations
+        run: for tool in python python3 pip pip3; do which $tool; done
+      - name: Show Python and pip versions
+        run: python3 --version; pip3 --version
+      - name: List installed packages
+        run: pip3 list

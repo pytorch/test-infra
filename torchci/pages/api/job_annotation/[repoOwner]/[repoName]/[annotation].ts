@@ -1,8 +1,8 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { getDynamoClient } from "lib/dynamo";
+import { getOctokit } from "lib/github";
+import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
-import { getOctokit } from "lib/github";
 
 // Team ID query from https://api.github.com/orgs/pytorch/teams/pytorch-dev-infra
 export const pytorchDevInfra = "pytorch-dev-infra";
@@ -43,13 +43,15 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return res.status(504).end();
+    res.status(504).end();
+    return;
   }
 
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
   if (session === undefined || session === null || session.user === undefined) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
 
   const { repoOwner, repoName, annotation } = req.query;
@@ -60,7 +62,8 @@ export default async function handler(
     session.user.id
   );
   if (!hasPermission) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
 
   const client = getDynamoClient();
@@ -93,5 +96,5 @@ export default async function handler(
     await Promise.all(queries);
   }
 
-  return res.status(200).end();
+  res.status(200).end();
 }

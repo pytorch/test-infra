@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::time::Instant;
 use tracing::info;
 
+use log_classifier::bedrock::make_query;
 use log_classifier::engine::evaluate_ruleset;
 use log_classifier::log::Log;
 use log_classifier::network::{
@@ -14,11 +15,21 @@ use log_classifier::rule_match::SerializedMatch;
 
 struct ShouldWriteDynamo(bool);
 
-async fn handle(job_id: usize, repo: &str, should_write_dynamo: ShouldWriteDynamo) -> Result<String> {
+/// Set the default depth of the context stack
+static CONTEXT_DEPTH: &str = "12";
+
+async fn handle(
+    job_id: usize,
+    repo: &str,
+    should_write_dynamo: ShouldWriteDynamo,
+    context_depth: usize,
+    is_temp_log: bool,
+) -> Result<String> {
+    // delete this in a future pr
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
-    let raw_log = download_log(&client, repo, job_id).await?;
+    let raw_log = download_log(&client, repo, job_id, is_temp_log).await?;
     info!("download: {:?}", start.elapsed());
 
     // Do some preprocessing.
@@ -34,12 +45,29 @@ async fn handle(job_id: usize, repo: &str, should_write_dynamo: ShouldWriteDynam
 
     match maybe_match {
         Some(best_match) => {
-            let match_json = SerializedMatch::new(&best_match, &log);
-            let body = serde_json::to_string_pretty(&match_json)?;
+            let body: String;
+            let mut match_json = SerializedMatch::new(&best_match, &log, context_depth);
+
+            // check if match has the lowest priority in the ruleset
+            if best_match.rule.name == ruleset.rules.last().unwrap().name {
+                // kick off the llm to get the rule
+                match make_query(&log, &best_match.line_number, 100).await {
+                    Some(llm_match_json) => {
+                        body = serde_json::to_string_pretty(&llm_match_json)?;
+                        match_json = llm_match_json;
+                    }
+                    None => {
+                        body = serde_json::to_string_pretty(&match_json)?;
+                    }
+                }
+            } else {
+                body = serde_json::to_string_pretty(&match_json)?;
+            }
             info!("match: {}", body);
             if should_write_dynamo.0 {
                 let client = get_dynamo_client().await;
-                upload_classification_dynamo(&client, repo, job_id, &match_json).await?;
+                upload_classification_dynamo(&client, repo, job_id, &match_json, is_temp_log)
+                    .await?;
             }
             Ok(body)
         }
@@ -56,11 +84,26 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     Ok(match query_string_parameters.first("job_id") {
         Some(job_id) => {
             let job_id = job_id.parse::<usize>()?;
-            let repo = query_string_parameters.first("repo").unwrap_or_else(|| "pytorch/pytorch");
-            handle(job_id, repo, ShouldWriteDynamo(true))
-                .await?
-                .into_response()
-                .await
+            let repo = query_string_parameters
+                .first("repo")
+                .unwrap_or_else(|| "pytorch/pytorch");
+            let context_depth = query_string_parameters
+                .first("context_depth")
+                .unwrap_or_else(|| CONTEXT_DEPTH)
+                .parse::<usize>()?;
+            let is_temp_log = query_string_parameters
+                .first("temp_log")
+                .map_or(false, |v| v == "true");
+            handle(
+                job_id,
+                repo,
+                ShouldWriteDynamo(true),
+                context_depth,
+                is_temp_log,
+            )
+            .await?
+            .into_response()
+            .await
         }
 
         _ => Response::builder()
@@ -220,6 +263,29 @@ mod test {
         for rule in &ruleset.rules {
             Regex::new(rule.pattern.as_str()).unwrap();
         }
+    }
+
+    #[test]
+    fn gather_optional_context() {
+        let mut ruleset = RuleSet::new();
+        ruleset.add("test", r"^test");
+        let log = Log::new(
+            "\
+            + python testing\n\
+            ++ echo DUMMY\n\
+            ++ exit 1\n\
+            testt\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.line_number, 4);
+
+        let match_json = SerializedMatch::new(&match_, &log, 12);
+        assert_eq!(
+            match_json.context,
+            ["++ exit 1", "++ echo DUMMY", "+ python testing"]
+        );
     }
 
     // Actually download some id.

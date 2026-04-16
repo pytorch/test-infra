@@ -9,6 +9,18 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
+variable "auth_gh_repo" {
+  description = "GitHub repository to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
+variable "auth_gh_org" {
+  description = "GitHub organization to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
 variable "vpc_ids" {
   description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
   type        = list(map(string))
@@ -21,6 +33,12 @@ variable "vpc_sgs" {
 
 variable "subnet_vpc_ids" {
   description = "The relation between subnet and vpcs. keys; 'vpc' 'subnet'"
+  type        = list(map(string))
+  default     = []
+}
+
+variable "subnet_azs" {
+  description = "The relation between subnet and azs. keys; 'subnet' 'az'"
   type        = list(map(string))
   default     = []
 }
@@ -88,6 +106,12 @@ variable "scale_down_schedule_expression" {
   default     = "cron(*/5 * * * ? *)"
 }
 
+variable "scale_up_chron_schedule_expression" {
+  description = "Scheduler expression to check every x for scale down."
+  type        = string
+  default     = "cron(*/10 * * * ? *)" # every 10 minutes
+}
+
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
@@ -104,6 +128,12 @@ variable "lambda_timeout_scale_up" {
   description = "Time out for the scale up lambda in seconds."
   type        = number
   default     = 60
+}
+
+variable "lambda_timeout_scale_up_chron" {
+  description = "Time out for the scale up chron lambda in seconds."
+  type        = number
+  default     = 900
 }
 
 variable "role_permissions_boundary" {
@@ -244,6 +274,11 @@ variable "launch_template_name_linux_nvidia" {
   type        = string
 }
 
+variable "launch_template_name_linux_arm64" {
+  description = "Name of the launch template to use for linux arm64 runners. If not set a launch template will be created."
+  type        = string
+}
+
 variable "launch_template_name_windows" {
   description = "Name of the launch template to use for windows runners. If not set a launch template will be created."
   type        = string
@@ -259,6 +294,11 @@ variable "launch_template_version_linux_nvidia" {
   type        = string
 }
 
+variable "launch_template_version_linux_arm64" {
+  description = "Version of the launch template to use for linux arm64 runners. If not set the latest version will be used."
+  type        = string
+}
+
 variable "launch_template_version_windows" {
   description = "Version of the launch template to use for windows runners. If not set the latest version will be used."
   type        = string
@@ -267,4 +307,38 @@ variable "launch_template_version_windows" {
 variable "role_runner_arn" {
   description = "Role to use for the runner. If not set a role will be created."
   type        = string
+}
+
+variable "scale_config_org" {
+  description = "Organization to fetch scale config from."
+  type        = string
+}
+
+variable "scale_config_repo" {
+  description = "Repository to fetch scale config from."
+  default     = ""
+  type        = string
+}
+
+variable "scale_config_repo_path" {
+  description = "Path in the repository to fetch scale config from."
+  default     = ""
+  type        = string
+}
+
+variable "min_available_runners" {
+  description = "Minimum number of runners to keep available."
+  type        = number
+}
+
+variable "retry_scale_up_chron_hud_query_url" {
+  description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
+  type        = string
+}
+
+variable "scale_up_chron_hud_bot_token" {
+  description = "Token sent as x-hud-internal-bot header to bypass Vercel bot protection on HUD API requests."
+  type        = string
+  sensitive   = true
+  default     = ""
 }

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import dataclasses
+from collections.abc import Mapping, Sequence
 from typing import Optional
+
 import api.types
 
 
@@ -21,6 +22,8 @@ class Parameters:
     variadic_kwargs: bool
     # The line where the function is defined.
     line: int
+    # Decorator names applied to this function/method (simple or dotted form).
+    decorators: Sequence[str] = ()
 
 
 @dataclasses.dataclass
@@ -40,3 +43,34 @@ class Parameter:
     line: int
     # Type annotation (relies on ast.annotation types)
     type_annotation: Optional[api.types.TypeHint] = None
+
+
+@dataclasses.dataclass
+class Field:
+    """Represents a dataclass or class attribute."""
+
+    name: str
+    required: bool
+    line: int
+    type_annotation: Optional[api.types.TypeHint] = None
+    # Whether the field participates in the dataclass __init__ (dataclasses only)
+    init: bool = True
+
+
+@dataclasses.dataclass
+class Class:
+    """Represents a class or dataclass."""
+
+    fields: Sequence[Field]
+    line: int
+    dataclass: bool = False
+    # Decorator names applied to the class (simple or dotted form).
+    decorators: Sequence[str] = ()
+
+
+@dataclasses.dataclass
+class API:
+    """Represents extracted API information."""
+
+    functions: Mapping[str, Parameters]
+    classes: Mapping[str, Class]

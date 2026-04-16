@@ -1,101 +1,65 @@
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
 import {
-  GridRenderCellParams,
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
-import useSWR from "swr";
-import {
-  Grid,
-  Paper,
-  TextField,
-  Typography,
-  Stack,
-  Skeleton,
-  Select,
-  MenuItem,
+  Checkbox,
   FormControl,
+  FormControlLabel,
+  Grid,
   InputLabel,
+  MenuItem,
+  Paper,
+  Select,
   SelectChangeEvent,
+  Skeleton,
+  Stack,
+  Typography,
 } from "@mui/material";
-import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
-
-import { useEffect, useState } from "react";
-
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
+import { GridRenderCellParams } from "@mui/x-data-grid";
+import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { durationDisplay } from "components/common/TimeUtils";
+import QueuedJobsTable from "components/metrics/panels/QueuedJobsTable";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
+import TimeSeriesPanel, {
+  Granularity,
+} from "components/metrics/panels/TimeSeriesPanel";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
+import { fetcher } from "lib/GeneralUtils";
+import { useEffect, useState } from "react";
+import { default as useSWR, default as useSWRImmutable } from "swr";
 
-function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/query/metrics/master_jobs_red?parameters=${encodeURIComponent(
-    JSON.stringify(params)
-  )}`;
+const DISABLED_TESTS_CONDENSED_URL =
+  "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
 
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const options: EChartsOption = {
-    title: { text: "% main jobs by red" },
-    grid: { top: 48, right: 8, bottom: 24, left: 36 },
-    dataset: { source: data },
-    xAxis: { type: "time" },
-    yAxis: {
-      type: "value",
-      axisLabel: {
-        formatter: (value: number) => {
-          return (value * 100).toString() + "%";
-        },
-      },
-    },
-    series: [
-      {
-        type: "bar",
-        encode: {
-          x: "granularity_bucket",
-          y: "red",
-        },
-      },
-    ],
-    tooltip: {
-      trigger: "axis",
-      valueFormatter: (value: any) => {
-        return (value * 100).toFixed(2) + "%";
-      },
-    },
-  };
-
-  return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
-        style={{ height: "100%", width: "100%" }}
-        option={options}
-      />
-    </Paper>
-  );
+function getGranularityForDays(days: number): Granularity {
+  if (days >= 90) return "week";
+  if (days >= 14) return "day";
+  return "hour";
 }
 
-function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-    JSON.stringify([
+function MasterCommitRedPanel({
+  params,
+  granularity,
+  usePercentage,
+}: {
+  params: { [key: string]: string };
+  granularity: string;
+  usePercentage: boolean;
+}) {
+  // Use the dark mode context to determine whether to use the dark theme
+  const { darkMode } = useDarkMode();
+
+  const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
+    JSON.stringify({
       ...params,
-      {
-        name: "timezone",
-        type: "string",
-        value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
-    ])
+      granularity,
+      usePercentage,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -108,7 +72,7 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
 
   const options: EChartsOption = {
     title: {
-      text: "Commits red on main, by day",
+      text: `Commits red on main, by ${granularity}`,
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -131,6 +95,14 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
         stack: "all",
         encode: {
           x: "granularity_bucket",
+          y: "flaky",
+        },
+      },
+      {
+        type: "bar",
+        stack: "all",
+        encode: {
+          x: "granularity_bucket",
           y: "red",
         },
       },
@@ -143,19 +115,29 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
         },
       },
     ],
-    color: ["#3ba272", "#ee6666", "#f2d643"],
+    color: ["#3ba272", "#ffbb00", "#ee6666", "#8c8c8c"],
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
         const red = params[0].data.red;
+        const flaky = params[0].data.flaky;
         const green = params[0].data.green;
         const pending = params[0].data.pending;
         const total = params[0].data.total;
 
+        if (usePercentage) {
+          return `Red: ${red.toFixed(2)}%<br/>Flaky: ${flaky.toFixed(
+            2
+          )}%<br/>Green: ${green.toFixed(2)}%<br/>Pending: ${pending.toFixed(
+            2
+          )}%<br/>Total commits: ${total}`;
+        }
+
         const redPct = ((red / total) * 100).toFixed(2) + "%";
+        const flakyPct = ((flaky / total) * 100).toFixed(2) + "%";
         const greenPct = ((green / total) * 100).toFixed(2) + "%";
         const pendingPct = ((pending / total) * 100).toFixed(2) + "%";
-        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
+        return `Red: ${red} (${redPct})<br/>Flaky: ${flaky} (${flakyPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
       },
     },
   };
@@ -163,6 +145,7 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
+        theme={darkMode ? "dark-hud" : undefined}
         style={{ height: "100%", width: "100%" }}
         option={options}
       />
@@ -181,7 +164,7 @@ function TTSPanel({
 }: {
   title: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   metricHeaderName: string;
   metricName: string;
   branchName: string;
@@ -196,8 +179,7 @@ function TTSPanel({
           field: metricName,
           headerName: metricHeaderName,
           flex: 1,
-          valueFormatter: (params: GridValueFormatterParams<number>) =>
-            durationDisplay(params.value),
+          valueFormatter: (params: number) => durationDisplay(params),
         },
         { field: "count", headerName: "Count", flex: 1 },
         {
@@ -206,7 +188,7 @@ function TTSPanel({
           flex: 5,
           // valueFormatter only treat the return value as string, so we need
           // to use renderCell here to get the JSX
-          renderCell: (params: GridRenderCellParams<string>) => {
+          renderCell: (params: GridRenderCellParams<any, string>) => {
             const jobName = params.value;
             if (jobName === undefined) {
               return `Invalid job name ${jobName}`;
@@ -233,7 +215,6 @@ function TimePicker({ label, value, setValue }: any) {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <DateTimePicker
-        renderInput={(props) => <TextField {...props} />}
         label={label}
         value={value}
         onChange={(newValue) => {
@@ -260,8 +241,8 @@ export function TimeRangePicker({
   setStartTime: any;
   stopTime: dayjs.Dayjs;
   setStopTime: any;
-  timeRange: any;
-  setTimeRange: any;
+  timeRange: number;
+  setTimeRange: (_: number) => any;
   setGranularity?: any;
 }) {
   function updateTimeRange() {
@@ -295,25 +276,7 @@ export function TimeRangePicker({
       return;
     }
 
-    // When setGranularity is provided, this picker can use it to switch to a
-    // bigger granularity automatically when a longer time range is selected.
-    // The users can still select a smaller granularity if they want to
-    switch (e.target.value as number) {
-      case 1:
-      case 3:
-      case 7:
-      case 14:
-        setGranularity("hour");
-        break;
-      case 30:
-        setGranularity("day");
-        break;
-      case 90:
-      case 180:
-      case 365:
-        setGranularity("week");
-        break;
-    }
+    setGranularity(getGranularityForDays(e.target.value as number));
   }
 
   return (
@@ -376,7 +339,7 @@ export function TtsPercentilePicker({
           Percentile
         </InputLabel>
         <Select
-          defaultValue={ttsPercentile}
+          value={ttsPercentile}
           label="Percentile"
           labelId="tts-percentile-picker-select-label"
           onChange={handleChange}
@@ -393,25 +356,52 @@ export function TtsPercentilePicker({
   );
 }
 
+/**
+ * Allows the user to pick the experiment metrics.
+ */
+export function ExperimentPicker({
+  experimentName,
+  setExperimentName,
+}: {
+  experimentName: string;
+  setExperimentName: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setExperimentName(e.target.value as string);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="experiment-picker-select-label">Experiment</InputLabel>
+        <Select
+          defaultValue={experimentName}
+          label="Experiment Name"
+          labelId="experiment-picker-select-label"
+          onChange={handleChange}
+        >
+          <MenuItem value={"ephemeral"}>ephemeral</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
 function WorkflowDuration({
-  percentileParam,
+  percentile,
   timeParams,
   workflowNames,
 }: {
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
+  percentile: number;
+  timeParams: { [key: string]: string };
   workflowNames: string[];
 }) {
-  const ttsPercentile = percentileParam.value;
-
-  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(
-    ", "
-  )} workflows duration`;
+  let title: string = `p${percentile * 100} ${workflowNames.join(", ")} TTS`;
   let queryName: string = "workflow_duration_percentile";
 
   // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
-    title = `avg ${workflowNames.join(", ")} workflow duration`;
+  if (percentile === -1) {
+    title = `avg ${workflowNames.join(", ")} TTS`;
     queryName = queryName.replace("percentile", "avg");
   }
 
@@ -421,15 +411,11 @@ function WorkflowDuration({
       queryName={queryName}
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
-      queryParams={[
-        {
-          name: "workflowNames",
-          type: "string",
-          value: workflowNames.join(","),
-        },
-        percentileParam,
+      queryParams={{
         ...timeParams,
-      ]}
+        workflowNames: workflowNames,
+        percentile,
+      }}
       badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
     />
   );
@@ -440,37 +426,31 @@ function JobsDuration({
   branchName,
   queryName,
   metricName,
-  percentileParam,
+  percentile,
   timeParams,
 }: {
   title: string;
   branchName: string;
   queryName: string;
   metricName: string;
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
+  percentile: number;
+  timeParams: { [key: string]: string };
 }) {
-  const ttsPercentile = percentileParam.value;
-
-  let metricHeaderName: string = `p${ttsPercentile * 100}`;
-  let queryParams: RocksetParam[] = [
-    {
-      name: "branch",
-      type: "string",
-      value: branchName,
-    },
-    percentileParam,
+  let metricHeaderName: string = `p${percentile * 100}`;
+  let queryParams = {
     ...timeParams,
-  ];
+    branch: branchName,
+    percentile: percentile,
+  };
 
   // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
+  if (percentile === -1) {
     metricHeaderName = "avg";
     queryName = queryName.replace("percentile", "avg");
   }
 
   return (
-    <Grid item xs={6} height={ROW_HEIGHT}>
+    <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
       <TTSPanel
         title={title}
         queryName={queryName}
@@ -483,49 +463,41 @@ function JobsDuration({
   );
 }
 
-const ROW_HEIGHT = 340;
-
-function getCommitRedMetrics(queryParams: RocksetParam[]) {}
+const ROW_HEIGHT = 375;
 
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const timeParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-  ];
-
-  const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
-
-  const percentileParam: RocksetParam = {
-    name: "percentile",
-    type: "float",
-    value: ttsPercentile,
+  const timeParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
-  var numberFormat = Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  });
+  const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
+  const [experimentName, setExperimentName] = useState<string>("ephemeral");
+  const [machineTypeFilter, setMachineTypeFilter] = useState<string | null>(
+    null
+  );
+  const [usePercentage, setUsePercentage] = useState<boolean>(false);
+
+  // For custom time range, calculate actual days; otherwise use the preset timeRange
+  const effectiveDays =
+    timeRange === -1 ? stopTime.diff(startTime, "day") : timeRange;
+  const granularity = getGranularityForDays(effectiveDays);
 
   // Split the aggregated red % into broken trunk and flaky red %
-  const queryCollection = "metrics";
   const queryName = "master_commit_red_avg";
 
   // Query both broken trunk and flaky red % in one query to some
   // save CPU usage. This query is quite expensive to run
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(timeParams)
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify({
+      ...timeParams,
+      // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
+      workflowNames: ["lint", "pull", "trunk", "linux-aarch64"],
+    })
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -538,6 +510,17 @@ export default function Page() {
       : data[0]["broken_trunk_red"];
   const flakyRed =
     data === undefined || data.length === 0 ? undefined : data[0]["flaky_red"];
+
+  // The new names are fixed at build-docs-${{ DOC_TYPE }}-${{ PUSHED }}. The PUSHED parameter will always be
+  // true here because docs are pushed to GitHub, for example, nightly
+  const docsJobNames = [
+    "docs push / build-docs-python-true",
+    "docs push / build-docs-cpp-true",
+  ];
+
+  const disabledTestsTotal = Object.keys(
+    useSWRImmutable(DISABLED_TESTS_CONDENSED_URL, fetcher).data || {}
+  ).length;
 
   return (
     <div>
@@ -557,40 +540,242 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={usePercentage}
+              onChange={(e) => setUsePercentage(e.target.checked)}
+            />
+          }
+          label="Show %"
+        />
       </Stack>
 
       <Grid container spacing={2}>
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <MasterJobsRedPanel params={timeParams} />
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <MasterCommitRedPanel
+            params={timeParams}
+            granularity={granularity}
+            usePercentage={usePercentage}
+          />
         </Grid>
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanelWithValue
               title={"% commits red on main (broken trunk)"}
               value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
-            <ScalarPanel
-              title={"# commits"}
-              queryName={"num_commits_master"}
-              queryCollection={"commons"}
-              metricName={"num"}
-              valueRenderer={(value) => value}
-              queryParams={timeParams}
-              badThreshold={(_) => false}
-            />
-          </Stack>
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
               title={"% commits red on main (flaky)"}
               value={flakyRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
+          </Stack>
+        </Grid>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
+              title={"% force merges due to failed PR checks"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
+              queryParams={{
+                ...timeParams,
+                merge_type: "Failure",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
+              badThreshold={(value) => value > 8.5}
+            />
+            <ScalarPanel
+              title={"% force merges due to impatience"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
+              queryParams={{
+                ...timeParams,
+                merge_type: "Impatience",
+                one_bucket: true,
+                granularity: "week", // Not used but ClickHouse requires it
+              }}
+              badThreshold={(value) => value > 10}
+            />
+          </Stack>
+        </Grid>
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
+              title={"Time to Red Signal (p90 TTRS - mins)"}
+              queryName={"ttrs_percentiles"}
+              metricName={"custom"}
+              valueRenderer={(value) => value}
+              queryParams={{
+                ...timeParams,
+                one_bucket: true,
+                percentile_to_get: 0.9,
+                workflow: "pull",
+              }}
+              badThreshold={(value) => value > 50}
+            />
+            <ScalarPanel
+              title={"Time to Red Signal (p75 TTRS - mins)"}
+              queryName={"ttrs_percentiles"}
+              metricName={"custom"}
+              valueRenderer={(value) => value}
+              queryParams={{
+                ...timeParams,
+                one_bucket: true,
+                percentile_to_get: 0.75,
+                workflow: "pull",
+              }}
+              badThreshold={(value) => value > 40}
+            />
+          </Stack>
+        </Grid>
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
+              title={"viable/strict lag"}
+              queryName={"strict_lag_sec"}
+              metricName={"strict_lag_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={{
+                repo: "pytorch",
+                owner: "pytorch",
+                head: "refs/heads/main",
+              }}
+              badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
+            />
+            <ScalarPanelWithValue
+              title={"# disabled tests"}
+              value={disabledTestsTotal}
+              valueRenderer={(value) => value}
+              badThreshold={(_) => false} // we haven't decided on the threshold here yet
+            />
+          </Stack>
+        </Grid>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
+              title={"Last main push"}
+              queryName={"last_branch_push"}
+              metricName={"push_seconds_ago"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={{ branch: "refs/heads/main" }}
+              badThreshold={(_) => false} // never bad
+            />
+            <ScalarPanel
+              title={"Last nightly push"}
+              queryName={"last_branch_push"}
+              metricName={"push_seconds_ago"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={{ branch: "refs/heads/nightly" }}
+              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
+            />
+          </Stack>
+        </Grid>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
+              title={"Last docker build"}
+              queryName={"last_successful_workflow"}
+              metricName={"last_success_seconds_ago"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={{
+                workflowName: "docker-builds",
+              }}
+              badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
+            />
+            <ScalarPanel
+              title={"Last docs push"}
+              queryName={"last_successful_jobs"}
+              metricName={"last_success_seconds_ago"}
+              getValue={(data) => data?.[0]?.last_success_seconds_ago || ">60d"}
+              valueRenderer={(value) =>
+                value === ">60d" ? value : durationDisplay(value)
+              }
+              queryParams={{
+                jobNames: docsJobNames,
+              }}
+              badThreshold={(value) =>
+                value === ">60d" || value > 3 * 24 * 60 * 60
+              } // 3 day
+            />
+          </Stack>
+        </Grid>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
               title={"# reverts"}
               queryName={"reverts"}
@@ -599,188 +784,132 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(value) => value > 10}
             />
+            <ScalarPanel
+              title={"# commits"}
+              queryName={"num_commits_master"}
+              metricName={"num"}
+              valueRenderer={(value) => value}
+              queryParams={timeParams}
+              badThreshold={(_) => false}
+            />
           </Stack>
         </Grid>
 
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
-              title={"% force merges due to failed PR checks"}
-              queryName={"force_merge_red_avg"}
-              metricName={"force_merges_red"}
-              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
+              title={"Merge retry rate (avg)"}
+              queryName={"merge_retry_rate"}
+              metricName={"avg_retry_rate"}
+              valueRenderer={(value) =>
+                value ? value.toFixed(2) + "x" : "N/A"
+              }
               queryParams={timeParams}
-              badThreshold={(value) => value > 0.2}
+              badThreshold={(value) => value > 2.0} // 2.0 average retries
             />
+            <ScalarPanel
+              title={"PR landing time (avg)"}
+              queryName={"pr_landing_time_avg"}
+              metricName={"avg_hours"}
+              valueRenderer={(value) => value.toFixed(1) + "h"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 24} // 24 hours
+            />
+          </Stack>
+        </Grid>
+
+        <Grid
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <WorkflowDuration
-              percentileParam={percentileParam}
+              percentile={ttsPercentile}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
             />
           </Stack>
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} />
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"viable/strict lag"}
-              queryName={"strict_lag_sec"}
-              metricName={"strict_lag_sec"}
-              valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[]}
-              badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
-            />
-            <ScalarPanel
-              title={"# disabled tests"}
-              queryName={"disabled_test_total"}
-              metricName={"number_of_open_disabled_tests"}
-              valueRenderer={(value) => value}
-              queryParams={[]}
-              badThreshold={(_) => false} // we haven't decided on the threshold here yet
-            />
-          </Stack>
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"Last main push"}
-              queryName={"last_branch_push"}
-              metricName={"push_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "branch",
-                  type: "string",
-                  value: "refs/heads/main",
-                },
-              ]}
-              badThreshold={(_) => false} // never bad
-            />
-            <ScalarPanel
-              title={"Last nightly push"}
-              queryName={"last_branch_push"}
-              metricName={"push_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "branch",
-                  type: "string",
-                  value: "refs/heads/nightly",
-                },
-              ]}
-              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-            />
-          </Stack>
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"Last docker build"}
-              queryName={"last_successful_workflow"}
-              metricName={"last_success_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "workflowName",
-                  type: "string",
-                  value: "docker-builds",
-                },
-              ]}
-              badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
-            />
-            <ScalarPanel
-              title={"Last docs push"}
-              queryName={"last_successful_jobs"}
-              metricName={"last_success_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "jobNames",
-                  type: "string",
-                  value:
-                    // The new names are fixed at build-docs-${{ DOC_TYPE }}-${{ PUSHED }}. The PUSHED parameter will always be
-                    // true here because docs are pushed to GitHub, for example, nightly
-                    "docs push / build-docs-python-true;docs push / build-docs-cpp-true;docs push / build-docs-functorch-true",
-                },
-              ]}
-              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
-            />
-          </Stack>
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Queued Jobs by Machine Type"}
             queryName={"queued_jobs_by_label"}
-            queryParams={[]}
+            queryParams={{}}
             columns={[
               { field: "count", headerName: "Count", flex: 1 },
               {
                 field: "avg_queue_s",
                 headerName: "Queue time",
                 flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<number>) =>
-                  durationDisplay(params.value),
+                valueFormatter: (params: number) => durationDisplay(params),
+                cellClassName: (params) => {
+                  const queueTimeHours = params.value / 3600;
+                  if (queueTimeHours >= 4) return "queue-time-red";
+                  if (queueTimeHours >= 1) return "queue-time-yellow";
+                  return "";
+                },
               },
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.machine_type }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Jobs in Queue"}
-            queryName={"queued_jobs"}
-            queryParams={[]}
-            columns={[
-              {
-                field: "queue_s",
-                headerName: "Time in Queue",
-                flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<number>) =>
-                  durationDisplay(params.value),
-              },
-              { field: "machine_type", headerName: "Machine Type", flex: 1 },
-              {
-                field: "name",
-                headerName: "Job Name",
-                flex: 4,
-                renderCell: (params: GridRenderCellParams<string>) => (
-                  <a href={params.row.html_url}>{params.value}</a>
-                ),
-              },
-              { field: "html_url" },
-            ]}
             dataGridProps={{
-              columnVisibilityModel: {
-                // Hide this column, since we turn it into a link
-                html_url: false,
+              getRowId: (el: any) => el.machine_type,
+              initialState: {
+                sorting: {
+                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
+                },
               },
-              getRowId: (el: any) => el.html_url,
+              onRowClick: (params: any) => {
+                setMachineTypeFilter(params.row.machine_type);
+              },
+              sx: {
+                "& .queue-time-yellow": {
+                  backgroundColor: "#B8860B", // Dark goldenrod
+                  color: "white",
+                },
+                "& .queue-time-red": {
+                  backgroundColor: "#B22222", // Fire brick red
+                  color: "white",
+                },
+                "& .MuiDataGrid-row": {
+                  cursor: "pointer",
+                },
+              },
             }}
           />
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          <QueuedJobsTable
+            machineTypeFilter={machineTypeFilter}
+            onClearFilter={() => setMachineTypeFilter(null)}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
+            queryParams={{
               ...timeParams,
-            ]}
-            granularity={"hour"}
+              granularity,
+            }}
+            granularity={granularity}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
@@ -788,17 +917,21 @@ export default function Page() {
           />
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Number of tests run"}
-            queryName={"num_tests_run"}
-            queryParams={[...timeParams]}
-            granularity={"minute"}
-            groupByFieldName={"workflow_name"}
-            timeFieldName={"push_event_time"}
-            yAxisFieldName={"avg_num_tests"}
-            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
-            additionalOptions={{ yAxis: { scale: true } }}
+            title={`Workflow load per ${granularity}`}
+            queryName={"workflow_load"}
+            queryParams={{
+              ...timeParams,
+              granularity,
+              repo: "pytorch/pytorch",
+            }}
+            granularity={granularity}
+            groupByFieldName={"name"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"count"}
+            yAxisLabel={"workflows started"}
+            yAxisRenderer={(value) => value}
           />
         </Grid>
 
@@ -807,16 +940,16 @@ export default function Page() {
           branchName={"%"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
         />
 
         <JobsDuration
-          title={"Job time-to-signal, main-only"}
+          title={"Job time-to-signal, push to main only"}
           branchName={"main"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
         />
 
@@ -825,57 +958,116 @@ export default function Page() {
           branchName={"%"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
         />
 
         <JobsDuration
-          title={"Job duration, main-only"}
+          title={"Job duration, push to main only"}
           branchName={"main"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
-          percentileParam={percentileParam}
+          percentile={ttsPercentile}
           timeParams={timeParams}
         />
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"Number of new disabled tests"}
-            queryName={"disabled_test_historical"}
-            queryParams={[...timeParams]}
-            granularity={"day"}
-            timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"number_of_new_disabled_tests"}
-            yAxisRenderer={(value) => value}
-            additionalOptions={{ yAxis: { scale: true } }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
-            queryCollection={"metrics"}
-            queryParams={[...timeParams]}
+            queryParams={timeParams}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },
               { field: "example", headerName: "Example", flex: 4 },
               {
-                field: "search_string",
+                field: "captures",
                 headerName: "Captures",
                 flex: 4,
-                renderCell: (params: GridRenderCellParams<string>) => {
+                renderCell: (params: GridRenderCellParams<any, string>) => {
                   const url = params.value
-                    ? `failure/${encodeURIComponent(params.row.search_string)}`
-                    : "failure/";
+                    ? `failure?failureCaptures=${encodeURIComponent(
+                        JSON.stringify(params.row.captures)
+                      )}`
+                    : "failure";
                   return <a href={url}>{params.value}</a>;
                 },
               },
             ]}
             dataGridProps={{
               getRowId: (el: any) =>
-                el.search_string ? el.search_string : "null",
+                el.captures ? JSON.stringify(el.captures) : "null",
             }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Number of new disabled tests"}
+            queryName={"disabled_test_historical"}
+            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
+            granularity={"day"}
+            timeFieldName={"day"}
+            yAxisFieldName={"new"}
+            yAxisRenderer={(value) => value}
+            additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12 }}>
+          <br />
+          <br />
+          <Typography variant="h3" gutterBottom>
+            Linux Foundation vs Meta Fleets
+          </Typography>
+          <p>
+            These panels show the <b>delta</b> between states of the same job
+            run on the Linux Foundation vs the Meta fleets.
+          </p>
+        </Grid>
+
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={`Percentage of jobs rolled over to Linux Foundation (per ${granularity})`}
+            queryName={"lf_rollover_percentage"}
+            queryParams={{ ...timeParams, granularity }}
+            granularity={granularity}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12 }}>
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Typography variant="h3" gutterBottom>
+              Percentage of jobs running on experiment
+            </Typography>
+            <ExperimentPicker
+              experimentName={experimentName}
+              setExperimentName={setExperimentName}
+            />
+          </Stack>
+          <p>
+            This pannel shows the % of jobs that are running the selected
+            experiment in the dropbox.
+          </p>
+        </Grid>
+
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={`Percentage of jobs running on experiment (per ${granularity})`}
+            queryName={"experiment_rollover_percentage"}
+            queryParams={{
+              ...timeParams,
+              experiment_name: experimentName,
+              granularity,
+            }}
+            granularity={granularity}
+            timeFieldName={"bucket"}
+            yAxisFieldName={"percentage"}
+            groupByFieldName={"fleet"}
+            yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
           />
         </Grid>
       </Grid>

@@ -28,10 +28,6 @@ module.exports = {
         destination: "/hud/:repoOwner/:repoName/:branch/1",
       },
       {
-        source: "/minihud",
-        destination: "/minihud/pytorch/pytorch/main/1",
-      },
-      {
         source: "/tts",
         destination: "/tts/pytorch/pytorch/main",
       },
@@ -41,4 +37,9 @@ module.exports = {
       },
     ];
   },
+  transpilePackages: [
+    "@mui/x-data-grid",
+    "@mui/x-data-grid-pro",
+    "@mui/x-data-grid-premium",
+  ],
 };

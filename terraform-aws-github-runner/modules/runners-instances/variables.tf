@@ -40,6 +40,11 @@ variable "s3_location_runner_binaries_linux" {
   type        = string
 }
 
+variable "s3_location_runner_binaries_linux_arm64" {
+  description = "S3 location of runner distribution."
+  type        = string
+}
+
 variable "s3_location_runner_binaries_windows" {
   description = "S3 location of runner distribution."
   type        = string
@@ -60,19 +65,22 @@ variable "instance_type" {
 variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
+}
 
-  default = {
-    name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
-  }
+variable "ami_filter_linux_arm64" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
+}
+
+variable "ami_owners_linux_arm64" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
 }
 
 variable "ami_filter_windows" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["Windows_Server-2019-English-Full-ContainersLatest-*"]
-  }
 }
 
 variable "ami_owners_linux" {
@@ -165,7 +173,7 @@ variable "enable_ssm_on_runners" {
 }
 
 variable "runner_iam_role_managed_policy_arns" {
-  description = "Attach AWS or customer-managed IAM policies (by ARN) to the runner IAM role"
+  description = "List of IAM managed policy ARNs to be attached to the runner IAM role"
   type        = list(string)
   default     = []
 }
@@ -186,4 +194,16 @@ variable "key_name" {
   description = "Key pair name"
   type        = string
   default     = null
+}
+
+variable "wiz_secret_arn" {
+  description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
+  type        = string
+  sensitive   = true
+}
+
+variable "wiz_secret_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secret_arn. Must be provided if wiz_secret_arn is specified."
+  type        = string
+  sensitive   = true
 }

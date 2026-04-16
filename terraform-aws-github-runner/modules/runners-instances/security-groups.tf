@@ -1,5 +1,5 @@
 locals {
-    name_sg = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
+  name_sg = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
 }
 
 resource "aws_security_group" "runners_sg" {

@@ -1,0 +1,16 @@
+# Scheduled validation of the release binaries
+name: Release Binaries Validations
+
+on:
+  schedule:
+    # At 3 am UTC (7 am PDT)
+    - cron: "0 3 * * *"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+jobs:
+  release:
+    uses: ./.github/workflows/validate-binaries.yml
+    with:
+      channel: release
+      os: all

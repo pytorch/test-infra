@@ -1,21 +1,23 @@
 import { ActionRequestMessage } from './scale-up';
-import { SQS } from 'aws-sdk';
+import { SendMessageBatchCommandInput, SQS } from '@aws-sdk/client-sqs';
 import { SQSRecord } from 'aws-lambda';
 
 import { expBackOff } from './utils';
 import { Metrics } from './metrics';
 
-function getQueueUrl(evt: SQSRecord, sqs: SQS) {
+function getQueueUrl(evt: SQSRecord) {
   const splitARN = evt.eventSourceARN.split(':');
+  // arn:aws:sqs:region:account-id:queue-name
+  const region = splitARN[3];
   const accountId = splitARN[4];
   const queueName = splitARN[5];
-  return sqs.endpoint.href + accountId + '/' + queueName;
+  return `https://sqs.${region}.amazonaws.com/${accountId}/${queueName}`;
 }
 
 export async function sqsSendMessages(metrics: Metrics, bodyList: Array<ActionRequestMessage>, queueUrl: string) {
   const sqs: SQS = new SQS();
 
-  const sqsPayload: SQS.SendMessageBatchRequest = {
+  const sqsPayload: SendMessageBatchCommandInput = {
     QueueUrl: queueUrl,
     Entries: bodyList.map((body, idx) => {
       return {
@@ -29,7 +31,7 @@ export async function sqsSendMessages(metrics: Metrics, bodyList: Array<ActionRe
   console.log(`Sending ${bodyList.length} messages to ${queueUrl}`);
   await expBackOff(() => {
     return metrics.trackRequest(metrics.sqsSendMessagesBatchSuccess, metrics.sqsSendMessagesBatchFailure, () => {
-      return sqs.sendMessageBatch(sqsPayload).promise();
+      return sqs.sendMessageBatch(sqsPayload);
     });
   });
   console.log(`Sent ${bodyList.length} messages to ${queueUrl}`);
@@ -42,7 +44,7 @@ export async function sqsChangeMessageVisibilityBatch(
 ) {
   const sqs: SQS = new SQS();
 
-  const queueUrl = getQueueUrl(events[0], sqs);
+  const queueUrl = getQueueUrl(events[0]);
   const parameters = {
     Entries: events.map((evt) => {
       return {
@@ -60,7 +62,7 @@ export async function sqsChangeMessageVisibilityBatch(
       metrics.sqsChangeMessageVisibilityBatchSuccess,
       metrics.sqsChangeMessageVisibilityBatchFailure,
       () => {
-        return sqs.changeMessageVisibilityBatch(parameters).promise();
+        return sqs.changeMessageVisibilityBatch(parameters);
       },
     );
   });
@@ -70,7 +72,7 @@ export async function sqsChangeMessageVisibilityBatch(
 export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSRecord>) {
   const sqs: SQS = new SQS();
 
-  const queueUrl = getQueueUrl(events[0], sqs);
+  const queueUrl = getQueueUrl(events[0]);
   const parameters = {
     Entries: events.map((evt) => {
       return {
@@ -84,13 +86,15 @@ export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSR
   console.log(`Deleting ${events.length} messages`);
   const response = await expBackOff(() => {
     return metrics.trackRequest(metrics.sqsDeleteMessageBatchSuccess, metrics.sqsDeleteMessageBatchFailure, () => {
-      return sqs.deleteMessageBatch(parameters).promise();
+      return sqs.deleteMessageBatch(parameters);
     });
   });
-  if (response.Failed.length || response.Successful.length < events.length) {
+  const failedCount = response.Failed?.length ?? 0;
+  const successfulCount = response.Successful?.length ?? 0;
+  if (failedCount || successfulCount < events.length) {
     const msg =
       `Failed to delete messages from SQS, this might cause them to be retried. Total: ${events.length} ` +
-      `Successful: ${response.Successful.length} Failed: ${response.Failed.length}`;
+      `Successful: ${successfulCount} Failed: ${failedCount}`;
     console.error(msg);
     throw Error(msg);
   }

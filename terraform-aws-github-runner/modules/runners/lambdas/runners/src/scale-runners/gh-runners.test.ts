@@ -1,13 +1,14 @@
 import {
-  GhRunners,
   createGitHubClientForRunnerInstallId,
   createGitHubClientForRunnerOrg,
   createGitHubClientForRunnerRepo,
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
+  getGitHubRateLimit,
   getRunnerOrg,
   getRunnerRepo,
   getRunnerTypes,
+  GhRunners,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
   removeGithubRunnerOrg,
@@ -19,26 +20,8 @@ import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
-import { mocked } from 'ts-jest/utils';
-import { locallyCached } from './cache';
-import nock from 'nock';
-
-const mockEC2 = {
-  describeInstances: jest.fn(),
-  runInstances: jest.fn(),
-  terminateInstances: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-const mockSSMdescribeParametersRet = jest.fn();
-const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
-}));
+import { mocked } from 'jest-mock';
+import { locallyCached, redisCached } from './cache';
 
 jest.mock('./gh-auth');
 jest.mock('./cache', () => ({
@@ -58,7 +41,6 @@ beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();
-  nock.disableNetConnect();
 
   jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
     return;
@@ -667,98 +649,212 @@ runner_types:
     linux.2xlarge:
       instance_type: c5.2xlarge
       os: linux
+      min_available: 1
+      disk_size: 150
+      is_ephemeral: false
+    linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      min_available: 1
       max_available: 1
       disk_size: 150
-      is_ephemeral: false`;
+      is_ephemeral: false
+      variants:
+        ephemeral:
+          is_ephemeral: true
+        largedisk:
+          disk_size: 300
+        ami123:
+          ami: ami-123
+    lf.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      min_available: 1
+      max_available: -1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        ephemeral:
+          is_ephemeral: true
+    c.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      min_available: 1
+      max_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        dummyvariant: {}
+    lf.c.linux.4xlarge:
+      instance_type: c5.2xlarge
+      os: linux
+      min_available: 1
+      disk_size: 150
+      is_ephemeral: false
+      variants:
+        dummyvariant: {}
+        ephemeral:
+          is_ephemeral: true`;
+
+  const getRunnerTypeResponse = new Map([
+    [
+      'linux.2xlarge',
+      {
+        runnerTypeName: 'linux.2xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'linux.4xlarge',
+      {
+        runnerTypeName: 'linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
+      },
+    ],
+    [
+      'largedisk.linux.4xlarge',
+      {
+        runnerTypeName: 'largedisk.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        min_available: 1,
+        disk_size: 300,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'ami123.linux.4xlarge',
+      {
+        runnerTypeName: 'ami123.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 1,
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+        ami: 'ami-123',
+      },
+    ],
+    [
+      'c.dummyvariant.linux.4xlarge',
+      {
+        runnerTypeName: 'c.dummyvariant.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'c.linux.4xlarge',
+      {
+        runnerTypeName: 'c.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        max_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: -1,
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: -1,
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
+      },
+    ],
+    [
+      'lf.c.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.c.dummyvariant.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.dummyvariant.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: false,
+      },
+    ],
+    [
+      'lf.c.ephemeral.linux.4xlarge',
+      {
+        runnerTypeName: 'lf.c.ephemeral.linux.4xlarge',
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        min_available: 1,
+        disk_size: 150,
+        is_ephemeral: true,
+      },
+    ],
+  ]);
 
   it('gets the contents, twice', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
-    const token1 = 'token1';
-    const token2 = 'token2';
-    const repoId = 'mockReturnValueOnce1';
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: repoId },
-    });
-    const mockedOctokit = {
-      apps: { getRepoInstallation: getRepoInstallation },
-      repos: {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from(scaleConfigYaml).toString('base64') },
-          status: 200,
-        }),
-      },
-    };
-
-    mockCreateGithubAuth.mockResolvedValueOnce(token1);
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce(token2);
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-
-    await resetGHRunnersCaches();
-    expect(await getRunnerTypes(repo, metrics)).toEqual(
-      new Map([
-        [
-          'linux.2xlarge',
-          {
-            runnerTypeName: 'linux.2xlarge',
-            instance_type: 'c5.2xlarge',
-            os: 'linux',
-            max_available: 1,
-            disk_size: 150,
-            is_ephemeral: false,
-          },
-        ],
-      ]),
-    );
-    expect(await getRunnerTypes(repo, metrics)).toEqual(
-      new Map([
-        [
-          'linux.2xlarge',
-          {
-            runnerTypeName: 'linux.2xlarge',
-            instance_type: 'c5.2xlarge',
-            os: 'linux',
-            max_available: 1,
-            disk_size: 150,
-            is_ephemeral: false,
-          },
-        ],
-      ]),
-    );
-
-    expect(mockCreateGithubAuth).toBeCalledTimes(2);
-    expect(mockCreateGithubAuth).toBeCalledWith(undefined, 'app', Config.Instance.ghesUrlApi, metrics);
-    expect(mockCreateGithubAuth).toBeCalledWith(repoId, 'installation', Config.Instance.ghesUrlApi, metrics);
-
-    expect(mockCreateOctoClient).toBeCalledTimes(2);
-    expect(mockCreateOctoClient).toBeCalledWith(token1, Config.Instance.ghesUrlApi);
-    expect(mockCreateOctoClient).toBeCalledWith(token2, Config.Instance.ghesUrlApi);
-
-    expect(getRepoInstallation).toBeCalledTimes(1);
-    expect(getRepoInstallation).toBeCalledWith({ ...repo });
-
-    expect(mockedOctokit.repos.getContent).toBeCalledTimes(1);
-    expect(mockedOctokit.repos.getContent).toBeCalledWith({
-      ...repo,
-      path: Config.Instance.scaleConfigRepoPath,
-    });
-  });
-
-  it('return is not 200', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
+    const fileRepo = { owner: 'owner', repo: 'repo' };
+    const authRepo = { owner: 'auth-owner', repo: 'auth-repo' };
     const mockCreateGithubAuth = mocked(createGithubAuth);
     const mockCreateOctoClient = mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
+    const scaleConfigBase64 = Buffer.from(scaleConfigYaml).toString('base64');
     const mockedOctokit = {
       apps: { getRepoInstallation: getRepoInstallation },
       repos: {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from(scaleConfigYaml).toString('base64') },
-          status: 500,
+        getContent: jest.fn().mockResolvedValueOnce({
+          status: 200,
+          data: { content: scaleConfigBase64 },
         }),
       },
     };
@@ -769,7 +865,78 @@ runner_types:
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     await resetGHRunnersCaches();
-    await expect(getRunnerTypes(repo, metrics)).rejects.toThrow(Error);
+    expect(await getRunnerTypes(fileRepo, authRepo, metrics)).toEqual(getRunnerTypeResponse);
+    expect(await getRunnerTypes(fileRepo, authRepo, metrics)).toEqual(getRunnerTypeResponse);
+
+    // Verify the API was called only once due to caching
+    expect(mockedOctokit.repos.getContent).toBeCalledTimes(1);
+    expect(mockedOctokit.repos.getContent).toBeCalledWith({
+      ...fileRepo,
+      path: Config.Instance.scaleConfigRepoPath,
+    });
+  });
+
+  it('return is not 200', async () => {
+    const fileRepo = { owner: 'owner', repo: 'repo_fail' };
+    const authRepo = { owner: 'auth-owner', repo: 'auth-repo' };
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getRepoInstallation = jest.fn().mockResolvedValue({
+      data: { id: 'mockReturnValueOnce1' },
+    });
+    const mockedOctokit = {
+      apps: { getRepoInstallation: getRepoInstallation },
+      repos: {
+        getContent: jest.fn().mockResolvedValueOnce({
+          status: 500,
+          data: {},
+        }),
+      },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+
+    await resetGHRunnersCaches();
+    await expect(getRunnerTypes(fileRepo, authRepo, metrics)).rejects.toThrow(Error);
+  });
+
+  it('gets the contents using org client when enableOrganizationRunners is true', async () => {
+    const config = {
+      enableOrganizationRunners: true,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+
+    const fileRepo = { owner: 'owner', repo: 'repo' };
+    const authRepo = { owner: 'auth-owner', repo: 'auth-repo' };
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getOrgInstallation = jest.fn().mockResolvedValue({
+      data: { id: 'mockReturnValueOnce1' },
+    });
+    const scaleConfigBase64 = Buffer.from(scaleConfigYaml).toString('base64');
+    const mockedOctokit = {
+      apps: { getOrgInstallation: getOrgInstallation },
+      repos: {
+        getContent: jest.fn().mockResolvedValueOnce({
+          status: 200,
+          data: { content: scaleConfigBase64 },
+        }),
+      },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+
+    await resetGHRunnersCaches();
+    expect(await getRunnerTypes(fileRepo, authRepo, metrics)).toEqual(getRunnerTypeResponse);
+
+    // Verify org client was created
+    expect(getOrgInstallation).toBeCalledWith({ org: authRepo.owner });
   });
 });
 
@@ -959,6 +1126,54 @@ describe('createRegistrationToken', () => {
       await expect(createRegistrationTokenOrg(org, metrics)).rejects.toThrow(Error);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
+    });
+  });
+});
+
+describe('getGitHubRateLimit', () => {
+  const repo = { owner: 'owner', repo: 'repo' };
+
+  it('succeeds, make sure it is using the cache mechanism', async () => {
+    const mocckedRedisCache = mocked(redisCached).mockImplementationOnce((_, __, ___, ____, f) => f());
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getRepoInstallation = jest.fn().mockResolvedValue({
+      data: { id: 'mockReturnValueOnce1' },
+    });
+    const mockedOctokit = {
+      actions: {
+        deleteSelfHostedRunnerFromRepo: jest.fn().mockResolvedValue({
+          status: 204,
+        }),
+      },
+      apps: { getRepoInstallation: getRepoInstallation },
+      rateLimit: {
+        get: jest.fn().mockResolvedValue({
+          data: {},
+          headers: {
+            'x-ratelimit-limit': '5000',
+            'x-ratelimit-remaining': '4999',
+            'x-ratelimit-used': '1',
+          },
+          status: 200,
+        }),
+      },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
+    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+
+    await resetGHRunnersCaches();
+    const response = await getGitHubRateLimit(repo, metrics);
+
+    expect(mocckedRedisCache).toBeCalledTimes(2);
+    expect(mockedOctokit.rateLimit.get).toBeCalledTimes(1);
+    expect(response).toEqual({
+      limit: 5000,
+      remaining: 4999,
+      used: 1,
     });
   });
 });

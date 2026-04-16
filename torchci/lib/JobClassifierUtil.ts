@@ -1,13 +1,51 @@
-import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
-import { GroupData, RowData } from "./types";
+import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
+import { getOpenUnstableIssues } from "lib/jobUtils";
+import { IssueData, RowData } from "./types";
+
+type RepoViableStrictBlockingJobsMap = {
+  [key: string]: RegExp[];
+};
+
+// Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
+export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
+  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i],
+};
+
+export function isJobViableStrictBlocking(
+  jobName: string | undefined,
+  repoOwner: string,
+  repoName: string
+): boolean {
+  if (!jobName) {
+    return false;
+  }
+
+  // Exclude memory leak and rerun disabled tests jobs
+  if (jobName.match(/, mem_leak/) || jobName.match(/, rerun_/)) {
+    return false;
+  }
+
+  const repo = `${repoOwner}/${repoName}`;
+  const viablestrictBlockingJobsPatterns =
+    VIABLE_STRICT_BLOCKING_JOBS[repo] ?? [];
+
+  for (const regex of viablestrictBlockingJobsPatterns) {
+    if (jobName.match(regex)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 const GROUP_UNSTABLE = "Unstable";
 const GROUP_PERIODIC = "Periodic";
+const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
+const GROUP_PALLAS = "Pallas";
 const GROUP_ANDROID = "Android";
 const GROUP_ROCM = "ROCm";
 const GROUP_XLA = "XLA";
@@ -25,23 +63,40 @@ const GROUP_MAC = "Mac";
 const GROUP_PARALLEL = "Parallel";
 const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
+const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
+const GROUP_XPU = "XPU";
+const GROUP_VLLM = "vLLM";
 const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
   {
-    regex: /mem_leak_check/,
+    regex: /vllm/i,
+    name: GROUP_VLLM,
+  },
+  {
+    // Weird regex because some names are too long and getting cut off
+    // TODO: figure out a better way to name the job or filter them
+    regex: /, mem_leak/,
     name: GROUP_MEMORY_LEAK_CHECK,
     persistent: true,
   },
   {
-    regex: /rerun_disabled_tests/,
+    regex: /, rerun_/,
     name: GROUP_RERUN_DISABLED_TESTS,
     persistent: true,
   },
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /^xpu/,
+    name: GROUP_XPU,
+  },
+  {
+    regex: /inductor-periodic/,
+    name: GROUP_INDUCTOR_PERIODIC,
   },
   {
     regex: /periodic/,
@@ -58,6 +113,10 @@ export const groups = [
   {
     regex: /inductor/,
     name: GROUP_INDUCTOR,
+  },
+  {
+    regex: /pallas/,
+    name: GROUP_PALLAS,
   },
   {
     regex: /android/,
@@ -130,6 +189,12 @@ export const groups = [
     regex: /libtorch/,
     name: GROUP_LIBTORCH,
   },
+  {
+    // This is a catch-all for jobs that are viable but strict blocking
+    // Excluding linux-binary-* jobs because they are already grouped further up
+    regex: /(pull)|(trunk)/,
+    name: GROUP_OTHER_VIABLE_STRICT_BLOCKING,
+  },
 ];
 
 // Jobs on HUD home page will be sorted according to this list, with anything left off at the end
@@ -140,25 +205,31 @@ const HUD_GROUP_SORTING = [
   GROUP_WINDOWS,
   GROUP_IOS,
   GROUP_MAC,
-  GROUP_ROCM,
-  GROUP_XLA,
-  GROUP_PARALLEL,
   GROUP_LIBTORCH,
+  GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
+  GROUP_SLOW,
+  GROUP_PERIODIC,
+  GROUP_ROCM,
+  GROUP_XPU,
+  GROUP_XLA,
+  GROUP_VLLM,
+  GROUP_PARALLEL,
   GROUP_ANDROID,
   GROUP_BINARY_LINUX,
   GROUP_DOCKER,
   GROUP_CALC_DOCKER_IMAGE,
   GROUP_CI_DOCKER_IMAGE_BUILDS,
   GROUP_CI_CIRCLECI_PYTORCH_IOS,
-  GROUP_PERIODIC,
-  GROUP_SLOW,
   GROUP_DOCS,
   GROUP_INDUCTOR,
+  GROUP_INDUCTOR_PERIODIC,
+  GROUP_PALLAS,
   GROUP_ANNOTATIONS_AND_LABELING,
-  GROUP_OTHER,
   GROUP_BINARY_WINDOWS,
   GROUP_MEMORY_LEAK_CHECK,
   GROUP_RERUN_DISABLED_TESTS,
+  // These two groups should always be at the end
+  GROUP_OTHER,
   GROUP_UNSTABLE,
 ];
 
@@ -179,13 +250,33 @@ export function sortGroupNamesForHUD(groupNames: string[]): string[] {
   return result;
 }
 
-export function classifyGroup(jobName: string): string {
+export function classifyGroup(
+  jobName: string,
+  showUnstableGroup: boolean,
+  unstableIssues?: IssueData[]
+): string {
+  const openUnstableIssues = getOpenUnstableIssues(jobName, unstableIssues);
+  let assignedGroup = undefined;
   for (const group of groups) {
     if (jobName.match(group.regex)) {
-      return group.name;
+      assignedGroup = group;
+      break;
     }
   }
-  return GROUP_OTHER;
+
+  // Check if the job has been marked as unstable but doesn't include the
+  // unstable keyword.
+  if (!showUnstableGroup && assignedGroup?.persistent) {
+    // If the unstable group is not being shown, then persistent groups (mem
+    // leak check, rerun disabled tests) should not be overwritten
+    return assignedGroup.name;
+  }
+
+  if (openUnstableIssues !== undefined && openUnstableIssues.length !== 0) {
+    return GROUP_UNSTABLE;
+  }
+
+  return assignedGroup === undefined ? GROUP_OTHER : assignedGroup.name;
 }
 
 export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
@@ -194,6 +285,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Failure:
       return "X";
+    case GroupedJobStatus.Queued:
+      return "Q";
     case GroupedJobStatus.Pending:
       return "?";
     case GroupedJobStatus.AllNull:
@@ -218,12 +311,31 @@ export function isFailure(conclusion?: string): boolean {
     case JobStatus.Success:
     case JobStatus.Neutral:
     case JobStatus.Skipped:
+    case JobStatus.Queued:
     case JobStatus.Pending:
     case undefined:
     default:
       return false;
   }
 }
+
+export function IsJobInProgress(conclusion?: string): boolean {
+  switch (conclusion) {
+    case JobStatus.Queued:
+    case JobStatus.Pending:
+      return true;
+    case JobStatus.Success:
+    case JobStatus.Neutral:
+    case JobStatus.Skipped:
+    case JobStatus.Failure:
+    case JobStatus.Cancelled:
+    case JobStatus.Timed_out:
+    case undefined:
+    default:
+      return false;
+  }
+}
+
 export function getConclusionChar(
   conclusion?: string,
   failedPreviousRun?: boolean
@@ -244,6 +356,8 @@ export function getConclusionChar(
       return "T";
     case JobStatus.Skipped:
       return "S";
+    case JobStatus.Queued:
+      return "Q";
     case JobStatus.Pending:
       return "?";
     case undefined:
@@ -265,43 +379,90 @@ export function getConclusionSeverityForSorting(conclusion?: string): number {
       return 2;
     case JobStatus.Cancelled:
       return 3;
-    case JobStatus.Pending:
+    case JobStatus.Queued:
       return 4;
-    case undefined:
+    case JobStatus.Pending:
       return 5;
-    case JobStatus.Failure:
+    case undefined:
       return 6;
-    default:
+    case JobStatus.Failure:
       return 7;
+    default:
+      return 8;
   }
 }
 
-export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
+export function getGroupingData(
+  shaGrid: RowData[],
+  jobNames: Set<string>,
+  showUnstableGroup: boolean,
+  unstableIssues?: IssueData[],
+  repoOwner?: string,
+  repoName?: string
+) {
   // Construct Job Groupping Mapping
-  const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
-  const jobToGroupName = new Map<string, string>(); // job -> group
+  const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
+
+  // Track which jobs have failures
+  const jobsWithFailures = new Set<string>();
+
+  // Track which jobs are viable/strict blocking
+  const jobsViableStrictBlocking = new Set<string>();
+
+  // First pass: check failures for each job across all commits
   for (const name of jobNames) {
-    const groupName = classifyGroup(name);
+    // Check if this job has failures in any commit
+    const hasFailure = shaGrid.some((row) => {
+      const job = row.nameToJobs.get(name);
+      return job && isFailure(job.conclusion);
+    });
+
+    if (hasFailure) {
+      jobsWithFailures.add(name);
+    }
+
+    // Check if this job is viable/strict blocking
+    if (
+      repoOwner &&
+      repoName &&
+      isJobViableStrictBlocking(name, repoOwner, repoName)
+    ) {
+      jobsViableStrictBlocking.add(name);
+    }
+  }
+
+  // Second pass: group jobs
+  for (const name of jobNames) {
+    const groupName = classifyGroup(name, showUnstableGroup, unstableIssues);
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
-    jobToGroupName.set(name, groupName);
   }
-  const groupNamesArray = Array.from(groupNameMapping.keys());
 
-  // Group Jobs per Row
-  for (const row of shaGrid) {
-    const groupedJobs = new Map<string, GroupData>();
-    for (const groupName of groupNamesArray) {
-      groupedJobs.set(groupName, { groupName, jobs: [] });
+  // Calculate which groups have failures
+  const groupsWithFailures = new Set<string>();
+  for (const [groupName, jobs] of groupNameMapping.entries()) {
+    if (jobs.some((jobName) => jobsWithFailures.has(jobName))) {
+      groupsWithFailures.add(groupName);
     }
-    for (const job of row.jobs) {
-      const groupName = jobToGroupName.get(job.name!)!;
-      groupedJobs.get(groupName)!.jobs.push(job);
-    }
-    row.groupedJobs = groupedJobs;
   }
-  return { shaGrid, groupNameMapping };
+
+  // Calculate which groups have viable/strict blocking jobs
+  const groupsViableStrictBlocking = new Set<string>();
+  for (const [groupName, jobs] of groupNameMapping.entries()) {
+    if (jobs.some((jobName) => jobsViableStrictBlocking.has(jobName))) {
+      groupsViableStrictBlocking.add(groupName);
+    }
+  }
+
+  return {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+    jobsViableStrictBlocking,
+    groupsViableStrictBlocking,
+  };
 }
 
 export function isPersistentGroup(name: string) {
@@ -311,6 +472,17 @@ export function isPersistentGroup(name: string) {
   );
 }
 
-export function isUnstableGroup(name: string) {
-  return name.toLocaleLowerCase().includes("unstable");
+export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
+  const openUnstableIssues = getOpenUnstableIssues(name, unstableIssues);
+  return (
+    name.toLocaleLowerCase().includes("unstable") ||
+    (openUnstableIssues !== undefined && openUnstableIssues.length !== 0)
+  );
+}
+
+export function getNameWithoutLF(name: string) {
+  const lfRegex = /, lf\.(ephemeral|linux|windows)/g;
+  name = name.replace(lfRegex, ", $1");
+  const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
+  return name.replace(ephemeralRegex, ", $1");
 }

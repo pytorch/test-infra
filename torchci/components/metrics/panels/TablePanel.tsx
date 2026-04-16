@@ -1,20 +1,18 @@
-import useSWR from "swr";
-import { DataGrid, DataGridProps, GridColDef } from "@mui/x-data-grid";
-import { Typography, Skeleton } from "@mui/material";
-import { RocksetParam } from "lib/rockset";
 import HelpIcon from "@mui/icons-material/Help";
+import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { CSSProperties } from "react";
+import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function TablePanel({
   // Human-readable title for this panel.
   title,
-  // Query lambda collection in Rockset.
-  queryCollection = "metrics",
-  // Query lambda name in Rockset, ("metrics" collection is assumed).
+  // Query name
   queryName,
-  // Params to pass to the Rockset query.
+  // Params to pass to the query.
   queryParams,
   // Column definitions for the data grid.
   columns,
@@ -22,16 +20,18 @@ export default function TablePanel({
   dataGridProps,
   // An optional help link to display in the title
   helpLink,
+  // An optional flag to show the table footer
+  showFooter,
 }: {
   title: string;
-  queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
+  showFooter?: boolean;
 }) {
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -46,6 +46,7 @@ export default function TablePanel({
       columns={columns}
       dataGridProps={dataGridProps}
       helpLink={helpLink}
+      showFooter={showFooter}
     />
   );
 }
@@ -61,12 +62,21 @@ export function TablePanelWithData({
   dataGridProps,
   // An optional help link to display in the title
   helpLink,
+  // An optional flag to show the table footer
+  showFooter,
+  pageSize,
+  disableAutoPageSize,
+  customStyle,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   data: any;
   columns: GridColDef[];
   dataGridProps: any;
   helpLink?: string;
+  showFooter?: boolean;
+  disableAutoPageSize?: boolean;
+  customStyle?: CSSProperties;
+  pageSize?: number;
 }) {
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -90,15 +100,20 @@ export function TablePanelWithData({
   }
 
   return (
-    <DataGrid
-      {...dataGridProps}
-      density={"compact"}
-      rows={data}
-      columns={columns}
-      hideFooter
-      components={{
-        Toolbar: Header,
-      }}
-    />
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Header />
+      <DataGrid
+        style={customStyle}
+        {...dataGridProps}
+        density={"compact"}
+        rows={data}
+        columns={columns}
+        hideFooter={!showFooter}
+        autoPageSize={
+          showFooter && pageSize === undefined && !disableAutoPageSize
+        }
+        pageSize={pageSize}
+      />
+    </Box>
   );
 }

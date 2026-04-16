@@ -1,19 +1,11 @@
-import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
-
+import { queryClickhouseSaved } from "./clickhouse";
 import { DisabledNonFlakyTestData } from "./types";
 
 export default async function fetchDisabledNonFlakyTests(): Promise<
   DisabledNonFlakyTestData[]
 > {
-  const rocksetClient = getRocksetClient();
-  const nonFlakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "disabled_non_flaky_tests",
-    rocksetVersions.commons.disabled_non_flaky_tests,
-    {
-      parameters: [],
-    }
-  );
-  return nonFlakyTestQuery.results ?? [];
+  return await queryClickhouseSaved("flaky_tests/disabled_non_flaky_tests", {
+    max_num_red: 0,
+    min_num_green: 150,
+  });
 }

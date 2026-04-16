@@ -3,12 +3,10 @@ import { ScaleUpMetrics, ScaleDownMetrics } from './metrics';
 import nock from 'nock';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
 
-jest.mock('aws-sdk', () => ({
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
 

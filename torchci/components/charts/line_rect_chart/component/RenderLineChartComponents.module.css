@@ -1,0 +1,32 @@
+.rowFlexCenter {
+  display: flex; /* or inline-flex */
+  align-items: center;
+}
+
+.tooltipline {
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1;
+  padding: 12px;
+  background-color: white;
+  border-radius: 5px;
+  border: 1px solid grey;
+}
+
+.selected-rect {
+  fill: brown;
+  opacity: 0.7;
+}
+
+.rect:hover {
+  fill: blue;
+  opacity: 0.7;
+}
+.rect:active {
+  fill: red;
+}
+
+.linePickerGroup {
+  height: 300px; /* fixed height */
+  overflow-y: auto;
+  scrollbar-width: thin;
+}

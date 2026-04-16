@@ -1,4 +1,3 @@
-import AWS from 'aws-sdk';
 import { Config } from '../config';
 import { decrypt } from './index';
 import { ScaleUpMetrics } from '../metrics';
@@ -11,22 +10,12 @@ const mockKmsPromise = {
     toString: jest.fn().mockReturnValue(decryptedStr),
   },
 };
-const mockKmsDecrypt = {
-  promise: jest.fn().mockImplementation(async () => mockKmsPromise),
-};
 const mockKms = {
-  decrypt: jest.fn().mockImplementation(() => mockKmsDecrypt),
+  decrypt: jest.fn().mockResolvedValue(mockKmsPromise),
 };
 
-jest.mock('aws-sdk', () => ({
-  __esModule: true,
-  default: {
-    config: {
-      update: jest.fn(),
-    },
-  },
+jest.mock('@aws-sdk/client-kms', () => ({
   KMS: jest.fn().mockImplementation(() => mockKms),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
 
 beforeEach(() => {
@@ -37,7 +26,7 @@ beforeEach(() => {
 });
 
 describe('decrypt', () => {
-  describe('check AWS && KMS calls', () => {
+  describe('check KMS calls', () => {
     it('simple calls decrypt', async () => {
       const encrypted = Buffer.from('some random buffer');
       const key = 'decrypt key';
@@ -53,9 +42,6 @@ describe('decrypt', () => {
       expect(await decrypt(encrypted.toString('base64'), key, environmentName, new ScaleUpMetrics())).toBe(
         decryptedStr,
       );
-      expect(AWS.config.update).toBeCalledWith({
-        region: awsRegion,
-      });
       expect(mockKms.decrypt).toBeCalledWith({
         CiphertextBlob: encrypted,
         KeyId: key,
@@ -63,7 +49,6 @@ describe('decrypt', () => {
           ['Environment']: environmentName,
         },
       });
-      expect(mockKmsDecrypt.promise).toBeCalled();
       expect(mockKmsPromise.Plaintext.toString).toBeCalled();
     });
   });

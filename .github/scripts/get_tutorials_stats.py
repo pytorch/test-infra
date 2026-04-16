@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
+import csv
+import gzip
+import io
 import os.path
-from typing import List, Optional, Tuple, Dict, Union
-import boto3  # type: ignore[import]
-from botocore.exceptions import ClientError  # type: ignore[import]
-from pprint import pprint
 import shlex
+from functools import lru_cache
 from subprocess import check_output
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
-TABLE_NAME_HISTORY = "torchci-tutorial-metadata"
-TABLE_NAME_FILENAMES = "torchci-tutorial-filenames"
-dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
+import boto3  # type: ignore[import-not-found]
 
-def run_command(cmd: str, cwd: Optional[str] = None) -> str:
+
+METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
+FILENAMES_PATH = "ossci_tutorials_stats/filenames.csv"
+
+
+def run_command(
+    cmd: str, cwd: Optional[str] = None, env=Optional[Dict[str, str]]
+) -> str:
     """
     Run a shell command.
 
     Args:
         cmd: Command to run
         cwd: Working directory
+        env: Environment variables
     Returns:
         Output of the command.
     """
-    return check_output(shlex.split(cmd), cwd=cwd).decode("utf-8")
+    return check_output(shlex.split(cmd), cwd=cwd, env=env).decode("utf-8")
 
 
 def get_history(cwd: Optional[str] = None) -> List[List[str]]:
@@ -35,6 +42,7 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
     lines = run_command(
         'git log --date=short --pretty=format:%h;"%an";%ad;"%s" --shortstat',
         cwd=cwd,
+        env={"TZ": "UTC"},
     ).split("\n")
 
     def standardize_format(line: str) -> str:
@@ -90,144 +98,244 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
             title = line.split(";", 3)
     return rc
 
-def get_file_names(cwd: Optional[str] = None) -> List[Tuple[str, List[Tuple[str, int, int]]]]:
-    lines = run_command("git log --pretty='format:%h' --numstat", cwd=cwd).split("\n")
-    rc = []
-    commit_hash = ""
-    files: List[Tuple[str, int, int]] = []
+
+class FileInfo(NamedTuple):
+    filename: str
+    lines_added: int
+    lines_deleted: int
+    status: str  # 'A' for added, 'M' for modified, 'D' for deleted
+
+
+class CommitInfo(NamedTuple):
+    commit_id: str
+    date: str
+    files: List[FileInfo]
+
+
+def get_file_names(
+    cwd: Optional[str] = None,
+    path_filter: Optional[str] = None,
+) -> List[CommitInfo]:
+    cmd = "git log --date=short --pretty='format:%h;%ad' --numstat"
+    if path_filter:
+        cmd += f" -- {path_filter}"
+    lines = run_command(
+        cmd,
+        cwd=cwd,
+        env={"TZ": "UTC"},
+    ).split("\n")
+
+    # Get name-status for file status (A/M/D)
+    status_cmd = "git log --date=short --pretty='format:%h;%ad' --name-status"
+    if path_filter:
+        status_cmd += f" -- {path_filter}"
+    status_lines = run_command(
+        status_cmd,
+        cwd=cwd,
+        env={"TZ": "UTC"},
+    ).split("\n")
+
+    # Process numstat output
+    rc: List[CommitInfo] = []
     for line in lines:
+        line = line.strip()
         if not line:
-            # Git log uses empty line as separator between commits (except for oneline case)
-            rc.append((commit_hash, files))
-            commit_hash, files = "", []
-        elif not commit_hash:
-            # First line is commit short hash
-            commit_hash = line
+            continue
         elif len(line.split("\t")) != 3:
-            # Encountered an empty commit
-            assert(len(files) == 0)
-            rc.append((commit_hash, files))
-            commit_hash = line
+            commit_hash, date = line.split(";")
+            rc.append(CommitInfo(commit_hash, date, []))
         else:
             added, deleted, name = line.split("\t")
+            # Handle renamed files (containing =>)
+            if " => " in name:
+                name = name.split(" => ")[1]  # Use only the new filename
             # Special casing for binary files
             if added == "-":
                 assert deleted == "-"
-                files.append((name, -1, -1))
+                rc[-1].files.append(FileInfo(name, -1, -1, ""))
             else:
-                files.append((name, int(added), int(deleted)))
+                rc[-1].files.append(FileInfo(name, int(added), int(deleted), ""))
+
+    # Process name-status output to add status information
+    current_commit = None
+    status_map: Dict[str, Dict[str, str]] = {}  # Maps commit_id -> {filename -> status}
+
+    for line in status_lines:
+        line = line.strip()
+        if not line:
+            continue
+        elif ";" in line:  # This is a commit line
+            commit_hash, date = line.split(";")
+            current_commit = commit_hash  # Update current_commit here
+        else:  # This is a file status line
+            parts = line.split("\t")
+            status = parts[0]
+            if status.startswith("R") or status.startswith("C"):
+                # Handle renamed/copied files
+                old_filename = parts[1]
+                new_filename = parts[2]
+                if current_commit is not None:
+                    standardized_status = status[0]  # Just take first character
+                    status_map.setdefault(current_commit, {})[new_filename] = (
+                        standardized_status
+                    )
+            else:
+                filename = parts[1] if len(parts) > 1 else ""
+                if current_commit is not None and filename:
+                    status_map.setdefault(current_commit, {})[filename] = status
+
+    # Update file statuses
+    for commit in rc:
+        for i, file_info in enumerate(commit.files):
+            if (
+                commit.commit_id in status_map
+                and file_info.filename in status_map[commit.commit_id]
+            ):
+                # Replace the FileInfo with a new one that includes the status
+                commit.files[i] = FileInfo(
+                    file_info.filename,
+                    file_info.lines_added,
+                    file_info.lines_deleted,
+                    status_map[commit.commit_id][file_info.filename],
+                )
+
     return rc
 
-def table_exists(table_name: str) -> bool:
-    """
-    Determines whether a table exists. As a side effect, stores the table in
-    a member variable.
-    """
-    exists = None
-    try:
-        table = dynamodb.Table(table_name)
-        table.load()
-        exists = True
-        print("Table exists")
-    except ClientError as err:
-        if err.response["Error"]["Code"] == "ResourceNotFoundException":
-            exists = False
-        else:
-            print("Unknown error")
-            pprint(err.response)
-    return exists
 
-def delete_table(table_name: str) -> None:
-    table = dynamodb.Table(table_name)
-    table.delete()
-
-    print(f"Deleting {table.name}...")
-    table.wait_until_not_exists()
-
-def create_table_history(table_name: str) -> None:
-    """
-    Creates a history DynamoDB table.
-    """
-    table_name = table_name
-    params = {
-        "TableName": table_name,
-        "KeySchema": [
-            {"AttributeName": "commit_id", "KeyType": "HASH"},
-            {"AttributeName": "date", "KeyType": "RANGE"}
-        ],
-        "AttributeDefinitions": [
-            {"AttributeName": "commit_id", "AttributeType": "S"},
-            {"AttributeName": "date", "AttributeType": "S"}
-        ],
-        "ProvisionedThroughput": {
-            "ReadCapacityUnits": 10,
-            "WriteCapacityUnits": 10
-        }
-    }
-    table = dynamodb.create_table(**params)
-    print(f"Creating {table_name}...")
-    table.wait_until_exists()
-
-def create_table_filenames(table_name: str) -> None:
-    """
-    Creates a filenames DynamoDB table.
-    """
-
-    table_name = table_name
-    params = {
-        "TableName": table_name,
-        "KeySchema": [
-            {"AttributeName": "commit_id", "KeyType": "HASH"},
-            {"AttributeName": "filename", "KeyType": "RANGE"}
-        ],
-        "AttributeDefinitions": [
-            {"AttributeName": "commit_id", "AttributeType": "S"},
-            {"AttributeName": "filename", "AttributeType": "S"}
-        ],
-        "ProvisionedThroughput": {
-            "ReadCapacityUnits": 10,
-            "WriteCapacityUnits": 10
-        }
-    }
-    table = dynamodb.create_table(**params)
-    print(f"Creating {table_name}...")
-    table.wait_until_exists()
-
-def convert_to_dict(entry: Tuple[str, List[Tuple[str, int, int]]]) -> List[Dict[str, Union[str, int]]]:
+def convert_to_dict(
+    entry: CommitInfo,
+) -> List[Dict[str, Union[str, int]]]:
     return [
-        {"commit_id": entry[0], "filename": i[0], "lines_added": i[1], "lines_deleted": i[2]}
-        for i in entry[1]
+        {
+            "commit_id": entry.commit_id,
+            "date": entry.date,
+            "filename": i.filename,
+            "lines_added": i.lines_added,
+            "lines_deleted": i.lines_deleted,
+            "status": i.status,
+        }
+        for i in entry.files
     ]
 
+
+@lru_cache
+def get_s3_resource() -> Any:
+    return boto3.resource("s3")
+
+
+def upload_to_s3(
+    bucket_name: str,
+    key: str,
+    docs: list[dict[str, Any]],
+) -> None:
+    print(f"Writing {len(docs)} documents to S3")
+    body = conv_to_csv(docs)
+
+    get_s3_resource().Object(
+        f"{bucket_name}",
+        f"{key}",
+    ).put(
+        Body=gzip.compress(body.getvalue().encode()),  # type: ignore[attr-defined]
+        ContentEncoding="gzip",
+        ContentType="application/csv",
+    )
+    print("Done!")
+
+
+def conv_to_csv(json_data: List[Dict[str, Any]]) -> io.StringIO:
+    # Will not handle nested
+    body = io.StringIO()
+    f = csv.writer(body)
+
+    alphabetized_keys = sorted(json_data[0].keys())
+
+    for item in json_data:
+        f.writerow([item[key] for key in alphabetized_keys])
+    return body
+
+
 def main() -> None:
+    # Process the tutorials repo
+    print("Processing tutorials repo")
     tutorials_dir = os.path.expanduser("./tutorials")
-    get_history_log = get_history(tutorials_dir)
-    commits_to_files = get_file_names(tutorials_dir)
-    table_history = dynamodb.Table(TABLE_NAME_HISTORY)
-    table_filenames = dynamodb.Table(TABLE_NAME_FILENAMES)
-    if not table_exists(TABLE_NAME_HISTORY):
-        create_table_history(TABLE_NAME_HISTORY)
-    if not table_exists(TABLE_NAME_FILENAMES):
-        create_table_filenames(TABLE_NAME_FILENAMES)
-    print(f"Uploading data to {TABLE_NAME_HISTORY}")
-    for i in get_history_log:
-        table_history.put_item(Item={
+    tutorials_history_log = get_history(tutorials_dir)
+    tutorials_commits_to_files = get_file_names(tutorials_dir)
+
+    # Process the pytorch/docs dir
+    print("Processing pytorch/docs dir")
+    pytorch_docs_dir = os.path.expanduser("./pytorch/docs")
+    pytorch_docs_history_log = get_history(pytorch_docs_dir)
+    pytorch_docs_commits_to_files = get_file_names(
+        os.path.expanduser("./pytorch"), "docs"
+    )
+
+    # Combine the two histories
+
+    history_log = [
+        {
             "commit_id": i[0],
             "author": i[1],
             "date": i[2],
             "title": i[3],
             "number_of_changed_files": int(i[4]),
             "lines_added": int(i[5]),
-            "lines_deleted": int(i[6])
-        })
-    print(f"Finished uploading data to {TABLE_NAME_HISTORY}")
-    print(f"Uploading data to {TABLE_NAME_FILENAMES}")
-    for entry in commits_to_files:
+            "lines_deleted": int(i[6]),
+            "repo": "tutorials",
+        }
+        for i in tutorials_history_log
+    ]
+
+    history_log.extend(
+        [
+            {
+                "commit_id": i[0],
+                "author": i[1],
+                "date": i[2],
+                "title": i[3],
+                "number_of_changed_files": int(i[4]),
+                "lines_added": int(i[5]),
+                "lines_deleted": int(i[6]),
+                "repo": "pytorch",
+            }
+            for i in pytorch_docs_history_log
+        ]
+    )
+
+    # Combine the two commits to files
+
+    filenames = []
+    for entry in tutorials_commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
-            table_filenames.put_item(Item=item)
-    print(f"Finished uploading data to {TABLE_NAME_FILENAMES}")
+            item["filename"] = f"tutorials/{item['filename']}"
+        filenames.extend(items)
+
+    for entry in pytorch_docs_commits_to_files:
+        items = convert_to_dict(entry)
+        for item in items:
+            item["filename"] = f"pytorch/{item['filename']}"
+        filenames.extend(items)
+
+    # Upload data to S3 as csv with gzip compression and no header line
+
+    print(f"Uploading data to {METADATA_PATH}")
+    upload_to_s3(
+        "ossci-raw-job-status",
+        f"{METADATA_PATH}",
+        history_log,
+    )
+    print(f"Finished uploading data to {METADATA_PATH}")
+
+    # Upload filenames to S3
+    print(f"Uploading data to {FILENAMES_PATH}")
+    upload_to_s3(
+        "ossci-raw-job-status",
+        f"{FILENAMES_PATH}",
+        filenames,
+    )
+    print(f"Finished uploading data to {FILENAMES_PATH}")
     print(f"Success!")
+
 
 if __name__ == "__main__":
     main()

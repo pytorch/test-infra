@@ -1,0 +1,31 @@
+{
+  "params": {
+    "branches": "Array(String)",
+    "maxAttempt": "Int64",
+    "nextWorkflowId": "Int64",
+    "numHours": "Int64",
+    "repo": "String",
+    "workflowId": "Int64",
+    "workflowNames": "Array(String)"
+  },
+  "tests": [
+    {
+      "branches": ["main"],
+      "maxAttempt": 1,
+      "nextWorkflowId": 0,
+      "numHours": 48,
+      "repo": "pytorch/pytorch",
+      "workflowId": 14072313906,
+      "workflowNames": ["pull"]
+    },
+    {
+      "branches": ["main"],
+      "maxAttempt": 1,
+      "nextWorkflowId": 0,
+      "numHours": 48,
+      "repo": "pytorch/pytorch",
+      "workflowId": 14094503541,
+      "workflowNames": ["pull"]
+    }
+  ]
+}

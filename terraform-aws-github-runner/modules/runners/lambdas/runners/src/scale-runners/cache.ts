@@ -28,6 +28,7 @@ export async function shutdownRedisPool() {
       console.info('Shutdown redis pool');
       await redisPool.clear();
     } catch (e) {
+      /* istanbul ignore next */
       console.error(`Error shutting down reddis pool ${e}`);
     }
 
@@ -49,7 +50,7 @@ async function onSigterm() {
   process.exit(0);
 }
 
-async function startupRedisPool() {
+export async function startupRedisPool() {
   if (redisPool === undefined) {
     console.info('Starting up redis pool');
     redisPool = createPool(
@@ -60,9 +61,11 @@ async function startupRedisPool() {
             url: `redis://${Config.Instance.redisEndpoint}:6379`,
           });
           client.on('error', (err) => {
+            /* istanbul ignore next */
             throw new Error(err);
           });
           client.on('ready', () => {
+            /* istanbul ignore next */
             console.debug('Redis client ready');
           });
           console.debug('Redis client connecting');
@@ -91,6 +94,7 @@ export function clearLocalCache() {
   localCache.clear();
 }
 
+/* istanbul ignore next */
 export function clearLocalCacheNamespace(nameSpace: string) {
   localCache.get(nameSpace)?.reset();
 }
@@ -181,6 +185,7 @@ async function redisReleaseLock(lockKey: string, lockUUID: string) {
     return await client.eval(script);
   });
 
+  /* istanbul ignore next */
   if (!lockReleaseResponse) {
     throw new Error(`Could not release Redis lock ${lockKey} with ${lockUUID} - Received "${lockReleaseResponse}"`);
   }
@@ -211,9 +216,145 @@ export async function redisClearCacheKeyPattern(namespace: string, key: string) 
     console.debug(`Cleaning Redis Cache for pattern ${queryKey} - All ${keys.length} UNLINKed`);
     await redisPool.release(client);
   } catch (e) {
+    /* istanbul ignore next */
+    console.error(`Error cleaning Redis Cache for pattern ${queryKey} - ${e}`);
+    /* istanbul ignore next */
     redisPool.destroy(client);
+    /* istanbul ignore next */
     console.debug(`Cleaning Redis Cache for pattern ${queryKey} - released client`);
   }
+}
+
+export async function redisLocked<T>(
+  nameSpace: string,
+  key: string,
+  callback: () => Promise<T>,
+  tryRead: (() => Promise<T>) | undefined,
+  lockTimeoutS = 20,
+  acquireTimeoutS: undefined | number = undefined,
+): Promise<T> {
+  await startupRedisPool();
+  if (!redisPool) throw Error('Redis should be initialized!');
+
+  const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
+  const acquireTimeout = +new Date() / 1000 + (acquireTimeoutS || lockTimeoutS);
+
+  while (+new Date() / 1000 < acquireTimeout) {
+    try {
+      if (tryRead !== undefined) {
+        return await tryRead();
+      }
+    } catch (e) {
+      console.debug(`Error trying to read ${nameSpace}-${key} ${e}`);
+    }
+
+    console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
+    const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
+    if (lockUUID !== undefined) {
+      try {
+        return await callback();
+      } finally {
+        await redisReleaseLock(lockKey, lockUUID);
+      }
+    } else {
+      console.debug('Failed to acquire redis lock...');
+      for (let i = 0; i < Math.floor(acquireTimeoutS || lockTimeoutS); i++) {
+        const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+          return await client.get(lockKey);
+        });
+
+        if (lockStatus !== undefined && lockStatus !== null) {
+          console.debug(`redis lock is now available... ${lockStatus}`);
+          break;
+        } else {
+          console.debug('redis lock is still in use...');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  /* istanbul ignore next */
+  throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
+}
+
+export async function getExperimentValue<T>(experimentKey: string, defaultValue: T): Promise<T> {
+  return locallyCached('EXPERIMENT', experimentKey, 60, async (): Promise<T> => {
+    await startupRedisPool();
+    if (!redisPool) throw Error('Redis should be initialized!');
+
+    const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
+
+    console.debug(`Checking redis entry for experiment ${experimentKey} (${queryKey})`);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const experimentValue: any = await redisPool.use(async (client: RedisClientType) => {
+        return await client.get(queryKey);
+      });
+
+      if (experimentValue === undefined || experimentValue === null) {
+        console.debug(`Experiment ${queryKey} not found, returning default value ${defaultValue}`);
+        return defaultValue;
+      }
+
+      if (typeof defaultValue === 'number' && typeof experimentValue === 'string') {
+        const numValue = Number(experimentValue);
+        if (!isNaN(numValue)) {
+          console.debug(`Experiment ${queryKey} found and converted to number, returning experiment value ${numValue}`);
+          return numValue as T;
+        } else {
+          console.warn(
+            `Experiment ${queryKey} found but value is not a valid number: ` +
+              `${experimentValue}, returning default value ${defaultValue}`,
+          );
+          return defaultValue;
+        }
+      }
+
+      if (typeof defaultValue === typeof experimentValue) {
+        console.debug(
+          `Experiment ${queryKey} found and with the correct type (${typeof experimentValue}),` +
+            ` returning experiment value ${experimentValue}`,
+        );
+        return experimentValue;
+      }
+    } catch (e) {
+      console.error(`Error retrieving experiment ${queryKey}, returning default value ${defaultValue}: ${e}`);
+    }
+
+    return defaultValue;
+  });
+}
+
+export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
+  const runnerNameSuffix = await getExperimentValue('RUNNER_NAME_SUFFIX', '');
+  if (runnerNameSuffix === undefined || runnerNameSuffix === null || runnerNameSuffix === '') {
+    console.debug(`Experiment ${experimentKey} check ignored, as RUNNER_NAME_SUFFIX is not set`);
+    return false;
+  }
+
+  if (!runnerName.endsWith(runnerNameSuffix)) {
+    console.debug(
+      `Runner name ${runnerName} does not match suffix ${runnerNameSuffix} when checking experiment ${experimentKey}`,
+    );
+    return false;
+  }
+
+  const experimentValue = await getExperimentValue(experimentKey, 0);
+
+  if (Math.random() * 100 < experimentValue) {
+    console.debug(
+      `Enabling experiment ${experimentKey} for runner ${runnerName}. ` +
+        `Reached probability threshold of ${experimentValue}%`,
+    );
+    return true;
+  }
+
+  console.debug(
+    `Skipping experiment ${experimentKey} for runner ${runnerName}. ` +
+      `Didn't reach probability threshold of ${experimentValue}%`,
+  );
+  return false;
 }
 
 export async function redisCached<T>(
@@ -224,79 +365,58 @@ export async function redisCached<T>(
   callback: () => Promise<T>,
   lockTimeoutS = 20,
 ): Promise<T> {
-  await startupRedisPool();
-
   return await locallyCached(nameSpace, key, ttlSec * 0.3, async (): Promise<T> => {
-    const queryKey = `${Config.Instance.environment}.CACHE.${nameSpace}-${key}`;
-    const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
-
-    if (!redisPool) throw Error('Redis should be initialized!');
+    const queryKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.CACHE.${nameSpace}-${key}`;
 
     let cached: T | undefined = undefined;
-    /* eslint-disable-next-line no-constant-condition */
-    while (true) {
-      console.debug(`Trying to get a redis client ${queryKey}`);
-      const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-        console.debug(`Redis client obtained, running get ${queryKey}`);
-        return await client.get(queryKey);
-      });
 
-      if (redisResponse !== undefined && redisResponse !== null) {
-        const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
+    return await redisLocked(
+      nameSpace,
+      key,
+      async () => {
+        if (!redisPool) throw Error('Redis should be initialized!');
 
-        const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
-        if (Math.random() > jitterDiff && redisData.version === Config.Instance.datetimeDeploy) {
-          console.debug(`Using redis cache for ${queryKey}...`);
-          return redisData.data as T;
-        }
+        console.debug(`Calling callback for ${queryKey}`);
+        cached = await callback();
+        const newDt: RedisStore = {
+          data: cached,
+          ttl: Date.now() / 1000 + ttlSec,
+          version: Config.Instance.datetimeDeploy,
+        };
+        await redisPool.use(async (client: RedisClientType) => {
+          return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
+        });
 
-        console.log(`Cache expired with ${jitterDiff} for ${queryKey}...`);
-      } else {
-        console.debug(`Could not find ${queryKey} in redis`);
-      }
+        console.debug(`Registered query response in Redis for ${queryKey}`);
+        return cached;
+      },
+      async () => {
+        if (!redisPool) throw Error('Redis should be initialized!');
 
-      console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
-      const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
-      if (lockUUID !== undefined) {
-        try {
-          console.debug(`Calling callback for ${queryKey}`);
-          cached = await callback();
-          const newDt: RedisStore = {
-            data: cached,
-            ttl: Date.now() / 1000 + ttlSec,
-            version: Config.Instance.datetimeDeploy,
-          };
-          await redisPool.use(async (client: RedisClientType) => {
-            return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
-          });
+        console.debug(`Trying to get a redis client ${queryKey}`);
+        const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+          console.debug(`Redis client obtained, running get ${queryKey}`);
+          return await client.get(queryKey);
+        });
 
-          console.debug(`Registered query response in Redis for ${queryKey}`);
-          break;
-        } finally {
-          await redisReleaseLock(lockKey, lockUUID);
-        }
-      } else {
-        console.debug('Failed to acquire redis lock...');
-        for (let i = 0; i < lockTimeoutS; i++) {
-          const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
-            return await client.get(lockKey);
-          });
+        if (redisResponse !== undefined && redisResponse !== null) {
+          const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
 
-          if (lockStatus !== undefined && lockStatus !== null) {
-            console.debug(`redis lock is now available... ${lockStatus}`);
-            break;
-          } else {
-            console.debug('redis lock is still in use...');
+          const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
+          if (Math.random() > jitterDiff && redisData.version === Config.Instance.datetimeDeploy) {
+            console.debug(`Using redis cache for ${queryKey}...`);
+            return redisData.data as T;
           }
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-    }
 
-    // YES this is a horrible way to write this return statement
-    // but typescript is dbumb and it can't identify that the while will only break if
-    // cache is set, returning inside the while then triggers errors related to possible undefined
-    // return of the function (also dumb)
-    return cached as T;
+          console.log(`Cache expired with ${jitterDiff} for ${queryKey}...`);
+        } else {
+          console.debug(`Could not find ${queryKey} in redis`);
+        }
+
+        throw new Error('Cache not found');
+      },
+      lockTimeoutS,
+      lockTimeoutS,
+    );
   });
 }

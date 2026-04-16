@@ -1,5 +1,5 @@
 # Testing during CI
-The tests in this folder are automatically executed during CI by `.github/workflows/tests.yml`.  
+The tests in this folder are automatically executed during CI by `.github/workflows/tests.yml`.
 
 If you add a new test that requires installing additional modules, please update the `pip install` command in that workflow.
 

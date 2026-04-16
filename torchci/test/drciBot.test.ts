@@ -1,13 +1,15 @@
-import _ from "lodash";
-import { Probot } from "probot";
-import * as utils from "./utils";
-import nock from "nock";
-import myProbotApp from "../lib/bot/drciBot";
-import pytorchBot from "../lib/bot/pytorchBot";
+import { S3Client } from "@aws-sdk/client-s3";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import * as getS3Client from "lib/s3";
+import nock from "nock";
+import { Probot } from "probot";
+import myProbotApp from "../lib/bot/drciBot";
+import pytorchBot from "../lib/bot/pytorchBot";
+import * as clickhouse from "../lib/clickhouse";
 import { handleScope } from "./common";
 import { successfulA } from "./drci.test";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 
@@ -24,6 +26,12 @@ describe("verify-drci-functionality", () => {
     nock("https://raw.githubusercontent.com")
       .get((url) => url.includes("rules.json"))
       .reply(200, []);
+
+    const mockS3 = {
+      send: jest.fn(),
+    };
+    const mockS3Client = jest.spyOn(getS3Client, "getS3Client");
+    mockS3Client.mockImplementation(() => mockS3 as unknown as S3Client);
   });
 
   afterEach(() => {
@@ -41,10 +49,11 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, { results: [] });
+    jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockImplementation((query, params) => {
+        return Promise.resolve([]);
+      });
     const scope = nock("https://api.github.com")
       .get(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
         return true;
@@ -59,7 +68,6 @@ describe("verify-drci-functionality", () => {
         expect(
           comment.includes("Need help or want to give feedback on the CI?")
         ).toBeTruthy();
-        expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
         expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
         return true;
       })
@@ -67,7 +75,6 @@ describe("verify-drci-functionality", () => {
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("Dr. CI edits existing comment if a comment is already present", async () => {
@@ -80,10 +87,12 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
-      .reply(200, { results: [] });
+    jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockImplementation((query, params) => {
+        return Promise.resolve([]);
+      });
+
     const scope = nock("https://api.github.com")
       .get(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
         return true;
@@ -106,7 +115,6 @@ describe("verify-drci-functionality", () => {
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
           expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
@@ -114,7 +122,6 @@ describe("verify-drci-functionality", () => {
       .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
     handleScope(scope);
-    handleScope(rockset);
   });
 
   test("Dr. CI does not comment when the PR is not open", async () => {
@@ -166,14 +173,28 @@ describe("verify-drci-functionality", () => {
     event["payload"]["comment"]["body"] = "@pytorchmergebot drci";
     const pytorchbot_comment_number = event["payload"]["comment"]["id"];
 
-    process.env.ROCKSET_API_KEY = "random key doesnt matter";
-    const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => uri.includes("recent_pr_workflows_query"))
-      .reply(200, { results: [successfulA] })
-      .post((uri) => uri.includes("issue_query"))
-      .reply(200, { results: [] })
-      .post((url) => url.includes("commit_failed_jobs"))
-      .reply(200, { results: [] });
+    jest
+      .spyOn(clickhouse, "queryClickhouseSaved")
+      .mockImplementation((queryName, inputParams) => {
+        if (queryName === "pr_commits") {
+          return Promise.resolve([
+            {
+              sha: "MOCK",
+              message: "Anything goes",
+            },
+          ]);
+        }
+        if (queryName === "recent_pr_workflows_query") {
+          return Promise.resolve([successfulA]);
+        }
+        return Promise.resolve([]);
+      });
+
+    jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockImplementation((query, params) => {
+        return Promise.resolve([]);
+      });
 
     const scope = nock("https://api.github.com")
       .post(
@@ -185,7 +206,16 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200, {})
       .get((url) => url.includes(`/repos/${OWNER}/${REPO}/compare/`))
-      .reply(200, { merge_base_commit: { sha: "dummyMergeBaseSha" } })
+      .reply(200, {
+        merge_base_commit: {
+          sha: "dummyMergeBaseSha",
+          commit: {
+            committer: {
+              date: "2023-08-08T06:03:21Z",
+            },
+          },
+        },
+      })
       .get(`/repos/${OWNER}/${REPO}/issues/1000/comments`)
       .reply(200, [
         {
@@ -194,6 +224,18 @@ describe("verify-drci-functionality", () => {
           body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
         },
       ])
+      .post(`/repos/${OWNER}/${REPO}/check-runs`, (body) => {
+        expect(body["name"] === "Dr.CI").toBeTruthy();
+        expect(body["status"] === "completed").toBeTruthy();
+        expect(body["conclusion"] === "neutral").toBeTruthy();
+        expect(
+          body["output"]["title"] === "Dr.CI classification results"
+        ).toBeTruthy();
+        return true;
+      })
+      .reply(200, {})
+      .get(`/repos/${OWNER}/${REPO}/git/commits/abcdefg`)
+      .reply(200, { committer: { date: "Anything goes" } })
       .patch(
         `/repos/${OWNER}/${REPO}/issues/comments/${comment_id}`,
         (body) => {
@@ -205,14 +247,16 @@ describe("verify-drci-functionality", () => {
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
           expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${OWNER}/${REPO}/pulls/1000`)
+      .reply(200, { title: "A mock pull request", body: "Anything goes" })
+      .get(`/repos/${OWNER}/${REPO}/pulls/1000/commits?per_page=100`)
+      .reply(200, [{ sha: "MOCK", message: "Anything goes" }]);
     await probot.receive(event);
     handleScope(scope);
-    handleScope(rockset);
   });
 });

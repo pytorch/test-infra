@@ -1,9 +1,9 @@
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
-import * as utils from "./utils";
+import { Probot } from "probot";
 import myProbotApp from "../lib/bot/autoCcBot";
 import { nockTracker } from "./common";
-import { Probot } from "probot";
-
+import * as utils from "./utils";
 nock.disableNetConnect();
 
 describe("auto-cc-bot", () => {
@@ -13,6 +13,17 @@ describe("auto-cc-bot", () => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
   });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  function mockIsPytorchbotSupportedOrg(bool: boolean) {
+    return jest
+      .spyOn(botUtils, "isPyTorchbotSupportedOrg")
+      .mockReturnValue(bool);
+  }
 
   test("no-op when tracker is missing", async () => {
     nock("https://api.github.com")
@@ -37,6 +48,7 @@ describe("auto-cc-bot", () => {
   });
 
   test("add a cc when issue is labeled(skipping self)", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -67,6 +79,7 @@ Some header text
     scope.done();
   });
   test("add a cc to issue with empty body", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -98,6 +111,7 @@ Some header text
   });
 
   test("add a cc when PR is labeled", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -129,6 +143,7 @@ Some header text
   });
 
   test("update an existing cc when issue is labeled", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -160,6 +175,7 @@ Some header text
   });
 
   test("mkldnn update bug", async () => {
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });

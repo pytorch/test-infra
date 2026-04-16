@@ -1,10 +1,10 @@
-import { parseSubscriptions } from "./subscriptions";
-import { CachedIssueTracker } from "./utils";
-import { Probot, Context } from "probot";
 import {
-  PullRequestLabeledEvent,
   IssuesLabeledEvent,
+  PullRequestLabeledEvent,
 } from "@octokit/webhooks-types";
+import { Context, Probot } from "probot";
+import { parseSubscriptions } from "./subscriptions";
+import { CachedIssueTracker, isPyTorchbotSupportedOrg } from "./utils";
 
 function myBot(app: Probot): void {
   const tracker = new CachedIssueTracker(
@@ -94,9 +94,20 @@ function myBot(app: Probot): void {
   }
 
   app.on("issues.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
     await runBotForLabels(context, "issue");
   });
+
   app.on("pull_request.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
     await runBotForLabels(context, "pull_request");
   });
 }

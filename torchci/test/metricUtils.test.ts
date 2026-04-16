@@ -1,9 +1,9 @@
+import { JobAnnotation, JobsPerCommitData } from "lib/types";
 import {
   approximateFailureByType,
   approximateFailureByTypePercent,
   BROKEN_TRUNK_THRESHOLD,
 } from "../lib/metricUtils";
-import { JobsPerCommitData, JobAnnotation } from "lib/types";
 
 describe("Approximate failures by its categories", () => {
   test("no data", () => {

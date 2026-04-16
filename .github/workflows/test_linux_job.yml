@@ -6,7 +6,7 @@ on:
       - .github/workflows/linux_job.yml
       - .github/workflows/test_linux_job.yml
       - .github/actions/setup-linux/action.yml
-      - .github/scripts/run_docker_with_env_secrets.py
+      - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
 jobs:
@@ -35,44 +35,54 @@ jobs:
       gpu-arch-version: ""
       script: |
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
-  test-cpu:
-    uses: ./.github/workflows/linux_job.yml
-    with:
-      job-name: "linux-py3.8-cpu"
-      runner: linux.2xlarge
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      gpu-arch-type: cpu
-      gpu-arch-version: ""
-      script: |
-        conda create --yes --quiet -n test python=3.8
-        conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
-        # Can import pytorch
-        python3 -c 'import torch'
   test-gpu:
     uses: ./.github/workflows/linux_job.yml
     strategy:
       matrix:
-        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
+        runner_type: ["linux.g5.4xlarge.nvidia.gpu"]
     with:
-      job-name: "linux-py3.8-cu116"
+      job-name: "linux-py3.9-cu121"
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: ${{ 'true' }}
       gpu-arch-type: cuda
-      gpu-arch-version: "11.6"
+      gpu-arch-version: "12.1"
       timeout: 60
       script: |
-        conda create --yes --quiet -n test python=3.8
+        nvidia-smi
+        nvcc --version | grep "cuda_12.1"
+        conda create --yes --quiet -n test python=3.9
         conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
         # Can import pytorch, cuda is available
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
+        python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
+  test-gpu-containers:
+    uses: ./.github/workflows/linux_job.yml
+    strategy:
+      matrix:
+        runner_type: ["linux.aws.a100"]
+    with:
+      job-name: "linux-py3.9-cu121-container"
+      runner: ${{ matrix.runner_type }}
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      submodules: ${{ 'true' }}
+      gpu-arch-type: cuda
+      gpu-arch-version: "12.1"
+      timeout: 60
+      script: |
         nvidia-smi
-        nvcc --version | grep "cuda_11.6"
-        [[ "${CUDA_HOME}" == "/usr/local/cuda-11.6" ]] || exit 1
+        nvcc --version | grep "cuda_12.1"
+        conda create --yes --quiet -n test python=3.9
+        conda activate test
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu121 --pre torch
+        # Can import pytorch, cuda is available
+        python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
+        python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
+        python3 -c 'import torch;assert(torch.version.cuda == "12.1")'
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
@@ -91,6 +101,35 @@ jobs:
       upload-artifact: my-cool-artifact
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-no-artifact:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      script: |
+        echo "hello"
+  test-upload-artifact-s3:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3-no-artifact:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello"
   test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/linux_job.yml
@@ -125,7 +164,7 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     strategy:
       matrix:
-        python_version: ["3.7", "3.8", "3.9", "3.10"]
+        python_version: ["3.9", "3.10", "3.11", "3.12"]
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
@@ -148,6 +187,6 @@ jobs:
       gpu-arch-version: ""
       run-with-docker: false
       script: |
-        export PYTHON_VERSION="3.8"
+        export PYTHON_VERSION="3.9"
         docker run -e PYTHON_VERSION -t -v $PWD:$PWD -w $PWD "${DOCKER_IMAGE}" echo "hello from inside docker"
         echo "hello from outside docker"

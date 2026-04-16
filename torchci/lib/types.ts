@@ -1,8 +1,17 @@
 /**
- * Represents the individual job information returned by Rockset.
+ * Represents the individual job information returned by queries.
  */
-export interface JobData {
+export interface BasicJobData {
   name?: string;
+  time?: string;
+  conclusion?: string;
+  status?: string;
+  runnerName?: string;
+  authorEmail?: string;
+}
+
+// Used by HUD
+export interface JobData extends BasicJobData {
   workflowName?: string;
   jobName?: string;
   sha?: string;
@@ -10,18 +19,42 @@ export interface JobData {
   branch?: string;
   workflowId?: string;
   githubArtifactUrl?: string;
-  time?: string;
-  conclusion?: string;
   htmlUrl?: string;
   logUrl?: string;
   durationS?: number;
   queueTimeS?: number;
-  failureLine?: string;
-  failureLineNumber?: number;
-  failureCaptures?: string;
+  failureLines?: string[];
+  failureLineNumbers?: number[];
+  failureCaptures?: string[];
+  failureContext?: string[];
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
+  runAttempt?: number;
+}
+
+// Used by Dr.CI
+export interface RecentWorkflowsData extends BasicJobData {
+  // only included if this is a job and not a workflow, if it is a workflow, the name is in the name field
+  name: string; // In BasicJobData, but required here
+  workflowId: number;
+  // Each workflow file has an id. In the webhook this is workflow_id.
+  // This can be used to group normal workflows (ex trunk) and those that failed
+  // to run (ex .github/workflows/trunk.yml) together even when they have
+  // different names.
+  workflowUniqueId: number;
+  jobName: string;
+  id: number;
+  completed_at: string;
+  html_url: string;
+  logUrl?: string;
+  head_sha: string;
+  head_sha_timestamp: string;
+  head_branch: string;
+  pr_number: number;
+  failure_captures: string[];
+  failure_lines: string[];
+  failure_context: string[];
 }
 
 export interface Artifact {
@@ -54,16 +87,26 @@ export interface Highlight {
   name?: string;
 }
 
-export interface RowData extends CommitData {
-  jobs: JobData[];
-  groupedJobs?: Map<string, GroupData>;
+interface RowDataBase extends CommitData {
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
-  nameToJobs?: Map<string, JobData>;
+  isAutoreverted: boolean | false;
+  autorevertWorkflows?: string[];
+  autorevertSignals?: string[];
 }
 
-export interface HudData {
-  shaGrid: RowData[];
+export interface RowData extends RowDataBase {
+  nameToJobs: Map<string, JobData>;
+}
+
+// Returned by the API instead of the above type because it results in a smaller
+// response size
+export interface RowDataAPIResponse extends RowDataBase {
+  jobs: JobData[];
+}
+
+export interface HudDataAPIResponse {
+  shaGrid: RowDataAPIResponse[];
   jobNames: string[];
 }
 
@@ -75,6 +118,7 @@ export interface IssueData {
   body: string;
   updated_at: string;
   author_association: string;
+  labels: string[];
 }
 
 export interface HudParams {
@@ -86,11 +130,25 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
+  mergeEphemeralLF?: boolean;
+  useRegexFilter?: boolean;
 }
 
 export interface PRData {
   title: string;
+  body: string;
   shas: { sha: string; title: string }[];
+}
+
+export interface PRandJobs extends PRData {
+  head_sha: string;
+  head_sha_timestamp?: string;
+  pr_number: number;
+  jobs: RecentWorkflowsData[];
+  merge_base: string;
+  merge_base_date: string;
+  owner: string;
+  repo: string;
 }
 
 export interface FlakyTestData {
@@ -106,6 +164,7 @@ export interface FlakyTestData {
   jobNames: string[];
   branches: string[];
   eventTimes?: string[];
+  sampleTraceback?: string;
 }
 
 export interface DisabledNonFlakyTestData {
@@ -115,19 +174,6 @@ export interface DisabledNonFlakyTestData {
   flaky: boolean;
   num_green: number;
   num_red: number;
-}
-
-export interface RecentWorkflowsData {
-  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
-  workflow_id?: string;
-  id: string;
-  name: string;
-  conclusion: string | null;
-  completed_at: string | null;
-  html_url: string;
-  head_sha: string;
-  pr_number?: number;
-  failure_captures: string[];
 }
 
 export interface TTSChange {
@@ -154,12 +200,66 @@ export interface CompilerPerformanceData {
   compilation_latency: number;
   compiler: string;
   compression_ratio: number;
+  dynamo_peak_mem: number;
+  eager_peak_mem: number;
   granularity_bucket: string;
   name: string;
   speedup: number;
   suite: string;
   workflow_id: number;
   job_id?: number;
+  branch?: string;
+  commit?: string;
+  device?: string;
+  dtype?: string;
+  mode?: string;
+  arch?: string;
+}
+
+export interface TritonBenchPerformanceData {
+  metric_name: string;
+  metric_value: number;
+  granularity_bucket: string;
+  name: string;
+  workflow_id: number;
+  head_branch: string;
+  operator: string;
+  suite: string;
+  mode: string;
+  dtype: string;
+  backend: string;
+}
+
+export interface BenchmarkData {
+  extra_info: { [key: string]: string };
+  granularity_bucket: string;
+  job_id: number;
+  metric: string;
+  model: string;
+  quantization?: string;
+  backend?: string;
+  suite: string;
+  value: number;
+  workflow_id: number;
+  commit?: string;
+  branch?: string;
+  device?: string;
+  dtype?: string;
+  mode?: string;
+  arch?: string;
+}
+
+export interface RepoBranchAndCommit {
+  repo: string;
+  branch: string;
+  commit: string;
+  date?: string;
+}
+
+export interface BranchAndCommit {
+  branch: string;
+  commit: string;
+  date?: string;
 }
 
 export enum JobAnnotation {
@@ -172,16 +272,26 @@ export enum JobAnnotation {
   OTHER = "Other",
 }
 
+export enum LogAnnotation {
+  NULL = "None",
+  PREFER_TOP_LOG = "Prefer Top Log",
+  PREFER_BOTTOM_LOG = "Prefer Bottom Log",
+  PREFER_NEITHER = "Prefer Neither",
+  SIMILAR_LOGS = "Similar Logs",
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
     repoName: input.repoName as string,
     branch: input.branch as string,
-    page: parseInt((input.page as string) ?? 1),
+    page: parseInt((input.page as string) ?? 1) || 1,
     per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
+    mergeEphemeralLF: input.mergeEphemeralLF as boolean,
+    useRegexFilter: input.useRegexFilter === "true",
   };
 }
 
@@ -221,5 +331,30 @@ function formatHudURL(
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
+
+  if (params.useRegexFilter && keepFilter) {
+    base += `&useRegexFilter=true`;
+  }
+
+  if (params.mergeEphemeralLF) {
+    base += `&mergeEphemeralLF=true`;
+  }
+
+  // Preserve autorevert view params so router.push doesn't strip them.
+  // Check both query params (legacy) and path segment (clean URL).
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    const current = new URLSearchParams(window.location.search);
+    const isAutorevertPath = path.endsWith("/autorevert");
+    if (isAutorevertPath || current.get("autorevert") === "1") {
+      for (const key of ["autorevert", "ar_ts", "ar_wf", "ar_sf"]) {
+        const val = current.get(key);
+        if (val !== null) {
+          base += `&${key}=${encodeURIComponent(val)}`;
+        }
+      }
+    }
+  }
+
   return base;
 }

@@ -1,0 +1,208 @@
+name: Release Wheel Variants
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release-wheel-variants.yml
+      - release/pypi/upload_variant_to_staging.sh
+  workflow_dispatch:
+    inputs:
+      pytorch_version:
+        description: 'PyTorch version to promote (e.g., 2.10.0)'
+        required: true
+        type: string
+      pytorch_release:
+        description: 'PyTorch release series for config files (e.g., 2.10)'
+        required: true
+        type: string
+        default: '2.10'
+      package_name:
+        description: 'Package name to promote'
+        required: true
+        type: choice
+        options:
+          - torch
+          - torchvision
+          - all
+        default: 'torch'
+      architectures:
+        description: 'Architectures to promote (comma-separated, e.g., cpu,cu126,cu128)'
+        required: true
+        type: string
+        default: 'cpu'
+      platforms:
+        description: 'Platforms to promote (comma-separated, e.g., manylinux_2_28_x86_64,win_amd64)'
+        required: true
+        type: string
+        default: 'manylinux_2_28_x86_64'
+      dry_run:
+        description: 'Dry run (do not actually upload)'
+        required: true
+        type: boolean
+        default: true
+      variant_repack_ref:
+        description: 'Ref of variant-repack to use'
+        required: false
+        type: string
+        default: 'main'
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: generate
+        run: |
+          # Use inputs if available (workflow_dispatch), otherwise use defaults for PR
+          ARCHS_INPUT="${{ inputs.architectures || 'cpu' }}"
+          PLATFORMS_INPUT="${{ inputs.platforms || 'manylinux_2_28_x86_64' }}"
+
+          # Convert comma-separated inputs to JSON arrays
+          ARCHS=$(echo "${ARCHS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
+          PLATFORMS=$(echo "${PLATFORMS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
+
+          # Create the matrix JSON (compact single-line format required for GH Actions)
+          MATRIX=$(jq -n -c \
+            --argjson archs "$ARCHS" \
+            --argjson platforms "$PLATFORMS" \
+            '{arch: $archs, platform: $platforms}')
+
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+          echo "Generated matrix:"
+          echo "${MATRIX}"
+
+  promote-variants:
+    needs: generate-matrix
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    # Only use pytorchbot-env for workflow_dispatch with dry_run=false
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && 'pytorchbot-env' || '' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Free disk space for large wheels
+        if: ${{ startsWith(matrix.arch, 'rocm') }}
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          # Remove unnecessary software to free disk space for large ROCm wheels (~5GB each)
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker image prune --all --force || true
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Checkout test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: test-infra
+          # For PRs, use the merge commit SHA; for workflow_dispatch use the branch
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+
+      - name: Checkout variant-repack
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: wheelnext/variant-repack
+          ref: 'master'
+          path: variant-repack
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install awscli==1.44.20 wheel==0.45.1
+          cd variant-repack
+          pip install -e .
+
+      - name: Verify variant-repack installation
+        run: |
+          variant_repack --version
+          echo "Available configs:"
+          ls -la variant-repack/configs/torch-${{ inputs.pytorch_release || '2.10' }}/
+
+      - name: Configure AWS credentials
+        # Only configure AWS for workflow_dispatch with dry_run=false
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
+          aws-region: us-east-1
+          role-duration-seconds: 10800 # 3 hours
+
+      - name: Determine version suffix
+        id: version-suffix
+        run: |
+          ARCH="${{ matrix.arch }}"
+          PLATFORM="${{ matrix.platform }}"
+          case "${ARCH}" in
+            cpu)
+              # macOS wheels don't have +cpu suffix
+              if [[ "${PLATFORM}" == macosx* ]]; then
+                echo "suffix=" >> "$GITHUB_OUTPUT"
+              else
+                echo "suffix=%2Bcpu" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            cu*)
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
+              ;;
+            rocm*)
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
+              ;;
+            xpu)
+              echo "suffix=%2Bxpu" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "suffix=" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Promote torch variants
+        if: ${{ inputs.package_name == 'torch' || inputs.package_name == 'all' || github.event_name == 'pull_request' }}
+        env:
+          # Always dry run for PRs, otherwise use input
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
+          PACKAGE_NAME: torch
+          PACKAGE_VERSION: ${{ inputs.pytorch_version || '2.10.0' }}
+          PLATFORM: ${{ matrix.platform }}
+          VERSION_SUFFIX: ${{ steps.version-suffix.outputs.suffix }}
+          ARCH: ${{ matrix.arch }}
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
+          VARIANT_REPACK_DIR: ./variant-repack
+          # Use workspace for temp files to avoid /tmp space issues with large ROCm wheels
+          TMPDIR: ${{ github.workspace }}/tmp
+        run: |
+          mkdir -p "${TMPDIR}"
+          bash test-infra/release/pypi/upload_variant_to_staging.sh
+
+      - name: Promote torchvision variants
+        if: ${{ inputs.package_name == 'torchvision' || inputs.package_name == 'all' }}
+        env:
+          # Always dry run for PRs, otherwise use input
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
+          PACKAGE_NAME: torchvision
+          PACKAGE_VERSION: ${{ inputs.pytorch_version || '0.25.0' }}
+          PLATFORM: ${{ matrix.platform }}
+          VERSION_SUFFIX: ${{ steps.version-suffix.outputs.suffix }}
+          ARCH: ${{ matrix.arch }}
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
+          VARIANT_REPACK_DIR: ./variant-repack
+          # Use workspace for temp files to avoid /tmp space issues with large ROCm wheels
+          TMPDIR: ${{ github.workspace }}/tmp
+        run: |
+          mkdir -p "${TMPDIR}"
+          bash test-infra/release/pypi/upload_variant_to_staging.sh

@@ -23,6 +23,7 @@ export async function getRepoIssuesWithLabel(
   const key = `${repoKey}|${label}`;
 
   return (
+    /* istanbul ignore next */
     (await redisCached('ghIssues', key, 10 * 60, 1.0, async () => {
       try {
         const localGithubClient = (await createGitHubClientForRunnerRepo(repo, metrics)) as Octokit;

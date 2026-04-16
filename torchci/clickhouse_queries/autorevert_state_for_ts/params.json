@@ -1,0 +1,12 @@
+{
+  "params": {
+    "repo": "String",
+    "target_ts": "String"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "target_ts": "2026-04-08 21:00:00"
+    }
+  ]
+}

@@ -4,24 +4,25 @@ locals {
 }
 
 resource "aws_lambda_function" "syncer" {
-  filename          = local.lambda_zip
-  source_code_hash  = filebase64sha256(local.lambda_zip)
-  function_name     = "${var.environment}-syncer"
-  role              = aws_iam_role.syncer_lambda.arn
-  handler           = "index.handler"
-  runtime           = "nodejs14.x"
-  timeout           = var.lambda_timeout
-  memory_size       = 500
+  filename         = local.lambda_zip
+  source_code_hash = filebase64sha256(local.lambda_zip)
+  function_name    = "${var.environment}-syncer"
+  role             = aws_iam_role.syncer_lambda.arn
+  handler          = "index.handler"
+  runtime          = "nodejs22.x"
+  timeout          = var.lambda_timeout
+  memory_size      = 500
 
   environment {
     variables = {
       S3_BUCKET_NAME                          = aws_s3_bucket.action_dist.id
       S3_OBJECT_KEY_LINUX                     = local.action_runner_distribution_object_key_linux
+      S3_OBJECT_KEY_LINUX_ARM64               = local.action_runner_distribution_object_key_linux_arm64
       S3_OBJECT_KEY_WINDOWS                   = local.action_runner_distribution_object_key_windows
       GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES = var.runner_allow_prerelease_binaries
     }
   }
-  
+
   tags = var.tags
 }
 
@@ -65,8 +66,9 @@ resource "aws_iam_role_policy" "syncer" {
   role = aws_iam_role.syncer_lambda.id
 
   policy = templatefile("${path.module}/policies/lambda-syncer.json", {
-    s3_resource_arn_linux   = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_linux}"
-    s3_resource_arn_windows = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_windows}"
+    s3_resource_arn_linux       = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_linux}"
+    s3_resource_arn_linux_arm64 = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_linux_arm64}"
+    s3_resource_arn_windows     = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_windows}"
   })
 }
 

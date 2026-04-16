@@ -4,47 +4,37 @@ on:
   schedule:
     # Run every 15 minutes
     - cron: "*/15 * * * *"
-  # Have the ability to trigger this job manually through the API (temporary)
+  # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
 jobs:
   update-drci-comments:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { repo: ao, org: pytorch },
+          { repo: audio, org: pytorch },
+          { repo: executorch, org: pytorch },
+          { repo: pytorch, org: pytorch },
+          { repo: rl, org: pytorch },
+          { repo: tensordict, org: pytorch },
+          { repo: text, org: pytorch },
+          { repo: torchchat, org: pytorch },
+          { repo: torchcodec, org: meta-pytorch },
+          { repo: tutorials, org: pytorch },
+          { repo: vision, org: pytorch },
+        ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Retrieve rockset query results and update Dr. CI comments for the PyTorch repo
+      - name: Retrieve query results and update Dr. CI comments
         run: |
           curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=pytorch'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Vision repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=vision'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Text repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=text'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Audio repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=audio'
-
-      - name: Retrieve rockset query results and update Dr. CI comments for the Tutorials repo
-        run: |
-          curl --request POST \
-          --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          --data 'repo=tutorials'
+            --url 'https://hud.pytorch.org/api/drci/drci' \
+            --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+            --header 'x-hud-internal-bot: ${{ secrets.HUD_API_TOKEN }}' \
+            --data 'repo=${{ matrix.repo }}&org=${{ matrix.org }}' \
+            --silent --output /dev/null --show-error --fail

@@ -1,0 +1,10 @@
+{
+  "params": {
+    "label": "String",
+    "platform": "String",
+    "repo": "String",
+    "state": "String",
+    "triaged": "String"
+  },
+  "tests": []
+}

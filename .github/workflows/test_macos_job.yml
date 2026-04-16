@@ -5,83 +5,99 @@ on:
     paths:
       - .github/workflows/macos_job.yml
       - .github/workflows/test_macos_job.yml
+      - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
 jobs:
-  test-x86:
-    uses: ./.github/workflows/macos_job.yml
-    with:
-      job-name: "macos-x86-64-py3.8"
-      runner: macos-12
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      script: |
-        conda create --yes --quiet -n test python=3.8
-        conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
-        # Can import pytorch
-        python3 -c 'import torch'
   test-m1:
     uses: ./.github/workflows/macos_job.yml
     with:
-      job-name: "macos-arm64-py3.8"
-      runner: macos-m1-12
+      job-name: "macos-arm64-py3.10"
+      runner: macos-m1-stable
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: ${{ 'true' }}
       timeout: 60
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.10
         conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch, cuda is available
-        python3 -c 'import torch'
-  test-x86-with-repo:
-    uses: ./.github/workflows/macos_job.yml
-    with:
-      job-name: "macos-x86-64-py3.8"
-      runner: macos-12
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      repository: pytorch/vision
-      ref: main
-      script: |
-        conda create --yes --quiet -n test python=3.8
-        conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
-        # Can import pytorch
         python3 -c 'import torch'
   test-m1-with-repo:
     uses: ./.github/workflows/macos_job.yml
     with:
-      job-name: "macos-arm64-py3.8"
-      runner: macos-m1-12
+      job-name: "macos-arm64-py3.10"
+      runner: macos-m1-stable
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       repository: pytorch/vision
+      submodules: "recursive"
       ref: main
       timeout: 60
       script: |
-        conda create --yes --quiet -n test python=3.8
+        conda create --yes --quiet -n test python=3.10
         conda activate test
-        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch, cuda is available
         python3 -c 'import torch'
   test-upload-artifact:
     uses: ./.github/workflows/macos_job.yml
     with:
-      runner: macos-m1-12
+      runner: macos-m1-stable
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       upload-artifact: my-cool-artifact
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3:
+    uses: ./.github/workflows/macos_job.yml
+    with:
+      runner: macos-m1-stable
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      upload-artifact-to-s3: true
       script: |
         echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
   test-download-artifact:
     needs: test-upload-artifact
     uses: ./.github/workflows/macos_job.yml
     with:
-      runner: macos-m1-12
+      runner: macos-m1-stable
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       download-artifact: my-cool-artifact
       script: |
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-secrets-no-filter-var:
+    uses: ./.github/workflows/macos_job.yml
+    secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-stable
+      fail-fast: false
+    with:
+      job-name: "test-secrets-no-filter-var"
+      runner: ${{ matrix.runner }}
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+  test-secrets-filter-var:
+    uses: ./.github/workflows/macos_job.yml
+    secrets: inherit
+    strategy:
+      matrix:
+        include:
+          - runner: macos-m1-stable
+      fail-fast: false
+    with:
+      job-name: "test-secrets-filter-var"
+      runner: ${{ matrix.runner }}
+      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1

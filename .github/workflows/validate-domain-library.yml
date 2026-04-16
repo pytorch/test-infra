@@ -39,11 +39,21 @@ on:
         required: false
         type: string
         default: disable
+      with_rocm:
+        description: "With rocm enable/disable"
+        required: false
+        type: string
+        default: enable
       install_torch:
         description: "Create new conda environment and preinstall torch"
         required: false
         type: boolean
         default: false
+      version:
+        description: "Version to validate - optional"
+        default: ""
+        required: false
+        type: string
 
 jobs:
   generate-linux-matrix:
@@ -54,20 +64,13 @@ jobs:
       os: linux
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
+      with-rocm: ${{ inputs.with_rocm }}
   generate-windows-matrix:
     if:  (inputs.os == 'windows' || inputs.os == 'all')
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: ${{ inputs.package_type }}
       os: windows
-      channel: ${{ inputs.channel }}
-      with-cuda: ${{ inputs.with_cuda }}
-  generate-macos-matrix:
-    if:  (inputs.os == 'macos' || inputs.os == 'all')
-    uses: ./.github/workflows/generate_binary_build_matrix.yml
-    with:
-      package-type: ${{ inputs.package_type }}
-      os: macos
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
   generate-macos-arm64-matrix:
@@ -84,7 +87,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job.yml
+    uses: ./.github/workflows/linux_job_v2.yml
     name: "linux-${{ matrix.package_type }}-${{ matrix.python_version }}-${{ matrix.desired_cuda }}"
     with:
       runner: ${{ matrix.validation_runner }}
@@ -96,8 +99,9 @@ jobs:
         set -ex
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
-          source ../test-infra/.github/scripts/install_torch.sh
+          source /test-infra/.github/scripts/install_torch.sh
         fi
         eval $SMOKE_TEST
   validate-windows:
@@ -119,29 +123,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export TARGET_OS="windows"
-        if [[ ${{inputs.install_torch}} == 'true' ]]; then
-          source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
-        fi
-        eval $SMOKE_TEST
-  validate-macos:
-    if:  (inputs.os == 'macos' || inputs.os == 'all')
-    needs: generate-macos-matrix
-    strategy:
-      matrix: ${{ fromJson(needs.generate-macos-matrix.outputs.matrix) }}
-      fail-fast: false
-    uses: ./.github/workflows/macos_job.yml
-    name: "macos-${{ matrix.package_type }}-${{ matrix.python_version }}-${{ matrix.desired_cuda }}"
-    with:
-      runner:  ${{ matrix.validation_runner }}
-      repository: ${{ inputs.repository }}
-      ref: ${{ inputs.ref || github.ref }}
-      job-name: "macos-${{ matrix.package_type }}-${{ matrix.python_version }}-${{ matrix.desired_cuda }}"
-      binary-matrix: ${{ toJSON(matrix) }}
-      script: |
-        set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
-        export TARGET_OS="macos"
-        export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi
@@ -165,6 +147,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
+        export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
-import yaml
 import collections
+import re
 import typing
 
-import re
+import yaml
 
 
 OS_JOB_TYPES = {
@@ -31,6 +31,7 @@ COMPILER_JOB_TYPES = {
     "visual studio": re.compile(r".*win.*build.*"),
 }
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Analyze operating system support for github actions workflow files"
@@ -43,7 +44,12 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def do_analysis(name: str, workflow_jobs: typing.List[str], job_types: typing.Dict[str, re.Pattern]) -> None:
+
+def do_analysis(
+    name: str,
+    workflow_jobs: typing.List[str],
+    job_types: typing.Dict[str, re.Pattern],  # type: ignore[type-arg]
+) -> None:
     analysis = collections.defaultdict(int)
     for workflow_job in workflow_jobs:
         for job_type, job_type_pattern in job_types.items():
@@ -64,8 +70,11 @@ def main() -> None:
         with open(workflow_file, "r") as fp:
             workflow = yaml.load(fp.read(), Loader=yaml.Loader)
             workflow_jobs.extend(workflow["jobs"].keys())
-    do_analysis("By Operating System / Hardware Accelerator", workflow_jobs, OS_JOB_TYPES)
+    do_analysis(
+        "By Operating System / Hardware Accelerator", workflow_jobs, OS_JOB_TYPES
+    )
     do_analysis("By Compiler", workflow_jobs, COMPILER_JOB_TYPES)
+
 
 if __name__ == "__main__":
     main()

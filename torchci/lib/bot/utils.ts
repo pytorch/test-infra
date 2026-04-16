@@ -1,25 +1,37 @@
+import dayjs from "dayjs";
+import { Octokit } from "octokit";
 import { Context, Probot } from "probot";
 import urllib from "urllib";
-import { Octokit } from "octokit";
 
-export function repoKey(
-  context: Context | Context<"pull_request.labeled">
-): string {
+export function isTime0(time: string): boolean {
+  const v = dayjs.utc(time).valueOf();
+  // NB: This returns NaN when the string is empty
+  return isNaN(v) || v === 0;
+}
+
+export const TIME_0 = "1970-01-01 00:00:00.000000000";
+
+export function repoKey(context: Context): string {
   const repo = context.repo();
   return `${repo.owner}/${repo.repo}`;
 }
 
-export function isPyTorchOrg(owner: string): boolean {
-  return owner === "pytorch";
+export function isVLLM(owner: string): boolean {
+  return owner === "vllm-project";
+}
+
+export function isPyTorchbotSupportedOrg(owner: string): boolean {
+  // We frequently test CI changes on malfet/deleteme
+  return owner === "pytorch" || owner === "meta-pytorch" || owner === "malfet";
 }
 
 export function isPyTorchPyTorch(owner: string, repo: string): boolean {
-  return isPyTorchOrg(owner) && repo === "pytorch";
+  return owner === "pytorch" && repo === "pytorch";
 }
 
 export function isDrCIEnabled(owner: string, repo: string): boolean {
   return (
-    isPyTorchOrg(owner) &&
+    isPyTorchbotSupportedOrg(owner) &&
     [
       "pytorch",
       "vision",
@@ -27,6 +39,13 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
       "audio",
       "pytorch-canary",
       "tutorials",
+      "executorch",
+      "rl",
+      "torchtune",
+      "ao",
+      "torchchat",
+      "torchcodec",
+      "tensordict",
     ].includes(repo)
   );
 }
@@ -45,10 +64,7 @@ export class CachedConfigTracker {
     });
   }
 
-  async loadConfig(
-    context: Context | Context<"pull_request.labeled">,
-    force = false
-  ): Promise<object> {
+  async loadConfig(context: Context, force = false): Promise<object> {
     const key = repoKey(context);
     if (!(key in this.repoConfigs) || force) {
       context.log({ key }, "loadConfig");
@@ -61,12 +77,12 @@ export class CachedConfigTracker {
 export class CachedIssueTracker extends CachedConfigTracker {
   repoIssues: any = {};
   configName: string;
-  issueParser: (data: string) => object;
+  issueParser: (_data: string) => object;
 
   constructor(
     app: Probot,
     configName: string,
-    issueParser: (data: string) => object
+    issueParser: (_data: string) => object
   ) {
     super(app);
     this.configName = configName;
@@ -102,6 +118,64 @@ export class CachedIssueTracker extends CachedConfigTracker {
       context.log({ parsedIssue: this.repoIssues[key] });
     }
     return this.repoIssues[key];
+  }
+}
+
+export class CachedLabelerConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "labeler_config" in config) {
+        this.repoLabels[key] = context.config(config["labeler_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
+  }
+}
+
+export class LabelToLabelConfigTracker extends CachedConfigTracker {
+  repoLabels: any = {};
+  constructor(app: Probot) {
+    super(app);
+    app.on("push", async (context) => {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
+        await this.loadLabelsConfig(context, /* force */ true);
+      }
+    });
+  }
+
+  async loadLabelsConfig(context: Context, force = false): Promise<object> {
+    const key = repoKey(context);
+    if (!(key in this.repoLabels) || force) {
+      const config: any = await this.loadConfig(context, force);
+
+      if (config != null && "label_to_label_config" in config) {
+        this.repoLabels[key] = context.config(config["label_to_label_config"]);
+      } else {
+        this.repoLabels[key] = {};
+      }
+    }
+    return this.repoLabels[key];
   }
 }
 
@@ -182,23 +256,40 @@ export async function hasWritePermissions(
   ctx: any,
   username: string
 ): Promise<boolean> {
+  // GitHub Apps authenticate via installations, not as repo collaborators,
+  // so the collaborator permission check doesn't apply to them.
+  if (username === "facebook-github-tools[bot]") {
+    return true;
+  }
   const permissions = await getUserPermissions(ctx, username);
   return permissions === "admin" || permissions === "write";
 }
 
-export async function hasWritePermissionsUsingOctokit(
+export async function hasApprovedPullRuns(
   octokit: Octokit,
-  username: string,
   owner: string,
-  repo: string
+  repo: string,
+  sha: string
 ): Promise<boolean> {
-  const res = await octokit.rest.repos.getCollaboratorPermissionLevel({
+  const res = await octokit.rest.actions.listWorkflowRunsForRepo({
     owner: owner,
     repo: repo,
-    username: username,
+    head_sha: sha,
   });
-  const permissions = res?.data?.permission;
-  return permissions === "admin" || permissions === "write";
+  const pr_runs = res?.data?.workflow_runs?.filter(
+    (run) => run.event == "pull_request"
+  );
+  if (pr_runs == null || pr_runs?.length == 0) {
+    return false;
+  }
+  return !pr_runs.some(
+    (run) =>
+      run.conclusion === "action_required" ||
+      // See https://github.com/pytorch/test-infra/pull/6329 about difference
+      // between these two
+      run.conclusion === "startup_failure" ||
+      (run.conclusion === "failure" && run.created_at == run.updated_at)
+  );
 }
 
 export async function isFirstTimeContributor(
@@ -215,12 +306,20 @@ export async function isFirstTimeContributor(
   return commits?.data?.length === 0;
 }
 
-export async function hasWorkflowRunningPermissions(
-  ctx: any,
-  username: string
-): Promise<boolean> {
-  return (
-    (await hasWritePermissions(ctx, username)) ||
-    !(await isFirstTimeContributor(ctx, username))
+export async function getFilesChangedByPr(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
+  const filesChangedRes = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+    {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }
   );
+  return filesChangedRes.map((f: any) => f.filename);
 }

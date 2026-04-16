@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore[import-not-found]
 from pytorch_pkg_helpers.utils import transform_cuversion
 
 

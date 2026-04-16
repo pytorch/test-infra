@@ -1,5 +1,5 @@
 import { Repo, getRepoKey, expBackOff } from './utils';
-import { RunnerType } from './runners';
+import { RunnerType, RunnerTypeScaleConfig } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 import { locallyCached, redisCached, clearLocalCacheNamespace, redisClearCacheKeyPattern } from './cache';
 
@@ -11,6 +11,12 @@ import YAML from 'yaml';
 
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
+
+export interface GHRateLimitInfo {
+  limit: number;
+  remaining: number;
+  used: number;
+}
 
 export async function resetGHRunnersCaches() {
   await redisClearCacheKeyPattern('ghRunners', '');
@@ -301,36 +307,44 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
   }
 }
 
+/**
+ Get runner types from scale-config.yml
+ */
 export async function getRunnerTypes(
-  repo: Repo,
+  filerepo: Repo,
+  authrepo: Repo,
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
-  return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
+  const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
+
+  return await redisCached('ghRunners', `getRunnerTypes-${filerepo.owner}.${filerepo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
     try {
-      status = 'doRun';
-      /* istanbul ignore next */
       const githubAppClient = Config.Instance.enableOrganizationRunners
-        ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
-        : await createGitHubClientForRunnerRepo(repo, metrics);
+        ? await createGitHubClientForRunnerOrg(authrepo.owner, metrics)
+        : await createGitHubClientForRunnerRepo(authrepo, metrics);
+
+      console.debug(
+        `[getRunnerTypes]: Fetching runner types from ${filepath} for ` +
+          `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
+      );
 
       const response = await expBackOff(() => {
         return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
           return githubAppClient.repos.getContent({
-            ...repo,
+            ...filerepo,
             path: filepath,
           });
         });
       });
 
       /* istanbul ignore next */
-      const { content } = { ...(response?.data || {}) };
-
-      /* istanbul ignore next */
+      const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
       if (response?.status != 200 || !content) {
         throw Error(
-          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+          `Issue (${response.status}) retrieving '${filepath}' for ` +
+            `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
         );
       }
 
@@ -340,25 +354,98 @@ export async function getRunnerTypes(
       console.debug(`'${filepath}' contents: ${configYml}`);
 
       const config = YAML.parse(configYml);
-      const result: Map<string, RunnerType> = new Map(
+      const result: Map<string, RunnerTypeScaleConfig> = new Map(
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
           prop,
           {
-            runnerTypeName: prop,
-            instance_type: runner_type.instance_type,
-            os: runner_type.os,
-            max_available: runner_type.max_available,
+            /* istanbul ignore next */
+            ami_experiment: runner_type.ami_experiment,
+            /* istanbul ignore next */
+            ami: runner_type.ami?.trim(),
             disk_size: runner_type.disk_size,
+            instance_type: runner_type.instance_type,
             /* istanbul ignore next */
             is_ephemeral: runner_type.is_ephemeral || false,
+            /* istanbul ignore next */
+            labels: runner_type.labels?.map((label: string) => label.trim()),
+            min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
+            max_available: runner_type.max_available,
+            os: runner_type.os,
+            runnerTypeName: prop,
+            variants: new Map(Object.entries(runner_type.variants || {})),
           },
         ]),
       );
 
+      Array.from(result.keys()).forEach((key) => {
+        const runnerType = result.get(key);
+        /* istanbul ignore next */
+        if (runnerType?.variants === undefined) {
+          return;
+        }
+
+        Array.from(runnerType.variants.keys()).forEach((variant) => {
+          const variantType = runnerType.variants?.get(variant);
+          /* istanbul ignore next */
+          if (!variantType) {
+            return;
+          }
+
+          let variantRunnTypeName: string;
+          if (key.startsWith('lf.c.')) {
+            variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
+          } else if (key.startsWith('lf.')) {
+            variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
+          } else if (key.startsWith('c.')) {
+            variantRunnTypeName = `c.${variant}.${key.slice(2)}`;
+          } else {
+            variantRunnTypeName = `${variant}.${key}`;
+          }
+
+          result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
+        });
+      });
+
+      const filteredResult: Map<string, RunnerType> = new Map(
+        [...result.entries()]
+          .filter(
+            ([, runnerType]) =>
+              typeof runnerType.runnerTypeName === 'string' &&
+              alphaNumericStr.test(runnerType.runnerTypeName) &&
+              typeof runnerType.instance_type === 'string' &&
+              alphaNumericStr.test(runnerType.instance_type) &&
+              ['linux', 'windows'].includes(runnerType.os) &&
+              /* istanbul ignore next */
+              (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
+              (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+              (typeof runnerType.min_available === 'number' || runnerType.min_available === undefined) &&
+              (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
+              (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
+              (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
+              (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
+          )
+          .map(([key, runnerType]) => {
+            const rt: RunnerTypeScaleConfig = { ...runnerType };
+            delete rt.variants;
+            return [key, rt];
+          }),
+      );
+
+      if (result.size != filteredResult.size) {
+        console.error(
+          `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
+        );
+        console.error(`Original runner types: ${JSON.stringify(Array.from(result.keys()).sort())}`);
+        console.error(`Filtered runner types: ${JSON.stringify(Array.from(filteredResult.keys()).sort())}`);
+      }
+
       status = 'success';
-      return result;
+      return filteredResult;
     } catch (e) {
+      console.error(
+        `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
+      );
       console.error(`[getRunnerTypes]: ${e}`);
       throw e;
     } finally {
@@ -446,6 +533,36 @@ export async function createRegistrationTokenOrg(
     });
   } catch (e) {
     console.error(`[createRegistrationTokenOrg]: ${e}`);
+    throw e;
+  }
+}
+
+export async function getGitHubRateLimit(repo: Repo, metrics: Metrics): Promise<GHRateLimitInfo> {
+  try {
+    return await redisCached('ghRunners', 'getGitHubRateLimit', 10, 0.5, async () => {
+      try {
+        const client = await createGitHubClientForRunnerRepo(repo, metrics);
+
+        const rateLimit = await expBackOff(() => {
+          return metrics.trackRequest(metrics.getGitHubRateLimitSuccess, metrics.getGitHubRateLimitFailure, () => {
+            return client.rateLimit.get();
+          });
+        });
+
+        const limit = Number(rateLimit.headers['x-ratelimit-limit']);
+        const remaining = Number(rateLimit.headers['x-ratelimit-remaining']);
+        const used = Number(rateLimit.headers['x-ratelimit-used']);
+
+        return { used, limit, remaining };
+      } catch (e) {
+        /* istanbul ignore next */
+        console.error(`[getGitHubRateLimit]: <anonymous> ${e}`);
+        throw e;
+      }
+    });
+  } catch (e) {
+    /* istanbul ignore next */
+    console.error(`[getGitHubRateLimit]: ${e}`);
     throw e;
   }
 }

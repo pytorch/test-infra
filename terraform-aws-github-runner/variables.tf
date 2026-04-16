@@ -9,6 +9,18 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
+variable "auth_gh_repo" {
+  description = "GitHub repository to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
+variable "auth_gh_org" {
+  description = "GitHub organization to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
 variable "vpc_ids" {
   description = "The list of vpc_id for aws_region. keys: 'vpc' 'region'"
   type        = list(map(string))
@@ -30,6 +42,12 @@ variable "subnet_vpc_ids" {
   default     = []
 }
 
+variable "subnet_azs" {
+  description = "The relation between subnet and azs. keys; 'subnet' 'az'"
+  type        = list(map(string))
+  default     = []
+}
+
 variable "tags" {
   description = "Map of tags that will be added to created resources. By default resources will be tagged with name and environment."
   type        = map(string)
@@ -42,6 +60,7 @@ variable "environment" {
 }
 
 variable "enable_organization_runners" {
+  description = "If true, makes the same set of runners available to the entire github organization using the scale-config.yml specified in the repo `scale_config_repo`. Otherwise, runners for each repo will be configured based on the scale-config.yml file that repo contains."
   type = bool
 }
 
@@ -237,22 +256,25 @@ variable "block_device_mappings" {
 variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
+}
 
-  default = {
-    name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
-  }
+variable "ami_filter_linux_arm64" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
 }
 
 variable "ami_filter_windows" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
-
-  default = {
-    name = ["Windows*2019*"]
-  }
 }
 
 variable "ami_owners_linux" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
+}
+
+variable "ami_owners_linux_arm64" {
   description = "The list of owners used to select the AMI of linux action runner instances."
   type        = list(string)
   default     = ["amazon"]
@@ -334,4 +356,54 @@ variable "cant_have_issues_labels" {
   description = "Open issues tagged with labels that should not be present so scaleUp will run"
   type        = list(string)
   default     = []
+}
+
+variable "scale_config_org" {
+  description = "Organization to fetch scale config from."
+  type        = string
+}
+
+variable "scale_config_repo" {
+  description = "Repository to fetch scale config from.  Optional if `enable_organization_runners` is set to false, in which case the job's repo will be used"
+  default     = ""
+  type        = string
+}
+
+variable "scale_config_repo_path" {
+  description = "Path relative to repo root the scale config should be fetched from. If `enable_organization_runners` is set to false, will be relative to the job's repo root instaed. If `enable_organization_runners` is set to true, will be relative to `scale_config_repo`."
+  default     = "" # Internally defaults to '.github/scale-config.yml'
+  type        = string
+}
+
+variable "min_available_runners" {
+  description = "Minimum number of runners to keep available."
+  type        = number
+  default     = 10
+}
+
+variable "retry_scale_up_chron_hud_query_url" {
+  description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
+  type        = string
+  default     = ""
+}
+
+variable "scale_up_chron_hud_bot_token" {
+  description = "Token sent as x-hud-internal-bot header to bypass Vercel bot protection on HUD API requests."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "wiz_secret_arn" {
+  description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "wiz_secret_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secret_arn. Must be provided if wiz_secret_arn is specified."
+  type        = string
+  default     = null
+  sensitive   = true
 }

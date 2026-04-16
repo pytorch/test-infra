@@ -1,0 +1,417 @@
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box } from "@mui/system";
+import {
+  GridColDef,
+  GridRenderCellParams,
+  GridRowModel,
+} from "@mui/x-data-grid";
+import { MoreVertButton } from "components/benchmark_v3/components/common/MoreVertButton";
+import {
+  BenchmarkComparisonPolicyConfig,
+  ComparisonResult,
+  evaluateComparison,
+} from "components/benchmark_v3/configs/helpers/RegressionPolicy";
+import {
+  BenchmarkComparisonTablePrimaryColumnConfig,
+  BenchmarkUnitConfig,
+  ComparisonTableConfig,
+  fmtFixed2,
+  formatHeaderName,
+  getBenchmarkTimeSeriesComparisionTableRenderingConfig,
+  getBenchmarkTimeSeriesComparisonTableTarget,
+  renderBasedOnUnitConifg,
+} from "../../../helper";
+import { valOf } from "./ComparisonTableHelpers";
+/**
+ *
+ * @param allColumns
+ * @param lWorkflowId
+ * @param rWorkflowId
+ * @returns
+ */
+export function getComparisionTableConlumnRendering(
+  columnsFields: string[],
+  lWorkflowId: string | null,
+  rWorkflowId: string | null,
+  config: ComparisonTableConfig,
+  onColumnFieldClick: (data: any) => void = (data: any) => {},
+  onPrimaryField?: (data: any) => void,
+  displayField: string = "displayName"
+): GridColDef[] {
+  const primaryHeaderName = config?.primary?.displayName ?? "Name";
+
+  const primaryFlex = config?.renderOptions?.flex?.primary ?? 1.2;
+  // get primary column and apply render logics to it
+  const primaryCol: GridColDef = {
+    field: "primary",
+    flex: primaryFlex,
+    headerName: primaryHeaderName,
+    minWidth: 50,
+    renderCell: (params: GridRenderCellParams<any, GridRowModel>) => {
+      return (
+        <ComparisonTablePrimaryFieldValueCell
+          params={params}
+          primaryFieldConfig={config?.primary}
+          onClick={onPrimaryField}
+        />
+      );
+    },
+  };
+
+  // get metadata columns from config
+  const metadata = config?.extraMetadata ?? [];
+
+  const metadatFlex = config?.renderOptions?.flex?.extraMetadata ?? 0.5;
+  const metadataCols: GridColDef[] = metadata
+    .filter((k) => !!k.field) // skip fields that are not defined
+    .map((k) => ({
+      field: k.field,
+      headerName: k?.displayName ?? k.field,
+      flex: 0.5,
+      minWidth: 50,
+      renderCell: (p) => (
+        <Typography variant="body2">{p.row[k.field]}</Typography>
+      ),
+    }));
+
+  const metricsFlex = config?.renderOptions?.flex?.target ?? 1;
+  const metricCols: GridColDef[] = columnsFields.map((field) => ({
+    field,
+    headerName: formatHeaderName(
+      field,
+      config?.renderOptions?.tableRenderingBook
+    ),
+    flex: 1,
+    minWidth: 50,
+    sortable: false,
+    filterable: false,
+    valueGetter: (_value: any, row: any) => {
+      const ldata = lWorkflowId
+        ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
+          row.byWorkflow[lWorkflowId]?.[field]
+        : undefined;
+      const rdata = rWorkflowId
+        ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
+          row.byWorkflow[rWorkflowId]?.[field]
+        : undefined;
+
+      // get raw value of left and right field
+      const L = valOf(ldata);
+      const R = valOf(rdata);
+
+      // get target field name, for instance, metric
+      const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
+      const findFieldValueFromColData =
+        ldata?.[targetField] ?? rdata?.[targetField];
+      const targetVal = findFieldValueFromColData;
+
+      const { result, text } = getComparisonResult(
+        L,
+        R,
+        ldata,
+        rdata,
+        targetVal,
+        config,
+        displayField
+      );
+      return {
+        result,
+        text,
+        ldata,
+        rdata,
+      };
+    },
+    valueFormatter: (value: any, row: any) => {
+      return value?.text ?? "";
+    },
+    renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
+      <ComparisonTableColumnFieldValueCell
+        text={params.value?.text}
+        result={params.value?.result}
+        ldata={params.value?.ldata}
+        rdata={params.value?.rdata}
+        config={config}
+        onClick={onColumnFieldClick}
+      />
+    ),
+  }));
+
+  const labelCol: GridColDef = {
+    field: "label",
+    headerName: "Label",
+    width: 10,
+    sortable: false,
+    filterable: false,
+    renderCell: (p) => (
+      <Tooltip title={p.row.label} arrow>
+        <IconButton size="small">
+          <InfoOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    ),
+  };
+  return [primaryCol, ...metadataCols, ...metricCols, labelCol];
+}
+
+/** Colors — light / dark pairs */
+const COLORS = {
+  regression: { light: "#ffebee", dark: "#4b2c2c" },
+  improvement: { light: "#e8f5e9", dark: "#1b4332" },
+  warning: { light: "#fff9c4", dark: "#4a4000" },
+  missing: { light: "#F5F5F5", dark: "#3a3a3a" },
+};
+
+export function ComparisonTablePrimaryFieldValueCell({
+  params,
+  primaryFieldConfig,
+  onClick = (data: any) => {},
+}: {
+  params: GridRenderCellParams<any, GridRowModel>;
+  primaryFieldConfig?: BenchmarkComparisonTablePrimaryColumnConfig;
+  onClick?: (data: any) => void;
+}) {
+  const type = primaryFieldConfig?.navigation?.type;
+  const isNavEnabled = !!type;
+
+  // render text-only primary row field if no navigation configuration
+  if (!isNavEnabled) {
+    return <Typography variant="body2">{params.row.primary}</Typography>;
+  }
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{ cursor: "pointer", color: "primary.main" }}
+      onClick={() => {
+        onClick({
+          config: primaryFieldConfig,
+          groupInfo: params.row.groupInfo,
+        });
+      }}
+    >
+      {params.row.primary}
+    </Typography>
+  );
+}
+
+/**
+ *
+ */
+export function ComparisonTableColumnFieldValueCell({
+  text,
+  result,
+  ldata,
+  rdata,
+  config,
+  onClick,
+}: {
+  text: string | undefined;
+  result: any;
+  ldata: any;
+  rdata: any;
+  comparisonTargetField?: string;
+  config?: ComparisonTableConfig;
+  onClick: (data: any) => void;
+}) {
+  // pick background color based on result signals
+  const theme = useTheme();
+  const mode = theme.palette.mode === "dark" ? "dark" : "light";
+  let bgColor = "";
+  switch (result?.verdict) {
+    case "good":
+      bgColor = COLORS.improvement[mode];
+      break;
+    case "regression":
+      bgColor = COLORS.regression[mode];
+      break;
+    case "warning":
+      bgColor = COLORS.warning[mode];
+      break;
+    case "missing":
+      bgColor = COLORS.missing[mode];
+      break;
+    case "neutral":
+    default:
+      break;
+  }
+
+  return (
+    <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
+      <Tooltip title={renderComparisonResult(result)}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2">{text}</Typography>
+          {config?.enableDialog && (
+            <MoreVertButton
+              onClick={() => onClick({ left: ldata, right: rdata })}
+            />
+          )}
+        </Box>
+      </Tooltip>
+    </Box>
+  );
+}
+
+function renderComparisonResult(result?: ComparisonResult) {
+  if (!result) return "";
+  return (
+    <Box sx={{ p: 1 }}>
+      {Object.entries(result).map(([key, value]) => (
+        <Typography key={key} variant="body2" sx={{ whiteSpace: "pre-line" }}>
+          <strong>{key}</strong>: {String(value)}
+        </Typography>
+      ))}
+    </Box>
+  );
+}
+
+export function getFieldRender(
+  targetField: string,
+  L: any,
+  R: any,
+  config?: ComparisonTableConfig,
+  ldisplay?: string,
+  rdisplay?: string,
+  lfailed?: boolean,
+  rfailed?: boolean,
+  missingText: string = "missing data",
+  bothMissingText: string = ""
+) {
+  if (ldisplay || rdisplay) {
+    return `${ldisplay ?? missingText}→${rdisplay ?? missingText}`;
+  }
+  const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
+    targetField,
+    config
+  );
+
+  return formatTransitionWithUnit(
+    L,
+    R,
+    lfailed,
+    rfailed,
+    rc?.unit,
+    missingText,
+    bothMissingText
+  );
+}
+export function formatTransitionWithUnit(
+  L: any,
+  R: any,
+  lfailed?: boolean,
+  rfailed?: boolean,
+  table_unit?: BenchmarkUnitConfig,
+  missingText: string = "missing data",
+  bothMissingText?: string,
+  failureText: string = "Failure"
+): string {
+  const formatValue = (v: any) => {
+    if (v == null || v == undefined) return missingText;
+    const num = Number(v);
+    const isNumeric = !isNaN(num) && v !== "";
+    if (isNumeric) {
+      return renderBasedOnUnitConifg(fmtFixed2(num), table_unit);
+    }
+    // non-numeric → render raw
+    return String(v);
+  };
+
+  if (lfailed && rfailed) {
+    return failureText;
+  }
+
+  if (lfailed) {
+    return `${failureText}→${formatValue(R)}`;
+  }
+  if (rfailed) {
+    return `${formatValue(L)}→${failureText}`;
+  }
+
+  if (L == null && R == null) {
+    return bothMissingText ?? missingText;
+  }
+
+  if (L == null) {
+    return `${missingText}→${formatValue(R)}`;
+  }
+  if (R == null) {
+    return `${formatValue(L)}→${missingText}`;
+  }
+
+  if (fmtFixed2(L) === fmtFixed2(R)) {
+    return formatValue(L);
+  }
+  return `${formatValue(L)}→${formatValue(R)}`;
+}
+
+export function getComparisonResult(
+  L: any,
+  R: any,
+  ldata: any,
+  rdata: any,
+  targetVal: string,
+  config?: ComparisonTableConfig,
+  displayField: string = "displayName"
+) {
+  // get target field key name, for instance, metric
+  // so we can get the comparison policy by get the value of target field
+
+  let policy: BenchmarkComparisonPolicyConfig | undefined = undefined;
+  if (targetVal && config?.comparisonPolicy) {
+    policy = targetVal ? config.comparisonPolicy[targetVal] : undefined;
+  }
+  // evaluate the value comparison result, return the comparison report for each field
+  const result = evaluateComparison(policy?.target, L, R, policy);
+
+  // Get display value from the specified field
+  // Falls back to undefined if field doesn't exist (normal value rendering)
+  const ldisplay = ldata?.[displayField] as string | undefined;
+  const rdisplay = rdata?.[displayField] as string | undefined;
+
+  const missingText =
+    config?.renderOptions?.missingText == undefined
+      ? "missing data"
+      : config?.renderOptions?.missingText;
+  const bothMissingText =
+    config?.renderOptions?.bothMissingText == undefined
+      ? missingText
+      : config?.renderOptions?.bothMissingText;
+
+  // if either side missing, mark as missing
+  if (config?.renderOptions?.renderMissing) {
+    if (ldata == null && rdata == null) {
+      result.verdict = "missing";
+      result.reason = "both missing";
+    } else if (ldata == null) {
+      result.verdict = "missing";
+      result.reason = "left missing";
+    } else if (rdata == null) {
+      result.verdict = "missing";
+      result.reason = "right missing";
+    }
+  }
+
+  // if either side failed, mark as failure, failure is higher priority than missing
+  if (ldata?.is_failure || rdata?.is_failure) {
+    result.verdict = "warning";
+    result.reason = "detect failure";
+  }
+
+  const text = getFieldRender(
+    targetVal,
+    L,
+    R,
+    config,
+    ldisplay,
+    rdisplay,
+    ldata?.is_failure,
+    rdata?.is_failure,
+    missingText,
+    bothMissingText
+  );
+
+  return {
+    result,
+    text,
+  };
+}

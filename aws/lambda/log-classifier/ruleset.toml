@@ -21,12 +21,16 @@ name = 'Operator backwards compatibility'
 pattern = '^The PR is introducing backward incompatible changes to the operator library.'
 
 [[rule]]
+name = 'Failed graph_break_registry check'
+pattern = '^Found the unimplemented_v2 or unimplemented_v2_with_warning calls below that don.t match the registry in graph_break_registry.json.'
+
+[[rule]]
 name = 'Lintrunner failure'
 pattern = '^>>> Lint for.*'
 
 [[rule]]
 name = 'GHA timeout'
-pattern = '^##\[error\]The action has timed out.'
+pattern = '^##\[error\]The action (.*)has timed out(?: after .* minutes|)?.'
 
 [[rule]]
 name = 'Faulty ROCM runner'
@@ -39,6 +43,10 @@ pattern = 'The runner has received a shutdown signal. This can happen when the r
 [[rule]]
 name = 'GHA job was cancelled'
 pattern = '^##\[error\]The operation was canceled.'
+
+[[rule]]
+name = 'Runner disk space issue'
+pattern = '^Failure: There is only .+ free space left in .+, which is less than the minimum requirement of'
 
 [[rule]]
 name = 'make build failure'
@@ -69,12 +77,16 @@ name = 'Windows PyLong API usage check'
 pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
 
 [[rule]]
-name = 'npm error'
-pattern = '^npm ERR! code .*'
+name = 'Bazel build failure (specific)'
+pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
 
 [[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
+
+[[rule]]
+name = 'Python unittest failure'
+pattern = '^FAILED CONSISTENTLY: (.*)$'
 
 [[rule]]
 name = 'Python unittest failure'
@@ -86,7 +98,7 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
-pattern = '^FAILED (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+pattern = '^(?:FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'Python unittest error'
@@ -97,8 +109,16 @@ name = 'pytest test error'
 pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
+name = 'Fallback for other test failure rules'
+pattern = '^The following tests failed consistently: \[(.*)\]$'
+
+[[rule]]
+name = 'xla cpp test failure'
+pattern = 'Build completed, \d+ test FAILED, \d+ total actions'
+
+[[rule]]
 name = 'inductor model failure'
-pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
+pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
 
 [[rule]]
 name = 'NVIDIA installation failure'
@@ -153,6 +173,10 @@ name = 'Dependency fetch error'
 pattern = '^Error downloading packages:'
 
 [[rule]]
+name = 'ASAN LD_PRELOAD failure'
+pattern = '^ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded'
+
+[[rule]]
 name = 'ASAN failure'
 pattern = '^ERROR: AddressSanitizer'
 
@@ -178,7 +202,7 @@ pattern = '!+ KeyboardInterrupt !+'
 
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: .*test.* failed'
+pattern = '(?:RuntimeError: )?.*test.* failed!'
 
 [[rule]]
 name = 'CUDA out of memory error'
@@ -201,6 +225,10 @@ name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
 [[rule]]
+name = 'pr_time_benchmarks regression'
+pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
+
+[[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
 
@@ -213,6 +241,31 @@ name = 'Python ImportError'
 pattern = '^ImportError: .*'
 
 [[rule]]
+name = 'Python ValueErrors'
+pattern = '^ValueError: .*'
+
+[[rule]]
+name = 'Python TypeErrors'
+pattern = '^TypeError: .*'
+
+# TODO (huydhn): Update ET test script to include the model name in the error message
+[[rule]]
+name = 'ExecuTorch portable model test - failed'
+pattern = 'Portable fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized portable model test - failed'
+pattern = 'Portable q8 error'
+
+[[rule]]
+name = 'ExecuTorch delegation model test - failed'
+pattern = 'Delegation fp32 error'
+
+[[rule]]
+name = 'ExecuTorch quantized delegation model test - failed'
+pattern = 'Delegation q8 error'
+
+[[rule]]
 name = 'Docker login failure'
 pattern = '''Docker login for '.*' failed.*'''
 
@@ -223,6 +276,10 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 [[rule]]
 name = 'Docker error'
 pattern = '^docker: Error.*'
+
+[[rule]]
+name = 'Build error'
+pattern = 'ninja: build stopped: subcommand failed'
 
 [[rule]]
 name = 'sccache error'
@@ -245,5 +302,21 @@ name = 'Improved graph breaks'
 pattern = 'IMPROVED:\s+graph_breaks='
 
 [[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code .*'
+
+[[rule]]
+name = 'No release notes label'
+pattern = '^# This PR needs a `release notes:` label.*'
+
+[[rule]]
+name = 'ghstack merge check error'
+pattern = '^Mergeability Error: .*'
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
+
+[[rule]]
+name = 'New modules are not documented correctly'
+pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'

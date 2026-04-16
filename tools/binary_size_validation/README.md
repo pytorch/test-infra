@@ -1,6 +1,6 @@
 # PyTorch Wheel Binary Size Validation
 
-A script to fetch and validate the binary size of PyTorch wheels 
+A script to fetch and validate the binary size of PyTorch wheels
 in the given channel (test, nightly) against the given threshold.
 
 
@@ -11,7 +11,7 @@ pip install -r requirements.txt
 ```
 
 ### Usage
-    
+
 ```bash
 # print help
 python binary_size_validation.py --help

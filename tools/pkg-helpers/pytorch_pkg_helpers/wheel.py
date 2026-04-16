@@ -2,13 +2,14 @@ from typing import List
 
 
 def get_python_path_variables(python_version: str) -> List[str]:
-    m = ""
-    # For some reason python versions <= 3.7 require an m
-    # probably better not to ask why
-    if float(python_version) <= 3.7:
-        m = "m"
-    python_nodot = python_version.replace(".", "")
-    python_abi = f"cp{python_nodot}-cp{python_nodot}{m}"
+    t = ""
+    if python_version.endswith("t"):
+        python_nodot = python_version[:-1].replace(".", "")
+        t = "t"
+    else:
+        python_nodot = python_version.replace(".", "")
+
+    python_abi = f"cp{python_nodot}-cp{python_nodot}{t}"
     return [f'export PATH="/opt/python/{python_abi}/bin:${{PATH}}"']
 
 
@@ -18,13 +19,15 @@ def get_pytorch_pip_install_command(
     channel: str,
 ) -> List[str]:
     torch_pkg = "torch"
+    download_pytorch_org = "download.pytorch.org"
     if pytorch_version != "":
         torch_pkg += f"=={pytorch_version}"
     pip_install = f"pip install {torch_pkg}"
     if channel == "nightly":
         pip_install += " --pre"
-    extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
-    return [f"export PIP_INSTALL_TORCH='{pip_install} --extra-index-url {extra_index}'"]
+
+    extra_index = f"https://{download_pytorch_org}/whl/{channel}/{gpu_arch_version}"
+    return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index}'"]
 
 
 def get_pytorch_s3_bucket_path(

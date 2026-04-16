@@ -1,0 +1,1605 @@
+{
+  "Records": [
+    {
+      "eventID": "c752f8e42e2d9c561a646253ebf1130c",
+      "eventName": "MODIFY",
+      "eventVersion": "1.1",
+      "eventSource": "aws:dynamodb",
+      "awsRegion": "us-east-1",
+      "dynamodb": {
+        "ApproximateCreationDateTime": 1727289935,
+        "Keys": {
+          "dynamoKey": {
+            "S": "pytorch/pytorch/30663751078"
+          }
+        },
+        "NewImage": {
+          "runner_id": {
+            "N": "11744598"
+          },
+          "dynamoKey": {
+            "S": "pytorch/pytorch/30663751078"
+          },
+          "head_branch": {
+            "S": "use_amazon2_docker"
+          },
+          "workflow_name": {
+            "S": "pull"
+          },
+          "runner_group_name": {
+            "S": "Default"
+          },
+          "created_at": {
+            "S": "2024-09-25T18:36:43Z"
+          },
+          "check_run_url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/check-runs/30663751078"
+          },
+          "head_sha": {
+            "S": "6863c4c6dd6684be24c6be9a27ec129022fa992f"
+          },
+          "conclusion": {
+            "S": "cancelled"
+          },
+          "run_url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/actions/runs/11038643569"
+          },
+          "id": {
+            "N": "30663751078"
+          },
+          "run_id": {
+            "N": "11038643569"
+          },
+          "runner_name": {
+            "S": "i-0b2fd9afbc986e218"
+          },
+          "steps": {
+            "L": [
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "1"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:36:52Z"
+                  },
+                  "name": {
+                    "S": "Set up job"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:47Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "2"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:36:59Z"
+                  },
+                  "name": {
+                    "S": "Set up runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:53Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "3"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:37:01Z"
+                  },
+                  "name": {
+                    "S": "Setup SSH (Click me for login details)"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:59Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "4"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:14Z"
+                  },
+                  "name": {
+                    "S": "Checkout PyTorch"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:37:01Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "5"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "name": {
+                    "S": "Setup Linux"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:14Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "6"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "name": {
+                    "S": "configure aws credentials"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "7"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "name": {
+                    "S": "Calculate docker image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "8"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "name": {
+                    "S": "Use following to pull public copy of the image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "9"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "name": {
+                    "S": "Pull docker image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "10"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "name": {
+                    "S": "Check if in a ARC runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "11"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "name": {
+                    "S": "Install nvidia driver, nvidia-docker runtime, set GPU_FLAG"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "12"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "name": {
+                    "S": "Lock NVIDIA A100 40GB Frequency"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "13"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:48Z"
+                  },
+                  "name": {
+                    "S": "Start monitoring script"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "14"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:19Z"
+                  },
+                  "name": {
+                    "S": "Download build artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:48Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "15"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "name": {
+                    "S": "Download TD artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "16"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "name": {
+                    "S": "Parse ref"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "17"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:21Z"
+                  },
+                  "name": {
+                    "S": "Get workflow job id"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "18"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "name": {
+                    "S": "Check for keep-going label and re-enabled test issues"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "19"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "name": {
+                    "S": "Set Test step time"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "cancelled"
+                  },
+                  "number": {
+                    "N": "20"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:18Z"
+                  },
+                  "name": {
+                    "S": "Test"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "21"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Upload pytest cache if tests failed"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "22"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Print remaining test logs"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "23"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Stop monitoring script"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "24"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Upload test artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "25"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Collect backtraces from coredumps (if any)"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "26"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Store Core dumps on S3"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "27"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:24Z"
+                  },
+                  "name": {
+                    "S": "Teardown Linux"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "28"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "name": {
+                    "S": "Check NVIDIA driver installation step"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "55"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "name": {
+                    "S": "Post Checkout PyTorch"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "56"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "name": {
+                    "S": "Complete runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:26Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "57"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "name": {
+                    "S": "Complete job"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              }
+            ]
+          },
+          "url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/actions/jobs/30663751078"
+          },
+          "labels": {
+            "L": [
+              {
+                "S": "linux.2xlarge"
+              }
+            ]
+          },
+          "completed_at": {
+            "S": "2024-09-25T18:45:33Z"
+          },
+          "html_url": {
+            "S": "https://github.com/pytorch/pytorch/actions/runs/11038643569/job/30663751078"
+          },
+          "name": {
+            "S": "linux-focal-py3.12-clang10-experimental-split-build / test (dynamo, 1, 3, linux.2xlarge)"
+          },
+          "run_attempt": {
+            "N": "1"
+          },
+          "started_at": {
+            "S": "2024-09-25T18:36:47Z"
+          },
+          "runner_group_id": {
+            "N": "1"
+          },
+          "torchci_classification": {
+            "M": {
+              "captures": {
+                "L": [
+                  {
+                    "S": "##[error]The operation was canceled."
+                  }
+                ]
+              },
+              "line_num": {
+                "N": "14784"
+              },
+              "line": {
+                "S": "##[error]The operation was canceled."
+              },
+              "context": {
+                "L": [
+                  {
+                    "S": "+ python test/run_test.py --dynamo --exclude-inductor-tests --exclude-jit-executor --exclude-distributed-tests --exclude-torch-export-tests --shard 1 3 --verbose"
+                  },
+                  {
+                    "S": "+ python tools/dynamo/verify_dynamo.py"
+                  },
+                  {
+                    "S": "+ [[ -z 3 ]]"
+                  },
+                  {
+                    "S": "+ test_dynamo_shard 1"
+                  },
+                  {
+                    "S": "+ '[' -n '' ']'"
+                  },
+                  {
+                    "S": "+ pip install --progress-bar off --no-use-pep517 --user git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
+                  },
+                  {
+                    "S": "+ pip_install --no-use-pep517 --user git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
+                  },
+                  {
+                    "S": "+ '[' -n '' ']'"
+                  },
+                  {
+                    "S": "+ orig_preload="
+                  },
+                  {
+                    "S": "+ commit=d23a6e1664d20707c11781299611436e1f0c104f"
+                  },
+                  {
+                    "S": "++ cat .github/ci_commit_pins/vision.txt"
+                  },
+                  {
+                    "S": "++ get_pinned_commit vision"
+                  }
+                ]
+              },
+              "rule": {
+                "S": "GHA job was cancelled"
+              }
+            }
+          },
+          "node_id": {
+            "S": "CR_kwDOA-j9z88AAAAHI7O1pg"
+          },
+          "status": {
+            "S": "completed"
+          }
+        },
+        "OldImage": {
+          "runner_id": {
+            "N": "11744598"
+          },
+          "run_id": {
+            "N": "11038643569"
+          },
+          "dynamoKey": {
+            "S": "pytorch/pytorch/30663751078"
+          },
+          "head_branch": {
+            "S": "use_amazon2_docker"
+          },
+          "workflow_name": {
+            "S": "pull"
+          },
+          "runner_group_name": {
+            "S": "Default"
+          },
+          "runner_name": {
+            "S": "i-0b2fd9afbc986e218"
+          },
+          "created_at": {
+            "S": "2024-09-25T18:36:43Z"
+          },
+          "steps": {
+            "L": [
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "1"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:36:52Z"
+                  },
+                  "name": {
+                    "S": "Set up job"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:47Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "2"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:36:59Z"
+                  },
+                  "name": {
+                    "S": "Set up runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:53Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "3"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:37:01Z"
+                  },
+                  "name": {
+                    "S": "Setup SSH (Click me for login details)"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:36:59Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "4"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:14Z"
+                  },
+                  "name": {
+                    "S": "Checkout PyTorch"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:37:01Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "5"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "name": {
+                    "S": "Setup Linux"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:14Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "6"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "name": {
+                    "S": "configure aws credentials"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "7"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "name": {
+                    "S": "Calculate docker image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:17Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "8"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "name": {
+                    "S": "Use following to pull public copy of the image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "9"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "name": {
+                    "S": "Pull docker image"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:40:18Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "10"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "name": {
+                    "S": "Check if in a ARC runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:45Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "11"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "name": {
+                    "S": "Install nvidia driver, nvidia-docker runtime, set GPU_FLAG"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "12"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "name": {
+                    "S": "Lock NVIDIA A100 40GB Frequency"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "13"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:42:48Z"
+                  },
+                  "name": {
+                    "S": "Start monitoring script"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:46Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "14"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:19Z"
+                  },
+                  "name": {
+                    "S": "Download build artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:42:48Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "15"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "name": {
+                    "S": "Download TD artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "16"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "name": {
+                    "S": "Parse ref"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "17"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:21Z"
+                  },
+                  "name": {
+                    "S": "Get workflow job id"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:20Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "18"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "name": {
+                    "S": "Check for keep-going label and re-enabled test issues"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "19"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "name": {
+                    "S": "Set Test step time"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "cancelled"
+                  },
+                  "number": {
+                    "N": "20"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:18Z"
+                  },
+                  "name": {
+                    "S": "Test"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:43:24Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "21"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Upload pytest cache if tests failed"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "22"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Print remaining test logs"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "23"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "name": {
+                    "S": "Stop monitoring script"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "24"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Upload test artifacts"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:19Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "25"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Collect backtraces from coredumps (if any)"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "26"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "name": {
+                    "S": "Store Core dumps on S3"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "27"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:24Z"
+                  },
+                  "name": {
+                    "S": "Teardown Linux"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:21Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "skipped"
+                  },
+                  "number": {
+                    "N": "28"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "name": {
+                    "S": "Check NVIDIA driver installation step"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "55"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "name": {
+                    "S": "Post Checkout PyTorch"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:25Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "56"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "name": {
+                    "S": "Complete runner"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:26Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              },
+              {
+                "M": {
+                  "conclusion": {
+                    "S": "success"
+                  },
+                  "number": {
+                    "N": "57"
+                  },
+                  "completed_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "name": {
+                    "S": "Complete job"
+                  },
+                  "started_at": {
+                    "S": "2024-09-25T18:45:32Z"
+                  },
+                  "status": {
+                    "S": "completed"
+                  }
+                }
+              }
+            ]
+          },
+          "check_run_url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/check-runs/30663751078"
+          },
+          "head_sha": {
+            "S": "6863c4c6dd6684be24c6be9a27ec129022fa992f"
+          },
+          "url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/actions/jobs/30663751078"
+          },
+          "labels": {
+            "L": [
+              {
+                "S": "linux.2xlarge"
+              }
+            ]
+          },
+          "conclusion": {
+            "S": "cancelled"
+          },
+          "completed_at": {
+            "S": "2024-09-25T18:45:33Z"
+          },
+          "run_url": {
+            "S": "https://api.github.com/repos/pytorch/pytorch/actions/runs/11038643569"
+          },
+          "html_url": {
+            "S": "https://github.com/pytorch/pytorch/actions/runs/11038643569/job/30663751078"
+          },
+          "name": {
+            "S": "linux-focal-py3.12-clang10-experimental-split-build / test (dynamo, 1, 3, linux.2xlarge)"
+          },
+          "run_attempt": {
+            "N": "1"
+          },
+          "started_at": {
+            "S": "2024-09-25T18:36:47Z"
+          },
+          "id": {
+            "N": "30663751078"
+          },
+          "runner_group_id": {
+            "N": "1"
+          },
+          "node_id": {
+            "S": "CR_kwDOA-j9z88AAAAHI7O1pg"
+          },
+          "status": {
+            "S": "completed"
+          }
+        },
+        "SequenceNumber": "6529218400000000050744309830",
+        "SizeBytes": 11239,
+        "StreamViewType": "NEW_AND_OLD_IMAGES"
+      },
+      "eventSourceARN": "arn:aws:dynamodb:us-east-1:308535385114:table/torchci-workflow-job/stream/2022-01-14T01:31:51.775"
+    }
+  ]
+}

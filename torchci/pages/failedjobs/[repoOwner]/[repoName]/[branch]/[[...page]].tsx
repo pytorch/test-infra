@@ -1,32 +1,18 @@
-import useSWR from "swr";
-import _ from "lodash";
 import { Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
-import React, { useState } from "react";
-import JobSummary from "components/JobSummary";
-import JobLinks from "components/JobLinks";
-import LogViewer from "components/LogViewer";
-import JobAnnotationToggle from "components/JobAnnotationToggle";
-import { JobData, JobAnnotation } from "lib/types";
-import { TimeRangePicker } from "pages/metrics";
+import LogViewer from "components/common/log/LogViewer";
+import JobAnnotationToggle from "components/job/JobAnnotationToggle";
+import JobLinks from "components/job/JobLinks";
+import JobSummary from "components/job/JobSummary";
 import dayjs from "dayjs";
+import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
-
-function CommitLink({ job }: { job: JobData }) {
-  return (
-    <span>
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={`/${job.repo}/commit/${job.sha}`}
-      >
-        Commit
-      </a>
-    </span>
-  );
-}
+import { JobAnnotation, JobData } from "lib/types";
+import _ from "lodash";
+import { useRouter } from "next/router";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
+import { TimeRangePicker } from "pages/metrics";
+import { useState } from "react";
+import useSWR from "swr";
 
 function SimilarFailedJobs({
   job,
@@ -52,14 +38,17 @@ function SimilarFailedJobs({
         {showDetail ? "▼ " : "▶ "}
         <code>Failing {similarJobs.length} times</code>
       </button>
-      {showDetail &&
-        _.map(similarJobs, (job) => (
-          <FailedJob
-            job={job}
-            similarJobs={[]}
-            classification={classification}
-          />
-        ))}
+      <ul>
+        {showDetail &&
+          _.map(similarJobs, (job) => (
+            <FailedJob
+              job={job}
+              similarJobs={[]}
+              classification={classification}
+              key={job.id}
+            />
+          ))}
+      </ul>
     </div>
   );
 }
@@ -73,16 +62,23 @@ function FailedJob({
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
+  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
+    `/api/issue/unstable`,
+    fetcher,
+    {
+      dedupingInterval: 300 * 1000,
+      refreshInterval: 300 * 1000, // refresh every 5 minutes
+    }
+  );
+
   const hasSimilarJobs = similarJobs.length > 1;
 
   return (
     <div style={{ padding: "10px" }}>
       <li key={job.id}>
-        <JobSummary job={job} />
+        <JobSummary job={job} unstableIssues={unstableIssuesData ?? []} />
         <div>
-          <CommitLink job={job} />
-          {" | "}
-          <JobLinks job={job} />
+          <JobLinks job={job} showCommitLink={true} />
         </div>
         <div>
           <JobAnnotationToggle
@@ -133,7 +129,7 @@ function FailedJobs({
   repoName,
   repoOwner,
 }: {
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   repoName: string;
   repoOwner: string;
 }) {
@@ -141,7 +137,7 @@ function FailedJobs({
   // their annotation is not a scalable solution because the list of failures
   // could be longer than the browser-dependent URL-length limit. The workaround
   // here is to send the query param over to another annotation API that will then
-  // make a query to Rockset to get the list of failed jobs itself and return the
+  // make a query to the db to get the list of failed jobs itself and return the
   // list to the caller here
   const { data: failedJobsWithAnnotations } = useSWR(
     `/api/job_annotation/${repoOwner}/${repoName}/failures/${encodeURIComponent(
@@ -241,33 +237,12 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const queryParams: RocksetParam[] = [
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "repo",
-      type: "string",
-      value: `${repoOwner}/${repoName}`,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: `${branch}`,
-    },
-    {
-      name: "count",
-      type: "int",
-      value: "0", // Set the count to 0 to query all failures
-    },
-  ];
+  const queryParams: { [key: string]: any } = {
+    branch: branch,
+    repo: `${repoOwner}/${repoName}`,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
 
   return (
     <div>

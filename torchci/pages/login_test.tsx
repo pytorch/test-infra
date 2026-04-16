@@ -1,5 +1,4 @@
-import React from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 export default function MePage() {
   const session = useSession();
@@ -9,23 +8,20 @@ export default function MePage() {
     if (!session) {
       return;
     }
-    const response = await fetch(
-      "https://api.github.com/repos/pytorch/test-infra/issues",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          title: "Found a bug",
-          body: "I'''m having a problem with this.",
-          assignees: ["octocat"],
-          milestone: 1,
-          labels: ["bug"],
-        }),
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `token ${session?.data?.accessToken}`,
-        },
-      }
-    );
+    await fetch("https://api.github.com/repos/pytorch/test-infra/issues", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Found a bug",
+        body: "I'''m having a problem with this.",
+        assignees: ["octocat"],
+        milestone: 1,
+        labels: ["bug"],
+      }),
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `token ${session?.data?.accessToken}`,
+      },
+    });
   };
 
   return (

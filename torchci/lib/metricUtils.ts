@@ -1,4 +1,4 @@
-import { JobsPerCommitData, JobAnnotation } from "lib/types";
+import { JobAnnotation, JobsPerCommitData } from "lib/types";
 
 // When N consecutive failures of the same type happen, the failures are counted as
 // broken trunk failures (approximately)
@@ -53,7 +53,7 @@ function increaseFailureCount(
 }
 
 export function approximateSuccessByJobName(
-  // The data from Rockset is sorted by time DESC, so newer commits come first
+  // The data is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[]
 ) {
   const successesByJobName: { [success: string]: number } = {};
@@ -84,7 +84,7 @@ export function approximateSuccessByJobName(
 }
 
 export function approximateFailureByType(
-  // The data from Rockset is sorted by time DESC, so newer commits come first
+  // The data is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[],
   broken_trunk_threshold: number = BROKEN_TRUNK_THRESHOLD,
   outage_threshold: number = OUTAGE_THRESHOLD
@@ -154,7 +154,7 @@ export function approximateFailureByType(
 }
 
 export function approximateFailureByTypePercent(
-  // The data from Rockset is sorted by time DESC, so newer commits come first
+  // The data is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[],
   broken_trunk_threshold: number = BROKEN_TRUNK_THRESHOLD,
   outage_threshold: number = OUTAGE_THRESHOLD

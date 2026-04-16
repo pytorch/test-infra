@@ -1,0 +1,13 @@
+{
+    "params": {
+        "startTime": "DateTime64",
+        "endTime": "DateTime64",
+        "granularity": "String",
+        "jobNames": "Array<String>",
+        "workflowNames": "Array<String>",
+        "machineTypes": "Array<String>",
+        "runnerLabels": "Array<String>",
+        "repos": "Array<String>"
+    },
+    "tests": []
+  }

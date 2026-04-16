@@ -1,9 +1,10 @@
+import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import nock from "nock";
 import * as probot from "probot";
-import * as utils from "./utils";
 import pytorchBot from "../lib/bot/pytorchBot";
+import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
-import { getFailureMessage, getMessage } from "lib/GeneralUtils";
+import * as utils from "./utils";
 
 nock.disableNetConnect();
 
@@ -13,6 +14,10 @@ describe("merge-bot", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
+    utils.mockConfig("pytorch-probot.yml", "mergebot: True");
+    jest
+      .spyOn(clickhouse, "queryClickhouseSaved")
+      .mockImplementation(() => Promise.resolve([{ workflow_name: "pull" }]));
   });
 
   afterEach(() => {
@@ -51,6 +56,21 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com");
     await probot.receive(merge_event);
     await probot.receive(revert_event);
+    await probot.receive(rebase_event);
+    handleScope(scope);
+  });
+
+  test("no space no event", async () => {
+    const merge_event = requireDeepCopy("./fixtures/issue_comment.json");
+    merge_event.payload.comment.body = "> @pytorchbotmerge";
+    const revert_event = requireDeepCopy("./fixtures/issue_comment.json");
+    revert_event.payload.comment.body = "> @pytorchmergebotrevert";
+    const rebase_event = requireDeepCopy("./fixtures/issue_comment.json");
+    rebase_event.payload.comment.body = "> @pytorchbotrebase";
+    const scope = nock("https://api.github.com");
+    await probot.receive(merge_event);
+    await probot.receive(revert_event);
+    await probot.receive(rebase_event);
     handleScope(scope);
   });
 
@@ -110,8 +130,103 @@ describe("merge-bot", () => {
       .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
+    const additionalScopes = [
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.issue.user.login,
+        "write"
+      ),
+    ];
+
     await probot.receive(event);
     handleScope(scope);
+    handleScope(additionalScopes);
+  });
+
+  test("merge command with multiple spaces on pytorch/pytorch pull request triggers", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot                    merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`"labels":["ciflow/trunk"]`);
+        return true;
+      })
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+        );
+        return true;
+      })
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
+
+    const additionalScopes = [
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.issue.user.login,
+        "write"
+      ),
+    ];
+
+    await probot.receive(event);
+    handleScope(scope);
+    handleScope(additionalScopes);
+  });
+
+  test("merge command on pytorch/pytorch pull request does not trigger dispatch if no write permissions for label", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"))
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `author doesn't have permissions to run those`
+        );
+        return true;
+      })
+      .reply(200, {});
+    const additionalScopes = [
+      utils.mockGetPR(`${owner}/${repo}`, pr_number, {
+        head: { sha: "randomsha" },
+      }),
+      utils.mockApprovedWorkflowRuns(`${owner}/${repo}`, "randomsha", false),
+      utils.mockPermissions(
+        `${owner}/${repo}`,
+        event.payload.issue.user.login,
+        "read"
+      ),
+    ];
+
+    await probot.receive(event);
+    handleScope(scope);
+    handleScope(additionalScopes);
   });
 
   test("merge command on pull request triggers dispatch and like", async () => {
@@ -345,6 +460,10 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "write" })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -360,6 +479,42 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("merge -i command on pull request triggers error without write permissions", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -i";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "only allowed for users with write permissions"
+        );
+        return true;
+      })
+      .reply(200);
     await probot.receive(event);
 
     handleScope(scope);
@@ -486,7 +641,7 @@ describe("merge-bot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const reason =
       "--breaks master: " +
-      "https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
+      "https://hud.pytorch.org/pytorch/pytorch/main/1?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
 
     event.payload.comment.body = `@pytorchbot revert -m='${reason}' -c landrace`;
 
@@ -846,6 +1001,10 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "write" })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -1254,7 +1413,9 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
-        expect(JSON.stringify(body)).toContain("This PR needs to be approved");
+        expect(JSON.stringify(body)).toContain(
+          "This PR has pending changes requested"
+        );
         return true;
       })
       .reply(200);
@@ -1263,7 +1424,7 @@ some other text lol
     handleScope(scope);
   });
 
-  test("An approval is prioritized over a PR rejection in pytorch org", async () => {
+  test("An approval with changes requested doesn't trigger the merge workflow in pytorch org", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1273,6 +1434,51 @@ some other text lol
     );
     pull_requests[0].state = "CHANGES_REQUESTED";
     pull_requests[1].state = "APPROVED";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .reply(200, pull_requests)
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "This PR has pending changes requested"
+        );
+        return true;
+      })
+      .reply(200);
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("A PR with an approval and a dismissed changes requested does trigger the merge workflow in pytorch org", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+
+    const pull_requests = requireDeepCopy(
+      "./fixtures/pull_request_reviews.json"
+    );
+    // First review requests changes
+    pull_requests[0].state = "CHANGES_REQUESTED";
+    pull_requests[0].submitted_at = "2024-01-01T00:00:00Z";
+    // Later review approves
+    pull_requests[1].state = "APPROVED";
+    pull_requests[1].submitted_at = "2024-01-02T00:00:00Z";
+    // First review is dismissed
+    pull_requests[0].state = "DISMISSED";
+    pull_requests[0].submitted_at = "2024-01-03T00:00:00Z";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -1406,5 +1612,171 @@ some other text lol
     await probot.receive(event);
 
     handleScope(scope);
+  });
+
+  test("pytorchmergebot -h rebase command on pull request prints help message and does not execute rebase", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot -h rebase";
+    event.payload.comment.user.login = "wdvr";
+    event.payload.issue.user.login = "random";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch."
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("pytorchmergebot rebase -h command on pull request prints help message and does not execute rebase", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot rebase -h";
+    event.payload.comment.user.login = "wdvr";
+    event.payload.issue.user.login = "random";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch."
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+});
+
+describe("merge-bot not supported repo", () => {
+  let probot: probot.Probot;
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(pytorchBot);
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+    jest.restoreAllMocks();
+  });
+
+  test("no config", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scopes = [
+      nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/contents/.github%2Fpytorch-probot.yml`)
+        .reply(200, {
+          message: "Not Found",
+          documentation_url:
+            "https://docs.github.com/rest/repos/contents#get-repository-content",
+        })
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test("config does not have mergebot key", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    utils.mockConfig("pytorch-probot.yml", "hello: true", `${owner}/${repo}`);
+    const scopes = [
+      nock("https://api.github.com")
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test("config mergebot key set to false", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge";
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "mergebot: False",
+      `${owner}/${repo}`
+    );
+    const scopes = [
+      nock("https://api.github.com")
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {}),
+      utils.mockPostComment(`${owner}/${repo}`, pr_number, [
+        "Mergebot is not configured for this repository",
+      ]),
+    ];
+
+    await probot.receive(event);
+    handleScope(scopes);
   });
 });

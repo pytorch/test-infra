@@ -1,3 +1,4 @@
+pub mod bedrock;
 pub mod engine;
 pub mod log;
 pub mod network;

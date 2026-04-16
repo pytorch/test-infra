@@ -55,4 +55,3 @@ variable "runner_allow_prerelease_binaries" {
   type        = bool
   default     = false
 }
-

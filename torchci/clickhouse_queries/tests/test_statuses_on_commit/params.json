@@ -1,0 +1,10 @@
+{
+  "params": {
+    "workflowId": "Int64",
+    "searchString": "String",
+    "runAttempt": "Int32",
+    "offset": "Int32",
+    "per_page": "Int32"
+  },
+  "tests": []
+}

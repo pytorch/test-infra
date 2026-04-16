@@ -2,9 +2,15 @@ import { ActionRequestMessage, RetryableScalingError, scaleUp as scaleUpR } from
 import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
 
 import { Config } from './scale-runners/config';
-import { ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './scale-runners/metrics';
+import {
+  ScaleUpMetrics,
+  ScaleUpChronMetrics,
+  sendMetricsAtTimeout,
+  sendMetricsTimeoutVars,
+} from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
+import { scaleUpChron as scaleUpChronR } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 
 async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean, number]>, metrics: ScaleUpMetrics) {
@@ -90,7 +96,7 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
           console.error(`Retryable error thrown: "${e.message}"`);
           evtFailed.push([evt, true, 1]);
         } else {
-          console.error(`Non-retryable error during request: "${e.message}"`);
+          console.error(`Non-retryable error during request: "${(e as Error).message}"`);
           console.error(`All remaning '${event.Records.length - i}' messages will be scheduled to retry`);
           for (let ii = i; ii < event.Records.length; ii += 1) {
             evtFailed.push([event.Records[ii], false, 1]);
@@ -154,4 +160,45 @@ export async function scaleDown(event: ScheduledEvent, context: Context, callbac
     console.error(e);
     return callback('Failed');
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function scaleUpChron(event: ScheduledEvent, context: Context, callback: any) {
+  // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
+  context.callbackWaitsForEmptyEventLoop = false;
+
+  const metrics = new ScaleUpChronMetrics();
+  const sndMetricsTimout: sendMetricsTimeoutVars = {
+    metrics: metrics,
+  };
+  sndMetricsTimout.setTimeout = setTimeout(
+    sendMetricsAtTimeout(sndMetricsTimout),
+    (Config.Instance.lambdaTimeout - 10) * 1000,
+  );
+
+  let callbackOutput: string | null = null;
+
+  try {
+    metrics.scaleUpChronInitiated();
+    await scaleUpChronR(metrics);
+    metrics.scaleUpChronSuccess();
+  } catch (e) {
+    metrics.scaleUpChronFailure();
+    console.error(e);
+    callbackOutput = `Failed to scale up chron: ${e}`;
+  } finally {
+    try {
+      clearTimeout(sndMetricsTimout.setTimeout);
+      sndMetricsTimout.metrics = undefined;
+      sndMetricsTimout.setTimeout = undefined;
+      await metrics.sendMetrics();
+    } catch (e) {
+      callbackOutput = `Error sending metrics: ${e}`;
+    }
+  }
+
+  if (callbackOutput !== null) {
+    console.error(callbackOutput);
+  }
+  callback(callbackOutput);
 }

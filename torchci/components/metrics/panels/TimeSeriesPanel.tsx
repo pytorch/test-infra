@@ -2,20 +2,23 @@
  * A metrics panel that shows a time series line chart.
  */
 
-import { RocksetParam } from "lib/rockset";
-import ReactECharts from "echarts-for-react";
 import { Paper, Skeleton } from "@mui/material";
-import { fetcher } from "lib/GeneralUtils";
-import useSWR from "swr";
-import { EChartsOption } from "echarts";
-import _ from "lodash";
+import {
+  formatTimeForCharts,
+  TIME_DISPLAY_FORMAT,
+} from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { time } from "console";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
+import { fetcher } from "lib/GeneralUtils";
+import _ from "lodash";
+import useSWR from "swr";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
-
+export type ChartType = "line" | "stacked_bar" | "bar";
 // Adapted from echarts
 // see: https://github.com/apache/echarts/blob/master/src/util/format.ts
 export function getTooltipMarker(color: string) {
@@ -36,7 +39,12 @@ export function seriesWithInterpolatedTimes(
   groupByFieldName: string | undefined,
   timeFieldName: string,
   yAxisFieldName: string,
-  fillMissingData: boolean = true
+  fillMissingData: boolean = true,
+  smooth: boolean = true,
+  sort_by: "total" | "name" = "name",
+  graph_type: ChartType = "line",
+  filter: string | undefined = undefined,
+  isRegex: boolean = false
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
   // with 0.
@@ -49,7 +57,7 @@ export function seriesWithInterpolatedTimes(
     t = startTime;
   for (let i = 0; t.isBefore(stopTime) && i < times.length; i++) {
     prevT = t;
-    t = dayjs(times[i]);
+    t = dayjs.utc(times[i]);
 
     let timeGap = t.diff(prevT, granularity);
     if (timeGap > 1.15) {
@@ -67,16 +75,16 @@ export function seriesWithInterpolatedTimes(
 
   // Group the data by the provided field and generate a time series for each
   // one.
-  let byGroup = _.groupBy(data, (d) => "");
+  let byGroup = _.groupBy(data, (_d) => "");
   if (groupByFieldName !== undefined) {
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  const series = _.map(byGroup, (value, key) => {
+  var series = _.map(byGroup, (value, key) => {
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
-      dayjs(k).toISOString()
+      dayjs.utc(k).toISOString()
     );
 
     // Fill with 0, see the above comment on interpolation.
@@ -93,19 +101,65 @@ export function seriesWithInterpolatedTimes(
       })
       .filter((t) => t !== undefined);
 
-    return {
+    var serie = {
       name: key,
-      type: "line",
+      type: graph_type === "line" ? "line" : "bar",
+
+      stack: "",
       symbol: "circle",
       symbolSize: 4,
       data,
       emphasis: {
         focus: "series",
       },
-      smooth: true,
+      smooth: smooth,
     };
+    if (graph_type === "stacked_bar") {
+      serie = {
+        ...serie,
+        stack: "Total",
+      };
+    }
+    return serie;
   });
-  return _.sortBy(series, (x) => x.name);
+  if (filter) {
+    if (isRegex) {
+      try {
+        const regex = new RegExp(filter, "i");
+        series = series.filter((s) => regex.test(s.name));
+      } catch (e) {
+        // If regex is invalid, fall back to simple include
+        series = series.filter((s) =>
+          s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+        );
+      }
+    } else {
+      series = series.filter((s) =>
+        s.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+      );
+    }
+  }
+  if (sort_by === "name") {
+    return _.sortBy(series, (x) => x.name);
+  }
+
+  // wewant to sort by total values per group over the entire time range
+  // 1. calculate total values per group
+  var totalValues = _.mapValues(byGroup, (value) => {
+    return _.sumBy(value, (x) => x[yAxisFieldName]);
+  });
+  // 2. sort by total values
+  var sortedSeries = _.sortBy(series, (x) => {
+    return -totalValues[x.name];
+  });
+  return sortedSeries;
+}
+
+function sumOfValuesForTimestamp(series: any, timestamp: string) {
+  return _.sumBy(series, (x: any) => {
+    const item = x.data.find((d: any) => d[0] === timestamp);
+    return item ? item[1] : 0;
+  });
 }
 
 export function TimeSeriesPanelWithData({
@@ -119,25 +173,35 @@ export function TimeSeriesPanelWithData({
   // as its own line.
   groupByFieldName,
   // Display format for the time field (ex "M/D h:mm:ss A")
-  timeFieldDisplayFormat = "M/D h:mm:ss A",
+  timeFieldDisplayFormat = TIME_DISPLAY_FORMAT,
   // Callback to render the y axis value in some nice way.
   yAxisRenderer,
   // What label to put on the y axis.
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
+  // To avoid overlapping long legends and the chart
+  legendPadding = 200,
+  onEvents,
+  // Whether to keep dates in UTC or convert to local time
+  useUTC = false,
 }: {
   data: any;
   series: any;
   title: string;
   groupByFieldName?: string;
   timeFieldDisplayFormat?: string;
-  yAxisRenderer: (value: any) => string;
+  yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
+  legendPadding?: number;
+  onEvents?: { [key: string]: any };
+  useUTC?: boolean;
 }) {
+  // Use the dark mode context to determine whether to use the dark theme
+  const { darkMode } = useDarkMode();
   // Add extra padding when the legend is active
-  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
+  const legend_padding = groupByFieldName !== undefined ? legendPadding : 48;
   const title_padding = yAxisLabel ? 65 : 48;
   const options: EChartsOption = _.merge(
     {
@@ -159,17 +223,48 @@ export function TimeSeriesPanelWithData({
         right: 10,
         top: "center",
         type: "scroll",
+        formatter: (name: string) => {
+          return name.length > 40 ? name.substring(0, 40) + "..." : name;
+        },
+        tooltip: {
+          show: true,
+          formatter: (params: any) => {
+            return `<span style="font-size: 12px;">${params.name}</span>`;
+          },
+        },
+
+        ...(groupByFieldName !== undefined && {
+          selector: [
+            {
+              type: "all",
+              title: "All",
+            },
+            {
+              type: "inverse",
+              title: "Inv",
+            },
+          ],
+        }),
       },
       // @ts-ignore
       tooltip: {
         trigger: "item",
         formatter: (params: any) =>
           `${params.seriesName}` +
-          `<br/>${dayjs(params.value[0])
-            .local()
-            .format(timeFieldDisplayFormat)}<br/>` +
+          `<br/>${formatTimeForCharts(
+            params.value[0],
+            timeFieldDisplayFormat,
+            useUTC
+          )}<br/>` +
           `${getTooltipMarker(params.color)}` +
-          `<b>${yAxisRenderer(params.value[1])}</b>`,
+          `<b>${yAxisRenderer(params.value[1])}</b>` +
+          // add total value to tooltip,
+          // only for stacked charts
+          (series && series[0] && series[0].stack === "Total"
+            ? ` (Total: ${yAxisRenderer(
+                sumOfValuesForTimestamp(series, params.value[0])
+              )})`
+            : ""),
       },
     },
     additionalOptions
@@ -179,7 +274,10 @@ export function TimeSeriesPanelWithData({
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
         style={{ height: "100%", width: "100%" }}
+        theme={darkMode ? "dark-hud" : undefined}
         option={options}
+        notMerge={true}
+        onEvents={onEvents}
       />
     </Paper>
   );
@@ -188,11 +286,9 @@ export function TimeSeriesPanelWithData({
 export default function TimeSeriesPanel({
   // Human-readable title of the panel.
   title,
-  // Query lambda collection in Rockset.
-  queryCollection = "metrics",
-  // Query lambda name in Rockset.
+  // Query name
   queryName,
-  // Rockset query parameters
+  // Query parameters
   queryParams,
   // Granularity of the time buckets.
   granularity,
@@ -202,7 +298,7 @@ export default function TimeSeriesPanel({
   // What field name to treat as the time value.
   timeFieldName,
   // Display format for the time field (ex "M/D h:mm:ss A")
-  timeFieldDisplayFormat = "M/D h:mm:ss A",
+  timeFieldDisplayFormat = TIME_DISPLAY_FORMAT,
   // What field name to put on the y axis.
   yAxisFieldName,
   // Callback to render the y axis value in some nice way.
@@ -211,45 +307,70 @@ export default function TimeSeriesPanel({
   yAxisLabel,
   // Additional EChartsOption (ex max y value)
   additionalOptions,
+  smooth = true,
+  chartType = "line",
+  sort_by = "name",
+  max_items_in_series = 0,
+  filter = undefined,
+  legendPadding = 200,
+  isRegex = false,
+  auto_refresh = true,
+  // Additional function to process the data after querying
+  dataReader = undefined,
+  // Whether to keep dates in UTC or convert to local time
+  useUTC = false,
+  // Whether to fill in missing data points with 0s
+  fillMissingData = true,
 }: {
   title: string;
-  queryCollection?: string;
   queryName: string;
-  queryParams: RocksetParam[];
+  queryParams: { [key: string]: any };
   granularity: Granularity;
   groupByFieldName?: string;
   timeFieldName: string;
   timeFieldDisplayFormat?: string;
   yAxisFieldName: string;
-  yAxisRenderer: (value: any) => string;
+  yAxisRenderer: (_value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
+  smooth?: boolean;
+  chartType?: ChartType;
+  sort_by?: "total" | "name";
+  max_items_in_series?: number;
+  filter?: string;
+  isRegex?: boolean;
+  auto_refresh?: boolean;
+  legendPadding?: number;
+  dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
+  useUTC?: boolean;
+  fillMissingData?: boolean;
 }) {
   // - Granularity
   // - Group by
   // - Time field
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify([
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify({
       ...queryParams,
-      { name: "granularity", type: "string", value: granularity },
-    ])
+      granularity: granularity as string,
+    })
   )}`;
 
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  const { data: rawData } = useSWR(url, fetcher, {
+    refreshInterval: auto_refresh ? 5 * 60 * 1000 : 0,
   });
 
-  if (data === undefined) {
+  if (rawData === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+  const data = dataReader ? dataReader(rawData) : rawData;
 
-  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
-  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
+  let startTime = queryParams["startTime"];
+  let stopTime = queryParams["stopTime"];
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  startTime = dayjs(startTime).startOf(granularity);
-  stopTime = dayjs(stopTime).endOf(granularity);
+  // align with the data we get from the database
+  startTime = dayjs.utc(startTime).startOf(granularity);
+  stopTime = dayjs.utc(stopTime).endOf(granularity);
 
   const series = seriesWithInterpolatedTimes(
     data,
@@ -258,19 +379,74 @@ export default function TimeSeriesPanel({
     granularity,
     groupByFieldName,
     timeFieldName,
-    yAxisFieldName
+    yAxisFieldName,
+    fillMissingData,
+    smooth,
+    sort_by,
+    chartType,
+    filter,
+    isRegex
   );
+
+  // If we have too many series, we'll only show the top N series by total value
+  // We group everything else into an "Other" series
+  let mergedSeries = series;
+
+  if (max_items_in_series && series.length > max_items_in_series) {
+    // take last max_items_in_series items and group the rest into "Other"
+    const topX = series.slice(0, max_items_in_series);
+
+    var other = {
+      name: "Other",
+      type: chartType === "line" ? "line" : "bar",
+      stack: "",
+      symbol: "circle",
+      symbolSize: 4,
+      // data is all other series, the data from every series summed up for each timestamp
+      // so basically get the field series.data, which is an array [date, value], and sum up the values for each date
+      data: series
+        .slice(max_items_in_series)
+        .map((s) => s.data)
+        .reduce((acc, val) => {
+          val.forEach((v, i) => {
+            if (acc[i] === undefined) {
+              acc[i] = v;
+            } else {
+              // @ts-ignore
+              acc[i][1] += v[1];
+            }
+          });
+          return acc;
+        }, []),
+
+      emphasis: {
+        focus: "series",
+      },
+      smooth: smooth,
+    };
+    if (chartType === "stacked_bar") {
+      other = {
+        ...other,
+        stack: "Total",
+      };
+    }
+
+    // now merge topX and other
+    mergedSeries = topX.concat(other);
+  }
 
   return (
     <TimeSeriesPanelWithData
       data={data}
-      series={series}
+      series={mergedSeries}
       title={title}
       groupByFieldName={groupByFieldName}
       yAxisRenderer={yAxisRenderer}
       yAxisLabel={yAxisLabel}
       timeFieldDisplayFormat={timeFieldDisplayFormat}
       additionalOptions={additionalOptions}
+      legendPadding={legendPadding}
+      useUTC={useUTC}
     />
   );
 }

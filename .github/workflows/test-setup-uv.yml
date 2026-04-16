@@ -1,0 +1,83 @@
+name: Test setup-uv
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-setup-uv.yml
+      - .github/actions/setup-uv/action.yml
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    name: Test setup-uv on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test setup-uv action
+        id: setup-uv
+        uses: ./.github/actions/setup-uv
+
+      - name: Verify uv is installed
+        shell: bash
+        run: |
+          set -eux
+          uv --version
+          # Verify the expected version is installed
+          uv --version | grep -q "0.9.21"
+
+      - name: Verify outputs are set
+        shell: bash
+        run: |
+          set -eux
+          echo "uv-version: ${{ steps.setup-uv.outputs.uv-version }}"
+          echo "uv-path: ${{ steps.setup-uv.outputs.uv-path }}"
+          test -n "${{ steps.setup-uv.outputs.uv-version }}"
+          test -n "${{ steps.setup-uv.outputs.uv-path }}"
+
+  test-with-python:
+    name: Test setup-uv with python-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test setup-uv with python-version
+        uses: ./.github/actions/setup-uv
+        with:
+          python-version: "3.12"
+
+      - name: Verify python version is set
+        run: |
+          set -eux
+          echo "UV_PYTHON=$UV_PYTHON"
+          test "$UV_PYTHON" = "3.12"
+
+  test-with-activate-environment:
+    name: Test setup-uv with activate-environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test setup-uv with activate-environment
+        id: setup-uv
+        uses: ./.github/actions/setup-uv
+        with:
+          activate-environment: "true"
+
+      - name: Verify venv is activated
+        run: |
+          set -eux
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+          test -n "$VIRTUAL_ENV"
+          # Verify the venv directory exists
+          test -d "$VIRTUAL_ENV"

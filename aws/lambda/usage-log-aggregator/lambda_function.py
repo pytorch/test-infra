@@ -1,23 +1,24 @@
 """
 Aggregate usage logs on S3 GHA artifacts bucket for fun and profit!
 """
-import asyncio
-from json import JSONDecodeError
 
-import json
-import re
+import asyncio
 import io
+import json
 import os
+import re
 import zipfile
+from json import JSONDecodeError
+from typing import Any, AsyncGenerator, Dict, List, Tuple
+from warnings import warn
+
 import pandas as pd
-from typing import List, AsyncGenerator, Dict, Any, Tuple
 from aiobotocore.session import get_session
+
 
 ARTIFACTS_S3_BUCKET = "gha-artifacts"
 USAGE_LOG_FILENAME = "usage_log.txt"
 PYTORCH = "pytorch"
-# TODO: It looks like the lambda is fast enough to process more artifacts, but we can figure out
-#  the exact number later
 MAX_ARTIFACTS = 50
 JOB_NAME_REGEX = re.compile(
     r"^(?P<job>.+)\s/\s.+\((?P<s_name>[^,]+),\s(?P<s_id>[^,]+),\s(?P<s_count>[^,]+),\s(?P<platform>[^,]+)\)$"
@@ -25,19 +26,17 @@ JOB_NAME_REGEX = re.compile(
 # One minute according to the rule https://pandas.pydata.org/docs/reference/api/pandas.Series.resample.html
 RESAMPLING_WINDOW = "1T"
 DATETIME_FORMAT = "%Y-%m-%d %X"
-
-# TODO: Need to understand the implication of this when retrying is supported because the rockset
-#  query only deals with the first attempt at the moment
-RUN_ATTEMPT = 1
+# NB: This is a work around to handle the case where requested job is retried
+MAX_RUN_ATTEMPT_TO_SCAN = 10
 
 
 async def get_usage_log(
-        s3_client: any,
-        owner: str,
-        repo: str,
-        prefix: str,
-        workflow_ids: List[str],
-        job_ids: List[str],
+    s3_client: any,
+    owner: str,
+    repo: str,
+    prefix: str,
+    workflow_ids: List[str],
+    job_ids: List[str],
 ) -> AsyncGenerator:
     """
     Get the usage log. The key is as follows OWNER/REPO/WORKFLOW_ID/RUN_ATTEMPT/artifact/PREFIX_JOB_ID.zip, for
@@ -47,25 +46,32 @@ async def get_usage_log(
         workflow_id = workflow_ids[i]
         job_id = job_ids[i]
 
-        s3_path = f"{owner}/{repo}/{workflow_id}/{RUN_ATTEMPT}/artifact/{prefix}_{job_id}.zip"
-        print(s3_path)
+        content = {}
+        for run_attempt in range(1, MAX_RUN_ATTEMPT_TO_SCAN):
+            s3_path = f"{owner}/{repo}/{workflow_id}/{run_attempt}/artifact/{prefix}_{job_id}.zip"
+            print(f"Checking {s3_path}")
 
-        try:
-            content = await s3_client.get_object(
-                Bucket=ARTIFACTS_S3_BUCKET, Key=s3_path
-            )
+            try:
+                content = await s3_client.get_object(
+                    Bucket=ARTIFACTS_S3_BUCKET, Key=s3_path
+                )
+            except s3_client.exceptions.NoSuchKey as error:
+                warn(f"Fail to find the artifact at {s3_path}: {error}")
+                continue
 
-            if not content:
-                yield workflow_id, job_id, ""
-            else:
+            if content:
+                break
+
+        if not content:
+            yield workflow_id, job_id, ""
+        else:
+            try:
                 zip_data = await content["Body"].read()
-                # TODO: Figure out a way to do this async. This is ugly in term of performance
                 with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
                     yield workflow_id, job_id, z.read(name=USAGE_LOG_FILENAME).decode()
-
-        except RuntimeError as error:
-            print(f"Fail to find the artifact at {s3_path}: {error}")
-            yield workflow_id, job_id, ""
+            except Exception as error:
+                warn(f"Fail to extract the usage log from {s3_path}: {error}")
+                yield workflow_id, job_id, ""
 
 
 async def _get_usage_log_prefix(job_name: str) -> str:
@@ -82,7 +88,7 @@ async def _get_usage_log_prefix(job_name: str) -> str:
     shard_count = m.group("s_count")
     platform = m.group("platform")
 
-    return f"usage-log-test-{shard_name}-{shard_id}-{shard_count}-{platform}"
+    return f"logs-test-{shard_name}-{shard_id}-{shard_count}-{platform}"
 
 
 async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, str]:
@@ -96,17 +102,22 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
     total_gpu_utilization = []
     total_gpu_mem_usage = []
 
-    for (workflow_id, job_id, usage_log) in raw_logs:
+    for workflow_id, job_id, usage_log in raw_logs:
         start_time = 0
         stop_time = 0
 
         for line in usage_log.splitlines():
-            datapoint = json.loads(line)
+            try:
+                datapoint = json.loads(line)
+            except json.decoder.JSONDecodeError as error:
+                # This is to handle invalid lines on the log, it's ok to ingore them
+                warn(f"Failed to load {line}: {error}")
+                continue
 
             if (
-                "time" not in datapoint or
-                "total_cpu_percent" not in datapoint or
-                "per_process_cpu_info" not in datapoint
+                "time" not in datapoint
+                or "total_cpu_percent" not in datapoint
+                or "per_process_cpu_info" not in datapoint
             ):
                 continue
 
@@ -121,17 +132,33 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
             if "per_process_cpu_info" not in datapoint:
                 total_mem_usage.append(0)
             else:
-                total_mem_usage.append(sum([e.get("rss_memory", 0) for e in datapoint["per_process_cpu_info"]]))
+                s = 0
+                for e in datapoint["per_process_cpu_info"]:
+                    v = e.get("rss_memory", 0)
+                    # The value can be None
+                    if not v:
+                        v = 0
+                    s += v
+                total_mem_usage.append(s)
 
-            # TODO: Remove this logic once https://github.com/pytorch/pytorch/pull/86250 has been running for a while.
-            #  In the meantime, both keys can be presented in usage log
-            gpu_key = "total_gpu_utilization" if "total_gpu_utilization" in datapoint else "total_gpu_utilizaiton"
+            gpu_key = (
+                "total_gpu_utilization"
+                if "total_gpu_utilization" in datapoint
+                else "total_gpu_utilizaiton"
+            )
             total_gpu_utilization.append(datapoint.get(gpu_key, 0))
 
             if "per_process_gpu_info" not in datapoint:
                 total_gpu_mem_usage.append(0)
             else:
-                total_gpu_mem_usage.append(sum([e.get("gpu_memory", 0) for e in datapoint["per_process_gpu_info"]]))
+                s = 0
+                for e in datapoint["per_process_gpu_info"]:
+                    v = e.get("gpu_memory", 0)
+                    # The value can be None
+                    if not v:
+                        v = 0
+                    s += v
+                total_gpu_mem_usage.append(s)
 
         uniq_id = f"{workflow_id} / {job_id}"
         # Let's also keep the starting time and ending time of the job run, so the usage can be mapped to
@@ -179,17 +206,10 @@ async def aggregate(body: str, context: Any) -> str:
     owner = params.get("owner", PYTORCH)
     repo = params.get("repo", PYTORCH)
 
-    # i.e. pull
-    workflow_name = params.get("workflowName")
     # i.e. linux-bionic-cuda11.6-py3.10-gcc7 / test (default, 1, 4, linux.4xlarge.nvidia.gpu)
     job_name = params.get("jobName")
-    # i.e. test_ops
-    test_file = params.get("testFile")
-    # i.e. TestCommonCUDA
-    test_class = params.get("testClass")
-
-    # Other parameters are not needed right now at the current level of granularity. However,
-    # we keep them here for future usage
+    # Other parameters including workflowName, testFile, and testClass are not needed right
+    # now at the current level of granularity. However, they're there for future usage
     if not job_name:
         return json.dumps({"error": "Missing jobName"})
 
@@ -198,7 +218,7 @@ async def aggregate(body: str, context: Any) -> str:
         return json.dumps({"error": "Failed to read from S3"})
 
     # Tne params should contain a list of workflow ids and job ids of the same length. Normally, they come from
-    # Rockset query test_insights_latest_runs
+    # the query test_insights_latest_runs
     workflow_ids = params.get("workflowIds", [])
     jobs_ids = params.get("jobIds", [])
 
@@ -213,15 +233,20 @@ async def aggregate(body: str, context: Any) -> str:
 
     session = get_session()
     async with session.create_client(
-            "s3",
-            region_name="us-east-1",
+        "s3",
+        region_name="us-east-1",
     ) as s3_client:
-        raw_logs = [entry async for entry in get_usage_log(s3_client=s3_client,
-                                                           owner=owner,
-                                                           repo=repo,
-                                                           prefix=prefix,
-                                                           workflow_ids=workflow_ids,
-                                                           job_ids=jobs_ids)]
+        raw_logs = [
+            entry
+            async for entry in get_usage_log(
+                s3_client=s3_client,
+                owner=owner,
+                repo=repo,
+                prefix=prefix,
+                workflow_ids=workflow_ids,
+                job_ids=jobs_ids,
+            )
+        ]
 
     results = await _process_raw_logs(raw_logs=raw_logs)
     return json.dumps(results)
@@ -238,38 +263,32 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "jobName": "win-vs2019-cpu-py3 / test (functorch, 1, 1, windows.4xlarge)",
+        "jobName": "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge.nonephemeral)",
         "workflowIds": [
-            "3190793389",
-            "3190721571",
-            "3190637266",
-            "3190634736", "3190506239", "3190443293", "3189983758", "3189709206", "3189651768", "3189512294",
-            "3189428641", "3189345038", "3189314334", "3189282022", "3189125171", "3189013497", "3188150968",
-            "3188140050", "3188068038", "3188079769"
+            "7824285997",
         ],
         "jobIds": [
-            8725009912,
-            8724904966,
-            8724811861, 8724762262, 8724298558, 8724203742, 8722636066, 8721853447, 8721609722, 8721288973, 8720825008,
-            8720594880, 8720515505, 8720468097, 8720016748, 8719644525, 8717292485, 8717237728, 8716982768, 8717015257
-        ]
+            21347334930,
+        ],
     }
     # For local development
-    print(lambda_handler(
-        {
-            "resource": "/usage-log-aggregator",
-            "path": "/usage-log-aggregator",
-            "httpMethod": "POST",
-            "headers": {
-                "accept": "application/json",
-                "content-type": "application/json; charset=utf-8",
-                "Host": "0y7izelft6.execute-api.us-east-1.amazonaws.com",
-                "X-Amzn-Trace-Id": "Root=1-633d5d3c-455c3c8842a100cc4da9eb14",
-                "X-Forwarded-For": "IP",
-                "X-Forwarded-Port": "443",
-                "X-Forwarded-Proto": "https"
+    print(
+        lambda_handler(
+            {
+                "resource": "/usage-log-aggregator",
+                "path": "/usage-log-aggregator",
+                "httpMethod": "POST",
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/json; charset=utf-8",
+                    "Host": "0y7izelft6.execute-api.us-east-1.amazonaws.com",
+                    "X-Amzn-Trace-Id": "Root=1-633d5d3c-455c3c8842a100cc4da9eb14",
+                    "X-Forwarded-For": "IP",
+                    "X-Forwarded-Port": "443",
+                    "X-Forwarded-Proto": "https",
+                },
+                "body": json.dumps(mock_body),
             },
-            "body": json.dumps(mock_body),
-        },
-        None,
-    ))
+            None,
+        )
+    )

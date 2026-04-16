@@ -1,5 +1,5 @@
-import * as restc from "typed-rest-client/RestClient";
 import { NextApiRequest, NextApiResponse } from "next";
+import * as restc from "typed-rest-client/RestClient";
 
 // TODO: Create a hostname and secure this API
 const USAGE_LOG_AGGREGATOR_API =

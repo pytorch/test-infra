@@ -4,12 +4,17 @@ on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
+      - .github/actions/binary-upload/action.yml
       - .github/workflows/test_build_wheels_linux.yml
       - .github/workflows/build_wheels_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
       - .github/workflows/test_build_wheels_linux_with_cuda.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   generate-matrix:
@@ -19,6 +24,7 @@ jobs:
       os: linux
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      with-xpu: enable
   test:
     needs: generate-matrix
     strategy:
@@ -26,10 +32,6 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            cache-path: /third_party/ffmpeg
-            cache-key: linux-ffmpeg
-            pre-script: packaging/pre_build_script.sh
-            post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
           - repository: pytorch/vision
@@ -55,5 +57,3 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
-      cache-path: ${{ matrix.cache-path }}
-      cache-key: ${{ matrix.cache-key }}

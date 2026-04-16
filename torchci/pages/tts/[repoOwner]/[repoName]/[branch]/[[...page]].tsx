@@ -1,30 +1,35 @@
-import dayjs from "dayjs";
-import ReactECharts from "echarts-for-react";
-import { EChartsOption } from "echarts";
-import useSWR from "swr";
-import _ from "lodash";
-import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { useRouter } from "next/router";
-import { useCallback, useRef, useState } from "react";
-import { RocksetParam } from "lib/rockset";
-import { fetcher } from "lib/GeneralUtils";
+import { Grid, Paper, Stack, Typography } from "@mui/material";
+import CheckBoxList from "components/common/CheckBoxList";
+import CopyLink from "components/common/CopyLink";
+import GranularityPicker from "components/common/GranularityPicker";
+import LoadingPage from "components/common/LoadingPage";
 import {
-  Granularity,
+  durationDisplay,
+  formatTimeForCharts,
+} from "components/common/TimeUtils";
+import {
   getTooltipMarker,
+  Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
-import GranularityPicker from "components/GranularityPicker";
-import React from "react";
+import dayjs from "dayjs";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { encodeParams, fetcher } from "lib/GeneralUtils";
+import {
+  compressToEncodedURIComponent,
+  decompressFromEncodedURIComponent,
+} from "lz-string";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import useSWRImmutable from "swr/immutable";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
-import styles from "components/hud.module.css";
 
-const SUPPORTED_WORKFLOWS = [
-  "pull",
-  "trunk",
-  "nightly",
-  "periodic",
-  "inductor",
+const INGORED_WORKFLOWS = [
+  "Upload test stats",
+  "Upload torch dynamo performance stats",
+  "Validate and merge PR",
+  "Revert merged PR",
 ];
 
 function Panel({
@@ -59,7 +64,7 @@ function Panel({
       trigger: "item",
       formatter: (params: any) =>
         `${params.seriesName}` +
-        `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
+        `<br/>${formatTimeForCharts(params.value[0])}<br/>` +
         `${getTooltipMarker(params.color)}` +
         `<b>${durationDisplay(params.value[1])}</b>`,
     },
@@ -74,26 +79,83 @@ function Panel({
   );
 }
 
-function Graphs({
-  queryParams,
-  granularity,
-  ttsPercentile,
-  selectedJobName,
-  checkboxRef,
-  branchName,
-  filter,
-  toggleFilter,
-}: {
-  queryParams: RocksetParam[];
-  granularity: Granularity;
-  ttsPercentile: number;
-  selectedJobName: string;
-  checkboxRef: any;
-  branchName: string;
-  filter: any;
-  toggleFilter: any;
-}) {
-  const ROW_HEIGHT = 800;
+export default function Page() {
+  const router = useRouter();
+  const repoOwner: string = (router.query.repoOwner as string) ?? "pytorch";
+  const repoName: string = (router.query.repoName as string) ?? "pytorch";
+  const branch: string = (router.query.branch as string) ?? "main";
+  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
+  const [stopTime, setStopTime] = useState(dayjs());
+  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [timeRange, setTimeRange] = useState<number>(7);
+  const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
+  const [selectedJobs, setSelectedJobs] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  useEffect(() => {
+    if (router.query.jobName) {
+      setSelectedJobs((prev) => ({
+        ...prev,
+        [router.query.jobName as string]: true,
+      }));
+    }
+    if (router.query.startTime) {
+      setStartTime(dayjs(router.query.startTime as string));
+    }
+    if (router.query.stopTime) {
+      setStopTime(dayjs(router.query.stopTime as string));
+    }
+    if (router.query.granularity) {
+      setGranularity(router.query.granularity as string as Granularity);
+    }
+    if (router.query.timeRange) {
+      setTimeRange(parseInt(router.query.timeRange as string) || 7);
+    }
+    if (router.query.ttsPercentile) {
+      setTtsPercentile(parseFloat(router.query.ttsPercentile as string) || 0.5);
+    }
+
+    const jobNamesFromLink = JSON.parse(
+      router.query.jobNamesCompressed
+        ? decompressFromEncodedURIComponent(
+            router.query.jobNamesCompressed as string
+          )
+        : "[]"
+    );
+
+    if (router.query.jobName) {
+      jobNamesFromLink.push(router.query.jobName as string);
+    }
+
+    if (tts_true_series.length > 0) {
+      setSelectedJobs(
+        tts_true_series.reduce((acc: any, item: any) => {
+          acc[item.name] = jobNamesFromLink.includes(item.name);
+          return acc;
+        }, {} as any)
+      );
+    } else {
+      setSelectedJobs(
+        jobNamesFromLink.reduce((acc: any, item: any) => {
+          acc[item] = true;
+          return acc;
+        }, {} as any)
+      );
+    }
+  }, [router.query]);
+
+  const GRAPHS_HEIGHT = 800;
+
+  const queryParams: { [key: string]: any } = {
+    branch: branch,
+    granularity: granularity,
+    percentile: ttsPercentile,
+    repo: `${repoOwner}/${repoName}`,
+    startTime: dayjs(startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: dayjs(stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    ignoredWorkflows: INGORED_WORKFLOWS,
+  };
 
   let queryName = "tts_duration_historical_percentile";
   let ttsFieldName = "tts_percentile_sec";
@@ -106,41 +168,32 @@ function Graphs({
     durationFieldName = "duration_avg_sec";
   }
 
-  const timeFieldName = "granularity_bucket";
-  const groupByFieldName = "full_name";
-  const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
+  const { data, error } = useSWRImmutable<{ [key: string]: any }[]>(
+    url,
+    fetcher
+  );
 
-  if (error !== undefined) {
-    // TODO: figure out how to deterine what error it actually is, can't just log the error
-    // because its in html format instead of json?
-    return (
-      <div>
-        error occured while fetching data, perhaps there are too many results
-        with your choice of time range and granularity?
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (data != undefined) {
+      const jobNames = data.map((item) => item.full_name);
+      setSelectedJobs((prev) => {
+        const newJobs = jobNames.reduce((acc: any, jobName: string) => {
+          acc[jobName] = false;
+          return acc;
+        }, {});
+        return { ...newJobs, ...prev };
+      });
+    }
+  }, [data]);
 
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
-  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
-
-  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  startTime = dayjs(startTime).startOf(granularity);
-  stopTime = dayjs(stopTime).endOf(granularity);
-
+  const timeFieldName = "granularity_bucket";
+  const groupByFieldName = "full_name";
   const tts_true_series = seriesWithInterpolatedTimes(
-    data,
+    data ?? [],
     startTime,
     stopTime,
     granularity,
@@ -149,7 +202,7 @@ function Graphs({
     ttsFieldName
   );
   const duration_true_series = seriesWithInterpolatedTimes(
-    data,
+    data ?? [],
     startTime,
     stopTime,
     granularity,
@@ -157,126 +210,31 @@ function Graphs({
     timeFieldName,
     durationFieldName
   );
-  var tts_series = tts_true_series.filter((item: any) =>
-    filter.has(item["name"])
+
+  var tts_series = tts_true_series.filter(
+    (item: any) => selectedJobs[item["name"]]
   );
-  var duration_series = duration_true_series.filter((item: any) =>
-    filter.has(item["name"])
+  var duration_series = duration_true_series.filter(
+    (item: any) => selectedJobs[item["name"]]
   );
 
-  const encodedBranchName = encodeURIComponent(branchName);
-  const jobUrlPrefix = `/tts/pytorch/pytorch/${encodedBranchName}?jobName=`;
-
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={9} height={ROW_HEIGHT}>
-        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"tts"} series={tts_series} />
-        </Paper>
-        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"duration"} series={duration_series} />
-        </Paper>
-      </Grid>
-      <Grid item xs={3} height={ROW_HEIGHT}>
-        <div
-          style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
-          ref={checkboxRef}
-        >
-          {tts_true_series.map((job) => (
-            <div
-              key={job["name"]}
-              className={filter.has(job["name"]) ? styles.selectedRow : ""}
-            >
-              <input
-                type="checkbox"
-                id={job["name"]}
-                onChange={toggleFilter}
-                checked={filter.has(job["name"])}
-              />
-              <label htmlFor={job["name"]}>
-                <a href={jobUrlPrefix + encodeURIComponent(job["name"])}>
-                  {job["name"]}
-                </a>
-              </label>
-            </div>
-          ))}
-        </div>
-      </Grid>
-    </Grid>
-  );
-}
-
-export default function Page() {
-  const router = useRouter();
-  const branch: string = (router.query.branch as string) ?? "master";
-  const jobName: string = (router.query.jobName as string) ?? "none";
-  const percentile: number =
-    router.query.percentile === undefined
-      ? 0.5
-      : parseFloat(router.query.percentile as string);
-
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
-  const [stopTime, setStopTime] = useState(dayjs());
-  const [timeRange, setTimeRange] = useState<number>(7);
-  const [granularity, setGranularity] = useState<Granularity>("day");
-  const [ttsPercentile, setTtsPercentile] = useState<number>(percentile);
-
-  const [filter, setFilter] = useState(new Set());
-  function toggleFilter(e: any) {
-    var jobName = e.target.id;
-    const next = new Set(filter);
-    if (filter.has(jobName)) {
-      next.delete(jobName);
-    } else {
-      next.add(jobName);
-    }
-    setFilter(next);
-  }
-
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      value: startTime,
-    },
-    {
-      name: "stopTime",
-      type: "string",
-      value: stopTime,
-    },
-    {
-      name: "granularity",
-      type: "string",
-      value: granularity,
-    },
-    {
-      name: "percentile",
-      type: "float",
-      value: ttsPercentile,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: branch,
-    },
-    {
-      name: "workflowNames",
-      type: "string",
-      value: SUPPORTED_WORKFLOWS.join(","),
-    },
-  ];
-
-  const checkboxRef = useCallback(() => {
-    const selectedJob = document.getElementById(jobName);
-    if (selectedJob != undefined) {
-      selectedJob.click();
-    }
-  }, [jobName]);
+  const permalink =
+    typeof window !== "undefined" &&
+    `${window.location.protocol}/${window.location.host}${router.asPath.replace(
+      /\?.+/,
+      ""
+    )}?${encodeParams({
+      jobNamesCompressed: compressToEncodedURIComponent(
+        JSON.stringify(
+          Object.keys(selectedJobs).filter((key) => selectedJobs[key])
+        )
+      ),
+      startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      granularity: granularity,
+      timeRange: timeRange.toString(),
+      ttsPercentile: ttsPercentile.toString(),
+    })}`;
 
   return (
     <div>
@@ -300,17 +258,36 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <CopyLink textToCopy={permalink || ""} />
       </Stack>
-      <Graphs
-        queryParams={queryParams}
-        granularity={granularity}
-        ttsPercentile={ttsPercentile}
-        selectedJobName={jobName}
-        checkboxRef={checkboxRef}
-        branchName={branch}
-        filter={filter}
-        toggleFilter={toggleFilter}
-      />
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 9 }} height={GRAPHS_HEIGHT}>
+          {error !== undefined ? (
+            <Typography>
+              error occured while fetching data, perhaps there are too many
+              results with your choice of time range and granularity?
+            </Typography>
+          ) : data === undefined ? (
+            <LoadingPage height={GRAPHS_HEIGHT} />
+          ) : (
+            <Stack spacing={2} height={GRAPHS_HEIGHT}>
+              <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
+                <Panel title={"tts"} series={tts_series} />
+              </Paper>
+              <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
+                <Panel title={"duration"} series={duration_series} />
+              </Paper>
+            </Stack>
+          )}
+        </Grid>
+        <Grid size={{ xs: 3 }} height={GRAPHS_HEIGHT} overflow={"auto"}>
+          <CheckBoxList
+            items={selectedJobs}
+            onChange={setSelectedJobs}
+            onClick={(_val) => {}}
+          />
+        </Grid>
+      </Grid>
     </div>
   );
 }

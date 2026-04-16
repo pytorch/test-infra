@@ -1,22 +1,20 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getOctokit } from "lib/github";
+import dayjs from "dayjs";
+import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
 import fetchFlakyTests, {
-  fetchFlakyTestsAcrossJobs,
   fetchFlakyTestsAcrossFileReruns,
 } from "lib/fetchFlakyTests";
-import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
-import { FlakyTestData, IssueData, DisabledNonFlakyTestData } from "lib/types";
-import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
-import { retryRequest } from "lib/bot/utils";
+import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
+import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
+import { getOctokit } from "lib/github";
+import { DisabledNonFlakyTestData, FlakyTestData, IssueData } from "lib/types";
+import _ from "lodash";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
-import dayjs from "dayjs";
 
-const NUM_HOURS = 3;
-const NUM_HOURS_ACROSS_JOBS = 72;
-export const NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING = 24 * 14; // 2 weeks
-const owner: string = "pytorch";
-const repo: string = "pytorch";
+export const NUM_HOURS = 6;
+const PYTORCH = "pytorch";
+const THRESHOLD = 4;
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,8 +24,9 @@ export default async function handler(
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
     await disableFlakyTestsAndReenableNonFlakyTests();
     res.status(200).end();
+  } else {
+    res.status(403).end();
   }
-  res.status(403).end();
 }
 
 async function disableFlakyTestsAndReenableNonFlakyTests() {
@@ -35,31 +34,46 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     octokit,
     flakyTests,
     flakyTestsAcrossFileReruns,
-    flakyTestsAcrossJobs,
     issues,
     disabledNonFlakyTests,
   ] = await Promise.all([
-    getOctokit(owner, repo),
+    getOctokit(PYTORCH, PYTORCH),
     fetchFlakyTests(`${NUM_HOURS}`),
     fetchFlakyTestsAcrossFileReruns(`${NUM_HOURS}`),
-    fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
     fetchIssuesByLabel("skipped"),
     fetchDisabledNonFlakyTests(),
   ]);
 
-  const allFlakyTests = flakyTests
-    .concat(flakyTestsAcrossJobs)
-    .concat(flakyTestsAcrossFileReruns);
+  // Separating this out to make it easier to test
+  await handleAll(
+    octokit,
+    flakyTests,
+    flakyTestsAcrossFileReruns,
+    issues,
+    disabledNonFlakyTests
+  );
+}
+
+async function handleAll(
+  octokit: Octokit,
+  flakyTests: FlakyTestData[],
+  flakyTestsAcrossFileReruns: FlakyTestData[],
+  issues: IssueData[],
+  disabledNonFlakyTests: DisabledNonFlakyTestData[]
+) {
+  const allFlakyTests = flakyTests.concat(flakyTestsAcrossFileReruns);
+  allFlakyTests.forEach((test) => {
+    test.invoking_file = test.invoking_file.replaceAll(".", "/");
+  });
   // If the test is flaky only on PRs, we should not disable it yet.
+  const recentFlakyTests = allFlakyTests.filter((test) => wasRecent(test));
   const flakyTestsOnTrunk = filterThreshold(
-    filterOutPRFlakyTests(allFlakyTests)
+    filterOutPRFlakyTests(recentFlakyTests)
   );
 
   const dedupedIssues = await dedupFlakyTestIssues(octokit, issues);
 
-  flakyTestsOnTrunk.forEach(async function (test) {
-    await handleFlakyTest(test, dedupedIssues, octokit);
-  });
+  await handleFlakyTests(flakyTestsOnTrunk, dedupedIssues, octokit);
 
   // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
   // that no flaky test is accidentally closed
@@ -68,81 +82,105 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     allFlakyTests
   );
 
-  nonFlakyTests.forEach(async function (test) {
-    await handleNonFlakyTest(test, issues, octokit);
-  });
+  await handleNoLongerFlakyTests(nonFlakyTests, dedupedIssues, octokit);
 }
 
-export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
+function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
   // Remove the PR-only instances of flakiness, but don't modify data within
   return tests.filter(
     (test) => test.branches.includes("master") || test.branches.includes("main")
   );
 }
-
-export function filterThreshold(
+function filterThreshold(
   tests: FlakyTestData[],
-  threshold: number = 1
+  threshold: number = 2
 ): FlakyTestData[] {
-  return tests.filter((test) => new Set(test.jobIds).size > threshold);
+  return tests.filter(
+    (test) =>
+      new Set(test.jobIds).size > threshold &&
+      test.suite != "TestSDPACudaOnlyCUDA" && // TODO: Get rid of this when driss fixes the flakiness
+      !(
+        test.suite == "TestInductorOpInfoCPU" &&
+        test.jobNames.every((name) => name.includes("mac"))
+      ) // See https://github.com/pytorch/pytorch/issues/135885
+  );
 }
 
-export async function handleFlakyTest(
-  test: FlakyTestData,
+async function handleFlakyTests(
+  flakyTests: FlakyTestData[],
   issues: IssueData[],
   octokit: Octokit
 ) {
-  const issueTitle = getIssueTitle(test.name, test.suite);
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
-  const workflowJobNames = getWorkflowJobNames(test);
-  test.invoking_file = test.invoking_file.replaceAll(".", "/");
-  if (matchingIssues.length !== 0) {
-    // There is a matching issue
-    const matchingIssue = matchingIssues[0];
-    if (!wasRecent(test)) {
-      return;
-    }
-    if (matchingIssue.state === "open") {
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Please verify the issue was opened after this instance, that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(
-              ", "
-            )}], or disable bot might not be working as expected.`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
-    } else {
-      // Re-open the issue
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        state: "open",
-      });
+  // Determine the test 1. has a matching single issue, 2. has a matching
+  // aggregate issue, 3. needs a new single issue, 4. needs a new aggregate
+  // issue
+  const stillLeft = (
+    await Promise.all(
+      flakyTests.map(async (test) => {
+        for (const issue of issues) {
+          if (singleDisableIssue.matchesSingleFlakyTestIssue(issue, test)) {
+            await singleDisableIssue.updateExistingIssueForFlakyTest(
+              octokit,
+              issue,
+              test
+            );
+            return { test, keep: false };
+          }
+        }
 
-      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-        test
-      )}).
-            Reopening the issue to disable. Please verify that the platforms list includes all of
-            [${getPlatformsAffected(workflowJobNames).join(", ")}].`;
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: matchingIssue.number,
-        body,
-      });
+        return { test, keep: true };
+      })
+    )
+  )
+    .filter((x) => x.keep)
+    .map((x) => x.test);
+
+  // Map issue number -> tests that should update it
+  const aggregateIssueToBeUpdated = new Map<string, FlakyTestData[]>();
+
+  const needsNew = stillLeft.filter((test) => {
+    for (const issue of issues) {
+      if (aggregateDisableIssue.matchesAggregateFlakyTestIssue(issue, test)) {
+        aggregateIssueToBeUpdated.set(
+          issue.number.toString(),
+          (aggregateIssueToBeUpdated.get(issue.number.toString()) || []).concat(
+            [test]
+          )
+        );
+        return false;
+      }
     }
-  } else {
-    await createIssueFromFlakyTest(test, octokit);
+    return true;
+  });
+
+  for (const [issueNumber, tests] of aggregateIssueToBeUpdated.entries()) {
+    const issue = issues.find(
+      (issue) => issue.number.toString() === issueNumber
+    )!;
+    await aggregateDisableIssue.updateAggregateFlakyTestIssue(
+      octokit,
+      issue,
+      tests
+    );
+  }
+
+  const groupedByFile = _.groupBy(needsNew, (test) => test.file);
+
+  for (const file in groupedByFile) {
+    let tests = groupedByFile[file];
+    tests = tests.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (tests.length > THRESHOLD) {
+      await aggregateDisableIssue.createNewAggregateIssue(tests, octokit);
+    } else {
+      for (const test of tests) {
+        await singleDisableIssue.createNewSingleIssue(test, octokit);
+      }
+    }
   }
 }
 
-export function filterOutNonFlakyTests(
+function filterOutNonFlakyTests(
   nonFlakyTests: DisabledNonFlakyTestData[],
   allFlakyTests: FlakyTestData[]
 ): DisabledNonFlakyTestData[] {
@@ -155,7 +193,7 @@ export function filterOutNonFlakyTests(
   );
 }
 
-export async function dedupFlakyTestIssues(
+async function dedupFlakyTestIssues(
   octokit: Octokit,
   issues: IssueData[]
 ): Promise<IssueData[]> {
@@ -163,8 +201,11 @@ export async function dedupFlakyTestIssues(
   // largest PR number.
 
   let deduped = new Map<string, IssueData>();
+  const [aggregateIssues, singleIssues] = _.partition(issues, (issue) =>
+    issue.labels.includes(aggregateDisableIssue.MASS_FLAKY_TEST_ISSUE_LABEL)
+  );
 
-  for (const issue of issues) {
+  for (const issue of singleIssues) {
     const key = issue.title;
     const existing_issue = deduped.get(key);
     if (
@@ -180,242 +221,95 @@ export async function dedupFlakyTestIssues(
 
   // Close the issues that aren't favored
   const dedupedArrayNumbers = dedupedArray.map((i) => i.number);
-  for (const issue of issues) {
+  for (const issue of singleIssues) {
     if (!dedupedArrayNumbers.includes(issue.number) && issue.state === "open") {
       await octokit.rest.issues.update({
-        owner,
-        repo,
+        owner: PYTORCH,
+        repo: PYTORCH,
         issue_number: issue.number,
         state: "closed",
       });
     }
   }
-  return dedupedArray;
+
+  return dedupedArray.concat(aggregateIssues);
 }
 
-export async function handleNonFlakyTest(
-  test: DisabledNonFlakyTestData,
+async function handleNoLongerFlakyTests(
+  tests: DisabledNonFlakyTestData[],
   issues: IssueData[],
   octokit: Octokit
 ) {
-  const issueTitle = getIssueTitle(test.name, test.classname);
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const openIssues = issues.filter((issue) => issue.state === "open");
 
-  if (matchingIssues.length === 0) {
-    return;
-  }
+  // Sort the tests by the issues they should update.
+  // Map issue number -> tests that should update it
+  const singleIssueToBeUpdated = new Map<string, DisabledNonFlakyTestData[]>();
+  const aggregateIssueToBeUpdated = new Map<
+    string,
+    DisabledNonFlakyTestData[]
+  >();
 
-  const matchingIssue = matchingIssues[0];
-
-  if (matchingIssue.state === "open") {
-    const updatedAt = dayjs(matchingIssue.updated_at);
-    const daysSinceLastUpdate: number =
-      NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
-
-    // Only close the issue if the issue is not flaky and hasn't been updated in
-    // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
-    if (
-      updatedAt.isAfter(
-        dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
-      )
-    ) {
-      console.log(`${matchingIssue.number} is not flaky but is too recent.`);
-      return;
-    }
-    console.log(`${matchingIssue.number} is not longer flaky`);
-
-    const body =
-      `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
-      `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
-      `issue to re-disable the test if you think this is a false positive`;
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: matchingIssue.number,
-      body,
-    });
-
-    // Close the issue
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: matchingIssue.number,
-      state: "closed",
-    });
-  }
-}
-
-export function getLatestTrunkJobURL(test: FlakyTestData): string {
-  let index = test.branches.lastIndexOf("master");
-  if (index < 0) {
-    index = test.branches.lastIndexOf("main");
-    if (index < 0) {
-      console.warn(
-        `Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`
-      );
-      index = test.workflowIds.length - 1;
-    }
-  }
-  return `https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`;
-}
-
-export function getIssueTitle(testName: string, testSuite: string) {
-  let suite = testSuite;
-  // If the test class is not a subclass, it belongs to __main__
-  if (testSuite.indexOf(".") < 0) {
-    suite = "__main__." + suite;
-  }
-  return `DISABLED ${testName} (${suite})`;
-}
-
-export function getWorkflowJobNames(test: FlakyTestData): string[] {
-  return test.workflowNames.map(
-    (value, index) => `${value} / ${test.jobNames[index]}`
-  );
-}
-
-export function getPlatformsAffected(workflowJobNames: string[]): string[] {
-  const platformsToSkip: string[] = [];
-  supportedPlatforms.forEach((platform: string) =>
-    workflowJobNames.forEach((workflowJobNames) => {
-      if (
-        workflowJobNames.includes(platform) &&
-        (platform == "rocm" || !workflowJobNames.includes("rocm")) &&
-        !workflowJobNames.includes("dynamo") &&
-        !workflowJobNames.includes("inductor") &&
-        !platformsToSkip.includes(platform)
-      ) {
-        platformsToSkip.push(platform);
+  for (const test of tests) {
+    for (const issue of openIssues) {
+      if (singleDisableIssue.nonFlakyTestMatchesIssue(issue, test)) {
+        singleIssueToBeUpdated.set(
+          issue.number.toString(),
+          (singleIssueToBeUpdated.get(issue.number.toString()) || []).concat([
+            test,
+          ])
+        );
       }
-    })
-  );
-
-  // dynamo and inductor are subsets of linux, so only include them if linux is
-  // not present as a disable platform
-  if (!platformsToSkip.includes("linux")) {
-    if (workflowJobNames.some((name) => name.includes("dynamo"))) {
-      platformsToSkip.push("dynamo");
-    }
-    if (workflowJobNames.some((name) => name.includes("inductor"))) {
-      platformsToSkip.push("inductor");
-    }
-  }
-
-  return platformsToSkip;
-}
-
-export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
-  let numRedGreen = `Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.`;
-  let debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
-DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
-To find relevant log snippets:
-1. Click on the workflow logs linked above
-2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.
-3. Grep for \`${test.name}\`
-4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
-`;
-  let fileInfo = `Test file path: \`${test.file}\``;
-  if (test.file !== `${test.invoking_file}.py`) {
-    fileInfo += ` or \`${test.invoking_file}\``;
-  }
-  if (test.numRed === undefined) {
-    // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
-    numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
-    examplesURL = `https://hud.pytorch.org/failure/${test.name}`;
-    debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
-To find relevant log snippets:
-1. Click on the workflow logs linked above
-2. Grep for \`${test.name}\`
-`;
-  }
-  return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
-    ", "
-  )}
-
-This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkJobURL(
-    test
-  )}).
-
-${numRedGreen}
-
-${debuggingSteps}
-
-${fileInfo}`;
-}
-
-export async function getTestOwnerLabels(
-  test: FlakyTestData
-): Promise<{ labels: string[]; additionalErrMessage?: string }> {
-  const urlkey = "https://raw.githubusercontent.com/pytorch/pytorch/main/test/";
-
-  let labels: string[] = [];
-  let additionalErrMessage = undefined;
-
-  try {
-    let result = await retryRequest(`${urlkey}${test.file}`);
-    let statusCode = result.res.statusCode;
-    if (statusCode !== 200) {
-      result = await retryRequest(`${urlkey}${test.invoking_file}.py`);
-      if (result.res.statusCode !== 200) {
-        throw new Error(
-          `Error retrieving ${test.file}: ${statusCode}, ${test.invoking_file}: ${result.res.statusCode}`
+      if (aggregateDisableIssue.nonFlakyTestMatchesIssue(issue, test)) {
+        aggregateIssueToBeUpdated.set(
+          issue.number.toString(),
+          (aggregateIssueToBeUpdated.get(issue.number.toString()) || []).concat(
+            [test]
+          )
         );
       }
     }
-    const fileContents = result.data.toString(); // data is a Buffer
-    const lines = fileContents.split(/[\r\n]+/);
-    const prefix = "# Owner(s): ";
-    for (const line of lines) {
-      if (line.startsWith(prefix)) {
-        labels = labels.concat(JSON.parse(line.substring(prefix.length)));
-        break;
-      }
+  }
+
+  for (const [issueNumber, tests] of singleIssueToBeUpdated) {
+    const issue = openIssues.find(
+      (issue) => issue.number.toString() === issueNumber
+    );
+    if (issue) {
+      await singleDisableIssue.handleNoLongerFlakyTest(
+        tests[0],
+        issue,
+        octokit
+      );
     }
-  } catch (err) {
-    console.warn(err);
-    additionalErrMessage = `${err}`;
   }
-
-  if (labels.length === 0) {
-    labels.push("module: unknown");
+  for (const [issueNumber, tests] of aggregateIssueToBeUpdated) {
+    const issue = openIssues.find(
+      (issue) => issue.number.toString() === issueNumber
+    );
+    if (issue) {
+      await aggregateDisableIssue.handleNoLongerFlakyTest(
+        tests,
+        issue,
+        octokit
+      );
+    }
   }
-
-  let platforms = getPlatformsAffected(getWorkflowJobNames(test));
-  if (platforms.includes("dynamo") || platforms.includes("inductor")) {
-    labels.push("oncall: pt2");
-  }
-
-  if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
-    labels.push("triaged");
-  }
-  return { labels, additionalErrMessage };
 }
 
-export function wasRecent(test: FlakyTestData) {
+function wasRecent(test: FlakyTestData) {
   if (test.eventTimes) {
     return test.eventTimes.some(
-      (value) => dayjs().diff(dayjs(value), "minutes") < NUM_HOURS * 60
+      (value) => dayjs().diff(dayjs(value), "minutes") < (NUM_HOURS - 1) * 60
     );
   }
   return true;
 }
 
-export async function createIssueFromFlakyTest(
-  test: FlakyTestData,
-  octokit: Octokit
-): Promise<void> {
-  const title = getIssueTitle(test.name, test.suite);
-  let body = getIssueBodyForFlakyTest(test);
-  const { labels, additionalErrMessage } = await getTestOwnerLabels(test);
-  if (additionalErrMessage) {
-    body += `\n\n${additionalErrMessage}`;
-  }
-  await octokit.rest.issues.create({
-    owner,
-    repo,
-    title,
-    body,
-    labels: ["skipped", "module: flaky-tests"].concat(labels),
-  });
-}
+export const __forTesting__ = {
+  handleNoLongerFlakyTests,
+  filterOutPRFlakyTests,
+  filterOutNonFlakyTests,
+  dedupFlakyTestIssues,
+  handleAll,
+};

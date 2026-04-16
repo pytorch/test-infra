@@ -9,16 +9,25 @@ on:
         type: string
       timeout:
         description: 'Timeout for the job (in minutes)'
-        default: 30
+        default: 120
         type: number
       runner:
         description: 'Runner type to utilize'
         default: "linux.2xlarge"
         type: string
       upload-artifact:
-        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        description: |
+          Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}, all the wheel files
+          under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
         default: ''
         type: string
+      upload-artifact-to-s3:
+        description: |
+          Upload the artifact to S3 instead of GitHub. This is used for large artifacts like
+          exported model
+        required: false
+        default: false
+        type: boolean
       download-artifact:
         description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
         default: ''
@@ -31,6 +40,12 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      submodules:
+        description:
+          Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
+          recursively checkout everything
+        default: ""
+        type: string
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
         default: ""
@@ -46,6 +61,13 @@ on:
       docker-image:
         description: Identifies the Docker image by name.
         default: "pytorch/conda-builder"
+        type: string
+      docker-build-dir:
+        description: |
+          The directory containing the build.sh shell script to build the docker image.
+          The script parameters can be passed to docker build similar to how it is used
+          in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
+        default: ".ci/docker"
         type: string
       gpu-arch-type:
         description: "GPU arch type to use"
@@ -84,6 +106,8 @@ on:
         type: boolean
 jobs:
   job:
+    strategy:
+      fail-fast: false
     name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: >-
@@ -106,6 +130,7 @@ jobs:
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
         run: |
+          set -euxo pipefail
           if [[ "${NO_SUDO}" == "false" ]]; then
             echo "::group::Cleanup with-sudo debug output"
             sudo rm -rfv "${GITHUB_WORKSPACE}"
@@ -118,7 +143,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
@@ -137,23 +162,46 @@ jobs:
         uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
-
-      - name: Pull docker image
-        uses: ./test-infra/.github/actions/pull-docker-image
-        with:
-          docker-image: ${{ env.DOCKER_IMAGE }}
+          instructions: |
+            All testing is done inside the container, to start an interactive session run:
+               docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
+          submodules: ${{ inputs.submodules }}
+
+      - name: Calculate docker image
+        id: calculate-docker-image
+        uses: ./test-infra/.github/actions/calculate-docker-image
+        with:
+          docker-image-name: ${{ env.DOCKER_IMAGE }}
+          docker-build-dir: ${{ inputs.docker-build-dir }}
+          # This needs to be where the repository is checked out
+          working-directory: ${{ inputs.repository || github.repository }}
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
+
+      - name: Check if in a container runner
+        shell: bash
+        id: check_container_runner
+        run: echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup SCCACHE_SERVER_PORT environment for docker run when on container
+        id: setup-sscache-port-flag
+        run: echo "SCCACHE_SERVER_PORT_DOCKER_FLAG=-e SCCACHE_SERVER_PORT=$((RUNNER_UID + 4226))" >> "${GITHUB_ENV}"
+        if: ${{ steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'true' }}
 
       - name: Download artifacts (if any)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: ${{ inputs.download-artifact != '' }}
         with:
           name: ${{ inputs.download-artifact }}
@@ -169,9 +217,10 @@ jobs:
       - name: Run script in container
         if: ${{ inputs.run-with-docker == true }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
+          DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
         run: |
           set -ex
           {
@@ -183,12 +232,21 @@ jobs:
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_docker_with_env_secrets.py" "${{ inputs.secrets-env }}"
+
+          function handle_error() {
+            echo "Please note: We are currently migrating Linux Wheel builds to Manywheel 2.28"
+            echo "If you see error like: ImportError: /lib64/libc.so.6: version GLIBC_2.28 not found"
+            echo "Please migrate to: https://github.com/pytorch/test-infra/blob/main/.github/workflows/linux_job_v2.yml"
+            echo "Issue: https://github.com/pytorch/pytorch/issues/123649"
+          }
+          trap handle_error ERR
+
+          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       - name: Run script outside container
         if: ${{ inputs.run-with-docker == false }}
         continue-on-error: ${{ inputs.continue-on-error }}
-        working-directory: ${{ inputs.repository }}
+        working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
@@ -212,7 +270,7 @@ jobs:
 
       - name: Surface failing tests
         if: always()
-        uses: pmeier/pytest-results-action@v0.3.0
+        uses: pmeier/pytest-results-action@a2c1430e2bddadbad9f49a6f9b879f062c6b19b1 # v0.3.0
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
@@ -222,17 +280,18 @@ jobs:
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
-          ALPINE_IMAGE: ${{ inputs.runner == 'linux.t4g.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
+          ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
         if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
-          directory: ${{ env.RUNNER_TEMP }}
-          ALPINE_IMAGE: ${{ inputs.runner == 'linux.t4g.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
+          directory: ${{ runner.temp }}
+          ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
-        working-directory: ${{ inputs.repository }}
+        if: always()
+        working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
@@ -244,29 +303,43 @@ jobs:
             if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
               mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
             fi
-            # Set to fail upload step if there are no files for upload and expected files for upload
-            echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
+            if [[ -d "artifacts-to-be-uploaded" ]]; then
+              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+            fi
           fi
 
           upload_docs=0
-          # Check if there are things in the documentation folder to uplaod
-          if find "${RUNNER_DOCS_DIR}" -mindepth 1 -maxdepth 1 | read -r; then
+          # Check if there are files in the documentation folder to upload, note that
+          # empty folders do not count
+          if find "${RUNNER_DOCS_DIR}" -mindepth 1 -maxdepth 1 -type f | read -r; then
             # TODO: Add a check here to test if on ec2 because if we're not on ec2 then this
             # upload will probably not work correctly
             upload_docs=1
           fi
           echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
 
+      # NB: Keep this for compatibility with existing jobs and also keep in mind that only
+      # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
-        uses: actions/upload-artifact@v3
-        if: ${{ inputs.upload-artifact != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
-          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
+      # NB: This only works with our AWS runners
+      - name: Upload artifacts to S3 (if any)
+        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
+        with:
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+          path: ${{ runner.temp }}/artifacts/
 
       - name: Upload documentation to S3 (if any)
-        uses: seemethere/upload-artifact-s3@v5
+        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
         if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
         with:
           retention-days: 14
@@ -277,5 +350,19 @@ jobs:
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Teardown Linux
-        if: ${{ always() }}
+        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
         uses: ./test-infra/.github/actions/teardown-linux
+
+      - name: Clean workspace after tear down
+        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
+          REPOSITORY: ${{ inputs.repository || github.repository }}
+        run: |
+          set +e
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            sudo rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
+          else
+            rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
+          fi
+          set -e

@@ -1,0 +1,207 @@
+name: Validate linux binaries
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Channel to use (nightly, test, release, all)"
+        required: true
+        type: string
+      torchonly:
+        description: 'Validate torchonly'
+        default: false
+        required: false
+        type: boolean
+      version:
+        description: 'Version to validate - optional'
+        default: ""
+        required: false
+        type: string
+      use-version-set:
+        description: 'Applies when version is used, use version for each domain'
+        default: false
+        required: false
+        type: boolean
+      release-matrix:
+        description: 'Release matrix - optional'
+        default: ""
+        required: false
+        type: string
+      include-test-ops:
+        description: 'Include Test Ops tests (only Linux)'
+        default: false
+        required: false
+        type: boolean
+      use-only-dl-pytorch-org:
+        description: 'Use only download.pytorch.org when generating wheel install command'
+        default: "false"
+        required: false
+        type: string
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
+      use-extra-index-url:
+        description: 'Use extra-index url for pip tests'
+        default: false
+        required: false
+        type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Channel to use (nightly, test, release, all)"
+        required: true
+        type: choice
+        options:
+          - release
+          - nightly
+          - test
+          - all
+      torchonly:
+        description: 'Validate torchonly'
+        default: false
+        required: false
+        type: boolean
+      version:
+        description: 'Version to validate - optional'
+        default: ""
+        required: false
+        type: string
+      release-matrix:
+        description: 'Release matrix - optional'
+        default: ""
+        required: false
+        type: string
+      include-test-ops:
+        description: 'Include Test Ops tests (only Linux)'
+        default: false
+        required: false
+        type: boolean
+      use-only-dl-pytorch-org:
+        description: 'Use only download.pytorch.org when generating wheel install command'
+        default: "false"
+        required: false
+        type: string
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
+      use-extra-index-url:
+        description: 'Use extra-index url for pip tests'
+        default: false
+        required: false
+        type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
+      use-version-set:
+        description: 'Applies when version is used, use version for each domain'
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  generate-linux-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel,libtorch
+      os: linux
+      channel: ${{ inputs.channel }}
+      use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
+      with-xpu: enable
+
+  linux:
+    needs: generate-linux-matrix
+    strategy:
+      matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
+      fail-fast: false
+    uses: ./.github/workflows/linux_job_v2.yml
+    name: ${{ matrix.build_name }}
+    with:
+      runner: ${{ matrix.validation_runner }}
+      repository: "pytorch/pytorch"
+      ref: main
+      job-name: ${{ matrix.build_name }}
+      docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
+      binary-matrix: ${{ toJSON(matrix) }}
+      docker-build-dir: "skip-docker-build"
+      timeout: 180
+      script: |
+        set -ex
+        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export TORCH_ONLY=${{ inputs.torchonly }}
+        export INCLUDE_TEST_OPS=${{ inputs.include-test-ops }}
+        export USE_ONLY_DL_PYTORCH_ORG=${{ inputs.use-only-dl-pytorch-org }}
+        export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
+        export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
+        export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
+        export RELEASE_VERSION=${{ inputs.version }}
+        export USE_VERSION_SET=${{ inputs.use-version-set }}
+        if [[ ${USE_VERSION_SET} == 'true' ]]; then
+          export VISION_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchvision }}
+          export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
+        fi
+
+        export USE_FORCE_REINSTALL="true"
+        export TARGET_OS="linux"
+        eval "$(conda shell.bash hook)"
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+
+        CUDA_VERSION_STABLE=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${MATRIX_CHANNEL})
+        # Special case PyPi installation package. And Install of PyPi package via poetry
+        if [[ ${MATRIX_PACKAGE_TYPE} == "manywheel" && \
+              ${MATRIX_GPU_ARCH_VERSION} == "${CUDA_VERSION_STABLE}" && \
+              ${MATRIX_CHANNEL} == "release" && \
+              ${USE_ONLY_DL_PYTORCH_ORG} == "false" && \
+              ${USE_WHEEL_VARIANTS} == "false" ]]; then
+          source ../../test-infra/.github/scripts/validate_poetry.sh
+        fi
+
+        # Validate binaries
+        source ../../test-infra/.github/scripts/validate_binaries.sh
+
+  linux-amazon-2023:
+    uses: ./.github/workflows/linux_job_v2.yml
+    name: amazon-linux-2023-test
+    with:
+      runner: "linux.g5.4xlarge.nvidia.gpu"
+      repository: "pytorch/pytorch"
+      ref: main
+      job-name: "amazon-linux-2023-test"
+      docker-image: 'almalinux/9-base'
+      docker-build-dir: "skip-docker-build"
+      timeout: 180
+      script: |
+        set -ex
+
+        # install Dev Tools and python-devel to test torch.compile
+        yum groupinstall -y "Development Tools"
+        # We use Python 3.11 not running inside venv
+        yum install -y python3.11 python3.11-devel
+        python3.11 -m ensurepip --upgrade
+        python3.11 --version
+        python3.11 -m pip install --upgrade pip
+        python3.11 -m pip --version
+
+        CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
+        CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
+        export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}"
+
+        DWN_PYTORCH_ORG="https://download.pytorch.org/whl/nightly/cu${CUDA_VERSION_NODOT}"
+        if [[ ${{ inputs.channel }} == 'test' ]]; then
+          DWN_PYTORCH_ORG="https://download.pytorch.org/whl/test/cu${CUDA_VERSION_NODOT}"
+        elif [[ ${{ inputs.channel }} == 'release' ]]; then
+          DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
+        fi
+
+        python3.11 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
+        python3.11 .ci/pytorch/smoke_test/smoke_test.py --package torchonly

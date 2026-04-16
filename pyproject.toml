@@ -1,12 +1,11 @@
 [build-system]
 requires = [
-    "setuptools",
+    "setuptools<82",
     "wheel",
     "astunparse",
     "numpy",
     "ninja",
     "pyyaml",
-    "setuptools",
     "cmake",
     "typing-extensions",
     "requests",
@@ -14,16 +13,23 @@ requires = [
 # Use legacy backend to import local packages in setup.py
 build-backend = "setuptools.build_meta:__legacy__"
 
+[tool.isort]
+lines_after_imports = 2
+multi_line_output = 3
+indent = 4
+include_trailing_comma = true
+combine_as_imports = true
 
 [tool.black]
 # Uncomment if pyproject.toml worked fine to ensure consistency with flake8
 # line-length = 120
 target-version = ["py38", "py39", "py310", "py311"]
 
-
 [tool.ruff]
 target-version = "py38"
+line-length = 88
 
+[tool.ruff.lint]
 # NOTE: Synchoronize the ignores with .flake8
 ignore = [
     # these ignores are from flake8-bugbear; please fix!
@@ -31,10 +37,12 @@ ignore = [
     "B018", # Useless expression
     "B019", "B020",
     "B023", "B024", "B026",
+    "B028",
     "B028", # No explicit `stacklevel` keyword argument found
     "B904", "B905",
-    "E402",
     "C408", # C408 ignored because we like the dict keyword argument syntax
+    "E402",
+    "E203", # Black-compatible slicing whitespace
     "E501", # E501 is not flexible enough, we're using B950 instead
     "E721",
     "E731", # Assign lambda expression
@@ -43,7 +51,8 @@ ignore = [
     "F405",
     "F821",
     "F841",
-    # these ignores are from flake8-logging-format; please fix!
+    "G003",
+    "G004",  # IMO this rule is not useful
     "G101", "G201", "G202",
     "SIM102", "SIM103", "SIM112", # flake8-simplify code styles
     "SIM105", # these ignores are from flake8-simplify. please fix or ignore with commented reason
@@ -54,8 +63,8 @@ ignore = [
     "SIM116", # Disable Use a dictionary instead of consecutive `if` statements
     "SIM117",
     "SIM118",
+    # these ignores are from flake8-logging-format; please fix!
 ]
-line-length = 120
 select = [
     "B",
     "C4",
@@ -66,5 +75,5 @@ select = [
     "W",
     # Not included in flake8
     "PLE",
-    "TRY302",
+    "TRY203",
 ]

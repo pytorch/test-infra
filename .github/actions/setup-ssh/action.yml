@@ -21,6 +21,10 @@ inputs:
   instructions:
     required: false
     description: 'Additional instructions on what to do next'
+  fail-silently:
+    required: true
+    description: 'If set to true, action will always succeed even if it failed to fetch the keys or determine hosts IP address'
+    default: true
 
 runs:
   using: 'node16'
