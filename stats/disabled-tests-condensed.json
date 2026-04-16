@@ -2821,48 +2821,6 @@
       "rocm"
     ]
   ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_128_rhs_block_1_M_256_N_256_K_256_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180074",
-    "https://github.com/pytorch/pytorch/issues/180074",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_128_rhs_block_1_M_256_N_256_K_512_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180075",
-    "https://github.com/pytorch/pytorch/issues/180075",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_1_rhs_block_128_M_256_N_256_K_256_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180076",
-    "https://github.com/pytorch/pytorch/issues/180076",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_1_rhs_block_128_M_256_N_256_K_512_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180077",
-    "https://github.com/pytorch/pytorch/issues/180077",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_1_rhs_block_1_M_256_N_256_K_256_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180078",
-    "https://github.com/pytorch/pytorch/issues/180078",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm_deepseek_error_messages_bfloat16_lhs_block_1_rhs_block_1_M_256_N_256_K_512_cuda (__main__.TestFP8MatmulCUDA)": [
-    "179954",
-    "https://github.com/pytorch/pytorch/issues/179954",
-    [
-      "rocm"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
