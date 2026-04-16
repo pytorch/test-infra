@@ -344,6 +344,13 @@
       "slow"
     ]
   ],
+  "test_combo_autotune_grouping (__main__.ComboKernelTestsMaxAutotune)": [
+    "180549",
+    "https://github.com/pytorch/pytorch/issues/180549",
+    [
+      "xpu"
+    ]
+  ],
   "test_combo_autotune_many_subkernels (__main__.ComboKernelTestsMaxAutotune)": [
     "180021",
     "https://github.com/pytorch/pytorch/issues/180021",
