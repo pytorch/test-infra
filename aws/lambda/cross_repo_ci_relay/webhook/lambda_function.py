@@ -10,6 +10,7 @@ from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
 from . import event_handler
 
+
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 

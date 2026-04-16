@@ -35,7 +35,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     and a sibling ``workflow`` dict with status/conclusion/name/url.
 
     ``verified_repo`` is the OIDC-authenticated downstream repository — used
-    for allowlist / timing lookups, and surfaced to HUD as ``authenticated_repo``
+    for allowlist / timing lookups, and surfaced to HUD as ``verified_repo``
     so HUD can trust it over anything self-reported in the body.
     """
     allowlist = load_allowlist(config)
@@ -73,7 +73,11 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     if status == "in_progress":
         in_progress_at = time.time()
         redis_helper.set_timing(
-            config, delivery_id, verified_repo, TimingPhase.IN_PROGRESS, in_progress_at
+            config,
+            delivery_id,
+            verified_repo,
+            TimingPhase.IN_PROGRESS,
+            in_progress_at,
         )
         dispatch_at = redis_helper.get_timing(
             config, delivery_id, verified_repo, TimingPhase.DISPATCH
@@ -90,10 +94,15 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
             in_progress_at, completed_at, "execution_time"
         )
 
+    trusted = {"ci_metrics": ci_metrics, "verified_repo": verified_repo}
+    # downstream's payload is untrusted — provide it under the "callback_payload"
+    # key so HUD receives it under the expected untrusted namespace.
+    untrusted = {"callback_payload": body}
+
     # HUD owns schema validation: its 4xx surfaces back to the workflow author
     # (forward_to_hud raises HTTPException).  5xx / network failures are
     # swallowed inside forward_to_hud — they're HUD/infra problems and should
     # not turn every downstream L2 CI red.
-    forward_to_hud(config, body, ci_metrics, verified_repo)
+    forward_to_hud(config, trusted, untrusted)
 
     return {"ok": True, "status": status}

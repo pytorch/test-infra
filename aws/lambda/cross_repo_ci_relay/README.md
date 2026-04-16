@@ -44,7 +44,7 @@ schema validation, persistence, dedup — is HUD's job.
 - **Identity (Relay's job)**: the `Authorization: Bearer <oidc-token>` header
   is verified against GitHub's JWKS.  The OIDC `repository` claim is the only
   trusted identity for the caller and is used for the L2+ allowlist check.
-  Relay forwards this trusted value to HUD as a top-level `authenticated_repo`
+  Relay forwards this trusted value to HUD as a top-level `verified_repo`
   field; HUD should prefer it over anything self-reported in `body`.
 - **Schema / business validation (HUD's job)**: the callback body is passed
   through to HUD verbatim as a top-level `body` field.  Relay does **not**
@@ -58,33 +58,41 @@ schema validation, persistence, dedup — is HUD's job.
   - `in_progress` → `queue_time` (dispatch → in_progress)
   - `completed`   → `execution_time` (in_progress → completed)
 
-The HUD request looks like:
+The HUD request looks like (two top-level namespaces: trusted and untrusted):
 
 ```json
 {
-  "body": {
-    "event_type": "pull_request",
-    "delivery_id": "<github X-GitHub-Delivery>",
-    "payload": { ...original upstream webhook payload, verbatim... },
-    "workflow": {
-      "status": "completed",
-      "conclusion": "success",
-      "name": "CI",
-      "url": "https://github.com/org/repo/actions/runs/123",
-      "test_results": { ... }
-    }
+  "trusted": {
+    "ci_metrics": { "queue_time": 1.23, "execution_time": null },
+    "verified_repo": "org/repo"
   },
-  "ci_metrics": { "queue_time": 1.23, "execution_time": null },
-  "authenticated_repo": "org/repo"
+  "untrusted": {
+    "callback_payload": {
+      "event_type": "pull_request",
+      "delivery_id": "<github X-GitHub-Delivery>",
+      "payload": { ...original upstream webhook payload, verbatim... },
+      "workflow": {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "CI",
+        "url": "https://github.com/org/repo/actions/runs/123",
+        "test_results": { ... }
+      }
+    }
+  }
 }
 ```
+
+Notes:
+- `trusted` contains relay-generated fields the HUD can rely on (`ci_metrics` and `verified_repo`).
+- `untrusted["callback_payload"]` contains the downstream-reported callback body; HUD should treat it as untrusted and prefer `trusted.verified_repo` for identity.
 
 Trust boundaries inside `body`:
 
 - `body.payload` is the upstream webhook payload, transparently forwarded —
   trusted at dispatch time, but not re-verified on the callback.
 - `body.workflow` is **self-reported by the downstream CI** and is not
-  authenticated.  Only `authenticated_repo` carries a cryptographic identity.
+  authenticated.  Only `verified_repo` carries a cryptographic identity.
 
 ### Error propagation back to the downstream workflow
 
@@ -105,15 +113,15 @@ A compromised or malicious maintainer of an allowlisted repo can:
 
 1. Fabricate `workflow.status` / `workflow.conclusion` values for upstream PRs
    their repo was never dispatched for — HUD will receive the row, but
-   `authenticated_repo` always identifies the true caller.
+   `verified_repo` always identifies the true caller.
 2. Replay an older dispatched payload against the callback endpoint — there
    is no dispatch-side nonce.
-3. Tamper with any field inside `body` — HUD must trust `authenticated_repo`,
+3. Tamper with any field inside `body` — HUD must trust `verified_repo`,
    not the body.
 
 All three attacks are **scoped to the attacker's own OIDC-authenticated repo
 identity** — OIDC guarantees they cannot impersonate another allowlisted
-repo.  Mitigation is operational: every HUD row carries `authenticated_repo`,
+repo.  Mitigation is operational: every HUD row carries `verified_repo`,
 so misbehaviour is observable, and the offending repo can be removed from
 `allowlist.yaml`.
 

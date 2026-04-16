@@ -10,27 +10,15 @@ from .misc import HTTPException
 logger = logging.getLogger(__name__)
 
 
-def forward_to_hud(
-    config: RelayConfig,
-    body: dict,
-    ci_metrics: dict,
-    authenticated_repo: str,
-) -> None:
+def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
     """POST a callback record to HUD.
 
-    The HUD request body has three top-level fields:
+    This function splits inputs into two explicit namespaces:
 
-    - ``body``: the downstream workflow's callback body, forwarded verbatim.
-      Contains the original dispatch envelope (``delivery_id``, ``payload``)
-      plus a ``workflow`` dict the downstream self-reports.  Treat every field
-      here as untrusted — downstream can set them to anything.
-    - ``ci_metrics``: relay-measured performance of the downstream CI
-      infrastructure (``queue_time``, ``execution_time``).  These come from
-      relay's own timing records, not from the downstream, so HUD can trust
-      them as a signal of downstream CI capability.
-    - ``authenticated_repo``: the OIDC-authenticated downstream repository.
-      HUD should treat this as the sole trusted identity of the caller and
-      prefer it over any self-reported repo field inside ``body``.
+    - ``trusted``: a dict supplied by this relay and therefore considered
+      authoritative.
+    - ``untrusted``: a dict forwarded from the downstream workflow and treated as
+      untrusted user-supplied data.
 
     Error handling splits by responsibility:
 
@@ -52,11 +40,11 @@ def forward_to_hud(
 
     hud_payload = json.dumps(
         {
-            "body": dict(body),
-            "ci_metrics": dict(ci_metrics),
-            "authenticated_repo": authenticated_repo,
+            "trusted": trusted,
+            "untrusted": untrusted,
         }
     ).encode("utf-8")
+
     req = urllib.request.Request(
         config.hud_api_url,
         data=hud_payload,
@@ -66,6 +54,7 @@ def forward_to_hud(
         },
         method="POST",
     )
+
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             logger.info("HUD forward succeeded status=%d", resp.status)

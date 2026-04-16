@@ -67,18 +67,18 @@ class TestResultHandler(unittest.TestCase):
         self.assertFalse(self.mock_redis.create_client.called)
         self.assertFalse(self.mock_hud.called)
 
-    # --- body is forwarded to HUD verbatim; authenticated_repo is a sibling ---
+    # --- body is forwarded to HUD verbatim; verified_repo is a sibling ---
 
     def test_body_is_passed_to_hud_unchanged(self):
         body = _body()
         handle(_cfg(), body, verified_repo="org/repo")
 
-        # forward_to_hud(config, downstream_report, ci_metrics, authenticated_repo)
-        _, report_arg, metrics_arg, auth_repo_arg = self.mock_hud.call_args[0]
-        self.assertIs(report_arg, body)
-        self.assertEqual(auth_repo_arg, "org/repo")
-        # authenticated_repo is a sibling of ci_metrics, not nested inside it.
-        self.assertNotIn("authenticated_repo", metrics_arg)
+        # forward_to_hud(config, trusted, untrusted)
+        _, trusted_arg, untrusted_arg = self.mock_hud.call_args[0]
+        self.assertIs(untrusted_arg["callback_payload"], body)
+        self.assertEqual(trusted_arg.get("verified_repo"), "org/repo")
+        # verified_repo is a sibling of ci_metrics, not nested inside it.
+        self.assertNotIn("verified_repo", trusted_arg.get("ci_metrics", {}))
 
     # --- timing ---
 
@@ -93,9 +93,10 @@ class TestResultHandler(unittest.TestCase):
         args, _ = self.mock_redis.set_timing.call_args
         self.assertEqual(args[2], "org/repo")
         self.assertEqual(args[3], TimingPhase.IN_PROGRESS)
-        _, _, metrics, _ = self.mock_hud.call_args[0]
-        self.assertAlmostEqual(metrics["queue_time"], 30, delta=1.0)
-        self.assertIsNone(metrics["execution_time"])
+        _, trusted_arg, _ = self.mock_hud.call_args[0]
+        metrics = trusted_arg.get("ci_metrics", {})
+        self.assertAlmostEqual(metrics.get("queue_time"), 30, delta=1.0)
+        self.assertIsNone(metrics.get("execution_time"))
 
     def test_completed_computes_execution_time_only(self):
         # Each phase reports exactly one metric: completed → execution_time.
@@ -107,9 +108,10 @@ class TestResultHandler(unittest.TestCase):
         result = handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
 
         self.assertEqual(result, {"ok": True, "status": "completed"})
-        _, _, metrics, _ = self.mock_hud.call_args[0]
-        self.assertIsNone(metrics["queue_time"])
-        self.assertAlmostEqual(metrics["execution_time"], 30, delta=1.0)
+        _, trusted_arg, _ = self.mock_hud.call_args[0]
+        metrics = trusted_arg.get("ci_metrics", {})
+        self.assertIsNone(metrics.get("queue_time"))
+        self.assertAlmostEqual(metrics.get("execution_time"), 30, delta=1.0)
 
     # --- best-effort redis infra ---
 
@@ -120,9 +122,10 @@ class TestResultHandler(unittest.TestCase):
 
         self.assertEqual(result, {"ok": True, "status": "completed"})
         self.assertTrue(self.mock_hud.called)
-        _, _, metrics, _ = self.mock_hud.call_args[0]
-        self.assertIsNone(metrics["queue_time"])
-        self.assertIsNone(metrics["execution_time"])
+        _, trusted_arg, _ = self.mock_hud.call_args[0]
+        metrics = trusted_arg.get("ci_metrics", {})
+        self.assertIsNone(metrics.get("queue_time"))
+        self.assertIsNone(metrics.get("execution_time"))
 
     def test_redis_client_unavailable_skips_timing(self):
         self.mock_redis.create_client.side_effect = RuntimeError("redis down")

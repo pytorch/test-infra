@@ -17,7 +17,11 @@ def _cfg(url="http://hud/api/oot-ci-events", key="bot-key"):
 class TestForwardToHud(unittest.TestCase):
     @patch("utils.hud.urllib.request.urlopen")
     def test_empty_url_skips_request(self, mock_urlopen):
-        forward_to_hud(_cfg(url=""), {"delivery_id": "d"}, {}, "org/repo")
+        forward_to_hud(
+            _cfg(url=""),
+            {"ci_metrics": {}, "verified_repo": "org/repo"},
+            {"callback_payload": {"delivery_id": "d"}},
+        )
         mock_urlopen.assert_not_called()
 
     @patch("utils.hud.urllib.request.urlopen")
@@ -28,12 +32,16 @@ class TestForwardToHud(unittest.TestCase):
 
         report = {"delivery_id": "d", "workflow": {"status": "completed"}}
         metrics = {"queue_time": 1.0, "execution_time": 2.0}
-        forward_to_hud(_cfg(), report, metrics, "org/repo")
+        forward_to_hud(
+            _cfg(),
+            {"ci_metrics": metrics, "verified_repo": "org/repo"},
+            {"callback_payload": report},
+        )
 
         sent = json.loads(mock_urlopen.call_args[0][0].data)
-        self.assertEqual(sent["body"], report)
-        self.assertEqual(sent["ci_metrics"], metrics)
-        self.assertEqual(sent["authenticated_repo"], "org/repo")
+        self.assertEqual(sent["trusted"]["ci_metrics"], metrics)
+        self.assertEqual(sent["trusted"]["verified_repo"], "org/repo")
+        self.assertEqual(sent["untrusted"]["callback_payload"], report)
 
     @patch("utils.hud.urllib.request.urlopen")
     def test_4xx_propagates_with_huds_status(self, mock_urlopen):
@@ -44,7 +52,11 @@ class TestForwardToHud(unittest.TestCase):
         )
 
         with self.assertRaises(HTTPException) as ctx:
-            forward_to_hud(_cfg(), {}, {}, "org/repo")
+            forward_to_hud(
+                _cfg(),
+                {"ci_metrics": {}, "verified_repo": "org/repo"},
+                {"callback_payload": {}},
+            )
         self.assertEqual(ctx.exception.status_code, 422)
 
     @patch("utils.hud.urllib.request.urlopen")
@@ -55,7 +67,11 @@ class TestForwardToHud(unittest.TestCase):
         )
 
         # must not raise
-        forward_to_hud(_cfg(), {}, {}, "org/repo")
+        forward_to_hud(
+            _cfg(),
+            {"ci_metrics": {}, "verified_repo": "org/repo"},
+            {"callback_payload": {}},
+        )
 
     @patch("utils.hud.urllib.request.urlopen")
     def test_url_error_is_swallowed(self, mock_urlopen):
@@ -64,7 +80,11 @@ class TestForwardToHud(unittest.TestCase):
         mock_urlopen.side_effect = urllib.error.URLError("unreachable")
 
         # must not raise
-        forward_to_hud(_cfg(), {}, {}, "org/repo")
+        forward_to_hud(
+            _cfg(),
+            {"ci_metrics": {}, "verified_repo": "org/repo"},
+            {"callback_payload": {}},
+        )
 
 
 if __name__ == "__main__":
