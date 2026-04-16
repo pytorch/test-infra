@@ -355,6 +355,7 @@
     "180549",
     "https://github.com/pytorch/pytorch/issues/180549",
     [
+      "rocm",
       "xpu"
     ]
   ],
