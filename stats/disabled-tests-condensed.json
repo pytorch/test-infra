@@ -126,6 +126,20 @@
       "windows"
     ]
   ],
+  "test_autograd_function_no_setup_context_transform_jacrev_cpu (__main__.TestComposabilityCPU)": [
+    "180590",
+    "https://github.com/pytorch/pytorch/issues/180590",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_autograd_function_no_setup_context_transform_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180591",
+    "https://github.com/pytorch/pytorch/issues/180591",
+    [
+      "dynamo"
+    ]
+  ],
   "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
     "179876",
     "https://github.com/pytorch/pytorch/issues/179876",
@@ -286,6 +300,13 @@
     "https://github.com/pytorch/pytorch/issues/69179",
     [
       "mac"
+    ]
+  ],
+  "test_can_use_vmap_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
+    "180592",
+    "https://github.com/pytorch/pytorch/issues/180592",
+    [
+      "dynamo"
     ]
   ],
   "test_captured_scalar_grad_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
@@ -789,6 +810,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_scatter_reduce_amin_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "180589",
+    "https://github.com/pytorch/pytorch/issues/180589",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -962,6 +991,8 @@
     "178745",
     "https://github.com/pytorch/pytorch/issues/178745",
     [
+      "linux",
+      "slow",
       "xpu"
     ]
   ],
@@ -1458,6 +1489,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_fused_linear_cel (__main__.AutoChunkerTest)": [
+    "180588",
+    "https://github.com/pytorch/pytorch/issues/180588",
+    [
+      "linux"
     ]
   ],
   "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
@@ -3535,6 +3573,13 @@
   "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
     "179879",
     "https://github.com/pytorch/pytorch/issues/179879",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_wrapper_subclass_aliasing_fft_fft2_cpu (__main__.TestWrapperSubclassAliasingCPU)": [
+    "142021",
+    "https://github.com/pytorch/pytorch/issues/142021",
     [
       "dynamo"
     ]
