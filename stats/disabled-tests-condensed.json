@@ -623,13 +623,6 @@
       "slow"
     ]
   ],
-  "test_correctness_Adafactor_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
-    "178746",
-    "https://github.com/pytorch/pytorch/issues/178746",
-    [
-      "xpu"
-    ]
-  ],
   "test_correctness_add_bf16_native (__main__.TestInlineAsmElementwise)": [
     "179946",
     "https://github.com/pytorch/pytorch/issues/179946",
