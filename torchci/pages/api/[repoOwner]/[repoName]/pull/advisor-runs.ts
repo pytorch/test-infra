@@ -20,7 +20,7 @@ export interface AdvisorVerdict {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse,
+  res: NextApiResponse
 ) {
   const { repoOwner, repoName, prNumber } = req.query;
 
@@ -37,7 +37,7 @@ export default async function handler(
       {
         repo: `${repoOwner}/${repoName}`,
         prNumber: parseInt(prNumber as string, 10),
-      },
+      }
     );
 
     res.status(200).json(results as AdvisorVerdict[]);
