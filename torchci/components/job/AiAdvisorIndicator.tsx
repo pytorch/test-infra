@@ -1,9 +1,4 @@
-import {
-  Button,
-  Chip,
-  CircularProgress,
-  Tooltip,
-} from "@mui/material";
+import { Button, Chip, CircularProgress, Tooltip } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
@@ -123,12 +118,11 @@ export default function AiAdvisorIndicator({
       ? `/api/${repoOwner}/${repoName}/pull/advisor-runs?prNumber=${prNumber}`
       : null,
     fetcher,
-    { refreshInterval: 60_000 },
+    { refreshInterval: 60_000 }
   );
 
   const matchingVerdict = verdicts?.find(
-    (v) =>
-      v.signalKey === jobName && v.suspectCommit === sha,
+    (v) => v.signalKey === jobName && v.suspectCommit === sha
   );
 
   const isAuthenticated =
@@ -150,9 +144,7 @@ export default function AiAdvisorIndicator({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: session.data![
-              "accessToken"
-            ] as string,
+            Authorization: session.data!["accessToken"] as string,
           },
           body: JSON.stringify({
             prNumber,
@@ -161,7 +153,7 @@ export default function AiAdvisorIndicator({
             jobName,
             workflowName: workflowName || "",
           }),
-        },
+        }
       );
 
       if (!res.ok) {

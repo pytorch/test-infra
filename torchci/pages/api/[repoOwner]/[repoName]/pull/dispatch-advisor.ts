@@ -20,7 +20,7 @@ interface JobEvent {
 async function fetchJobStatusForShas(
   repo: string,
   jobName: string,
-  shas: string[],
+  shas: string[]
 ): Promise<Record<string, JobEvent[]>> {
   if (shas.length === 0) return {};
 
@@ -75,7 +75,7 @@ async function fetchJobStatusForShas(
 
 async function fetchRecentTrunkShas(
   repo: string,
-  limit: number = 5,
+  limit: number = 5
 ): Promise<string[]> {
   const query = `
     SELECT DISTINCT head_sha
@@ -93,7 +93,7 @@ async function fetchRecentTrunkShas(
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse,
+  res: NextApiResponse
 ) {
   if (req.method !== "POST") {
     return void res
@@ -155,7 +155,7 @@ export default async function handler(
       octokit,
       user.data.login,
       owner,
-      repo,
+      repo
     );
   if (!hasWritePerms) {
     return void res.status(403).json({
@@ -168,7 +168,7 @@ export default async function handler(
     const repoFullName = `${owner}/${repo}`;
     const trunkShas = await fetchRecentTrunkShas(
       repoFullName,
-      5,
+      5
     );
     const allShas = [headSha];
     if (mergeBaseSha) allShas.push(mergeBaseSha);
@@ -177,7 +177,7 @@ export default async function handler(
     const jobStatus = await fetchJobStatusForShas(
       repoFullName,
       jobName,
-      allShas,
+      allShas
     );
 
     const mkEvents = (sha: string) =>
@@ -227,8 +227,8 @@ export default async function handler(
           (c) =>
             c.events.length > 0 &&
             c.events.some(
-              (e) => e.conclusion === "success",
-            ),
+              (e) => e.conclusion === "success"
+            )
         ),
       ],
       trunk_status: trunkCommits,
