@@ -1065,6 +1065,14 @@
       "rocm"
     ]
   ],
+  "test_dynamic_lstm (__main__.TestExport)": [
+    "176995",
+    "https://github.com/pytorch/pytorch/issues/176995",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_dynamic_lstm_retraceability_strict (__main__.RetraceExportTestExport)": [
     "176998",
     "https://github.com/pytorch/pytorch/issues/176998",
@@ -1076,6 +1084,14 @@
   "test_dynamic_lstm_serdes_strict (__main__.SerDesExportTestExport)": [
     "180488",
     "https://github.com/pytorch/pytorch/issues/180488",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_strict (__main__.StrictExportTestExport)": [
+    "180556",
+    "https://github.com/pytorch/pytorch/issues/180556",
     [
       "asan",
       "linux"
@@ -1866,6 +1882,13 @@
   "test_maml_omniglot_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180539",
     "https://github.com/pytorch/pytorch/issues/180539",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_maml_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180555",
+    "https://github.com/pytorch/pytorch/issues/180555",
     [
       "dynamo"
     ]
