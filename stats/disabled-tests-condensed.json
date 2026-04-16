@@ -344,13 +344,6 @@
       "rocm"
     ]
   ],
-  "test_combo_kernel_coordesc_tunes_largest_subkernel_first (__main__.ComboKernelTestsMaxAutotune)": [
-    "180559",
-    "https://github.com/pytorch/pytorch/issues/180559",
-    [
-      "rocm"
-    ]
-  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180023",
     "https://github.com/pytorch/pytorch/issues/180023",
