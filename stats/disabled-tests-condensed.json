@@ -1506,13 +1506,6 @@
       "rocm"
     ]
   ],
-  "test_get_memory_stats (__main__.ProcessGroupNCCLGroupTest)": [
-    "180009",
-    "https://github.com/pytorch/pytorch/issues/180009",
-    [
-      "rocm"
-    ]
-  ],
   "test_get_mode_stack (__main__.TestTorchFunctionMode)": [
     "133994",
     "https://github.com/pytorch/pytorch/issues/133994",
@@ -2761,13 +2754,6 @@
       "dynamo"
     ]
   ],
-  "test_resume (__main__.ProcessGroupNCCLGroupTest)": [
-    "179953",
-    "https://github.com/pytorch/pytorch/issues/179953",
-    [
-      "rocm"
-    ]
-  ],
   "test_retrace_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
     "178177",
     "https://github.com/pytorch/pytorch/issues/178177",
@@ -3012,13 +2998,6 @@
     "https://github.com/pytorch/pytorch/issues/158664",
     [
       "dynamo"
-    ]
-  ],
-  "test_suspend (__main__.ProcessGroupNCCLGroupTest)": [
-    "179950",
-    "https://github.com/pytorch/pytorch/issues/179950",
-    [
-      "rocm"
     ]
   ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
