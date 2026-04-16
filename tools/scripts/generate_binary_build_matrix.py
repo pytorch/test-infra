@@ -6,7 +6,7 @@ Important. After making changes to this file please run following command:
 python -m tools.tests.test_generate_binary_build_matrix --update-reference-files
 
 Will output a condensed version of the matrix if on a pull request that only
-includes the latest version of python we support built on four different
+includes the oldest version of python we support built on four different
 architectures:
     * CPU
     * Latest CUDA
