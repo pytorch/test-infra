@@ -1,4 +1,5 @@
 name: Run a macOS job
+# Null change to test the workflow call
 
 on:
   workflow_call:
