@@ -1661,6 +1661,13 @@
     "https://github.com/pytorch/pytorch/issues/156438",
     []
   ],
+  "test_inputs_aliasing_bytecode_attr_mutations (__main__.TestCompiledAutograd)": [
+    "180661",
+    "https://github.com/pytorch/pytorch/issues/180661",
+    [
+      "xpu"
+    ]
+  ],
   "test_interim_result_with_future_pattern (__main__.DeferredRecordingTest)": [
     "179875",
     "https://github.com/pytorch/pytorch/issues/179875",
@@ -1755,6 +1762,13 @@
     "https://github.com/pytorch/pytorch/issues/180413",
     [
       "inductor"
+    ]
+  ],
+  "test_leaf_function_closure_constants_without_grad (__main__.TestLeafFunctionDynamo)": [
+    "180662",
+    "https://github.com/pytorch/pytorch/issues/180662",
+    [
+      "xpu"
     ]
   ],
   "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
