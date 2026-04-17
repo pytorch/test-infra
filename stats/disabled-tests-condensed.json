@@ -182,13 +182,6 @@
       "mac"
     ]
   ],
-  "test_basic_dtypes (__main__.TestBmmOuterProduct)": [
-    "180443",
-    "https://github.com/pytorch/pytorch/issues/180443",
-    [
-      "xpu"
-    ]
-  ],
   "test_batch_invariance_float16_num_splits_1_window_size0_backend_fa2_cuda_float16 (__main__.TestVarlenAttentionCUDA)": [
     "179968",
     "https://github.com/pytorch/pytorch/issues/179968",
