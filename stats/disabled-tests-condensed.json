@@ -1210,13 +1210,6 @@
       "dynamo"
     ]
   ],
-  "test_fixed_striding (__main__.TestWithNCCL)": [
-    "179949",
-    "https://github.com/pytorch/pytorch/issues/179949",
-    [
-      "rocm"
-    ]
-  ],
   "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
     "176146",
     "https://github.com/pytorch/pytorch/issues/176146",
@@ -2666,13 +2659,6 @@
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
-    [
-      "rocm"
-    ]
-  ],
-  "test_scaled_mm (__main__.TestFlopCounter)": [
-    "179960",
-    "https://github.com/pytorch/pytorch/issues/179960",
     [
       "rocm"
     ]
