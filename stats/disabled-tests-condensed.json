@@ -637,13 +637,6 @@
       "rocm"
     ]
   ],
-  "test_cpu_gpu_parity_nn_ConvTranspose2d_xpu_complex32 (__main__.TestModuleXPU)": [
-    "176392",
-    "https://github.com/pytorch/pytorch/issues/176392",
-    [
-      "xpu"
-    ]
-  ],
   "test_cpu_scalar_with_gpu_tensor_cpp_cuda (__main__.GPUTests)": [
     "179970",
     "https://github.com/pytorch/pytorch/issues/179970",
