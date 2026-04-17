@@ -2320,13 +2320,6 @@
       "rocm"
     ]
   ],
-  "test_permuted_inputs (__main__.TestBmmOuterProduct)": [
-    "180329",
-    "https://github.com/pytorch/pytorch/issues/180329",
-    [
-      "xpu"
-    ]
-  ],
   "test_pre_grad (__main__.TestCompilerBisector)": [
     "164462",
     "https://github.com/pytorch/pytorch/issues/164462",
