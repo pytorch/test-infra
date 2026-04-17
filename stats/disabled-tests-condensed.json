@@ -49,20 +49,6 @@
       "rocm"
     ]
   ],
-  "test_activation_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
-    "180011",
-    "https://github.com/pytorch/pytorch/issues/180011",
-    [
-      "rocm"
-    ]
-  ],
-  "test_activation_functions (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180022",
-    "https://github.com/pytorch/pytorch/issues/180022",
-    [
-      "rocm"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -358,31 +344,9 @@
       "slow"
     ]
   ],
-  "test_combo_autotune_grouping (__main__.ComboKernelTestsMaxAutotune)": [
-    "180549",
-    "https://github.com/pytorch/pytorch/issues/180549",
-    [
-      "rocm",
-      "xpu"
-    ]
-  ],
-  "test_combo_autotune_many_subkernels (__main__.ComboKernelTestsMaxAutotune)": [
-    "180021",
-    "https://github.com/pytorch/pytorch/issues/180021",
-    [
-      "rocm"
-    ]
-  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180023",
     "https://github.com/pytorch/pytorch/issues/180023",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_max_autotune (__main__.ComboKernelTestsMaxAutotune)": [
-    "179952",
-    "https://github.com/pytorch/pytorch/issues/179952",
     [
       "rocm"
     ]
@@ -394,30 +358,9 @@
       "rocm"
     ]
   ],
-  "test_combo_kernel_per_config_subkernel_poi (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180025",
-    "https://github.com/pytorch/pytorch/issues/180025",
-    [
-      "rocm"
-    ]
-  ],
   "test_combo_kernel_yz_overflow (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180026",
     "https://github.com/pytorch/pytorch/issues/180026",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernels_pointwise_only_pointwise_only_False_expected_kernel_count_2 (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180027",
-    "https://github.com/pytorch/pytorch/issues/180027",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernels_pointwise_only_pointwise_only_True_expected_kernel_count_3 (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180028",
-    "https://github.com/pytorch/pytorch/issues/180028",
     [
       "rocm"
     ]
@@ -1137,27 +1080,6 @@
     "https://github.com/pytorch/pytorch/issues/153736",
     [
       "linux"
-    ]
-  ],
-  "test_dynamic_shapes_activations (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "180014",
-    "https://github.com/pytorch/pytorch/issues/180014",
-    [
-      "rocm"
-    ]
-  ],
-  "test_dynamic_shapes_mutated (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "180015",
-    "https://github.com/pytorch/pytorch/issues/180015",
-    [
-      "rocm"
-    ]
-  ],
-  "test_dynamic_shapes_reduce (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "180016",
-    "https://github.com/pytorch/pytorch/issues/180016",
-    [
-      "rocm"
     ]
   ],
   "test_dynamic_shapes_with_max_autotune_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -2110,20 +2032,6 @@
       "dynamo"
     ]
   ],
-  "test_mutated_args (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180029",
-    "https://github.com/pytorch/pytorch/issues/180029",
-    [
-      "rocm"
-    ]
-  ],
-  "test_mutated_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
-    "180012",
-    "https://github.com/pytorch/pytorch/issues/180012",
-    [
-      "rocm"
-    ]
-  ],
   "test_mv_tensor_accessor_cuda (__main__.TestLibtorchAgnosticCUDA)": [
     "168045",
     "https://github.com/pytorch/pytorch/issues/168045",
@@ -2392,13 +2300,6 @@
   "test_ordered_distribute_all_combination (__main__.DistributeWithDeviceOrderTest)": [
     "168197",
     "https://github.com/pytorch/pytorch/issues/168197",
-    [
-      "rocm"
-    ]
-  ],
-  "test_passed_swizzle_arrays_cuda (__main__.TestFP8MatmulCUDA)": [
-    "180073",
-    "https://github.com/pytorch/pytorch/issues/180073",
     [
       "rocm"
     ]
@@ -2819,13 +2720,6 @@
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotuneAsyncPipelined)": [
     "179967",
     "https://github.com/pytorch/pytorch/issues/179967",
-    [
-      "rocm"
-    ]
-  ],
-  "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
-    "180013",
-    "https://github.com/pytorch/pytorch/issues/180013",
     [
       "rocm"
     ]
