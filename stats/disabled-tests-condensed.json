@@ -755,6 +755,14 @@
       "slow"
     ]
   ],
+  "test_cudagraph_indexing_ops_scatter_reduce_mean_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
+    "180653",
+    "https://github.com/pytorch/pytorch/issues/180653",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
@@ -1071,6 +1079,14 @@
   "test_dynamic_shapes_with_max_autotune_cuda (__main__.TestFlexAttentionCUDA)": [
     "176198",
     "https://github.com/pytorch/pytorch/issues/176198",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_dynamo_dtensor_from_local_redistribute (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "180656",
+    "https://github.com/pytorch/pytorch/issues/180656",
     [
       "linux",
       "slow"
@@ -1464,6 +1480,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180654",
+    "https://github.com/pytorch/pytorch/issues/180654",
+    [
+      "dynamo"
     ]
   ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -2664,6 +2687,14 @@
       "linux"
     ]
   ],
+  "test_reshape_reindexing_transposed_input (__main__.LoopOrderingTest)": [
+    "180652",
+    "https://github.com/pytorch/pytorch/issues/180652",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_resnet18_per_sample_grads_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180459",
     "https://github.com/pytorch/pytorch/issues/180459",
@@ -3039,6 +3070,13 @@
     "https://github.com/pytorch/pytorch/issues/81213",
     [
       "linux"
+    ]
+  ],
+  "test_trace_return_namedtuple (__main__.TestFX)": [
+    "176966",
+    "https://github.com/pytorch/pytorch/issues/176966",
+    [
+      "dynamo"
     ]
   ],
   "test_tracker_multi_group_eager (__main__.TestTrackerFullyShard1DTrainingCore)": [
