@@ -1483,8 +1483,8 @@
     ]
   ],
   "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180654",
-    "https://github.com/pytorch/pytorch/issues/180654",
+    "180655",
+    "https://github.com/pytorch/pytorch/issues/180655",
     [
       "dynamo"
     ]
@@ -1994,7 +1994,9 @@
     [
       "asan",
       "dynamo",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
@@ -2187,7 +2189,9 @@
     "170449",
     "https://github.com/pytorch/pytorch/issues/170449",
     [
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opaque_obj_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
@@ -2196,6 +2200,8 @@
     [
       "asan",
       "linux",
+      "mac",
+      "macos",
       "rocm",
       "slow",
       "xpu"
