@@ -2754,6 +2754,13 @@
       "rocm"
     ]
   ],
+  "test_run2run_determinism_model_name_GoogleFnet_training_or_inference_inference_precision_float32 (__main__.DeterministicTest)": [
+    "180681",
+    "https://github.com/pytorch/pytorch/issues/180681",
+    [
+      "rocm"
+    ]
+  ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
     "180006",
     "https://github.com/pytorch/pytorch/issues/180006",
