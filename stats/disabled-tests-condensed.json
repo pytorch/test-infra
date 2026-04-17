@@ -211,62 +211,6 @@
       "rocm"
     ]
   ],
-  "test_binary_ufunc_numerical_fmod_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180032",
-    "https://github.com/pytorch/pytorch/issues/180032",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_fmod_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180033",
-    "https://github.com/pytorch/pytorch/issues/180033",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180034",
-    "https://github.com/pytorch/pytorch/issues/180034",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180035",
-    "https://github.com/pytorch/pytorch/issues/180035",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180036",
-    "https://github.com/pytorch/pytorch/issues/180036",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180037",
-    "https://github.com/pytorch/pytorch/issues/180037",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180038",
-    "https://github.com/pytorch/pytorch/issues/180038",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_ufunc_numerical_remainder_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180039",
-    "https://github.com/pytorch/pytorch/issues/180039",
-    [
-      "rocm"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "179958",
     "https://github.com/pytorch/pytorch/issues/179958",
@@ -1123,55 +1067,6 @@
   "test_eager_equivalence_log_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "180045",
     "https://github.com/pytorch/pytorch/issues/180045",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_reciprocal_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180046",
-    "https://github.com/pytorch/pytorch/issues/180046",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180047",
-    "https://github.com/pytorch/pytorch/issues/180047",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_default_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180048",
-    "https://github.com/pytorch/pytorch/issues/180048",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180049",
-    "https://github.com/pytorch/pytorch/issues/180049",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180051",
-    "https://github.com/pytorch/pytorch/issues/180051",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_numerics_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180053",
-    "https://github.com/pytorch/pytorch/issues/180053",
-    [
-      "rocm"
-    ]
-  ],
-  "test_eager_equivalence_remainder_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180054",
-    "https://github.com/pytorch/pytorch/issues/180054",
     [
       "rocm"
     ]
@@ -3205,37 +3100,9 @@
       "rocm"
     ]
   ],
-  "test_unary_ufunc_numerical_exp2_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180059",
-    "https://github.com/pytorch/pytorch/issues/180059",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_exp2_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180060",
-    "https://github.com/pytorch/pytorch/issues/180060",
-    [
-      "rocm"
-    ]
-  ],
   "test_unary_ufunc_numerical_exp_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "180061",
     "https://github.com/pytorch/pytorch/issues/180061",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_expm1_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180062",
-    "https://github.com/pytorch/pytorch/issues/180062",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_expm1_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180063",
-    "https://github.com/pytorch/pytorch/issues/180063",
     [
       "rocm"
     ]
@@ -3282,13 +3149,6 @@
       "rocm"
     ]
   ],
-  "test_unary_ufunc_numerical_reciprocal_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180069",
-    "https://github.com/pytorch/pytorch/issues/180069",
-    [
-      "rocm"
-    ]
-  ],
   "test_unary_ufunc_numerical_rsqrt_backend_inductor_numerics_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
     "180071",
     "https://github.com/pytorch/pytorch/issues/180071",
@@ -3299,13 +3159,6 @@
   "test_unary_ufunc_numerical_rsqrt_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "179940",
     "https://github.com/pytorch/pytorch/issues/179940",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_tan_backend_inductor_default_cuda_bfloat16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "179962",
-    "https://github.com/pytorch/pytorch/issues/179962",
     [
       "rocm"
     ]
