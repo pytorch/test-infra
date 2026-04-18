@@ -189,13 +189,6 @@
       "rocm"
     ]
   ],
-  "test_benchmark_harness_no_pickle_for_opaque_inputs (__main__.TestOpaqueObject)": [
-    "178748",
-    "https://github.com/pytorch/pytorch/issues/178748",
-    [
-      "xpu"
-    ]
-  ],
   "test_bias_addmm_lookup_table_entry (__main__.TestLookupTableE2E)": [
     "180030",
     "https://github.com/pytorch/pytorch/issues/180030",
@@ -874,15 +867,6 @@
     "https://github.com/pytorch/pytorch/issues/98259",
     [
       "linux"
-    ]
-  ],
-  "test_dtensor_basic_compile (__main__.TestDTensorCompileWithCompiledAutograd)": [
-    "178745",
-    "https://github.com/pytorch/pytorch/issues/178745",
-    [
-      "linux",
-      "slow",
-      "xpu"
     ]
   ],
   "test_dtensor_basic_export (__main__.TestDTensorCompile)": [
@@ -1629,13 +1613,6 @@
     "https://github.com/pytorch/pytorch/issues/180072",
     [
       "rocm"
-    ]
-  ],
-  "test_lazy_compile_kernel_name_collision_across_modules (__main__.TestLazyCompileKernelCollision)": [
-    "179101",
-    "https://github.com/pytorch/pytorch/issues/179101",
-    [
-      "xpu"
     ]
   ],
   "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
