@@ -63,14 +63,6 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
-  "trunk / linux-jammy-rocm-py3.10-mi355 / test (default)": [
-    "jithunnair-amd",
-    "179911",
-    "https://github.com/pytorch/pytorch/issues/179911",
-    "trunk",
-    "linux-jammy-rocm-py3.10-mi355",
-    "test (default)"
-  ],
   "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
