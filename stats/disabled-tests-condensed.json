@@ -890,6 +890,15 @@
       "linux"
     ]
   ],
+  "test_dtensor_basic_compile (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "178745",
+    "https://github.com/pytorch/pytorch/issues/178745",
+    [
+      "linux",
+      "slow",
+      "xpu"
+    ]
+  ],
   "test_dtensor_basic_export (__main__.TestDTensorCompile)": [
     "179690",
     "https://github.com/pytorch/pytorch/issues/179690",
@@ -1385,6 +1394,13 @@
   "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
     "180655",
     "https://github.com/pytorch/pytorch/issues/180655",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_grad_grad_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
+    "180846",
+    "https://github.com/pytorch/pytorch/issues/180846",
     [
       "dynamo"
     ]
