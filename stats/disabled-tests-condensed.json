@@ -1413,6 +1413,13 @@
       "slow"
     ]
   ],
+  "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180894",
+    "https://github.com/pytorch/pytorch/issues/180894",
+    [
+      "dynamo"
+    ]
+  ],
   "test_grad_vmap_cpu (__main__.TestComposabilityCPU)": [
     "179877",
     "https://github.com/pytorch/pytorch/issues/179877",
