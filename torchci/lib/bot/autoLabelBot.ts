@@ -494,6 +494,10 @@ function myBot(app: Probot): void {
       context.log({ labels, title, filesChanged });
 
       var labelsToAdd = getLabelsToAddFromPrTitle(title);
+      // Apply ciflow/rocm label on non-pytorch/pytorch PRs to trigger ROCm CI
+      if (!isPyTorchPyTorch(owner, repo) && title.match(/rocm/gi)) {
+        labelsToAdd.push("ciflow/rocm");
+      }
 
       // only categorize for release notes for prs in pytorch/pytorch
       if (isPyTorchPyTorch(owner, repo)) {
