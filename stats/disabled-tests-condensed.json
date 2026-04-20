@@ -1316,6 +1316,13 @@
       "linux"
     ]
   ],
+  "test_functional_call_multiple_dicts_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
+    "180819",
+    "https://github.com/pytorch/pytorch/issues/180819",
+    [
+      "dynamo"
+    ]
+  ],
   "test_functional_call_sequential_params_and_buffers (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "177056",
     "https://github.com/pytorch/pytorch/issues/177056",
