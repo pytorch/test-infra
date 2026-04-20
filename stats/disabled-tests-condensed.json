@@ -3185,6 +3185,13 @@
       "rocm"
     ]
   ],
+  "test_update_batch_norm_mechanism_functional_call_originally_track_running_stats_True_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180785",
+    "https://github.com/pytorch/pytorch/issues/180785",
+    [
+      "dynamo"
+    ]
+  ],
   "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_False_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180540",
     "https://github.com/pytorch/pytorch/issues/180540",
