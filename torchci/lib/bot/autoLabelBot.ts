@@ -496,7 +496,7 @@ function myBot(app: Probot): void {
       var labelsToAdd = getLabelsToAddFromPrTitle(title);
       // Apply ciflow/rocm label on non-pytorch/pytorch PRs to trigger ROCm CI
       // pytorch/pytorch PRs already run ROCm CI as part of trunk workflow
-      if (!isPyTorchPyTorch(owner, repo) && title.match(/rocm/gi)) {
+      if (!isPyTorchPyTorch(owner, repo) && title.match(/\brocm\b/gi)) {
         labelsToAdd.push("ciflow/rocm");
       }
 
