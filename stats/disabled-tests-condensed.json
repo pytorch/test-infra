@@ -428,13 +428,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "152520",
-    "https://github.com/pytorch/pytorch/issues/152520",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
