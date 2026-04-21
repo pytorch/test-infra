@@ -1733,8 +1733,8 @@
     ]
   ],
   "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180943",
-    "https://github.com/pytorch/pytorch/issues/180943",
+    "180944",
+    "https://github.com/pytorch/pytorch/issues/180944",
     [
       "dynamo"
     ]
@@ -2615,6 +2615,13 @@
     "https://github.com/pytorch/pytorch/issues/179957",
     [
       "rocm"
+    ]
+  ],
+  "test_requires_grad_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "180966",
+    "https://github.com/pytorch/pytorch/issues/180966",
+    [
+      "dynamo"
     ]
   ],
   "test_requires_grad_loop (test_jit.TestScript)": [
