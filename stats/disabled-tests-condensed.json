@@ -532,6 +532,14 @@
       "slow"
     ]
   ],
+  "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
+    "158115",
+    "https://github.com/pytorch/pytorch/issues/158115",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_correctness_add_f32 (__main__.TestInlineAsmElementwise)": [
     "180132",
     "https://github.com/pytorch/pytorch/issues/180132",
@@ -1584,13 +1592,6 @@
       "xpu"
     ]
   ],
-  "test_interim_result_with_future_pattern (__main__.DeferredRecordingTest)": [
-    "179875",
-    "https://github.com/pytorch/pytorch/issues/179875",
-    [
-      "linux"
-    ]
-  ],
   "test_intra_node_comm_all_reduce (__main__.CommTest)": [
     "115859",
     "https://github.com/pytorch/pytorch/issues/115859",
@@ -1720,6 +1721,13 @@
   "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
     "179895",
     "https://github.com/pytorch/pytorch/issues/179895",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180943",
+    "https://github.com/pytorch/pytorch/issues/180943",
     [
       "dynamo"
     ]
@@ -2080,6 +2088,13 @@
       "linux"
     ]
   ],
+  "test_nhwc_autocast_jit_trace_model (__main__.TestJitTraceAutocast)": [
+    "180942",
+    "https://github.com/pytorch/pytorch/issues/180942",
+    [
+      "linux"
+    ]
+  ],
   "test_nn_parse_to (__main__.TestTorchFunctionMode)": [
     "179880",
     "https://github.com/pytorch/pytorch/issues/179880",
@@ -2122,7 +2137,9 @@
     [
       "asan",
       "dynamo",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_fails_basic_cuda (__main__.TestCustomOpTestingCUDA)": [
