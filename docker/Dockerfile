@@ -55,11 +55,12 @@ RUN dnf install -y \
         gcc-toolset-13-gcc \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-gcc-gfortran \
-        gcc-toolset-14-gcc \
-        gcc-toolset-14-gcc-c++ \
-        gcc-toolset-14-gcc-gfortran \
     && dnf clean all \
     && rm -rf /var/cache/dnf
+
+# Default to gcc-toolset-13 (matching aarch64 and legacy manylinux builders).
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:$LD_LIBRARY_PATH
 
 # Install pre-built clang 15 and 18 (clang 20 is already the system default)
 RUN ARCH=$(uname -m) && PLATFORM="linux-${ARCH}" && \
