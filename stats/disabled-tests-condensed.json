@@ -2229,15 +2229,6 @@
       "linux"
     ]
   ],
-  "test_open_device_registration (__main__.ExtensionBackendTests)": [
-    "137027",
-    "https://github.com/pytorch/pytorch/issues/137027",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_ops_append_to_existing_file_tunableop_cuda_float32 (__main__.TestLinalgCUDA)": [
     "165603",
     "https://github.com/pytorch/pytorch/issues/165603",
