@@ -2637,6 +2637,13 @@
       "dynamo"
     ]
   ],
+  "test_retain_grad_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "181013",
+    "https://github.com/pytorch/pytorch/issues/181013",
+    [
+      "dynamo"
+    ]
+  ],
   "test_retrace_export_inline_asm_elementwise_simple_cuda_float32 (__main__.TestHOPCUDA)": [
     "178177",
     "https://github.com/pytorch/pytorch/issues/178177",
