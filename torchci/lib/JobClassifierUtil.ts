@@ -1,5 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
+import { EC2_TO_ARC_RUNNER_MAPPING } from "./arcRunnerMapping";
 import { IssueData, RowData } from "./types";
 
 type RepoViableStrictBlockingJobsMap = {
@@ -524,10 +525,35 @@ export function getNameWithoutLF(name: string) {
   return name.replace(ephemeralRegex, ", $1");
 }
 
-// Strip the `-osdc` suffix that distinguishes the ARC (OSDC) variant of a
-// job from its EC2 counterpart (e.g. `build-osdc`, `test-osdc (cfg, 1, 3)`,
-// `build-and-test-osdc`). Only matches at a segment boundary to avoid
-// mangling unrelated strings.
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Precomputed regex that matches any EC2 runner label present in the mapping
+// as a whole token (preceded by `,`, `(`, or whitespace; followed by `,`,
+// `)`, whitespace, or end-of-string) so substrings like `linux.2xlarge`
+// inside `linux.2xlarge.amx` do not match.
+const EC2_RUNNER_REGEX = new RegExp(
+  `(?<=[,(\\s])(${Object.keys(EC2_TO_ARC_RUNNER_MAPPING)
+    .map(escapeRegex)
+    .join("|")})(?=[,)\\s]|$)`,
+  "g"
+);
+
+// Condense the ARC (OSDC) variant of a job down to its EC2 counterpart so
+// both variants collapse into one HUD column. Performs three rewrites:
+//   1. Strip the `-osdc` suffix from job IDs (`test-osdc` -> `test`).
+//   2. Strip the `mt-` prefix the ARC launcher prepends to runner labels.
+//   3. Forward-map EC2 runner labels to their ARC equivalents using the
+//      same table that `map_ec2_to_arc.py` uses in the workflow, so
+//      matrix-expanded names like `test (cfg, 1, 3, linux.c7i.2xlarge)`
+//      and `test-osdc (cfg, 1, 3, mt-l-x86iavx512-8-64)` line up.
 export function getNameWithoutOSDC(name: string) {
-  return name.replace(/-osdc(?=[\s()/]|$)/g, "");
+  let result = name.replace(/-osdc(?=[\s()/]|$)/g, "");
+  result = result.replace(/(?<=[,(\s])mt-(?=l-)/g, "");
+  result = result.replace(
+    EC2_RUNNER_REGEX,
+    (match) => EC2_TO_ARC_RUNNER_MAPPING[match] ?? match
+  );
+  return result;
 }
