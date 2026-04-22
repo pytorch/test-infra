@@ -1903,6 +1903,13 @@
       "dynamo"
     ]
   ],
+  "test_mha_mem_eff_attention_backward_large_batch_compile (__main__.CudaReproTests)": [
+    "181085",
+    "https://github.com/pytorch/pytorch/issues/181085",
+    [
+      "xpu"
+    ]
+  ],
   "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
     "118253",
     "https://github.com/pytorch/pytorch/issues/118253",
