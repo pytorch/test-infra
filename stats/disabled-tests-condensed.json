@@ -2660,14 +2660,6 @@
       "linux"
     ]
   ],
-  "test_reshape_reindexing_transposed_input (__main__.LoopOrderingTest)": [
-    "180652",
-    "https://github.com/pytorch/pytorch/issues/180652",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_resnet18_per_sample_grads_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180459",
     "https://github.com/pytorch/pytorch/issues/180459",
