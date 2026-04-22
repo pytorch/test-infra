@@ -24353,7 +24353,7 @@
       "inductor/test_torchinductor_codegen_config_overrides": 5.517000198364258,
       "inductor/test_torchinductor_codegen_dynamic_shapes": 1141.802993774414,
       "inductor/test_torchinductor_dynamic_shapes": 3587.809006214142,
-      "inductor/test_torchinductor_opinfo": 9.58400011062622,
+      "inductor/test_torchinductor_opinfo": 4484.0,
       "inductor/test_torchinductor_opinfo_properties": 647.0280151367188,
       "inductor/test_torchinductor_strided_blocks": 98.8320000579115,
       "inductor/test_triton_extension_backend": 23.98900032043457,
