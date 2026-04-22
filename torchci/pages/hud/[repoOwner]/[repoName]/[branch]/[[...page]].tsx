@@ -52,6 +52,7 @@ import {
 } from "lib/types";
 import {
   useGroupingPreference,
+  useHideAlwaysSkippedPreference,
   useHideGreenColumnsPreference,
   useHideNonViableStrictPreference,
   useMonsterFailuresPreference,
@@ -389,6 +390,8 @@ function FiltersAndSettings({}: {}) {
     useHideGreenColumnsPreference();
   const [hideNonViableStrict, setHideNonViableStrict] =
     useHideNonViableStrictPreference();
+  const [hideAlwaysSkipped, setHideAlwaysSkipped] =
+    useHideAlwaysSkippedPreference();
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter
   );
@@ -446,6 +449,13 @@ function FiltersAndSettings({}: {}) {
                   checkBoxName="hideNonViableStrict"
                   key="hideNonViableStrict"
                   labelText={"Hide non-viable-strict jobs"}
+                />,
+                <CheckBoxSelector
+                  value={hideAlwaysSkipped}
+                  setValue={(value) => setHideAlwaysSkipped(value)}
+                  checkBoxName="hideAlwaysSkipped"
+                  key="hideAlwaysSkipped"
+                  labelText={"Hide always-skipped jobs"}
                 />,
                 <CheckBoxSelector
                   value={mergeEphemeralLF}
@@ -742,6 +752,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   const [hideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [hideNonViableStrict] = useHideNonViableStrictPreference();
+  const [hideAlwaysSkipped] = useHideAlwaysSkippedPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
   const {
@@ -749,6 +760,8 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     groupNameMapping,
     jobsWithFailures,
     groupsWithFailures,
+    jobsAlwaysSkipped,
+    groupsAlwaysSkipped,
     jobsViableStrictBlocking,
     groupsViableStrictBlocking,
   } = getGroupingData(
@@ -828,6 +841,17 @@ function GroupedHudTable({ params }: { params: HudParams }) {
         !groupsViableStrictBlocking.has(name) &&
         !jobsViableStrictBlocking.has(name)
       ) {
+        return false;
+      }
+    }
+
+    // If hiding always-skipped jobs, drop columns where every recorded run was skipped
+    if (hideAlwaysSkipped) {
+      if (groupNameMapping.has(name)) {
+        if (groupsAlwaysSkipped.has(name)) {
+          return false;
+        }
+      } else if (jobsAlwaysSkipped.has(name)) {
         return false;
       }
     }
