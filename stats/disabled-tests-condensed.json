@@ -225,6 +225,13 @@
       "mac"
     ]
   ],
+  "test_can_use_grad_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
+    "181155",
+    "https://github.com/pytorch/pytorch/issues/181155",
+    [
+      "dynamo"
+    ]
+  ],
   "test_can_use_vmap_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
     "180592",
     "https://github.com/pytorch/pytorch/issues/180592",
@@ -1754,6 +1761,13 @@
   "test_maml_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180555",
     "https://github.com/pytorch/pytorch/issues/180555",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_maml_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "181156",
+    "https://github.com/pytorch/pytorch/issues/181156",
     [
       "dynamo"
     ]
