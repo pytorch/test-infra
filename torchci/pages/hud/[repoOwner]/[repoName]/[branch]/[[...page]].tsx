@@ -383,6 +383,7 @@ function FiltersAndSettings({}: {}) {
   const params = packHudParams(router.query);
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
+  const [mergeOSDC, setMergeOSDC] = useContext(MergeOSDCContext);
   const [autorevertView, setAutorevertView] = useContext(AutorevertViewContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
@@ -463,6 +464,13 @@ function FiltersAndSettings({}: {}) {
                   checkBoxName="mergeEphemeralLF"
                   key="mergeEphemeralLF"
                   labelText={"Condense LF, ephemeral jobs"}
+                />,
+                <CheckBoxSelector
+                  value={mergeOSDC}
+                  setValue={setMergeOSDC}
+                  checkBoxName="mergeOSDC"
+                  key="mergeOSDC"
+                  labelText={"Condense OSDC, non-OSDC jobs"}
                 />,
               ],
             }}
@@ -569,6 +577,10 @@ export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
   (_) => {},
 ]);
 
+export const MergeOSDCContext = createContext<
+  [boolean, (val: boolean) => void]
+>([false, (_) => {}]);
+
 export const AutorevertViewContext = createContext<
   [boolean, (val: boolean) => void]
 >([false, (_) => {}]);
@@ -576,6 +588,11 @@ export const AutorevertViewContext = createContext<
 export default function Hud() {
   const router = useRouter();
   const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
+  const [mergeOSDC, setMergeOSDC] = usePreference(
+    "mergeOSDC",
+    /*override*/ undefined,
+    /*default*/ false
+  );
   const [autorevertView, setAutorevertView] = useState(() =>
     isAutorevertActive(router.query)
   );
@@ -586,6 +603,7 @@ export default function Hud() {
   const params = packHudParams({
     ...router.query,
     mergeEphemeralLF: mergeEphemeralLF,
+    mergeOSDC: mergeOSDC,
   });
 
   // Logic to handle tooltip pinning. The behavior we want is:
@@ -633,39 +651,41 @@ export default function Hud() {
           <MergeLFContext.Provider
             value={[mergeEphemeralLF, setMergeEphemeralLF]}
           >
-            <AutorevertViewContext.Provider
-              value={[autorevertView, setAutorevertView]}
-            >
-              {params.branch !== undefined && (
-                <div onClick={handleClick}>
-                  <div style={{ display: "flex", alignItems: "flex-end" }}>
-                    <HudHeader params={params} />
-                    <CopyPermanentLink
-                      params={params}
-                      style={{ marginLeft: "10px" }}
-                      autorevertView={autorevertView}
-                    />
-                  </div>
-                  <div style={{ position: "relative", clear: "both" }}>
-                    <FiltersAndSettings />
-                    {autorevertView ? (
-                      <AutorevertView />
-                    ) : (
-                      <GroupedHudTable params={params} />
+            <MergeOSDCContext.Provider value={[mergeOSDC, setMergeOSDC]}>
+              <AutorevertViewContext.Provider
+                value={[autorevertView, setAutorevertView]}
+              >
+                {params.branch !== undefined && (
+                  <div onClick={handleClick}>
+                    <div style={{ display: "flex", alignItems: "flex-end" }}>
+                      <HudHeader params={params} />
+                      <CopyPermanentLink
+                        params={params}
+                        style={{ marginLeft: "10px" }}
+                        autorevertView={autorevertView}
+                      />
+                    </div>
+                    <div style={{ position: "relative", clear: "both" }}>
+                      <FiltersAndSettings />
+                      {autorevertView ? (
+                        <AutorevertView />
+                      ) : (
+                        <GroupedHudTable params={params} />
+                      )}
+                    </div>
+                    {!autorevertView && (
+                      <>
+                        <PageSelector params={params} baseUrl="hud" />
+                        <br />
+                        <div>
+                          <em>This page automatically updates.</em>
+                        </div>
+                      </>
                     )}
                   </div>
-                  {!autorevertView && (
-                    <>
-                      <PageSelector params={params} baseUrl="hud" />
-                      <br />
-                      <div>
-                        <em>This page automatically updates.</em>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </AutorevertViewContext.Provider>
+                )}
+              </AutorevertViewContext.Provider>
+            </MergeOSDCContext.Provider>
           </MergeLFContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>

@@ -2,7 +2,11 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
-import { getNameWithoutLF, isFailure } from "./JobClassifierUtil";
+import {
+  getNameWithoutLF,
+  getNameWithoutOSDC,
+  isFailure,
+} from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import {
   HudDataAPIResponse,
@@ -122,6 +126,9 @@ export default async function fetchHud(
     let key = job.name!;
     if (params.mergeEphemeralLF) {
       key = getNameWithoutLF(key);
+    }
+    if (params.mergeOSDC) {
+      key = getNameWithoutOSDC(key);
     }
 
     const existingJob = jobsBySha[job.sha!][key];

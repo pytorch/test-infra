@@ -523,3 +523,11 @@ export function getNameWithoutLF(name: string) {
   const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
   return name.replace(ephemeralRegex, ", $1");
 }
+
+// Strip the `-osdc` suffix that distinguishes the ARC (OSDC) variant of a
+// job from its EC2 counterpart (e.g. `build-osdc`, `test-osdc (cfg, 1, 3)`,
+// `build-and-test-osdc`). Only matches at a segment boundary to avoid
+// mangling unrelated strings.
+export function getNameWithoutOSDC(name: string) {
+  return name.replace(/-osdc(?=[\s()/]|$)/g, "");
+}

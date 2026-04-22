@@ -131,6 +131,7 @@ export interface HudParams {
   filter_reruns: boolean;
   filter_unstable: boolean;
   mergeEphemeralLF?: boolean;
+  mergeOSDC?: boolean;
   useRegexFilter?: boolean;
 }
 
@@ -291,6 +292,7 @@ export function packHudParams(input: any) {
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
     mergeEphemeralLF: input.mergeEphemeralLF as boolean,
+    mergeOSDC: input.mergeOSDC as boolean,
     useRegexFilter: input.useRegexFilter === "true",
   };
 }
@@ -338,6 +340,10 @@ function formatHudURL(
 
   if (params.mergeEphemeralLF) {
     base += `&mergeEphemeralLF=true`;
+  }
+
+  if (params.mergeOSDC) {
+    base += `&mergeOSDC=true`;
   }
 
   // Preserve autorevert view params so router.push doesn't strip them.
