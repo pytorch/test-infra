@@ -1239,6 +1239,13 @@
       "linux"
     ]
   ],
+  "test_flex_attention_with_dynamic_max_autotune_graph_partition_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "181103",
+    "https://github.com/pytorch/pytorch/issues/181103",
+    [
+      "linux"
+    ]
+  ],
   "test_flex_attention_with_dynamic_max_autotune_graph_partition_xpu (__main__.TestLearnableBiasesXPU)": [
     "175719",
     "https://github.com/pytorch/pytorch/issues/175719",
@@ -2160,7 +2167,9 @@
     "https://github.com/pytorch/pytorch/issues/179909",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2684,6 +2693,14 @@
       "slow"
     ]
   ],
+  "test_return_aux_deprecation_warnings_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
+    "162464",
+    "https://github.com/pytorch/pytorch/issues/162464",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotune)": [
     "180031",
     "https://github.com/pytorch/pytorch/issues/180031",
@@ -2703,6 +2720,13 @@
     "https://github.com/pytorch/pytorch/issues/180681",
     [
       "rocm"
+    ]
+  ],
+  "test_saved_tensors_hooks_base_saved_tensors_hooks_filtering_mode_donated (__main__.TestAOTModuleSimplified)": [
+    "181102",
+    "https://github.com/pytorch/pytorch/issues/181102",
+    [
+      "linux"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
@@ -2977,14 +3001,6 @@
     "https://github.com/pytorch/pytorch/issues/179986",
     [
       "rocm"
-    ]
-  ],
-  "test_torch_dispatch_ignore_compile_internals (__main__.TorchDispatchModeTests)": [
-    "179688",
-    "https://github.com/pytorch/pytorch/issues/179688",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
