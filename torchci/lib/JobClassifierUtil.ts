@@ -424,14 +424,15 @@ export function getGroupingData(
       jobsWithFailures.add(name);
     }
 
-    // A job is "always skipped" iff at least one run exists and every run
-    // has conclusion === 'skipped'. Rows without an entry for this job are
-    // ignored (they just mean the job didn't run on that commit).
+    // A job is "always skipped" iff at least one real run exists and every
+    // real run has conclusion === 'skipped'. `nameToJobs` always has an entry
+    // per column (empty `{}` stubs for commits where the job didn't run), so
+    // we identify real runs by the presence of `id`.
     let sawAnyJob = false;
     let sawNonSkipped = false;
     for (const row of shaGrid) {
       const job = row.nameToJobs.get(name);
-      if (!job) {
+      if (!job || !job.id) {
         continue;
       }
       sawAnyJob = true;
