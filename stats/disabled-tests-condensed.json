@@ -2350,6 +2350,14 @@
       "macos"
     ]
   ],
+  "test_quiesce (__main__.TestCompileWorker)": [
+    "181080",
+    "https://github.com/pytorch/pytorch/issues/181080",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_quiesce_repeatedly (__main__.TestCompileWorker)": [
     "176968",
     "https://github.com/pytorch/pytorch/issues/176968",
@@ -3041,6 +3049,13 @@
     "https://github.com/pytorch/pytorch/issues/148901",
     [
       "inductor"
+    ]
+  ],
+  "test_transforms_dont_support_saved_tensor_hooks_transform_grad_and_value_cpu (__main__.TestComposabilityCPU)": [
+    "181081",
+    "https://github.com/pytorch/pytorch/issues/181081",
+    [
+      "dynamo"
     ]
   ],
   "test_transforms_dont_support_saved_tensor_hooks_transform_grad_cpu (__main__.TestComposabilityCPU)": [
