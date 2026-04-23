@@ -68,10 +68,13 @@ jobs:
           fetch-depth: 1
 
       - name: Check out test-infra (skill + hooks source)
+        # Pins to the same SHA as the reusable workflow YAML being executed,
+        # so the skill and hooks always match the workflow logic — even if
+        # the caller references an unmerged branch or a pinned tag.
         uses: actions/checkout@v4
         with:
           repository: pytorch/test-infra
-          ref: main
+          ref: ${{ github.workflow_sha }}
           path: .claude-infra-alerts-src
           fetch-depth: 1
 
