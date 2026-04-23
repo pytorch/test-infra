@@ -45,6 +45,10 @@ inputs:
   repo-name:
     description: The name of the repository containing the docker-build-dir.
     required: false
+  use-aws:
+    description: Try using AWS credentials to upload/download images
+    default: true
+    type: boolean
 
 outputs:
   docker-image:
@@ -103,7 +107,7 @@ runs:
       id: check-image
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild && inputs.use-aws == 'true' }}
       env:
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -177,7 +181,7 @@ runs:
         echo "rebuild=true" >> "${GITHUB_OUTPUT}"
 
     - name: Login to ECR
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) && inputs.use-aws == 'true' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
       env:
@@ -197,6 +201,7 @@ runs:
         retry login "${DOCKER_REGISTRY}"
 
     - name: Login to Docker Hub
+      if: ${{ inputs.use-aws == 'true' }}
       shell: bash
       run: |
         set -eux
@@ -204,7 +209,7 @@ runs:
         aws secretsmanager get-secret-value --secret-id docker_hub_readonly_token | jq --raw-output '.SecretString' | jq -r .docker_hub_readonly_token | docker login --username pytorchbot --password-stdin || true
 
     - name: Build docker image
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild || inputs.use-aws != 'true') }}
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
@@ -232,7 +237,7 @@ runs:
           popd
 
     - name: Push to ECR
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) && inputs.use-aws == 'true' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
       env:
