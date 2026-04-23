@@ -758,14 +758,6 @@
       "slow"
     ]
   ],
-  "test_cudagraph_indexing_ops_scatter_reduce_mean_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "180653",
-    "https://github.com/pytorch/pytorch/issues/180653",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "176196",
     "https://github.com/pytorch/pytorch/issues/176196",
