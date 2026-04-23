@@ -1638,7 +1638,9 @@
     "https://github.com/pytorch/pytorch/issues/181228",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1839,6 +1841,14 @@
       "rocm"
     ]
   ],
+  "test_memory_plots (__main__.TestCudaAllocator)": [
+    "179744",
+    "https://github.com/pytorch/pytorch/issues/179744",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
     "179745",
     "https://github.com/pytorch/pytorch/issues/179745",
@@ -1847,17 +1857,16 @@
       "slow"
     ]
   ],
-  "test_memory_stats (__main__.TestCuda)": [
-    "179813",
-    "https://github.com/pytorch/pytorch/issues/179813",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_memory_stats_multigpu (__main__.TestCudaMultiGPU)": [
     "129860",
     "https://github.com/pytorch/pytorch/issues/129860",
+    [
+      "linux"
+    ]
+  ],
+  "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
+    "177001",
+    "https://github.com/pytorch/pytorch/issues/177001",
     [
       "linux"
     ]
@@ -1922,6 +1931,14 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
+    ]
+  ],
+  "test_meta_simple (__main__.TestMultiprocessing)": [
+    "167522",
+    "https://github.com/pytorch/pytorch/issues/167522",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_method_overloading (__main__.TestScript)": [
@@ -2494,6 +2511,15 @@
       "rocm"
     ]
   ],
+  "test_remove_noop_slice1_cuda (__main__.GPUTests)": [
+    "151381",
+    "https://github.com/pytorch/pytorch/issues/151381",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_remove_noop_slice_cpu (__main__.CpuTests)": [
     "151384",
     "https://github.com/pytorch/pytorch/issues/151384",
@@ -2514,6 +2540,27 @@
       "mac",
       "macos",
       "rocm"
+    ]
+  ],
+  "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
+    "151512",
+    "https://github.com/pytorch/pytorch/issues/151512",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_remove_noop_view_default_cuda (__main__.GPUTests)": [
+    "151511",
+    "https://github.com/pytorch/pytorch/issues/151511",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_remove_noop_view_dtype_cpu (__main__.CpuTests)": [
