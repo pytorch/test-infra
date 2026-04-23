@@ -168,6 +168,14 @@
       "linux"
     ]
   ],
+  "test_backward_single_threaded_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
+    "181272",
+    "https://github.com/pytorch/pytorch/issues/181272",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_barrier_timeout_arg (__main__.TestDistBackendWithSpawn)": [
     "179691",
     "https://github.com/pytorch/pytorch/issues/179691",
@@ -2442,14 +2450,6 @@
       "rocm"
     ]
   ],
-  "test_record_stream (__main__.TestCuda)": [
-    "134746",
-    "https://github.com/pytorch/pytorch/issues/134746",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_record_stream_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
     "138557",
     "https://github.com/pytorch/pytorch/issues/138557",
@@ -2535,6 +2535,15 @@
       "rocm"
     ]
   ],
+  "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
+    "151378",
+    "https://github.com/pytorch/pytorch/issues/151378",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
     "151512",
     "https://github.com/pytorch/pytorch/issues/151512",
@@ -2564,6 +2573,15 @@
       "linux",
       "mac",
       "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_remove_noop_view_dtype_cuda (__main__.GPUTests)": [
+    "151541",
+    "https://github.com/pytorch/pytorch/issues/151541",
+    [
+      "linux",
       "rocm",
       "slow"
     ]
