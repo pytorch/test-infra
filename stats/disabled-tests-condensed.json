@@ -1740,6 +1740,20 @@
       "slow"
     ]
   ],
+  "test_linear_thread_factors_batch_size_1024_in_features_1024_out_features_1024_bias_True_cpu_float32 (__main__.TestSelectAlgorithmCPU)": [
+    "181300",
+    "https://github.com/pytorch/pytorch/issues/181300",
+    [
+      "linux"
+    ]
+  ],
+  "test_linear_thread_factors_dynamic_shapes_batch_size_1024_in_features_1024_out_features_1024_bias_False_cpu_float32 (__main__.TestSelectAlgorithmCPU)": [
+    "181301",
+    "https://github.com/pytorch/pytorch/issues/181301",
+    [
+      "linux"
+    ]
+  ],
   "test_load_from_view_buffer_cuda (__main__.TestFlexAttentionCUDA)": [
     "176200",
     "https://github.com/pytorch/pytorch/issues/176200",
