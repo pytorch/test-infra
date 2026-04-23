@@ -42,6 +42,10 @@ on:
         description: "ARN of the IAM role the job assumes via OIDC. Defaults to the shared Claude Bedrock role used by other test-infra reusable workflows. Override when the caller needs a more narrowly-scoped role for specific AWS read access."
         type: string
         default: "arn:aws:iam::308535385114:role/gha_workflow_claude_code"
+      test-infra-ref:
+        description: "Ref (branch, tag, or commit SHA) in pytorch/test-infra to check out for skill files and hooks. Should normally match the ref the caller pins on the `uses:` clause. Defaults to main."
+        type: string
+        default: "main"
     secrets:
       HUD_INTERNAL_BOT_TOKEN:
         description: "Token for the PyTorch HUD MCP server. Optional; if absent, the HUD MCP tools are not wired up and the investigator works with gh/aws/bash only."
@@ -72,14 +76,14 @@ jobs:
           fetch-depth: 1
 
       - name: Check out test-infra (skill + hooks source)
-        # github.job_workflow_sha is the commit SHA of this reusable workflow
-        # file in pytorch/test-infra at the ref the caller pinned. Using it
-        # here keeps the skill/hooks checkout in lockstep with whichever
-        # version of the workflow YAML is running — main, a branch, or a tag.
+        # GitHub does not expose the caller-pinned ref as a context variable
+        # inside reusable workflows, so the caller passes the ref via
+        # `inputs.test-infra-ref`. Keep this in sync with the ref used in
+        # the caller's `uses:` clause.
         uses: actions/checkout@v4
         with:
           repository: pytorch/test-infra
-          ref: ${{ github.job_workflow_sha }}
+          ref: ${{ inputs.test-infra-ref }}
           path: .claude-infra-alerts-src
           fetch-depth: 1
 
