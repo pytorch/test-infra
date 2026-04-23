@@ -38,6 +38,10 @@ on:
         description: "Bash run before the investigation step (extra clones, tool installs)."
         type: string
         default: ""
+      aws-role:
+        description: "ARN of the IAM role the job assumes via OIDC. Defaults to the shared Claude role used by other test-infra reusable workflows. Override with a more narrowly-scoped role if the caller needs specific AWS read access (e.g. the gha_workflow_claude_ec2_diagnostics role for runner-fleet diagnostics)."
+        type: string
+        default: "arn:aws:iam::308535385114:role/gha_workflow_claude_code"
     secrets:
       HUD_INTERNAL_BOT_TOKEN:
         description: "Token for the PyTorch HUD MCP server."
@@ -103,7 +107,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_ec2_diagnostics
+          role-to-assume: ${{ inputs.aws-role }}
           aws-region: us-east-1
 
       - name: Install uv
