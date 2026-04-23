@@ -1711,13 +1711,6 @@
       "dynamo"
     ]
   ],
-  "test_lazy_template_fusion_multiple_candidates_use_async_compile_True (__main__.TestPrologueFusion)": [
-    "180413",
-    "https://github.com/pytorch/pytorch/issues/180413",
-    [
-      "inductor"
-    ]
-  ],
   "test_leaf_function_closure_constants_without_grad (__main__.TestLeafFunctionDynamo)": [
     "180662",
     "https://github.com/pytorch/pytorch/issues/180662",
