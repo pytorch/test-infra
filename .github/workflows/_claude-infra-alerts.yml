@@ -71,30 +71,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Resolve test-infra ref
-        id: ti-ref
-        # github.workflow_ref looks like
-        #   pytorch/test-infra/.github/workflows/_claude-infra-alerts.yml@refs/heads/<branch>
-        # Strip everything up to the `@`, then drop refs/heads/ or refs/tags/
-        # so actions/checkout gets a clean branch or tag name. This keeps
-        # the skill/hooks checkout in lockstep with whichever version of
-        # the workflow file the caller pinned.
-        run: |
-          REF="${{ github.workflow_ref }}"
-          REF="${REF##*@}"
-          REF="${REF#refs/heads/}"
-          REF="${REF#refs/tags/}"
-          if [[ -z "$REF" ]]; then
-            REF="main"
-          fi
-          echo "ref=$REF" >> "$GITHUB_OUTPUT"
-          echo "Using test-infra ref: $REF"
-
       - name: Check out test-infra (skill + hooks source)
+        # github.job_workflow_sha is the commit SHA of this reusable workflow
+        # file in pytorch/test-infra at the ref the caller pinned. Using it
+        # here keeps the skill/hooks checkout in lockstep with whichever
+        # version of the workflow YAML is running — main, a branch, or a tag.
         uses: actions/checkout@v4
         with:
           repository: pytorch/test-infra
-          ref: ${{ steps.ti-ref.outputs.ref }}
+          ref: ${{ github.job_workflow_sha }}
           path: .claude-infra-alerts-src
           fetch-depth: 1
 
