@@ -18,8 +18,9 @@ if [[ ! -f "$ACTIONS_FILE" ]]; then
 fi
 
 # --- Try check-jsonschema first (precise, good error messages) ---
+# Rely on the exit code only; its stdout/stderr wording is not a stable API.
 if command -v check-jsonschema &>/dev/null; then
-  if check-jsonschema --schemafile "$SCHEMA_FILE" "$ACTIONS_FILE" 2>&1 | tee /dev/stderr | grep -q "ok"; then
+  if check-jsonschema --schemafile "$SCHEMA_FILE" "$ACTIONS_FILE" >&2; then
     count=$(jq '.actions | length' "$ACTIONS_FILE")
     echo "Valid JSON with $count action(s)" >&2
     exit 0

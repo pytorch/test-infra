@@ -108,7 +108,7 @@ After fetching existing `<MARKER_LABEL>` issues (Step 1), before creating new is
 
 ### JSON Schema
 
-Full schema in `tools/claude-infra-alerts/skill/actions-schema.json` (in the test-infra checkout).
+Full schema in `.claude/skills/claude-infra-alerts/actions-schema.json` (same directory as this file after staging).
 
 ```json
 {

@@ -1,5 +1,6 @@
 #!/bin/bash
 # PreToolUse hook for Write: only allow writing to the actions output file.
+set -euo pipefail
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
 if [[ "$file_path" == "/tmp/claude-infra-alerts-actions.json" ]]; then

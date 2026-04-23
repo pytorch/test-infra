@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stop hook: validate actions JSON before allowing Claude to stop.
 # Exits 2 if invalid (Claude must fix before stopping).
-
+set -euo pipefail
 input=$(cat)
 stop_hook_active=$(echo "$input" | jq -r '.stop_hook_active // false')
 if [[ "$stop_hook_active" == "true" ]]; then

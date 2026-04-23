@@ -7,9 +7,12 @@ name: Claude Infra Alerts (reusable)
 # Caller workflow onboarding:
 #   1. Create a caller workflow with `uses: pytorch/test-infra/.github/workflows/_claude-infra-alerts.yml@main`.
 #   2. Add `repo:<org>/<repo>:environment:bedrock` to the OIDC subject condition
-#      on the IAM role `gha_workflow_claude_ec2_diagnostics` (in configerator).
+#      on the IAM role this workflow assumes. By default that's
+#      `gha_workflow_claude_code` (the shared Bedrock role). Callers that
+#      override via the `aws-role` input must update the trust policy on
+#      whichever role they're assuming instead.
 #   3. Configure a `bedrock` environment on the caller repo.
-#   4. Inherit the `HUD_INTERNAL_BOT_TOKEN` secret.
+#   4. Inherit the `HUD_INTERNAL_BOT_TOKEN` secret (optional).
 #
 # The caller supplies team-specific priorities, alert sources, and noise
 # filters via `inputs.custom-instructions`. Methodology and the shared
@@ -284,6 +287,7 @@ jobs:
           set -euo pipefail
           ACTIONS_FILE="/tmp/claude-infra-alerts-actions.json"
           MARKER="<!-- claude-infra-alerts-run-log -->"
+          DETAILS_MARKER="<!-- claude-infra-alerts-details -->"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
 
           # Parse DEFAULT_LABELS (newline-delimited) into a JSON array.
@@ -347,24 +351,30 @@ jobs:
             fi
           }
 
-          # Update or create the first comment on an issue (the details comment).
-          upsert_first_comment() {
+          # Update or create the details comment (the one we treat as the
+          # issue's authoritative body). Identified by DETAILS_MARKER so
+          # humans can comment on the issue without us clobbering their
+          # comment. The marker itself is an HTML comment — invisible in
+          # rendered Markdown.
+          upsert_details_comment() {
             local repo="$1" issue_num="$2" body="$3"
+            local tagged_body="${DETAILS_MARKER}"$'\n'"${body}"
 
             local comment_id
             comment_id=$(gh issue view "$issue_num" --repo "$repo" --json comments \
-              --jq '.comments[0].url // empty' | grep -o '[0-9]*$' || true)
+              --jq "[.comments[] | select(.body | contains(\"$DETAILS_MARKER\")) | .url] | last // empty" \
+              | grep -oE '[0-9]+$' || true)
 
             if [[ -n "$comment_id" ]]; then
-              echo "Updating first comment ($comment_id) on issue #$issue_num"
+              echo "Updating details comment ($comment_id) on issue #$issue_num"
               local body_json
-              body_json=$(printf '%s' "$body" | jq -Rs '{body: .}')
+              body_json=$(printf '%s' "$tagged_body" | jq -Rs '{body: .}')
               gh api --method PATCH \
                 "repos/$repo/issues/comments/$comment_id" \
                 --input - <<< "$body_json"
             else
-              echo "No comments found, posting details comment on issue #$issue_num"
-              gh issue comment "$issue_num" --repo "$repo" --body "$body"
+              echo "Posting new details comment on issue #$issue_num"
+              gh issue comment "$issue_num" --repo "$repo" --body "$tagged_body"
             fi
           }
 
@@ -418,7 +428,7 @@ jobs:
                   echo "ERROR: Failed to create issue"
                   exit 1
                 fi
-                upsert_first_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
+                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
                 update_run_log "$REPO" "$ISSUE_NUM" "create"
                 ;;
 
@@ -432,7 +442,7 @@ jobs:
                   echo "Updating issue body with new summary"
                   gh issue edit "$ISSUE_NUM" --repo "$REPO" --body "$SUMMARY"
                 fi
-                upsert_first_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
+                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
                 if [[ -n "$EXTRA_COMMENT" ]]; then
                   echo "Posting extra comment on issue #$ISSUE_NUM"
                   gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$EXTRA_COMMENT"
