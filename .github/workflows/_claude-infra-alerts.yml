@@ -44,8 +44,8 @@ on:
         default: "arn:aws:iam::308535385114:role/gha_workflow_claude_code"
     secrets:
       HUD_INTERNAL_BOT_TOKEN:
-        description: "Token for the PyTorch HUD MCP server."
-        required: true
+        description: "Token for the PyTorch HUD MCP server. Optional; if absent, the HUD MCP tools are not wired up and the investigator works with gh/aws/bash only."
+        required: false
 
 jobs:
   investigate:
@@ -119,23 +119,28 @@ jobs:
 
       - name: Build MCP config
         id: mcp
+        env:
+          HUD_TOKEN: ${{ secrets.HUD_INTERNAL_BOT_TOKEN }}
         run: |
           # Inline JSON is required (file paths get overwritten by the action's
           # built-in github MCP server; inline JSON objects get merged).
-          echo "config=$(jq -c . <<'EOF'
-          {
-            "mcpServers": {
-              "hud": {
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/izaitsevfb/claude-pytorch-treehugger.git", "pytorch-hud"],
-                "env": {
-                  "HUD_INTERNAL_BOT_TOKEN": "${{ secrets.HUD_INTERNAL_BOT_TOKEN }}"
+          # HUD MCP is only wired up when HUD_INTERNAL_BOT_TOKEN is provided;
+          # otherwise, the investigator works with gh/aws/bash tools only.
+          if [[ -n "$HUD_TOKEN" ]]; then
+            CONFIG=$(jq -cn --arg token "$HUD_TOKEN" '{
+              mcpServers: {
+                hud: {
+                  command: "uvx",
+                  args: ["--from", "git+https://github.com/izaitsevfb/claude-pytorch-treehugger.git", "pytorch-hud"],
+                  env: { HUD_INTERNAL_BOT_TOKEN: $token }
                 }
               }
-            }
-          }
-          EOF
-          )" >> "$GITHUB_OUTPUT"
+            }')
+          else
+            CONFIG='{"mcpServers":{}}'
+            echo "HUD_INTERNAL_BOT_TOKEN not set; running without HUD MCP tools." >&2
+          fi
+          echo "config=$CONFIG" >> "$GITHUB_OUTPUT"
 
       - name: Configure Claude hooks
         run: |
