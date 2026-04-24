@@ -370,7 +370,7 @@ describe("label-bot", () => {
         `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
         (body) => {
           expect(JSON.stringify(body)).toContain(
-            "Only people with write access to the repo can add these labels: actionable"
+            "Only regular contributors are expected to mark issues as actionable."
           );
           return true;
         }
