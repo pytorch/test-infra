@@ -1,0 +1,25 @@
+SELECT
+    pr_number,
+    pytorch_head_sha,
+    workflow_name AS job_name,
+    status,
+    conclusion,
+    started_at,
+    completed_at,
+    duration_seconds,
+    total_tests,
+    passed_tests,
+    failed_tests,
+    skipped_tests,
+    workflow_run_url,
+    artifact_url,
+    queue_time,
+    execution_time
+FROM
+    default.oot_workflow_job FINAL
+WHERE
+    downstream_repo = {repo: String}
+    AND started_at > now() - INTERVAL {days: UInt64} DAY
+ORDER BY
+    started_at DESC
+LIMIT 500
