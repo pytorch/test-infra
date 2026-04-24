@@ -63,6 +63,8 @@ jobs:
       contents: read
       issues: read
       id-token: write
+    outputs:
+      target_repo: ${{ steps.target.outputs.repo }}
 
     steps:
       - name: Resolve target repo
@@ -205,7 +207,15 @@ jobs:
             --mcp-config '${{ steps.mcp.outputs.config }}'
             --allowedTools
             "Read,Glob,Grep,Write,
-            Bash(aws *),Bash(gh *),Bash(git *),
+            Bash(aws *),
+            Bash(gh issue view *),Bash(gh issue list *),
+            Bash(gh pr view *),Bash(gh pr list *),
+            Bash(gh search *),
+            Bash(gh run view *),Bash(gh run list *),
+            Bash(gh workflow view *),Bash(gh workflow list *),
+            Bash(gh label list *),
+            Bash(gh api *),
+            Bash(git *),
             Bash(cat *),Bash(head *),Bash(tail *),Bash(less *),Bash(more *),
             Bash(grep *),Bash(rg *),Bash(jq *),
             Bash(ls *),Bash(find *),
@@ -260,25 +270,39 @@ jobs:
       issues: write
       contents: read
     steps:
-      - name: Resolve target repo
-        id: target
-        run: |
-          REPO="${{ inputs.target-repo }}"
-          if [[ -z "$REPO" ]]; then
-            REPO="${{ github.repository }}"
-          fi
-          echo "repo=$REPO" >> "$GITHUB_OUTPUT"
-
       - name: Download actions artifact
         uses: actions/download-artifact@v4
         with:
           name: claude-infra-alerts-actions
           path: /tmp
 
+      - name: Check out test-infra (schema + validator)
+        # Same ref as the investigate job so the schema we validate
+        # against matches what the investigator was told to produce.
+        uses: actions/checkout@v4
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ inputs.test-infra-ref }}
+          path: .claude-infra-alerts-src
+          fetch-depth: 1
+
+      - name: Validate actions JSON against schema
+        # Fail fast if Claude's output drifted from the schema, BEFORE
+        # any gh writes. The investigate-side Stop hook enforces this at
+        # normal Claude exit, but this job runs even if that hook was
+        # skipped (e.g. the claude-code-action outer wrapper terminated
+        # Claude without a clean Stop).
+        run: |
+          set -euo pipefail
+          pip install --quiet --disable-pip-version-check check-jsonschema
+          check-jsonschema \
+            --schemafile .claude-infra-alerts-src/tools/claude-infra-alerts/skill/actions-schema.json \
+            /tmp/claude-infra-alerts-actions.json
+
       - name: Validate and apply actions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_REPO: ${{ steps.target.outputs.repo }}
+          TARGET_REPO: ${{ needs.investigate.outputs.target_repo }}
           MARKER_LABEL: ${{ inputs.marker-label }}
           DEFAULT_LABELS: ${{ inputs.default-labels }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -299,16 +323,28 @@ jobs:
           echo "Target repo: $TARGET_REPO"
 
           # Update or create a tracking comment on an issue with a link to this run.
+          # Uses a hidden HTML marker to locate the tracking comment across
+          # re-runs. Audit-log write failures are logged but non-fatal so an
+          # API hiccup doesn't block the real issue action.
           update_run_log() {
             local repo="$1" issue_num="$2" action_type="$3"
             local new_entry="| ${TIMESTAMP} | \`${action_type}\` | [Run #${RUN_NUMBER}]($RUN_URL) |"
 
+            local comments_json="" raw_log=""
+            if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
+              echo "Warning: could not fetch comments on issue #$issue_num; run log will be re-seeded." >&2
+              comments_json='{"comments":[]}'
+            fi
+            raw_log=$(echo "$comments_json" \
+              | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .body] | last // empty")
+
             local existing_rows=""
-            existing_rows=$(gh issue view "$issue_num" --repo "$repo" --json comments \
-              --jq "[.comments[] | select(.body | contains(\"$MARKER\")) | .body] | last // empty" 2>/dev/null \
-              | sed -n '/^| Date /,/^<\/details>/p' \
-              | grep -v '^| Date \|^|---\|^</details>' \
-              | grep '^|.*|.*|.*|' || true)
+            if [[ -n "$raw_log" ]]; then
+              existing_rows=$(echo "$raw_log" \
+                | sed -n '/^| Date /,/^<\/details>/p' \
+                | grep -v '^| Date \|^|---\|^</details>' \
+                | grep '^|.*|.*|.*|' || true)
+            fi
 
             if [[ "$action_type" == "noop" && -n "$existing_rows" ]]; then
               local last_row
@@ -333,21 +369,22 @@ jobs:
             } > /tmp/tracking-comment.md
 
             local comment_id
-            comment_id=$(gh issue view "$issue_num" --repo "$repo" --json comments \
-              --jq "[.comments[] | select(.body | contains(\"$MARKER\")) | .url] | last // empty" 2>/dev/null \
-              | grep -o '[0-9]*$' || true)
+            comment_id=$(echo "$comments_json" \
+              | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .url] | last // empty" \
+              | grep -oE '[0-9]+$' || true)
 
             if [[ -n "$comment_id" ]]; then
               local body_json
               body_json=$(jq -Rs '{body: .}' /tmp/tracking-comment.md)
-              curl -s -X PATCH \
-                -H "Authorization: Bearer $GH_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/$repo/issues/comments/$comment_id" \
-                -d "$body_json" > /dev/null
+              if ! gh api --method PATCH "repos/$repo/issues/comments/$comment_id" \
+                  --input - <<< "$body_json" >/dev/null; then
+                echo "Warning: failed to update tracking comment on issue #$issue_num." >&2
+              fi
             else
-              gh issue comment "$issue_num" --repo "$repo" \
-                --body-file /tmp/tracking-comment.md
+              if ! gh issue comment "$issue_num" --repo "$repo" \
+                  --body-file /tmp/tracking-comment.md; then
+                echo "Warning: failed to post tracking comment on issue #$issue_num." >&2
+              fi
             fi
           }
 
@@ -358,6 +395,17 @@ jobs:
           # rendered Markdown.
           upsert_details_comment() {
             local repo="$1" issue_num="$2" body="$3"
+
+            # Guard: refuse to write a comment body that's just the marker
+            # + whitespace. The schema's minLength:1 + new apply-side
+            # schema revalidation should already prevent this, but belt
+            # and suspenders: a future schema regression must not wipe an
+            # existing details comment.
+            if [[ -z "${body//[[:space:]]/}" ]]; then
+              echo "ERROR: refusing to upsert empty details on issue #$issue_num" >&2
+              return 1
+            fi
+
             local tagged_body="${DETAILS_MARKER}"$'\n'"${body}"
 
             local comment_id
@@ -369,13 +417,39 @@ jobs:
               echo "Updating details comment ($comment_id) on issue #$issue_num"
               local body_json
               body_json=$(printf '%s' "$tagged_body" | jq -Rs '{body: .}')
-              gh api --method PATCH \
-                "repos/$repo/issues/comments/$comment_id" \
-                --input - <<< "$body_json"
+              if ! gh api --method PATCH \
+                  "repos/$repo/issues/comments/$comment_id" \
+                  --input - <<< "$body_json" >/dev/null; then
+                echo "ERROR: failed to PATCH details comment $comment_id on issue #$issue_num" >&2
+                return 1
+              fi
             else
               echo "Posting new details comment on issue #$issue_num"
-              gh issue comment "$issue_num" --repo "$repo" --body "$tagged_body"
+              if ! gh issue comment "$issue_num" --repo "$repo" --body "$tagged_body"; then
+                echo "ERROR: failed to post details comment on issue #$issue_num" >&2
+                return 1
+              fi
             fi
+          }
+
+          # Ensure a set of labels exists on a repo; create any missing ones.
+          # `gh label create` exits non-zero if the label already exists, so
+          # the `|| true` makes the call idempotent. Labels we auto-create
+          # get a neutral grey color and a description pointing at this
+          # automation; humans can recolor them later without us fighting it.
+          ensure_labels() {
+            local repo="$1" labels_csv="$2"
+            local IFS=','
+            # shellcheck disable=SC2206
+            local labels=($labels_csv)
+            for label in "${labels[@]}"; do
+              if ! gh label create "$label" --repo "$repo" \
+                  --color "ededed" \
+                  --description "Auto-created by the claude-infra-alerts workflow" \
+                  >/dev/null 2>&1; then
+                : # label already exists or we lack permission; no-op
+              fi
+            done
           }
 
           if [[ ! -f "$ACTIONS_FILE" ]]; then
@@ -421,9 +495,10 @@ jobs:
                   "$ACTIONS_FILE")
                 echo "Creating issue: $TITLE"
                 echo "Labels: $LABELS"
+                ensure_labels "$REPO" "$LABELS"
                 ISSUE_URL=$(gh issue create --repo "$REPO" \
                   --title "$TITLE" --body "$SUMMARY" --label "$LABELS")
-                ISSUE_NUM=$(echo "$ISSUE_URL" | grep -o '[0-9]*$')
+                ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
                 if [[ -z "$ISSUE_NUM" ]]; then
                   echo "ERROR: Failed to create issue"
                   exit 1
