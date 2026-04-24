@@ -57,6 +57,15 @@
       "slow"
     ]
   ],
+  "test_addcdiv_cuda_complex128 (__main__.TestTorchDeviceTypeCUDA)": [
+    "119515",
+    "https://github.com/pytorch/pytorch/issues/119515",
+    [
+      "inductor",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -3480,8 +3489,8 @@
     ]
   ],
   "test_valid_lookup_table_entry_operation_addmm (__main__.TestLookupTableE2E)": [
-    "179955",
-    "https://github.com/pytorch/pytorch/issues/179955",
+    "180234",
+    "https://github.com/pytorch/pytorch/issues/180234",
     [
       "rocm"
     ]
