@@ -293,13 +293,6 @@
       "slow"
     ]
   ],
-  "test_captured_scalar_grad_xpu_float16 (__main__.TestFlexAttentionXPU)": [
-    "181335",
-    "https://github.com/pytorch/pytorch/issues/181335",
-    [
-      "xpu"
-    ]
-  ],
   "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
     "158909",
     "https://github.com/pytorch/pytorch/issues/158909",
@@ -1358,13 +1351,6 @@
       "linux"
     ]
   ],
-  "test_flex_attention_with_dynamic_max_autotune_graph_partition_xpu (__main__.TestLearnableBiasesXPU)": [
-    "175719",
-    "https://github.com/pytorch/pytorch/issues/175719",
-    [
-      "xpu"
-    ]
-  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -1844,13 +1830,6 @@
   "test_linear_thread_factors_batch_size_1024_in_features_1024_out_features_1024_bias_True_cpu_float32 (__main__.TestSelectAlgorithmCPU)": [
     "181300",
     "https://github.com/pytorch/pytorch/issues/181300",
-    [
-      "linux"
-    ]
-  ],
-  "test_linear_thread_factors_dynamic_shapes_batch_size_1024_in_features_1024_out_features_1024_bias_False_cpu_float32 (__main__.TestSelectAlgorithmCPU)": [
-    "181301",
-    "https://github.com/pytorch/pytorch/issues/181301",
     [
       "linux"
     ]
@@ -2858,20 +2837,6 @@
     "https://github.com/pytorch/pytorch/issues/162464",
     [
       "linux",
-      "rocm"
-    ]
-  ],
-  "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotune)": [
-    "180031",
-    "https://github.com/pytorch/pytorch/issues/180031",
-    [
-      "rocm"
-    ]
-  ],
-  "test_rocm_addmm_aten_bias_input_is_1d (__main__.TestMaxAutotuneAsyncPipelined)": [
-    "179967",
-    "https://github.com/pytorch/pytorch/issues/179967",
-    [
       "rocm"
     ]
   ],
