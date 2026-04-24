@@ -133,6 +133,13 @@
       "dynamo"
     ]
   ],
+  "test_autograd_functional_jacfwd_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "181319",
+    "https://github.com/pytorch/pytorch/issues/181319",
+    [
+      "dynamo"
+    ]
+  ],
   "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
     "179876",
     "https://github.com/pytorch/pytorch/issues/179876",
@@ -294,6 +301,13 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
     ]
   ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
@@ -1640,7 +1654,17 @@
       "asan",
       "linux",
       "mac",
-      "macos"
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_is_retain_graph_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
+    "181323",
+    "https://github.com/pytorch/pytorch/issues/181323",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1851,6 +1875,14 @@
   "test_memory_plots (__main__.TestCudaAllocator)": [
     "179744",
     "https://github.com/pytorch/pytorch/issues/179744",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
+    "179798",
+    "https://github.com/pytorch/pytorch/issues/179798",
     [
       "linux",
       "slow"
@@ -2232,7 +2264,9 @@
     "https://github.com/pytorch/pytorch/issues/180196",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -3089,6 +3123,13 @@
       "linux"
     ]
   ],
+  "test_trace_return_dataclass_nested (__main__.TestFX)": [
+    "181322",
+    "https://github.com/pytorch/pytorch/issues/181322",
+    [
+      "dynamo"
+    ]
+  ],
   "test_trace_return_namedtuple (__main__.TestFX)": [
     "176966",
     "https://github.com/pytorch/pytorch/issues/176966",
@@ -3334,6 +3375,13 @@
   "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_False_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180540",
     "https://github.com/pytorch/pytorch/issues/180540",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_True_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "181320",
+    "https://github.com/pytorch/pytorch/issues/181320",
     [
       "dynamo"
     ]
