@@ -448,7 +448,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     // Labels only people with write access to the repo should be able to add
-    const labels_requiring_write_access: string[] = ["skip-pr-sanity-check"];
+    const labels_requiring_write_access: string[] = [
+      "skip-pr-sanity-check",
+      "actionable",
+    ];
     const write_required_labels = labelsToAdd.filter((l: string) =>
       labels_requiring_write_access.some(
         (write_required_label) => write_required_label === l
