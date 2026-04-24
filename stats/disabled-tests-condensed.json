@@ -2841,13 +2841,6 @@
       "rocm"
     ]
   ],
-  "test_saved_tensors_hooks_base_saved_tensors_hooks_filtering_mode_donated (__main__.TestAOTModuleSimplified)": [
-    "181102",
-    "https://github.com/pytorch/pytorch/issues/181102",
-    [
-      "linux"
-    ]
-  ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
     "180006",
     "https://github.com/pytorch/pytorch/issues/180006",
