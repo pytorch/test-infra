@@ -269,6 +269,13 @@
       "slow"
     ]
   ],
+  "test_captured_scalar_grad_xpu_float16 (__main__.TestFlexAttentionXPU)": [
+    "181335",
+    "https://github.com/pytorch/pytorch/issues/181335",
+    [
+      "xpu"
+    ]
+  ],
   "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
     "158909",
     "https://github.com/pytorch/pytorch/issues/158909",
@@ -2011,6 +2018,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_mm_padding_deterministic_True (__main__.DeterministicTest)": [
+    "181336",
+    "https://github.com/pytorch/pytorch/issues/181336",
+    [
+      "xpu"
     ]
   ],
   "test_modes_handle_first (__main__.TestTorchFunctionMode)": [
