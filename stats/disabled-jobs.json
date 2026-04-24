@@ -1,4 +1,12 @@
 {
+  "DistillGPT2 (dynamic_cpu_max_autotune_inductor_amp_freezing_huggingface)": [
+    "IvanKobzarev",
+    "181376",
+    "https://github.com/pytorch/pytorch/issues/181376",
+    "DistillGPT2 (dynamic_cpu_max_autotune_inductor_amp_freezing_huggingface)",
+    "",
+    ""
+  ],
   "RecordDebugHandles.Basic (__main__.test_jit)": [
     "pytorch-bot",
     "160387",
@@ -20,6 +28,14 @@
     "181362",
     "https://github.com/pytorch/pytorch/issues/181362",
     "deit_tiny_patch16_224.fb_in1k fail_accuracy on ROCm dynamic_inductor_timm_training",
+    "",
+    ""
+  ],
+  "detectron2_fasterrcnn graph breaks (dynamic_cpu_max_autotune_inductor_amp_freezing_torchbench)": [
+    "IvanKobzarev",
+    "181377",
+    "https://github.com/pytorch/pytorch/issues/181377",
+    "detectron2_fasterrcnn graph breaks (dynamic_cpu_max_autotune_inductor_amp_freezing_torchbench)",
     "",
     ""
   ],
@@ -60,6 +76,14 @@
     "167272",
     "https://github.com/pytorch/pytorch/issues/167272",
     "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
+    "",
+    ""
+  ],
+  "vision_maskrcnn graph breaks (dynamic_cpu_max_autotune_inductor_amp_freezing_torchbench)": [
+    "IvanKobzarev",
+    "181378",
+    "https://github.com/pytorch/pytorch/issues/181378",
+    "vision_maskrcnn graph breaks (dynamic_cpu_max_autotune_inductor_amp_freezing_torchbench)",
     "",
     ""
   ]
