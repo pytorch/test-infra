@@ -1,22 +1,4 @@
 {
-  "params": {
-    "queuedThresholdMinutes": "Int64",
-    "maxAgeDays": "Int64",
-    "orgs": "Array(String)",
-    "repo": "String"
-  },
-  "defaults": {
-    "queuedThresholdMinutes": 30,
-    "maxAgeDays": 3,
-    "orgs": ["pytorch", "pytorch-labs", "meta-pytorch"],
-    "repo": ""
-  },
-  "tests": [
-    {
-      "queuedThresholdMinutes": 0,
-      "maxAgeDays": 0,
-      "orgs": [],
-      "repo": ""
-    }
-  ]
+  "params": {},
+  "tests": []
 }

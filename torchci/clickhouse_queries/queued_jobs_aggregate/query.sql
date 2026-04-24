@@ -14,12 +14,12 @@ WITH possible_queued_jobs AS (
         status = 'queued'
         AND created_at < (
         -- Only consider jobs that have been queued for a significant period of time
-            CURRENT_TIMESTAMP() - toIntervalMinute({queuedThresholdMinutes: Int64})
+            CURRENT_TIMESTAMP() - INTERVAL 30 MINUTE
         )
         AND created_at > (
         -- Queued jobs are automatically cancelled after this long. Any allegedly pending
         -- jobs older than this are actually bad data
-            CURRENT_TIMESTAMP() - toIntervalDay({maxAgeDays: Int64})
+            CURRENT_TIMESTAMP() - INTERVAL 3 DAY
         )
 ),
 
@@ -49,8 +49,9 @@ queued_jobs AS (
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.owner.login IN {orgs: Array(String)}
-        AND ({repo: String} = '' OR workflow.repository.name = {repo: String})
+        AND workflow.repository.owner.login IN (
+            'pytorch', 'pytorch-labs', 'meta-pytorch'
+        )
         AND job.status = 'queued'
         /* These two conditions are workarounds for GitHub's broken API. Sometimes */
         /* jobs get stuck in a permanently "queued" state but definitely ran. We can */

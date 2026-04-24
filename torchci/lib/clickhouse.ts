@@ -84,15 +84,14 @@ export async function queryClickhouseSaved(
     `${process.cwd()}/clickhouse_queries/${queryName}/query.sql`,
     "utf8"
   );
-  const paramsJson = require(`clickhouse_queries/${queryName}/params.json`);
-  const paramsText = paramsJson.params ?? {};
-  const defaults: Record<string, unknown> = paramsJson.defaults ?? {};
+  let paramsText =
+    require(`clickhouse_queries/${queryName}/params.json`).params;
+  if (paramsText === undefined) {
+    paramsText = {};
+  }
 
   const queryParams = new Map(
-    Object.entries(paramsText).map(([key, _]) => [
-      key,
-      inputParams[key] !== undefined ? inputParams[key] : defaults[key],
-    ])
+    Object.entries(paramsText).map(([key, _]) => [key, inputParams[key]])
   );
   return await thisModule.queryClickhouse(
     query,
