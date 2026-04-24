@@ -49,6 +49,14 @@
       "rocm"
     ]
   ],
+  "test__local_scalar_dense_with_empty_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "181343",
+    "https://github.com/pytorch/pytorch/issues/181343",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -195,6 +203,13 @@
     "https://github.com/pytorch/pytorch/issues/70755",
     [
       "mac"
+    ]
+  ],
+  "test_basic_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
+    "181342",
+    "https://github.com/pytorch/pytorch/issues/181342",
+    [
+      "dynamo"
     ]
   ],
   "test_batch_invariance_float16_num_splits_1_window_size0_backend_fa2_cuda_float16 (__main__.TestVarlenAttentionCUDA)": [
@@ -684,6 +699,15 @@
       "win"
     ]
   ],
+  "test_cuda_graph_allocator_propagates_stream (__main__.TestCuda)": [
+    "122413",
+    "https://github.com/pytorch/pytorch/issues/122413",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -925,6 +949,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_distributions_bernoulli (__main__.TestTorchFunctionMode)": [
+    "181340",
+    "https://github.com/pytorch/pytorch/issues/181340",
+    [
+      "dynamo"
     ]
   ],
   "test_do_not_guard_unbacked_inputs (__main__.TestUnbacked)": [
@@ -1204,6 +1235,14 @@
     "https://github.com/pytorch/pytorch/issues/123536",
     [
       "dynamo"
+    ]
+  ],
+  "test_export_with_parameters_cuda (__main__.ExportTestsDeviceCUDA)": [
+    "181344",
+    "https://github.com/pytorch/pytorch/issues/181344",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_external_template_prologue_epilogue_fusion (__main__.TestTemplateRender)": [
@@ -2012,14 +2051,6 @@
       "macos"
     ]
   ],
-  "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
-    "179898",
-    "https://github.com/pytorch/pytorch/issues/179898",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_mm_padding_deterministic_True (__main__.DeterministicTest)": [
     "181336",
     "https://github.com/pytorch/pytorch/issues/181336",
@@ -2288,7 +2319,9 @@
     "https://github.com/pytorch/pytorch/issues/180206",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2945,6 +2978,13 @@
       "rocm"
     ]
   ],
+  "test_static_input_indices (__main__.TestAOTJointWithDescriptors)": [
+    "181341",
+    "https://github.com/pytorch/pytorch/issues/181341",
+    [
+      "dynamo"
+    ]
+  ],
   "test_strided_leaf_grad_layout_cpu (__main__.TestAutogradDeviceTypeCPU)": [
     "181203",
     "https://github.com/pytorch/pytorch/issues/181203",
@@ -3394,8 +3434,8 @@
     ]
   ],
   "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_True_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "181320",
-    "https://github.com/pytorch/pytorch/issues/181320",
+    "181321",
+    "https://github.com/pytorch/pytorch/issues/181321",
     [
       "dynamo"
     ]
