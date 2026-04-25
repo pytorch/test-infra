@@ -1,10 +1,14 @@
 import { Button, Chip, CircularProgress, Tooltip } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
+import {
+  AdvisorVerdict,
+  AdvisorVerdictType,
+} from "lib/advisorVerdictUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import type { AdvisorVerdict } from "pages/api/[repoOwner]/[repoName]/pull/advisor-runs";
 import { useCallback, useState } from "react";
 import useSWR from "swr";
+import AdvisorSection from "./AdvisorSection";
 
 const DISPATCH_STORAGE_KEY = "ai_advisor_dispatches";
 const DISPATCH_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -65,7 +69,7 @@ function isDispatched(
   return Date.now() - entry.timestamp < DISPATCH_TTL_MS;
 }
 
-const VERDICT_COLORS: Record<
+const VERDICT_CHIP_COLORS: Record<
   string,
   "error" | "warning" | "success" | "default"
 > = {
@@ -81,54 +85,6 @@ const VERDICT_LABELS: Record<string, string> = {
   not_related: "Not Related",
   garbage: "Garbage Signal",
 };
-
-function VerdictChip({ verdict }: { verdict: AdvisorVerdict }) {
-  const color = VERDICT_COLORS[verdict.verdict] || "default";
-  const label = VERDICT_LABELS[verdict.verdict] || verdict.verdict;
-  const runUrl = `https://github.com/pytorch/pytorch/actions/runs/${verdict.runId}`;
-
-  return (
-    <Tooltip
-      title={
-        <div>
-          <div>
-            <strong>{label}</strong> (confidence:{" "}
-            {(verdict.confidence * 100).toFixed(0)}%)
-          </div>
-          <div style={{ marginTop: 4 }}>{verdict.summary}</div>
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: "0.85em",
-              opacity: 0.8,
-            }}
-          >
-            {new Date(verdict.timestamp).toLocaleString()}
-            {" · "}
-            <a
-              href={runUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "inherit" }}
-            >
-              GHA Run
-            </a>
-          </div>
-        </div>
-      }
-      arrow
-    >
-      <Chip
-        label={`AI: ${label}`}
-        color={color}
-        size="small"
-        variant="outlined"
-        sx={{ ml: 1, cursor: "pointer" }}
-        onClick={() => window.open(runUrl, "_blank")}
-      />
-    </Tooltip>
-  );
-}
 
 export default function AiAdvisorIndicator({
   jobName,
@@ -166,7 +122,7 @@ export default function AiAdvisorIndicator({
   );
 
   const matchingVerdict = verdicts?.find(
-    (v) => v.signalKey === signalKey && v.suspectCommit === sha
+    (v) => v.signalKey === signalKey && v.sha === sha
   );
 
   const dispatched =
@@ -231,6 +187,13 @@ export default function AiAdvisorIndicator({
     session.data,
   ]);
 
+  const chipColor =
+    VERDICT_CHIP_COLORS[matchingVerdict?.verdict as AdvisorVerdictType] ||
+    "default";
+  const chipLabel =
+    VERDICT_LABELS[matchingVerdict?.verdict as AdvisorVerdictType] ||
+    matchingVerdict?.verdict;
+
   return (
     <span
       style={{
@@ -239,7 +202,32 @@ export default function AiAdvisorIndicator({
         gap: 4,
       }}
     >
-      {matchingVerdict && <VerdictChip verdict={matchingVerdict} />}
+      {matchingVerdict && (
+        <Tooltip
+          title={
+            <AdvisorSection
+              verdict={matchingVerdict}
+              repoOwner={repoOwner as string}
+              repoName={repoName as string}
+            />
+          }
+          arrow
+          placement="bottom-start"
+          slotProps={{
+            tooltip: {
+              sx: { maxWidth: 500, fontSize: "inherit", p: 0.5 },
+            },
+          }}
+        >
+          <Chip
+            label={`AI: ${chipLabel}`}
+            color={chipColor}
+            size="small"
+            variant="outlined"
+            sx={{ ml: 1, cursor: "pointer" }}
+          />
+        </Tooltip>
+      )}
       {!matchingVerdict && !dispatched && isFailed && isAuthenticated && (
         <Tooltip title="Run AI advisor to analyze this failure">
           <Button

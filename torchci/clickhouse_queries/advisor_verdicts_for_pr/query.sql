@@ -1,14 +1,15 @@
 -- Fetch AI advisor verdicts for a given PR number
 SELECT
-    suspect_commit AS suspectCommit,
-    signal_key AS signalKey,
-    signal_source AS signalSource,
-    workflow_name AS workflowName,
+    suspect_commit AS sha,
+    signal_key,
+    signal_source,
+    workflow_name,
     verdict,
     confidence,
     summary,
-    causal_reasoning AS causalReasoning,
-    run_id AS runId,
+    causal_reasoning,
+    run_id,
+    pr_number,
     timestamp
 FROM
     misc.autorevert_advisor_verdicts
