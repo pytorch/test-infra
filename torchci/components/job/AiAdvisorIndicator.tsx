@@ -1,9 +1,6 @@
 import { Button, Chip, CircularProgress, Tooltip } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
-import {
-  AdvisorVerdict,
-  AdvisorVerdictType,
-} from "lib/advisorVerdictUtils";
+import { AdvisorVerdict, AdvisorVerdictType } from "lib/advisorVerdictUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
@@ -125,8 +122,7 @@ export default function AiAdvisorIndicator({
     (v) => v.signalKey === signalKey && v.sha === sha
   );
 
-  const dispatched =
-    !matchingVerdict && isDispatched(prNumber, sha, signalKey);
+  const dispatched = !matchingVerdict && isDispatched(prNumber, sha, signalKey);
 
   const isAuthenticated =
     session?.data &&
