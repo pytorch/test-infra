@@ -300,7 +300,15 @@ export default async function handler(
       events: mkEvents(baseAndTrunkStatus, sha),
     }));
 
+    // Signal key uses dr_ci_ prefix to distinguish manual HUD dispatches
+    // from autorevert-system dispatches. Autorevert uses normalized base_name
+    // (e.g. "linux-jammy-py3.10-gcc11 / test") while HUD uses the full
+    // concatenated job name (e.g. "pull / linux-jammy-... / test (shard)").
+    // Keeping them separate avoids verdict collisions between the two systems.
     const signalKey = `dr_ci_${jobName}`;
+
+    // Use semantic partition names instead of failed/successful labels,
+    // since the merge base or trunk commits may themselves be red.
     const signalPattern = {
       signal_key: signalKey,
       signal_source: "job",
@@ -308,29 +316,23 @@ export default async function handler(
       pr_number: prNumber,
       head_sha: headSha,
       merge_base_sha: resolvedMergeBase,
-      failed_partition: [
-        {
-          sha: headSha,
-          is_suspect: true,
-          partition: "pr_head: the PR head commit under investigation",
-          timestamp: new Date().toISOString(),
-          events: mkEvents(headStatus, headSha),
-        },
-      ],
-      successful_partition: resolvedMergeBase
-        ? [
-            {
-              sha: resolvedMergeBase,
-              partition: "merge_base: the trunk commit this PR is based on",
-              timestamp: commitTimestamp(
-                baseAndTrunkStatus,
-                resolvedMergeBase
-              ),
-              events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
-            },
-          ]
-        : [],
-      trunk_status: trunkCommits,
+      pr_head: {
+        sha: headSha,
+        is_suspect: true,
+        timestamp: new Date().toISOString(),
+        events: mkEvents(headStatus, headSha),
+      },
+      merge_base: resolvedMergeBase
+        ? {
+            sha: resolvedMergeBase,
+            timestamp: commitTimestamp(
+              baseAndTrunkStatus,
+              resolvedMergeBase
+            ),
+            events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
+          }
+        : null,
+      trunk: trunkCommits,
     };
 
     await botOctokit.rest.actions.createWorkflowDispatch({

@@ -108,6 +108,7 @@ export default function AiAdvisorIndicator({
   const [dispatching, setDispatching] = useState(false);
   const [error, setError] = useState("");
 
+  // dr_ci_ prefix separates HUD-dispatched verdicts from autorevert-system ones
   const signalKey = `dr_ci_${jobName}`;
 
   const { data: verdicts } = useSWR<AdvisorVerdict[]>(
