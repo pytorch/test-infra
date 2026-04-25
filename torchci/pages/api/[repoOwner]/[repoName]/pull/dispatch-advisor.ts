@@ -251,7 +251,7 @@ export default async function handler(
     }
 
     // Fetch trunk SHAs that actually ran this job (using pattern match)
-    const trunkShas = await fetchTrunkShasWithJob(repoFullName, jobPattern, 5);
+    const trunkShas = await fetchTrunkShasWithJob(repoFullName, jobPattern, 3);
 
     // Fetch events: exact match for PR head, pattern match for trunk/merge-base
     const headStatus = await fetchJobStatusExact(repoFullName, jobName, [
@@ -317,26 +317,19 @@ export default async function handler(
           events: mkEvents(headStatus, headSha),
         },
       ],
-      successful_partition: [
-        ...(resolvedMergeBase
-          ? [
-              {
-                sha: resolvedMergeBase,
-                partition: "merge_base: the trunk commit this PR is based on",
-                timestamp: commitTimestamp(
-                  baseAndTrunkStatus,
-                  resolvedMergeBase
-                ),
-                events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
-              },
-            ]
-          : []),
-        ...trunkCommits.filter(
-          (c) =>
-            c.events.length > 0 &&
-            c.events.some((e) => e.conclusion === "success")
-        ),
-      ],
+      successful_partition: resolvedMergeBase
+        ? [
+            {
+              sha: resolvedMergeBase,
+              partition: "merge_base: the trunk commit this PR is based on",
+              timestamp: commitTimestamp(
+                baseAndTrunkStatus,
+                resolvedMergeBase
+              ),
+              events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
+            },
+          ]
+        : [],
       trunk_status: trunkCommits,
     };
 
