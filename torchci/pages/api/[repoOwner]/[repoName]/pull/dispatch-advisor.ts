@@ -31,6 +31,8 @@ interface JobEvent {
   fullName: string;
   htmlUrl: string;
   logUrl: string;
+  startedAt: string;
+  completedAt: string;
   failureCaptures: string[];
   failureLines: string[];
 }
@@ -53,6 +55,8 @@ async function fetchJobStatusExact(
       CONCAT(job.workflow_name, ' / ', job.name) AS fullName,
       job.html_url AS htmlUrl,
       job.log_url AS logUrl,
+      job.started_at AS startedAt,
+      job.completed_at AS completedAt,
       job.torchci_classification_kg.'captures'
         AS failureCaptures,
       IF(
@@ -96,6 +100,8 @@ async function fetchJobStatusPattern(
       CONCAT(job.workflow_name, ' / ', job.name) AS fullName,
       job.html_url AS htmlUrl,
       job.log_url AS logUrl,
+      job.started_at AS startedAt,
+      job.completed_at AS completedAt,
       job.torchci_classification_kg.'captures'
         AS failureCaptures,
       IF(
@@ -130,6 +136,8 @@ function groupJobRows(rows: any[]): Record<string, JobEvent[]> {
       fullName: (row.fullName as string) || "",
       htmlUrl: row.htmlUrl as string,
       logUrl: row.logUrl as string,
+      startedAt: (row.startedAt as string) || "",
+      completedAt: (row.completedAt as string) || "",
       failureCaptures: (row.failureCaptures as string[]) || [],
       failureLines: (row.failureLines as string[]) || [],
     });
@@ -266,13 +274,29 @@ export default async function handler(
         log_url: e.logUrl,
         full_name: e.fullName,
         conclusion: e.conclusion,
+        started_at: e.startedAt,
+        completed_at: e.completedAt,
         failure_captures: e.failureCaptures,
         failure_lines: e.failureLines,
       }));
 
+    // Derive a commit-level timestamp from the earliest event started_at
+    const commitTimestamp = (
+      status: Record<string, JobEvent[]>,
+      sha: string
+    ): string => {
+      const events = status[sha] || [];
+      const times = events
+        .map((e) => e.startedAt)
+        .filter(Boolean)
+        .sort();
+      return times[0] || "";
+    };
+
     const trunkCommits = trunkShas.map((sha) => ({
       sha,
       partition: "trunk: recent main commit with this job",
+      timestamp: commitTimestamp(baseAndTrunkStatus, sha),
       events: mkEvents(baseAndTrunkStatus, sha),
     }));
 
@@ -299,6 +323,10 @@ export default async function handler(
               {
                 sha: resolvedMergeBase,
                 partition: "merge_base: the trunk commit this PR is based on",
+                timestamp: commitTimestamp(
+                  baseAndTrunkStatus,
+                  resolvedMergeBase
+                ),
                 events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
               },
             ]
