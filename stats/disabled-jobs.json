@@ -7,6 +7,14 @@
     "",
     ""
   ],
+  "LiteInterpreterUpgraderTest.DivTensorV2": [
+    "IvanKobzarev",
+    "181480",
+    "https://github.com/pytorch/pytorch/issues/181480",
+    "LiteInterpreterUpgraderTest.DivTensorV2",
+    "",
+    ""
+  ],
   "RecordDebugHandles.Basic (__main__.test_jit)": [
     "pytorch-bot",
     "160387",
