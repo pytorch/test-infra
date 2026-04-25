@@ -3,7 +3,7 @@ import { queryClickhouse } from "lib/clickhouse";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const SHA_REGEX = /^[0-9a-f]{4,40}$/i;
+const SHA_REGEX = /^[0-9a-f]{7,40}$/i;
 
 function isValidSha(sha: string): boolean {
   return SHA_REGEX.test(sha);
@@ -152,6 +152,7 @@ function groupJobRows(rows: any[]): Record<string, JobEvent[]> {
 async function fetchTrunkShasWithJob(
   repo: string,
   jobPattern: string,
+  branch: string,
   limit: number = 5
 ): Promise<string[]> {
   const query = `
@@ -163,14 +164,19 @@ async function fetchTrunkShasWithJob(
         WHERE created_at > now() - INTERVAL 3 DAY
       )
       AND job.repository_full_name = {repo: String}
-      AND job.head_branch = 'main'
+      AND job.head_branch = {branch: String}
       AND CONCAT(job.workflow_name, ' / ', job.name)
         LIKE {jobPattern: String}
       AND job.conclusion_kg IN ('success', 'failure', 'cancelled', 'timed_out')
     ORDER BY job.started_at DESC
     LIMIT {limit: UInt32}
   `;
-  const rows = await queryClickhouse(query, { repo, jobPattern, limit });
+  const rows = await queryClickhouse(query, {
+    repo,
+    jobPattern,
+    branch,
+    limit,
+  });
   return rows.map((r: any) => r.head_sha as string);
 }
 
@@ -229,10 +235,42 @@ export default async function handler(
     });
   }
 
+  // Signal key uses dr_ci_ prefix to distinguish manual HUD dispatches
+  // from autorevert-system dispatches (see comment below where signalKey
+  // is constructed for full rationale).
+  const signalKey = `dr_ci_${jobName}`;
+
+  // Server-side dedup: skip if a verdict for this (sha, signal_key) was
+  // already produced in the last 10 minutes, meaning a prior dispatch
+  // already completed or is in-flight.
+  try {
+    const recentRows = await queryClickhouse(
+      `SELECT 1
+       FROM misc.autorevert_advisor_verdicts
+       WHERE repo = {repo: String}
+         AND suspect_commit = {sha: String}
+         AND signal_key = {signalKey: String}
+         AND timestamp > now() - INTERVAL 10 MINUTE
+       LIMIT 1`,
+      { repo: `${owner}/${repo}`, sha: headSha, signalKey }
+    );
+    if (recentRows.length > 0) {
+      return void res.status(409).json({
+        error: "Advisor was already dispatched for this job recently",
+      });
+    }
+  } catch {
+    // If the dedup check fails, proceed with dispatch anyway
+  }
+
   try {
     const repoFullName = `${owner}/${repo}`;
     const botOctokit = await getOctokit(owner, repo);
     const jobPattern = jobNameToBasePattern(jobName);
+
+    // Look up default branch (usually "main") instead of hardcoding
+    const repoData = await botOctokit.rest.repos.get({ owner, repo });
+    const defaultBranch = repoData.data.default_branch;
 
     // Fetch merge base SHA from GitHub
     let resolvedMergeBase = mergeBaseSha || "";
@@ -241,7 +279,7 @@ export default async function handler(
         const compare = await botOctokit.rest.repos.compareCommits({
           owner,
           repo,
-          base: "main",
+          base: defaultBranch,
           head: headSha,
         });
         resolvedMergeBase = compare.data.merge_base_commit.sha;
@@ -251,7 +289,12 @@ export default async function handler(
     }
 
     // Fetch trunk SHAs that actually ran this job (using pattern match)
-    const trunkShas = await fetchTrunkShasWithJob(repoFullName, jobPattern, 3);
+    const trunkShas = await fetchTrunkShasWithJob(
+      repoFullName,
+      jobPattern,
+      defaultBranch,
+      3
+    );
 
     // Fetch events: exact match for PR head, pattern match for trunk/merge-base
     const headStatus = await fetchJobStatusExact(repoFullName, jobName, [
@@ -300,13 +343,6 @@ export default async function handler(
       events: mkEvents(baseAndTrunkStatus, sha),
     }));
 
-    // Signal key uses dr_ci_ prefix to distinguish manual HUD dispatches
-    // from autorevert-system dispatches. Autorevert uses normalized base_name
-    // (e.g. "linux-jammy-py3.10-gcc11 / test") while HUD uses the full
-    // concatenated job name (e.g. "pull / linux-jammy-... / test (shard)").
-    // Keeping them separate avoids verdict collisions between the two systems.
-    const signalKey = `dr_ci_${jobName}`;
-
     // Use semantic partition names instead of failed/successful labels,
     // since the merge base or trunk commits may themselves be red.
     const signalPattern = {
@@ -325,10 +361,7 @@ export default async function handler(
       merge_base: resolvedMergeBase
         ? {
             sha: resolvedMergeBase,
-            timestamp: commitTimestamp(
-              baseAndTrunkStatus,
-              resolvedMergeBase
-            ),
+            timestamp: commitTimestamp(baseAndTrunkStatus, resolvedMergeBase),
             events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
           }
         : null,

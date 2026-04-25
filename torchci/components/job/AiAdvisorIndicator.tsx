@@ -157,6 +157,13 @@ export default function AiAdvisorIndicator({
         }
       );
 
+      if (res.status === 409) {
+        // Already dispatched — treat as success so we show "Dispatched"
+        markDispatched(prNumber, sha, signalKey);
+        setTick((t) => t + 1);
+        return;
+      }
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || `HTTP ${res.status}`);
