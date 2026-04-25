@@ -9,15 +9,37 @@ function isValidSha(sha: string): boolean {
   return SHA_REGEX.test(sha);
 }
 
+/**
+ * Derive a LIKE pattern from a HUD job name that matches both
+ * PR variants (-partial) and trunk variants (-all).
+ * E.g. "Lint / lintrunner-pyrefly-partial / lint"
+ *   -> "Lint / lintrunner-pyrefly-% / lint"
+ * Also strips shard parentheticals: "pull / job (default, 1, 5, ...)"
+ *   -> "pull / job%"
+ */
+function jobNameToBasePattern(jobName: string): string {
+  let pattern = jobName;
+  // Replace -partial or -all with -%
+  pattern = pattern.replace(/-(partial|all)\b/g, "-%");
+  // Strip trailing shard parenthetical
+  pattern = pattern.replace(/\s*\([^)]*\)$/, "%");
+  return pattern;
+}
+
 interface JobEvent {
   conclusion: string;
+  fullName: string;
   htmlUrl: string;
   logUrl: string;
   failureCaptures: string[];
   failureLines: string[];
 }
 
-async function fetchJobStatusForShas(
+/**
+ * Fetch job events for specific SHAs using exact name match.
+ * Used for the PR head commit where we know the exact job name.
+ */
+async function fetchJobStatusExact(
   repo: string,
   jobName: string,
   shas: string[]
@@ -28,6 +50,7 @@ async function fetchJobStatusForShas(
     SELECT
       job.head_sha AS sha,
       job.conclusion_kg AS conclusion,
+      CONCAT(job.workflow_name, ' / ', job.name) AS fullName,
       job.html_url AS htmlUrl,
       job.log_url AS logUrl,
       job.torchci_classification_kg.'captures'
@@ -51,18 +74,60 @@ async function fetchJobStatusForShas(
     ORDER BY job.started_at DESC
   `;
 
-  const rows = await queryClickhouse(query, {
-    repo,
-    jobName,
-    shas,
-  });
+  return groupJobRows(await queryClickhouse(query, { repo, jobName, shas }));
+}
 
+/**
+ * Fetch job events for specific SHAs using LIKE pattern match.
+ * Used for trunk/merge-base where job names may differ
+ * (e.g. -partial on PR vs -all on trunk).
+ */
+async function fetchJobStatusPattern(
+  repo: string,
+  jobPattern: string,
+  shas: string[]
+): Promise<Record<string, JobEvent[]>> {
+  if (shas.length === 0) return {};
+
+  const query = `
+    SELECT
+      job.head_sha AS sha,
+      job.conclusion_kg AS conclusion,
+      CONCAT(job.workflow_name, ' / ', job.name) AS fullName,
+      job.html_url AS htmlUrl,
+      job.log_url AS logUrl,
+      job.torchci_classification_kg.'captures'
+        AS failureCaptures,
+      IF(
+        job.torchci_classification_kg.'line' = '',
+        [],
+        [job.torchci_classification_kg.'line']
+      ) AS failureLines
+    FROM default.workflow_job job FINAL
+    WHERE
+      job.id IN (
+        SELECT id
+        FROM materialized_views.workflow_job_by_head_sha
+        WHERE head_sha IN ({shas: Array(String)})
+      )
+      AND job.head_sha IN ({shas: Array(String)})
+      AND job.repository_full_name = {repo: String}
+      AND CONCAT(job.workflow_name, ' / ', job.name)
+        LIKE {jobPattern: String}
+    ORDER BY job.started_at DESC
+  `;
+
+  return groupJobRows(await queryClickhouse(query, { repo, jobPattern, shas }));
+}
+
+function groupJobRows(rows: any[]): Record<string, JobEvent[]> {
   const result: Record<string, JobEvent[]> = {};
   for (const row of rows) {
     const sha = row.sha as string;
     if (!result[sha]) result[sha] = [];
     result[sha].push({
       conclusion: (row.conclusion as string) || "pending",
+      fullName: (row.fullName as string) || "",
       htmlUrl: row.htmlUrl as string,
       logUrl: row.logUrl as string,
       failureCaptures: (row.failureCaptures as string[]) || [],
@@ -72,20 +137,32 @@ async function fetchJobStatusForShas(
   return result;
 }
 
-async function fetchRecentTrunkShas(
+/**
+ * Fetch recent trunk commit SHAs that have finished runs matching
+ * the given job pattern. Returns up to `limit` distinct SHAs.
+ */
+async function fetchTrunkShasWithJob(
   repo: string,
+  jobPattern: string,
   limit: number = 5
 ): Promise<string[]> {
   const query = `
-    SELECT head_commit.'id' AS head_sha
-    FROM default.push
+    SELECT DISTINCT job.head_sha AS head_sha
+    FROM default.workflow_job job FINAL
     WHERE
-      repository.full_name = {repo: String}
-      AND ref = 'refs/heads/main'
-    ORDER BY head_commit.'timestamp' DESC
+      job.id IN (
+        SELECT id FROM materialized_views.workflow_job_by_created_at
+        WHERE created_at > now() - INTERVAL 3 DAY
+      )
+      AND job.repository_full_name = {repo: String}
+      AND job.head_branch = 'main'
+      AND CONCAT(job.workflow_name, ' / ', job.name)
+        LIKE {jobPattern: String}
+      AND job.conclusion_kg IN ('success', 'failure', 'cancelled', 'timed_out')
+    ORDER BY job.started_at DESC
     LIMIT {limit: UInt32}
   `;
-  const rows = await queryClickhouse(query, { repo, limit });
+  const rows = await queryClickhouse(query, { repo, jobPattern, limit });
   return rows.map((r: any) => r.head_sha as string);
 }
 
@@ -146,21 +223,48 @@ export default async function handler(
 
   try {
     const repoFullName = `${owner}/${repo}`;
-    const trunkShas = await fetchRecentTrunkShas(repoFullName, 5);
-    const allShas = [headSha];
-    if (mergeBaseSha) allShas.push(mergeBaseSha);
-    allShas.push(...trunkShas);
+    const botOctokit = await getOctokit(owner, repo);
+    const jobPattern = jobNameToBasePattern(jobName);
 
-    const jobStatus = await fetchJobStatusForShas(
+    // Fetch merge base SHA from GitHub
+    let resolvedMergeBase = mergeBaseSha || "";
+    if (!resolvedMergeBase) {
+      try {
+        const compare = await botOctokit.rest.repos.compareCommits({
+          owner,
+          repo,
+          base: "main",
+          head: headSha,
+        });
+        resolvedMergeBase = compare.data.merge_base_commit.sha;
+      } catch {
+        // If compare fails (e.g. force-pushed branch), continue without merge base
+      }
+    }
+
+    // Fetch trunk SHAs that actually ran this job (using pattern match)
+    const trunkShas = await fetchTrunkShasWithJob(repoFullName, jobPattern, 5);
+
+    // Fetch events: exact match for PR head, pattern match for trunk/merge-base
+    const headStatus = await fetchJobStatusExact(repoFullName, jobName, [
+      headSha,
+    ]);
+
+    const baseAndTrunkShas = [
+      ...(resolvedMergeBase ? [resolvedMergeBase] : []),
+      ...trunkShas,
+    ];
+    const baseAndTrunkStatus = await fetchJobStatusPattern(
       repoFullName,
-      jobName,
-      allShas
+      jobPattern,
+      baseAndTrunkShas
     );
 
-    const mkEvents = (sha: string) =>
-      (jobStatus[sha] || []).map((e) => ({
+    const mkEvents = (status: Record<string, JobEvent[]>, sha: string) =>
+      (status[sha] || []).map((e) => ({
         url: e.htmlUrl,
         log_url: e.logUrl,
+        full_name: e.fullName,
         conclusion: e.conclusion,
         failure_captures: e.failureCaptures,
         failure_lines: e.failureLines,
@@ -168,8 +272,8 @@ export default async function handler(
 
     const trunkCommits = trunkShas.map((sha) => ({
       sha,
-      partition: "trunk: recent main branch commit",
-      events: mkEvents(sha),
+      partition: "trunk: recent main commit with this job",
+      events: mkEvents(baseAndTrunkStatus, sha),
     }));
 
     const signalKey = `dr_ci_${jobName}`;
@@ -179,23 +283,23 @@ export default async function handler(
       workflow_name: workflowName || "",
       pr_number: prNumber,
       head_sha: headSha,
-      merge_base_sha: mergeBaseSha || "",
+      merge_base_sha: resolvedMergeBase,
       failed_partition: [
         {
           sha: headSha,
           is_suspect: true,
           partition: "pr_head: the PR head commit under investigation",
           timestamp: new Date().toISOString(),
-          events: mkEvents(headSha),
+          events: mkEvents(headStatus, headSha),
         },
       ],
       successful_partition: [
-        ...(mergeBaseSha
+        ...(resolvedMergeBase
           ? [
               {
-                sha: mergeBaseSha,
-                partition: "merge_base: the merge base commit",
-                events: mkEvents(mergeBaseSha),
+                sha: resolvedMergeBase,
+                partition: "merge_base: the trunk commit this PR is based on",
+                events: mkEvents(baseAndTrunkStatus, resolvedMergeBase),
               },
             ]
           : []),
@@ -208,7 +312,6 @@ export default async function handler(
       trunk_status: trunkCommits,
     };
 
-    const botOctokit = await getOctokit(owner, repo);
     await botOctokit.rest.actions.createWorkflowDispatch({
       owner,
       repo,
