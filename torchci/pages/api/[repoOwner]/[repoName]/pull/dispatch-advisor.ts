@@ -26,27 +26,27 @@ async function fetchJobStatusForShas(
 
   const query = `
     SELECT
-      workflow.head_sha AS sha,
+      job.head_sha AS sha,
       job.conclusion_kg AS conclusion,
       job.html_url AS htmlUrl,
       job.log_url AS logUrl,
       job.torchci_classification_kg.'captures'
         AS failureCaptures,
-      arrayMap(
-        x -> x,
-        if(
-          job.torchci_classification_kg.'line' = '',
-          [],
-          [job.torchci_classification_kg.'line']
-        )
+      IF(
+        job.torchci_classification_kg.'line' = '',
+        [],
+        [job.torchci_classification_kg.'line']
       ) AS failureLines
-    FROM workflow_job job FINAL
-    INNER JOIN workflow_run workflow FINAL
-      ON workflow.id = job.run_id
+    FROM default.workflow_job job FINAL
     WHERE
-      workflow.head_sha IN ({shas: Array(String)})
-      AND workflow.repository.full_name = {repo: String}
-      AND CONCAT(workflow.name, ' / ', job.name)
+      job.id IN (
+        SELECT id
+        FROM materialized_views.workflow_job_by_head_sha
+        WHERE head_sha IN ({shas: Array(String)})
+      )
+      AND job.head_sha IN ({shas: Array(String)})
+      AND job.repository_full_name = {repo: String}
+      AND CONCAT(job.workflow_name, ' / ', job.name)
         = {jobName: String}
     ORDER BY job.started_at DESC
   `;
@@ -77,13 +77,12 @@ async function fetchRecentTrunkShas(
   limit: number = 5
 ): Promise<string[]> {
   const query = `
-    SELECT DISTINCT head_sha
-    FROM workflow_run FINAL
+    SELECT head_commit.'id' AS head_sha
+    FROM default.push
     WHERE
       repository.full_name = {repo: String}
-      AND head_branch = 'main'
-      AND event = 'push'
-    ORDER BY created_at DESC
+      AND ref = 'refs/heads/main'
+    ORDER BY head_commit.'timestamp' DESC
     LIMIT {limit: UInt32}
   `;
   const rows = await queryClickhouse(query, { repo, limit });
@@ -114,6 +113,10 @@ export default async function handler(
     return void res.status(400).json({
       error: "Missing required fields: prNumber, headSha, jobName",
     });
+  }
+
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    return void res.status(400).json({ error: "Invalid prNumber" });
   }
 
   if (!isValidSha(headSha)) {
@@ -169,8 +172,9 @@ export default async function handler(
       events: mkEvents(sha),
     }));
 
+    const signalKey = `dr_ci_${jobName}`;
     const signalPattern = {
-      signal_key: jobName,
+      signal_key: signalKey,
       signal_source: "job",
       workflow_name: workflowName || "",
       pr_number: prNumber,

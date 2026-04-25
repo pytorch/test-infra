@@ -32,6 +32,7 @@ function FailedJobInfo({
           jobName={job.name}
           sha={job.sha}
           prNumber={prNum}
+          conclusion={job.conclusion}
           workflowName={job.workflowName}
         />
       )}

@@ -2,18 +2,67 @@ import { Button, Chip, CircularProgress, Tooltip } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import type { AdvisorVerdict } from "pages/api/[repoOwner]/[repoName]/pull/advisor-runs";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 
-interface AdvisorVerdict {
-  suspectCommit: string;
-  signalKey: string;
-  verdict: "revert" | "unsure" | "not_related" | "garbage";
-  confidence: number;
-  summary: string;
-  causalReasoning: string;
-  runId: number;
-  timestamp: string;
+const DISPATCH_STORAGE_KEY = "ai_advisor_dispatches";
+const DISPATCH_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+interface DispatchEntry {
+  timestamp: number;
+}
+
+function getDispatchKey(
+  prNumber: number,
+  sha: string,
+  signalKey: string
+): string {
+  return `${prNumber}:${sha}:${signalKey}`;
+}
+
+function getDispatches(): Record<string, DispatchEntry> {
+  try {
+    const raw = localStorage.getItem(DISPATCH_STORAGE_KEY);
+    if (!raw) return {};
+    const entries = JSON.parse(raw) as Record<string, DispatchEntry>;
+    const now = Date.now();
+    const valid: Record<string, DispatchEntry> = {};
+    for (const [k, v] of Object.entries(entries)) {
+      if (now - v.timestamp < DISPATCH_TTL_MS) {
+        valid[k] = v;
+      }
+    }
+    if (Object.keys(valid).length !== Object.keys(entries).length) {
+      localStorage.setItem(DISPATCH_STORAGE_KEY, JSON.stringify(valid));
+    }
+    return valid;
+  } catch {
+    return {};
+  }
+}
+
+function markDispatched(
+  prNumber: number,
+  sha: string,
+  signalKey: string
+): void {
+  const dispatches = getDispatches();
+  dispatches[getDispatchKey(prNumber, sha, signalKey)] = {
+    timestamp: Date.now(),
+  };
+  localStorage.setItem(DISPATCH_STORAGE_KEY, JSON.stringify(dispatches));
+}
+
+function isDispatched(
+  prNumber: number,
+  sha: string,
+  signalKey: string
+): boolean {
+  const dispatches = getDispatches();
+  const entry = dispatches[getDispatchKey(prNumber, sha, signalKey)];
+  if (!entry) return false;
+  return Date.now() - entry.timestamp < DISPATCH_TTL_MS;
 }
 
 const VERDICT_COLORS: Record<
@@ -85,21 +134,28 @@ export default function AiAdvisorIndicator({
   jobName,
   sha,
   prNumber,
+  conclusion,
   mergeBaseSha,
   workflowName,
 }: {
   jobName: string;
   sha: string;
   prNumber: number;
+  conclusion?: string;
   mergeBaseSha?: string;
   workflowName?: string;
 }) {
+  const isFailed =
+    conclusion === "failure" ||
+    conclusion === "cancelled" ||
+    conclusion === "timed_out";
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
   const session = useSession();
   const [dispatching, setDispatching] = useState(false);
-  const [dispatched, setDispatched] = useState(false);
   const [error, setError] = useState("");
+
+  const signalKey = `dr_ci_${jobName}`;
 
   const { data: verdicts } = useSWR<AdvisorVerdict[]>(
     prNumber
@@ -110,15 +166,20 @@ export default function AiAdvisorIndicator({
   );
 
   const matchingVerdict = verdicts?.find(
-    (v) => v.signalKey === jobName && v.suspectCommit === sha
+    (v) => v.signalKey === signalKey && v.suspectCommit === sha
   );
+
+  const dispatched =
+    !matchingVerdict && isDispatched(prNumber, sha, signalKey);
 
   const isAuthenticated =
     session?.data &&
     session.data["accessToken"] !== undefined &&
     session.data["user"] !== undefined;
 
-  const handleDispatch = async () => {
+  const [, setTick] = useState(0);
+
+  const handleDispatch = useCallback(async () => {
     if (!isAuthenticated || dispatching || dispatched) return;
 
     setDispatching(true);
@@ -148,13 +209,27 @@ export default function AiAdvisorIndicator({
         throw new Error(data.error || `HTTP ${res.status}`);
       }
 
-      setDispatched(true);
+      markDispatched(prNumber, sha, signalKey);
+      setTick((t) => t + 1);
     } catch (e: any) {
       setError(e.message || "Failed to dispatch");
     } finally {
       setDispatching(false);
     }
-  };
+  }, [
+    isAuthenticated,
+    dispatching,
+    dispatched,
+    repoOwner,
+    repoName,
+    prNumber,
+    sha,
+    mergeBaseSha,
+    jobName,
+    signalKey,
+    workflowName,
+    session.data,
+  ]);
 
   return (
     <span
@@ -165,7 +240,7 @@ export default function AiAdvisorIndicator({
       }}
     >
       {matchingVerdict && <VerdictChip verdict={matchingVerdict} />}
-      {!matchingVerdict && !dispatched && isAuthenticated && (
+      {!matchingVerdict && !dispatched && isFailed && isAuthenticated && (
         <Tooltip title="Run AI advisor to analyze this failure">
           <Button
             size="small"
