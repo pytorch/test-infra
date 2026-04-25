@@ -214,6 +214,13 @@
       "mac"
     ]
   ],
+  "test_basic_compile (__main__.TestFastCudaLauncherCompileResult)": [
+    "181491",
+    "https://github.com/pytorch/pytorch/issues/181491",
+    [
+      "xpu"
+    ]
+  ],
   "test_basic_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
     "181342",
     "https://github.com/pytorch/pytorch/issues/181342",
@@ -2412,6 +2419,13 @@
       "rocm"
     ]
   ],
+  "test_padded_dense_to_jagged_total_L_zero (__main__.TestMetaKernelRegistrations)": [
+    "181490",
+    "https://github.com/pytorch/pytorch/issues/181490",
+    [
+      "xpu"
+    ]
+  ],
   "test_pending_fusions_multiple (__main__.TestPrologueFusion)": [
     "152221",
     "https://github.com/pytorch/pytorch/issues/152221",
@@ -2426,6 +2440,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_prelu_decomp_dtype_mismatch_error (__main__.TestMetaKernelRegistrations)": [
+    "181489",
+    "https://github.com/pytorch/pytorch/issues/181489",
+    [
+      "xpu"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
