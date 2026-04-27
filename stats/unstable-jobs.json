@@ -63,6 +63,30 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
+  "rocm-nightly / linux-noble-rocm-nightly-py3.12-gfx942 / test (default)": [
+    "jithunnair-amd",
+    "181647",
+    "https://github.com/pytorch/pytorch/issues/181647",
+    "rocm-nightly",
+    "linux-noble-rocm-nightly-py3.12-gfx942",
+    "test (default)"
+  ],
+  "rocm-nightly / linux-noble-rocm-nightly-py3.12-gfx942 / test (distributed)": [
+    "jithunnair-amd",
+    "181649",
+    "https://github.com/pytorch/pytorch/issues/181649",
+    "rocm-nightly",
+    "linux-noble-rocm-nightly-py3.12-gfx942",
+    "test (distributed)"
+  ],
+  "rocm-nightly / linux-noble-rocm-nightly-py3.12-gfx942 / test (inductor)": [
+    "jithunnair-amd",
+    "181648",
+    "https://github.com/pytorch/pytorch/issues/181648",
+    "rocm-nightly",
+    "linux-noble-rocm-nightly-py3.12-gfx942",
+    "test (inductor)"
+  ],
   "trunk / linux-jammy-rocm-py3.10-mi355 / test (default)": [
     "jithunnair-amd",
     "179911",
