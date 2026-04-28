@@ -10,12 +10,12 @@ const ROW_HEIGHT = 340;
 
 const PYTHON_JOB_NAMES = [
   "docs push / build-docs-python-true",
-  "docs push / build-docs-python-false",
+  "linux-docs / build-docs-python-false",
 ];
 
 const CPP_JOB_NAMES = [
   "docs push / build-docs-cpp-true",
-  "docs push / build-docs-cpp-false",
+  "linux-docs / build-docs-cpp-false",
 ];
 
 const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
@@ -108,7 +108,7 @@ export default function DocsMetrics() {
             }
             valueRenderer={(value: number) => durationDisplay(value)}
             queryParams={{
-              jobNames: ["docs push / build-docs-python-false"],
+              jobNames: ["linux-docs / build-docs-python-false"],
             }}
             badThreshold={(value: number) => value > 45 * 60}
           />
@@ -124,7 +124,7 @@ export default function DocsMetrics() {
             }
             valueRenderer={(value: number) => durationDisplay(value)}
             queryParams={{
-              jobNames: ["docs push / build-docs-cpp-false"],
+              jobNames: ["linux-docs / build-docs-cpp-false"],
             }}
             badThreshold={(value: number) => value > 45 * 60}
           />

@@ -5,7 +5,6 @@ FROM
 WHERE
     job.name IN {jobNames: Array(String)}
     AND job.conclusion = 'success'
-    AND job.head_branch = 'main'
     AND job.html_url LIKE '%/pytorch/pytorch/%'
     AND job.started_at > now() - INTERVAL 60 DAY
 ORDER BY
