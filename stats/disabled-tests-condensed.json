@@ -89,14 +89,6 @@
       "mac"
     ]
   ],
-  "test_allocate_in_thread_to_pool (__main__.TestBlockStateAbsorption)": [
-    "158764",
-    "https://github.com/pytorch/pytorch/issues/158764",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_allow_reuse_disable_if_exceed_peak_cuda (__main__.GPUTests)": [
     "179776",
     "https://github.com/pytorch/pytorch/issues/179776",
@@ -1288,6 +1280,13 @@
       "rocm"
     ]
   ],
+  "test_file_reader_no_memory_leak (__main__.TestScript)": [
+    "138885",
+    "https://github.com/pytorch/pytorch/issues/138885",
+    [
+      "linux"
+    ]
+  ],
   "test_find_learning_rate_ensembling_AlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180320",
     "https://github.com/pytorch/pytorch/issues/180320",
@@ -1763,6 +1762,13 @@
       "rocm"
     ]
   ],
+  "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
+    "179874",
+    "https://github.com/pytorch/pytorch/issues/179874",
+    [
+      "dynamo"
+    ]
+  ],
   "test_leaf_function_closure_constants_without_grad (__main__.TestLeafFunctionDynamo)": [
     "180662",
     "https://github.com/pytorch/pytorch/issues/180662",
@@ -1810,6 +1816,13 @@
   "test_load_state_dict_child_swap_True (__main__.TestLoadStateDict)": [
     "180632",
     "https://github.com/pytorch/pytorch/issues/180632",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
+    "179895",
+    "https://github.com/pytorch/pytorch/issues/179895",
     [
       "dynamo"
     ]
@@ -2024,6 +2037,13 @@
     "https://github.com/pytorch/pytorch/issues/181336",
     [
       "xpu"
+    ]
+  ],
+  "test_modes_return_notimplemented (__main__.TestTorchFunctionMode)": [
+    "179692",
+    "https://github.com/pytorch/pytorch/issues/179692",
+    [
+      "dynamo"
     ]
   ],
   "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
@@ -2274,9 +2294,9 @@
       "macos"
     ]
   ],
-  "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180323",
-    "https://github.com/pytorch/pytorch/issues/180323",
+  "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180262",
+    "https://github.com/pytorch/pytorch/issues/180262",
     [
       "asan",
       "linux"
