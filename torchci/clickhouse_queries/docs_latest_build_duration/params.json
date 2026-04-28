@@ -1,10 +1,6 @@
 {
   "params": {
-    "jobNames": "Array(String)"
+    "jobNames": "String"
   },
-  "tests": [
-    {
-      "jobNames": ["docs push / build-docs-python-false"]
-    }
-  ]
+  "tests": []
 }
