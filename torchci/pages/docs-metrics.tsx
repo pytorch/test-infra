@@ -52,12 +52,12 @@ function formatWithTrend(value: {
 
 const SLOWEST_BUILDS_COLUMNS: GridColDef[] = [
   {
-    field: "pr_number",
-    headerName: "PR",
+    field: "sha",
+    headerName: "Commit",
     flex: 1,
     renderCell: (params: GridRenderCellParams) => (
-      <Link href={params.row.pr_url} target="_blank" rel="noopener">
-        #{params.value}
+      <Link href={params.row.job_url} target="_blank" rel="noopener">
+        {(params.value as string).substring(0, 7)}
       </Link>
     ),
   },
@@ -90,13 +90,7 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-function WithTooltip({
-  tip,
-  children,
-}: {
-  tip: string;
-  children: ReactNode;
-}) {
+function WithTooltip({ tip, children }: { tip: string; children: ReactNode }) {
   return (
     <Tooltip title={tip} arrow placement="top">
       <div style={{ height: "100%" }}>{children}</div>
@@ -232,9 +226,7 @@ export default function DocsMetrics() {
               dataReader={(data: Record<string, number>[]) =>
                 data.map((d) => ({
                   ...d,
-                  avg_duration_minutes: Math.round(
-                    d.avg_duration_seconds / 60
-                  ),
+                  avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
                 }))
               }
             />
@@ -260,9 +252,7 @@ export default function DocsMetrics() {
               dataReader={(data: Record<string, number>[]) =>
                 data.map((d) => ({
                   ...d,
-                  avg_duration_minutes: Math.round(
-                    d.avg_duration_seconds / 60
-                  ),
+                  avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
                 }))
               }
             />
@@ -288,9 +278,7 @@ export default function DocsMetrics() {
               dataReader={(data: Record<string, number>[]) =>
                 data.map((d) => ({
                   ...d,
-                  avg_duration_minutes: Math.round(
-                    d.avg_duration_seconds / 60
-                  ),
+                  avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
                 }))
               }
             />
@@ -316,9 +304,7 @@ export default function DocsMetrics() {
               dataReader={(data: Record<string, number>[]) =>
                 data.map((d) => ({
                   ...d,
-                  max_duration_minutes: Math.round(
-                    d.max_duration_seconds / 60
-                  ),
+                  max_duration_minutes: Math.round(d.max_duration_seconds / 60),
                 }))
               }
             />
