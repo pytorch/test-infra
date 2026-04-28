@@ -141,7 +141,8 @@ export class CachedLabelerConfigTracker extends CachedConfigTracker {
       const config: any = await this.loadConfig(context, force);
 
       if (config != null && "labeler_config" in config) {
-        this.repoLabels[key] = context.config(config["labeler_config"]);
+        const loaded = await context.config(config["labeler_config"]);
+        this.repoLabels[key] = loaded ?? {};
       } else {
         this.repoLabels[key] = {};
       }
@@ -170,7 +171,8 @@ export class LabelToLabelConfigTracker extends CachedConfigTracker {
       const config: any = await this.loadConfig(context, force);
 
       if (config != null && "label_to_label_config" in config) {
-        this.repoLabels[key] = context.config(config["label_to_label_config"]);
+        const loaded = await context.config(config["label_to_label_config"]);
+        this.repoLabels[key] = loaded ?? {};
       } else {
         this.repoLabels[key] = {};
       }
