@@ -53,12 +53,21 @@ function formatWithTrend(value: {
 const SLOWEST_BUILDS_COLUMNS: GridColDef[] = [
   {
     field: "sha",
-    headerName: "Commit",
-    flex: 1,
+    headerName: "Commit / PR",
+    flex: 1.5,
     renderCell: (params: GridRenderCellParams) => (
-      <Link href={params.row.job_url} target="_blank" rel="noopener">
-        {(params.value as string).substring(0, 7)}
-      </Link>
+      <Stack direction="row" spacing={1}>
+        <Link
+          href={`https://github.com/pytorch/pytorch/commit/${params.value}`}
+          target="_blank"
+          rel="noopener"
+        >
+          {(params.value as string).substring(0, 7)}
+        </Link>
+        <Link href={params.row.job_url} target="_blank" rel="noopener">
+          job
+        </Link>
+      </Stack>
     ),
   },
   {
@@ -358,7 +367,7 @@ export default function DocsMetrics() {
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT + 100}>
           <WithTooltip tip="Top 20 slowest docs PR builds in the selected time range. Click the PR number to see what docs changes caused the slow build.">
             <TablePanel
-              title={"Slowest docs PR builds"}
+              title={""}
               queryName={"docs_slowest_pr_builds"}
               queryParams={{
                 ...timeParams,
