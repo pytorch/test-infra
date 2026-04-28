@@ -58,7 +58,7 @@ export default function DocsMetrics() {
       </Stack>
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT / 2}>
+        <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
           <ScalarPanel
             title={"Last Python docs push"}
             queryName={"last_successful_jobs"}
@@ -78,7 +78,7 @@ export default function DocsMetrics() {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT / 2}>
+        <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
           <ScalarPanel
             title={"Last C++ docs push"}
             queryName={"last_successful_jobs"}
@@ -95,6 +95,38 @@ export default function DocsMetrics() {
             badThreshold={(value: number | string) =>
               value === ">60d" || (value as number) > 3 * 24 * 60 * 60
             }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
+          <ScalarPanel
+            title={"Python PR build time"}
+            queryName={"docs_latest_build_duration"}
+            metricName={"duration_seconds"}
+            getValue={(data: Record<string, number>[]) =>
+              data?.[0]?.duration_seconds
+            }
+            valueRenderer={(value: number) => durationDisplay(value)}
+            queryParams={{
+              jobNames: ["docs push / build-docs-python-false"],
+            }}
+            badThreshold={(value: number) => value > 45 * 60}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
+          <ScalarPanel
+            title={"C++ PR build time"}
+            queryName={"docs_latest_build_duration"}
+            metricName={"duration_seconds"}
+            getValue={(data: Record<string, number>[]) =>
+              data?.[0]?.duration_seconds
+            }
+            valueRenderer={(value: number) => durationDisplay(value)}
+            queryParams={{
+              jobNames: ["docs push / build-docs-cpp-false"],
+            }}
+            badThreshold={(value: number) => value > 45 * 60}
           />
         </Grid>
 
