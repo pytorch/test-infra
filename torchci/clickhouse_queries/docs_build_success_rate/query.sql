@@ -1,5 +1,5 @@
 SELECT
-    toStartOfInterval(job.completed_at, INTERVAL 1 {granularity: String}) AS granularity_bucket,
+    DATE_TRUNC({granularity: String}, job.completed_at) AS granularity_bucket,
     job.name AS job_name,
     count(*) AS total_builds,
     countIf(job.conclusion = 'success') AS successful_builds,

@@ -1,9 +1,9 @@
 import { Grid, Stack, Typography } from "@mui/material";
+import { durationDisplay } from "components/common/TimeUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { TimeRangePicker } from "pages/metrics";
-import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
+import { TimeRangePicker } from "pages/metrics";
 import { useState } from "react";
 
 const ROW_HEIGHT = 340;
