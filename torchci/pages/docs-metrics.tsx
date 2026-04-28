@@ -1,6 +1,8 @@
-import { Divider, Grid, Paper, Stack, Typography } from "@mui/material";
+import { Divider, Grid, Link, Paper, Stack, Typography } from "@mui/material";
+import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { durationDisplay } from "components/common/TimeUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { TimeRangePicker } from "pages/metrics";
@@ -39,6 +41,35 @@ function formatWithTrend(value: {
   const arrow = pctChange > 5 ? " ↑" : pctChange < -5 ? " ↓" : "";
   return `${durationDisplay(value.duration_seconds)}${arrow}`;
 }
+
+const SLOWEST_BUILDS_COLUMNS: GridColDef[] = [
+  {
+    field: "pr_number",
+    headerName: "PR",
+    flex: 1,
+    renderCell: (params: GridRenderCellParams) => (
+      <Link href={params.row.pr_url} target="_blank" rel="noopener">
+        #{params.value}
+      </Link>
+    ),
+  },
+  {
+    field: "job_name",
+    headerName: "Job",
+    flex: 2,
+  },
+  {
+    field: "duration_minutes",
+    headerName: "Duration (min)",
+    flex: 1,
+    type: "number",
+  },
+  {
+    field: "completed_at",
+    headerName: "Completed",
+    flex: 1.5,
+  },
+];
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -283,6 +314,34 @@ export default function DocsMetrics() {
             yAxisLabel={"%"}
             yAxisRenderer={(value: number) => `${value}%`}
             groupByFieldName={"job_name"}
+          />
+        </Grid>
+
+        <SectionHeader title="Slowest PR Builds" />
+
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT + 100}>
+          <TablePanel
+            title={"Slowest docs PR builds"}
+            queryName={"docs_slowest_pr_builds"}
+            queryParams={{
+              ...timeParams,
+              jobNames: [
+                "linux-docs / build-docs-python-false",
+                "linux-docs / build-docs-cpp-false",
+              ],
+              limit: 20,
+            }}
+            columns={SLOWEST_BUILDS_COLUMNS}
+            dataGridProps={{
+              getRowId: (row: Record<string, string>) =>
+                `${row.sha}-${row.job_name}`,
+              initialState: {
+                sorting: {
+                  sortModel: [{ field: "duration_minutes", sort: "desc" }],
+                },
+              },
+            }}
+            showFooter={true}
           />
         </Grid>
       </Grid>
