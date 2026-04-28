@@ -1,0 +1,16 @@
+{
+  "params": {
+    "granularity": "String",
+    "jobNames": "Array(String)",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "granularity": "week",
+      "jobNames": ["docs push / build-docs-python-true", "docs push / build-docs-cpp-true"],
+      "startTime": "2025-01-01T00:00:00.000",
+      "stopTime": "2025-04-01T00:00:00.000"
+    }
+  ]
+}

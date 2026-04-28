@@ -1,0 +1,264 @@
+import { Grid, Stack, Typography } from "@mui/material";
+import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import { TimeRangePicker } from "pages/metrics";
+import { durationDisplay } from "components/common/TimeUtils";
+import dayjs from "dayjs";
+import { useState } from "react";
+
+const ROW_HEIGHT = 340;
+
+const PYTHON_JOB_NAMES = [
+  "docs push / build-docs-python-true",
+  "docs push / build-docs-python-false",
+];
+
+const CPP_JOB_NAMES = [
+  "docs push / build-docs-cpp-true",
+  "docs push / build-docs-cpp-false",
+];
+
+const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
+
+const PUSH_JOB_NAMES = [
+  "docs push / build-docs-python-true",
+  "docs push / build-docs-cpp-true",
+];
+
+export default function DocsMetrics() {
+  const [timeRange, setTimeRange] = useState(90);
+  const [startTime, setStartTime] = useState(dayjs().subtract(90, "day"));
+  const [stopTime, setStopTime] = useState(dayjs());
+
+  const timeParams = {
+    startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+
+  return (
+    <div>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+        <Typography fontSize="2rem" fontWeight="bold">
+          Docs Build Metrics
+        </Typography>
+        <TimeRangePicker
+          startTime={startTime}
+          setStartTime={setStartTime}
+          stopTime={stopTime}
+          setStopTime={setStopTime}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
+        />
+      </Stack>
+
+      {/* Scalar panels: last docs push + current build durations */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
+          <ScalarPanel
+            title={"Last docs push"}
+            queryName={"last_successful_jobs"}
+            metricName={"last_success_seconds_ago"}
+            getValue={(data: Record<string, number>[]) =>
+              data?.[0]?.last_success_seconds_ago || ">60d"
+            }
+            valueRenderer={(value: number | string) =>
+              value === ">60d" ? value : durationDisplay(value as number)
+            }
+            queryParams={{
+              jobNames: PUSH_JOB_NAMES,
+            }}
+            badThreshold={(value: number | string) =>
+              value === ">60d" || (value as number) > 3 * 24 * 60 * 60
+            }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
+          <ScalarPanel
+            title={"Last Python docs push"}
+            queryName={"last_successful_jobs"}
+            metricName={"last_success_seconds_ago"}
+            getValue={(data: Record<string, number>[]) =>
+              data?.[0]?.last_success_seconds_ago || ">60d"
+            }
+            valueRenderer={(value: number | string) =>
+              value === ">60d" ? value : durationDisplay(value as number)
+            }
+            queryParams={{
+              jobNames: ["docs push / build-docs-python-true"],
+            }}
+            badThreshold={(value: number | string) =>
+              value === ">60d" || (value as number) > 3 * 24 * 60 * 60
+            }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
+          <ScalarPanel
+            title={"Last C++ docs push"}
+            queryName={"last_successful_jobs"}
+            metricName={"last_success_seconds_ago"}
+            getValue={(data: Record<string, number>[]) =>
+              data?.[0]?.last_success_seconds_ago || ">60d"
+            }
+            valueRenderer={(value: number | string) =>
+              value === ">60d" ? value : durationDisplay(value as number)
+            }
+            queryParams={{
+              jobNames: ["docs push / build-docs-cpp-true"],
+            }}
+            badThreshold={(value: number | string) =>
+              value === ">60d" || (value as number) > 3 * 24 * 60 * 60
+            }
+          />
+        </Grid>
+
+        {/* Build duration trends */}
+        <Grid size={{ xs: 12 }}>
+          <Typography fontSize="1.5rem" fontWeight="bold" sx={{ mt: 2 }}>
+            Build Duration
+          </Typography>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Python docs build duration (Daily avg)"}
+            queryName={"docs_build_duration_trend"}
+            queryParams={{
+              ...timeParams,
+              granularity: "day",
+              jobNames: PYTHON_JOB_NAMES,
+            }}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"avg_duration_minutes"}
+            yAxisLabel={"Minutes"}
+            yAxisRenderer={(value: number) => `${value}m`}
+            groupByFieldName={"job_name"}
+            dataReader={(data: Record<string, number>[]) =>
+              data.map((d) => ({
+                ...d,
+                avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
+              }))
+            }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"C++ docs build duration (Daily avg)"}
+            queryName={"docs_build_duration_trend"}
+            queryParams={{
+              ...timeParams,
+              granularity: "day",
+              jobNames: CPP_JOB_NAMES,
+            }}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"avg_duration_minutes"}
+            yAxisLabel={"Minutes"}
+            yAxisRenderer={(value: number) => `${value}m`}
+            groupByFieldName={"job_name"}
+            dataReader={(data: Record<string, number>[]) =>
+              data.map((d) => ({
+                ...d,
+                avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
+              }))
+            }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"All docs build duration (Weekly avg)"}
+            queryName={"docs_build_duration_trend"}
+            queryParams={{
+              ...timeParams,
+              granularity: "week",
+              jobNames: ALL_JOB_NAMES,
+            }}
+            granularity={"week"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"avg_duration_minutes"}
+            yAxisLabel={"Minutes"}
+            yAxisRenderer={(value: number) => `${value}m`}
+            groupByFieldName={"job_name"}
+            dataReader={(data: Record<string, number>[]) =>
+              data.map((d) => ({
+                ...d,
+                avg_duration_minutes: Math.round(d.avg_duration_seconds / 60),
+              }))
+            }
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Max build duration (Weekly)"}
+            queryName={"docs_build_duration_trend"}
+            queryParams={{
+              ...timeParams,
+              granularity: "week",
+              jobNames: ALL_JOB_NAMES,
+            }}
+            granularity={"week"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"max_duration_minutes"}
+            yAxisLabel={"Minutes"}
+            yAxisRenderer={(value: number) => `${value}m`}
+            groupByFieldName={"job_name"}
+            dataReader={(data: Record<string, number>[]) =>
+              data.map((d) => ({
+                ...d,
+                max_duration_minutes: Math.round(d.max_duration_seconds / 60),
+              }))
+            }
+          />
+        </Grid>
+
+        {/* Success rate */}
+        <Grid size={{ xs: 12 }}>
+          <Typography fontSize="1.5rem" fontWeight="bold" sx={{ mt: 2 }}>
+            Build Success Rate
+          </Typography>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Python docs build success rate (Weekly)"}
+            queryName={"docs_build_success_rate"}
+            queryParams={{
+              ...timeParams,
+              granularity: "week",
+              jobNames: PYTHON_JOB_NAMES,
+            }}
+            granularity={"week"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"success_rate"}
+            yAxisLabel={"%"}
+            yAxisRenderer={(value: number) => `${value}%`}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"C++ docs build success rate (Weekly)"}
+            queryName={"docs_build_success_rate"}
+            queryParams={{
+              ...timeParams,
+              granularity: "week",
+              jobNames: CPP_JOB_NAMES,
+            }}
+            granularity={"week"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"success_rate"}
+            yAxisLabel={"%"}
+            yAxisRenderer={(value: number) => `${value}%`}
+            groupByFieldName={"job_name"}
+          />
+        </Grid>
+      </Grid>
+    </div>
+  );
+}
