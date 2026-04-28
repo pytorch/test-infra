@@ -20,6 +20,26 @@ const CPP_JOB_NAMES = [
 
 const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
 
+function trendRenderer(data: Record<string, number>[]) {
+  const row = data?.[0];
+  if (!row) return undefined;
+  const { duration_seconds, avg_duration_seconds } = row;
+  if (!duration_seconds || !avg_duration_seconds) return undefined;
+  return { duration_seconds, avg_duration_seconds };
+}
+
+function formatWithTrend(value: {
+  duration_seconds: number;
+  avg_duration_seconds: number;
+}) {
+  const pctChange =
+    ((value.duration_seconds - value.avg_duration_seconds) /
+      value.avg_duration_seconds) *
+    100;
+  const arrow = pctChange > 5 ? " ↑" : pctChange < -5 ? " ↓" : "";
+  return `${durationDisplay(value.duration_seconds)}${arrow}`;
+}
+
 function SectionHeader({ title }: { title: string }) {
   return (
     <Grid size={{ xs: 12 }}>
@@ -103,14 +123,14 @@ export default function DocsMetrics() {
             title={"Python PR build time"}
             queryName={"docs_latest_build_duration"}
             metricName={"duration_seconds"}
-            getValue={(data: Record<string, number>[]) =>
-              data?.[0]?.duration_seconds
-            }
-            valueRenderer={(value: number) => durationDisplay(value)}
+            getValue={trendRenderer}
+            valueRenderer={formatWithTrend}
             queryParams={{
               jobNames: ["linux-docs / build-docs-python-false"],
             }}
-            badThreshold={(value: number) => value > 45 * 60}
+            badThreshold={(value: { duration_seconds: number }) =>
+              value.duration_seconds > 45 * 60
+            }
           />
         </Grid>
 
@@ -119,14 +139,14 @@ export default function DocsMetrics() {
             title={"C++ PR build time"}
             queryName={"docs_latest_build_duration"}
             metricName={"duration_seconds"}
-            getValue={(data: Record<string, number>[]) =>
-              data?.[0]?.duration_seconds
-            }
-            valueRenderer={(value: number) => durationDisplay(value)}
+            getValue={trendRenderer}
+            valueRenderer={formatWithTrend}
             queryParams={{
               jobNames: ["linux-docs / build-docs-cpp-false"],
             }}
-            badThreshold={(value: number) => value > 45 * 60}
+            badThreshold={(value: { duration_seconds: number }) =>
+              value.duration_seconds > 45 * 60
+            }
           />
         </Grid>
 
