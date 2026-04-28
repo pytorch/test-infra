@@ -1647,13 +1647,6 @@
       "rocm"
     ]
   ],
-  "test_index_add_fallback (__main__.CudaReproTests)": [
-    "178747",
-    "https://github.com/pytorch/pytorch/issues/178747",
-    [
-      "xpu"
-    ]
-  ],
   "test_index_put_error_cuda (__main__.TestNestedTensorSubclassCUDA)": [
     "175482",
     "https://github.com/pytorch/pytorch/issues/175482",
