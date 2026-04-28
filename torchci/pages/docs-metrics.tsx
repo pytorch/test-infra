@@ -179,9 +179,9 @@ export default function DocsMetrics() {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
-          <WithTooltip tip="Duration of the most recent Python docs PR build. Arrow shows trend vs 2-week average. Turns red above 45 minutes.">
+          <WithTooltip tip="7-day average Python docs PR build time. Arrow shows trend vs prior 7 days. Turns red above 45 minutes.">
             <ScalarPanel
-              title={"Python PR build time"}
+              title={"Python PR build (7d avg)"}
               queryName={"docs_latest_build_duration"}
               metricName={"duration_seconds"}
               getValue={trendRenderer}
@@ -197,9 +197,9 @@ export default function DocsMetrics() {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
-          <WithTooltip tip="Duration of the most recent C++ docs PR build. Arrow shows trend vs 2-week average. Turns red above 45 minutes.">
+          <WithTooltip tip="7-day average C++ docs PR build time. Arrow shows trend vs prior 7 days. Turns red above 45 minutes.">
             <ScalarPanel
-              title={"C++ PR build time"}
+              title={"C++ PR build (7d avg)"}
               queryName={"docs_latest_build_duration"}
               metricName={"duration_seconds"}
               getValue={trendRenderer}
