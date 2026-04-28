@@ -1,4 +1,4 @@
-import { Grid, Stack, Typography } from "@mui/material";
+import { Divider, Grid, Paper, Stack, Typography } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
@@ -20,10 +20,16 @@ const CPP_JOB_NAMES = [
 
 const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
 
-const PUSH_JOB_NAMES = [
-  "docs push / build-docs-python-true",
-  "docs push / build-docs-cpp-true",
-];
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <Grid size={{ xs: 12 }}>
+      <Divider sx={{ mt: 3, mb: 1 }} />
+      <Typography fontSize="1.5rem" fontWeight="bold">
+        {title}
+      </Typography>
+    </Grid>
+  );
+}
 
 export default function DocsMetrics() {
   const [timeRange, setTimeRange] = useState(90);
@@ -36,8 +42,8 @@ export default function DocsMetrics() {
   };
 
   return (
-    <div>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+    <Paper sx={{ p: 3, m: 2 }}>
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
         <Typography fontSize="2rem" fontWeight="bold">
           Docs Build Metrics
         </Typography>
@@ -51,29 +57,8 @@ export default function DocsMetrics() {
         />
       </Stack>
 
-      {/* Scalar panels: last docs push + current build durations */}
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
-          <ScalarPanel
-            title={"Last docs push"}
-            queryName={"last_successful_jobs"}
-            metricName={"last_success_seconds_ago"}
-            getValue={(data: Record<string, number>[]) =>
-              data?.[0]?.last_success_seconds_ago || ">60d"
-            }
-            valueRenderer={(value: number | string) =>
-              value === ">60d" ? value : durationDisplay(value as number)
-            }
-            queryParams={{
-              jobNames: PUSH_JOB_NAMES,
-            }}
-            badThreshold={(value: number | string) =>
-              value === ">60d" || (value as number) > 3 * 24 * 60 * 60
-            }
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT / 2}>
           <ScalarPanel
             title={"Last Python docs push"}
             queryName={"last_successful_jobs"}
@@ -93,7 +78,7 @@ export default function DocsMetrics() {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, lg: 4 }} height={ROW_HEIGHT / 2}>
+        <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT / 2}>
           <ScalarPanel
             title={"Last C++ docs push"}
             queryName={"last_successful_jobs"}
@@ -113,12 +98,7 @@ export default function DocsMetrics() {
           />
         </Grid>
 
-        {/* Build duration trends */}
-        <Grid size={{ xs: 12 }}>
-          <Typography fontSize="1.5rem" fontWeight="bold" sx={{ mt: 2 }}>
-            Build Duration
-          </Typography>
-        </Grid>
+        <SectionHeader title="Build Duration" />
 
         <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
@@ -216,12 +196,7 @@ export default function DocsMetrics() {
           />
         </Grid>
 
-        {/* Success rate */}
-        <Grid size={{ xs: 12 }}>
-          <Typography fontSize="1.5rem" fontWeight="bold" sx={{ mt: 2 }}>
-            Build Success Rate
-          </Typography>
-        </Grid>
+        <SectionHeader title="Build Success Rate" />
 
         <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
@@ -259,6 +234,6 @@ export default function DocsMetrics() {
           />
         </Grid>
       </Grid>
-    </div>
+    </Paper>
   );
 }
