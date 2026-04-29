@@ -9,12 +9,15 @@ import {
 } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { durationDisplay } from "components/common/TimeUtils";
-import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import ScalarPanel, {
+  ScalarPanelWithValue,
+} from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { TimeRangePicker } from "pages/metrics";
 import { ReactNode, useState } from "react";
+import useSWR from "swr";
 
 const ROW_HEIGHT = 340;
 
@@ -29,6 +32,30 @@ const CPP_JOB_NAMES = [
 ];
 
 const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
+
+const ghFetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function formatRepoSize(sizeKB: number): string {
+  if (sizeKB >= 1024 * 1024) return `${(sizeKB / (1024 * 1024)).toFixed(1)} GB`;
+  if (sizeKB >= 1024) return `${(sizeKB / 1024).toFixed(1)} MB`;
+  return `${sizeKB} KB`;
+}
+
+function RepoSizePanel({ owner, repo }: { owner: string; repo: string }) {
+  const { data } = useSWR(
+    `https://api.github.com/repos/${owner}/${repo}`,
+    ghFetcher,
+    { refreshInterval: 60 * 60 * 1000 }
+  );
+  return (
+    <ScalarPanelWithValue
+      title={`${owner}/${repo} size`}
+      value={data?.size}
+      valueRenderer={(value: number) => formatRepoSize(value)}
+      badThreshold={(value: number) => value > 9 * 1024 * 1024}
+    />
+  );
+}
 
 function trendRenderer(data: Record<string, number>[]) {
   const row = data?.[0];
@@ -211,6 +238,12 @@ export default function DocsMetrics() {
                 value.duration_seconds > 45 * 60
               }
             />
+          </WithTooltip>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
+          <WithTooltip tip="Total size of the pytorch/docs repo (site branch). Large size increases clone and push times.">
+            <RepoSizePanel owner="pytorch" repo="docs" />
           </WithTooltip>
         </Grid>
 
