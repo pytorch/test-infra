@@ -49,11 +49,11 @@ function repoSizeColor(sizeKB: number): string {
 
 function RepoSizePanel({ owner, repo }: { owner: string; repo: string }) {
   const { data } = useSWR(
-    `https://api.github.com/repos/${owner}/${repo}`,
+    `/api/github/repo-size?owner=${owner}&repo=${repo}`,
     ghFetcher,
     { refreshInterval: 60 * 60 * 1000 }
   );
-  const size = data?.size;
+  const size = data?.sizeKB;
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
       <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -260,7 +260,7 @@ export default function DocsMetrics() {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
-          <WithTooltip tip="Total size of the pytorch/docs repo (site branch). Large size increases clone and push times.">
+          <WithTooltip tip="Disk usage of the pytorch/docs repo via GitHub GraphQL API (diskUsage). Yellow at 5GB, red at 8GB.">
             <RepoSizePanel owner="pytorch" repo="docs" />
           </WithTooltip>
         </Grid>
