@@ -372,7 +372,7 @@ export default async function handler(
       owner,
       repo,
       workflow_id: "claude-autorevert-advisor.yml",
-      ref: "main",
+      ref: defaultBranch,
       inputs: {
         suspect_commit: headSha,
         pr_number: String(prNumber),
