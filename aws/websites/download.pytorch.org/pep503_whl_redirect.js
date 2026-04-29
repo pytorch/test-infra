@@ -25,7 +25,7 @@ function handler(event) {
         if (last_uri_part.endsWith('.zip')) {
             return {
                 statusCode: 301,
-                statusDescription: 'Moved Permanently',
+                statusDescription: 'new download.pytorch.org mirror',
                 headers: {
                     'location': { value: 'https://download-r2.pytorch.org' + uri }
                 }
