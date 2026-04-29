@@ -315,6 +315,15 @@
       "dynamo"
     ]
   ],
+  "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
+    "176112",
+    "https://github.com/pytorch/pytorch/issues/176112",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
@@ -2200,12 +2209,22 @@
     "https://github.com/pytorch/pytorch/issues/180262",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpySplitCopyWithIntCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180301",
     "https://github.com/pytorch/pytorch/issues/180301",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180323",
+    "https://github.com/pytorch/pytorch/issues/180323",
     [
       "asan",
       "linux"
