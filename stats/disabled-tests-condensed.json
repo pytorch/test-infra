@@ -308,24 +308,6 @@
       "dynamo"
     ]
   ],
-  "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
-    "176112",
-    "https://github.com/pytorch/pytorch/issues/176112",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_clear_saved_tensors_on_access_double_access_error (__main__.TestAutogradWithCompiledAutograd)": [
-    "176142",
-    "https://github.com/pytorch/pytorch/issues/176142",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
@@ -753,62 +735,6 @@
       "slow"
     ]
   ],
-  "test_cudagraph_indexing_ops_as_strided_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179738",
-    "https://github.com/pytorch/pytorch/issues/179738",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_diagonal_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179850",
-    "https://github.com/pytorch/pytorch/issues/179850",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_index_fill_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "176195",
-    "https://github.com/pytorch/pytorch/issues/176195",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_index_put_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179851",
-    "https://github.com/pytorch/pytorch/issues/179851",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_masked_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179988",
-    "https://github.com/pytorch/pytorch/issues/179988",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_scatter_add_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "180260",
-    "https://github.com/pytorch/pytorch/issues/180260",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "180365",
-    "https://github.com/pytorch/pytorch/issues/180365",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_cudagraph_indexing_ops_scatter_reduce_amax_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "180487",
     "https://github.com/pytorch/pytorch/issues/180487",
@@ -820,30 +746,6 @@
   "test_cudagraph_indexing_ops_scatter_reduce_amin_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
     "180589",
     "https://github.com/pytorch/pytorch/issues/180589",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_scatter_reduce_sum_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "176196",
-    "https://github.com/pytorch/pytorch/issues/176196",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_select_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179852",
-    "https://github.com/pytorch/pytorch/issues/179852",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cudagraph_indexing_ops_slice_scatter_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "179989",
-    "https://github.com/pytorch/pytorch/issues/179989",
     [
       "linux",
       "slow"
@@ -1094,14 +996,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
-    "176959",
-    "https://github.com/pytorch/pytorch/issues/176959",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_dynamic_lstm_training_ir_to_decomp_strict (__main__.TrainingIRToRunDecompExportTestExport)": [
     "180541",
     "https://github.com/pytorch/pytorch/issues/180541",
@@ -1122,6 +1016,13 @@
     "https://github.com/pytorch/pytorch/issues/153736",
     [
       "linux"
+    ]
+  ],
+  "test_dynamic_shapes_mutated (__main__.ComboKernelDynamicShapesTests)": [
+    "181863",
+    "https://github.com/pytorch/pytorch/issues/181863",
+    [
+      "xpu"
     ]
   ],
   "test_dynamic_shapes_with_max_autotune_cuda (__main__.TestFlexAttentionCUDA)": [
@@ -1877,6 +1778,14 @@
       "xpu"
     ]
   ],
+  "test_max_split_expandable (__main__.TestCudaAllocator)": [
+    "180263",
+    "https://github.com/pytorch/pytorch/issues/180263",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -2131,14 +2040,6 @@
       "rocm"
     ]
   ],
-  "test_nested_graph_break_in_loop (__main__.NestedGraphBreakTests)": [
-    "179687",
-    "https://github.com/pytorch/pytorch/issues/179687",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_nested_mempool (__main__.TestMemPool)": [
     "180367",
     "https://github.com/pytorch/pytorch/issues/180367",
@@ -2290,6 +2191,14 @@
   "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180262",
     "https://github.com/pytorch/pytorch/issues/180262",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpySplitCopyWithIntCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180301",
+    "https://github.com/pytorch/pytorch/issues/180301",
     [
       "asan",
       "linux"
@@ -2512,14 +2421,6 @@
     "https://github.com/pytorch/pytorch/issues/180227",
     [
       "rocm"
-    ]
-  ],
-  "test_record_stream_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
-    "138557",
-    "https://github.com/pytorch/pytorch/issues/138557",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
@@ -2769,15 +2670,6 @@
     "https://github.com/pytorch/pytorch/issues/178177",
     [
       "rocm"
-    ]
-  ],
-  "test_retracibility_dict_container_inp_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
-    "117918",
-    "https://github.com/pytorch/pytorch/issues/117918",
-    [
-      "asan",
-      "linux",
-      "slow"
     ]
   ],
   "test_retracibility_nested_list_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
@@ -3447,6 +3339,13 @@
   "test_vjp_doesnt_support_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
     "181202",
     "https://github.com/pytorch/pytorch/issues/181202",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180194",
+    "https://github.com/pytorch/pytorch/issues/180194",
     [
       "dynamo"
     ]
