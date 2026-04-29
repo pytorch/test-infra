@@ -227,6 +227,13 @@
       "rocm"
     ]
   ],
+  "test_benchmark_with_cudagraphs_uses_cuda_graph_benchmarking (__main__.TestCustomOpAutoTune)": [
+    "179943",
+    "https://github.com/pytorch/pytorch/issues/179943",
+    [
+      "rocm"
+    ]
+  ],
   "test_bias_addmm_lookup_table_entry (__main__.TestLookupTableE2E)": [
     "180233",
     "https://github.com/pytorch/pytorch/issues/180233",
