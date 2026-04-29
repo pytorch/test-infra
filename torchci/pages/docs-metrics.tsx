@@ -1,4 +1,5 @@
 import {
+  Box,
   Divider,
   Grid,
   Link,
@@ -9,9 +10,7 @@ import {
 } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { durationDisplay } from "components/common/TimeUtils";
-import ScalarPanel, {
-  ScalarPanelWithValue,
-} from "components/metrics/panels/ScalarPanel";
+import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
@@ -41,19 +40,38 @@ function formatRepoSize(sizeKB: number): string {
   return `${sizeKB} KB`;
 }
 
+function repoSizeColor(sizeKB: number): string {
+  const gb = sizeKB / (1024 * 1024);
+  if (gb >= 8) return "#ee6666";
+  if (gb >= 5) return "#eeaa44";
+  return "inherit";
+}
+
 function RepoSizePanel({ owner, repo }: { owner: string; repo: string }) {
   const { data } = useSWR(
     `https://api.github.com/repos/${owner}/${repo}`,
     ghFetcher,
     { refreshInterval: 60 * 60 * 1000 }
   );
+  const size = data?.size;
   return (
-    <ScalarPanelWithValue
-      title={`${owner}/${repo} size`}
-      value={data?.size}
-      valueRenderer={(value: number) => formatRepoSize(value)}
-      badThreshold={(value: number) => value > 9 * 1024 * 1024}
-    />
+    <Paper sx={{ p: 2 }} elevation={3}>
+      <Box sx={{ display: "flex", flexDirection: "column" }}>
+        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+          {owner}/{repo} size
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "4rem",
+            my: "auto",
+            alignSelf: "center",
+            color: size !== undefined ? repoSizeColor(size) : "inherit",
+          }}
+        >
+          {size !== undefined ? formatRepoSize(size) : "..."}
+        </Typography>
+      </Box>
+    </Paper>
   );
 }
 
