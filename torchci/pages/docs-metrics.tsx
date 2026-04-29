@@ -35,30 +35,32 @@ const ALL_JOB_NAMES = [...PYTHON_JOB_NAMES, ...CPP_JOB_NAMES];
 const ghFetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function formatRepoSize(sizeKB: number): string {
-  if (sizeKB >= 1024 * 1024) return `${(sizeKB / (1024 * 1024)).toFixed(1)} GB`;
-  if (sizeKB >= 1024) return `${(sizeKB / 1024).toFixed(1)} MB`;
-  return `${sizeKB} KB`;
+  const estimatedKB = Math.round(sizeKB * 1.6);
+  if (estimatedKB >= 1024 * 1024)
+    return `~${(estimatedKB / (1024 * 1024)).toFixed(1)} GB`;
+  if (estimatedKB >= 1024) return `~${(estimatedKB / 1024).toFixed(0)} MB`;
+  return `~${estimatedKB} KB`;
 }
 
 function repoSizeColor(sizeKB: number): string {
-  const gb = sizeKB / (1024 * 1024);
-  if (gb >= 8) return "#ee6666";
-  if (gb >= 5) return "#eeaa44";
+  const estimatedGB = (sizeKB * 1.6) / (1024 * 1024);
+  if (estimatedGB >= 8) return "#ee6666";
+  if (estimatedGB >= 5) return "#eeaa44";
   return "inherit";
 }
 
 function RepoSizePanel({ owner, repo }: { owner: string; repo: string }) {
   const { data } = useSWR(
-    `/api/github/repo-size?owner=${owner}&repo=${repo}`,
+    `https://api.github.com/repos/${owner}/${repo}`,
     ghFetcher,
     { refreshInterval: 60 * 60 * 1000 }
   );
-  const size = data?.sizeKB;
+  const size = data?.size;
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
       <Box sx={{ display: "flex", flexDirection: "column" }}>
         <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
-          {owner}/{repo} size
+          {owner}/{repo} size (est.)
         </Typography>
         <Typography
           sx={{
@@ -260,7 +262,7 @@ export default function DocsMetrics() {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 3 }} height={ROW_HEIGHT / 2}>
-          <WithTooltip tip="Disk usage of the pytorch/docs repo via GitHub GraphQL API (diskUsage). Yellow at 5GB, red at 8GB.">
+          <WithTooltip tip="Size of pytorch/docs repo (GitHub API estimate, ~40% lower than actual disk usage). Useful for tracking growth over time. Yellow at 5GB, red at 8GB.">
             <RepoSizePanel owner="pytorch" repo="docs" />
           </WithTooltip>
         </Grid>
