@@ -882,6 +882,16 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         self.assertEqual(res.older_successful_commit, "sha_old")
         self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
 
+    def test_advisor_related_produces_autorevert_pattern(self):
+        """When advisor says 'related' (context-neutral successor to 'revert'),
+        produce AutorevertPattern just like 'revert'."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.RELATED)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_mid")
+        self.assertEqual(res.older_successful_commit, "sha_old")
+        self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
+
     def test_advisor_not_related_produces_ineligible(self):
         """When advisor says 'not_related', return Ineligible."""
         s = self._make_signal_with_advisor(AdvisorVerdict.NOT_RELATED)

@@ -7,12 +7,23 @@ from .bisection_planner import GapBisectionPlanner
 
 
 class AdvisorVerdict(Enum):
-    """Verdict from the AI advisor workflow."""
+    """Verdict from the AI advisor workflow.
+
+    `related` is the context-neutral successor to `revert`: it asserts that
+    the suspect commit caused the failure. On trunk, the autorevert lambda
+    treats `related` and `revert` identically (both trigger a revert when
+    confidence is above threshold). On PRs the verdict is display-only and
+    `related` reads more naturally than `revert` (the PR has not merged yet).
+
+    `revert` is retained indefinitely for backward compatibility with
+    historical CH rows produced before the rename.
+    """
 
     REVERT = "revert"
     UNSURE = "unsure"
     NOT_RELATED = "not_related"
     GARBAGE = "garbage"
+    RELATED = "related"
 
 
 @dataclass(frozen=True)
@@ -476,7 +487,7 @@ class Signal:
         """Check if an AI advisor verdict is available for the suspect commit.
 
         Returns:
-            - AutorevertPattern if advisor says "revert" with sufficient confidence
+            - AutorevertPattern if advisor says "revert" or "related" with sufficient confidence
             - Ineligible if advisor says "not_related" or "garbage" (within 2h window)
             - None if no verdict, verdict is "unsure", or confidence below threshold
         """
@@ -493,7 +504,7 @@ class Signal:
         if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD:
             return None
 
-        if result.verdict == AdvisorVerdict.REVERT:
+        if result.verdict in (AdvisorVerdict.REVERT, AdvisorVerdict.RELATED):
             return self._build_autorevert_pattern(partition, advisor_result=result)
 
         if result.verdict == AdvisorVerdict.NOT_RELATED:

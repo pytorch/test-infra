@@ -71,6 +71,7 @@ const VERDICT_CHIP_COLORS: Record<
   "error" | "warning" | "success" | "default"
 > = {
   revert: "error",
+  related: "error",
   unsure: "warning",
   not_related: "success",
   garbage: "default",
@@ -78,6 +79,7 @@ const VERDICT_CHIP_COLORS: Record<
 
 const VERDICT_LABELS: Record<string, string> = {
   revert: "Revert",
+  related: "Related",
   unsure: "Unsure",
   not_related: "Not Related",
   garbage: "Garbage Signal",

@@ -3,6 +3,7 @@ import { useState } from "react";
 
 const VERDICT_COLORS: Record<string, { border: string; badge: string }> = {
   revert: { border: "#d32f2f", badge: "#d32f2f" },
+  related: { border: "#d32f2f", badge: "#d32f2f" },
   not_related: { border: "#388e3c", badge: "#2e7d32" },
   garbage: { border: "#8d6e63", badge: "#6d4c41" },
   unsure: { border: "#757575", badge: "#616161" },
