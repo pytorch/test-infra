@@ -21,6 +21,16 @@ function handler(event) {
 
     // Similar behavior for libtorch
     if (uri.startsWith('/libtorch')) {
+        // Redirect libtorch downloads (.zip files) to R2
+        if (last_uri_part.endsWith('.zip')) {
+            return {
+                statusCode: 301,
+                statusDescription: 'Moved Permanently',
+                headers: {
+                    'location': { value: 'https://download-r2.pytorch.org' + uri }
+                }
+            };
+        }
         // Check whether the URI is missing a file name.
         if (uri.endsWith('/')) {
             request.uri += 'index.html';
