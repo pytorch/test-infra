@@ -2847,13 +2847,6 @@
       "inductor"
     ]
   ],
-  "test_template_epilogue_fusion_extra_reads_fuse_epilogue_False_use_async_compile_False (__main__.TestEpilogueFusionStaticAnalysis)": [
-    "179693",
-    "https://github.com/pytorch/pytorch/issues/179693",
-    [
-      "inductor"
-    ]
-  ],
   "test_template_epilogue_fusion_occupancy_ratio_test_case_occupancy_ratio_reject_use_async_compile_False (__main__.TestEpilogueFusionStaticAnalysis)": [
     "176115",
     "https://github.com/pytorch/pytorch/issues/176115",
