@@ -570,6 +570,13 @@
       "rocm"
     ]
   ],
+  "test_cond_auto_functionalize_union_input_mutation_device_cuda_dynamic_True (__main__.TestAutoFunctionalizeControlFlow)": [
+    "181947",
+    "https://github.com/pytorch/pytorch/issues/181947",
+    [
+      "rocm"
+    ]
+  ],
   "test_cond_branches_no_arguments (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "176204",
     "https://github.com/pytorch/pytorch/issues/176204",
