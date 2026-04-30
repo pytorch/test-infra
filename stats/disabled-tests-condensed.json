@@ -775,12 +775,12 @@
       "rocm"
     ]
   ],
-  "test_cudagraph_indexing_ops_scatter_reduce_amin_cuda_float32 (__main__.TestCudagraphIndexingOpsCUDA)": [
-    "180589",
-    "https://github.com/pytorch/pytorch/issues/180589",
+  "test_custom_function_boxed_grads (__main__.TestAutogradWithCompiledAutograd)": [
+    "180489",
+    "https://github.com/pytorch/pytorch/issues/180489",
     [
-      "linux",
-      "slow"
+      "asan",
+      "linux"
     ]
   ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
@@ -1429,6 +1429,14 @@
     "https://github.com/pytorch/pytorch/issues/179961",
     [
       "rocm"
+    ]
+  ],
+  "test_graph_partition_user_defined_triton_kernel_reuse (__main__.CudaGraphTreeTests)": [
+    "176144",
+    "https://github.com/pytorch/pytorch/issues/176144",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_graph_rng_after_failed_capture (__main__.TestCuda)": [
@@ -2967,6 +2975,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
@@ -3368,13 +3386,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_wrapper_subclass_aliasing_fft_fft2_cpu (__main__.TestWrapperSubclassAliasingCPU)": [
-    "142021",
-    "https://github.com/pytorch/pytorch/issues/142021",
-    [
-      "dynamo"
     ]
   ],
   "test_wrapper_subclass_aliasing_out_op_cpu (__main__.TestWrapperSubclassAliasingCPU)": [
