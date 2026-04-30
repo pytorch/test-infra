@@ -32,6 +32,12 @@ inputs:
   docker-registry:
     description: The registry to store the image after it is built.
     default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
+  docker-username:
+    description: |
+      The username for the registry to store the image after it is built. You must specify it
+      if you want to connect to another registry than *.ecr.us-east-1.amazonaws.com
+  docker-password:
+    description: The password for the docker-username user to docker-registry
   always-rebuild:
     description: If set to any value, always build a fresh docker image.
     required: false
@@ -112,6 +118,13 @@ runs:
           echo "custom-tag-prefix=${CUSTOM_TAG_PREFIX}" >> "${GITHUB_OUTPUT}"
         fi
 
+    - name: Login to Container Registry
+      uses: pytorch/test-infra/.github/actions/login-container-registry@main
+      with:
+        docker-registry: ${{ inputs.docker-registry }}
+        docker-username: ${{ inputs.docker-username }}
+        docker-password: ${{ inputs.docker-password }}
+
     - name: Check if image should be built
       id: check-image
       shell: bash
@@ -122,21 +135,10 @@ runs:
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
-        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         DOCKER_PUSH: ${{ inputs.push }}
       run: |
         set +e
         set -x
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
 
         START_TIME=$(date +%s)
         # Wait up to 120 minutes
@@ -189,26 +191,6 @@ runs:
 
         echo "rebuild=true" >> "${GITHUB_OUTPUT}"
 
-    - name: Login to ECR
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
-      env:
-        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
-      run: |
-        set -x
-        set +e
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
-
     - name: Login to Docker Hub
       shell: bash
       run: |
@@ -244,7 +226,7 @@ runs:
 
           popd
 
-    - name: Push to ECR
+    - name: Push to Container Registry
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}

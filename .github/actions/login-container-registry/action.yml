@@ -1,0 +1,45 @@
+name: Login to docker registry
+
+description: login to a docker registry
+
+inputs:
+  docker-registry:
+    description: The registry to login to.
+    required: true
+    type: string
+  docker-username:
+    description: |
+      The username for the registry to login to. You must specify it if you want
+      to connect to another registry than *.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+  docker-password:
+    description: The password for the docker-username user to docker-registry
+
+runs:
+  using: composite
+  steps:
+    - name: Login to ECR
+      if: ${{ !inputs.docker-username }}
+      shell: bash
+      env:
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      run: |
+        set -x
+        set +e
+
+        login() {
+          aws ecr get-login-password --region ${{ env.AWS_DEFAULT_REGION || 'us-east-1' }} | docker login -u AWS --password-stdin "$1"
+        }
+
+        retry () {
+          $*  || (sleep 1 && $*) || (sleep 2 && $*)
+        }
+
+        retry login "${DOCKER_REGISTRY}"
+
+    - name: Login to ${{ inputs.docker-registry }}
+      if: ${{ inputs.docker-username }}
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+      with:
+        registry: ${{ inputs.docker-registry }}
+        username: ${{ inputs.docker-username }}
+        password: ${{ inputs.docker-password }}

@@ -6,6 +6,7 @@ runs:
   using: composite
   steps:
     - name: Display EC2 information
+      if: github.repository_owner == 'pytorch'
       shell: bash
       run: |
         set -euo pipefail
@@ -19,6 +20,15 @@ runs:
         echo "instance-id: $(get_ec2_metadata instance-id)"
         echo "instance-type: $(get_ec2_metadata instance-type)"
         echo "system info $(uname -a)"
+
+        echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+        echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity|grep Account|cut -f4 -d\")" >> $GITHUB_ENV
+
+    - name: Login to ECR
+      if: github.repository_owner == 'pytorch'
+      uses: pytorch/test-infra/.github/actions/login-container-registry@main
+      with:
+        docker-registry: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com
 
     - name: Check if in a container runner
       shell: bash
@@ -36,18 +46,6 @@ runs:
               echo "Starting docker daemon..." && sudo systemctl start docker;
           fi
         fi
-
-    - name: Log in to ECR
-      shell: bash
-      env:
-        AWS_RETRY_MODE: standard
-        AWS_MAX_ATTEMPTS: "5"
-        AWS_DEFAULT_REGION: us-east-1
-      run: |
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity|grep Account|cut -f4 -d\")
-        retry () { "$@"  || (sleep 1 && "$@") || (sleep 2 && "$@") }
-        retry aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS \
-            --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
 
     - name: Preserve github env variables for use in docker
       shell: bash
