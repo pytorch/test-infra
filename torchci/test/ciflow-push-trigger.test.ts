@@ -279,6 +279,7 @@ describe("Push trigger integration tests", () => {
 
   test("synchronization of PR without permissions skips tag sync but keeps labels", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.synchronize");
+    const prNum = payload.pull_request.number;
     mockApprovedWorkflowRuns(
       payload.repository.full_name,
       payload.pull_request.head.sha,
@@ -290,7 +291,21 @@ describe("Push trigger integration tests", () => {
       "read"
     );
     // No label removal or tag creation should happen -- labels are kept,
-    // tags are simply not created until workflows are approved.
+    // tags are simply not created until workflows are approved. The pending
+    // comment is refreshed so a previous "CI has now been triggered" message
+    // doesn't linger after a new commit re-gates approval.
+    const pendingCommentId = 99;
+    mockListComments(payload.repository.full_name, prNum, [
+      {
+        id: pendingCommentId,
+        body: "<!-- ciflow-pending -->\n~~Workflows were awaiting approval.~~ CI has now been triggered for the ciflow labels on this PR.",
+      },
+    ]);
+    mockUpdateComment(
+      payload.repository.full_name,
+      pendingCommentId,
+      "awaiting approval"
+    );
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 

@@ -158,6 +158,18 @@ async function handleSyncEvent(
     );
     // Don't remove labels -- they represent user intent.
     // Tags simply won't be created until workflows are approved.
+    // Refresh the pending comment so it doesn't show a stale "CI has now been
+    // triggered" message after a new commit re-gates approval.
+    const ciflowLabels = payload.pull_request.labels
+      .map((l) => l.name)
+      .filter(isCIFlowLabel);
+    if (ciflowLabels.length > 0) {
+      await upsertPendingComment(
+        context,
+        payload.pull_request.number,
+        ciflowLabels
+      );
+    }
     return;
   }
 
