@@ -1348,6 +1348,13 @@
       "linux"
     ]
   ],
+  "test_graph_break_bomb_backend_inductor_device_cpu (__main__.TestPackage)": [
+    "182110",
+    "https://github.com/pytorch/pytorch/issues/182110",
+    [
+      "linux"
+    ]
+  ],
   "test_graph_concurrent_replay (__main__.TestCuda)": [
     "104055",
     "https://github.com/pytorch/pytorch/issues/104055",
@@ -1455,6 +1462,13 @@
       "dynamo"
     ]
   ],
+  "test_ifft_norm_forward (__main__.TestFFT1D)": [
+    "182112",
+    "https://github.com/pytorch/pytorch/issues/182112",
+    [
+      "dynamo"
+    ]
+  ],
   "test_ifft_norm_ortho (__main__.TestFFT1D)": [
     "182099",
     "https://github.com/pytorch/pytorch/issues/182099",
@@ -1545,6 +1559,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_jacobian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
+    "153707",
+    "https://github.com/pytorch/pytorch/issues/153707",
+    [
+      "dynamo"
     ]
   ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1665,6 +1686,14 @@
     "https://github.com/pytorch/pytorch/issues/182019",
     [
       "linux"
+    ]
+  ],
+  "test_max_cached_size (__main__.TestCachingHostAllocatorConfig)": [
+    "182111",
+    "https://github.com/pytorch/pytorch/issues/182111",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
@@ -1801,17 +1830,6 @@
     "https://github.com/pytorch/pytorch/issues/181085",
     [
       "xpu"
-    ]
-  ],
-  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
-    "118253",
-    "https://github.com/pytorch/pytorch/issues/118253",
-    [
-      "asan",
-      "dynamo",
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
