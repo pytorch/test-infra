@@ -55,6 +55,14 @@
     "linux-jammy-cuda12.4-py3.10-gcc11",
     "test (legacy_nvidia_driver)"
   ],
+  "pull / dynamo-cpython-test / test-osdc (dynamo_cpython)": [
+    "huydhn",
+    "182144",
+    "https://github.com/pytorch/pytorch/issues/182144",
+    "pull",
+    "dynamo-cpython-test",
+    "test-osdc (dynamo_cpython)"
+  ],
   "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
     "ZainRizvi",
     "158876",
