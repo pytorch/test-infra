@@ -3080,27 +3080,6 @@
       "dynamo"
     ]
   ],
-  "test_triton_alltoall (__main__.NVSHMEMTritonTest)": [
-    "158840",
-    "https://github.com/pytorch/pytorch/issues/158840",
-    [
-      "linux"
-    ]
-  ],
-  "test_triton_barrier (__main__.NVSHMEMTritonTest)": [
-    "158761",
-    "https://github.com/pytorch/pytorch/issues/158761",
-    [
-      "linux"
-    ]
-  ],
-  "test_triton_broadcast (__main__.NVSHMEMTritonTest)": [
-    "158908",
-    "https://github.com/pytorch/pytorch/issues/158908",
-    [
-      "linux"
-    ]
-  ],
   "test_triton_error_precompilation_and_autotuning (__main__.TestMaxAutotuneAsyncPipelined)": [
     "179696",
     "https://github.com/pytorch/pytorch/issues/179696",
