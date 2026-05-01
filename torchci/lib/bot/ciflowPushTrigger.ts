@@ -297,6 +297,15 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
     return;
   }
 
+  // Skip runs that GitHub created but hasn't actually started yet, e.g. those
+  // awaiting maintainer approval on first-time-contributor PRs. workflow_run.requested
+  // fires when the run record is created, including in `waiting` / `action_required`
+  // state, and creating tags here would defeat the deferral this handler exists for.
+  const status = (payload.workflow_run as any).status;
+  if (status === "waiting" || status === "action_required") {
+    return;
+  }
+
   let prNumbers: number[] = (payload.workflow_run.pull_requests ?? []).map(
     (pr: any) => pr.number
   );
