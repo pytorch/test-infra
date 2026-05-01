@@ -151,6 +151,13 @@
       "dynamo"
     ]
   ],
+  "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "179876",
+    "https://github.com/pytorch/pytorch/issues/179876",
+    [
+      "dynamo"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -276,6 +283,13 @@
   "test_can_use_grad_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
     "181155",
     "https://github.com/pytorch/pytorch/issues/181155",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_can_use_vmap_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
+    "180592",
+    "https://github.com/pytorch/pytorch/issues/180592",
     [
       "dynamo"
     ]
@@ -1832,6 +1846,17 @@
       "xpu"
     ]
   ],
+  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118253",
+    "https://github.com/pytorch/pytorch/issues/118253",
+    [
+      "asan",
+      "dynamo",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
     "179898",
     "https://github.com/pytorch/pytorch/issues/179898",
@@ -2925,6 +2950,21 @@
       "dynamo"
     ]
   ],
+  "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
+    "182174",
+    "https://github.com/pytorch/pytorch/issues/182174",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b1 (__main__.TestVisionTracing)": [
+    "123889",
+    "https://github.com/pytorch/pytorch/issues/123889",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
     "180414",
     "https://github.com/pytorch/pytorch/issues/180414",
@@ -3377,6 +3417,13 @@
   "test_with_mode (__main__.TestTorchFunctionMode)": [
     "182097",
     "https://github.com/pytorch/pytorch/issues/182097",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_with_mode_created_separately (__main__.TestTorchFunctionMode)": [
+    "182175",
+    "https://github.com/pytorch/pytorch/issues/182175",
     [
       "dynamo"
     ]
