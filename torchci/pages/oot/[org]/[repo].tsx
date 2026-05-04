@@ -30,7 +30,9 @@ import useSWR from "swr";
 interface OotJobRow {
   pr_number: number;
   pytorch_head_sha: string;
+  workflow_name: string;
   job_name: string;
+  run_attempt: number;
   status: string;
   conclusion: string;
   started_at: string;
@@ -78,6 +80,7 @@ function JobChip({
   const label = conclusionLabel(job.status, job.conclusion);
   const tooltipContent = [
     `Job: ${job.job_name}`,
+    job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
     `Duration: ${job.duration_seconds ? durationDisplay(Math.round(job.duration_seconds)) : "–"}`,
     job.total_tests ? `Tests: ${job.passed_tests}/${job.total_tests} passed` : null,
     job.queue_time != null ? `Queue: ${job.queue_time.toFixed(1)}s` : null,

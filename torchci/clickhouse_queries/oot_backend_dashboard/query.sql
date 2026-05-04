@@ -1,7 +1,9 @@
 SELECT
     pr_number,
     pytorch_head_sha,
-    workflow_name AS job_name,
+    workflow_name,
+    job_name,
+    run_attempt,
     status,
     conclusion,
     started_at,

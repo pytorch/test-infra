@@ -1,6 +1,8 @@
 SELECT
     downstream_repo,
-    workflow_name AS job_name,
+    workflow_name,
+    job_name,
+    run_attempt,
     status,
     conclusion,
     duration_seconds,

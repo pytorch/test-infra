@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { checkAuthWithApiToken } from "lib/auth/auth";
 import {
   ApiError,
   validatePayloadSize,
-  validateRelayPayload,
   extractDynamoRecord,
-  checkDailyBudget,
   writeToDynamo,
 } from "lib/oot/ootUtils";
 
@@ -26,26 +23,21 @@ export default async function handler(
   }
 
   try {
-    // 1. Auth: x-hud-internal-bot header or session
-    const auth = await checkAuthWithApiToken(req, res);
-    if (!auth.ok) {
+    // 1. Auth: dedicated X-OOT-Relay-Token header
+    const relayToken = req.headers["x-oot-relay-token"];
+    if (!relayToken || relayToken !== process.env.OOT_RELAY_TOKEN) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // 2. Payload size check
+    // 2. Payload size cap (safety net — relay should also enforce this)
     const rawBody =
       typeof req.body === "string" ? req.body : JSON.stringify(req.body);
     validatePayloadSize(rawBody);
 
-    // 3. Schema validation
+    // 3. Extract and write to DynamoDB via UpdateItem
+    // Schema validation is done by the relay before forwarding.
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const payload = validateRelayPayload(body);
-
-    // 4. Daily budget check
-    await checkDailyBudget(payload.trusted.verified_repo);
-
-    // 5. Extract and write to DynamoDB
-    const record = extractDynamoRecord(payload);
+    const record = extractDynamoRecord(body);
     await writeToDynamo(record);
 
     return res.status(200).json({

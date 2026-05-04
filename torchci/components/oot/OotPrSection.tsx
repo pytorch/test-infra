@@ -21,7 +21,9 @@ import useSWR from "swr";
 
 interface OotPrResult {
   downstream_repo: string;
+  workflow_name: string;
   job_name: string;
+  run_attempt: number;
   status: string;
   conclusion: string;
   duration_seconds: number;
