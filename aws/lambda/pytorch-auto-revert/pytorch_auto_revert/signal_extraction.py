@@ -520,9 +520,18 @@ class SignalExtractor:
                 )
 
             if has_any_events:
-                # Extract test module from test_id (format: "file.py::test_name")
-                # Result: "file" or "path/to/file" without .py extension
-                test_module = test_id.split("::")[0].replace(".py", "")
+                # Extract test module from test_id (format: "file.py::test_name").
+                # When the CH row's `file` column is empty, TestRow.test_id falls
+                # back to the bare `name` (no `::`) and we can't derive a path
+                # that `run_test.py --include` would accept. Mark such signals
+                # as untargeted (test_module=None) so the action layer dispatches
+                # them without a tests-to-include filter (job-style restart),
+                # rather than emitting a bogus method-named module that argparse
+                # would reject with "invalid choice".
+                if "::" in test_id:
+                    test_module = test_id.split("::")[0].replace(".py", "")
+                else:
+                    test_module = None
 
                 signals.append(
                     Signal(
