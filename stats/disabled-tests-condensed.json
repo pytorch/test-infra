@@ -126,6 +126,16 @@
       "linux"
     ]
   ],
+  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "182260",
+    "https://github.com/pytorch/pytorch/issues/182260",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_async_returns_futures (__main__.TestAsyncCheckpointerSpecific)": [
     "179976",
     "https://github.com/pytorch/pytorch/issues/179976",
@@ -294,21 +304,11 @@
       "dynamo"
     ]
   ],
-  "test_captured_scalar_grad_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
-    "176197",
-    "https://github.com/pytorch/pytorch/issues/176197",
+  "test_cat_transform_non_uniform (__main__.TestFunctors)": [
+    "182257",
+    "https://github.com/pytorch/pytorch/issues/182257",
     [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "158909",
-    "https://github.com/pytorch/pytorch/issues/158909",
-    [
-      "asan",
-      "linux",
-      "slow"
+      "dynamo"
     ]
   ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
@@ -684,7 +684,8 @@
     "181685",
     "https://github.com/pytorch/pytorch/issues/181685",
     [
-      "inductor"
+      "inductor",
+      "linux"
     ]
   ],
   "test_cpp_wrapper (__main__.TestMemoryPlanning)": [
@@ -1504,14 +1505,6 @@
       "rocm"
     ]
   ],
-  "test_index_weird1_cuda (__main__.TestFlexAttentionCUDA)": [
-    "176199",
-    "https://github.com/pytorch/pytorch/issues/176199",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_inductor_all_gather_into_tensor_coalesced (__main__.CompileTest)": [
     "146806",
     "https://github.com/pytorch/pytorch/issues/146806",
@@ -1677,6 +1670,13 @@
   "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180944",
     "https://github.com/pytorch/pytorch/issues/180944",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180300",
+    "https://github.com/pytorch/pytorch/issues/180300",
     [
       "dynamo"
     ]
@@ -2148,7 +2148,9 @@
     "https://github.com/pytorch/pytorch/issues/180301",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2384,6 +2386,14 @@
     "https://github.com/pytorch/pytorch/issues/180227",
     [
       "rocm"
+    ]
+  ],
+  "test_record_stream_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
+    "138557",
+    "https://github.com/pytorch/pytorch/issues/138557",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
@@ -2643,6 +2653,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_round_threshold_larger_than_cached_size (__main__.TestCachingHostAllocatorConfig)": [
+    "182261",
+    "https://github.com/pytorch/pytorch/issues/182261",
+    [
+      "linux"
     ]
   ],
   "test_run2run_determinism_model_name_GoogleFnet_training_or_inference_inference_precision_float32 (__main__.DeterministicTest)": [
@@ -2948,6 +2965,13 @@
     "https://github.com/pytorch/pytorch/issues/121876",
     [
       "dynamo"
+    ]
+  ],
+  "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
+    "182259",
+    "https://github.com/pytorch/pytorch/issues/182259",
+    [
+      "linux"
     ]
   ],
   "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
@@ -3403,6 +3427,13 @@
   "test_with_mode_created_separately (__main__.TestTorchFunctionMode)": [
     "182175",
     "https://github.com/pytorch/pytorch/issues/182175",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_with_nested_modes (__main__.TestTorchFunctionMode)": [
+    "182258",
+    "https://github.com/pytorch/pytorch/issues/182258",
     [
       "dynamo"
     ]
