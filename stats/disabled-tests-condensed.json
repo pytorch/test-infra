@@ -2158,7 +2158,9 @@
     "https://github.com/pytorch/pytorch/issues/180323",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyViewCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2240,15 +2242,6 @@
     "https://github.com/pytorch/pytorch/issues/182086",
     [
       "linux",
-      "slow"
-    ]
-  ],
-  "test_pre_grad (__main__.TestCompilerBisector)": [
-    "164462",
-    "https://github.com/pytorch/pytorch/issues/164462",
-    [
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
