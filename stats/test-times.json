@@ -26354,24 +26354,6 @@
       "test_autograd": 100.63500155648217
     }
   },
-  "linux-jammy-rocm-py3_10": {
-    "default": {
-      "inductor/test_aot_inductor": 2199.6520167412236,
-      "inductor/test_benchmark_fusion": 30.818999720620923,
-      "inductor/test_decompose_mem_bound_mm": 24.809499740600586,
-      "inductor/test_flex_attention": 4407.541556358337,
-      "inductor/test_kernel_benchmark": 185.24600219726562,
-      "inductor/test_pad_mm": 59.570499420166016,
-      "inductor/test_torchinductor": 931.7059824168682,
-      "test_autograd": 101.17750065447763,
-      "test_binary_ufuncs": 112.29000091552734,
-      "test_cuda": 229.3100057336269,
-      "test_nn": 176.36100005812477,
-      "test_ops": 3859.4230116156396,
-      "test_torch": 171.41500471462496,
-      "test_unary_ufuncs": 215.50399780273438
-    }
-  },
   "linux-noble-rocm-py3.12-mi300": {
     "default": {
       "backends/xeon/test_launch": 7.2230000495910645,
