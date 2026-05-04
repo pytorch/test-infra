@@ -113,7 +113,7 @@ runs:
           conda create \
             --yes --quiet \
             --prefix "${CONDA_ENV}" \
-            "python=3.9"
+            "python=3.9" pip
           CONDA_ENV="${CONDA_ENV}"
           CONDA_RUN="conda run --no-capture-output -p ${CONDA_ENV}"
           ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
