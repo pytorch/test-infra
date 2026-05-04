@@ -3006,16 +3006,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
