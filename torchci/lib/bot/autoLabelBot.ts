@@ -1,5 +1,6 @@
 import { Context, Probot } from "probot";
 import { addLabelErrComment, hasRequiredLabels } from "./checkLabelsUtils";
+import { getLabelsFromLabelerConfig } from "./labelerConfigUtils";
 import {
   addLabels,
   CachedIssueTracker,
@@ -11,7 +12,6 @@ import {
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
 } from "./utils";
-import { getLabelsFromLabelerConfig } from "./labelerConfigUtils";
 
 export { getLabelsFromLabelerConfig };
 
