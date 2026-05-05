@@ -1235,13 +1235,6 @@
       "linux"
     ]
   ],
-  "test_functional_call_multiple_dicts_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
-    "180819",
-    "https://github.com/pytorch/pytorch/issues/180819",
-    [
-      "dynamo"
-    ]
-  ],
   "test_functional_call_sequential_params_and_buffers (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "177056",
     "https://github.com/pytorch/pytorch/issues/177056",
@@ -1309,20 +1302,6 @@
       "slow"
     ]
   ],
-  "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180655",
-    "https://github.com/pytorch/pytorch/issues/180655",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_grad_grad_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
-    "180846",
-    "https://github.com/pytorch/pytorch/issues/180846",
-    [
-      "dynamo"
-    ]
-  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -1334,13 +1313,6 @@
   "test_grad_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
     "181371",
     "https://github.com/pytorch/pytorch/issues/181371",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180894",
-    "https://github.com/pytorch/pytorch/issues/180894",
     [
       "dynamo"
     ]
@@ -1666,13 +1638,6 @@
   "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
     "179895",
     "https://github.com/pytorch/pytorch/issues/179895",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180944",
-    "https://github.com/pytorch/pytorch/issues/180944",
     [
       "dynamo"
     ]
@@ -2601,13 +2566,6 @@
       "rocm"
     ]
   ],
-  "test_requires_grad_inside_transform_cpu (__main__.TestComposabilityCPU)": [
-    "180966",
-    "https://github.com/pytorch/pytorch/issues/180966",
-    [
-      "dynamo"
-    ]
-  ],
   "test_requires_grad_loop (test_jit.TestScript)": [
     "91492",
     "https://github.com/pytorch/pytorch/issues/91492",
@@ -3286,13 +3244,6 @@
       "dynamo"
     ]
   ],
-  "test_update_batch_norm_mechanism_functional_call_originally_track_running_stats_True_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180785",
-    "https://github.com/pytorch/pytorch/issues/180785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_update_batch_norm_mechanism_make_functional_originally_track_running_stats_True_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "181321",
     "https://github.com/pytorch/pytorch/issues/181321",
@@ -3371,6 +3322,13 @@
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
     "180194",
     "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180322",
+    "https://github.com/pytorch/pytorch/issues/180322",
     [
       "dynamo"
     ]
@@ -3459,13 +3417,6 @@
   "test_with_nested_modes (__main__.TestTorchFunctionMode)": [
     "182258",
     "https://github.com/pytorch/pytorch/issues/182258",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_wrapper_subclass_aliasing_out_op_cpu (__main__.TestWrapperSubclassAliasingCPU)": [
-    "180635",
-    "https://github.com/pytorch/pytorch/issues/180635",
     [
       "dynamo"
     ]
