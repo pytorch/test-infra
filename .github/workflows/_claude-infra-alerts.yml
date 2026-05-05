@@ -307,7 +307,7 @@ jobs:
         # triaging an empty-looking run knows to also check for upload
         # errors in the investigate-job logs.
         run: |
-          echo "::warning ::No actions artifact retrieved — either the investigate job produced no findings (expected when all alerts are filtered as noise) or the artifact download failed. Check the investigate-job logs to disambiguate."
+          echo "::warning::No actions artifact retrieved — either the investigate job produced no findings (expected when all alerts are filtered as noise) or the artifact download failed. Check the investigate-job logs to disambiguate."
 
       - name: Check out test-infra (schema + validator)
         if: steps.download.outcome == 'success'
@@ -373,11 +373,19 @@ jobs:
             # tracking comment). Log a warning and skip — better to lose
             # one audit entry than to bifurcate the trail.
             if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
-              echo "::warning ::could not fetch comments on issue #$issue_num; skipping audit-log update for action '$action_type'."
+              echo "::warning::could not fetch comments on issue #$issue_num; skipping audit-log update for action '$action_type'."
               return 0
             fi
-            raw_log=$(echo "$comments_json" \
-              | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .body] | last // empty")
+            # Stage the jq lookup with an explicit failure check; running
+            # it in a `var=$(cmd | jq)` pipeline would mask jq errors and
+            # silently treat them as "no prior log found", which would
+            # then post a fresh tracking comment and orphan the existing
+            # one (bifurcating the audit trail).
+            if ! raw_log=$(printf '%s' "$comments_json" \
+                | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .body] | last // empty"); then
+              echo "::warning::jq failed parsing comments on issue #$issue_num; skipping audit-log update."
+              return 0
+            fi
 
             local existing_rows=""
             if [[ -n "$raw_log" ]]; then
@@ -409,24 +417,29 @@ jobs:
               echo "</details>"
             } > /tmp/tracking-comment.md
 
-            local comment_id
-            comment_id=$(echo "$comments_json" \
-              | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .url] | last // empty" \
-              | grep -oE '[0-9]+$' || true)
+            local comment_url comment_id
+            if ! comment_url=$(printf '%s' "$comments_json" \
+                | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .url] | last // empty"); then
+              echo "::warning::jq failed parsing comment URLs on issue #$issue_num; skipping audit-log update."
+              rm -f /tmp/tracking-comment.md
+              return 0
+            fi
+            comment_id=$(printf '%s' "$comment_url" | grep -oE '[0-9]+$' || true)
 
             if [[ -n "$comment_id" ]]; then
               local body_json
               body_json=$(jq -Rs '{body: .}' /tmp/tracking-comment.md)
               if ! gh api --method PATCH "repos/$repo/issues/comments/$comment_id" \
                   --input - <<< "$body_json" >/dev/null; then
-                echo "::warning ::failed to update tracking comment on issue #$issue_num."
+                echo "::warning::failed to update tracking comment on issue #$issue_num."
               fi
             else
               if ! gh issue comment "$issue_num" --repo "$repo" \
                   --body-file /tmp/tracking-comment.md; then
-                echo "::warning ::failed to post tracking comment on issue #$issue_num."
+                echo "::warning::failed to post tracking comment on issue #$issue_num."
               fi
             fi
+            rm -f /tmp/tracking-comment.md
           }
 
           # Update or create the details comment (the one we treat as the
@@ -452,17 +465,22 @@ jobs:
             # Look up the existing details comment by its marker. We must
             # distinguish "no marker comment yet" (post a new one) from
             # "comment lookup failed" (posting a new one would create a
-            # duplicate authoritative comment). Capture the raw view
-            # output and check the gh exit code explicitly.
-            local comments_json
+            # duplicate authoritative comment). Each stage is checked
+            # explicitly because `var=$(cmd | jq | grep)` masks
+            # mid-pipeline failures inside command substitution even
+            # under `set -o pipefail` — silent jq errors would otherwise
+            # treat "lookup failed" identically to "no marker found".
+            local comments_json comment_url comment_id
             if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
               echo "ERROR: could not fetch comments on issue #$issue_num; aborting details upsert to avoid duplicates." >&2
               return 1
             fi
-            local comment_id
-            comment_id=$(echo "$comments_json" \
-              | jq -r "[.comments[] | select(.body | contains(\"$DETAILS_MARKER\")) | .url] | last // empty" \
-              | grep -oE '[0-9]+$' || true)
+            if ! comment_url=$(printf '%s' "$comments_json" \
+                | jq -r "[.comments[] | select(.body | contains(\"$DETAILS_MARKER\")) | .url] | last // empty"); then
+              echo "ERROR: jq failed parsing comments on issue #$issue_num; aborting details upsert." >&2
+              return 1
+            fi
+            comment_id=$(printf '%s' "$comment_url" | grep -oE '[0-9]+$' || true)
 
             if [[ -n "$comment_id" ]]; then
               echo "Updating details comment ($comment_id) on issue #$issue_num"
@@ -496,12 +514,16 @@ jobs:
           # on GitHub).
           # `gh label create` exits non-zero if the label already exists,
           # which we treat as success — but we still surface real failures
-          # (insufficient scope, invalid name, etc.) so we capture stderr
-          # and only swallow the "already exists" case.
+          # (insufficient scope, invalid name, etc.).
+          # GitHub Actions surfaces only the first ~10 warning annotations
+          # in the run-summary UI, so failures are aggregated into a single
+          # warning per ensure_labels call instead of one per label. The
+          # full per-label errors still go to the step log.
           ensure_labels() {
             local repo="$1"
             shift
             local label err
+            local failures=()
             for label in "$@"; do
               if err=$(gh label create "$label" --repo "$repo" \
                     --color "ededed" \
@@ -512,8 +534,12 @@ jobs:
               if [[ "$err" == *"already exists"* ]]; then
                 continue
               fi
-              echo "::warning ::gh label create '$label' on $repo failed: $err"
+              echo "gh label create '$label' on $repo failed: $err" >&2
+              failures+=("$label")
             done
+            if (( ${#failures[@]} > 0 )); then
+              echo "::warning::ensure_labels: ${#failures[@]} label(s) failed on ${repo}: ${failures[*]} — see step log for per-label errors."
+            fi
           }
 
           if [[ ! -f "$ACTIONS_FILE" ]]; then
@@ -554,11 +580,27 @@ jobs:
                 # Merge labels: claude-supplied + marker-label + default-labels, dedupe.
                 # Read into an array (one label per element) instead of a CSV
                 # so labels containing commas don't get fragmented.
-                mapfile -t LABEL_ARR < <(jq -r \
-                  --arg marker "$MARKER_LABEL" \
-                  --argjson defaults "$DEFAULT_LABELS_JSON" \
-                  '.actions['"$i"'].labels + [$marker] + $defaults | unique | .[]' \
-                  "$ACTIONS_FILE")
+                # `mapfile < <(jq …)` would discard jq's exit code (process
+                # substitution failures don't propagate even with pipefail),
+                # so stage jq separately and check its exit. After the
+                # array is built, assert the marker label is present —
+                # without it, dedup on subsequent runs would fail and we'd
+                # spam duplicate issues every hour.
+                if ! LABELS_RAW=$(jq -r \
+                    --arg marker "$MARKER_LABEL" \
+                    --argjson defaults "$DEFAULT_LABELS_JSON" \
+                    '.actions['"$i"'].labels + [$marker] + $defaults | unique | .[]' \
+                    "$ACTIONS_FILE"); then
+                  echo "ERROR (action $i, create): jq failed building label list" >&2
+                  exit 1
+                fi
+                mapfile -t LABEL_ARR <<< "$LABELS_RAW"
+                # Drop a possible empty trailing element from a heredoc-string newline.
+                [[ -z "${LABEL_ARR[-1]}" ]] && unset 'LABEL_ARR[-1]'
+                if ! printf '%s\n' "${LABEL_ARR[@]}" | grep -Fxq "$MARKER_LABEL"; then
+                  echo "ERROR (action $i, create): merged label set missing marker label '$MARKER_LABEL'; aborting to prevent duplicate-issue spam." >&2
+                  exit 1
+                fi
                 LABEL_FLAGS=()
                 for label in "${LABEL_ARR[@]}"; do
                   LABEL_FLAGS+=(--label "$label")
@@ -583,9 +625,11 @@ jobs:
                   exit 1
                 fi
                 rm -f "$SUMMARY_FILE" "$GH_ERR"
-                # Match the issue URL line specifically rather than trusting
-                # that the last line ends in digits.
-                ISSUE_URL=$(echo "$ISSUE_URL" | grep -E '^https://github\.com/' | tail -1)
+                # Match a literal /issues/<num> URL specifically. A bare
+                # `^https://github.com/` would also match release-notice
+                # URLs that some `gh` versions emit on stdout, and `tail -1`
+                # would then yield the wrong issue number.
+                ISSUE_URL=$(echo "$ISSUE_URL" | grep -E '^https://github\.com/[^/]+/[^/]+/issues/[0-9]+$' | tail -1)
                 ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
                 if [[ -z "$ISSUE_NUM" ]]; then
                   echo "ERROR (action $i, create): could not parse issue number from URL: $ISSUE_URL" >&2
@@ -597,11 +641,15 @@ jobs:
                 # upsert will re-attempt and self-heal. Emit a warning so
                 # the partial state is visible in the run summary UI but
                 # don't fail the job — that would block any real `update`
-                # actions later in the batch.
+                # actions later in the batch. Tag the audit-log row with
+                # the partial-state status so the long-term record reflects
+                # what actually happened (the run-UI warning is ephemeral).
+                CREATE_STATUS="create"
                 if ! upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"; then
-                  echo "::warning ::issue #$ISSUE_NUM was created on $REPO but the details comment failed to post; next run will heal."
+                  echo "::warning::issue #$ISSUE_NUM was created on $REPO but the details comment failed to post; next run will heal."
+                  CREATE_STATUS="create (details pending)"
                 fi
-                update_run_log "$REPO" "$ISSUE_NUM" "create"
+                update_run_log "$REPO" "$ISSUE_NUM" "$CREATE_STATUS"
                 ;;
 
               update)
