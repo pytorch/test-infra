@@ -11,9 +11,10 @@ describe("labelerConfigUtils", () => {
     });
 
     test("accepts object with globs and draft", () => {
-      expect(
-        normalizeLabelerRule({ globs: ["x/**"], draft: false })
-      ).toEqual({ globs: ["x/**"], draft: false });
+      expect(normalizeLabelerRule({ globs: ["x/**"], draft: false })).toEqual({
+        globs: ["x/**"],
+        draft: false,
+      });
     });
 
     test("rejects invalid shapes", () => {
