@@ -27,10 +27,6 @@ AWS credentials for S3 are picked up from the standard boto3/AWS chain.
 Usage:
   python repackage_torchaudio_cu130_to_cu132.py --version 2.11.0
   python repackage_torchaudio_cu130_to_cu132.py --version 2.11.0 --dry-run
-  python repackage_torchaudio_cu130_to_cu132.py --version 2.11.0 \
-      --skip-s3            # only upload to R2
-  python repackage_torchaudio_cu130_to_cu132.py --version 2.11.0 \
-      --skip-r2            # only upload to S3
 """
 
 import argparse
@@ -50,9 +46,7 @@ DEFAULT_VERSION = "2.11.0"
 SOURCE_CUDA = "cu130"
 TARGET_CUDA = "cu132"
 
-INDEX_URL = (
-    "https://download.pytorch.org/whl/test/{cuda}/{package}"
-)
+INDEX_URL = "https://download.pytorch.org/whl/test/{cuda}/{package}"
 DOWNLOAD_BASE = "https://download.pytorch.org/whl/test/{cuda}/{filename}"
 
 S3_BUCKET = "pytorch"
@@ -87,9 +81,7 @@ def discover_wheels(package: str, version: str, cuda: str) -> List[str]:
 
 def download_wheel(filename: str, cuda: str, dest_dir: Path) -> Path:
     """Download ``filename`` from the test cu<NN> channel into ``dest_dir``."""
-    url = DOWNLOAD_BASE.format(
-        cuda=cuda, filename=urllib.parse.quote(filename)
-    )
+    url = DOWNLOAD_BASE.format(cuda=cuda, filename=urllib.parse.quote(filename))
     dest = dest_dir / filename
     print(f"+ Downloading {url}")
     with urllib.request.urlopen(url) as resp, open(dest, "wb") as out:
@@ -120,29 +112,22 @@ def repackage_wheel(
     new_label = f"+{target_cuda}"
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_whl = os.path.join(tmp_dir, wheel_path.name)
-        with InWheelCtx(str(wheel_path)) as ctx:
+        tmp_whl = Path(tmp_dir) / wheel_path.name
+        with InWheelCtx(wheel_path) as ctx:
             ctx.out_wheel = tmp_whl
 
             dist_info_dirs = [
                 d
                 for d in os.listdir(ctx.path)
-                if d.endswith(".dist-info")
-                and os.path.isdir(os.path.join(ctx.path, d))
+                if d.endswith(".dist-info") and os.path.isdir(os.path.join(ctx.path, d))
             ]
             if not dist_info_dirs:
-                raise RuntimeError(
-                    f"No .dist-info directory found in {wheel_path}"
-                )
+                raise RuntimeError(f"No .dist-info directory found in {wheel_path}")
             dist_info_dir = dist_info_dirs[0]
 
-            metadata_file = os.path.join(
-                ctx.path, dist_info_dir, "METADATA"
-            )
+            metadata_file = os.path.join(ctx.path, dist_info_dir, "METADATA")
             if not os.path.exists(metadata_file):
-                raise RuntimeError(
-                    f"METADATA file not found in {wheel_path}"
-                )
+                raise RuntimeError(f"METADATA file not found in {wheel_path}")
 
             old_version: Optional[str] = None
             with open(metadata_file, "r", encoding="utf-8") as f:
@@ -151,9 +136,7 @@ def repackage_wheel(
                         old_version = line.split(":", 1)[1].strip()
                         break
             if not old_version:
-                raise RuntimeError(
-                    f"Could not find Version in {metadata_file}"
-                )
+                raise RuntimeError(f"Could not find Version in {metadata_file}")
             if old_label not in old_version:
                 raise RuntimeError(
                     f"Version {old_version!r} does not contain {old_label!r}"
@@ -168,9 +151,7 @@ def repackage_wheel(
             # Update every text file under .dist-info that mentions the
             # old version string. RECORD will be regenerated on context
             # exit, so its hashes will be correct.
-            for root, _dirs, files in os.walk(
-                os.path.join(ctx.path, dist_info_dir)
-            ):
+            for root, _dirs, files in os.walk(os.path.join(ctx.path, dist_info_dir)):
                 for name in files:
                     file_path = os.path.join(root, name)
                     try:
@@ -188,9 +169,7 @@ def repackage_wheel(
                         with open(file_path, "w", encoding="utf-8") as f:
                             f.write(updated)
 
-            new_dist_info_dir = dist_info_dir.replace(
-                old_version, new_version
-            )
+            new_dist_info_dir = dist_info_dir.replace(old_version, new_version)
             if new_dist_info_dir != dist_info_dir:
                 os.rename(
                     os.path.join(ctx.path, dist_info_dir),
@@ -199,11 +178,11 @@ def repackage_wheel(
 
         new_filename = wheel_path.name.replace(old_label, new_label)
         out_path = output_dir / new_filename
-        if not os.path.exists(tmp_whl):
+        if not tmp_whl.exists():
             raise RuntimeError(
                 f"auditwheel did not produce expected wheel at {tmp_whl}"
             )
-        shutil.move(tmp_whl, out_path)
+        shutil.move(str(tmp_whl), out_path)
         print(f"+ Repackaged wheel: {out_path}")
         return out_path
 
@@ -291,9 +270,7 @@ def upload_to_r2(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument(
-        "--package", default=DEFAULT_PACKAGE, help="Package name"
-    )
+    parser.add_argument("--package", default=DEFAULT_PACKAGE, help="Package name")
     parser.add_argument(
         "--version", default=DEFAULT_VERSION, help="Package version (e.g. 2.11.0)"
     )
@@ -302,23 +279,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target-cuda", default=TARGET_CUDA, help="Target CUDA tag (e.g. cu132)"
-    )
-    parser.add_argument(
-        "--work-dir",
-        default=None,
-        help="Working directory for downloads and repackaged wheels "
-        "(default: a fresh temp dir that is removed on exit)",
-    )
-    parser.add_argument(
-        "--keep-work-dir",
-        action="store_true",
-        help="Keep the working directory after the script exits",
-    )
-    parser.add_argument(
-        "--skip-s3", action="store_true", help="Skip the AWS S3 upload"
-    )
-    parser.add_argument(
-        "--skip-r2", action="store_true", help="Skip the Cloudflare R2 upload"
     )
     parser.add_argument(
         "--dry-run",
@@ -336,14 +296,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    if args.work_dir:
-        work_dir = Path(args.work_dir).resolve()
-        work_dir.mkdir(parents=True, exist_ok=True)
-        cleanup = False
-    else:
-        work_dir = Path(tempfile.mkdtemp(prefix="repackage-cu-"))
-        cleanup = not args.keep_work_dir
-
+    work_dir = Path(tempfile.mkdtemp(prefix="repackage-cu-"))
     download_dir = work_dir / "download"
     output_dir = work_dir / "repackaged"
     download_dir.mkdir(exist_ok=True)
@@ -352,9 +305,7 @@ def main() -> int:
     print(f"+ Working directory: {work_dir}")
 
     try:
-        wheels = discover_wheels(
-            args.package, args.version, args.source_cuda
-        )
+        wheels = discover_wheels(args.package, args.version, args.source_cuda)
         if not wheels:
             print(
                 f"- No wheels found for {args.package}=={args.version} "
@@ -366,9 +317,7 @@ def main() -> int:
         r2_prefix = R2_PREFIX.format(cuda=args.target_cuda)
 
         for wheel_filename in wheels:
-            downloaded = download_wheel(
-                wheel_filename, args.source_cuda, download_dir
-            )
+            downloaded = download_wheel(wheel_filename, args.source_cuda, download_dir)
             repackaged = repackage_wheel(
                 downloaded,
                 output_dir,
@@ -381,19 +330,8 @@ def main() -> int:
             s3_key = f"{s3_prefix}/{repackaged.name}"
             r2_key = f"{r2_prefix}/{repackaged.name}"
 
-            if not args.skip_s3:
-                upload_to_s3(
-                    repackaged, S3_BUCKET, s3_key, sha256, args.dry_run
-                )
-            else:
-                print("+ --skip-s3 set, skipping S3 upload")
-
-            if not args.skip_r2:
-                upload_to_r2(
-                    repackaged, args.r2_bucket, r2_key, sha256, args.dry_run
-                )
-            else:
-                print("+ --skip-r2 set, skipping R2 upload")
+            upload_to_s3(repackaged, S3_BUCKET, s3_key, sha256, args.dry_run)
+            upload_to_r2(repackaged, args.r2_bucket, r2_key, sha256, args.dry_run)
 
         print(f"+ Done. Processed {len(wheels)} wheel(s).")
         print(
@@ -403,8 +341,7 @@ def main() -> int:
         )
         return 0
     finally:
-        if cleanup:
-            shutil.rmtree(work_dir, ignore_errors=True)
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
