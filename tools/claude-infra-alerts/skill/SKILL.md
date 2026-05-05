@@ -18,8 +18,8 @@ Two values are passed in your prompt and must be used verbatim in the instructio
 
 ## Available Tools
 
-- **Bash**: `aws`, `gh`, `git`, and standard Unix tools (grep, jq, cat, etc.). The IAM role and GitHub token are read-only except for the actions output file below.
-- **PyTorch HUD MCP** (`mcp__hud__*`): CI job data, failure details, and log analysis.
+- **Bash**: read-only subsets of `aws`, `gh`, `git`, plus standard Unix tools (grep, jq, cat, etc.). The reusable workflow's `allowedTools` list pins the exact subcommands; broadly: `gh issue view/list`, `gh pr view/list`, `gh search`, `gh run view/list`, `gh workflow view/list`, `gh label list`, `gh repo view`, `gh release list/view`, `gh api`, and `git log/show/diff/blame/status/rev-parse/ls-files/remote -v/remote show/tag/branch -a`. The IAM role and GitHub token are read-only.
+- **PyTorch HUD MCP** (`mcp__hud__*`): CI job data, failure details, and log analysis (only available when the caller provides `HUD_INTERNAL_BOT_TOKEN`).
 - **Read / Glob / Grep** over the checked-out caller repo.
 - **Write tool**: write ONLY to `/tmp/claude-infra-alerts-actions.json`.
 

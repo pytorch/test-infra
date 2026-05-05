@@ -98,12 +98,28 @@ jobs:
           MARKER_LABEL: ${{ inputs.marker-label }}
         run: |
           set -euo pipefail
+          # workflow_call inputs marked `required: true` only enforce
+          # presence, not non-emptiness. Bail out before staging the skill
+          # (and certainly before burning Bedrock budget on a corrupted
+          # prompt) if marker-label is empty — every dedup contract in
+          # the skill depends on it.
+          if [[ -z "$MARKER_LABEL" ]]; then
+            echo "ERROR: marker-label input is empty; aborting before investigation runs." >&2
+            exit 1
+          fi
           mkdir -p .claude/skills/claude-infra-alerts .claude/hooks/claude-infra-alerts
           cp .claude-infra-alerts-src/tools/claude-infra-alerts/skill/*.md \
              .claude/skills/claude-infra-alerts/
           cp .claude-infra-alerts-src/tools/claude-infra-alerts/skill/*.json \
              .claude/skills/claude-infra-alerts/
           cp .claude-infra-alerts-src/tools/claude-infra-alerts/hooks/*.sh \
+             .claude/hooks/claude-infra-alerts/
+          # validate.sh resolves the schema relative to its own directory
+          # via `$(dirname "$0")/actions-schema.json`, so stage a copy of
+          # the schema alongside the hooks too. (The skill-side copy is
+          # what Claude reads via the prompt; the hook-side copy is what
+          # validate.sh enforces.)
+          cp .claude-infra-alerts-src/tools/claude-infra-alerts/skill/actions-schema.json \
              .claude/hooks/claude-infra-alerts/
           chmod +x .claude/hooks/claude-infra-alerts/*.sh
 
@@ -127,11 +143,9 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Install schema validator
-        # check-jsonschema is used by the validate.sh hook to enforce the
-        # JSON action schema on every Write. Pre-install so the hook never
-        # silently falls back to its weaker jq-based structural check (the
-        # fallback misses minLength, type, and enum constraints that
-        # apply-actions later catches strictly).
+        # check-jsonschema is used by validate.sh to enforce the full
+        # JSON action schema (including minLength, type, and enum) on
+        # every Write. validate.sh hard-errors if it's missing.
         run: pip install --quiet --disable-pip-version-check check-jsonschema
 
       - name: Caller setup
@@ -401,28 +415,25 @@ jobs:
 
             local existing_rows=""
             if [[ -n "$raw_log" ]]; then
-              # Stage each pipeline element so a transient failure
-              # (sed/grep crash, malformed prior comment) is detected and
-              # we refuse to truncate history. The trailing grep can fail
-              # legitimately when there are no prior rows; distinguish
-              # that from a real failure by checking only the row-extract
-              # phase explicitly.
+              # The pipeline has three stages:
+              #   1. sed -n RANGE/p  — extract the table body
+              #   2. grep -v HEADERS — drop header / separator / closing tag
+              #   3. grep ROW_REGEX  — keep only data rows
+              # Stages 2 and 3 legitimately exit 1 when their filter
+              # doesn't match anything (e.g. no rows yet), so we can't
+              # use `if !` to distinguish "real failure" from "no match"
+              # without distinguishing exit codes. Stage 1 is checked
+              # explicitly because a sed parse failure is always a real
+              # error (we'd otherwise truncate the audit history). The
+              # remaining two stages are best-effort with `|| true`.
               local body_in_details
               if ! body_in_details=$(printf '%s\n' "$raw_log" \
                   | sed -n '/^| Date /,/^<\/details>/p'); then
                 echo "::warning::sed failed parsing audit-log body on issue #$issue_num; skipping audit-log update to avoid history loss."
                 return 0
               fi
-              local body_no_headers
-              if ! body_no_headers=$(printf '%s\n' "$body_in_details" \
-                  | grep -v '^| Date \|^|---\|^</details>' || true); then
-                echo "::warning::grep -v failed on audit-log body for issue #$issue_num; skipping update."
-                return 0
-              fi
-              # Final filter: keep only data rows. `|| true` here is
-              # legitimate — empty result means "no prior data rows", and
-              # we'll just append the new entry.
-              existing_rows=$(printf '%s\n' "$body_no_headers" \
+              existing_rows=$(printf '%s\n' "$body_in_details" \
+                | grep -v '^| Date \|^|---\|^</details>' \
                 | grep '^|.*|.*|.*|' || true)
             fi
 
@@ -532,8 +543,9 @@ jobs:
               fi
             else
               echo "Posting new details comment on issue #$issue_num"
-              # --body-file - (stdin) avoids ARG_MAX / shell-quoting issues
-              # with long detailed analyses containing newlines or backticks.
+              # Use a tempfile + --body-file to avoid ARG_MAX and
+              # shell-quoting issues with long detailed analyses
+              # containing newlines or backticks.
               local body_file
               body_file=$(mktemp)
               printf '%s' "$tagged_body" > "$body_file"

@@ -2,18 +2,20 @@
 # Validate /tmp/claude-infra-alerts-actions.json against the JSON Schema.
 # Called by both validate-post-write.sh and validate-on-stop.sh.
 #
-# Requires `check-jsonschema` to be on PATH. Both the investigate and
-# apply-actions jobs pre-install it so this hook can rely on strict
-# schema validation. If the pre-install ever fails, this hook fails
-# loudly rather than silently downgrading to a weaker structural check
-# that would let minLength / type / enum violations through.
+# Requires `check-jsonschema` to be on PATH. The reusable workflow
+# pre-installs it; this hook fails loudly if it isn't there so a missing
+# install never silently bypasses validation.
+#
+# The schema file is staged next to this script by the reusable workflow
+# (`.claude/hooks/claude-infra-alerts/actions-schema.json` at runtime),
+# distinct from the skill-side copy that Claude reads via SKILL.md.
 #
 # Returns 0 on valid, 1 on invalid. All output goes to stderr.
 
 set -euo pipefail
 
 ACTIONS_FILE="/tmp/claude-infra-alerts-actions.json"
-SCHEMA_FILE="$(dirname "$0")/../skill/actions-schema.json"
+SCHEMA_FILE="$(dirname "$0")/actions-schema.json"
 
 if [[ ! -f "$ACTIONS_FILE" ]]; then
   echo "ERROR: $ACTIONS_FILE does not exist" >&2
