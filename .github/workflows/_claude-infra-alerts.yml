@@ -126,6 +126,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
+      - name: Install schema validator
+        # check-jsonschema is used by the validate.sh hook to enforce the
+        # JSON action schema on every Write. Pre-install so the hook never
+        # silently falls back to its weaker jq-based structural check (the
+        # fallback misses minLength, type, and enum constraints that
+        # apply-actions later catches strictly).
+        run: pip install --quiet --disable-pip-version-check check-jsonschema
+
       - name: Caller setup
         if: inputs.setup-command != ''
         run: ${{ inputs.setup-command }}
@@ -220,7 +228,11 @@ jobs:
             Bash(gh repo view *),
             Bash(gh release list *),Bash(gh release view *),
             Bash(gh api *),
-            Bash(git *),
+            Bash(git log *),Bash(git show *),Bash(git diff *),
+            Bash(git blame *),Bash(git status),Bash(git status *),
+            Bash(git rev-parse *),Bash(git ls-files *),
+            Bash(git remote -v),Bash(git remote show *),
+            Bash(git tag *),Bash(git branch -a),
             Bash(cat *),Bash(head *),Bash(tail *),Bash(less *),Bash(more *),
             Bash(grep *),Bash(rg *),Bash(jq *),
             Bash(ls *),Bash(find *),
@@ -287,9 +299,15 @@ jobs:
           name: claude-infra-alerts-actions
           path: /tmp
 
-      - name: Report no actions
+      - name: Report no actions artifact
         if: steps.download.outcome != 'success'
-        run: 'echo "No actions artifact uploaded by the investigate job — nothing to apply."'
+        # `continue-on-error: true` on the download step swallows BOTH
+        # "artifact never uploaded" and "download failed transiently"
+        # under the same outcome. Word the message so an operator
+        # triaging an empty-looking run knows to also check for upload
+        # errors in the investigate-job logs.
+        run: |
+          echo "::warning ::No actions artifact retrieved — either the investigate job produced no findings (expected when all alerts are filtered as noise) or the artifact download failed. Check the investigate-job logs to disambiguate."
 
       - name: Check out test-infra (schema + validator)
         if: steps.download.outcome == 'success'
@@ -342,8 +360,9 @@ jobs:
 
           # Update or create a tracking comment on an issue with a link to this run.
           # Uses a hidden HTML marker to locate the tracking comment across
-          # re-runs. Audit-log write failures are logged but non-fatal so an
-          # API hiccup doesn't block the real issue action.
+          # re-runs. Audit-log write failures are logged via GitHub Actions
+          # warnings (so they show up in the run summary UI) but are
+          # non-fatal so an API hiccup doesn't block the real issue action.
           update_run_log() {
             local repo="$1" issue_num="$2" action_type="$3"
             local new_entry="| ${TIMESTAMP} | \`${action_type}\` | [Run #${RUN_NUMBER}]($RUN_URL) |"
@@ -354,7 +373,7 @@ jobs:
             # tracking comment). Log a warning and skip — better to lose
             # one audit entry than to bifurcate the trail.
             if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
-              echo "Warning: could not fetch comments on issue #$issue_num; skipping audit-log update for action '$action_type'." >&2
+              echo "::warning ::could not fetch comments on issue #$issue_num; skipping audit-log update for action '$action_type'."
               return 0
             fi
             raw_log=$(echo "$comments_json" \
@@ -400,12 +419,12 @@ jobs:
               body_json=$(jq -Rs '{body: .}' /tmp/tracking-comment.md)
               if ! gh api --method PATCH "repos/$repo/issues/comments/$comment_id" \
                   --input - <<< "$body_json" >/dev/null; then
-                echo "Warning: failed to update tracking comment on issue #$issue_num." >&2
+                echo "::warning ::failed to update tracking comment on issue #$issue_num."
               fi
             else
               if ! gh issue comment "$issue_num" --repo "$repo" \
                   --body-file /tmp/tracking-comment.md; then
-                echo "Warning: failed to post tracking comment on issue #$issue_num." >&2
+                echo "::warning ::failed to post tracking comment on issue #$issue_num."
               fi
             fi
           }
@@ -457,27 +476,33 @@ jobs:
               fi
             else
               echo "Posting new details comment on issue #$issue_num"
-              if ! gh issue comment "$issue_num" --repo "$repo" --body "$tagged_body"; then
+              # --body-file - (stdin) avoids ARG_MAX / shell-quoting issues
+              # with long detailed analyses containing newlines or backticks.
+              local body_file
+              body_file=$(mktemp)
+              printf '%s' "$tagged_body" > "$body_file"
+              if ! gh issue comment "$issue_num" --repo "$repo" --body-file "$body_file"; then
                 echo "ERROR: failed to post details comment on issue #$issue_num" >&2
+                rm -f "$body_file"
                 return 1
               fi
+              rm -f "$body_file"
             fi
           }
 
           # Ensure a set of labels exists on a repo; create any missing ones.
+          # Takes the repo as $1 and individual labels as $2..$N (an array,
+          # NOT a comma-separated string — labels can legally contain commas
+          # on GitHub).
           # `gh label create` exits non-zero if the label already exists,
-          # which we want to treat as success — but we still need to
-          # surface real failures (insufficient scope, invalid name, etc.)
-          # so we capture stderr and only swallow the "already exists" case.
-          # Labels we auto-create get a neutral grey color and a
-          # description pointing at this automation.
+          # which we treat as success — but we still surface real failures
+          # (insufficient scope, invalid name, etc.) so we capture stderr
+          # and only swallow the "already exists" case.
           ensure_labels() {
-            local repo="$1" labels_csv="$2"
-            local IFS=','
-            # shellcheck disable=SC2206
-            local labels=($labels_csv)
-            for label in "${labels[@]}"; do
-              local err
+            local repo="$1"
+            shift
+            local label err
+            for label in "$@"; do
               if err=$(gh label create "$label" --repo "$repo" \
                     --color "ededed" \
                     --description "Auto-created by the claude-infra-alerts workflow" \
@@ -487,7 +512,7 @@ jobs:
               if [[ "$err" == *"already exists"* ]]; then
                 continue
               fi
-              echo "Warning: gh label create '$label' on $repo failed: $err" >&2
+              echo "::warning ::gh label create '$label' on $repo failed: $err"
             done
           }
 
@@ -527,30 +552,55 @@ jobs:
                 DETAILS=$(jq -r ".actions[$i].details" "$ACTIONS_FILE")
 
                 # Merge labels: claude-supplied + marker-label + default-labels, dedupe.
-                LABELS=$(jq -r \
+                # Read into an array (one label per element) instead of a CSV
+                # so labels containing commas don't get fragmented.
+                mapfile -t LABEL_ARR < <(jq -r \
                   --arg marker "$MARKER_LABEL" \
                   --argjson defaults "$DEFAULT_LABELS_JSON" \
-                  '.actions['"$i"'].labels + [$marker] + $defaults | unique | join(",")' \
+                  '.actions['"$i"'].labels + [$marker] + $defaults | unique | .[]' \
                   "$ACTIONS_FILE")
+                LABEL_FLAGS=()
+                for label in "${LABEL_ARR[@]}"; do
+                  LABEL_FLAGS+=(--label "$label")
+                done
                 echo "Creating issue: $TITLE"
-                echo "Labels: $LABELS"
-                ensure_labels "$REPO" "$LABELS"
-                # Capture exit status explicitly. `set -e` is not reliable
-                # for `var=$(...)` assignments in older bash, and the
-                # downstream `grep` would otherwise mask the real error
-                # from `gh issue create` (auth, scope, label-rejection, …).
+                echo "Labels: ${LABEL_ARR[*]}"
+                ensure_labels "$REPO" "${LABEL_ARR[@]}"
+
+                SUMMARY_FILE=$(mktemp)
+                printf '%s' "$SUMMARY" > "$SUMMARY_FILE"
+                # Capture stderr to a tempfile so success-path stderr (gh
+                # release notices, label warnings) can't pollute the issue
+                # URL on stdout. Capture exit status explicitly because
+                # `set -e` is unreliable inside `var=$(...)` in older bash.
+                GH_ERR=$(mktemp)
                 if ! ISSUE_URL=$(gh issue create --repo "$REPO" \
-                    --title "$TITLE" --body "$SUMMARY" --label "$LABELS" 2>&1); then
-                  echo "ERROR (action $i, create): gh issue create failed: $ISSUE_URL" >&2
+                    --title "$TITLE" --body-file "$SUMMARY_FILE" \
+                    "${LABEL_FLAGS[@]}" 2>"$GH_ERR"); then
+                  echo "ERROR (action $i, create): gh issue create failed:" >&2
+                  cat "$GH_ERR" >&2
+                  rm -f "$SUMMARY_FILE" "$GH_ERR"
                   exit 1
                 fi
+                rm -f "$SUMMARY_FILE" "$GH_ERR"
+                # Match the issue URL line specifically rather than trusting
+                # that the last line ends in digits.
+                ISSUE_URL=$(echo "$ISSUE_URL" | grep -E '^https://github\.com/' | tail -1)
                 ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
                 if [[ -z "$ISSUE_NUM" ]]; then
                   echo "ERROR (action $i, create): could not parse issue number from URL: $ISSUE_URL" >&2
                   exit 1
                 fi
-                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS" \
-                  || { echo "ERROR (action $i, create): details upsert failed for issue #$ISSUE_NUM" >&2; exit 1; }
+                # If the details upsert fails, the issue exists with only
+                # the summary as its body. The next run's dedup-by-marker
+                # will find this issue and emit an `update` action whose
+                # upsert will re-attempt and self-heal. Emit a warning so
+                # the partial state is visible in the run summary UI but
+                # don't fail the job — that would block any real `update`
+                # actions later in the batch.
+                if ! upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"; then
+                  echo "::warning ::issue #$ISSUE_NUM was created on $REPO but the details comment failed to post; next run will heal."
+                fi
                 update_run_log "$REPO" "$ISSUE_NUM" "create"
                 ;;
 
@@ -562,15 +612,29 @@ jobs:
                 echo "Updating issue #$ISSUE_NUM"
                 if [[ -n "$SUMMARY" ]]; then
                   echo "Updating issue body with new summary"
-                  gh issue edit "$ISSUE_NUM" --repo "$REPO" --body "$SUMMARY" \
-                    || { echo "ERROR (action $i, update): gh issue edit failed for #$ISSUE_NUM" >&2; exit 1; }
+                  SUMMARY_FILE=$(mktemp)
+                  printf '%s' "$SUMMARY" > "$SUMMARY_FILE"
+                  if ! gh issue edit "$ISSUE_NUM" --repo "$REPO" --body-file "$SUMMARY_FILE"; then
+                    echo "ERROR (action $i, update): gh issue edit failed for #$ISSUE_NUM" >&2
+                    rm -f "$SUMMARY_FILE"
+                    exit 1
+                  fi
+                  rm -f "$SUMMARY_FILE"
                 fi
-                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS" \
-                  || { echo "ERROR (action $i, update): details upsert failed for issue #$ISSUE_NUM" >&2; exit 1; }
+                if ! upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"; then
+                  echo "ERROR (action $i, update): details upsert failed for issue #$ISSUE_NUM" >&2
+                  exit 1
+                fi
                 if [[ -n "$EXTRA_COMMENT" ]]; then
                   echo "Posting extra comment on issue #$ISSUE_NUM"
-                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$EXTRA_COMMENT" \
-                    || { echo "ERROR (action $i, update): gh issue comment failed for #$ISSUE_NUM" >&2; exit 1; }
+                  EXTRA_FILE=$(mktemp)
+                  printf '%s' "$EXTRA_COMMENT" > "$EXTRA_FILE"
+                  if ! gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file "$EXTRA_FILE"; then
+                    echo "ERROR (action $i, update): gh issue comment failed for #$ISSUE_NUM" >&2
+                    rm -f "$EXTRA_FILE"
+                    exit 1
+                  fi
+                  rm -f "$EXTRA_FILE"
                 fi
                 update_run_log "$REPO" "$ISSUE_NUM" "update"
                 ;;
@@ -579,8 +643,14 @@ jobs:
                 ISSUE_NUM=$(jq -r ".actions[$i].issue_number" "$ACTIONS_FILE")
                 COMMENT=$(jq -r ".actions[$i].comment" "$ACTIONS_FILE")
                 echo "Closing issue #$ISSUE_NUM"
-                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$COMMENT" \
-                  || { echo "ERROR (action $i, close): gh issue comment failed for #$ISSUE_NUM" >&2; exit 1; }
+                COMMENT_FILE=$(mktemp)
+                printf '%s' "$COMMENT" > "$COMMENT_FILE"
+                if ! gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file "$COMMENT_FILE"; then
+                  echo "ERROR (action $i, close): gh issue comment failed for #$ISSUE_NUM" >&2
+                  rm -f "$COMMENT_FILE"
+                  exit 1
+                fi
+                rm -f "$COMMENT_FILE"
                 gh issue close "$ISSUE_NUM" --repo "$REPO" \
                   || { echo "ERROR (action $i, close): gh issue close failed for #$ISSUE_NUM" >&2; exit 1; }
                 update_run_log "$REPO" "$ISSUE_NUM" "close"
