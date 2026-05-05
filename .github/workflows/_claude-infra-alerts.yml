@@ -108,10 +108,13 @@ jobs:
           chmod +x .claude/hooks/claude-infra-alerts/*.sh
 
           # Substitute target repo and marker label into the skill so
-          # Claude sees concrete values (not template placeholders).
+          # Claude sees concrete values (not template placeholders). Escape
+          # `|`, `&`, and `\` in the replacement so labels containing those
+          # characters (legal on GitHub) don't corrupt the prompt.
+          esc() { printf '%s' "$1" | sed 's/[|&\\]/\\&/g'; }
           sed -i \
-            -e "s|<TARGET_REPO>|${TARGET_REPO}|g" \
-            -e "s|<MARKER_LABEL>|${MARKER_LABEL}|g" \
+            -e "s|<TARGET_REPO>|$(esc "${TARGET_REPO}")|g" \
+            -e "s|<MARKER_LABEL>|$(esc "${MARKER_LABEL}")|g" \
             .claude/skills/claude-infra-alerts/SKILL.md
 
       - name: Configure AWS credentials via OIDC
@@ -214,6 +217,8 @@ jobs:
             Bash(gh run view *),Bash(gh run list *),
             Bash(gh workflow view *),Bash(gh workflow list *),
             Bash(gh label list *),
+            Bash(gh repo view *),
+            Bash(gh release list *),Bash(gh release view *),
             Bash(gh api *),
             Bash(git *),
             Bash(cat *),Bash(head *),Bash(tail *),Bash(less *),Bash(more *),
@@ -271,12 +276,23 @@ jobs:
       contents: read
     steps:
       - name: Download actions artifact
+        # `if-no-files-found: ignore` was set on the upload step, so the
+        # artifact may not exist when Claude produced no output. Allow
+        # this step to fail soft so subsequent steps can short-circuit
+        # gracefully via `if: steps.download.outcome == 'success'`.
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: claude-infra-alerts-actions
           path: /tmp
 
+      - name: Report no actions
+        if: steps.download.outcome != 'success'
+        run: 'echo "No actions artifact uploaded by the investigate job — nothing to apply."'
+
       - name: Check out test-infra (schema + validator)
+        if: steps.download.outcome == 'success'
         # Same ref as the investigate job so the schema we validate
         # against matches what the investigator was told to produce.
         uses: actions/checkout@v4
@@ -292,6 +308,7 @@ jobs:
         # normal Claude exit, but this job runs even if that hook was
         # skipped (e.g. the claude-code-action outer wrapper terminated
         # Claude without a clean Stop).
+        if: steps.download.outcome == 'success'
         run: |
           set -euo pipefail
           pip install --quiet --disable-pip-version-check check-jsonschema
@@ -300,6 +317,7 @@ jobs:
             /tmp/claude-infra-alerts-actions.json
 
       - name: Validate and apply actions
+        if: steps.download.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_REPO: ${{ needs.investigate.outputs.target_repo }}
@@ -331,9 +349,13 @@ jobs:
             local new_entry="| ${TIMESTAMP} | \`${action_type}\` | [Run #${RUN_NUMBER}]($RUN_URL) |"
 
             local comments_json="" raw_log=""
+            # If we can't read existing comments we have no safe way to
+            # update the audit trail (any write would orphan the previous
+            # tracking comment). Log a warning and skip — better to lose
+            # one audit entry than to bifurcate the trail.
             if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
-              echo "Warning: could not fetch comments on issue #$issue_num; run log will be re-seeded." >&2
-              comments_json='{"comments":[]}'
+              echo "Warning: could not fetch comments on issue #$issue_num; skipping audit-log update for action '$action_type'." >&2
+              return 0
             fi
             raw_log=$(echo "$comments_json" \
               | jq -r "[.comments[] | select(.body | contains(\"$MARKER\")) | .body] | last // empty")
@@ -397,7 +419,7 @@ jobs:
             local repo="$1" issue_num="$2" body="$3"
 
             # Guard: refuse to write a comment body that's just the marker
-            # + whitespace. The schema's minLength:1 + new apply-side
+            # + whitespace. The schema's minLength:1 + the apply-side
             # schema revalidation should already prevent this, but belt
             # and suspenders: a future schema regression must not wipe an
             # existing details comment.
@@ -408,9 +430,19 @@ jobs:
 
             local tagged_body="${DETAILS_MARKER}"$'\n'"${body}"
 
+            # Look up the existing details comment by its marker. We must
+            # distinguish "no marker comment yet" (post a new one) from
+            # "comment lookup failed" (posting a new one would create a
+            # duplicate authoritative comment). Capture the raw view
+            # output and check the gh exit code explicitly.
+            local comments_json
+            if ! comments_json=$(gh issue view "$issue_num" --repo "$repo" --json comments); then
+              echo "ERROR: could not fetch comments on issue #$issue_num; aborting details upsert to avoid duplicates." >&2
+              return 1
+            fi
             local comment_id
-            comment_id=$(gh issue view "$issue_num" --repo "$repo" --json comments \
-              --jq "[.comments[] | select(.body | contains(\"$DETAILS_MARKER\")) | .url] | last // empty" \
+            comment_id=$(echo "$comments_json" \
+              | jq -r "[.comments[] | select(.body | contains(\"$DETAILS_MARKER\")) | .url] | last // empty" \
               | grep -oE '[0-9]+$' || true)
 
             if [[ -n "$comment_id" ]]; then
@@ -433,22 +465,29 @@ jobs:
           }
 
           # Ensure a set of labels exists on a repo; create any missing ones.
-          # `gh label create` exits non-zero if the label already exists, so
-          # the `|| true` makes the call idempotent. Labels we auto-create
-          # get a neutral grey color and a description pointing at this
-          # automation; humans can recolor them later without us fighting it.
+          # `gh label create` exits non-zero if the label already exists,
+          # which we want to treat as success — but we still need to
+          # surface real failures (insufficient scope, invalid name, etc.)
+          # so we capture stderr and only swallow the "already exists" case.
+          # Labels we auto-create get a neutral grey color and a
+          # description pointing at this automation.
           ensure_labels() {
             local repo="$1" labels_csv="$2"
             local IFS=','
             # shellcheck disable=SC2206
             local labels=($labels_csv)
             for label in "${labels[@]}"; do
-              if ! gh label create "$label" --repo "$repo" \
-                  --color "ededed" \
-                  --description "Auto-created by the claude-infra-alerts workflow" \
-                  >/dev/null 2>&1; then
-                : # label already exists or we lack permission; no-op
+              local err
+              if err=$(gh label create "$label" --repo "$repo" \
+                    --color "ededed" \
+                    --description "Auto-created by the claude-infra-alerts workflow" \
+                    2>&1 >/dev/null); then
+                continue
               fi
+              if [[ "$err" == *"already exists"* ]]; then
+                continue
+              fi
+              echo "Warning: gh label create '$label' on $repo failed: $err" >&2
             done
           }
 
@@ -496,14 +535,22 @@ jobs:
                 echo "Creating issue: $TITLE"
                 echo "Labels: $LABELS"
                 ensure_labels "$REPO" "$LABELS"
-                ISSUE_URL=$(gh issue create --repo "$REPO" \
-                  --title "$TITLE" --body "$SUMMARY" --label "$LABELS")
-                ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-                if [[ -z "$ISSUE_NUM" ]]; then
-                  echo "ERROR: Failed to create issue"
+                # Capture exit status explicitly. `set -e` is not reliable
+                # for `var=$(...)` assignments in older bash, and the
+                # downstream `grep` would otherwise mask the real error
+                # from `gh issue create` (auth, scope, label-rejection, …).
+                if ! ISSUE_URL=$(gh issue create --repo "$REPO" \
+                    --title "$TITLE" --body "$SUMMARY" --label "$LABELS" 2>&1); then
+                  echo "ERROR (action $i, create): gh issue create failed: $ISSUE_URL" >&2
                   exit 1
                 fi
-                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
+                ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$' || true)
+                if [[ -z "$ISSUE_NUM" ]]; then
+                  echo "ERROR (action $i, create): could not parse issue number from URL: $ISSUE_URL" >&2
+                  exit 1
+                fi
+                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS" \
+                  || { echo "ERROR (action $i, create): details upsert failed for issue #$ISSUE_NUM" >&2; exit 1; }
                 update_run_log "$REPO" "$ISSUE_NUM" "create"
                 ;;
 
@@ -515,12 +562,15 @@ jobs:
                 echo "Updating issue #$ISSUE_NUM"
                 if [[ -n "$SUMMARY" ]]; then
                   echo "Updating issue body with new summary"
-                  gh issue edit "$ISSUE_NUM" --repo "$REPO" --body "$SUMMARY"
+                  gh issue edit "$ISSUE_NUM" --repo "$REPO" --body "$SUMMARY" \
+                    || { echo "ERROR (action $i, update): gh issue edit failed for #$ISSUE_NUM" >&2; exit 1; }
                 fi
-                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS"
+                upsert_details_comment "$REPO" "$ISSUE_NUM" "$DETAILS" \
+                  || { echo "ERROR (action $i, update): details upsert failed for issue #$ISSUE_NUM" >&2; exit 1; }
                 if [[ -n "$EXTRA_COMMENT" ]]; then
                   echo "Posting extra comment on issue #$ISSUE_NUM"
-                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$EXTRA_COMMENT"
+                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$EXTRA_COMMENT" \
+                    || { echo "ERROR (action $i, update): gh issue comment failed for #$ISSUE_NUM" >&2; exit 1; }
                 fi
                 update_run_log "$REPO" "$ISSUE_NUM" "update"
                 ;;
@@ -529,8 +579,10 @@ jobs:
                 ISSUE_NUM=$(jq -r ".actions[$i].issue_number" "$ACTIONS_FILE")
                 COMMENT=$(jq -r ".actions[$i].comment" "$ACTIONS_FILE")
                 echo "Closing issue #$ISSUE_NUM"
-                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$COMMENT"
-                gh issue close "$ISSUE_NUM" --repo "$REPO"
+                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$COMMENT" \
+                  || { echo "ERROR (action $i, close): gh issue comment failed for #$ISSUE_NUM" >&2; exit 1; }
+                gh issue close "$ISSUE_NUM" --repo "$REPO" \
+                  || { echo "ERROR (action $i, close): gh issue close failed for #$ISSUE_NUM" >&2; exit 1; }
                 update_run_log "$REPO" "$ISSUE_NUM" "close"
                 ;;
 

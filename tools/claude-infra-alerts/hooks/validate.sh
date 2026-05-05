@@ -30,6 +30,14 @@ if command -v check-jsonschema &>/dev/null; then
 fi
 
 # --- Fallback: jq-based validation ---
+# Only checks structural shape and required-field presence — does NOT
+# enforce minLength, type/enum constraints, or `repo` regex. The
+# investigate job intentionally relies on this fallback (claude-code-action
+# doesn't pre-install check-jsonschema) and the apply-actions job
+# pip-installs check-jsonschema for its stricter pre-write revalidation.
+# Surface a warning so this never accidentally becomes the only line of
+# defense.
+echo "WARNING: check-jsonschema not on PATH; using jq-based fallback that does not enforce all schema constraints. Apply-actions will re-validate strictly." >&2
 
 if ! jq empty "$ACTIONS_FILE" 2>/dev/null; then
   echo "ERROR: $ACTIONS_FILE is not valid JSON" >&2
