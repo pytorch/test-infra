@@ -45,6 +45,13 @@ inputs:
   repo-name:
     description: The name of the repository containing the docker-build-dir.
     required: false
+  ci-docker-hash:
+    description: |
+      If provided, the action validates this value against the computed docker
+      hash (from `git rev-parse HEAD:<docker-build-dir>`) and fails if they do
+      not match.
+    required: false
+    default: ""
 
 outputs:
   docker-image:
@@ -66,6 +73,7 @@ runs:
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         USE_CUSTOM_DOCKER_REGISTRY: ${{ inputs.use-custom-docker-registry }}
         CUSTOM_TAG_PREFIX: ${{ inputs.custom-tag-prefix }}
+        EXPECTED_CI_DOCKER_HASH: ${{ inputs.ci-docker-hash }}
       run: |
         set -ex
 
@@ -93,7 +101,12 @@ runs:
             CUSTOM_TAG_PREFIX=${DOCKER_IMAGE_NAME#*:}
             DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME%%:*}
           fi
-          DOCKER_TAG=${CUSTOM_TAG_PREFIX:+${CUSTOM_TAG_PREFIX}-}$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          COMPUTED_CI_DOCKER_HASH=$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          if [[ -n "${EXPECTED_CI_DOCKER_HASH}" && "${EXPECTED_CI_DOCKER_HASH}" != "${COMPUTED_CI_DOCKER_HASH}" ]]; then
+            echo "ERROR: ci-docker-hash mismatch: expected '${EXPECTED_CI_DOCKER_HASH}', computed '${COMPUTED_CI_DOCKER_HASH}' for '${DOCKER_BUILD_DIR}'"
+            exit 1
+          fi
+          DOCKER_TAG=${CUSTOM_TAG_PREFIX:+${CUSTOM_TAG_PREFIX}-}${COMPUTED_CI_DOCKER_HASH}
           echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_REGISTRY}/${REPO_NAME}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "custom-tag-prefix=${CUSTOM_TAG_PREFIX}" >> "${GITHUB_OUTPUT}"
