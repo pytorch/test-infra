@@ -641,15 +641,6 @@
       "rocm"
     ]
   ],
-  "test_conv3d_unary_dynamic_shapes_cpu (__main__.TestDynamicPatternMatcherGenericCPU)": [
-    "158329",
-    "https://github.com/pytorch/pytorch/issues/158329",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conv_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "161579",
     "https://github.com/pytorch/pytorch/issues/161579",
@@ -1002,14 +993,6 @@
       "xpu"
     ]
   ],
-  "test_dynamic_shapes_with_max_autotune_cuda (__main__.TestFlexAttentionCUDA)": [
-    "176198",
-    "https://github.com/pytorch/pytorch/issues/176198",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_dynamo_dtensor_from_local_redistribute (__main__.TestDTensorCompileWithCompiledAutograd)": [
     "180656",
     "https://github.com/pytorch/pytorch/issues/180656",
@@ -1154,13 +1137,6 @@
   "test_file_reader_no_memory_leak (__main__.TestScript)": [
     "138885",
     "https://github.com/pytorch/pytorch/issues/138885",
-    [
-      "linux"
-    ]
-  ],
-  "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
-    "176146",
-    "https://github.com/pytorch/pytorch/issues/176146",
     [
       "linux"
     ]
@@ -2658,15 +2634,6 @@
     "https://github.com/pytorch/pytorch/issues/178177",
     [
       "rocm"
-    ]
-  ],
-  "test_retracibility_nested_list_out_dynamic_shapes (__main__.DynamicShapesExportTests)": [
-    "160050",
-    "https://github.com/pytorch/pytorch/issues/160050",
-    [
-      "asan",
-      "linux",
-      "slow"
     ]
   ],
   "test_return_aux_deprecation_warnings_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
