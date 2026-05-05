@@ -29,6 +29,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import fetchPR from "lib/fetchPR";
 import {
   fetchFailedJobsFromCommits,
+  fetchJobNamesFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
@@ -180,6 +181,7 @@ export async function updateDrciComments(
     /*cache*/ true
   );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
+  const baseCommitJobNames = await getBaseCommitJobNames(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${owner}/${repo}`,
     workflowsByPR
@@ -212,6 +214,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        unknownJobs,
         awaitingApprovalJobs,
         relatedJobs,
         relatedIssues,
@@ -223,7 +226,8 @@ export async function updateDrciComments(
         labels || [],
         unstableIssues || [],
         disabledTestIssues || [],
-        mergeCommits || []
+        mergeCommits || [],
+        baseCommitJobNames.get(pr_info.merge_base)
       );
 
       failures[pr_info.pr_number] = {
@@ -231,6 +235,7 @@ export async function updateDrciComments(
         FLAKY: flakyJobs,
         BROKEN_TRUNK: brokenTrunkJobs,
         UNSTABLE: unstableJobs,
+        UNKNOWN: unknownJobs,
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
 
@@ -240,6 +245,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        unknownJobs,
         awaitingApprovalJobs,
         relatedJobs,
         relatedIssues,
@@ -514,6 +520,29 @@ export async function getBaseCommitJobs(
   return jobsByShaByName;
 }
 
+// Returns the set of job names (with shard/unstable suffix stripped) that ran
+// at each merge-base SHA, regardless of conclusion. DrCI uses this to tell
+// "this job did not run on base at all" (no signal -> Unknown) apart from
+// "this job ran on base and passed" (PR-introduced regression -> new failure).
+export async function getBaseCommitJobNames(
+  workflowsByPR: Map<number, PRandJobs>
+): Promise<Map<string, Set<string>>> {
+  const baseShas = _.uniq(
+    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
+  );
+
+  const rows = await fetchJobNamesFromCommits(baseShas);
+
+  const namesBySha = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (!namesBySha.has(row.head_sha)) {
+      namesBySha.set(row.head_sha, new Set());
+    }
+    namesBySha.get(row.head_sha)!.add(removeJobNameSuffix(row.name));
+  }
+  return namesBySha;
+}
+
 async function getExistingDrCiComments(
   repoFullName: string,
   workflowsByPR: Map<number, PRandJobs>
@@ -641,6 +670,7 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
+  unknownJobs: RecentWorkflowsData[],
   awaitingApprovalJobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
@@ -689,6 +719,10 @@ export function constructResultsComment(
     "Failure",
     unrelatedFailureCount
   )}`;
+  const unknownFailures = `${unknownJobs.length} Unclassified ${pluralize(
+    "Failure",
+    unknownJobs.length
+  )}`;
   const pendingJobs = `${pending} Pending`;
   const awaitingApprovalMsg = `${awaitingApprovalJobs.length} Awaiting Approval`;
 
@@ -697,6 +731,7 @@ export function constructResultsComment(
   const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
   const hasUnrelatedFailures = unrelatedFailureCount > 0;
+  const hasUnknownFailures = unknownJobs.length > 0;
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
@@ -735,6 +770,9 @@ export function constructResultsComment(
     }
 
     title_messages.push(unrelatedFailuresMsg);
+  }
+  if (hasUnknownFailures) {
+    title_messages.push(unknownFailures);
   }
 
   let title = headerPrefix + icon + " " + title_messages.join(", ");
@@ -783,6 +821,32 @@ export function constructResultsComment(
       newFailedJobs,
       "",
       false,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
+  }
+
+  if (unknownJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `UNCLASSIFIED ${pluralize(
+        "FAILURE",
+        unknownJobs.length
+      ).toLocaleUpperCase()}`,
+      `DrCI could not classify the following ${pluralize(
+        "job",
+        unknownJobs.length
+      )} because the workflow did not run on the merge base. The ${pluralize(
+        "failure",
+        unknownJobs.length
+      )} may be pre-existing on trunk or introduced by this PR`,
+      unknownJobs,
+      "",
+      true,
       relatedJobs,
       relatedIssues,
       relatedInfo
@@ -921,13 +985,15 @@ export async function getWorkflowJobsStatuses(
   labels: string[] = [],
   unstableIssues: IssueData[] = [],
   disabledTestIssues: IssueData[] = [],
-  mergeCommits: string[] = []
+  mergeCommits: string[] = [],
+  baseJobNames?: Set<string>
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
+  unknownJobs: RecentWorkflowsData[];
   awaitingApprovalJobs: RecentWorkflowsData[];
   relatedJobs: Map<number, RecentWorkflowsData>;
   relatedIssues: Map<number, IssueData[]>;
@@ -939,6 +1005,7 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
   const failedJobs: RecentWorkflowsData[] = [];
+  const unknownJobs: RecentWorkflowsData[] = [];
   const awaitingApprovalJobs: RecentWorkflowsData[] = [];
 
   // This map holds the list of the base failures for broken trunk jobs or the similar
@@ -999,6 +1066,19 @@ export async function getWorkflowJobsStatuses(
       }
 
       if (isExcludedFromFlakiness(job)) {
+        // No flakiness signal will be checked for this job. If it also did not
+        // run on the merge base, DrCI has nothing to compare against -> Unknown.
+        if (
+          baseJobNames !== undefined &&
+          !baseJobNames.has(removeJobNameSuffix(job.name))
+        ) {
+          unknownJobs.push(job);
+          relatedInfo.set(
+            job.id,
+            "this job did not run on the merge base, so DrCI cannot tell whether the failure is pre-existing"
+          );
+          continue;
+        }
         failedJobs.push(job);
         continue;
       }
@@ -1147,6 +1227,22 @@ export async function getWorkflowJobsStatuses(
       continue;
     }
 
+    // If this job did not run on the merge base at all, DrCI has no signal to
+    // tell whether the failure is pre-existing or PR-introduced. Surface it as
+    // Unknown rather than blaming the PR. Only applies when the caller passes
+    // baseJobNames; tests that omit it preserve legacy behavior.
+    if (
+      baseJobNames !== undefined &&
+      !baseJobNames.has(removeJobNameSuffix(job.name))
+    ) {
+      unknownJobs.push(job);
+      relatedInfo.set(
+        job.id,
+        "this job did not run on the merge base, so DrCI cannot tell whether the failure is pre-existing"
+      );
+      continue;
+    }
+
     failedJobs.push(job);
   }
 
@@ -1156,6 +1252,7 @@ export async function getWorkflowJobsStatuses(
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    unknownJobs,
     awaitingApprovalJobs,
     relatedJobs,
     relatedIssues,
