@@ -87,14 +87,6 @@
     "linux-noble-rocm-nightly-py3.12-gfx942",
     "test (inductor)"
   ],
-  "trunk / win-vs2022-cpu-py3": [
-    "huydhn",
-    "147041",
-    "https://github.com/pytorch/pytorch/issues/147041",
-    "trunk",
-    "win-vs2022-cpu-py3",
-    ""
-  ],
   "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
