@@ -2091,6 +2091,17 @@
       "xpu"
     ]
   ],
+  "test_opcheck_fails_basic_cpu (__main__.TestCustomOpTestingCPU)": [
+    "119159",
+    "https://github.com/pytorch/pytorch/issues/119159",
+    [
+      "asan",
+      "dynamo",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_opcheck_fails_basic_cuda (__main__.TestCustomOpTestingCUDA)": [
     "179991",
     "https://github.com/pytorch/pytorch/issues/179991",
@@ -2985,6 +2996,13 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_densenet161 (__main__.TestVisionTracing)": [
+    "182417",
+    "https://github.com/pytorch/pytorch/issues/182417",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
     "182174",
     "https://github.com/pytorch/pytorch/issues/182174",
@@ -3014,6 +3032,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
+    "182418",
+    "https://github.com/pytorch/pytorch/issues/182418",
+    [
+      "linux"
     ]
   ],
   "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
@@ -3119,6 +3144,13 @@
   "test_transforms_dont_support_saved_tensor_hooks_transform_grad_and_value_cpu (__main__.TestComposabilityCPU)": [
     "181081",
     "https://github.com/pytorch/pytorch/issues/181081",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
+    "180321",
+    "https://github.com/pytorch/pytorch/issues/180321",
     [
       "dynamo"
     ]
