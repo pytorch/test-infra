@@ -1148,6 +1148,13 @@
       "linux"
     ]
   ],
+  "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180437",
+    "https://github.com/pytorch/pytorch/issues/180437",
+    [
+      "dynamo"
+    ]
+  ],
   "test_flex_attention_with_dynamic_max_autotune_graph_partition_cuda (__main__.TestLearnableBiasesCUDA)": [
     "181103",
     "https://github.com/pytorch/pytorch/issues/181103",
@@ -1320,6 +1327,13 @@
   "test_grad_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
     "181371",
     "https://github.com/pytorch/pytorch/issues/181371",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180894",
+    "https://github.com/pytorch/pytorch/issues/180894",
     [
       "dynamo"
     ]
@@ -2001,6 +2015,13 @@
     "https://github.com/pytorch/pytorch/issues/180942",
     [
       "linux"
+    ]
+  ],
+  "test_no_annotation_on_gradient_acc_nodes (__main__.TestAOTJointWithDescriptors)": [
+    "182599",
+    "https://github.com/pytorch/pytorch/issues/182599",
+    [
+      "dynamo"
     ]
   ],
   "test_no_grad_inside_grad_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
@@ -2723,6 +2744,13 @@
   "test_sparse_mask_backward_cpu_float64 (__main__.TestSparseCPU)": [
     "182096",
     "https://github.com/pytorch/pytorch/issues/182096",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_sparse_matmul_cpu_float64 (__main__.TestSparseCPU)": [
+    "182600",
+    "https://github.com/pytorch/pytorch/issues/182600",
     [
       "dynamo"
     ]
