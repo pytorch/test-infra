@@ -639,6 +639,13 @@
       "slow"
     ]
   ],
+  "test_constant (__main__.TestPythonPytree)": [
+    "182645",
+    "https://github.com/pytorch/pytorch/issues/182645",
+    [
+      "dynamo"
+    ]
+  ],
   "test_control_deps_orders_void_op_across_nested_calls (__main__.TestControlDeps)": [
     "181701",
     "https://github.com/pytorch/pytorch/issues/181701",
@@ -1183,13 +1190,6 @@
       "linux"
     ]
   ],
-  "test_flex_attention_with_dynamic_max_autotune_graph_partition_cuda (__main__.TestLearnableBiasesCUDA)": [
-    "181103",
-    "https://github.com/pytorch/pytorch/issues/181103",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -1504,6 +1504,13 @@
   "test_ifft_norm_ortho (__main__.TestFFT1D)": [
     "182099",
     "https://github.com/pytorch/pytorch/issues/182099",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_impl_device_cpu (__main__.TestCustomOp)": [
+    "153763",
+    "https://github.com/pytorch/pytorch/issues/153763",
     [
       "dynamo"
     ]
@@ -1939,13 +1946,6 @@
       "dynamo"
     ]
   ],
-  "test_mv_tensor_accessor_cuda (__main__.TestLibtorchAgnosticCUDA)": [
-    "168045",
-    "https://github.com/pytorch/pytorch/issues/168045",
-    [
-      "linux"
-    ]
-  ],
   "test_name_conflicts (__main__.TestNamedTuple)": [
     "179778",
     "https://github.com/pytorch/pytorch/issues/179778",
@@ -2105,16 +2105,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "179909",
-    "https://github.com/pytorch/pytorch/issues/179909",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2639,14 +2629,6 @@
     "178177",
     "https://github.com/pytorch/pytorch/issues/178177",
     [
-      "rocm"
-    ]
-  ],
-  "test_return_aux_deprecation_warnings_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
-    "162464",
-    "https://github.com/pytorch/pytorch/issues/162464",
-    [
-      "linux",
       "rocm"
     ]
   ],
