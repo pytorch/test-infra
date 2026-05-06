@@ -35,6 +35,13 @@
       "rocm"
     ]
   ],
+  "test_RNN_cpu_vs_cudnn_with_dropout (__main__.TestNN)": [
+    "182666",
+    "https://github.com/pytorch/pytorch/issues/182666",
+    [
+      "rocm"
+    ]
+  ],
   "test_TransformerEncoderLayer_gelu_activation_cuda_tf32 (__main__.TestNN)": [
     "155217",
     "https://github.com/pytorch/pytorch/issues/155217",
