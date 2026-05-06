@@ -288,13 +288,6 @@
       "rocm"
     ]
   ],
-  "test_blockwise_nvfp4_compile_cuda (__main__.TestFP8MatmulCUDA)": [
-    "182656",
-    "https://github.com/pytorch/pytorch/issues/182656",
-    [
-      "rocm"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "179958",
     "https://github.com/pytorch/pytorch/issues/179958",
