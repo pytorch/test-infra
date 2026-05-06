@@ -174,23 +174,9 @@
       "dynamo"
     ]
   ],
-  "test_autograd_functional_jacrev_inside_transform_cpu (__main__.TestComposabilityCPU)": [
-    "182394",
-    "https://github.com/pytorch/pytorch/issues/182394",
-    [
-      "dynamo"
-    ]
-  ],
   "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
     "179876",
     "https://github.com/pytorch/pytorch/issues/179876",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_autograd_functional_vjp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
-    "182395",
-    "https://github.com/pytorch/pytorch/issues/182395",
     [
       "dynamo"
     ]
@@ -2096,6 +2082,16 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179909",
+    "https://github.com/pytorch/pytorch/issues/179909",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
