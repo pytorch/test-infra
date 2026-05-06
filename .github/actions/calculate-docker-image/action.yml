@@ -22,6 +22,11 @@ inputs:
     description: |
       The script to build the docker image. Should be relative to the docker-build-dir.
     default: ./build.sh
+  docker-build-timeout-minutes:
+    description: |
+      The timeout to build the docker image.
+    type: number
+    default: 90
   custom-tag-prefix:
     description: |
       The prefix to use for the docker image tag.  You can also just do imagename:customtag
@@ -45,10 +50,13 @@ inputs:
   repo-name:
     description: The name of the repository containing the docker-build-dir.
     required: false
-  docker-build-timeout-minutes:
-    description: The timeout for docker build to succeed.
-    type: number
-    default: 90
+  ci-docker-hash:
+    description: |
+      If provided, the action validates this value against the computed docker
+      hash (from `git rev-parse HEAD:<docker-build-dir>`) and fails if they do
+      not match.
+    required: false
+    default: ""
 
 outputs:
   docker-image:
@@ -70,6 +78,7 @@ runs:
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
         USE_CUSTOM_DOCKER_REGISTRY: ${{ inputs.use-custom-docker-registry }}
         CUSTOM_TAG_PREFIX: ${{ inputs.custom-tag-prefix }}
+        EXPECTED_CI_DOCKER_HASH: ${{ inputs.ci-docker-hash }}
       run: |
         set -ex
 
@@ -97,7 +106,12 @@ runs:
             CUSTOM_TAG_PREFIX=${DOCKER_IMAGE_NAME#*:}
             DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME%%:*}
           fi
-          DOCKER_TAG=${CUSTOM_TAG_PREFIX:+${CUSTOM_TAG_PREFIX}-}$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          COMPUTED_CI_DOCKER_HASH=$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          if [[ -n "${EXPECTED_CI_DOCKER_HASH}" && "${EXPECTED_CI_DOCKER_HASH}" != "${COMPUTED_CI_DOCKER_HASH}" ]]; then
+            echo "ERROR: ci-docker-hash mismatch: expected '${EXPECTED_CI_DOCKER_HASH}', computed '${COMPUTED_CI_DOCKER_HASH}' for '${DOCKER_BUILD_DIR}'"
+            exit 1
+          fi
+          DOCKER_TAG=${CUSTOM_TAG_PREFIX:+${CUSTOM_TAG_PREFIX}-}${COMPUTED_CI_DOCKER_HASH}
           echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_REGISTRY}/${REPO_NAME}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
           echo "custom-tag-prefix=${CUSTOM_TAG_PREFIX}" >> "${GITHUB_OUTPUT}"

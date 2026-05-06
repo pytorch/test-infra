@@ -31,6 +31,7 @@ const HIGHLIGHT_LABELS: Record<string, string> = {
 
 const ADV_VERDICT_CLS: Record<string, string> = {
   revert: styles.advRevert,
+  related: styles.advRevert,
   not_related: styles.advNotRelated,
   garbage: styles.advGarbage,
   unsure: styles.advUnsure,
@@ -38,6 +39,7 @@ const ADV_VERDICT_CLS: Record<string, string> = {
 
 const ADV_VERDICT_SHORT: Record<string, string> = {
   revert: "REV",
+  related: "REV",
   not_related: "OK",
   garbage: "JNK",
   unsure: "?",

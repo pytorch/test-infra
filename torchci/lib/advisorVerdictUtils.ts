@@ -9,8 +9,13 @@
  * - Test-track: "test_cuda.py::test_allocator_settings" (test within a job)
  */
 
+// `related` is the context-neutral successor to `revert`. On trunk, the
+// autorevert lambda treats them identically; on PRs `related` reads more
+// naturally since the PR has not merged yet. `revert` is retained for
+// backward compatibility with historical CH rows.
 export type AdvisorVerdictType =
   | "revert"
+  | "related"
   | "unsure"
   | "not_related"
   | "garbage";
