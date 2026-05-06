@@ -1155,6 +1155,13 @@
       "dynamo"
     ]
   ],
+  "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "176146",
+    "https://github.com/pytorch/pytorch/issues/176146",
+    [
+      "linux"
+    ]
+  ],
   "test_flex_attention_with_dynamic_max_autotune_graph_partition_cuda (__main__.TestLearnableBiasesCUDA)": [
     "181103",
     "https://github.com/pytorch/pytorch/issues/181103",
@@ -2334,14 +2341,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_quiesce (__main__.TestCompileWorker)": [
-    "181080",
-    "https://github.com/pytorch/pytorch/issues/181080",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_quiesce_repeatedly (__main__.TestCompileWorker)": [
