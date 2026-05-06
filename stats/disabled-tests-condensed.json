@@ -97,14 +97,6 @@
       "mac"
     ]
   ],
-  "test_allocate_in_thread_to_pool (__main__.TestBlockStateAbsorption)": [
-    "158764",
-    "https://github.com/pytorch/pytorch/issues/158764",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_allow_reuse_disable_if_exceed_peak_cuda (__main__.GPUTests)": [
     "179776",
     "https://github.com/pytorch/pytorch/issues/179776",
@@ -286,6 +278,13 @@
     "https://github.com/pytorch/pytorch/issues/163230",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_blockwise_nvfp4_compile_cuda (__main__.TestFP8MatmulCUDA)": [
+    "182656",
+    "https://github.com/pytorch/pytorch/issues/182656",
+    [
       "rocm"
     ]
   ],
@@ -1739,14 +1738,6 @@
     "https://github.com/pytorch/pytorch/issues/181699",
     [
       "xpu"
-    ]
-  ],
-  "test_max_split_expandable (__main__.TestCudaAllocator)": [
-    "180263",
-    "https://github.com/pytorch/pytorch/issues/180263",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
