@@ -18,8 +18,10 @@
 #                               --package-version).
 #   --recompute-sha256-pattern  Compute SHA256 for .whl files matching a subdir
 #                               pattern that are missing checksums.
-#   --recompute-missing-sha256  Scan the entire prefix for .whl files missing
+#   --recompute-missing-sha256  Scan the prefix for .whl files missing
 #                               x-amz-meta-checksum-sha256 and compute/set it.
+#                               Optionally narrow with --package-name and
+#                               --package-version.
 #
 # S3/R2 sync operations:
 #   --check-r2-sync   Compare SHA256 of .whl and .whl.metadata files between
@@ -35,6 +37,10 @@
 #
 #   # Recompute missing SHA256 checksums for a channel:
 #   python s3_management/index_tools.py whl/nightly --recompute-missing-sha256
+#
+#   # Recompute missing SHA256 for a specific package/version under a channel:
+#   python s3_management/index_tools.py whl/test --recompute-missing-sha256 \
+#       --package-name triton --package-version 3.7.0
 #
 #   # Recompute SHA256 for a specific subdir pattern:
 #   python s3_management/index_tools.py whl/test --recompute-sha256-pattern rocm6.4
@@ -457,24 +463,50 @@ def recompute_sha256_for_pattern(
     _compute_and_set_checksums(matching_objects)
 
 
-def recompute_missing_sha256(prefix: str) -> None:
+def recompute_missing_sha256(
+    prefix: str,
+    package_name: Optional[str] = None,
+    version: Optional[str] = None,
+) -> None:
     """Scan prefix for .whl files missing SHA256 checksums and compute/set them.
 
     This replaces the ``--recompute-missing-sha256`` flow that previously
     lived in manage_v2.py.  Objects that already have checksums are
     automatically skipped by ``_compute_and_set_checksums``.
+
+    When *package_name* and *version* are provided, the scan is narrowed
+    to wheels matching ``<package>-<version>-…``.  This uses the S3
+    object listing as the source of truth (not the published
+    index.html), so it correctly returns each physical wheel exactly
+    once even when the same wheel is referenced from multiple per-arch
+    index.html pages.
     """
-    print(f"INFO: Scanning '{prefix}' for .whl files...")
-    excluded = _get_excluded_prefixes(prefix)
-    matching: List[str] = []
-    for obj in BUCKET.objects.filter(Prefix=prefix):
-        if not _key_in_prefix(obj.key, prefix, excluded):
-            continue
-        if obj.key.endswith(".whl"):
-            matching.append(obj.key)
+    if package_name and version:
+        print(
+            f"INFO: Scanning '{prefix}' for {package_name}-{version} .whl files..."
+        )
+        matching = _find_matching_objects(
+            prefix, package_name, version, extensions=(".whl",)
+        )
+    elif package_name or version:
+        raise ValueError(
+            "--package-name and --package-version must be provided together"
+        )
+    else:
+        print(f"INFO: Scanning '{prefix}' for .whl files...")
+        excluded = _get_excluded_prefixes(prefix)
+        matching = [
+            obj.key
+            for obj in BUCKET.objects.filter(Prefix=prefix)
+            if obj.key.endswith(".whl")
+            and _key_in_prefix(obj.key, prefix, excluded)
+        ]
 
     if not matching:
-        print(f"WARNING: No .whl files found under {prefix}/")
+        target = (
+            f"{package_name}-{version}" if package_name else ".whl files"
+        )
+        print(f"WARNING: No {target} found under {prefix}/")
         return
 
     print(
@@ -780,7 +812,8 @@ def create_parser() -> argparse.ArgumentParser:
         "--recompute-missing-sha256",
         action="store_true",
         help="Scan PREFIX for .whl files missing x-amz-meta-checksum-sha256 "
-        "and compute/set it. When prefix is 'all', processes every prefix.",
+        "and compute/set it. When prefix is 'all', processes every prefix. "
+        "Optionally narrow the scan with --package-name/--package-version.",
     )
 
     # -- S3/R2 sync commands --
@@ -841,9 +874,15 @@ def main() -> None:
 
     # --recompute-missing-sha256
     if args.recompute_missing_sha256:
+        if (args.package_name is None) != (args.package_version is None):
+            parser.error(
+                "--package-name and --package-version must be provided together"
+            )
         prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
         for pfx in prefixes:
-            recompute_missing_sha256(pfx)
+            recompute_missing_sha256(
+                pfx, args.package_name, args.package_version
+            )
         return
 
     # --check-r2-sync / --fix-r2-sync
