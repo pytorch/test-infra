@@ -126,6 +126,13 @@
       "linux"
     ]
   ],
+  "test_amp_autocast_xpu (__main__.CtxManagerTestsDeviceXPU)": [
+    "182633",
+    "https://github.com/pytorch/pytorch/issues/182633",
+    [
+      "xpu"
+    ]
+  ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "182260",
     "https://github.com/pytorch/pytorch/issues/182260",
@@ -187,6 +194,13 @@
     "https://github.com/pytorch/pytorch/issues/182395",
     [
       "dynamo"
+    ]
+  ],
+  "test_autoheuristic_init_device_capa (__main__.AutoHeuristicTest)": [
+    "182635",
+    "https://github.com/pytorch/pytorch/issues/182635",
+    [
+      "xpu"
     ]
   ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
@@ -829,6 +843,13 @@
     "https://github.com/pytorch/pytorch/issues/171519",
     [
       "rocm"
+    ]
+  ],
+  "test_defer_falls_through_to_default (__main__.TestCachingAutotunerPlugin)": [
+    "182636",
+    "https://github.com/pytorch/pytorch/issues/182636",
+    [
+      "xpu"
     ]
   ],
   "test_deleted_mempool_not_used_on_oom (__main__.TestMemPool)": [
@@ -3126,6 +3147,13 @@
     "https://github.com/pytorch/pytorch/issues/179696",
     [
       "inductor"
+    ]
+  ],
+  "test_triton_gemm_epilogue_fusion_truncates_accumulator_float16_use_addmm_False (__main__.TestMaxAutotune)": [
+    "182634",
+    "https://github.com/pytorch/pytorch/issues/182634",
+    [
+      "xpu"
     ]
   ],
   "test_triton_gemm_epilogue_fusion_truncates_accumulator_float32_use_addmm_True (__main__.TestMaxAutotune)": [
