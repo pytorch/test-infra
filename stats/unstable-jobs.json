@@ -94,5 +94,13 @@
     "trunk",
     "linux-jammy-rocm-py3.10-mi355",
     "test (default)"
+  ],
+  "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "167616",
+    "https://github.com/pytorch/pytorch/issues/167616",
+    "trunk-rocm-sandbox",
+    "linux-jammy-rocm-py3.10",
+    "test"
   ]
 }
