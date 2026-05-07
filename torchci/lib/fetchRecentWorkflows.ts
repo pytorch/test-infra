@@ -20,3 +20,11 @@ export async function fetchFailedJobsFromCommits(
     shas,
   });
 }
+
+export async function fetchJobNamesFromCommits(
+  shas: string[]
+): Promise<{ head_sha: string; name: string }[]> {
+  return await queryClickhouseSaved("commit_job_names", {
+    shas,
+  });
+}
