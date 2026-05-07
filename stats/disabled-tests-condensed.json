@@ -573,16 +573,6 @@
       "xpu"
     ]
   ],
-  "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
-    "117732",
-    "https://github.com/pytorch/pytorch/issues/117732",
-    [
-      "linux",
-      "rocm",
-      "win",
-      "windows"
-    ]
-  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float64 (__main__.TestDecompCUDA)": [
     "118355",
     "https://github.com/pytorch/pytorch/issues/118355",
@@ -991,9 +981,33 @@
       "rocm"
     ]
   ],
+  "test_dynamic_lstm_retraceability_strict (__main__.RetraceExportTestExport)": [
+    "176998",
+    "https://github.com/pytorch/pytorch/issues/176998",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_dynamic_lstm_serdes_strict (__main__.SerDesExportTestExport)": [
     "180488",
     "https://github.com/pytorch/pytorch/issues/180488",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_strict (__main__.StrictExportTestExport)": [
+    "180556",
+    "https://github.com/pytorch/pytorch/issues/180556",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_dynamic_lstm_strict_export_v2 (__main__.StrictExportV2TestExport)": [
+    "176959",
+    "https://github.com/pytorch/pytorch/issues/176959",
     [
       "asan",
       "linux"
@@ -1433,6 +1447,13 @@
       "slow"
     ]
   ],
+  "test_hessian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
+    "153644",
+    "https://github.com/pytorch/pytorch/issues/153644",
+    [
+      "dynamo"
+    ]
+  ],
   "test_hoist_conv_packed_params (__main__.TestOptimizer)": [
     "157247",
     "https://github.com/pytorch/pytorch/issues/157247",
@@ -1747,14 +1768,6 @@
       "rocm"
     ]
   ],
-  "test_memory_plots (__main__.TestCudaAllocator)": [
-    "179744",
-    "https://github.com/pytorch/pytorch/issues/179744",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
     "179798",
     "https://github.com/pytorch/pytorch/issues/179798",
@@ -1771,13 +1784,6 @@
       "slow"
     ]
   ],
-  "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
-    "177001",
-    "https://github.com/pytorch/pytorch/issues/177001",
-    [
-      "linux"
-    ]
-  ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
     "153460",
     "https://github.com/pytorch/pytorch/issues/153460",
@@ -1790,14 +1796,6 @@
   "test_mempool_empty_cache_inactive (__main__.TestMemPool)": [
     "159663",
     "https://github.com/pytorch/pytorch/issues/159663",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mempool_expandable (__main__.TestMemPool)": [
-    "177000",
-    "https://github.com/pytorch/pytorch/issues/177000",
     [
       "linux",
       "slow"
@@ -1830,14 +1828,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_meta_simple (__main__.TestMultiprocessing)": [
-    "167522",
-    "https://github.com/pytorch/pytorch/issues/167522",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_method_overloading (__main__.TestScript)": [
@@ -2108,6 +2098,16 @@
       "macos"
     ]
   ],
+  "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179992",
+    "https://github.com/pytorch/pytorch/issues/179992",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180196",
     "https://github.com/pytorch/pytorch/issues/180196",
@@ -2250,6 +2250,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_pickle_cpu_float64 (__main__.TestSparseCPU)": [
+    "182816",
+    "https://github.com/pytorch/pytorch/issues/182816",
+    [
+      "dynamo"
     ]
   ],
   "test_prelu_decomp_dtype_mismatch_error (__main__.TestMetaKernelRegistrations)": [
@@ -2423,13 +2430,37 @@
       "mac"
     ]
   ],
-  "test_remove_noop_slice1_cuda (__main__.GPUTests)": [
-    "151381",
-    "https://github.com/pytorch/pytorch/issues/151381",
+  "test_remove_noop_slice1_cpu (__main__.CpuTests)": [
+    "151379",
+    "https://github.com/pytorch/pytorch/issues/151379",
     [
+      "asan",
       "linux",
-      "rocm",
-      "slow"
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
+  "test_remove_noop_slice_cpu (__main__.CpuTests)": [
+    "151384",
+    "https://github.com/pytorch/pytorch/issues/151384",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
+  "test_remove_noop_slice_scatter_cpu (__main__.CpuTests)": [
+    "151382",
+    "https://github.com/pytorch/pytorch/issues/151382",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
@@ -2441,23 +2472,14 @@
       "slow"
     ]
   ],
-  "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
-    "151512",
-    "https://github.com/pytorch/pytorch/issues/151512",
+  "test_remove_noop_view_dtype_cpu (__main__.CpuTests)": [
+    "151540",
+    "https://github.com/pytorch/pytorch/issues/151540",
     [
       "asan",
       "linux",
       "mac",
       "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_remove_noop_view_default_cuda (__main__.GPUTests)": [
-    "151511",
-    "https://github.com/pytorch/pytorch/issues/151511",
-    [
-      "linux",
       "rocm",
       "slow"
     ]
@@ -2576,6 +2598,15 @@
     "https://github.com/pytorch/pytorch/issues/178177",
     [
       "rocm"
+    ]
+  ],
+  "test_return_aux_deprecation_warnings_cuda_float16 (__main__.TestFlexAttentionCUDA)": [
+    "162464",
+    "https://github.com/pytorch/pytorch/issues/162464",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_round_threshold_larger_than_cached_size (__main__.TestCachingHostAllocatorConfig)": [
@@ -2703,6 +2734,13 @@
       "dynamo"
     ]
   ],
+  "test_sparse_matmul_cpu_float32 (__main__.TestSparseCPU)": [
+    "176967",
+    "https://github.com/pytorch/pytorch/issues/176967",
+    [
+      "dynamo"
+    ]
+  ],
   "test_sparse_matmul_cpu_float64 (__main__.TestSparseCPU)": [
     "182600",
     "https://github.com/pytorch/pytorch/issues/182600",
@@ -2740,6 +2778,18 @@
     "https://github.com/pytorch/pytorch/issues/181369",
     [
       "linux"
+    ]
+  ],
+  "test_strided_leaf_grad_layout_cpu (__main__.TestAutogradDeviceTypeCPU)": [
+    "181203",
+    "https://github.com/pytorch/pytorch/issues/181203",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_structured_metadata_matches_chrome_trace (__main__.TestProfilerEventsParity)": [
@@ -2925,8 +2975,10 @@
     "123891",
     "https://github.com/pytorch/pytorch/issues/123891",
     [
+      "asan",
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
