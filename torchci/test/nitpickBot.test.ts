@@ -15,7 +15,7 @@ nock.disableNetConnect();
 const PYTORCH_REPO = "pytorch/pytorch";
 
 function mockNitpickConfig(content: string | null) {
-  const path = encodeURIComponent(".github/nitpick.yml");
+  const path = encodeURIComponent(".github/nitpicks.yml");
   if (content === null) {
     return nock("https://api.github.com")
       .get(`/repos/${PYTORCH_REPO}/contents/${path}`)
@@ -25,8 +25,8 @@ function mockNitpickConfig(content: string | null) {
     .get(`/repos/${PYTORCH_REPO}/contents/${path}`)
     .reply(200, {
       type: "file",
-      path: ".github/nitpick.yml",
-      name: "nitpick.yml",
+      path: ".github/nitpicks.yml",
+      name: "nitpicks.yml",
       encoding: "base64",
       content: Buffer.from(content).toString("base64"),
     });

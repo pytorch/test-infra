@@ -4,7 +4,7 @@ import { Context, Probot } from "probot";
 import { getFilesChangedByPr, isPyTorchPyTorch } from "./utils";
 
 // Implements logic similar to https://github.com/ethanis/nitpicker.
-// Reads `.github/nitpick.yml` from the repo's default branch and posts
+// Reads `.github/nitpicks.yml` from the repo's default branch and posts
 // (or updates) a single sticky comment on PRs whose changed files match
 // any of the configured rules.
 //
@@ -25,7 +25,7 @@ import { getFilesChangedByPr, isPyTorchPyTorch } from "./utils";
 
 export const NITPICK_COMMENT_START = "<!-- nitpick-bot-start -->";
 export const NITPICK_COMMENT_END = "<!-- nitpick-bot-end -->";
-export const NITPICK_CONFIG_PATH = ".github/nitpick.yml";
+export const NITPICK_CONFIG_PATH = ".github/nitpicks.yml";
 
 export interface NitpickRule {
   markdown: string;
