@@ -160,6 +160,13 @@
       "windows"
     ]
   ],
+  "test_autocast_float64_xpu (__main__.CtxManagerTestsDeviceXPU)": [
+    "182782",
+    "https://github.com/pytorch/pytorch/issues/182782",
+    [
+      "xpu"
+    ]
+  ],
   "test_autograd_function_no_setup_context_transform_vmap_cpu (__main__.TestComposabilityCPU)": [
     "180591",
     "https://github.com/pytorch/pytorch/issues/180591",
