@@ -654,14 +654,6 @@
       "rocm"
     ]
   ],
-  "test_conv_unary_fusion_ops (__main__.TestMkldnnFusion)": [
-    "161579",
-    "https://github.com/pytorch/pytorch/issues/161579",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_correctness_add_f32 (__main__.TestInlineAsmElementwise)": [
     "180132",
     "https://github.com/pytorch/pytorch/issues/180132",
@@ -1329,6 +1321,13 @@
       "slow"
     ]
   ],
+  "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180655",
+    "https://github.com/pytorch/pytorch/issues/180655",
+    [
+      "dynamo"
+    ]
+  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -1654,6 +1653,13 @@
       "dynamo"
     ]
   ],
+  "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180520",
+    "https://github.com/pytorch/pytorch/issues/180520",
+    [
+      "dynamo"
+    ]
+  ],
   "test_linalg_solve_triangular_large_cuda_complex128 (__main__.TestLinalgCUDA)": [
     "150959",
     "https://github.com/pytorch/pytorch/issues/150959",
@@ -1683,16 +1689,16 @@
       "dynamo"
     ]
   ],
-  "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "180300",
-    "https://github.com/pytorch/pytorch/issues/180300",
+  "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180944",
+    "https://github.com/pytorch/pytorch/issues/180944",
     [
       "dynamo"
     ]
   ],
-  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "108994",
-    "https://github.com/pytorch/pytorch/issues/108994",
+  "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180300",
+    "https://github.com/pytorch/pytorch/issues/180300",
     [
       "dynamo"
     ]
@@ -1864,6 +1870,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_mm_decompose_mm_dde (__main__.HasDecompTest)": [
+    "182752",
+    "https://github.com/pytorch/pytorch/issues/182752",
+    [
+      "linux"
     ]
   ],
   "test_mm_padding_deterministic_True (__main__.DeterministicTest)": [
