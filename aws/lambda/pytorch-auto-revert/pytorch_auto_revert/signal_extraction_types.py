@@ -102,6 +102,13 @@ class JobRow:
         return self._conclusion_l == "cancelled"
 
     @property
+    def is_skipped(self) -> bool:
+        # Treated as "missing" by the aggregator (same as cancelled): the job
+        # produced no signal-bearing outcome (e.g. `if:` gate, required-check
+        # skip when an upstream dependency was cancelled/failed).
+        return self._conclusion_l == "skipped"
+
+    @property
     def is_failure(self) -> bool:
         # conclusion is already KG-adjusted in the datasource
         return self._conclusion_l == "failure"
