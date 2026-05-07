@@ -1112,12 +1112,7 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
 
 
 class TestSignalReplace(unittest.TestCase):
-    """Tests for Signal.replace() — `dataclasses.replace`-style API.
-
-    The two introspection-based tests below are the load-bearing ones:
-    one catches dropped fields (replace() forgetting to propagate a new
-    field); the other catches stale/typo'd kwargs.
-    """
+    """Tests for Signal.replace() — `dataclasses.replace`-style API."""
 
     def setUp(self) -> None:
         self.t0 = datetime(2025, 8, 19, 12, 0, 0)
@@ -1188,7 +1183,7 @@ class TestSignalReplace(unittest.TestCase):
     def test_replace_unknown_kwarg_raises(self):
         """Stale or typo'd kwargs are caught at runtime."""
         s = Signal(**self._SENTINELS)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
             s.replace(this_field_does_not_exist=42)
 
 
@@ -1270,7 +1265,7 @@ class TestSignalCommitReplace(unittest.TestCase):
 
     def test_replace_unknown_kwarg_raises(self):
         c = SignalCommit(**self._SENTINELS)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
             c.replace(this_field_does_not_exist=42)
 
 

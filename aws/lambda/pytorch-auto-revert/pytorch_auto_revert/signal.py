@@ -186,20 +186,10 @@ class SignalCommit:
         self.advisor_result = advisor_result
 
     def replace(self, **changes) -> "SignalCommit":
-        """Return a new SignalCommit with selected fields replaced and the
-        rest preserved (`dataclasses.replace`-style API).
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
 
-        Used by every site in `signal_extraction` that reconstructs a
-        SignalCommit — `_dedup_signal_events` (replaces `events`),
-        `_inject_pending_workflow_events` (replaces `events`),
-        `_attach_advisor_verdicts` (replaces `advisor_result`). A unified
-        helper means adding a new SignalCommit field never silently gets
-        dropped during reconstruction. The introspection-based tests
-        `test_replace_with_no_changes_preserves_all_fields` and
-        `test_replace_unknown_kwarg_raises` enforce this.
-
-        Raises TypeError if `changes` contains an unknown field — catches
-        typos and stale kwargs at runtime.
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
         """
         new_fields = {
             "head_sha": changes.pop("head_sha", self.head_sha),
@@ -212,7 +202,7 @@ class SignalCommit:
                 f"SignalCommit.replace() got unexpected keyword argument(s): "
                 f"{sorted(changes)}"
             )
-        return SignalCommit(**new_fields)
+        return type(self)(**new_fields)
 
     @property
     def has_pending(self) -> bool:
@@ -400,19 +390,10 @@ class Signal:
         self.source = source
 
     def replace(self, **changes) -> "Signal":
-        """Return a new Signal with selected fields replaced and the rest
-        preserved (`dataclasses.replace`-style API).
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
 
-        Used by every site in `signal_extraction` that reconstructs a
-        Signal — `_dedup_signal_events`, `_inject_pending_workflow_events`,
-        `_attach_advisor_verdicts` (all replace `commits`). A unified helper
-        means adding a new Signal field never silently gets dropped during
-        reconstruction. The introspection-based tests
-        `test_replace_with_no_changes_preserves_all_fields` and
-        `test_replace_unknown_kwarg_raises` enforce this.
-
-        Raises TypeError if `changes` contains an unknown field — catches
-        typos and stale kwargs at runtime.
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
         """
         new_fields = {
             "key": changes.pop("key", self.key),
@@ -427,7 +408,7 @@ class Signal:
                 f"Signal.replace() got unexpected keyword argument(s): "
                 f"{sorted(changes)}"
             )
-        return Signal(**new_fields)
+        return type(self)(**new_fields)
 
     def detect_fixed(self) -> bool:
         """
