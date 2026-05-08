@@ -62,6 +62,9 @@ export interface UpdateCommentBody {
   org?: string;
 }
 
+export const PREVIOUSLY_REVERTED_PR_AUDIT_MESSAGE =
+  "this PR was reverted before, so DrCI cannot safely classify this failure; audit this job individually";
+
 // Attempt to set the maxDuration of this serveless function on Vercel https://vercel.com/docs/functions/configuring-functions/duration,
 // also according to https://vercel.com/docs/functions/runtimes#max-duration, the max duration
 // for an enterprise account is 900
@@ -256,7 +259,10 @@ export async function updateDrciComments(
         HUD_URL,
         owner,
         repo,
-        pr_info.pr_number
+        pr_info.pr_number,
+        mergeCommits.length > 0
+          ? `DrCI did not classify these jobs because this PR was reverted before. Audit each job individually before merging`
+          : undefined
       );
 
       const comment = formDrciComment(
@@ -681,7 +687,8 @@ export function constructResultsComment(
   hudBaseUrl: string,
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  unknownJobsDescription?: string
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -837,13 +844,14 @@ export function constructResultsComment(
         "FAILURE",
         unknownJobs.length
       ).toLocaleUpperCase()}`,
-      `DrCI could not classify the following ${pluralize(
-        "job",
-        unknownJobs.length
-      )} because the workflow did not run on the merge base. The ${pluralize(
-        "failure",
-        unknownJobs.length
-      )} may be pre-existing on trunk or introduced by this PR`,
+      unknownJobsDescription ||
+        `DrCI could not classify the following ${pluralize(
+          "job",
+          unknownJobs.length
+        )} because the workflow did not run on the merge base. The ${pluralize(
+          "failure",
+          unknownJobs.length
+        )} may be pre-existing on trunk or introduced by this PR`,
       unknownJobs,
       "",
       true,
@@ -1036,6 +1044,12 @@ export async function getWorkflowJobsStatuses(
         );
       }
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
+      if (mergeCommits.length > 0) {
+        unknownJobs.push(job);
+        relatedInfo.set(job.id, PREVIOUSLY_REVERTED_PR_AUDIT_MESSAGE);
+        continue;
+      }
+
       const suppressedLabels = await getSuppressedLabels(job, labels);
       if (prInfo.repo === "pytorch" && suppressedLabels.length !== 0) {
         flakyJobs.push(job);
