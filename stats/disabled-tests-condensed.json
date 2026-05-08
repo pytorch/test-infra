@@ -63,15 +63,6 @@
       "rocm"
     ]
   ],
-  "test_addcdiv_cuda_complex128 (__main__.TestTorchDeviceTypeCUDA)": [
-    "119515",
-    "https://github.com/pytorch/pytorch/issues/119515",
-    [
-      "inductor",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_addcdiv_cuda_complex64 (__main__.TestTorchDeviceTypeCUDA)": [
     "181537",
     "https://github.com/pytorch/pytorch/issues/181537",
@@ -745,6 +736,15 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_cuda_graph_allocator_propagates_stream (__main__.TestCuda)": [
+    "122413",
+    "https://github.com/pytorch/pytorch/issues/122413",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
@@ -1567,6 +1567,14 @@
       "windows"
     ]
   ],
+  "test_is_retain_graph_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
+    "181323",
+    "https://github.com/pytorch/pytorch/issues/181323",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -1769,6 +1777,14 @@
       "slow"
     ]
   ],
+  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
+    "179798",
+    "https://github.com/pytorch/pytorch/issues/179798",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
     "179745",
     "https://github.com/pytorch/pytorch/issues/179745",
@@ -1869,6 +1885,14 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
+    "179898",
+    "https://github.com/pytorch/pytorch/issues/179898",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_mm_decompose_mm_dde (__main__.HasDecompTest)": [
@@ -2119,6 +2143,16 @@
   "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180196",
     "https://github.com/pytorch/pytorch/issues/180196",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180206",
+    "https://github.com/pytorch/pytorch/issues/180206",
     [
       "asan",
       "linux",
