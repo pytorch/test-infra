@@ -1021,6 +1021,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_shape_m_20480_k_5_n_2_should_decompose_True_has_bias_True (__main__.TestDecomposeMemMM)": [
+    "153736",
+    "https://github.com/pytorch/pytorch/issues/153736",
+    [
+      "linux"
+    ]
+  ],
   "test_dynamic_shapes_mutated (__main__.ComboKernelDynamicShapesTests)": [
     "181863",
     "https://github.com/pytorch/pytorch/issues/181863",
