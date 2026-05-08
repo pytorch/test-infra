@@ -1618,17 +1618,6 @@
       "dynamo"
     ]
   ],
-  "test_jvp_triangular_solve_cpu_float32 (__main__.TestOperatorsCPU)": [
-    "182091",
-    "https://github.com/pytorch/pytorch/issues/182091",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
-  ],
   "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180324",
     "https://github.com/pytorch/pytorch/issues/180324",
