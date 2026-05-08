@@ -63,14 +63,6 @@
       "rocm"
     ]
   ],
-  "test__local_scalar_dense_with_empty_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "181343",
-    "https://github.com/pytorch/pytorch/issues/181343",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_addcdiv_cuda_complex128 (__main__.TestTorchDeviceTypeCUDA)": [
     "119515",
     "https://github.com/pytorch/pytorch/issues/119515",
@@ -753,15 +745,6 @@
       "macos",
       "rocm",
       "win"
-    ]
-  ],
-  "test_cuda_graph_allocator_propagates_stream (__main__.TestCuda)": [
-    "122413",
-    "https://github.com/pytorch/pytorch/issues/122413",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
@@ -1572,6 +1555,18 @@
       "rocm"
     ]
   ],
+  "test_is_retain_graph_cpu (__main__.TestAutogradMultipleDispatchCPU)": [
+    "181228",
+    "https://github.com/pytorch/pytorch/issues/181228",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -1876,14 +1871,6 @@
       "macos"
     ]
   ],
-  "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
-    "179898",
-    "https://github.com/pytorch/pytorch/issues/179898",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_mm_decompose_mm_dde (__main__.HasDecompTest)": [
     "182752",
     "https://github.com/pytorch/pytorch/issues/182752",
@@ -2129,19 +2116,9 @@
       "macos"
     ]
   ],
-  "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180206",
-    "https://github.com/pytorch/pytorch/issues/180206",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180214",
-    "https://github.com/pytorch/pytorch/issues/180214",
+  "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180196",
+    "https://github.com/pytorch/pytorch/issues/180196",
     [
       "asan",
       "linux",
@@ -3025,14 +3002,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
-    "180414",
-    "https://github.com/pytorch/pytorch/issues/180414",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
