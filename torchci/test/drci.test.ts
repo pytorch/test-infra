@@ -274,6 +274,7 @@ function constructResultsCommentHelper({
   owner = "pytorch",
   repo = "pytorch",
   prNumber = 123,
+  unknownJobsDescription,
 }: {
   pending?: number;
   failedJobs?: RecentWorkflowsData[];
@@ -289,6 +290,7 @@ function constructResultsCommentHelper({
   owner?: string;
   repo?: string;
   prNumber?: number;
+  unknownJobsDescription?: string;
 }) {
   return updateDrciBot.constructResultsComment(
     pending,
@@ -307,7 +309,8 @@ function constructResultsCommentHelper({
     hudBaseUrl,
     owner,
     repo,
-    prNumber
+    prNumber,
+    unknownJobsDescription
   );
 }
 
@@ -923,6 +926,44 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(unstableJobs.length).toBe(0);
   });
 
+  test("jobs on previously reverted PRs are left Unclassified for manual audit", async () => {
+    const originalWorkflows = [failedA, failedC];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const {
+      failedJobs,
+      brokenTrunkJobs,
+      flakyJobs,
+      unstableJobs,
+      unknownJobs,
+      relatedInfo,
+    } = await updateDrciBot.getWorkflowJobsStatuses(
+      pr_1001,
+      [],
+      new Map(),
+      [],
+      [],
+      [],
+      ["previous-merge-commit"],
+      new Set<string>([failedA.name, failedC.name])
+    );
+
+    expect(unknownJobs.map((job) => job.name).sort()).toEqual(
+      [failedA.name, failedC.name].sort()
+    );
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+    expect(relatedInfo.get(failedA.id)).toBe(
+      updateDrciBot.PREVIOUSLY_REVERTED_PR_AUDIT_MESSAGE
+    );
+  });
+
   test("Unknown failures are rendered in their own section and excluded from New Failures count", async () => {
     const failureInfoComment = constructResultsCommentHelper({
       pending: 0,
@@ -938,6 +979,22 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       )
     ).toBeTruthy();
     expect(failureInfoComment.includes(failedC.name!)).toBeTruthy();
+  });
+
+  test("previously reverted PR comments tell users to audit jobs individually", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      unknownJobs: [failedA],
+      unknownJobsDescription:
+        "DrCI did not classify these jobs because this PR was reverted before. Audit each job individually before merging",
+    });
+
+    expect(failureInfoComment.includes("1 Unclassified Failure")).toBeTruthy();
+    expect(
+      failureInfoComment.includes(
+        "DrCI did not classify these jobs because this PR was reverted before. Audit each job individually before merging"
+      )
+    ).toBeTruthy();
   });
 
   test("test similar failures marked as flaky", async () => {
