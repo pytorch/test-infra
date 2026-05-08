@@ -223,6 +223,14 @@
       "linux"
     ]
   ],
+  "test_backward_single_threaded_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
+    "181272",
+    "https://github.com/pytorch/pytorch/issues/181272",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_barrier_timeout_arg (__main__.TestDistBackendWithSpawn)": [
     "179691",
     "https://github.com/pytorch/pytorch/issues/179691",
@@ -362,13 +370,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
-    "181318",
-    "https://github.com/pytorch/pytorch/issues/181318",
-    [
-      "linux"
     ]
   ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
@@ -1571,26 +1572,6 @@
       "rocm"
     ]
   ],
-  "test_is_retain_graph_cpu (__main__.TestAutogradMultipleDispatchCPU)": [
-    "181228",
-    "https://github.com/pytorch/pytorch/issues/181228",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
-  "test_is_retain_graph_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
-    "181323",
-    "https://github.com/pytorch/pytorch/issues/181323",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -1793,20 +1774,19 @@
       "slow"
     ]
   ],
-  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
-    "179798",
-    "https://github.com/pytorch/pytorch/issues/179798",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
     "179745",
     "https://github.com/pytorch/pytorch/issues/179745",
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
+    "177001",
+    "https://github.com/pytorch/pytorch/issues/177001",
+    [
+      "linux"
     ]
   ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
@@ -2142,16 +2122,6 @@
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "179992",
     "https://github.com/pytorch/pytorch/issues/179992",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180196",
-    "https://github.com/pytorch/pytorch/issues/180196",
     [
       "asan",
       "linux",
@@ -2528,6 +2498,15 @@
       "rocm"
     ]
   ],
+  "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
+    "151378",
+    "https://github.com/pytorch/pytorch/issues/151378",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
     "151512",
     "https://github.com/pytorch/pytorch/issues/151512",
@@ -2557,6 +2536,15 @@
       "linux",
       "mac",
       "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_remove_noop_view_dtype_cuda (__main__.GPUTests)": [
+    "151541",
+    "https://github.com/pytorch/pytorch/issues/151541",
+    [
+      "linux",
       "rocm",
       "slow"
     ]
@@ -3112,6 +3100,13 @@
   "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_segmentation_deeplabv3_resnet101 (__main__.TestVisionTracing)": [
+    "182932",
+    "https://github.com/pytorch/pytorch/issues/182932",
     [
       "linux"
     ]
