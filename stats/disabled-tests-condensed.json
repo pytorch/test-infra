@@ -115,13 +115,6 @@
       "linux"
     ]
   ],
-  "test_amp_autocast_xpu (__main__.CtxManagerTestsDeviceXPU)": [
-    "182633",
-    "https://github.com/pytorch/pytorch/issues/182633",
-    [
-      "xpu"
-    ]
-  ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "182260",
     "https://github.com/pytorch/pytorch/issues/182260",
@@ -148,13 +141,6 @@
       "slow",
       "win",
       "windows"
-    ]
-  ],
-  "test_autocast_float64_xpu (__main__.CtxManagerTestsDeviceXPU)": [
-    "182782",
-    "https://github.com/pytorch/pytorch/issues/182782",
-    [
-      "xpu"
     ]
   ],
   "test_autograd_function_no_setup_context_transform_vmap_cpu (__main__.TestComposabilityCPU)": [
@@ -549,13 +535,6 @@
     "https://github.com/pytorch/pytorch/issues/156514",
     [
       "inductor"
-    ]
-  ],
-  "test_comprehensive_nn_functional_multi_margin_loss_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "182592",
-    "https://github.com/pytorch/pytorch/issues/182592",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float64 (__main__.TestDecompCUDA)": [
@@ -2279,13 +2258,6 @@
     "https://github.com/pytorch/pytorch/issues/182816",
     [
       "dynamo"
-    ]
-  ],
-  "test_prelu_decomp_dtype_mismatch_error (__main__.TestMetaKernelRegistrations)": [
-    "181489",
-    "https://github.com/pytorch/pytorch/issues/181489",
-    [
-      "xpu"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
