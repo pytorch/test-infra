@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import time
 from typing import cast
 from urllib.parse import quote
 
@@ -7,13 +9,19 @@ import redis as redis_lib
 from redis.exceptions import RedisError
 
 from .config import RelayConfig
-from .misc import TimingPhase
+from .misc import (
+    CallbackState,
+    CallbackStateRecord,
+    DISPATCH_CHECK_RUN_ID,
+    HTTPException,
+)
 
 
 logger = logging.getLogger(__name__)
 
-_ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
-_TIMING_PREFIX = "crcr:timing:"
+_ALLOWLIST_CACHE_KEY = "oot:allowlist_yaml"
+_STATE_PREFIX = "oot:state:"
+_RATE_LIMIT_PREFIX = "oot:rate:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -126,52 +134,188 @@ def set_cached_yaml(
         logger.exception("redis cache write failed, continuing without cache")
 
 
-def _timing_key(delivery_id: str, downstream_repo: str, phase: TimingPhase) -> str:
-    # delivery_id is GitHub's globally-unique X-GitHub-Delivery, so it disambiguates
-    # retries/reruns that share a head_sha.  downstream_repo keeps the fan-out
-    # dimension since one delivery dispatches to many repos with independent timings.
-    return f"{_TIMING_PREFIX}{delivery_id}:{downstream_repo}:{phase.value}"
-
-
-def set_timing(
+def check_rate_limit(
     config: RelayConfig,
-    delivery_id: str,
-    downstream_repo: str,
-    phase: TimingPhase,
-    ts: float,
+    repo: str,
     client: redis_lib.Redis | None = None,
-) -> None:
-    """Set timestamp for a given delivery+repo. Best-effort."""
-    try:
-        if client is None:
-            client = create_client(config)
-        key = _timing_key(delivery_id, downstream_repo, phase)
-        client.setex(key, config.oot_status_ttl, ts)
-        logger.info("%s timing cached key=%s", phase.value, key)
-    except Exception:
-        logger.exception("redis set_timing failed phase=%s", phase.value)
+) -> bool:
+    """Check if repo is within rate limit using sliding window.
 
-
-def get_timing(
-    config: RelayConfig,
-    delivery_id: str,
-    downstream_repo: str,
-    phase: TimingPhase,
-    client: redis_lib.Redis | None = None,
-) -> float | None:
-    """Return the stored timestamp as a float, or None on cache miss / Redis error.
-
-    Best-effort: timing data is a reporting-only enrichment, so Redis failures
-    must not break the result handler.  Errors are logged and swallowed.
+    Returns True if allowed, False if rate exceeded.
+    Raises HTTPException(500) on Redis failure (fail-closed).
     """
     try:
         if client is None:
             client = create_client(config)
-        key = _timing_key(delivery_id, downstream_repo, phase)
+
+        key = f"{_RATE_LIMIT_PREFIX}{repo}"
+        now = time.time()
+        window_start = now - 60
+
+        member = f"{now}:{repo}"
+        client.zadd(key, {member: now})
+        client.zremrangebyscore(key, "-inf", window_start)
+        count = client.zcard(key)
+        client.expire(key, 120)
+
+        if count > config.rate_limit_per_min:
+            logger.warning(
+                "rate limit exceeded key=%s count=%d limit=%d",
+                key,
+                count,
+                config.rate_limit_per_min,
+            )
+            return False
+        return True
+    except RedisError as e:
+        logger.exception("redis rate limit check failed")
+        raise HTTPException(500, f"rate limit check failed: {e}") from e
+
+
+def _state_key(delivery_id: str, downstream_repo: str, check_run_id: str) -> str:
+    """Redis key for callback state machine.
+
+    Keyed by delivery_id + repo + check_run_id to support per-execution state tracking.
+    check_run_id is unique per job execution, enabling replay attack detection.
+    """
+    return f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{check_run_id}"
+
+
+def get_callback_state(
+    config: RelayConfig,
+    delivery_id: str,
+    downstream_repo: str,
+    check_run_id: str,
+    client: redis_lib.Redis | None = None,
+) -> CallbackStateRecord | None:
+    """Get callback state record from Redis, or None if no record exists.
+
+    Returns a record containing state, timestamp, and optional job metadata.
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+        key = _state_key(delivery_id, downstream_repo, check_run_id)
         value = client.get(key)
         if value is None:
             return None
-        return float(value)
+        data = json.loads(value)
+        return CallbackStateRecord(
+            state=CallbackState(data["state"]),
+            timestamp=data["timestamp"],
+            job_name=data["job_name"],
+            run_id=data["run_id"],
+        )
     except Exception:
-        logger.exception("redis get_timing failed phase=%s", phase.value)
+        logger.exception("redis get_callback_state failed")
         return None
+
+
+def set_callback_state(
+    config: RelayConfig,
+    delivery_id: str,
+    downstream_repo: str,
+    check_run_id: str,
+    state: CallbackState,
+    timestamp: float,
+    job_name: str | None = None,
+    run_id: int | None = None,
+    client: redis_lib.Redis | None = None,
+) -> bool:
+    """Set callback state with timestamp in Redis. Returns True on success, False on error.
+
+    State transition validation:
+
+    DISPATCHED state (webhook-side):
+    - None -> DISPATCHED: accept (initial dispatch)
+    - DISPATCHED -> DISPATCHED: reject (duplicate webhook)
+
+    IN_PROGRESS state (callback-side):
+    - None -> IN_PROGRESS: accept (first callback for this check_run_id)
+    - IN_PROGRESS -> IN_PROGRESS: reject (replay attack for same check_run_id)
+
+    COMPLETED state (callback-side):
+    - None -> COMPLETED: reject (no prior in_progress)
+    - IN_PROGRESS -> COMPLETED: accept (normal completion)
+    - COMPLETED -> COMPLETED: reject (duplicate)
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+
+        if check_run_id == DISPATCH_CHECK_RUN_ID and state != CallbackState.DISPATCHED:
+            logger.warning(
+                "check_run_id '%s' is preserved for DISPATCHED state only, rejecting invalid state=%s",
+                DISPATCH_CHECK_RUN_ID,
+                state.value,
+            )
+            return False
+
+        key = _state_key(delivery_id, downstream_repo, check_run_id)
+
+        current_record = get_callback_state(
+            config, delivery_id, downstream_repo, check_run_id, client
+        )
+
+        if state == CallbackState.DISPATCHED:
+            if current_record is not None:
+                logger.warning("rejecting duplicate DISPATCHED key=%s", key)
+                return False
+        elif state == CallbackState.IN_PROGRESS:
+            if current_record is not None:
+                logger.warning(
+                    "rejecting replay attack IN_PROGRESS for same "
+                    "check_run_id=%s, downstream_repo=%s, job_name=%s, run_id=%s",
+                    check_run_id,
+                    downstream_repo,
+                    job_name,
+                    run_id,
+                )
+                return False
+
+        elif state == CallbackState.COMPLETED:
+            if current_record is None:
+                logger.warning(
+                    "rejecting COMPLETED without prior IN_PROGRESS "
+                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s",
+                    key,
+                    downstream_repo,
+                    job_name,
+                    run_id,
+                )
+                return False
+            if current_record.state == CallbackState.COMPLETED:
+                logger.warning("rejecting duplicate COMPLETED key=%s", key)
+                return False
+            if current_record.state != CallbackState.IN_PROGRESS:
+                logger.warning(
+                    "rejecting abnormal state transition %s -> COMPLETED "
+                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s",
+                    current_record.state.value,
+                    key,
+                    downstream_repo,
+                    job_name,
+                    run_id,
+                )
+                return False
+
+        data: dict = {
+            "state": state.value,
+            "timestamp": timestamp,
+            "job_name": job_name,
+            "run_id": run_id,
+        }
+        client.setex(key, config.oot_status_ttl, json.dumps(data))
+        logger.info(
+            "callback state set key=%s state=%s timestamp=%s job_name=%s run_id=%s",
+            key,
+            state.value,
+            timestamp,
+            job_name,
+            run_id,
+        )
+        return True
+
+    except Exception:
+        logger.exception("redis set_callback_state failed")
+        return False

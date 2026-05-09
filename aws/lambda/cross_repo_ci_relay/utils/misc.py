@@ -7,6 +7,7 @@ and there's no shared abstraction to organise them under.
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 from enum import Enum
 from typing import TypedDict
 
@@ -26,16 +27,34 @@ class EventDispatchPayload(TypedDict):
     payload: dict
 
 
-class TimingPhase(str, Enum):
-    """Phases recorded in the crcr:timing:* Redis keys.
+# Specific check_run_id used to identify callbacks
+# from dispatches that didn't specify a real check_run_id.
+# Here we set as a string for better readability,
+# but it could be any unique identifier.
+DISPATCH_CHECK_RUN_ID = "dispatched"
 
-    - ``DISPATCH``: webhook side, when a repository_dispatch is fired.
-    - ``IN_PROGRESS``: result side, when the downstream workflow reports it
-      has started running.
+
+class CallbackState(str, Enum):
+    """Unified state machine for callback lifecycle (both webhook and callback sides).
+
+    - ``DISPATCHED``: webhook side, when repository_dispatch is sent (job_name=DISPATCH_JOB_NAME).
+    - ``IN_PROGRESS``: callback side, when downstream workflow reports started (per-job).
+    - ``COMPLETED``: callback side, when downstream workflow reports finished (per-job).
     """
 
-    DISPATCH = "dispatch"
-    IN_PROGRESS = "in_progress"
+    DISPATCHED = "DISPATCHED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
+@dataclass
+class CallbackStateRecord:
+    """Record containing state, timestamp, and job metadata for HUD grouping."""
+
+    state: CallbackState
+    timestamp: float
+    job_name: str
+    run_id: str
 
 
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:

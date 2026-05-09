@@ -25,15 +25,21 @@ inputs:
     default: ''
   test-results:
     description: >
-      Optional JSON string with structured test results produced by the
-      downstream job.  Forwarded verbatim to the relay under `test_results`.
+      Optional JSON string with test result summary (counts: passed/failed/skipped).
+      Note: This should be a summary only, not a full enumeration of all test cases.
+      Full test results should be uploaded as artifacts and referenced via `artifact-url`.
     required: false
     default: ''
   callback-url:
     description: >
       Base URL of the result callback server.
+    required: true
+  artifact-url:
+    description: >
+      URL to downstream-hosted artifacts (logs, reports, results),
+      any publicly accessible URL.
     required: false
-    default: https://zciswjsrynb6ksccc2nb3mckpa0ldzou.lambda-url.us-east-1.on.aws/github/result
+    default: ''
 
 runs:
   using: composite
@@ -51,6 +57,7 @@ runs:
     - name: Send callback to relay server
       shell: bash
       env:
+        SCHEMA_VERSION: 1
         STATUS: ${{ inputs.status }}
         CONCLUSION: ${{ inputs.conclusion }}
         WORKFLOW_NAME: ${{ github.workflow }}
@@ -59,11 +66,17 @@ runs:
         CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}
+        ARTIFACT_URL: ${{ inputs.artifact-url }}
+        JOB_NAME: ${{ github.job }}
+        CHECK_RUN_ID: ${{ job.check_run_id }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
       run: |
         set -euo pipefail
 
         PAYLOAD=$(python3 - <<'PYEOF'
         import json, os, sys
+        from datetime import datetime, timezone
 
         status = os.environ["STATUS"]
         if status not in ("in_progress", "completed"):
@@ -80,14 +93,23 @@ runs:
         except json.JSONDecodeError as exc:
             sys.exit(f"::error::github.event.client_payload is not valid JSON: {exc}")
 
+        current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
         # Relay's original dispatch payload (event_type, delivery_id, payload) is
         # forwarded verbatim.  Downstream-reported fields live in a sibling
         # `workflow` dict so the two sources stay clearly separated on the wire.
         workflow: dict = {
+            "schema_version": str(os.environ["SCHEMA_VERSION"]),
             "status": status,
             "conclusion": conclusion,
             "name": os.environ["WORKFLOW_NAME"],
             "url": os.environ["WORKFLOW_URL"],
+            "run_attempt": os.environ["RUN_ATTEMPT"],
+            "job_name": os.environ["JOB_NAME"],
+            "check_run_id": str(os.environ["CHECK_RUN_ID"]),
+            "run_id": str(os.environ["RUN_ID"]),
+            "started_at": None if status == "completed" else current_time,
+            "completed_at": None if status == "in_progress" else current_time,
         }
 
         test_results = os.environ.get("TEST_RESULTS", "").strip()
@@ -96,6 +118,10 @@ runs:
                 workflow["test_results"] = json.loads(test_results)
             except json.JSONDecodeError as exc:
                 sys.exit(f"::error::test-results input is not valid JSON: {exc}")
+
+        artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
+        if artifact_url:
+            workflow["artifact_url"] = artifact_url
 
         client_payload["workflow"] = workflow
         print(json.dumps(client_payload))

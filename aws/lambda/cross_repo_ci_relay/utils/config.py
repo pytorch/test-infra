@@ -62,6 +62,8 @@ class RelayConfig:
     hud_api_url: str
     hud_bot_key: str
     oot_status_ttl: int
+    hud_max_retries: int
+    rate_limit_per_min: int
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
@@ -128,6 +130,22 @@ class RelayConfig:
         except ValueError:
             raise RuntimeError("OOT_STATUS_TTL must be a valid integer")
 
+        # Maximum number of retry attempts for HUD API calls.
+        # Default to 3 retries with exponential backoff.
+        try:
+            hud_max_retries = int(os.getenv("HUD_MAX_RETRIES", "3"))
+            if hud_max_retries < 0:
+                raise ValueError("must be non-negative")
+        except ValueError:
+            raise RuntimeError("HUD_MAX_RETRIES must be a non-negative integer")
+
+        try:
+            rate_limit_per_min = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
+            if rate_limit_per_min <= 0:
+                raise ValueError("must be positive")
+        except ValueError:
+            raise RuntimeError("RATE_LIMIT_PER_MIN must be a positive integer")
+
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
             github_app_secret=github_app_secret,
@@ -141,6 +159,8 @@ class RelayConfig:
             hud_api_url=os.getenv("HUD_API_URL", ""),
             hud_bot_key=hud_bot_key,
             oot_status_ttl=oot_status_ttl,
+            hud_max_retries=hud_max_retries,
+            rate_limit_per_min=rate_limit_per_min,
         )
 
 

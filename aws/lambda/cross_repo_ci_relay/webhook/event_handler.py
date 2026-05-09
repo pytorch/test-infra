@@ -8,7 +8,12 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from utils import gh_helper, redis_helper
 from utils.allowlist import AllowlistLevel, load_allowlist
 from utils.config import RelayConfig
-from utils.misc import EventDispatchPayload, HTTPException, TimingPhase
+from utils.misc import (
+    CallbackState,
+    DISPATCH_CHECK_RUN_ID,
+    EventDispatchPayload,
+    HTTPException,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -34,14 +39,15 @@ def _dispatch_one(
         client_payload=client_payload,
     )
 
-    # Record dispatch timestamp for timing calculations (best-effort).
-    # Keyed by X-GitHub-Delivery (globally unique per webhook delivery) so
-    # retries/reruns with the same head_sha don't collide.
-    redis_helper.set_timing(
+    # Set dispatch state with timestamp to prove valid webhook occurred.
+    # Keyed by delivery_id + repo + DISPATCH_JOB_NAME="*" (repo-level, not job-specific).
+    # Timestamp is used for queue_time calculation (dispatch → in_progress).
+    redis_helper.set_callback_state(
         config,
-        client_payload.get("delivery_id"),
+        client_payload["delivery_id"],
         downstream_repo,
-        TimingPhase.DISPATCH,
+        DISPATCH_CHECK_RUN_ID,
+        CallbackState.DISPATCHED,
         time.time(),
     )
 

@@ -9,6 +9,7 @@ from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
 from . import result_handler
 
+
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def lambda_handler(event, context):
         # OIDC is the only identity check Relay performs.  The callback body is
         # passed through to HUD untouched — HUD owns schema/business validation.
         # Relay reports the OIDC-verified repo to HUD separately as
-        # `authenticated_repo` so HUD has a trusted source of truth for the
+        # `verified_repo` so HUD has a trusted source of truth for the
         # caller's identity.
         oidc_claims = jwt_helper.verify_oidc_token(
             config, headers.get("authorization", "")

@@ -96,6 +96,14 @@ class AllowlistMap:
             oncalls.extend(lvl_oncalls)
         return repos, oncalls
 
+    def get_repo_level(self, repo: str) -> AllowlistLevel | None:
+        """Return the level for a specific repo, or None if repo is not in allowlist."""
+        for level, entries in self._levels.items():
+            for entry in entries:
+                if entry.repo == repo:
+                    return level
+        return None
+
     @classmethod
     def _parse(cls, raw: dict) -> "AllowlistMap":
         if not isinstance(raw, dict):

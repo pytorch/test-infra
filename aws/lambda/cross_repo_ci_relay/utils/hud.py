@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 
@@ -10,38 +11,21 @@ from .misc import HTTPException
 logger = logging.getLogger(__name__)
 
 
-def forward_to_hud(
-    config: RelayConfig,
-    body: dict,
-    ci_metrics: dict,
-    authenticated_repo: str,
-) -> None:
+def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
     """POST a callback record to HUD.
 
-    The HUD request body has three top-level fields:
+    This function splits inputs into two explicit namespaces:
 
-    - ``body``: the downstream workflow's callback body, forwarded verbatim.
-      Contains the original dispatch envelope (``delivery_id``, ``payload``)
-      plus a ``workflow`` dict the downstream self-reports.  Treat every field
-      here as untrusted — downstream can set them to anything.
-    - ``ci_metrics``: relay-measured performance of the downstream CI
-      infrastructure (``queue_time``, ``execution_time``).  These come from
-      relay's own timing records, not from the downstream, so HUD can trust
-      them as a signal of downstream CI capability.
-    - ``authenticated_repo``: the OIDC-authenticated downstream repository.
-      HUD should treat this as the sole trusted identity of the caller and
-      prefer it over any self-reported repo field inside ``body``.
+    - ``trusted``: a dict supplied by this relay and therefore considered
+      authoritative.
+    - ``untrusted``: a dict forwarded from the downstream workflow and treated as
+      untrusted user-supplied data.
 
-    Error handling splits by responsibility:
-
-    - HUD 4xx (schema/validation errors, i.e. the caller's fault) is propagated
-      back to the downstream workflow so the workflow author sees a red CI
-      step and can fix their payload.
-    - HUD 5xx and network-level failures (HUD's own problem or infra) are
-      logged loudly but swallowed.  The callback channel is observational —
-      letting HUD outages turn every downstream L2 CI red would blame the
-      wrong team.  CloudWatch logs and alarms on ``HUD forward failed`` are
-      the intended operator signal here.
+    Retry Behavior:
+        On server errors (HTTP 5xx) or network failures (URLError), the request
+        is retried up to ``config.hud_max_retries`` times with exponential backoff
+        (1s, 2s, 4s, ...). Client errors (HTTP 4xx) are not retried and raise
+        HTTPException immediately.
     """
     if not config.hud_api_url:
         # No HUD configured (e.g. local dev before HUD endpoint exists) —
@@ -52,35 +36,74 @@ def forward_to_hud(
 
     hud_payload = json.dumps(
         {
-            "body": dict(body),
-            "ci_metrics": dict(ci_metrics),
-            "authenticated_repo": authenticated_repo,
+            "trusted": trusted,
+            "untrusted": untrusted,
         }
     ).encode("utf-8")
+
     req = urllib.request.Request(
         config.hud_api_url,
         data=hud_payload,
         headers={
             "Content-Type": "application/json",
-            "Authorization": config.hud_bot_key,
+            "X-OOT-Relay-Token": config.hud_bot_key,
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            logger.info("HUD forward succeeded status=%d", resp.status)
-    except urllib.error.HTTPError as exc:
-        if 400 <= exc.code < 500:
-            detail = f"HUD rejected callback: HTTP {exc.code}: {exc.reason}"
-            logger.warning("HUD forward failed (client error): %s", detail)
-            raise HTTPException(exc.code, detail) from exc
-        # 5xx — HUD's own problem, don't propagate.
+
+    last_exception = None
+    for attempt in range(config.hud_max_retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                logger.info("HUD forward succeeded status=%d", resp.status)
+                return
+        except urllib.error.HTTPError as exc:
+            if 400 <= exc.code < 500:
+                detail = f"HUD rejected callback: HTTP {exc.code}: {exc.reason}"
+                logger.warning("HUD forward failed (client error): %s", detail)
+                raise HTTPException(exc.code, detail) from exc
+            last_exception = exc
+            logger.warning(
+                "HUD forward failed (server error, attempt %d/%d): HTTP %d %s",
+                attempt + 1,
+                config.hud_max_retries + 1,
+                exc.code,
+                exc.reason,
+            )
+        except urllib.error.URLError as exc:
+            last_exception = exc
+            logger.warning(
+                "HUD forward failed (unreachable, attempt %d/%d): %s",
+                attempt + 1,
+                config.hud_max_retries + 1,
+                exc.reason,
+            )
+
+        # If we have more retries remaining, wait with exponential backoff
+        if attempt < config.hud_max_retries:
+            delay = 2**attempt
+            logger.info("Retrying HUD forward in %d seconds...", delay)
+            time.sleep(delay)
+
+    # All retries exhausted, raise the last exception
+    if isinstance(last_exception, urllib.error.HTTPError):
         logger.exception(
-            "HUD forward failed (server error), swallowing: HTTP %d %s",
-            exc.code,
-            exc.reason,
+            "HUD forward failed after %d attempts: HTTP %d %s",
+            config.hud_max_retries + 1,
+            last_exception.code,
+            last_exception.reason,
         )
-    except urllib.error.URLError as exc:
-        # Network-level failure (DNS, timeout, connection refused).  Treated
-        # as infrastructure rather than caller error — same as 5xx.
-        logger.exception("HUD forward failed (unreachable), swallowing: %s", exc.reason)
+        raise HTTPException(
+            500,
+            "An internal failure occurred. "
+            "Your update was not saved, but the CI run is still valid. "
+            "You can attempt progressive retries after "
+            f"{60 // config.rate_limit_per_min} seconds or ignore this failure.",
+        ) from last_exception
+    else:
+        logger.exception(
+            "HUD forward failed after %d attempts: %s",
+            config.hud_max_retries + 1,
+            last_exception.reason,
+        )
+        raise last_exception
