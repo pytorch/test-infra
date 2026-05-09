@@ -293,13 +293,6 @@
       "dynamo"
     ]
   ],
-  "test_cat_transform_non_uniform (__main__.TestFunctors)": [
-    "182257",
-    "https://github.com/pytorch/pytorch/issues/182257",
-    [
-      "dynamo"
-    ]
-  ],
   "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
     "158909",
     "https://github.com/pytorch/pytorch/issues/158909",
