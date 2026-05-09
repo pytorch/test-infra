@@ -39,6 +39,7 @@ import {
   getOpenUnstableIssues,
   isDisabledTest,
   isDisabledTestMentionedInPR,
+  isOSDCJob,
   isRecentlyCloseDisabledTest,
   isSameFailure,
   isUnstableJob,
@@ -1026,9 +1027,17 @@ export async function getWorkflowJobsStatuses(
       continue;
     }
 
+    // PyTorch OSDC (ARC) jobs are still rolling out, so treat any failure or
+    // pending signal from them as unstable to avoid blocking PRs on the
+    // migration.
+    const isPyTorchOSDC = prInfo.repo === "pytorch" && isOSDCJob(job.name);
+
     if (isPending(job)) {
       pending++;
-      if (isUnstableJob(job as any, unstableIssues)) {
+      if (isPyTorchOSDC) {
+        unstableJobs.push(job);
+        relatedInfo.set(job.id, "PyTorch OSDC job marked as unstable");
+      } else if (isUnstableJob(job as any, unstableIssues)) {
         unstableJobs.push(job);
         relatedIssues.set(
           job.id,
@@ -1040,6 +1049,12 @@ export async function getWorkflowJobsStatuses(
       if (prInfo.repo === "pytorch" && suppressedLabels.length !== 0) {
         flakyJobs.push(job);
         relatedInfo.set(job.id, `suppressed by ${suppressedLabels.join(", ")}`);
+        continue;
+      }
+
+      if (isPyTorchOSDC) {
+        unstableJobs.push(job);
+        relatedInfo.set(job.id, "PyTorch OSDC job marked as unstable");
         continue;
       }
 
