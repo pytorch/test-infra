@@ -652,9 +652,12 @@ class SignalActionProcessor:
         notes = ""
         if not dry_run:
             try:
-                gh_client = GHClientFactory().client
+                factory = GHClientFactory()
+                gh_client = factory.client
                 repo = gh_client.get_repo(ctx.repo_full_name)
                 workflow = repo.get_workflow("claude-autorevert-advisor.yml")
+                # /dispatches is non-idempotent — route the POST through dispatch_client
+                # (retry=0) so a 5xx from GitHub does not silently spawn duplicate runs.
                 proper_workflow_create_dispatch(
                     workflow,
                     ref="main",
@@ -663,6 +666,7 @@ class SignalActionProcessor:
                         "pr_number": str(pr_number),
                         "signal_pattern": signal_pattern_json,
                     },
+                    requester=factory.dispatch_client.requester,
                 )
             except Exception as exc:
                 ok = False

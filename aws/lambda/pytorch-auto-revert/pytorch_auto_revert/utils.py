@@ -3,6 +3,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Optional
 
 import github
 
@@ -180,12 +181,20 @@ def proper_workflow_create_dispatch(
     workflow: github.Workflow,
     ref: github.Branch.Branch | github.Tag.Tag | github.Commit.Commit | str,
     inputs: dict,
+    requester: Optional["github.Requester.Requester"] = None,
 ) -> bool:
     """
     :calls: `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
     <https://docs.github.com/en/rest/reference/actions#create-a-workflow-dispatch-event>`
+
+    The /dispatches endpoint is **not idempotent**: GitHub can return a 5xx after it
+    has already created a workflow run, so transparent urllib3 retries on 5xx produce
+    duplicate runs. Pass an explicit `requester` (typically from a Github client
+    constructed with ``retry=0``) to disable PyGithub's default 5xx retry for this
+    POST. When ``requester`` is None, the workflow's own requester is used.
     """
-    status, headers, body = workflow._requester.requestJson(
+    req = requester if requester is not None else workflow._requester
+    status, headers, body = req.requestJson(
         "POST", f"{workflow.url}/dispatches", input={"ref": ref, "inputs": inputs}
     )
     if status != 204:
