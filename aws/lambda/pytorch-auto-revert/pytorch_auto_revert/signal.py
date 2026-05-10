@@ -185,6 +185,25 @@ class SignalCommit:
         # Optional AI advisor result for this (commit, signal) pair
         self.advisor_result = advisor_result
 
+    def replace(self, **changes) -> "SignalCommit":
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
+
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
+        """
+        new_fields = {
+            "head_sha": changes.pop("head_sha", self.head_sha),
+            "timestamp": changes.pop("timestamp", self.timestamp),
+            "events": changes.pop("events", self.events),
+            "advisor_result": changes.pop("advisor_result", self.advisor_result),
+        }
+        if changes:
+            raise TypeError(
+                f"SignalCommit.replace() got unexpected keyword argument(s): "
+                f"{sorted(changes)}"
+            )
+        return type(self)(**new_fields)
+
     @property
     def has_pending(self) -> bool:
         return SignalStatus.PENDING in self.statuses
@@ -369,6 +388,27 @@ class Signal:
         self.test_module = test_module
         # Track the origin of the signal (test-track or job-track).
         self.source = source
+
+    def replace(self, **changes) -> "Signal":
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
+
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
+        """
+        new_fields = {
+            "key": changes.pop("key", self.key),
+            "workflow_name": changes.pop("workflow_name", self.workflow_name),
+            "commits": changes.pop("commits", self.commits),
+            "job_base_name": changes.pop("job_base_name", self.job_base_name),
+            "test_module": changes.pop("test_module", self.test_module),
+            "source": changes.pop("source", self.source),
+        }
+        if changes:
+            raise TypeError(
+                f"Signal.replace() got unexpected keyword argument(s): "
+                f"{sorted(changes)}"
+            )
+        return type(self)(**new_fields)
 
     def detect_fixed(self) -> bool:
         """
