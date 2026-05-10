@@ -784,13 +784,6 @@
       "rocm"
     ]
   ],
-  "test_defer_falls_through_to_default (__main__.TestCachingAutotunerPlugin)": [
-    "182636",
-    "https://github.com/pytorch/pytorch/issues/182636",
-    [
-      "xpu"
-    ]
-  ],
   "test_deleted_mempool_not_used_on_oom (__main__.TestMemPool)": [
     "176145",
     "https://github.com/pytorch/pytorch/issues/176145",
@@ -3146,13 +3139,6 @@
     "https://github.com/pytorch/pytorch/issues/179696",
     [
       "inductor"
-    ]
-  ],
-  "test_triton_gemm_epilogue_fusion_truncates_accumulator_float16_use_addmm_False (__main__.TestMaxAutotune)": [
-    "182634",
-    "https://github.com/pytorch/pytorch/issues/182634",
-    [
-      "xpu"
     ]
   ],
   "test_triton_gemm_epilogue_fusion_truncates_accumulator_float32_use_addmm_True (__main__.TestMaxAutotune)": [
