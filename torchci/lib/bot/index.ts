@@ -7,6 +7,7 @@ import checkLabelsBot from "./checkLabelsBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import codevNoWritePerm from "./codevNoWritePermBot";
 import drciBot from "./drciBot";
+import nitpickBot from "./nitpickBot";
 import pytorchBot from "./pytorchBot";
 import retryBot from "./retryBot";
 import stripApprovalBot from "./stripApprovalBot";
@@ -22,6 +23,7 @@ export default function bot(app: Probot) {
   ciflowPushTrigger(app);
   codevNoWritePerm(app);
   drciBot(app);
+  nitpickBot(app);
   pytorchBot(app);
   retryBot(app);
   stripApprovalBot(app);
