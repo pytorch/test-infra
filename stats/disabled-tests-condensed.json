@@ -1982,6 +1982,14 @@
       "macos"
     ]
   ],
+  "test_opcheck_fails_basic_cuda (__main__.TestCustomOpTestingCUDA)": [
+    "179991",
+    "https://github.com/pytorch/pytorch/issues/179991",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "179909",
     "https://github.com/pytorch/pytorch/issues/179909",
@@ -2897,15 +2905,6 @@
     "https://github.com/pytorch/pytorch/issues/182418",
     [
       "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
-    "181629",
-    "https://github.com/pytorch/pytorch/issues/181629",
-    [
-      "asan",
-      "linux",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
