@@ -22,9 +22,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
+    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
 
 MACOS_PYTHON_POINT_VERSIONS = {
@@ -467,10 +467,6 @@ def generate_wheels_matrix(
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
-
-            # TODO: Enable python 3.13t on cpu-s390x or Windows
-            if (gpu_arch_type == "cpu-s390x") and python_version == "3.13t":
-                continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
 
