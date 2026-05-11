@@ -8,6 +8,7 @@ import {
   isDisabledTest,
   isDisabledTestMentionedInPR,
   isFailureFromPrevMergeCommit,
+  isOSDCJob,
   isRecentlyCloseDisabledTest,
   isSameContext,
   isSameFailure,
@@ -61,6 +62,28 @@ describe("Test various job utils", () => {
     expect(
       removeJobNameSuffix("Test `run_test.py` is usable without boto3/rockset")
     ).toStrictEqual("Test `run_test.py` is usable without boto3/rockset");
+  });
+
+  test("test isOSDCJob", () => {
+    expect(isOSDCJob(undefined)).toBe(false);
+    expect(isOSDCJob("")).toBe(false);
+    // Not OSDC jobs
+    expect(
+      isOSDCJob(
+        "linux-jammy-py3.10-clang12 / test (default, 1, 3, linux.c7i.2xlarge)"
+      )
+    ).toBe(false);
+    expect(isOSDCJob("linux-jammy-py3.10-clang12 / build")).toBe(false);
+    // `osdc` substring inside an unrelated token must not match
+    expect(isOSDCJob("some-osdc-prefixed-thing / build")).toBe(false);
+    // OSDC variants
+    expect(isOSDCJob("linux-jammy-py3.10-clang12 / test-osdc")).toBe(true);
+    expect(
+      isOSDCJob(
+        "linux-jammy-py3.10-clang12 / test-osdc (default, 1, 3, mt-l-x86iavx512-8-64)"
+      )
+    ).toBe(true);
+    expect(isOSDCJob("test-osdc / something-else")).toBe(true);
   });
 
   test("test isSameAuthor", async () => {

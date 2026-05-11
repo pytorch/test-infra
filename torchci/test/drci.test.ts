@@ -551,6 +551,75 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
   });
 
+  test("PyTorch OSDC failures are marked unstable", async () => {
+    const failedOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 1, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "a",
+      head_sha: "abcdefg",
+      id: 42,
+      pr_number: 1001,
+      failure_lines: ["a"],
+      failure_captures: ["a"],
+      runnerName: "dummy",
+    });
+    const pendingOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 2, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "",
+      completed_at: TIME_0,
+      html_url: "b",
+      head_sha: "abcdefg",
+      id: 43,
+      pr_number: 1001,
+      runnerName: "dummy",
+    });
+
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      [failedOSDC, pendingOSDC]
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const { failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs, pending } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(2);
+    // The pending OSDC job still counts as pending overall, like other
+    // pending-and-unstable jobs.
+    expect(pending).toBe(1);
+  });
+
+  test("OSDC jobs in non-pytorch repos are not auto-marked unstable", async () => {
+    const failedOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 1, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "a",
+      head_sha: "abcdefg",
+      id: 42,
+      pr_number: 1001,
+      failure_lines: ["a"],
+      failure_captures: ["a"],
+      runnerName: "dummy",
+    });
+
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "meta-pytorch",
+      "some-other-repo",
+      [failedOSDC]
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const { failedJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+    expect(unstableJobs.length).toBe(0);
+    expect(failedJobs.length).toBe(1);
+  });
+
   test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
     const originalWorkflows = [failedA, failedB, unstableA, unstableB];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
