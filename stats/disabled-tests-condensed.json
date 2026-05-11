@@ -555,13 +555,6 @@
       "slow"
     ]
   ],
-  "test_conv3d_64bit_indexing_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "104366",
-    "https://github.com/pytorch/pytorch/issues/104366",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "158115",
     "https://github.com/pytorch/pytorch/issues/158115",
