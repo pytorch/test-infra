@@ -736,7 +736,7 @@ export function constructResultsComment(
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
-  if (hasSignificantFailures || hasCancelledFailures) {
+  if (hasSignificantFailures || hasCancelledFailures || hasUnknownFailures) {
     icon = failuresIcon;
   } else if (hasAwaitingApproval) {
     icon = warningIcon;
@@ -756,7 +756,7 @@ export function constructResultsComment(
   if (hasCancelledFailures) {
     title_messages.push(cancelledFailures);
   }
-  if (!hasAnyFailing && !hasAwaitingApproval) {
+  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
     title_messages.push(noneFailing);
   }
   if (hasPending) {
@@ -786,7 +786,7 @@ export function constructResultsComment(
   }
   output += ":";
 
-  if (!hasAnyFailing && !hasAwaitingApproval) {
+  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
 
@@ -847,7 +847,7 @@ export function constructResultsComment(
       )} may be pre-existing on trunk or introduced by this PR`,
       unknownJobs,
       "",
-      true,
+      false,
       relatedJobs,
       relatedIssues,
       relatedInfo

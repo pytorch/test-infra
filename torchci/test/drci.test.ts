@@ -1009,6 +1009,21 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failureInfoComment.includes(failedC.name!)).toBeTruthy();
   });
 
+  test("Unclassified failures alone surface as a failure status, not success", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      unknownJobs: [failedC],
+    });
+    expect(failureInfoComment.includes(":x:")).toBeTruthy();
+    expect(failureInfoComment.includes("No Failures")).toBeFalsy();
+    expect(failureInfoComment.includes(":green_heart:")).toBeFalsy();
+    expect(failureInfoComment.includes("1 Unclassified Failure")).toBeTruthy();
+    // Section is expanded (not collapsed)
+    expect(
+      failureInfoComment.includes("<details open><summary><b>UNCLASSIFIED")
+    ).toBeTruthy();
+  });
+
   test("test similar failures marked as flaky", async () => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() =>
