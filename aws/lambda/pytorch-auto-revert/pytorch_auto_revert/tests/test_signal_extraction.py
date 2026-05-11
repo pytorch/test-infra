@@ -276,6 +276,38 @@ class TestSignalExtraction(unittest.TestCase):
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
         self.assertEqual(x1.events, [])
 
+    def test_skipped_attempt_yields_no_event(self):
+        # Regression: a `skipped` job (status=completed, conclusion=skipped)
+        # used to fall through JobMeta.status's default and emit a PENDING
+        # event that persisted in autorevert_state until lookback expired.
+        # It should be treated as missing (no event), same as cancelled.
+        jobs = [
+            J(
+                sha="S2",
+                run=701,
+                job=51,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="S1",
+                run=700,
+                job=50,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                status="completed",
+                conclusion="skipped",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        s1 = next(c for c in sig.commits if c.head_sha == "S1")
+        self.assertEqual(s1.events, [])
+
     def test_non_test_inclusion_gate(self):
         # (a) only test failures -> test-failure job signal emitted (not non-test job signal)
         jobs_a = [
