@@ -22,6 +22,11 @@ inputs:
     description: |
       The script to build the docker image. Should be relative to the docker-build-dir.
     default: ./build.sh
+  docker-build-timeout-minutes:
+    description: |
+      The timeout to build the docker image.
+    type: number
+    default: 90
   custom-tag-prefix:
     description: |
       The prefix to use for the docker image tag.  You can also just do imagename:customtag
@@ -229,7 +234,7 @@ runs:
       uses: nick-fields/retry@v3.0.0
       with:
         shell: bash
-        timeout_minutes: 90
+        timeout_minutes: ${{ inputs.docker-build-timeout-minutes }}
         max_attempts: 3
         retry_wait_seconds: 90
         command: |
