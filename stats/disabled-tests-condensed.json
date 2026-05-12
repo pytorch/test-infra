@@ -1066,13 +1066,6 @@
       "rocm"
     ]
   ],
-  "test_file_reader_no_memory_leak (__main__.TestScript)": [
-    "138885",
-    "https://github.com/pytorch/pytorch/issues/138885",
-    [
-      "linux"
-    ]
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -1530,13 +1523,6 @@
       "rocm"
     ]
   ],
-  "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
-    "179874",
-    "https://github.com/pytorch/pytorch/issues/179874",
-    [
-      "dynamo"
-    ]
-  ],
   "test_leaf_function_closure_constants_without_grad (__main__.TestLeafFunctionDynamo)": [
     "180662",
     "https://github.com/pytorch/pytorch/issues/180662",
@@ -1569,13 +1555,6 @@
   "test_load_state_dict_child_swap_True (__main__.TestLoadStateDict)": [
     "180632",
     "https://github.com/pytorch/pytorch/issues/180632",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
-    "179895",
-    "https://github.com/pytorch/pytorch/issues/179895",
     [
       "dynamo"
     ]
@@ -1781,13 +1760,6 @@
   "test_modes_handle_first (__main__.TestTorchFunctionMode)": [
     "162624",
     "https://github.com/pytorch/pytorch/issues/162624",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_modes_return_notimplemented (__main__.TestTorchFunctionMode)": [
-    "179692",
-    "https://github.com/pytorch/pytorch/issues/179692",
     [
       "dynamo"
     ]
@@ -2112,6 +2084,13 @@
     "https://github.com/pytorch/pytorch/issues/152221",
     [
       "rocm"
+    ]
+  ],
+  "test_pending_fusions_multiple_use_async_compile_True (__main__.TestPrologueFusion)": [
+    "183415",
+    "https://github.com/pytorch/pytorch/issues/183415",
+    [
+      "inductor"
     ]
   ],
   "test_pickle_SparseBSC_cuda_float64 (__main__.TestSparseCompressedCUDA)": [
@@ -2881,7 +2860,8 @@
     "https://github.com/pytorch/pytorch/issues/123889",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
@@ -2940,6 +2920,13 @@
   "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_regnet_x_3_2gf (__main__.TestVisionTracing)": [
+    "183416",
+    "https://github.com/pytorch/pytorch/issues/183416",
     [
       "linux"
     ]
