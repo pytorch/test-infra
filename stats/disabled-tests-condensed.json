@@ -2579,6 +2579,13 @@
       "rocm"
     ]
   ],
+  "test_softmax_zero_nnz_cpu_float32 (__main__.TestSparseCPU)": [
+    "183435",
+    "https://github.com/pytorch/pytorch/issues/183435",
+    [
+      "dynamo"
+    ]
+  ],
   "test_source_multithreaded_multiple_preexisting_work_in_main_thread_False (__main__.TestProfiler)": [
     "119526",
     "https://github.com/pytorch/pytorch/issues/119526",
