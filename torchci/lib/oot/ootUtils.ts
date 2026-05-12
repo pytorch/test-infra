@@ -26,7 +26,7 @@ export interface RelayWorkflow {
   run_attempt?: number;
   started_at?: string;
   completed_at?: string;
-  "test-results"?: any;
+  test_results?: any;
 }
 
 export interface RelayCallbackPayload {
@@ -145,16 +145,12 @@ export function extractDynamoRecord(
       record.completed_at = wf.completed_at;
     }
 
-    const testResults = wf["test-results"];
-    if (testResults) {
-      const tr = testResults;
+    if (wf.test_results) {
+      const tr = wf.test_results;
       if (typeof tr.total === "number") record.total_tests = tr.total;
       if (typeof tr.passed === "number") record.passed_tests = tr.passed;
       if (typeof tr.failed === "number") record.failed_tests = tr.failed;
       if (typeof tr.skipped === "number") record.skipped_tests = tr.skipped;
-      if (tr.failures) {
-        record.failed_tests_json = JSON.stringify(tr.failures);
-      }
     }
   }
 
