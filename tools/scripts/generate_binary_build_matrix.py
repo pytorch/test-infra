@@ -37,7 +37,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2"],
     "test": ["12.6", "13.0", "13.2"],
-    "release": ["12.6", "12.8", "13.0"],
+    "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
