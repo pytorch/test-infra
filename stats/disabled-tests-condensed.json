@@ -682,6 +682,13 @@
       "linux"
     ]
   ],
+  "test_cutlass_backend_subproc_addmm_bfloat16 (__main__.TestCutlassBackend)": [
+    "183440",
+    "https://github.com/pytorch/pytorch/issues/183440",
+    [
+      "xpu"
+    ]
+  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -1575,6 +1582,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
+    "171985",
+    "https://github.com/pytorch/pytorch/issues/171985",
+    [
+      "xpu"
     ]
   ],
   "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
