@@ -63,14 +63,6 @@
       "rocm"
     ]
   ],
-  "test_addcdiv_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "181684",
-    "https://github.com/pytorch/pytorch/issues/181684",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_addcdiv_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "182022",
     "https://github.com/pytorch/pytorch/issues/182022",
@@ -2865,7 +2857,9 @@
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
     [
-      "linux"
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_torchvision_models_densenet161 (__main__.TestVisionTracing)": [
