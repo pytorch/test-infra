@@ -241,7 +241,7 @@ fi
 # Setup conda environment
 update_conda
 get_python_config
-conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" ${CONDA_EXTRA_PARAM}
+conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
 conda activate "${ENV_NAME}"
 
 # Save original PATH for macos-arm64 workaround
