@@ -25,5 +25,13 @@ else
     echo "+ R2_ONLY=true, skipping S3-to-S3 promotion"
 fi
 
-# Also promote to R2 (Cloudflare) if credentials are available
+# Promote to R2 (Cloudflare) before the slow SHA256 recomputation step so R2
+# is not blocked waiting on per-wheel downloads on the S3 destination.
 r2_promote "${PACKAGE_NAME}"
+
+# Finally, recompute SHA256 checksum metadata on the S3 destination wheels.
+# This is the slowest step (downloads every wheel from S3) and runs last so
+# it does not delay the R2 upload above.
+if [[ "${R2_ONLY}" != "true" ]]; then
+    aws_set_checksums "${PACKAGE_NAME}"
+fi
