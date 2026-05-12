@@ -7,6 +7,7 @@ const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB
 
 export interface RelayTrusted {
   verified_repo: string;
+  downstream_repo_level?: string; // "L1" | "L2" | "L3" | "L4" — relay-determined from allowlist
   ci_metrics?: {
     queue_time?: number | null;
     execution_time?: number | null;
@@ -67,6 +68,7 @@ export interface OotWorkflowJobRecord {
   failed_tests?: number;
   skipped_tests?: number;
   failed_tests_json?: string;
+  downstream_repo_level?: string;
   artifact_url?: string;
   environment?: string;
 }
@@ -108,6 +110,10 @@ export function extractDynamoRecord(
     job_name: jobName,
     run_attempt: runAttempt,
   };
+
+  if (trusted.downstream_repo_level) {
+    record.downstream_repo_level = trusted.downstream_repo_level;
+  }
 
   // Only set timing metrics when the relay provides a non-null value.
   // in_progress sets queue_time; completed sets execution_time.
