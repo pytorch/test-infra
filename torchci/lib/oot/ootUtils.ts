@@ -15,15 +15,18 @@ export interface RelayTrusted {
 }
 
 export interface RelayWorkflow {
+  schema_version?: string;
   status: string;
   conclusion?: string | null;
   name: string;
   url: string;
   job_name?: string;
+  check_run_id?: string;
+  run_id?: string;
   run_attempt?: number;
   started_at?: string;
   completed_at?: string;
-  test_results?: any;
+  "test-results"?: any;
 }
 
 export interface RelayCallbackPayload {
@@ -57,6 +60,8 @@ export interface OotWorkflowJobRecord {
   workflow_run_url: string;
   workflow_name: string;
   job_name: string;
+  check_run_id: string;
+  run_id: string;
   run_attempt: number;
   conclusion?: string;
   queue_time?: number | null;
@@ -94,8 +99,9 @@ export function extractDynamoRecord(
     cb.payload?.repository?.full_name ?? "pytorch/pytorch";
 
   const jobName = wf.job_name ?? "default";
+  const checkRunId = wf.check_run_id ?? "unknown";
   const runAttempt = wf.run_attempt ?? 1;
-  const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${runAttempt}`;
+  const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
 
   const record: OotWorkflowJobRecord = {
     dynamoKey,
@@ -108,6 +114,8 @@ export function extractDynamoRecord(
     workflow_run_url: wf.url ?? "",
     workflow_name: wf.name,
     job_name: jobName,
+    check_run_id: checkRunId,
+    run_id: wf.run_id ?? "",
     run_attempt: runAttempt,
   };
 
@@ -137,8 +145,9 @@ export function extractDynamoRecord(
       record.completed_at = wf.completed_at;
     }
 
-    if (wf.test_results) {
-      const tr = wf.test_results;
+    const testResults = wf["test-results"];
+    if (testResults) {
+      const tr = testResults;
       if (typeof tr.total === "number") record.total_tests = tr.total;
       if (typeof tr.passed === "number") record.passed_tests = tr.passed;
       if (typeof tr.failed === "number") record.failed_tests = tr.failed;

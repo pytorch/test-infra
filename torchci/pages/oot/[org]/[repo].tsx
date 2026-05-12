@@ -32,6 +32,8 @@ interface OotJobRow {
   pytorch_head_sha: string;
   workflow_name: string;
   job_name: string;
+  check_run_id: string;
+  run_id: string;
   run_attempt: number;
   status: string;
   conclusion: string;
@@ -119,6 +121,8 @@ function buildMatrix(data: OotJobRow[]): {
   const prMap = new Map<number, MatrixRow>();
 
   for (const job of data) {
+    // Group by job_name:run_id so reruns don't create duplicate columns
+    const groupKey = job.run_id ? `${job.job_name}:${job.run_id}` : job.job_name;
     jobNamesSet.add(job.job_name);
     let row = prMap.get(job.pr_number);
     if (!row) {
@@ -129,9 +133,9 @@ function buildMatrix(data: OotJobRow[]): {
       };
       prMap.set(job.pr_number, row);
     }
-    // Keep the latest result per job name
+    // Keep the latest attempt per job_name (highest run_attempt wins)
     const existing = row.jobs.get(job.job_name);
-    if (!existing || job.started_at > existing.started_at) {
+    if (!existing || job.run_attempt > existing.run_attempt) {
       row.jobs.set(job.job_name, job);
     }
   }

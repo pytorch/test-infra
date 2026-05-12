@@ -2,6 +2,8 @@ SELECT
     downstream_repo,
     workflow_name,
     job_name,
+    check_run_id,
+    run_id,
     run_attempt,
     status,
     conclusion,

@@ -23,6 +23,8 @@ interface OotPrResult {
   downstream_repo: string;
   workflow_name: string;
   job_name: string;
+  check_run_id: string;
+  run_id: string;
   run_attempt: number;
   status: string;
   conclusion: string;

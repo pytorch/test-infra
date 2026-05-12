@@ -10,6 +10,8 @@ CREATE TABLE default.oot_workflow_job
     `workflow_run_url` String COMMENT 'Link to downstream GHA workflow run',
     `workflow_name` String COMMENT 'Downstream workflow name (github.workflow)',
     `job_name` String DEFAULT '' COMMENT 'Downstream job name (github.job)',
+    `check_run_id` String DEFAULT '' COMMENT 'GitHub-assigned unique ID per job execution (job.check_run_id)',
+    `run_id` String DEFAULT '' COMMENT 'GitHub workflow run ID (github.run_id), same across retries',
     `run_attempt` UInt32 DEFAULT 1 COMMENT 'Workflow run attempt number (github.run_attempt)',
     `conclusion` String COMMENT 'success, failure, cancelled, timed_out (set on completed)',
     `queue_time` Nullable(Float64) COMMENT 'Relay-measured dispatch-to-in_progress time in seconds',
