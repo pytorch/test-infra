@@ -1153,9 +1153,7 @@ def promote_target(
             raise
 
     # Normalized lookup set: lowercase, "_" -> "-" (PEP 503 / wheel filename convention)
-    allowed_packages = {
-        name.lower().replace("_", "-") for name in PACKAGES_PER_PROJECT
-    }
+    allowed_packages = {name.lower().replace("_", "-") for name in PACKAGES_PER_PROJECT}
 
     def package_in_allowlist(filename: str) -> str:
         """Return the canonical package name if filename belongs to an allowed
@@ -1212,9 +1210,7 @@ def promote_target(
                 # Also copy to R2 if configured (cross-service copy)
                 if R2_BUCKET:
                     print(f"  Copying to R2: {source_key} -> {dest_key}")
-                    response = CLIENT.get_object(
-                        Bucket="pytorch", Key=source_key
-                    )
+                    response = CLIENT.get_object(Bucket="pytorch", Key=source_key)
                     body = response["Body"].read()
                     content_type = response.get("ContentType", "text/html")
                     R2_BUCKET.Object(key=dest_key).put(
