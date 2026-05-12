@@ -1212,7 +1212,14 @@ def promote_target(
                     print(f"  Copying to R2: {source_key} -> {dest_key}")
                     response = CLIENT.get_object(Bucket="pytorch", Key=source_key)
                     body = response["Body"].read()
-                    content_type = response.get("ContentType", "text/html")
+                    # Set ContentType from the filename rather than trusting the
+                    # source object's metadata: wheels and tarballs are binary
+                    # and must not be served as text/html. PEP 658 .whl.metadata
+                    # sidecars are RFC 822 text.
+                    if filename.endswith(".whl.metadata"):
+                        content_type = "text/plain"
+                    else:
+                        content_type = "application/octet-stream"
                     R2_BUCKET.Object(key=dest_key).put(
                         ACL="public-read",
                         ContentType=content_type,
