@@ -24,7 +24,7 @@ CREATE TABLE default.oot_workflow_job
     `skipped_tests` UInt64 DEFAULT 0,
     `failed_tests_json` String DEFAULT '' COMMENT 'JSON array of failed/errored test details',
     `artifact_url` String DEFAULT '' COMMENT 'URL to downstream-hosted artifacts (logs, reports)',
-    `environment` String DEFAULT '' COMMENT 'JSON: {"cuda": "12.8", "device": "H100", ...}',
+    `environment` String DEFAULT '' COMMENT 'JSON: {"sdk": "<version>", "device": "<hardware>", ...}',
     `downstream_repo_level` String DEFAULT '' COMMENT 'Relay level at dispatch time: L2, L3, L4',
     `_inserted_at` DateTime MATERIALIZED now(),
     `repository_full_name` String ALIAS downstream_repo COMMENT 'Alias for consistency with workflow_job queries',
