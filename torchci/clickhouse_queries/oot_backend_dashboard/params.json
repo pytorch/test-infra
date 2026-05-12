@@ -5,7 +5,7 @@
   },
   "tests": [
     {
-      "repo": "intel/torch-xpu-ops",
+      "repo": "<company>/<repo>",
       "days": "7"
     }
   ]
