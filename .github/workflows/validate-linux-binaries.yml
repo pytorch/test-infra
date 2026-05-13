@@ -141,18 +141,41 @@ jobs:
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
-        CUDA_VERSION_STABLE=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${MATRIX_CHANNEL})
-        # Special case PyPi installation package. And Install of PyPi package via poetry
-        if [[ ${MATRIX_PACKAGE_TYPE} == "manywheel" && \
-              ${MATRIX_GPU_ARCH_VERSION} == "${CUDA_VERSION_STABLE}" && \
-              ${MATRIX_CHANNEL} == "release" && \
-              ${USE_ONLY_DL_PYTORCH_ORG} == "false" && \
-              ${USE_WHEEL_VARIANTS} == "false" ]]; then
-          source ../../test-infra/.github/scripts/validate_poetry.sh
-        fi
-
-        # Validate binaries
+        # Validate binaries. Poetry-based validation now lives in the
+        # standalone linux-poetry job below so Poetry's own ecosystem
+        # churn (it was previously installed from poetry@main) cannot
+        # flake the binary matrix.
         source ../../test-infra/.github/scripts/validate_binaries.sh
+
+  linux-poetry:
+    if: ${{ inputs.channel == 'release' }}
+    uses: ./.github/workflows/linux_job_v2.yml
+    name: poetry-test
+    with:
+      runner: "linux.g5.4xlarge.nvidia.gpu"
+      repository: "pytorch/pytorch"
+      ref: main
+      job-name: "poetry-test"
+      docker-image: 'pytorch/almalinux-builder:cpu-main'
+      docker-build-dir: "skip-docker-build"
+      timeout: 60
+      script: |
+        set -ex
+        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export TORCH_ONLY=${{ inputs.torchonly }}
+        export INCLUDE_TORCHAUDIO=${{ inputs.include-torchaudio }}
+        export RELEASE_VERSION=${{ inputs.version }}
+        export TARGET_OS="linux"
+        eval "$(conda shell.bash hook)"
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+
+        # Poetry test is release-channel-only and covers a single
+        # stable-CUDA / Python 3.11 path. The full validate-binaries
+        # matrix above already covers every other combination via pip.
+        export MATRIX_PYTHON_VERSION="3.11"
+        export MATRIX_GPU_ARCH_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
+
+        source ../../test-infra/.github/scripts/validate_poetry.sh
 
   linux-amazon-2023:
     uses: ./.github/workflows/linux_job_v2.yml
