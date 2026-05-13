@@ -100,6 +100,11 @@ on:
         description: Custom wheel upload policy for nightly
         type: string
         default: ''
+      also-upload-to-gpu-arch-versions:
+        description: "Comma-separated list of extra gpu_arch_versions to upload the wheel to (e.g. 'xpu' to also upload a cpu wheel to the xpu index)"
+        required: false
+        type: string
+        default: ''
       run-smoke-test:
         description: Set to true if smoke test is needed
         required: false
@@ -347,6 +352,7 @@ jobs:
       upload-to-pypi: ${{ inputs.upload-to-pypi }}
       wheel-upload-path: ${{ inputs.wheel-upload-path }}
       wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
+      also-upload-to-gpu-arch-versions: ${{ inputs.also-upload-to-gpu-arch-versions }}
     secrets:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
