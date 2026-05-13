@@ -95,6 +95,12 @@ runs:
 
         current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
+        # In case check_run_id is not exist (edge case), replace it
+        # with {run_id}-{run_attempt}, which is also unique for each job run.
+        check_run_id = os.environ.get("CHECK_RUN_ID", "").strip()
+        if not check_run_id:
+            check_run_id = f"{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
+
         # Relay's original dispatch payload (event_type, delivery_id, payload) is
         # forwarded verbatim.  Downstream-reported fields live in a sibling
         # `workflow` dict so the two sources stay clearly separated on the wire.
@@ -106,7 +112,7 @@ runs:
             "url": os.environ["WORKFLOW_URL"],
             "run_attempt": os.environ["RUN_ATTEMPT"],
             "job_name": os.environ["JOB_NAME"],
-            "check_run_id": str(os.environ["CHECK_RUN_ID"]),
+            "check_run_id": check_run_id,
             "run_id": str(os.environ["RUN_ID"]),
             "started_at": None if status == "completed" else current_time,
             "completed_at": None if status == "in_progress" else current_time,
@@ -128,8 +134,9 @@ runs:
         PYEOF
         )
 
+        set +e
         HTTP_CODE=$(
-          curl --silent --show-error --output /tmp/relay_response.json \
+          curl --silent --show-error --fail-with-body --output /tmp/relay_response.json \
             --write-out "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
@@ -137,10 +144,16 @@ runs:
             --data "${PAYLOAD}" \
             "${CALLBACK_URL%/}"
         )
+        CURL_EXIT_CODE=$?
+        set -e
 
-        if [[ "${HTTP_CODE}" -lt 200 || "${HTTP_CODE}" -ge 300 ]]; then
+        if [[ "${CURL_EXIT_CODE}" -ne 0 ]]; then
           echo "::error::Callback server returned HTTP ${HTTP_CODE}."
-          exit 1
+          if [[ -s /tmp/relay_response.json ]]; then
+            echo "Relay server error response body:"
+            cat /tmp/relay_response.json
+          fi
+          exit "${CURL_EXIT_CODE}"
         fi
 
         echo "Relay server response HTTP: ${HTTP_CODE}"

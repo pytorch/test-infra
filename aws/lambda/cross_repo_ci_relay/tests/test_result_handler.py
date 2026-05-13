@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from callback.result_handler import handle
+from utils.allowlist import AllowlistLevel
 from utils.misc import CallbackState, DISPATCH_CHECK_RUN_ID, HTTPException
 from utils.redis_helper import CallbackStateRecord
 
@@ -44,7 +45,7 @@ class TestResultHandler(unittest.TestCase):
         self.mock_load_allowlist = self.patcher_allowlist.start()
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
-        mock_map.get_repo_level.return_value = MagicMock(value="L2")
+        mock_map.get_repo_level.return_value = AllowlistLevel.L2
         self.mock_load_allowlist.return_value = mock_map
 
         self.patcher_redis = patch("callback.result_handler.redis_helper")
@@ -82,7 +83,7 @@ class TestResultHandler(unittest.TestCase):
 
     def test_verified_repo_not_in_l2_returns_ignored(self):
         mock_map = MagicMock()
-        mock_map.get_repos_at_or_above_level.return_value = (["other/repo"], [])
+        mock_map.get_repo_level.return_value = None
         self.mock_load_allowlist.return_value = mock_map
 
         result = handle(_cfg(), _body(), verified_repo="org/repo")

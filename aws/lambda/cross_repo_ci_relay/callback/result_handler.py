@@ -33,15 +33,17 @@ def _safe_delta(
     return delta
 
 
-def _verify_access(config: RelayConfig, verified_repo: str) -> AllowlistMap | None:
-    """Return the AllowlistMap when ``verified_repo`` is L2+, else None.
+def _verify_access(
+    config: RelayConfig, verified_repo: str
+) -> tuple[AllowlistMap, AllowlistLevel] | None:
+    """Return (AllowlistMap, repo_level) when ``verified_repo`` is L2+, else None.
 
     Raises HTTPException(429) if the per-repo rate limit is exceeded.
     A ``None`` return signals the caller to silently ignore the request.
     """
     allowlist = load_allowlist(config)
-    l2_repos, _ = allowlist.get_repos_at_or_above_level(AllowlistLevel.L2)
-    if verified_repo not in l2_repos:
+    repo_level = allowlist.get_repo_level(verified_repo)
+    if repo_level is None or repo_level.value < AllowlistLevel.L2.value:
         logger.info(
             "verified_repo %s is not configured for L2+ features, ignoring result",
             verified_repo,
@@ -53,7 +55,7 @@ def _verify_access(config: RelayConfig, verified_repo: str) -> AllowlistMap | No
             verified_repo,
         )
         raise HTTPException(429, f"rate limit exceeded for {verified_repo}")
-    return allowlist
+    return allowlist, repo_level
 
 
 def _parse_callback_body(body: dict) -> tuple[str, str, str, str, str]:
@@ -72,7 +74,7 @@ def _parse_callback_body(body: dict) -> tuple[str, str, str, str, str]:
         job_name = workflow_dict["job_name"]  # Required for HUD grouping
         run_id = workflow_dict["run_id"]  # Required for HUD grouping
     except (KeyError, TypeError) as exc:
-        logger.warning("missing required field in callback body: %s", exc)
+        logger.warning(f"missing required field in callback body: {exc}")
         raise HTTPException(
             400, f"callback body missing required field: {exc}"
         ) from exc
@@ -100,59 +102,49 @@ def _update_state_and_compute_metrics(
     Both metrics default to None when the required prior state is unavailable
     (e.g. Redis cache miss or rerun without matching prior record).
     """
+    if status not in ("in_progress", "completed"):
+        raise HTTPException(400, f"unknown callback status: {status!r}")
+
     ci_metrics: dict = {"queue_time": None, "execution_time": None}
     current_timestamp = time.time()
+    state = (
+        CallbackState.IN_PROGRESS
+        if status == "in_progress"
+        else CallbackState.COMPLETED
+    )
 
-    if status == "in_progress":
-        if not redis_helper.set_callback_state(
-            config,
-            delivery_id,
-            verified_repo,
-            check_run_id,
-            CallbackState.IN_PROGRESS,
-            current_timestamp,
-            job_name,
-            run_id,
-        ):
-            raise HTTPException(
-                400,
-                f"callback rejected: invalid state transition delivery_id={delivery_id} status={status}",
-            )
-        updated_job_record = redis_helper.get_callback_state(
-            config, delivery_id, verified_repo, check_run_id
+    if not redis_helper.set_callback_state(
+        config,
+        delivery_id,
+        verified_repo,
+        check_run_id,
+        state,
+        current_timestamp,
+        job_name,
+        run_id,
+    ):
+        raise HTTPException(
+            400,
+            f"callback rejected: invalid state transition delivery_id={delivery_id} status={status}",
         )
-        if updated_job_record is not None:
-            ci_metrics["queue_time"] = _safe_delta(
-                dispatch_record.timestamp,
-                updated_job_record.timestamp,
-                "queue_time",
-            )
 
-    elif status == "completed":
-        if not redis_helper.set_callback_state(
-            config,
-            delivery_id,
-            verified_repo,
-            check_run_id,
-            CallbackState.COMPLETED,
-            current_timestamp,
-            job_name,
-            run_id,
-        ):
-            raise HTTPException(
-                400,
-                f"callback rejected: invalid state transition delivery_id={delivery_id} status={status}",
-            )
-        updated_job_record = redis_helper.get_callback_state(
-            config, delivery_id, verified_repo, check_run_id
+    updated_job_record = redis_helper.get_callback_state(
+        config, delivery_id, verified_repo, check_run_id
+    )
+    if updated_job_record is None:
+        return ci_metrics
+
+    if state == CallbackState.IN_PROGRESS:
+        ci_metrics["queue_time"] = _safe_delta(
+            dispatch_record.timestamp,
+            updated_job_record.timestamp,
+            "queue_time",
         )
-        if updated_job_record is not None:
+    else:
+        if job_record is not None:
             ci_metrics["execution_time"] = _safe_delta(
                 job_record.timestamp, updated_job_record.timestamp, "execution_time"
             )
-
-    else:
-        raise HTTPException(400, f"unknown callback status: {status!r}")
 
     return ci_metrics
 
@@ -174,13 +166,13 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     - Duplicate callbacks are handled gracefully
     - State transitions follow valid lifecycle paths
     """
-    allowlist = _verify_access(config, verified_repo)
-    if allowlist is None:
+    result = _verify_access(config, verified_repo)
+    if result is None:
         return {"ok": True, "status": "ignored"}
+    _, repo_level = result
 
     delivery_id, status, check_run_id, job_name, run_id = _parse_callback_body(body)
 
-    # Get dispatch state record (proves valid webhook, provides dispatch timestamp)
     dispatch_record = redis_helper.get_callback_state(
         config, delivery_id, verified_repo, DISPATCH_CHECK_RUN_ID
     )
@@ -191,7 +183,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
             verified_repo,
         )
         raise HTTPException(400, "callback rejected: no matching dispatch record")
-    # Get job-level state record
+
     job_record = redis_helper.get_callback_state(
         config, delivery_id, verified_repo, check_run_id
     )
@@ -207,16 +199,6 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         dispatch_record,
         job_record,
     )
-
-    repo_level = allowlist.get_repo_level(verified_repo)
-    if repo_level is None:
-        logger.error(
-            "verified_repo %s not found in allowlist after passing L2+ check",
-            verified_repo,
-        )
-        raise HTTPException(
-            500, f"internal error: repo level lookup failed for {verified_repo}"
-        )
 
     trusted = {
         "ci_metrics": ci_metrics,

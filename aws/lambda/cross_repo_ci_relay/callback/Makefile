@@ -4,7 +4,8 @@ AWS_REGION := us-east-1
 FUNCTION_NAME := cross_repo_ci_callback
 
 deployment.zip: clean
-	mkdir -p ./deployment/{callback,utils}
+	mkdir -p ./deployment/callback
+	mkdir -p ./deployment/utils
 	cp *.py ./deployment/callback/ && cp $(UTILS_SRC) ./deployment/utils/
 	pip3 install --target ./deployment -r ../requirements.txt $(PIP_FLAGS)
 	cd deployment && zip -r ../deployment.zip .
