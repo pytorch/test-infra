@@ -109,7 +109,7 @@ jobs:
             fi
 
             if [[ ${PACKAGE} == 'torchcodec' ]]; then
-              # Please note: We are releasing cpu version for x86_64 and CUDA 13.0 for aarch64. 
+              # Please note: We are releasing cpu version for x86_64 and CUDA 13.0 for aarch64.
               # These wheels are compatible with torch CUDA 13.0 x86_64 and aarch64.
               # shellcheck disable=SC2086
               PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging ${PACKAGE} "${!version}"
