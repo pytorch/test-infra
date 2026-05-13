@@ -1073,11 +1073,26 @@
       "rocm"
     ]
   ],
+  "test_file_reader_no_memory_leak (__main__.TestScript)": [
+    "138885",
+    "https://github.com/pytorch/pytorch/issues/138885",
+    [
+      "linux"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
     [
       "dynamo"
+    ]
+  ],
+  "test_find_or_create_pg (__main__.TestPgTag)": [
+    "107278",
+    "https://github.com/pytorch/pytorch/issues/107278",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
