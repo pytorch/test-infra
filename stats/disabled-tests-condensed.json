@@ -3236,13 +3236,6 @@
       "macos"
     ]
   ],
-  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180194",
-    "https://github.com/pytorch/pytorch/issues/180194",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180322",
     "https://github.com/pytorch/pytorch/issues/180322",
