@@ -9,8 +9,15 @@ curl -sSL https://install.python-poetry.org | python3 - --version "${POETRY_VERS
 export PATH="/root/.local/bin:$PATH"
 
 poetry --version
-poetry new test_poetry
+# `poetry init` (instead of `poetry new`) so we can give the project a
+# narrow Python range. `poetry new` always writes an open-ended
+# requires-python = ">=X.Y", which breaks Poetry resolution whenever a
+# target wheel excludes a future Python that falls in the range (e.g.
+# torchvision 0.27.0 excludes Python 3.14.1 -- pytorch/vision#9307).
+mkdir test_poetry
 cd test_poetry
+poetry init --no-interaction --name test_poetry \
+    --python ">=${MATRIX_PYTHON_VERSION},<3.$((${MATRIX_PYTHON_VERSION#*.} + 1))"
 
 TEST_SUFFIX=""
 if [[ ${TORCH_ONLY} == 'true' ]]; then
