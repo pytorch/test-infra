@@ -27,6 +27,7 @@ import useSWR from "swr";
 
 interface OotSummaryRow {
   repo: string;
+  downstream_repo_level: string;
   successes: number;
   failures: number;
   total: number;
@@ -76,6 +77,9 @@ function OotSummaryTable({ days }: { days: number }) {
             <TableCell>
               <strong>Backend Repository</strong>
             </TableCell>
+            <TableCell align="center">
+              <strong>Level</strong>
+            </TableCell>
             <TableCell align="right">
               <strong>Pass Rate</strong>
             </TableCell>
@@ -105,6 +109,13 @@ function OotSummaryTable({ days }: { days: number }) {
                   <NextLink href={`/oot/${org}/${repo}`} passHref legacyBehavior>
                     <Link underline="hover">{row.repo}</Link>
                   </NextLink>
+                </TableCell>
+                <TableCell align="center">
+                  <Chip
+                    label={row.downstream_repo_level || "–"}
+                    size="small"
+                    variant="outlined"
+                  />
                 </TableCell>
                 <TableCell align="right">
                   <PassRateChip rate={row.pass_rate} />

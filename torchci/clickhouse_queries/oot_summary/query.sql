@@ -1,5 +1,6 @@
 SELECT
     downstream_repo AS repo,
+    anyLast(downstream_repo_level) AS downstream_repo_level,
     countIf(conclusion = 'success') AS successes,
     countIf(conclusion = 'failure') AS failures,
     count() AS total,
