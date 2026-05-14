@@ -1043,7 +1043,8 @@
     "179959",
     "https://github.com/pytorch/pytorch/issues/179959",
     [
-      "rocm"
+      "rocm",
+      "xpu"
     ]
   ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
