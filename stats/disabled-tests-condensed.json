@@ -197,13 +197,6 @@
       "rocm"
     ]
   ],
-  "test_bias_addmm_lookup_table_entry (__main__.TestLookupTableE2E)": [
-    "180233",
-    "https://github.com/pytorch/pytorch/issues/180233",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
     "163230",
     "https://github.com/pytorch/pytorch/issues/163230",
