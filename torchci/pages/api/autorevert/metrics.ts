@@ -1,5 +1,6 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
+import { verifyFpForPr } from "lib/autorevert/fpVerification";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 // Simple in-memory cache with TTL
@@ -90,87 +91,8 @@ async function verifyFalsePositive(
 ): Promise<VerifiedFalsePositive> {
   const prNumber = parseInt(candidate.pr_number);
   const revertTime = new Date(candidate.autorevert_time);
-
-  try {
-    // Fetch PR details
-    const { data: pr } = await octokit.rest.pulls.get({
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-    });
-
-    // Fetch commits on the PR
-    const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-      per_page: 100,
-    });
-
-    // Count commits after the revert time
-    const commitsAfterRevert = commits.filter((commit: any) => {
-      const commitTime = new Date(
-        commit.commit.committer?.date || commit.commit.author?.date
-      );
-      return commitTime > revertTime;
-    }).length;
-
-    // Determine verification status
-    let verificationStatus: "confirmed_fp" | "legit_revert" | "unknown";
-    let verificationReason: string;
-
-    // Get PR labels
-    const labelNames = (pr.labels || []).map((l: any) => l.name);
-
-    // Check for "Merged" label - PyTorch uses cherry-pick merging via merge bot,
-    // so GitHub's merged_at won't be set. The "Merged" label indicates actual merge.
-    const hasMergedLabel = labelNames.includes("Merged");
-
-    // Check for "autorevert: disable" label - clear signal that autorevert was wrong
-    const hasAutorevertDisable = labelNames.includes("autorevert: disable");
-
-    if (hasAutorevertDisable) {
-      // Author explicitly disabled autorevert - clear false positive
-      verificationStatus = "confirmed_fp";
-      verificationReason = "PR has 'autorevert: disable' label";
-    } else if (pr.state === "open") {
-      // PR is still open - revert was legit, author hasn't relanded
-      verificationStatus = "legit_revert";
-      verificationReason = "PR is still open (not relanded)";
-    } else if (commitsAfterRevert > 0) {
-      // PR had commits after revert - author fixed something
-      verificationStatus = "legit_revert";
-      verificationReason = `PR had ${commitsAfterRevert} commit(s) after revert (author fixed issues)`;
-    } else if (hasMergedLabel) {
-      // PR has "Merged" label and no commits after revert - false positive
-      verificationStatus = "confirmed_fp";
-      verificationReason =
-        "PR was merged (has 'Merged' label) with no changes after revert";
-    } else {
-      // PR was closed but not merged (abandoned)
-      verificationStatus = "legit_revert";
-      verificationReason = "PR was closed without merging (abandoned)";
-    }
-
-    return {
-      ...candidate,
-      pr_state: pr.state,
-      pr_merged: hasMergedLabel,
-      commits_after_revert: commitsAfterRevert,
-      verification_status: verificationStatus,
-      verification_reason: verificationReason,
-    };
-  } catch (error: any) {
-    console.error(`Error verifying PR #${prNumber}:`, error.message);
-    return {
-      ...candidate,
-      pr_state: "unknown",
-      pr_merged: false,
-      commits_after_revert: -1,
-      verification_status: "unknown",
-      verification_reason: `Failed to fetch PR data: ${error.message}`,
-    };
-  }
+  const result = await verifyFpForPr(octokit, prNumber, revertTime);
+  return { ...candidate, ...result };
 }
 
 export default async function handler(
