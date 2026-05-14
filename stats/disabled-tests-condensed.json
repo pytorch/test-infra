@@ -133,6 +133,14 @@
       "dynamo"
     ]
   ],
+  "test_automatic_dynamo_graph_breaks_device_cpu (__main__.TestPackage)": [
+    "183810",
+    "https://github.com/pytorch/pytorch/issues/183810",
+    [
+      "dynamo",
+      "linux"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
