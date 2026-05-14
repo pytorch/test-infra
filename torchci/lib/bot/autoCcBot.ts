@@ -35,11 +35,11 @@ function myBot(app: Probot): void {
     // @ts-ignore
     const labels = payload[payloadType].labels.map((e) => e.name);
     context.log({ labels });
-    const cc = new Set();
+    const cc = new Set<string>();
     labels.forEach((l: string) => {
       if (l in subscriptions) {
         // @ts-ignore
-        subscriptions[l].forEach((u) => cc.add(u));
+        subscriptions[l].forEach((u: string) => cc.add(u));
       }
     });
     context.log({ cc: Array.from(cc) }, "from subscriptions");
@@ -49,47 +49,62 @@ function myBot(app: Probot): void {
     if (cc.delete(author)) {
       context.log({ author: author }, "Removed self from subscriptions");
     }
-    if (cc.size) {
-      // @ts-ignore
-      const body = payload[payloadType]["body"];
-      const reCC = /cc( +@[a-zA-Z0-9-/]+)+/;
-      const oldCCMatch = body ? body.match(reCC) : null;
-      const prevCC = new Set();
-      if (oldCCMatch) {
-        const oldCCString = oldCCMatch[0];
-        context.log({ oldCCString }, "previous cc string");
-        let m;
-        const reUsername = /@([a-zA-Z0-9-/]+)/g;
-        while ((m = reUsername.exec(oldCCString)) !== null) {
-          prevCC.add(m[1]);
-          cc.add(m[1]);
-        }
-        context.log({ prevCC: Array.from(prevCC) }, "pre-existing ccs");
+    // @ts-ignore
+    const body = payload[payloadType]["body"];
+    const reExplicitCC = /(^|\n)(cc( +@[a-zA-Z0-9-/]+)+)/g;
+    const reAutoCC = /(^|\n)(auto-cc( +@[a-zA-Z0-9-/]+)+)/;
+    const explicitCC = new Set<string>();
+    const reUsername = /@([a-zA-Z0-9-/]+)/g;
+    let m;
+    while ((m = reExplicitCC.exec(body ?? "")) !== null) {
+      let usernameMatch;
+      while ((usernameMatch = reUsername.exec(m[2])) !== null) {
+        explicitCC.add(usernameMatch[1]);
       }
-      // Invariant: prevCC is a subset of cc
-      if (prevCC.size !== cc.size) {
-        let newCCString = "cc";
-        cc.forEach((u) => {
-          newCCString += ` @${u}`;
-        });
-        const newBody = body
-          ? oldCCMatch
-            ? body.replace(reCC, newCCString)
-            : `${body}\n\n${newCCString}`
-          : newCCString;
-        context.log({ newBody });
-        if (payloadType === "issue") {
-          await context.octokit.issues.update(context.issue({ body: newBody }));
-        } else if (payloadType === "pull_request") {
-          await context.octokit.pulls.update(
-            context.pullRequest({ body: newBody })
-          );
-        }
-      } else {
-        context.log("no action: no change from existing cc list on issue");
+    }
+    if (explicitCC.size) {
+      explicitCC.forEach((u) => cc.delete(u));
+      context.log(
+        { explicitCC: Array.from(explicitCC) },
+        "excluding explicit ccs"
+      );
+    }
+
+    const oldAutoCCMatch = body ? body.match(reAutoCC) : null;
+    const oldAutoCCString = oldAutoCCMatch ? oldAutoCCMatch[2] : null;
+    if (oldAutoCCString) {
+      context.log({ oldAutoCCString }, "previous auto-cc string");
+    }
+    let newAutoCCString: string | null = null;
+    if (cc.size) {
+      newAutoCCString = "auto-cc";
+      cc.forEach((u) => {
+        newAutoCCString += ` @${u}`;
+      });
+    }
+    if (oldAutoCCString !== newAutoCCString) {
+      let newBody = body ?? "";
+      if (body && oldAutoCCMatch) {
+        newBody = newAutoCCString
+          ? body.replace(reAutoCC, `${oldAutoCCMatch[1]}${newAutoCCString}`)
+          : body.replace(reAutoCC, "").replace(/\n+$/, "");
+      } else if (newAutoCCString) {
+        newBody = body ? `${body}\n\n${newAutoCCString}` : newAutoCCString;
+      }
+      context.log({ newBody });
+      if (payloadType === "issue") {
+        await context.octokit.issues.update(context.issue({ body: newBody }));
+      } else if (payloadType === "pull_request") {
+        await context.octokit.pulls.update(
+          context.pullRequest({ body: newBody })
+        );
       }
     } else {
-      context.log("no action: cc list from subscription is empty");
+      if (cc.size) {
+        context.log("no action: no change from existing auto-cc list on issue");
+      } else {
+        context.log("no action: cc list from subscription is empty");
+      }
     }
   }
 
