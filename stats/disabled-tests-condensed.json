@@ -544,13 +544,6 @@
       "rocm"
     ]
   ],
-  "test_correctness_add_pack2 (__main__.TestInlineAsmElementwise)": [
-    "180124",
-    "https://github.com/pytorch/pytorch/issues/180124",
-    [
-      "rocm"
-    ]
-  ],
   "test_correctness_bf16_upcast (__main__.TestInlineAsmElementwise)": [
     "180131",
     "https://github.com/pytorch/pytorch/issues/180131",
