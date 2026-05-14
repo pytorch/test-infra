@@ -272,15 +272,6 @@
       "dynamo"
     ]
   ],
-  "test_clear_saved_tensors_on_access (__main__.TestAutogradWithCompiledAutograd)": [
-    "176112",
-    "https://github.com/pytorch/pytorch/issues/176112",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_clear_saved_tensors_on_access_double_access_error (__main__.TestAutogradWithCompiledAutograd)": [
     "176142",
     "https://github.com/pytorch/pytorch/issues/176142",
@@ -507,6 +498,14 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_concat_unbacked_shape_tensor (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "183671",
+    "https://github.com/pytorch/pytorch/issues/183671",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_cond_auto_functionalize_union_input_mutation_device_cuda_dynamic_True (__main__.TestAutoFunctionalizeControlFlow)": [
@@ -2016,16 +2015,6 @@
   "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180214",
     "https://github.com/pytorch/pytorch/issues/180214",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180262",
-    "https://github.com/pytorch/pytorch/issues/180262",
     [
       "asan",
       "linux",
