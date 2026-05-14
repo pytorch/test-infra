@@ -63,14 +63,6 @@
       "rocm"
     ]
   ],
-  "test_addcdiv_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "182022",
-    "https://github.com/pytorch/pytorch/issues/182022",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -270,15 +262,6 @@
     "https://github.com/pytorch/pytorch/issues/97402",
     [
       "dynamo"
-    ]
-  ],
-  "test_clear_saved_tensors_on_access_double_access_error (__main__.TestAutogradWithCompiledAutograd)": [
-    "176142",
-    "https://github.com/pytorch/pytorch/issues/176142",
-    [
-      "asan",
-      "linux",
-      "slow"
     ]
   ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
@@ -1575,13 +1558,6 @@
     "https://github.com/pytorch/pytorch/issues/180300",
     [
       "dynamo"
-    ]
-  ],
-  "test_matcher_with_name_node_map_function (__main__.TestMatcher)": [
-    "182019",
-    "https://github.com/pytorch/pytorch/issues/182019",
-    [
-      "linux"
     ]
   ],
   "test_max_cached_size (__main__.TestCachingHostAllocatorConfig)": [
@@ -3215,13 +3191,6 @@
   "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180322",
     "https://github.com/pytorch/pytorch/issues/180322",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "180195",
-    "https://github.com/pytorch/pytorch/issues/180195",
     [
       "dynamo"
     ]
