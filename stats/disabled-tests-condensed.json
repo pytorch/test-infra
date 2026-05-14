@@ -924,13 +924,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_shapes_mutated (__main__.ComboKernelDynamicShapesTests)": [
-    "181863",
-    "https://github.com/pytorch/pytorch/issues/181863",
-    [
-      "xpu"
-    ]
-  ],
   "test_dynamo_dtensor_from_local_redistribute (__main__.TestDTensorCompileWithCompiledAutograd)": [
     "180656",
     "https://github.com/pytorch/pytorch/issues/180656",
