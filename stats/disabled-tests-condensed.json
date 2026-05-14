@@ -1660,14 +1660,6 @@
       "slow"
     ]
   ],
-  "test_mempool_limited_memory_with_allocator (__main__.TestMemPool)": [
-    "157256",
-    "https://github.com/pytorch/pytorch/issues/157256",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_mempool_no_split (__main__.TestMemPool)": [
     "180325",
     "https://github.com/pytorch/pytorch/issues/180325",
