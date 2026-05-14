@@ -1,6 +1,6 @@
+import { verifyFpForPr } from "lib/autorevert/fpVerification";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
-import { verifyFpForPr } from "lib/autorevert/fpVerification";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 // Simple in-memory cache with TTL

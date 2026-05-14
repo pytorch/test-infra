@@ -15,9 +15,7 @@ function commitAt(iso: string) {
   return { commit: { committer: { date: iso } } };
 }
 
-function timeline(
-  ...events: Array<{ event: string; actor?: string | null }>
-) {
+function timeline(...events: Array<{ event: string; actor?: string | null }>) {
   return events.map((e) => ({
     event: e.event,
     actor: e.actor === undefined ? null : { login: e.actor ?? "" },
@@ -70,7 +68,10 @@ describe("classifyFp decision tree", () => {
   it("commits after revert -> legit_revert (author fixed)", () => {
     const result = classifyFp({
       pr: pr("closed", ["Merged"]),
-      commits: [commitAt("2026-05-04T22:00:00Z"), commitAt("2026-05-04T22:30:00Z")],
+      commits: [
+        commitAt("2026-05-04T22:00:00Z"),
+        commitAt("2026-05-04T22:30:00Z"),
+      ],
       timeline: timeline({ event: "closed", actor: MERGEBOT_LOGIN }),
       revertTime: REVERT_TIME,
     });
@@ -191,9 +192,7 @@ describe("verifyFpForPr (mocked octokit)", () => {
     const octokit = makeOctokit({
       pr: pr("closed", ["Merged", "Reverted"]),
       commits: [],
-      timeline: [
-        { event: "closed", actor: { login: "Ruishenl" } },
-      ],
+      timeline: [{ event: "closed", actor: { login: "Ruishenl" } }],
     });
     const result = await verifyFpForPr(octokit, 182078, REVERT_TIME);
     expect(octokit.timelineCalledRef()).toBe(true);
