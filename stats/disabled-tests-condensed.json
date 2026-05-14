@@ -1109,13 +1109,6 @@
       "rocm"
     ]
   ],
-  "test_foreach_groups_correctness (__main__.TestForeachGroupsUnit)": [
-    "179956",
-    "https://github.com/pytorch/pytorch/issues/179956",
-    [
-      "rocm"
-    ]
-  ],
   "test_forward_mode_AD_cholesky_solve_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "164194",
     "https://github.com/pytorch/pytorch/issues/164194",
