@@ -168,10 +168,9 @@ export default async function handler(
         "autorevert_events_with_commits",
         queryParams
       ) as Promise<AutorevertEvent[]>,
-      queryClickhouseSaved(
-        "autorevert_weekly_metrics",
-        queryParams
-      ) as Promise<any[]>,
+      queryClickhouseSaved("autorevert_weekly_metrics", queryParams) as Promise<
+        any[]
+      >,
       queryClickhouseSaved("autorevert_killswitch_windows", {
         stopTime: queryParams.stopTime,
       }) as Promise<KillswitchLabelEvent[]>,
@@ -221,7 +220,10 @@ export default async function handler(
     for (const r of allFalseNegatives) {
       const w = killswitchWindowAt(killswitchWindows, r.recovery_time);
       if (w) {
-        falseNegativesKillswitch.push({ ...r, killswitch_issue: w.issue_number });
+        falseNegativesKillswitch.push({
+          ...r,
+          killswitch_issue: w.issue_number,
+        });
       } else {
         falseNegatives.push(r);
       }

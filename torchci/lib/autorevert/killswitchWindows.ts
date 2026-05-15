@@ -32,7 +32,11 @@ export function foldKillswitchWindows(
       if (e.action === "labeled" && onTs === null) {
         onTs = e.event_time;
       } else if (e.action === "unlabeled" && onTs !== null) {
-        windows.push({ issue_number: issueNumber, on: onTs, off: e.event_time });
+        windows.push({
+          issue_number: issueNumber,
+          on: onTs,
+          off: e.event_time,
+        });
         onTs = null;
       }
     }
