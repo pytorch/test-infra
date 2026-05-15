@@ -1094,6 +1094,71 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(c2.advisor_result.verdict.value, "garbage")
         self.assertEqual(c2.advisor_result.signal_key, test_key)
 
+    def test_test_signal_with_empty_file_has_no_test_module(self):
+        # When tests.all_test_runs has empty `file` for a row, TestRow.test_id
+        # falls back to the bare `name` (no `::`). signal_extraction must mark
+        # the resulting Signal as untargeted (test_module=None) instead of
+        # emitting a bogus method-named module that run_test.py --include
+        # would later reject with "invalid choice".
+        jobs = [
+            J(
+                sha="C1",
+                run=900,
+                job=900,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=900,
+                run=900,
+                attempt=1,
+                file="",  # CH row with no file path — primary failure mode
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "test_partial_eval_graph_conv")
+        self.assertIsNotNone(sig)
+        self.assertIsNone(sig.test_module)
+
+    def test_test_signal_with_populated_file_has_test_module(self):
+        # Sanity: the normal `file::name` path still produces a usable
+        # test_module (`test_jit` from `test_jit.py::...`).
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_jit.py",
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_jit.py::test_partial_eval_graph_conv"
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.test_module, "test_jit")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1271,5 +1271,169 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         )
 
 
+class TestGroupActionsTestsToInclude(unittest.TestCase):
+    """Coalescing rules around `tests_to_include` in `group_actions`.
+
+    Covers the empty-`file` CH-row class (T262...) and the JOB+TEST mixed
+    coalescing case where a JOB-track signal's "full job re-run" intent
+    must not be silently narrowed by sibling TEST signals.
+    """
+
+    def _signal(
+        self,
+        *,
+        key: str,
+        commit: str,
+        source,
+        job_base_name: str,
+        test_module=None,
+    ):
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c = SignalCommit(
+            commit,
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1)],
+        )
+        return Signal(
+            key=key,
+            workflow_name="trunk",
+            commits=[c],
+            job_base_name=job_base_name,
+            test_module=test_module,
+            source=source,
+        )
+
+    def _make_restart(self, commit: str):
+        from pytorch_auto_revert.signal import RestartCommits
+
+        return RestartCommits(commit_shas={commit})
+
+    def test_only_test_signals_with_modules_keeps_test_filter(self):
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s1 = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        s2 = self._signal(
+            key="test_jit.py::test_b",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        groups = proc.group_actions(
+            [(s1, self._make_restart("abc")), (s2, self._make_restart("abc"))]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        g = restarts[0]
+        self.assertEqual(g.tests_to_include, frozenset({"test_jit"}))
+        self.assertEqual(g.jobs_to_include, frozenset({"linux-jammy-py3.10-clang18"}))
+
+    def test_test_signal_with_no_module_drops_test_filter(self):
+        # TEST signal whose CH row had empty `file` (signal_extraction left
+        # test_module=None). Group must dispatch with no tests-to-include —
+        # no run_test.py-recognized module to filter on.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s = self._signal(
+            key="test_partial_eval_graph_conv",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module=None,
+        )
+        groups = proc.group_actions([(s, self._make_restart("abc"))])
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        self.assertEqual(restarts[0].tests_to_include, frozenset())
+        self.assertEqual(
+            restarts[0].jobs_to_include,
+            frozenset({"linux-jammy-py3.10-clang18"}),
+        )
+
+    def test_mixed_test_module_and_no_module_drops_test_filter(self):
+        # When some sibling TEST signals carry a module and others don't
+        # (some CH rows had empty `file`, others didn't — the original
+        # bug shape), drop the test filter for the whole group rather
+        # than narrowing only the targetable ones and starving the rest.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s_targeted = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        s_untargeted = self._signal(
+            key="test_partial_eval_graph_conv",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module=None,
+        )
+        groups = proc.group_actions(
+            [
+                (s_targeted, self._make_restart("abc")),
+                (s_untargeted, self._make_restart("abc")),
+            ]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        self.assertEqual(restarts[0].tests_to_include, frozenset())
+
+    def test_job_track_and_test_track_same_workflow_drops_test_filter(self):
+        # Mixed JOB-track + TEST-track signals on the same (workflow, sha).
+        # JOB signal wants the entire job re-run; coalescing previously
+        # narrowed the dispatch to TEST signals' modules, throwing the JOB
+        # signal's intent away. New rule: any untargeted source → empty
+        # tests_to_include.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s_job = self._signal(
+            key="linux-jammy-py3.10-clang18 / build",
+            commit="abc",
+            source=SignalSource.JOB,
+            job_base_name="linux-jammy-py3.10-clang18 / build",
+            test_module=None,
+        )
+        s_test = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        groups = proc.group_actions(
+            [(s_job, self._make_restart("abc")), (s_test, self._make_restart("abc"))]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        g = restarts[0]
+        self.assertEqual(g.tests_to_include, frozenset())
+        self.assertEqual(
+            g.jobs_to_include,
+            frozenset(
+                {"linux-jammy-py3.10-clang18"}
+            ),  # both job_base_names normalize to same display name
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -335,6 +335,20 @@ class SignalActionProcessor:
         for (wf, sha), sources in restart_map.items():
             jobs = [_derive_job_filter(src.job_base_name) for src in sources]
 
+            # If any contributing signal in the group is untargeted at the
+            # test-module level — i.e. a JOB-track signal (test_module always
+            # None), or a TEST-track signal whose CH row had empty `file` so
+            # signal_extraction couldn't derive a module — drop the
+            # tests-to-include filter for the whole group. Otherwise the
+            # narrowing contributed by sibling TEST signals would silently
+            # starve the untargeted signal's "full job re-run" intent.
+            has_untargeted = any(src.test_module is None for src in sources)
+            tests_to_include = (
+                frozenset()
+                if has_untargeted
+                else frozenset(src.test_module for src in sources)
+            )
+
             groups.append(
                 ActionGroup(
                     type="restart",
@@ -342,9 +356,7 @@ class SignalActionProcessor:
                     workflow_target=wf,
                     sources=sources,
                     jobs_to_include=frozenset(j for j in jobs if j is not None),
-                    tests_to_include=frozenset(
-                        src.test_module for src in sources if src.test_module
-                    ),
+                    tests_to_include=tests_to_include,
                 )
             )
         return groups
