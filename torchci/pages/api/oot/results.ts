@@ -50,6 +50,6 @@ export default async function handler(
       return res.status(err.statusCode).json({ error: err.message });
     }
     console.error("OOT results handler error:", err);
-    return res.status(502).json({ error: "Internal error writing to DynamoDB" });
+    return res.status(500).json({ error: "Internal error writing to DynamoDB" });
   }
 }

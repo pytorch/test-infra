@@ -121,8 +121,6 @@ function buildMatrix(data: OotJobRow[]): {
   const prMap = new Map<number, MatrixRow>();
 
   for (const job of data) {
-    // Group by job_name:run_id so reruns don't create duplicate columns
-    const groupKey = job.run_id ? `${job.job_name}:${job.run_id}` : job.job_name;
     jobNamesSet.add(job.job_name);
     let row = prMap.get(job.pr_number);
     if (!row) {
