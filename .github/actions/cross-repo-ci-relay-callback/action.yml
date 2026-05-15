@@ -49,8 +49,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const audience = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
-          const token = await core.getIDToken(audience);
+          const token = await core.getIDToken();
           core.setSecret(token);
           core.setOutput('token', token);
 
