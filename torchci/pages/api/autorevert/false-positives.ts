@@ -1,3 +1,4 @@
+import { verifyFpForPr } from "lib/autorevert/fpVerification";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -39,6 +40,7 @@ interface FalsePositiveCandidate {
 
 interface VerifiedFalsePositive extends FalsePositiveCandidate {
   pr_state: string;
+  pr_merged: boolean;
   commits_after_revert: number;
   verification_status: "confirmed_fp" | "legit_revert" | "unknown";
   verification_reason: string;
@@ -50,66 +52,8 @@ async function verifyFalsePositive(
 ): Promise<VerifiedFalsePositive> {
   const prNumber = parseInt(candidate.original_pr);
   const revertTime = new Date(candidate.revert_time);
-
-  try {
-    // Fetch PR details
-    const { data: pr } = await octokit.rest.pulls.get({
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-    });
-
-    // Fetch commits on the PR
-    const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-      per_page: 100,
-    });
-
-    // Count commits after the revert time
-    const commitsAfterRevert = commits.filter((commit: any) => {
-      const commitTime = new Date(
-        commit.commit.committer?.date || commit.commit.author?.date
-      );
-      return commitTime > revertTime;
-    }).length;
-
-    // Determine verification status
-    let verificationStatus: "confirmed_fp" | "legit_revert" | "unknown";
-    let verificationReason: string;
-
-    if (pr.state === "open") {
-      // PR is still open - revert was legit, author hasn't relanded yet
-      verificationStatus = "legit_revert";
-      verificationReason = "PR is still open (not relanded)";
-    } else if (commitsAfterRevert > 0) {
-      // PR had commits after revert - author fixed something
-      verificationStatus = "legit_revert";
-      verificationReason = `PR had ${commitsAfterRevert} commit(s) after revert (author fixed issues)`;
-    } else {
-      // PR was merged and had no commits after revert - likely false positive
-      verificationStatus = "confirmed_fp";
-      verificationReason = "PR relanded with no changes after revert";
-    }
-
-    return {
-      ...candidate,
-      pr_state: pr.state,
-      commits_after_revert: commitsAfterRevert,
-      verification_status: verificationStatus,
-      verification_reason: verificationReason,
-    };
-  } catch (error: any) {
-    console.error(`Error verifying PR #${prNumber}:`, error.message);
-    return {
-      ...candidate,
-      pr_state: "unknown",
-      commits_after_revert: -1,
-      verification_status: "unknown",
-      verification_reason: `Failed to fetch PR data: ${error.message}`,
-    };
-  }
+  const result = await verifyFpForPr(octokit, prNumber, revertTime);
+  return { ...candidate, ...result };
 }
 
 export default async function handler(
