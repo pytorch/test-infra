@@ -189,6 +189,33 @@ export async function writeToDynamo(
   });
 }
 
+// ---- UI Helpers ----
+
+export type ChipColor = "success" | "error" | "warning" | "info" | "default";
+
+export function conclusionColor(
+  status: string,
+  conclusion: string
+): ChipColor {
+  if (status === "in_progress") return "info";
+  switch (conclusion) {
+    case "success":
+      return "success";
+    case "failure":
+      return "error";
+    case "cancelled":
+    case "timed_out":
+      return "warning";
+    default:
+      return "default";
+  }
+}
+
+export function conclusionLabel(status: string, conclusion: string): string {
+  if (status === "in_progress") return "running";
+  return conclusion || status;
+}
+
 // ---- Error Helper ----
 
 export class ApiError extends Error {

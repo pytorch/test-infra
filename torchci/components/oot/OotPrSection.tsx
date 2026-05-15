@@ -17,6 +17,7 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { durationDisplay } from "components/common/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { conclusionColor, conclusionLabel } from "lib/oot/ootUtils";
 import useSWR from "swr";
 
 interface OotPrResult {
@@ -34,29 +35,6 @@ interface OotPrResult {
   started_at: string;
   queue_time: number | null;
   execution_time: number | null;
-}
-
-function conclusionColor(
-  status: string,
-  conclusion: string
-): "success" | "error" | "warning" | "info" | "default" {
-  if (status === "in_progress") return "info";
-  switch (conclusion) {
-    case "success":
-      return "success";
-    case "failure":
-      return "error";
-    case "cancelled":
-    case "timed_out":
-      return "warning";
-    default:
-      return "default";
-  }
-}
-
-function conclusionLabel(status: string, conclusion: string): string {
-  if (status === "in_progress") return "running";
-  return conclusion || status;
 }
 
 export default function OotPrSection({ prNumber }: { prNumber: number }) {
