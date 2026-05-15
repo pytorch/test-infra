@@ -1,4 +1,9 @@
 import { verifyFpForPr } from "lib/autorevert/fpVerification";
+import {
+  foldKillswitchWindows,
+  KillswitchLabelEvent,
+  killswitchWindowAt,
+} from "lib/autorevert/killswitchWindows";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -81,6 +86,7 @@ interface WeeklyMetric {
   human_revert_rate: number;
   // New metrics
   false_positives: number;
+  false_negatives_killswitch: number;
   precision: number;
   recall: number;
 }
@@ -148,21 +154,29 @@ export default async function handler(
     };
 
     // Run queries in parallel
-    const [significantReverts, autorevertEvents, weeklyMetricsRaw] =
-      await Promise.all([
-        queryClickhouseSaved(
-          "autorevert_significant_reverts",
-          queryParams
-        ) as Promise<SignificantRevert[]>,
-        queryClickhouseSaved(
-          "autorevert_events_with_commits",
-          queryParams
-        ) as Promise<AutorevertEvent[]>,
-        queryClickhouseSaved(
-          "autorevert_weekly_metrics",
-          queryParams
-        ) as Promise<any[]>,
-      ]);
+    const [
+      significantReverts,
+      autorevertEvents,
+      weeklyMetricsRaw,
+      killswitchEvents,
+    ] = await Promise.all([
+      queryClickhouseSaved(
+        "autorevert_significant_reverts",
+        queryParams
+      ) as Promise<SignificantRevert[]>,
+      queryClickhouseSaved(
+        "autorevert_events_with_commits",
+        queryParams
+      ) as Promise<AutorevertEvent[]>,
+      queryClickhouseSaved(
+        "autorevert_weekly_metrics",
+        queryParams
+      ) as Promise<any[]>,
+      queryClickhouseSaved("autorevert_killswitch_windows", {
+        stopTime: queryParams.stopTime,
+      }) as Promise<KillswitchLabelEvent[]>,
+    ]);
+    const killswitchWindows = foldKillswitchWindows(killswitchEvents);
 
     // Build set of recovery SHAs (reverts that fixed signals)
     const recoveryShaSet = new Set(
@@ -191,10 +205,27 @@ export default async function handler(
       }
     }
 
-    // Count False Negatives: human reverts with signal recovery
-    const falseNegatives = significantReverts.filter(
+    // Count False Negatives: human reverts with signal recovery. Partition
+    // out the ones where the autorevert killswitch was active at recovery
+    // time — those are not a lambda miss; they're an upstream_infra class
+    // (`ci: disable-autorevert` label on an open issue, see
+    // `default.issues_label_event`). Killswitch FNs are surfaced as a
+    // third category and excluded from the recall denominator.
+    const allFalseNegatives = significantReverts.filter(
       (r) => !r.is_autorevert && r.recovery_type === "human_revert_recovery"
     );
+    const falseNegatives: SignificantRevert[] = [];
+    const falseNegativesKillswitch: Array<
+      SignificantRevert & { killswitch_issue: number }
+    > = [];
+    for (const r of allFalseNegatives) {
+      const w = killswitchWindowAt(killswitchWindows, r.recovery_time);
+      if (w) {
+        falseNegativesKillswitch.push({ ...r, killswitch_issue: w.issue_number });
+      } else {
+        falseNegatives.push(r);
+      }
+    }
 
     // Verify false positive candidates via GitHub API
     let verifiedFPs: VerifiedFalsePositive[] = [];
@@ -236,22 +267,32 @@ export default async function handler(
     const precision = tp + fp > 0 ? (tp / (tp + fp)) * 100 : 100;
     const recall = tp + fn > 0 ? (tp / (tp + fn)) * 100 : 100;
 
-    // Enhance weekly metrics with precision/recall
-    // Group FPs by week for weekly precision calculation
+    // Enhance weekly metrics with precision/recall.
+    // Group FPs and killswitch-FNs by week for the weekly aggregation.
     const fpByWeek = new Map<string, number>();
     for (const fp of confirmedFPs) {
       const week = getWeekStart(new Date(fp.autorevert_time));
       fpByWeek.set(week, (fpByWeek.get(week) || 0) + 1);
     }
+    const fnKsByWeek = new Map<string, number>();
+    for (const r of falseNegativesKillswitch) {
+      const week = getWeekStart(new Date(r.recovery_time));
+      fnKsByWeek.set(week, (fnKsByWeek.get(week) || 0) + 1);
+    }
 
     const weeklyMetrics: WeeklyMetric[] = weeklyMetricsRaw.map((w) => {
       const weekFPs = fpByWeek.get(w.week) || 0;
+      const weekFNKs = fnKsByWeek.get(w.week) || 0;
       const weekTP = w.autorevert_recoveries;
-      const weekFN = w.human_revert_recoveries;
+      // human_revert_recoveries from the saved query counts all human
+      // reverts with signal recovery; subtract the killswitch-attributed
+      // ones so weekly recall matches the overall recall semantics.
+      const weekFN = Math.max(0, w.human_revert_recoveries - weekFNKs);
 
       return {
         ...w,
         false_positives: weekFPs,
+        false_negatives_killswitch: weekFNKs,
         precision:
           weekTP + weekFPs > 0
             ? Math.round((weekTP / (weekTP + weekFPs)) * 1000) / 10
@@ -272,6 +313,7 @@ export default async function handler(
         tp_without_signal_recovery: tpWithoutSignalRecovery,
         confirmed_false_positives: fp,
         false_negatives: fn,
+        false_negatives_killswitch: falseNegativesKillswitch.length,
         // Rates
         precision: Math.round(precision * 10) / 10,
         recall: Math.round(recall * 10) / 10,
@@ -282,6 +324,7 @@ export default async function handler(
       },
       weeklyMetrics,
       significantReverts,
+      killswitchWindows,
       falsePositives: {
         candidates_checked: falsePositiveCandidates.length,
         confirmed: confirmedFPs,
@@ -293,6 +336,13 @@ export default async function handler(
         recovery_time: r.recovery_time,
         signals_fixed: r.signals_fixed,
         reverted_pr_numbers: r.reverted_pr_numbers,
+      })),
+      falseNegativesKillswitch: falseNegativesKillswitch.map((r) => ({
+        recovery_sha: r.recovery_sha,
+        recovery_time: r.recovery_time,
+        signals_fixed: r.signals_fixed,
+        reverted_pr_numbers: r.reverted_pr_numbers,
+        killswitch_issue: r.killswitch_issue,
       })),
     };
 
