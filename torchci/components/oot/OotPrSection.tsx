@@ -4,7 +4,6 @@ import {
   AccordionSummary,
   Chip,
   Link,
-  Skeleton,
   Stack,
   Table,
   TableBody,
