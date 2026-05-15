@@ -23,10 +23,11 @@ export interface RelayWorkflow {
   job_name?: string;
   check_run_id?: string;
   run_id?: string;
-  run_attempt?: number;
+  run_attempt?: number | string;
   started_at?: string;
   completed_at?: string;
   test_results?: any;
+  artifact_url?: string;
 }
 
 export interface RelayCallbackPayload {
@@ -100,7 +101,7 @@ export function extractDynamoRecord(
 
   const jobName = wf.job_name ?? "default";
   const checkRunId = wf.check_run_id ?? "unknown";
-  const runAttempt = wf.run_attempt ?? 1;
+  const runAttempt = Number(wf.run_attempt ?? 1) || 1;
   const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
 
   const record: OotWorkflowJobRecord = {
@@ -137,6 +138,10 @@ export function extractDynamoRecord(
   // Use downstream-reported timestamps, not HUD wall-clock time
   if (wf.started_at) {
     record.started_at = wf.started_at;
+  }
+
+  if (wf.artifact_url) {
+    record.artifact_url = wf.artifact_url;
   }
 
   if (wf.status === "completed") {
