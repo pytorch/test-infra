@@ -7,6 +7,9 @@ on:
       - .github/actions/setup-nvidia/action.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:

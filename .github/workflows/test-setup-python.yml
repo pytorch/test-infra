@@ -6,6 +6,9 @@ on:
       - .github/actions/setup-python/*
       - .github/workflows/test-setup-python.yml
 
+permissions:
+  contents: read
+
 jobs:
   setup-python-job:
     runs-on: macos-m1-stable

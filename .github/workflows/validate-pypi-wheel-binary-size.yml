@@ -17,6 +17,9 @@ on:
     # At 2:30 pm UTC (7:30 am PDT)
     - cron: "30 14 * * *"
 
+permissions:
+  contents: read
+
 jobs:
   pypi-binary-size-validation:
     runs-on: ubuntu-latest

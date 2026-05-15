@@ -12,6 +12,9 @@ on:
     paths:
       - '.github/actions/checkout/**'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

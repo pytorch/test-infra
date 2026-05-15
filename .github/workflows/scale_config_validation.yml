@@ -10,6 +10,9 @@ on:
       - .github/scale-config.yml
       - .github/scripts/validate_scale_config.py
 
+permissions:
+  contents: read
+
 jobs:
   scale-config-validation:
     runs-on: ubuntu-latest

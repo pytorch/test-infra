@@ -7,6 +7,9 @@ on:
       - .github/workflows/test_windows_job.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-cpu:
     uses: ./.github/workflows/windows_job.yml

@@ -18,6 +18,9 @@ on:
       - .github/workflows/validate-repackaged-binary-sizes.yml
       - release/pypi/prep_binary_for_pypi.sh
 
+permissions:
+  contents: read
+
 jobs:
   generate-linux-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml

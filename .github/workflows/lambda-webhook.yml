@@ -8,6 +8,9 @@ on:
       - .github/workflows/lambda-webhook.yml
       - "terraform-aws-github-runner/modules/webhook/lambdas/webhook/**"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: "Run tests for webhook lambda"

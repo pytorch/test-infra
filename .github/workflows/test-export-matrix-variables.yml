@@ -6,6 +6,9 @@ on:
       - .github/workflows/test-export-matrix-variables.yml
       - .github/actions/export-matrix-variables/*
 
+permissions:
+  contents: read
+
 jobs:
   test-linux:
     uses: ./.github/workflows/linux_job_v2.yml

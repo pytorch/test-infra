@@ -16,6 +16,9 @@ defaults:
   run:
     working-directory: aws/lambda/cross_repo_ci_relay/
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-22.04
