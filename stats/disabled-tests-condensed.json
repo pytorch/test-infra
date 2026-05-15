@@ -1231,13 +1231,6 @@
       "dynamo"
     ]
   ],
-  "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
-    "158443",
-    "https://github.com/pytorch/pytorch/issues/158443",
-    [
-      "linux"
-    ]
-  ],
   "test_graph_break_bomb_backend_inductor_device_cpu (__main__.TestPackage)": [
     "182110",
     "https://github.com/pytorch/pytorch/issues/182110",
