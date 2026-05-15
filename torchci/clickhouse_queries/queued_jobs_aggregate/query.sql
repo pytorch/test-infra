@@ -11,8 +11,12 @@
 ---     ReplacingMergeTree dedup via `LIMIT 1 BY id ORDER BY _inserted_at DESC`,
 ---     scoped to the candidate id set from `possible_queued_jobs`.
 ---   * The workflow_run filters (status != 'completed', org/repo) are pushed
----     into a CTE that runs before the JOIN so the right side shrinks to a
----     handful of rows.
+---     into a CTE that runs before the JOIN, so the right side shrinks to a
+---     handful of rows. The JOIN itself can NOT be dropped: without the
+---     `workflow.status != 'completed'` filter, jobs from cancelled workflows
+---     whose final webhook never arrived show up as permanently "queued" and
+---     pollute the aggregate (validated empirically — ~2× row inflation with
+---     individual runner types reporting 13+ hour queue times).
 ---   * `runnerLabels` is an optional Array(String) filter. When empty (the
 ---     default), the result matches the previous behavior — callers that read
 ---     the full aggregate (scale-up-chron lambda) are unaffected.
@@ -39,17 +43,16 @@ WITH possible_queued_jobs AS (
 ),
 
 latest_jobs AS (
-    --- Manual ReplacingMergeTree dedup. Cheaper than global FINAL because we
-    --- only read parts that contain candidate ids.
+    --- Manual ReplacingMergeTree dedup using _inserted_at MATERIALIZED column.
+    --- Cheaper than global FINAL because we only read parts that contain
+    --- candidate ids.
     SELECT
         id,
         run_id,
         status,
         created_at,
         labels,
-        steps,
-        name,
-        html_url
+        steps
     FROM default.workflow_job
     WHERE id IN (SELECT id FROM possible_queued_jobs)
     ORDER BY id, _inserted_at DESC
@@ -58,10 +61,10 @@ latest_jobs AS (
 
 latest_workflows AS (
     --- Pre-filter workflow_run to non-completed runs in the requested orgs/repo
-    --- before the JOIN so the right side is tiny.
+    --- before the JOIN so the right side is tiny. FINAL is acceptable here
+    --- because the predicate keeps the read set small.
     SELECT
         id,
-        name,
         repository.owner.login AS org,
         repository.name AS repo
     FROM default.workflow_run FINAL
@@ -74,33 +77,24 @@ latest_workflows AS (
 
 queued_jobs AS (
     SELECT
-        DATE_DIFF(
-            'minute',
-            job.created_at,
-            CURRENT_TIMESTAMP()
-        ) AS queue_m,
+        DATE_DIFF('minute', job.created_at, CURRENT_TIMESTAMP()) AS queue_m,
         workflow.org AS org,
         workflow.repo AS repo,
-        CONCAT(workflow.name, ' / ', job.name) AS name,
-        job.html_url,
         IF(
             LENGTH(job.labels) = 0,
             'N/A',
-            IF(
-                LENGTH(job.labels) > 1,
-                job.labels[2],
-                job.labels[1]
-            )
+            IF(LENGTH(job.labels) > 1, job.labels[2], job.labels[1])
         ) AS runner_label
     FROM latest_jobs AS job
     JOIN latest_workflows AS workflow ON workflow.id = job.run_id
     WHERE
         job.status = 'queued'
-        /* These two conditions are workarounds for GitHub's broken API. Sometimes */
-        /* jobs get stuck in a permanently "queued" state but definitely ran. We can */
-        /* detect this by looking at whether any steps executed (if there were, */
-        /* obviously the job started running), and whether the workflow was marked as */
-        /* complete (workflow.status filter is in latest_workflows above) */
+        /* Workaround for GitHub's broken API: jobs can be stuck in 'queued' */
+        /* even after they ran. Steps populate the moment a runner picks up */
+        /* the job, so a non-empty steps array means the job did start. */
+        /* The workflow.status != 'completed' filter (in latest_workflows */
+        /* above) catches the other case where the whole workflow was */
+        /* cancelled — without it, ~2× of rows are stale ghosts. */
         AND LENGTH(job.steps) = 0
 )
 
