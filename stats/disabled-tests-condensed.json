@@ -2980,13 +2980,6 @@
       "rocm"
     ]
   ],
-  "test_unary_ufunc_numerical_log10_backend_inductor_numerics_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180064",
-    "https://github.com/pytorch/pytorch/issues/180064",
-    [
-      "rocm"
-    ]
-  ],
   "test_unary_ufunc_numerical_log10_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "180065",
     "https://github.com/pytorch/pytorch/issues/180065",
