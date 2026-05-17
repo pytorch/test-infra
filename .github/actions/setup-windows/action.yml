@@ -17,17 +17,18 @@ runs:
         function get_ec2_metadata() {
           # Pulled from instance metadata endpoint for EC2
           # see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
-          # IMDS (169.254.169.254) is unreachable from IPv6-only environments
-          # (e.g. EKS pods without NAT64 to link-local). Fail fast and tolerate
-          # missing values so the step still succeeds off EC2.
+          # IMDS may be reachable over IPv6 [fd00:ec2::254] (IPv6-only EKS pods
+          # without NAT64) or IPv4 169.254.169.254 elsewhere; --resolve tries
+          # both. Soft-fail when neither responds (off-EC2 or v6 endpoint not
+          # enabled via HttpProtocolIpv6).
           category=$1
           local token
-          token=$(curl -s --connect-timeout 2 --max-time 5 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30" 2>/dev/null || true)
+          token=$(curl -sS -m 2 --noproxy '*' --resolve 'metadata:80:[fd00:ec2::254],169.254.169.254' -X PUT "http://metadata/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 30" 2>/dev/null || true)
           if [ -z "${token}" ]; then
             echo "unavailable"
             return 0
           fi
-          curl --connect-timeout 2 --max-time 5 -H "X-aws-ec2-metadata-token: ${token}" -fsSL "http://169.254.169.254/latest/meta-data/${category}" 2>/dev/null || echo "unavailable"
+          curl -sS -m 2 --noproxy '*' --resolve 'metadata:80:[fd00:ec2::254],169.254.169.254' -H "X-aws-ec2-metadata-token: ${token}" -fsSL "http://metadata/latest/meta-data/${category}" 2>/dev/null || echo "unavailable"
         }
         echo "ami-id: $(get_ec2_metadata ami-id)"
         echo "instance-id: $(get_ec2_metadata instance-id)"
