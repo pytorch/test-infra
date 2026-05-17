@@ -38659,16 +38659,19 @@ const http_client_1 = __nccwpck_require__(4844);
 // request is also wrapped in a hard 2s deadline to bound blackholed SYNs.
 const IMDS_HOSTS = ['[fd00:ec2::254]', '169.254.169.254'];
 const IMDS_REQUEST_TIMEOUT_MS = 2000;
-function withTimeout(p, ms) {
+async function withTimeout(p, ms) {
     let timer;
     const deadline = new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error(`IMDS request exceeded ${ms}ms`)), ms);
     });
-    return Promise.race([p, deadline]).finally(() => {
+    try {
+        return await Promise.race([p, deadline]);
+    }
+    finally {
         if (timer !== undefined) {
             clearTimeout(timer);
         }
-    });
+    }
 }
 async function getEC2Metadata(category) {
     const http = new http_client_1.HttpClient('seemethere/add-github-ssh-key', undefined, {

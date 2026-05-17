@@ -9,19 +9,21 @@ import {HttpClient, HttpClientResponse} from '@actions/http-client'
 const IMDS_HOSTS = ['[fd00:ec2::254]', '169.254.169.254']
 const IMDS_REQUEST_TIMEOUT_MS = 2000
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(
       () => reject(new Error(`IMDS request exceeded ${ms}ms`)),
       ms
     )
   })
-  return Promise.race([p, deadline]).finally(() => {
+  try {
+    return await Promise.race([p, deadline])
+  } finally {
     if (timer !== undefined) {
       clearTimeout(timer)
     }
-  }) as Promise<T>
+  }
 }
 
 export async function getEC2Metadata(category: string): Promise<string> {
@@ -45,13 +47,9 @@ export async function getEC2Metadata(category: string): Promise<string> {
       let tokenResponse: HttpClientResponse
       try {
         tokenResponse = await withTimeout(
-          http.put(
-            `http://${host}/latest/api/token`,
-            '',
-            {
-              'X-aws-ec2-metadata-token-ttl-seconds': '30'
-            }
-          ),
+          http.put(`http://${host}/latest/api/token`, '', {
+            'X-aws-ec2-metadata-token-ttl-seconds': '30'
+          }),
           IMDS_REQUEST_TIMEOUT_MS
         )
       } catch {
@@ -68,12 +66,9 @@ export async function getEC2Metadata(category: string): Promise<string> {
       let resp: HttpClientResponse
       try {
         resp = await withTimeout(
-          http.get(
-            `http://${host}/latest/meta-data/${category}`,
-            {
-              'X-aws-ec2-metadata-token': token
-            }
-          ),
+          http.get(`http://${host}/latest/meta-data/${category}`, {
+            'X-aws-ec2-metadata-token': token
+          }),
           IMDS_REQUEST_TIMEOUT_MS
         )
       } catch {
