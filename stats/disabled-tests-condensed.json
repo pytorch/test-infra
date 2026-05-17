@@ -1069,13 +1069,6 @@
       "rocm"
     ]
   ],
-  "test_flex_attention_with_dynamic_max_autotune_cuda (__main__.TestLearnableBiasesCUDA)": [
-    "176146",
-    "https://github.com/pytorch/pytorch/issues/176146",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
