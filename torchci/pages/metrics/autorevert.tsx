@@ -591,9 +591,9 @@ function SignificantRevertsTable({
 }
 
 export default function AutorevertMetricsPage() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(90, "day"));
+  const [startTime, setStartTime] = useState(dayjs().subtract(30, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
-  const [timeRange, setTimeRange] = useState<number>(90);
+  const [timeRange, setTimeRange] = useState<number>(30);
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>(
     VIABLE_STRICT_WORKFLOWS
   );

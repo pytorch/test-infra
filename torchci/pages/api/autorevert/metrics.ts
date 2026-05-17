@@ -7,6 +7,13 @@ import {
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
+import pLimit from "p-limit";
+
+// Max concurrent GitHub PR verifications. GitHub Enterprise PAT rate limit is
+// 5000 req/hour and each verification issues 2–4 API calls; 8 concurrent stays
+// well within both rate and burst budgets while collapsing what was a 100–300s
+// serial fan-out at the 90d window into ~10–30s.
+const FP_VERIFY_CONCURRENCY = 8;
 
 // Simple in-memory cache with TTL
 interface CacheEntry {
@@ -229,24 +236,29 @@ export default async function handler(
       }
     }
 
-    // Verify false positive candidates via GitHub API
+    // Verify false positive candidates via GitHub API. Each verification issues
+    // 2–4 API calls; running them serially over a 90d window can take 100–300s.
+    // Fan out with a bounded concurrency to keep total wall time in the 10–30s
+    // range without overwhelming the GitHub rate limit.
     let verifiedFPs: VerifiedFalsePositive[] = [];
     if (falsePositiveCandidates.length > 0) {
       const octokit = await getOctokit("pytorch", "pytorch");
+      const limit = pLimit(FP_VERIFY_CONCURRENCY);
 
-      for (const candidate of falsePositiveCandidates) {
-        // Check per-PR cache
-        const prCacheKey = `pr-verify-${candidate.pr_number}-${candidate.autorevert_time}`;
-        const cachedVerification = getCached(prCacheKey);
-
-        if (cachedVerification) {
-          verifiedFPs.push(cachedVerification);
-        } else {
-          const verified = await verifyFalsePositive(octokit, candidate);
-          setCache(prCacheKey, verified);
-          verifiedFPs.push(verified);
-        }
-      }
+      verifiedFPs = await Promise.all(
+        falsePositiveCandidates.map((candidate) =>
+          limit(async () => {
+            const prCacheKey = `pr-verify-${candidate.pr_number}-${candidate.autorevert_time}`;
+            const cachedVerification = getCached(prCacheKey);
+            if (cachedVerification) {
+              return cachedVerification as VerifiedFalsePositive;
+            }
+            const verified = await verifyFalsePositive(octokit, candidate);
+            setCache(prCacheKey, verified);
+            return verified;
+          })
+        )
+      );
     }
 
     // Separate confirmed FPs from legit reverts
