@@ -385,13 +385,6 @@
       "rocm"
     ]
   ],
-  "test_compile_with_user_stream_context (__main__.TestUserStreamCompile)": [
-    "181368",
-    "https://github.com/pytorch/pytorch/issues/181368",
-    [
-      "linux"
-    ]
-  ],
   "test_compiled_dtensor_op_db_histc_cpu_float32 (__main__.TestCompiledDTensorOpsCPU)": [
     "176973",
     "https://github.com/pytorch/pytorch/issues/176973",
@@ -2591,13 +2584,6 @@
     "https://github.com/pytorch/pytorch/issues/179979",
     [
       "rocm"
-    ]
-  ],
-  "test_stream_context_with_data_dependency (__main__.TestUserStreamCompile)": [
-    "181369",
-    "https://github.com/pytorch/pytorch/issues/181369",
-    [
-      "linux"
     ]
   ],
   "test_strided_leaf_grad_layout_cpu (__main__.TestAutogradDeviceTypeCPU)": [
