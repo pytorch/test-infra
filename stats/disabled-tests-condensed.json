@@ -1027,14 +1027,6 @@
       "slow"
     ]
   ],
-  "test_external_template_prologue_epilogue_fusion (__main__.TestTemplateRender)": [
-    "179959",
-    "https://github.com/pytorch/pytorch/issues/179959",
-    [
-      "rocm",
-      "xpu"
-    ]
-  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
