@@ -1157,13 +1157,6 @@
       "slow"
     ]
   ],
-  "test_fused_linear_cel (__main__.AutoChunkerTest)": [
-    "180588",
-    "https://github.com/pytorch/pytorch/issues/180588",
-    [
-      "linux"
-    ]
-  ],
   "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
     "170259",
     "https://github.com/pytorch/pytorch/issues/170259",
