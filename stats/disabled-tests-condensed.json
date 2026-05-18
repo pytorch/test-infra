@@ -1154,13 +1154,6 @@
       "rocm"
     ]
   ],
-  "test_fp8_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "179939",
-    "https://github.com/pytorch/pytorch/issues/179939",
-    [
-      "rocm"
-    ]
-  ],
   "test_fp8_view_of_param_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "179938",
     "https://github.com/pytorch/pytorch/issues/179938",
