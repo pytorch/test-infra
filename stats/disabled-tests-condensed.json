@@ -660,14 +660,6 @@
       "slow"
     ]
   ],
-  "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
-    "104695",
-    "https://github.com/pytorch/pytorch/issues/104695",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
@@ -678,6 +670,14 @@
   "test_custom_function_boxed_grads (__main__.TestAutogradWithCompiledAutograd)": [
     "180489",
     "https://github.com/pytorch/pytorch/issues/180489",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_custom_function_boxed_grads_cleanup_on_error (__main__.TestAutogradWithCompiledAutograd)": [
+    "180521",
+    "https://github.com/pytorch/pytorch/issues/180521",
     [
       "asan",
       "linux"
@@ -1548,6 +1548,13 @@
       "dynamo"
     ]
   ],
+  "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
+    "179895",
+    "https://github.com/pytorch/pytorch/issues/179895",
+    [
+      "dynamo"
+    ]
+  ],
   "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180944",
     "https://github.com/pytorch/pytorch/issues/180944",
@@ -1681,6 +1688,17 @@
     "https://github.com/pytorch/pytorch/issues/181085",
     [
       "xpu"
+    ]
+  ],
+  "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
+    "118253",
+    "https://github.com/pytorch/pytorch/issues/118253",
+    [
+      "asan",
+      "dynamo",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_missing_abstract_impl_cuda (__main__.TestCustomOpTestingCUDA)": [
@@ -1941,16 +1959,6 @@
   "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180262",
     "https://github.com/pytorch/pytorch/issues/180262",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180323",
-    "https://github.com/pytorch/pytorch/issues/180323",
     [
       "asan",
       "linux",
