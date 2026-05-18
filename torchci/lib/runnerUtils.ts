@@ -32,13 +32,21 @@ export interface RunnersApiResponse {
 export function getRunnerGroupLabel(runner: RunnerData): string {
   const labelNames = runner.labels.map((label) => label.name);
 
-  // Find labels with "." (excluding any that end with ".runners") or starting with "macos-"
+  // Find labels with "." (excluding any that end with ".runners"), labels
+  // starting with "macos-", or ARC/OSDC runner-set labels starting with "mt-"
+  // (e.g. mt-l-x86aavx2-189-704-a10g-8). The ARC label format is documented at
+  // pytorch/ci-infra:osdc/docs/runner_naming_convention.md as
+  //   [c-]{provider}-[rel-]{os}-[b]{arch}{vendor}{features}-{vcpu}-{memory}[-{gpu}[-{n}]]
+  // TODO: expand beyond "mt-" once additional providers (lf/am/in/nv/ib) and
+  // the "c-" canary prefix are in active use — see the doc above for the full
+  // set of valid prefixes.
   // Why have such funky logic? We have many labels on our runners today, but this
   // is what's common in all the ones that jobs actually use.
   const validLabels = labelNames.filter(
     (name) =>
       (name.includes(".") && !name.endsWith(".runners")) || // "*.runners" is added to autoscaled runners
-      name.startsWith("macos-")
+      name.startsWith("macos-") ||
+      name.startsWith("mt-")
   );
 
   if (validLabels.length > 0) {
