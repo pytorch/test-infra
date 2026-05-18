@@ -70,13 +70,5 @@
     "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
     "",
     ""
-  ],
-  "test_sdpa_rewriter_14_cpu (__main__. SDPAPatternRewriterCpuTests)": [
-    "robert-hardwick",
-    "184187",
-    "https://github.com/pytorch/pytorch/issues/184187",
-    "test_sdpa_rewriter_14_cpu (__main__. SDPAPatternRewriterCpuTests)",
-    "",
-    ""
   ]
 }
