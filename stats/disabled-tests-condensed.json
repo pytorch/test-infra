@@ -1045,6 +1045,14 @@
       "slow"
     ]
   ],
+  "test_external_template_prologue_epilogue_fusion (__main__.TestTemplateRender)": [
+    "179959",
+    "https://github.com/pytorch/pytorch/issues/179959",
+    [
+      "rocm",
+      "xpu"
+    ]
+  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
@@ -2450,6 +2458,20 @@
       "rocm"
     ]
   ],
+  "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuTests)": [
+    "184211",
+    "https://github.com/pytorch/pytorch/issues/184211",
+    [
+      "linux"
+    ]
+  ],
+  "test_sdpa_rewriter_5_cpu (__main__.SDPAPatternRewriterCpuDynamicTests)": [
+    "184212",
+    "https://github.com/pytorch/pytorch/issues/184212",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -2968,13 +2990,6 @@
   "test_unary_ufunc_numerical_log_backend_inductor_numerics_cuda_float16 (__main__.TestOpInfoPropertiesCUDA)": [
     "180067",
     "https://github.com/pytorch/pytorch/issues/180067",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_log_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "179942",
-    "https://github.com/pytorch/pytorch/issues/179942",
     [
       "rocm"
     ]
