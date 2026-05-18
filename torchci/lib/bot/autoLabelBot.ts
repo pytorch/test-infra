@@ -359,13 +359,14 @@ function getReleaseNotesCategoryAndTopic(
 
 export async function wasLabelRecentlyRemoved(
   context: Context,
+  issueNumber: number,
   labelName: string,
   withinMs: number
 ): Promise<boolean> {
   const events = await context.octokit.paginate(
     context.octokit.issues.listEvents,
     context.repo({
-      issue_number: context.payload.issue.number,
+      issue_number: issueNumber,
       per_page: 100,
     })
   );
@@ -440,6 +441,7 @@ function myBot(app: Probot): void {
         if (
           !(await wasLabelRecentlyRemoved(
             context,
+            context.payload.issue.number,
             "triage review",
             60 * 60 * 1000
           ))
