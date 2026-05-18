@@ -62,6 +62,10 @@ describe("auto-label-bot", () => {
     emptyMockConfig(payload.repository.full_name);
 
     const scope = nock("https://api.github.com")
+      .get(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
+      )
+      .reply(200, [])
       .post(
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
         (body) => {
@@ -70,6 +74,33 @@ describe("auto-label-bot", () => {
         }
       )
       .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("do not re-add triage review if it was previously removed", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.labeled");
+    payload["label"] = { name: "high priority" };
+    payload["issue"]["labels"] = [{ name: "high priority" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    // Issue events show that triage review was previously removed (i.e.
+    // the issue was already triaged).
+    const scope = nock("https://api.github.com")
+      .get(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
+      )
+      .reply(200, [
+        { event: "labeled", label: { name: "high priority" } },
+        { event: "labeled", label: { name: "triage review" } },
+        { event: "unlabeled", label: { name: "triage review" } },
+      ]);
 
     await probot.receive({ name: "issues", payload, id: "2" });
 
