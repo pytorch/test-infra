@@ -423,6 +423,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive___rmod___xpu_int32 (__main__.TestInductorOpInfoXPU)": [
+    "184183",
+    "https://github.com/pytorch/pytorch/issues/184183",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive___rpow___cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "165296",
     "https://github.com/pytorch/pytorch/issues/165296",
