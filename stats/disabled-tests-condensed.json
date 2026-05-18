@@ -1154,13 +1154,6 @@
       "rocm"
     ]
   ],
-  "test_fp8_view_of_param_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "179938",
-    "https://github.com/pytorch/pytorch/issues/179938",
-    [
-      "rocm"
-    ]
-  ],
   "test_fsdp_unsupported_module_cls (__main__.TestFSDPMiscMultiThread)": [
     "137948",
     "https://github.com/pytorch/pytorch/issues/137948",
