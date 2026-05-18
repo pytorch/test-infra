@@ -1556,6 +1556,21 @@
       "dynamo"
     ]
   ],
+  "test_make_fx_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180300",
+    "https://github.com/pytorch/pytorch/issues/180300",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_max_cached_size (__main__.TestCachingHostAllocatorConfig)": [
+    "182111",
+    "https://github.com/pytorch/pytorch/issues/182111",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
     "181699",
     "https://github.com/pytorch/pytorch/issues/181699",
@@ -1953,6 +1968,16 @@
   "test_opcheck_opinfo_NumpySplitCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180262",
     "https://github.com/pytorch/pytorch/issues/180262",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpySplitCopyWithIntCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180301",
+    "https://github.com/pytorch/pytorch/issues/180301",
     [
       "asan",
       "linux",
@@ -3115,13 +3140,6 @@
       "slow"
     ]
   ],
-  "test_vmap_grad_sum_cpu (__main__.TestHigherOrderOperatorInteractionCPU)": [
-    "181683",
-    "https://github.com/pytorch/pytorch/issues/181683",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
@@ -3144,27 +3162,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_with_mode (__main__.TestTorchFunctionMode)": [
-    "182097",
-    "https://github.com/pytorch/pytorch/issues/182097",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_with_mode_created_separately (__main__.TestTorchFunctionMode)": [
-    "182175",
-    "https://github.com/pytorch/pytorch/issues/182175",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_with_nested_modes (__main__.TestTorchFunctionMode)": [
-    "182258",
-    "https://github.com/pytorch/pytorch/issues/182258",
-    [
-      "dynamo"
     ]
   ]
 }
