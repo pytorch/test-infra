@@ -2396,20 +2396,6 @@
       "rocm"
     ]
   ],
-  "test_sparse_addmm_cpu_float16 (__main__.TestSparseCPU)": [
-    "180633",
-    "https://github.com/pytorch/pytorch/issues/180633",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_sparse_mask_backward_cpu_float64 (__main__.TestSparseCPU)": [
-    "182096",
-    "https://github.com/pytorch/pytorch/issues/182096",
-    [
-      "dynamo"
-    ]
-  ],
   "test_sparse_matmul_cpu_complex128 (__main__.TestSparseCPU)": [
     "184329",
     "https://github.com/pytorch/pytorch/issues/184329",
@@ -2681,6 +2667,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_regnet_x_3_2gf (__main__.TestVisionTracing)": [
     "183416",
     "https://github.com/pytorch/pytorch/issues/183416",
@@ -2930,13 +2926,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180322",
-    "https://github.com/pytorch/pytorch/issues/180322",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_exhaustive_cholesky_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
