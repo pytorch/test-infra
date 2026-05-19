@@ -151,10 +151,13 @@ export function extractDynamoRecord(
 
     if (wf.test_results) {
       const tr = wf.test_results;
-      if (typeof tr.total === "number") record.total_tests = tr.total;
       if (typeof tr.passed === "number") record.passed_tests = tr.passed;
       if (typeof tr.failed === "number") record.failed_tests = tr.failed;
       if (typeof tr.skipped === "number") record.skipped_tests = tr.skipped;
+      record.total_tests =
+        typeof tr.total === "number"
+          ? tr.total
+          : (tr.passed ?? 0) + (tr.failed ?? 0) + (tr.skipped ?? 0);
     }
   }
 
