@@ -171,8 +171,7 @@ jobs:
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Update NVIDIA driver
         if: inputs.architecture == 'x64' && matrix.gpu_arch_type == 'cuda'
-        run: |
-          cmd //c .\\test-infra\\.github\\scripts\\driver_update.bat
+        uses: pytorch/test-infra/.github/actions/setup-nvidia-windows@main
       - name: Checkout Target Repository (${{ env.REPOSITORY }})
         if: inputs.architecture == 'arm64'
         uses: actions/checkout@v4
