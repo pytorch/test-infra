@@ -1,10 +1,10 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import {
   ApiError,
-  validatePayloadSize,
   extractDynamoRecord,
+  validatePayloadSize,
   writeToDynamo,
 } from "lib/oot/ootUtils";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export const config = {
   api: {
@@ -50,6 +50,8 @@ export default async function handler(
       return res.status(err.statusCode).json({ error: err.message });
     }
     console.error("OOT results handler error:", err);
-    return res.status(500).json({ error: "Internal error writing to DynamoDB" });
+    return res
+      .status(500)
+      .json({ error: "Internal error writing to DynamoDB" });
   }
 }

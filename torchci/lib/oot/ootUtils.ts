@@ -96,8 +96,7 @@ export function extractDynamoRecord(
   const cb = untrusted.callback_payload;
   const wf = cb.workflow;
   const pr = cb.payload?.pull_request;
-  const upstreamRepo =
-    cb.payload?.repository?.full_name ?? "pytorch/pytorch";
+  const upstreamRepo = cb.payload?.repository?.full_name ?? "pytorch/pytorch";
 
   const jobName = wf.job_name ?? "default";
   const checkRunId = wf.check_run_id ?? "unknown";
@@ -198,10 +197,7 @@ export async function writeToDynamo(
 
 export type ChipColor = "success" | "error" | "warning" | "info" | "default";
 
-export function conclusionColor(
-  status: string,
-  conclusion: string
-): ChipColor {
+export function conclusionColor(status: string, conclusion: string): ChipColor {
   if (status === "in_progress") return "info";
   switch (conclusion) {
     case "success":

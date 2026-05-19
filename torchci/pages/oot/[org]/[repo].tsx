@@ -51,25 +51,29 @@ interface OotJobRow {
   execution_time: number | null;
 }
 
-function JobChip({
-  job,
-}: {
-  job: OotJobRow;
-}) {
+function JobChip({ job }: { job: OotJobRow }) {
   const color = conclusionColor(job.status, job.conclusion);
   const label = conclusionLabel(job.status, job.conclusion);
   const tooltipContent = [
     `Job: ${job.job_name}`,
     job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
-    `Duration: ${job.duration_seconds ? durationDisplay(Math.round(job.duration_seconds)) : "–"}`,
-    job.total_tests ? `Tests: ${job.passed_tests}/${job.total_tests} passed` : null,
+    `Duration: ${
+      job.duration_seconds
+        ? durationDisplay(Math.round(job.duration_seconds))
+        : "–"
+    }`,
+    job.total_tests
+      ? `Tests: ${job.passed_tests}/${job.total_tests} passed`
+      : null,
     job.queue_time != null ? `Queue: ${job.queue_time.toFixed(1)}s` : null,
   ]
     .filter(Boolean)
     .join("\n");
 
   return (
-    <Tooltip title={<span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>}>
+    <Tooltip
+      title={<span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>}
+    >
       <Chip
         label={label}
         color={color}
@@ -244,16 +248,10 @@ export default function OotBackendPage() {
   return (
     <>
       <Head>
-        <title>
-          {repoFullName} — OOT CI | PyTorch HUD
-        </title>
+        <title>{repoFullName} — OOT CI | PyTorch HUD</title>
       </Head>
       <Stack spacing={3} sx={{ p: 3, maxWidth: 1600, mx: "auto" }}>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-        >
+        <Box display="flex" justifyContent="space-between" alignItems="center">
           <Stack spacing={0.5}>
             <Typography variant="h4">{repoFullName}</Typography>
             <NextLink href="/oot" passHref legacyBehavior>
@@ -279,8 +277,8 @@ export default function OotBackendPage() {
         </Box>
 
         <Typography variant="body2" color="text.secondary">
-          Rows = PyTorch PRs, columns = downstream CI jobs. Click a chip to
-          open the workflow run.
+          Rows = PyTorch PRs, columns = downstream CI jobs. Click a chip to open
+          the workflow run.
         </Typography>
 
         <OotMatrix repoFullName={repoFullName} days={days} />

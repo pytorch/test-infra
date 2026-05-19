@@ -1,3 +1,4 @@
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Accordion,
   AccordionDetails,
@@ -13,7 +14,6 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { durationDisplay } from "components/common/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { conclusionColor, conclusionLabel } from "lib/oot/ootUtils";
@@ -49,17 +49,11 @@ export default function OotPrSection({ prNumber }: { prNumber: number }) {
   const successCount = data.filter(
     (r) => r.status === "completed" && r.conclusion === "success"
   ).length;
-  const totalCompleted = data.filter(
-    (r) => r.status === "completed"
-  ).length;
-  const inProgress = data.filter(
-    (r) => r.status === "in_progress"
-  ).length;
+  const totalCompleted = data.filter((r) => r.status === "completed").length;
+  const inProgress = data.filter((r) => r.status === "in_progress").length;
 
   const summaryText = [
-    totalCompleted > 0
-      ? `${successCount}/${totalCompleted} passed`
-      : null,
+    totalCompleted > 0 ? `${successCount}/${totalCompleted} passed` : null,
     inProgress > 0 ? `${inProgress} running` : null,
   ]
     .filter(Boolean)
