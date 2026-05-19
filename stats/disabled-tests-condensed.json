@@ -1080,6 +1080,13 @@
       "linux"
     ]
   ],
+  "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180336",
+    "https://github.com/pytorch/pytorch/issues/180336",
+    [
+      "dynamo"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -1882,17 +1889,6 @@
       "xpu"
     ]
   ],
-  "test_opcheck_fails_basic_cpu (__main__.TestCustomOpTestingCPU)": [
-    "119159",
-    "https://github.com/pytorch/pytorch/issues/119159",
-    [
-      "asan",
-      "dynamo",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_opcheck_fails_basic_cuda (__main__.TestCustomOpTestingCUDA)": [
     "179991",
     "https://github.com/pytorch/pytorch/issues/179991",
@@ -1974,6 +1970,16 @@
   "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180323",
     "https://github.com/pytorch/pytorch/issues/180323",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyViewCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180338",
+    "https://github.com/pytorch/pytorch/issues/180338",
     [
       "asan",
       "linux",
@@ -2427,6 +2433,14 @@
       "slow"
     ]
   ],
+  "test_round_threshold_larger_than_cached_size (__main__.TestCachingHostAllocatorConfig)": [
+    "182261",
+    "https://github.com/pytorch/pytorch/issues/182261",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_run2run_determinism_model_name_GoogleFnet_training_or_inference_inference_precision_float32 (__main__.DeterministicTest)": [
     "180681",
     "https://github.com/pytorch/pytorch/issues/180681",
@@ -2553,6 +2567,13 @@
   "test_sparse_mask_backward_cpu_float64 (__main__.TestSparseCPU)": [
     "182096",
     "https://github.com/pytorch/pytorch/issues/182096",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_sparse_matmul_cpu_complex128 (__main__.TestSparseCPU)": [
+    "184329",
+    "https://github.com/pytorch/pytorch/issues/184329",
     [
       "dynamo"
     ]
@@ -2726,8 +2747,8 @@
     ]
   ],
   "test_tokenization (__main__.ReproTests)": [
-    "179983",
-    "https://github.com/pytorch/pytorch/issues/179983",
+    "184324",
+    "https://github.com/pytorch/pytorch/issues/184324",
     [
       "rocm"
     ]
@@ -2784,13 +2805,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
-    "182418",
-    "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "linux"
     ]
   ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
@@ -2900,13 +2914,6 @@
       "inductor"
     ]
   ],
-  "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
-    "180321",
-    "https://github.com/pytorch/pytorch/issues/180321",
-    [
-      "dynamo"
-    ]
-  ],
   "test_triton_error_precompilation_and_autotuning (__main__.TestMaxAutotuneAsyncPipelined)": [
     "179696",
     "https://github.com/pytorch/pytorch/issues/179696",
@@ -2959,13 +2966,6 @@
   "test_unary_ufunc_numerical_exp_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "180061",
     "https://github.com/pytorch/pytorch/issues/180061",
-    [
-      "rocm"
-    ]
-  ],
-  "test_unary_ufunc_numerical_log10_backend_inductor_numerics_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "180065",
-    "https://github.com/pytorch/pytorch/issues/180065",
     [
       "rocm"
     ]
