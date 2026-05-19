@@ -5,10 +5,6 @@ from utils.jwt_helper import verify_oidc_token
 from utils.misc import HTTPException
 
 
-def _cfg():
-    return MagicMock()
-
-
 class TestVerifyDownstreamIdentity(unittest.TestCase):
     def setUp(self):
         self.patcher_jwks = patch(
@@ -31,20 +27,20 @@ class TestVerifyDownstreamIdentity(unittest.TestCase):
         }
         self.mock_decode.return_value = expected
 
-        claims = verify_oidc_token(_cfg(), "some.oidc.token")
+        claims = verify_oidc_token("some.oidc.token")
 
         self.assertEqual(claims, expected)
 
     def test_bearer_prefix_stripped_before_jwks_lookup(self):
         self.mock_decode.return_value = {"repository": "org/repo"}
 
-        verify_oidc_token(_cfg(), "Bearer some.oidc.token")
+        verify_oidc_token("Bearer some.oidc.token")
 
         self.mock_signing_key.assert_called_once_with("some.oidc.token")
 
     def test_empty_token_raises_401_without_jwks_lookup(self):
         with self.assertRaises(HTTPException) as ctx:
-            verify_oidc_token(_cfg(), "")
+            verify_oidc_token("")
         self.assertEqual(ctx.exception.status_code, 401)
         self.assertIn("Missing", ctx.exception.detail)
         self.mock_signing_key.assert_not_called()
@@ -53,7 +49,7 @@ class TestVerifyDownstreamIdentity(unittest.TestCase):
         self.mock_signing_key.side_effect = Exception("JWKS fetch failed")
 
         with self.assertRaises(HTTPException) as ctx:
-            verify_oidc_token(_cfg(), "bad.token")
+            verify_oidc_token("bad.token")
         self.assertEqual(ctx.exception.status_code, 401)
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 import jwt
-from utils.config import RelayConfig
 from utils.misc import HTTPException
 
 
@@ -16,7 +15,7 @@ _jwks_client = jwt.PyJWKClient(
 )
 
 
-def verify_oidc_token(config: RelayConfig, token: str) -> dict:
+def verify_oidc_token(token: str) -> dict:
     """Decode a GitHub Actions OIDC token and return the claims.
 
     Rejects an empty/missing token up front so every call site gets a uniform
@@ -36,7 +35,7 @@ def verify_oidc_token(config: RelayConfig, token: str) -> dict:
             signing_key.key,
             algorithms=["RS256"],
             issuer="https://token.actions.githubusercontent.com",
-            options={"verify_aud": False},
+            audience="pytorch-cross-repo-ci-relay",
         )
     except Exception as exc:
         logger.exception("OIDC token verification error")

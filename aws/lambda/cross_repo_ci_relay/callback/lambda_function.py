@@ -41,9 +41,7 @@ def lambda_handler(event, context):
         # Relay reports the OIDC-verified repo to HUD separately as
         # `verified_repo` so HUD has a trusted source of truth for the
         # caller's identity.
-        oidc_claims = jwt_helper.verify_oidc_token(
-            config, headers.get("authorization", "")
-        )
+        oidc_claims = jwt_helper.verify_oidc_token(headers.get("authorization", ""))
         verified_repo = oidc_claims["repository"]
 
         result = result_handler.handle(config, body, verified_repo)
