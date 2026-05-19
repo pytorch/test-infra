@@ -276,48 +276,6 @@
       "slow"
     ]
   ],
-  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
-    "180017",
-    "https://github.com/pytorch/pytorch/issues/180017",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180023",
-    "https://github.com/pytorch/pytorch/issues/180023",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTests)": [
-    "180018",
-    "https://github.com/pytorch/pytorch/issues/180018",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180024",
-    "https://github.com/pytorch/pytorch/issues/180024",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_yz_overflow (__main__.ComboKernelTests)": [
-    "180019",
-    "https://github.com/pytorch/pytorch/issues/180019",
-    [
-      "rocm"
-    ]
-  ],
-  "test_combo_kernel_yz_overflow (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "180026",
-    "https://github.com/pytorch/pytorch/issues/180026",
-    [
-      "rocm"
-    ]
-  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
