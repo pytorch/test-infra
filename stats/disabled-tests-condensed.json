@@ -119,13 +119,6 @@
       "windows"
     ]
   ],
-  "test_autograd_function_no_setup_context_transform_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "180591",
-    "https://github.com/pytorch/pytorch/issues/180591",
-    [
-      "dynamo"
-    ]
-  ],
   "test_automatic_dynamo_graph_breaks_device_cpu (__main__.TestPackage)": [
     "183810",
     "https://github.com/pytorch/pytorch/issues/183810",
@@ -1235,13 +1228,6 @@
       "dynamo"
     ]
   ],
-  "test_grad_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "179877",
-    "https://github.com/pytorch/pytorch/issues/179877",
-    [
-      "dynamo"
-    ]
-  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -1513,13 +1499,6 @@
       "xpu"
     ]
   ],
-  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180438",
-    "https://github.com/pytorch/pytorch/issues/180438",
-    [
-      "dynamo"
-    ]
-  ],
   "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180520",
     "https://github.com/pytorch/pytorch/issues/180520",
@@ -1569,6 +1548,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
+    "171985",
+    "https://github.com/pytorch/pytorch/issues/171985",
+    [
+      "xpu"
     ]
   ],
   "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
@@ -1985,9 +1971,9 @@
       "macos"
     ]
   ],
-  "test_opcheck_opinfo_NumpyViewCopyCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180338",
-    "https://github.com/pytorch/pytorch/issues/180338",
+  "test_opcheck_opinfo_NumpyTakeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180323",
+    "https://github.com/pytorch/pytorch/issues/180323",
     [
       "asan",
       "linux",
