@@ -2020,6 +2020,13 @@
       "macos"
     ]
   ],
+  "test_quiesce_repeatedly (__main__.TestCompileWorker)": [
+    "176968",
+    "https://github.com/pytorch/pytorch/issues/176968",
+    [
+      "linux"
+    ]
+  ],
   "test_qwen2_7b_sdpa_input_alignment_requires_recompile (__main__.CudaReproTests)": [
     "163689",
     "https://github.com/pytorch/pytorch/issues/163689",
@@ -2473,6 +2480,13 @@
       "rocm"
     ]
   ],
+  "test_static_init_dlopen_does_not_deadlock (__main__.TestCppWrapperStaticInitDeadlock)": [
+    "184496",
+    "https://github.com/pytorch/pytorch/issues/184496",
+    [
+      "xpu"
+    ]
+  ],
   "test_strided_leaf_grad_layout_cpu (__main__.TestAutogradDeviceTypeCPU)": [
     "181203",
     "https://github.com/pytorch/pytorch/issues/181203",
@@ -2665,6 +2679,13 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
+    "182174",
+    "https://github.com/pytorch/pytorch/issues/182174",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b1 (__main__.TestVisionTracing)": [
     "123889",
     "https://github.com/pytorch/pytorch/issues/123889",
@@ -2736,9 +2757,23 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_resnext101_64x4d (__main__.TestVisionTracing)": [
+    "184505",
+    "https://github.com/pytorch/pytorch/issues/184505",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_segmentation_deeplabv3_resnet101 (__main__.TestVisionTracing)": [
     "182932",
     "https://github.com/pytorch/pytorch/issues/182932",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_segmentation_deeplabv3_resnet50 (__main__.TestVisionTracing)": [
+    "184506",
+    "https://github.com/pytorch/pytorch/issues/184506",
     [
       "linux"
     ]
@@ -2789,6 +2824,13 @@
     "https://github.com/pytorch/pytorch/issues/148901",
     [
       "inductor"
+    ]
+  ],
+  "test_tree_map_with_path_multiple_trees (__main__.TestPythonPytree)": [
+    "184507",
+    "https://github.com/pytorch/pytorch/issues/184507",
+    [
+      "dynamo"
     ]
   ],
   "test_triton_error_precompilation_and_autotuning (__main__.TestMaxAutotuneAsyncPipelined)": [
