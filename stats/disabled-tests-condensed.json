@@ -1208,6 +1208,14 @@
       "dynamo"
     ]
   ],
+  "test_hints_wrapper (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "184537",
+    "https://github.com/pytorch/pytorch/issues/184537",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_hoist_conv_packed_params (__main__.TestOptimizer)": [
     "157247",
     "https://github.com/pytorch/pytorch/issues/157247",
@@ -1256,13 +1264,6 @@
   "test_ifft_norm_ortho (__main__.TestFFT1D)": [
     "182099",
     "https://github.com/pytorch/pytorch/issues/182099",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_impl_device_cpu (__main__.TestCustomOp)": [
-    "153763",
-    "https://github.com/pytorch/pytorch/issues/153763",
     [
       "dynamo"
     ]
@@ -1331,13 +1332,6 @@
   "test_jacobian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
     "153707",
     "https://github.com/pytorch/pytorch/issues/153707",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_jvp_supports_saved_tensor_hooks_cpu (__main__.TestComposabilityCPU)": [
-    "179878",
-    "https://github.com/pytorch/pytorch/issues/179878",
     [
       "dynamo"
     ]
@@ -2788,20 +2782,6 @@
     "https://github.com/pytorch/pytorch/issues/81213",
     [
       "linux"
-    ]
-  ],
-  "test_trace_return_dataclass_nested (__main__.TestFX)": [
-    "181322",
-    "https://github.com/pytorch/pytorch/issues/181322",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_trace_return_namedtuple (__main__.TestFX)": [
-    "176966",
-    "https://github.com/pytorch/pytorch/issues/176966",
-    [
-      "dynamo"
     ]
   ],
   "test_tracker_multi_group_eager (__main__.TestTrackerFullyShard1DTrainingCore)": [
