@@ -468,6 +468,14 @@
       "rocm"
     ]
   ],
+  "test_cond_branches_no_arguments (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "176204",
+    "https://github.com/pytorch/pytorch/issues/176204",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cond_branches_no_arguments_no_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "183892",
     "https://github.com/pytorch/pytorch/issues/183892",
@@ -486,6 +494,27 @@
   "test_control_deps_orders_void_op_across_nested_calls (__main__.TestControlDeps)": [
     "181701",
     "https://github.com/pytorch/pytorch/issues/181701",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups2_nhwc_False_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "184467",
+    "https://github.com/pytorch/pytorch/issues/184467",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups2_nhwc_True_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "184471",
+    "https://github.com/pytorch/pytorch/issues/184471",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups5_nhwc_False_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "184469",
+    "https://github.com/pytorch/pytorch/issues/184469",
     [
       "xpu"
     ]
@@ -1023,16 +1052,16 @@
       "linux"
     ]
   ],
-  "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180336",
-    "https://github.com/pytorch/pytorch/issues/180336",
+  "test_find_learning_rate_ensembling_AlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180320",
+    "https://github.com/pytorch/pytorch/issues/180320",
     [
       "dynamo"
     ]
   ],
-  "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180437",
-    "https://github.com/pytorch/pytorch/issues/180437",
+  "test_find_learning_rate_ensembling_Dropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180336",
+    "https://github.com/pytorch/pytorch/issues/180336",
     [
       "dynamo"
     ]
@@ -1143,13 +1172,6 @@
   "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
     "180655",
     "https://github.com/pytorch/pytorch/issues/180655",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180894",
-    "https://github.com/pytorch/pytorch/issues/180894",
     [
       "dynamo"
     ]
@@ -2076,6 +2098,13 @@
       "linux"
     ]
   ],
+  "test_reflection_pad2d_channels_last_xpu (__main__.GPUTests)": [
+    "184468",
+    "https://github.com/pytorch/pytorch/issues/184468",
+    [
+      "xpu"
+    ]
+  ],
   "test_remote_group_merge (__main__.ProcessGroupGlooTest)": [
     "162250",
     "https://github.com/pytorch/pytorch/issues/162250",
@@ -2382,11 +2411,27 @@
       "xpu"
     ]
   ],
+  "test_single_dim_strategy_nn_functional_max_unpool3d_grad_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "184463",
+    "https://github.com/pytorch/pytorch/issues/184463",
+    [
+      "linux"
+    ]
+  ],
   "test_skip_grad_in_check (__main__.TestTEFuserDynamic)": [
     "156436",
     "https://github.com/pytorch/pytorch/issues/156436",
     [
       "linux"
+    ]
+  ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
     ]
   ],
   "test_softmax_zero_nnz_cpu_float32 (__main__.TestSparseCPU)": [
@@ -2597,6 +2642,13 @@
     "https://github.com/pytorch/pytorch/issues/114831",
     []
   ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value0_expected_buffer_size_bytes_1024 (__main__.TestBenchmarker)": [
+    "184470",
+    "https://github.com/pytorch/pytorch/issues/184470",
+    [
+      "xpu"
+    ]
+  ],
   "test_torch_to (__main__.TestTEFuserStatic)": [
     "121876",
     "https://github.com/pytorch/pytorch/issues/121876",
@@ -2611,6 +2663,13 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_torchvision_models_convnext_small (__main__.TestVisionTracing)": [
+    "184462",
+    "https://github.com/pytorch/pytorch/issues/184462",
+    [
+      "linux"
     ]
   ],
   "test_torchvision_models_densenet161 (__main__.TestVisionTracing)": [
