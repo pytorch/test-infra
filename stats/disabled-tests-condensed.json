@@ -1710,6 +1710,14 @@
       "linux"
     ]
   ],
+  "test_nested_tuple_output (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "176969",
+    "https://github.com/pytorch/pytorch/issues/176969",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_nested_wrapped_model_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "170373",
     "https://github.com/pytorch/pytorch/issues/170373",
@@ -1784,16 +1792,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "179909",
-    "https://github.com/pytorch/pytorch/issues/179909",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -1923,6 +1921,13 @@
     "https://github.com/pytorch/pytorch/issues/183415",
     [
       "inductor"
+    ]
+  ],
+  "test_permute_masked_cpu_float64 (__main__.TestSparseCPU)": [
+    "184598",
+    "https://github.com/pytorch/pytorch/issues/184598",
+    [
+      "dynamo"
     ]
   ],
   "test_pickle_SparseBSC_cuda_float64 (__main__.TestSparseCompressedCUDA)": [
@@ -2109,6 +2114,13 @@
   "test_reduce_scatter_float8 (__main__.ProcessGroupNCCLOpTest)": [
     "157897",
     "https://github.com/pytorch/pytorch/issues/157897",
+    [
+      "linux"
+    ]
+  ],
+  "test_reference_type_recompile (__main__.TestOpaqueObject)": [
+    "184597",
+    "https://github.com/pytorch/pytorch/issues/184597",
     [
       "linux"
     ]
@@ -2743,25 +2755,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
-    "152632",
-    "https://github.com/pytorch/pytorch/issues/152632",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
     "124152",
     "https://github.com/pytorch/pytorch/issues/124152",
@@ -3012,13 +3005,6 @@
       "linux",
       "win",
       "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lstsq_cpu_float32 (__main__.TestJitCPU)": [
-    "182396",
-    "https://github.com/pytorch/pytorch/issues/182396",
-    [
-      "linux"
     ]
   ],
   "test_vit_aten_export (__main__.TestQuantizePT2EModels)": [
