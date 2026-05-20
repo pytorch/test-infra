@@ -129,7 +129,7 @@ runs:
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
-          conda install -y conda=25.3.0
+          conda install -y conda=25.11.1
 
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
@@ -143,6 +143,7 @@ runs:
               --yes --quiet \
               --prefix "${CONDA_ENV}" \
               "python=${PYTHON_VERSION}" \
+              pip \
               cmake=3.31.2 \
               ninja=1.12.1 \
               "libwebp>=1.3.2" \
