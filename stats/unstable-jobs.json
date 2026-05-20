@@ -87,6 +87,14 @@
     "linux-noble-rocm-nightly-py3.12-gfx942",
     "test (inductor)"
   ],
+  "trunk / linux-jammy-aarch64-py3.10 / test-osdc (default)": [
+    "huydhn",
+    "184485",
+    "https://github.com/pytorch/pytorch/issues/184485",
+    "trunk",
+    "linux-jammy-aarch64-py3.10",
+    "test-osdc (default)"
+  ],
   "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
