@@ -2657,13 +2657,6 @@
       "rocm"
     ]
   ],
-  "test_tokenization_dynamic_shapes (__main__.DynamicShapesReproTests)": [
-    "179986",
-    "https://github.com/pytorch/pytorch/issues/179986",
-    [
-      "rocm"
-    ]
-  ],
   "test_torch_name_rule_map_updated (__main__.TraceRuleTests)": [
     "114831",
     "https://github.com/pytorch/pytorch/issues/114831",
