@@ -124,9 +124,7 @@ function Page() {
         )}
       </ErrorBoundary>
       <ErrorBoundary>
-        {prNumber && (
-          <OotPrSection prNumber={parseInt(prNumber as string)} />
-        )}
+        {prNumber && <OotPrSection prNumber={parseInt(prNumber as string)} />}
       </ErrorBoundary>
     </div>
   );
