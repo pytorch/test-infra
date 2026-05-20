@@ -157,16 +157,22 @@ jobs:
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install delocate-wheel
         if: ${{ inputs.delocate-wheel }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
+          conda info
+          conda deactivate
+          conda activate test
+          conda info
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
-          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH} 
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -177,11 +183,14 @@ jobs:
           script: ${{ inputs.pre-script }}
       - name: Build clean
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} python3 setup.py clean
+          ${CONDA_RUN} which python3
+          ${CONDA_RUN} conda list
+          ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (python-build-package)
         if: ${{ inputs.build-platform == 'python-build-package' }}
         working-directory: ${{ inputs.repository }}
@@ -204,6 +213,7 @@ jobs:
       - name: Build the wheel (setup-py)
         if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
@@ -214,11 +224,13 @@ jobs:
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-
+          
+          ${CONDA_RUN} python3 -c "import torch"  
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         if: ${{ inputs.delocate-wheel }}
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
