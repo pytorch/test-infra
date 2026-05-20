@@ -28,13 +28,6 @@
       "rocm"
     ]
   ],
-  "test_Linear_cuda_tf32 (__main__.TestNN)": [
-    "155216",
-    "https://github.com/pytorch/pytorch/issues/155216",
-    [
-      "rocm"
-    ]
-  ],
   "test_RNN_cpu_vs_cudnn_no_dropout (__main__.TestNN)": [
     "182790",
     "https://github.com/pytorch/pytorch/issues/182790",
@@ -494,27 +487,6 @@
   "test_control_deps_orders_void_op_across_nested_calls (__main__.TestControlDeps)": [
     "181701",
     "https://github.com/pytorch/pytorch/issues/181701",
-    [
-      "xpu"
-    ]
-  ],
-  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups2_nhwc_False_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "184467",
-    "https://github.com/pytorch/pytorch/issues/184467",
-    [
-      "xpu"
-    ]
-  ],
-  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups2_nhwc_True_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "184471",
-    "https://github.com/pytorch/pytorch/issues/184471",
-    [
-      "xpu"
-    ]
-  ],
-  "test_conv2d_backward_parametrized_dilation_1_stride_1_padding_0_kernel_1_channels_groups5_nhwc_False_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "184469",
-    "https://github.com/pytorch/pytorch/issues/184469",
     [
       "xpu"
     ]
