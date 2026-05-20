@@ -2321,6 +2321,13 @@
       "rocm"
     ]
   ],
+  "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuDynamicTests)": [
+    "184453",
+    "https://github.com/pytorch/pytorch/issues/184453",
+    [
+      "linux"
+    ]
+  ],
   "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuTests)": [
     "184211",
     "https://github.com/pytorch/pytorch/issues/184211",
