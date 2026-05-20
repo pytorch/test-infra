@@ -611,6 +611,13 @@
       "slow"
     ]
   ],
+  "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
+    "92131",
+    "https://github.com/pytorch/pytorch/issues/92131",
+    [
+      "rocm"
+    ]
+  ],
   "test_custom_function_boxed_grads (__main__.TestAutogradWithCompiledAutograd)": [
     "180489",
     "https://github.com/pytorch/pytorch/issues/180489",
