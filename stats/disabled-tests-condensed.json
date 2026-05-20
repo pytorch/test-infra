@@ -1575,6 +1575,20 @@
       "xpu"
     ]
   ],
+  "test_mm_plus_mm (__main__.TestSelectAlgorithm)": [
+    "184490",
+    "https://github.com/pytorch/pytorch/issues/184490",
+    [
+      "xpu"
+    ]
+  ],
+  "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "173473",
+    "https://github.com/pytorch/pytorch/issues/173473",
+    [
+      "xpu"
+    ]
+  ],
   "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
     "87581",
     "https://github.com/pytorch/pytorch/issues/87581",
@@ -2322,13 +2336,6 @@
       "rocm"
     ]
   ],
-  "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuDynamicTests)": [
-    "184453",
-    "https://github.com/pytorch/pytorch/issues/184453",
-    [
-      "linux"
-    ]
-  ],
   "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuTests)": [
     "184211",
     "https://github.com/pytorch/pytorch/issues/184211",
@@ -2617,6 +2624,13 @@
   "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value0_expected_buffer_size_bytes_1024 (__main__.TestBenchmarker)": [
     "184470",
     "https://github.com/pytorch/pytorch/issues/184470",
+    [
+      "xpu"
+    ]
+  ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock (__main__.TestBenchmarker)": [
+    "184491",
+    "https://github.com/pytorch/pytorch/issues/184491",
     [
       "xpu"
     ]
