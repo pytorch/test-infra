@@ -1896,20 +1896,6 @@
       "rocm"
     ]
   ],
-  "test_origami_fallback_when_disabled (__main__.TestOrigami)": [
-    "184660",
-    "https://github.com/pytorch/pytorch/issues/184660",
-    [
-      "rocm"
-    ]
-  ],
-  "test_origami_module_gate_when_env_var_unset (__main__.TestOrigami)": [
-    "184658",
-    "https://github.com/pytorch/pytorch/issues/184658",
-    [
-      "rocm"
-    ]
-  ],
   "test_padded_dense_to_jagged_total_L_zero (__main__.TestMetaKernelRegistrations)": [
     "181490",
     "https://github.com/pytorch/pytorch/issues/181490",
