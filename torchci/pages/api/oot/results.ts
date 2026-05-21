@@ -33,7 +33,7 @@ export default async function handler(
     if (typeof raw !== "string") {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const a = Uint8Array(Buffer.from(raw));
+    const a = new Uint8Array(Buffer.from(raw));
     const b = Uint8Array(Buffer.from(expected));
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return res.status(401).json({ error: "Unauthorized" });
