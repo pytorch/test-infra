@@ -249,15 +249,6 @@
       "dynamo"
     ]
   ],
-  "test_cdist_large_batch_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "158909",
-    "https://github.com/pytorch/pytorch/issues/158909",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
@@ -563,14 +554,6 @@
       "slow"
     ]
   ],
-  "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
-    "158115",
-    "https://github.com/pytorch/pytorch/issues/158115",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_correctness_add_f32 (__main__.TestInlineAsmElementwise)": [
     "180132",
     "https://github.com/pytorch/pytorch/issues/180132",
@@ -870,14 +853,6 @@
       "inductor",
       "linux",
       "rocm"
-    ]
-  ],
-  "test_dynamic_lstm_cpp_serdes (__main__.CppSerdesTestExport)": [
-    "177002",
-    "https://github.com/pytorch/pytorch/issues/177002",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_dynamic_shape_m_20480_k_5_n_2_should_decompose_True_has_bias_False (__main__.TestDecomposeMemMM)": [
@@ -1239,6 +1214,13 @@
       "rocm"
     ]
   ],
+  "test_hessian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
+    "153644",
+    "https://github.com/pytorch/pytorch/issues/153644",
+    [
+      "dynamo"
+    ]
+  ],
   "test_hints_wrapper (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
     "184537",
     "https://github.com/pytorch/pytorch/issues/184537",
@@ -1461,6 +1443,13 @@
       "slow"
     ]
   ],
+  "test_mem_get_info (__main__.TestCuda)": [
+    "103495",
+    "https://github.com/pytorch/pytorch/issues/103495",
+    [
+      "rocm"
+    ]
+  ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
     "78457",
     "https://github.com/pytorch/pytorch/issues/78457",
@@ -1550,14 +1539,6 @@
     "https://github.com/pytorch/pytorch/issues/91481",
     [
       "linux"
-    ]
-  ],
-  "test_meta_simple (__main__.TestMultiprocessing)": [
-    "167522",
-    "https://github.com/pytorch/pytorch/issues/167522",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_method_overloading (__main__.TestScript)": [
@@ -1800,6 +1781,16 @@
   "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "179909",
     "https://github.com/pytorch/pytorch/issues/179909",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179992",
+    "https://github.com/pytorch/pytorch/issues/179992",
     [
       "asan",
       "linux",
@@ -2164,6 +2155,17 @@
       "mac"
     ]
   ],
+  "test_remove_noop_slice1_cpu (__main__.CpuTests)": [
+    "151379",
+    "https://github.com/pytorch/pytorch/issues/151379",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_remove_noop_slice1_cuda (__main__.GPUTests)": [
     "151381",
     "https://github.com/pytorch/pytorch/issues/151381",
@@ -2173,23 +2175,22 @@
       "slow"
     ]
   ],
-  "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
-    "151378",
-    "https://github.com/pytorch/pytorch/issues/151378",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
-    "151512",
-    "https://github.com/pytorch/pytorch/issues/151512",
+  "test_remove_noop_slice_scatter_cpu (__main__.CpuTests)": [
+    "151382",
+    "https://github.com/pytorch/pytorch/issues/151382",
     [
       "asan",
       "linux",
       "mac",
       "macos",
+      "rocm"
+    ]
+  ],
+  "test_remove_noop_slice_scatter_cuda (__main__.GPUTests)": [
+    "151378",
+    "https://github.com/pytorch/pytorch/issues/151378",
+    [
+      "linux",
       "rocm",
       "slow"
     ]
@@ -2478,6 +2479,18 @@
     "https://github.com/pytorch/pytorch/issues/184496",
     [
       "xpu"
+    ]
+  ],
+  "test_strided_leaf_grad_layout_cpu (__main__.TestAutogradDeviceTypeCPU)": [
+    "181203",
+    "https://github.com/pytorch/pytorch/issues/181203",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_strided_leaf_grad_layout_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
