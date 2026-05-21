@@ -736,15 +736,44 @@ class SignalActionProcessor:
             "unknown: commits between failed and successful partitions "
             "with no resolved events (pending or missing data)"
         )
-        LABEL_SUCCESSFUL = (
-            "successful: baseline commits where this signal was GREEN "
-            "before the suspect commit"
-        )
-        LABEL_PRIOR = (
-            "prior: older commits before the successful baseline. "
-            "Important: the signal may have been fixed and then failed again. "
-            "Don't make assumptions just based on the presence of failures here."
-        )
+        # Born-red / newly-observed-red case: a test-track signal with no green
+        # observations in the lookback window. The "successful" set actually
+        # carries commits where this test signal was NOT OBSERVED (no extracted
+        # events). Empty events could mean any of: the test was added by the
+        # suspect, the test was previously TD-filtered / disabled / sharded out
+        # and is now in scope, the test was renamed / moved, or the underlying
+        # job didn't run. Relabel so the advisor knows it has to figure out
+        # WHICH of those is true from the suspect commit's diff.
+        if dispatch_advisor.is_born_red:
+            LABEL_SUCCESSFUL = (
+                "no_signal: baseline commits where this test signal was NOT "
+                "OBSERVED (no extracted events). The suspect commit is the "
+                "first commit on which the test signal appears, and it fails. "
+                "Possible causes — distinguish from the suspect commit's diff: "
+                "(a) the suspect ADDED this test; "
+                "(b) the suspect ENABLED/UN-SKIPPED an existing test or "
+                "removed a TD/skipping filter that previously masked it; "
+                "(c) the suspect MOVED or RENAMED the test so its identity "
+                "is newly visible; "
+                "(d) the suspect changed sharding / job selection so an "
+                "existing already-failing test became visible. "
+                "Recommend revert only if the suspect's diff explicitly "
+                "introduces or enables the failing test (cases a/b/c)."
+            )
+            LABEL_PRIOR = (
+                "prior: even older commits before the no-signal baseline. "
+                "Same property: this test signal was not observed here."
+            )
+        else:
+            LABEL_SUCCESSFUL = (
+                "successful: baseline commits where this signal was GREEN "
+                "before the suspect commit"
+            )
+            LABEL_PRIOR = (
+                "prior: older commits before the successful baseline. "
+                "Important: the signal may have been fixed and then failed again. "
+                "Don't make assumptions just based on the presence of failures here."
+            )
 
         def _fmt_ts(dt: Optional[datetime]) -> str:
             if dt is None:
@@ -831,6 +860,7 @@ class SignalActionProcessor:
                 "job_base_name": signal.job_base_name,
                 "commit_order": "newest_first",
                 "suspect_commit": dispatch_advisor.suspect_commit,
+                "is_born_red": dispatch_advisor.is_born_red,
                 "commits": commits_json,
             }
         )

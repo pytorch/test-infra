@@ -759,6 +759,78 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         # Timestamps are human-readable
         self.assertIn("UTC", commits["sha_fail"]["timestamp"])
 
+    def test_born_red_relabels_baseline_partition(self):
+        """When is_born_red=True, the SUCCESSFUL partition is relabeled.
+
+        The advisor must be asked "did the suspect introduce the failing
+        test?" rather than "was this signal green here?" — the new label
+        names the four causes (introduction / enable / move / sharding)
+        explicitly so the model picks the right one.
+        """
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2026, 5, 21, 12, 0, 0)
+        c_newer_fail = SignalCommit(
+            head_sha="f1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=11),
+            ],
+        )
+        c_suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=2, job_id=12),
+            ],
+        )
+        c_baseline = SignalCommit(head_sha="e1", timestamp=t0, events=[])
+
+        signal = Signal(
+            key="inductor/test_flip.py::test_flip_zero_dim",
+            workflow_name="trunk",
+            commits=[c_newer_fail, c_suspect, c_baseline],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="f2",
+            failed_commits=("f1", "f2"),
+            successful_commits=("e1",),
+            is_born_red=True,
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+
+        # Top-level flag plumbed for advisor prompt branching
+        self.assertTrue(result["is_born_red"])
+
+        commits = {c["sha"]: c for c in result["commits"]}
+        baseline_label = commits["e1"]["partition"]
+        # Relabeled from "successful: ... GREEN ..." to a "no_signal:" framing
+        # that explicitly asks the advisor to distinguish introduction vs.
+        # enable vs. move vs. sharding.
+        self.assertIn("no_signal", baseline_label)
+        self.assertNotIn("GREEN", baseline_label)
+        self.assertIn("NOT", baseline_label.upper())
+        # Must enumerate the four ambiguity causes the advisor has to pick from.
+        for cue in ("ADDED", "ENABLED", "MOVED", "sharding"):
+            self.assertIn(cue, baseline_label)
+
     def test_unknown_partition_label(self):
         """Commits between failed and successful partitions get 'unknown' label."""
         import json
