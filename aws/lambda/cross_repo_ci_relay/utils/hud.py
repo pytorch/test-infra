@@ -52,7 +52,8 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
     )
 
     last_exception = None
-    for attempt in range(config.hud_max_retries + 1):
+    total_attempts = config.hud_max_retries + 1
+    for attempt in range(total_attempts):
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 logger.info("HUD forward succeeded status=%d", resp.status)
@@ -60,36 +61,34 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
         except urllib.error.HTTPError as exc:
             if 400 <= exc.code < 500:
                 detail = f"HUD rejected callback: HTTP {exc.code}: {exc.reason}"
-                logger.warning("HUD forward failed (client error): %s", detail)
+                logger.error("HUD forward failed (client error): %s", detail)
                 raise HTTPException(exc.code, detail) from exc
             last_exception = exc
-            logger.warning(
+            logger.debug(
                 "HUD forward failed (server error, attempt %d/%d): HTTP %d %s",
                 attempt + 1,
-                config.hud_max_retries + 1,
+                total_attempts,
                 exc.code,
                 exc.reason,
             )
         except urllib.error.URLError as exc:
             last_exception = exc
-            logger.warning(
+            logger.debug(
                 "HUD forward failed (unreachable, attempt %d/%d): %s",
                 attempt + 1,
-                config.hud_max_retries + 1,
+                total_attempts,
                 exc.reason,
             )
 
         # If we have more retries remaining, wait with exponential backoff
         if attempt < config.hud_max_retries:
-            delay = 2**attempt
-            logger.info("Retrying HUD forward in %d seconds...", delay)
-            time.sleep(delay)
+            time.sleep(2**attempt)
 
-    # All retries exhausted, raise the last exception
+    # All retries exhausted
     if isinstance(last_exception, urllib.error.HTTPError):
-        logger.exception(
+        logger.error(
             "HUD forward failed after %d attempts: HTTP %d %s",
-            config.hud_max_retries + 1,
+            total_attempts,
             last_exception.code,
             last_exception.reason,
         )
@@ -101,7 +100,7 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
             f"{60 // config.rate_limit_per_min} seconds or ignore this failure.",
         ) from last_exception
     else:
-        logger.exception(
+        logger.error(
             "HUD forward failed after %d attempts: %s",
             config.hud_max_retries + 1,
             last_exception.reason,

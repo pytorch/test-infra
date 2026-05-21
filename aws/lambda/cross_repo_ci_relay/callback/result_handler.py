@@ -4,6 +4,7 @@ import logging
 import time
 
 import utils.redis_helper as redis_helper
+from redis.exceptions import RedisError
 from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
@@ -113,20 +114,31 @@ def _update_state_and_compute_metrics(
         else CallbackState.COMPLETED
     )
 
-    if not redis_helper.set_callback_state(
-        config,
-        delivery_id,
-        verified_repo,
-        check_run_id,
-        state,
-        current_timestamp,
-        job_name,
-        run_id,
-    ):
-        raise HTTPException(
-            400,
-            f"callback rejected: invalid state transition delivery_id={delivery_id} status={status}",
+    try:
+        redis_helper.set_callback_state(
+            config,
+            delivery_id,
+            verified_repo,
+            check_run_id,
+            state,
+            current_timestamp,
+            job_name,
+            run_id,
         )
+    except RedisError:
+        raise HTTPException(
+            503, "redis temporary outage: failed to persist callback state"
+        )
+    except AssertionError as e:
+        msg = (
+            "callback rejected: invalid state transition delivery_id=%s repo=%s status=%s"
+            % (delivery_id,
+            verified_repo,
+            status)
+        )
+        raise HTTPException(400, msg) from e
+    except Exception:
+        raise
 
     updated_job_record = redis_helper.get_callback_state(
         config, delivery_id, verified_repo, check_run_id
@@ -209,15 +221,5 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     # key so HUD receives it under the expected untrusted namespace.
     untrusted = {"callback_payload": body}
 
-    try:
-        forward_to_hud(config, trusted, untrusted)
-    except HTTPException as exc:
-        if 400 <= exc.status_code < 500:
-            raise
-        logger.error("HUD internal error (HTTP %d): %s", exc.status_code, exc.detail)
-        return {
-            "ok": True,
-            "status": status,
-            "warning": "HUD update failed but CI run is valid",
-        }
+    forward_to_hud(config, trusted, untrusted)
     return {"ok": True, "status": status}

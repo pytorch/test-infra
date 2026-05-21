@@ -40,6 +40,21 @@ inputs:
       any publicly accessible URL.
     required: false
     default: ''
+  max-time:
+    description: >
+      Maximum time in seconds to wait for the callback HTTP request to complete.
+    required: false
+    default: 10
+  max-retries:
+    description: >
+      Maximum number of retries for the callback HTTP request in case of failure.
+    required: false
+    default: 3
+  retry-delay:
+    description: >
+      Delay in seconds between retries for the callback HTTP request.
+    required: false
+    default: 2
 
 runs:
   using: composite
@@ -70,6 +85,9 @@ runs:
         CHECK_RUN_ID: ${{ job.check_run_id }}
         RUN_ID: ${{ github.run_id }}
         RUN_ATTEMPT: ${{ github.run_attempt }}
+        MAX_TIME: ${{ inputs.max-time }}
+        MAX_RETRIES: ${{ inputs.max-retries }}
+        RETRY_DELAY: ${{ inputs.retry-delay }}
       run: |
         set -euo pipefail
 
@@ -138,6 +156,9 @@ runs:
           curl --silent --show-error --fail-with-body --output /tmp/relay_response.json \
             --write-out "%{http_code}" \
             -X POST \
+            --max-time ${MAX_TIME} \
+            --retry ${MAX_RETRIES} \
+            --retry-delay ${RETRY_DELAY} \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${OIDC_TOKEN}" \
             --data "${PAYLOAD}" \

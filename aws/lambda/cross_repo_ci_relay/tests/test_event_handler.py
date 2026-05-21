@@ -33,10 +33,11 @@ class TestEventHandler(unittest.TestCase):
             {"ignored": True},
         )
 
+    @patch("webhook.event_handler.redis_helper.set_callback_state")
     @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
     @patch("webhook.event_handler.gh_helper.get_repo_access_token", return_value="tok")
     @patch("webhook.event_handler.load_allowlist")
-    def test_dispatch_success(self, mock_load, _tok, mock_dispatch):
+    def test_dispatch_success(self, mock_load, _tok, mock_dispatch, _mock_set_state):
         mock_load.return_value = MagicMock(
             get_repos_at_or_above_level=MagicMock(return_value=(["org/a"], []))
         )
@@ -44,6 +45,7 @@ class TestEventHandler(unittest.TestCase):
         self.assertTrue(result["ok"])
         mock_dispatch.assert_called_once()
 
+    @patch("webhook.event_handler.redis_helper.set_callback_state")
     @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
     @patch(
         "webhook.event_handler.gh_helper.get_repo_access_token",
@@ -51,7 +53,7 @@ class TestEventHandler(unittest.TestCase):
     )
     @patch("webhook.event_handler.load_allowlist")
     def test_dispatch_mints_token_per_downstream_repo(
-        self, mock_load, mock_get_repo_access_token, mock_dispatch
+        self, mock_load, mock_get_repo_access_token, mock_dispatch, _mock_set_state
     ):
         mock_load.return_value = MagicMock(
             get_repos_at_or_above_level=MagicMock(

@@ -187,6 +187,35 @@ class TestResultHandler(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 429)
         self.assertFalse(self.mock_hud.called)
 
+    # --- Redis outage during callback is tolerated ---
+
+    def test_redis_error_fetching_dispatch_record_rejected(self):
+        """Redis error on dispatch lookup returns None, causing 400 rejection."""
+        self.mock_redis.get_callback_state.side_effect = [
+            None,  # dispatch lookup returns None (get_callback_state catches RedisError)
+        ]
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_redis_error_fetching_job_record_proceeds(self):
+        """Redis error on job record lookup returns None; callback proceeds."""
+        dispatch_record = CallbackStateRecord(
+            CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
+        )
+        # Three calls: dispatch lookup, job record lookup, re-read after set.
+        self.mock_redis.get_callback_state.side_effect = [
+            dispatch_record,
+            None,  # job record lookup returns None (get_callback_state catches RedisError)
+            None,  # updated_job_record re-read → early return with empty metrics
+        ]
+
+        handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        _, trusted_arg, _ = self.mock_hud.call_args[0]
+        self.assertIsNone(trusted_arg["ci_metrics"]["execution_time"])
+
 
 if __name__ == "__main__":
     unittest.main()

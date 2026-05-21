@@ -30,6 +30,24 @@ class TestVerifyDownstreamIdentity(unittest.TestCase):
         claims = verify_oidc_token("some.oidc.token")
 
         self.assertEqual(claims, expected)
+        self.assertEqual(claims, expected)
+        self.mock_decode.assert_called_once()
+        self.assertEqual(
+            self.mock_decode.call_args.kwargs["audience"],
+            "pytorch-cross-repo-ci-relay",
+        )
+        self.assertEqual(
+            self.mock_decode.call_args.kwargs["issuer"],
+            "https://token.actions.githubusercontent.com",
+        )
+
+    def test_wrong_audience_raises_401(self):
+        import jwt as _jwt
+
+        self.mock_decode.side_effect = _jwt.InvalidAudienceError("bad aud")
+        with self.assertRaises(HTTPException) as ctx:
+            verify_oidc_token("token.with.wrong.aud")
+        self.assertEqual(ctx.exception.status_code, 401)
 
     def test_bearer_prefix_stripped_before_jwks_lookup(self):
         self.mock_decode.return_value = {"repository": "org/repo"}

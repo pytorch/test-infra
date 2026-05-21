@@ -146,6 +146,12 @@ class RelayConfig:
         except ValueError:
             raise RuntimeError("RATE_LIMIT_PER_MIN must be a positive integer")
 
+        hud_api_url = os.getenv("HUD_API_URL", "")
+        if hud_api_url and not hud_api_url.startswith("https://"):
+            raise RuntimeError(
+                "HUD_API_URL must use https:// to protect the bot key in transit"
+            )
+
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
             github_app_secret=github_app_secret,
@@ -156,7 +162,7 @@ class RelayConfig:
             redis_login=redis_login,
             allowlist_ttl_seconds=allowlist_ttl_seconds,
             max_dispatch_workers=int(os.getenv("MAX_DISPATCH_WORKERS", "32")),
-            hud_api_url=os.getenv("HUD_API_URL", ""),
+            hud_api_url=hud_api_url,
             hud_bot_key=hud_bot_key,
             oot_status_ttl=oot_status_ttl,
             hud_max_retries=hud_max_retries,

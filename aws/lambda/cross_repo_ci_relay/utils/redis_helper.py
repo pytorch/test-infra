@@ -206,9 +206,11 @@ def get_callback_state(
             job_name=data["job_name"],
             run_id=data["run_id"],
         )
+    except RedisError:
+        logger.exception("redis temporary outage or unreachable")
     except Exception:
         logger.exception("redis get_callback_state failed")
-        return None
+    return None
 
 
 def set_callback_state(
@@ -221,8 +223,8 @@ def set_callback_state(
     job_name: str | None = None,
     run_id: int | None = None,
     client: redis_lib.Redis | None = None,
-) -> bool:
-    """Set callback state with timestamp in Redis. Returns True on success, False on error.
+) -> None:
+    """Set callback state with timestamp in Redis.
 
     State transition validation:
 
@@ -239,17 +241,19 @@ def set_callback_state(
     - IN_PROGRESS -> COMPLETED: accept (normal completion)
     - COMPLETED -> COMPLETED: reject (duplicate)
     """
+    error_msg = ""
     try:
         if client is None:
             client = create_client(config)
 
         if check_run_id == DISPATCH_CHECK_RUN_ID and state != CallbackState.DISPATCHED:
-            logger.warning(
-                "check_run_id '%s' is preserved for DISPATCHED state only, rejecting invalid state=%s",
-                DISPATCH_CHECK_RUN_ID,
-                state.value,
+            error_msg = (
+                "check_run_id '%s' is preserved for DISPATCHED state only, rejecting invalid state=%s"
+                % (
+                    DISPATCH_CHECK_RUN_ID,
+                    state.value,
+                )
             )
-            return False
 
         key = _state_key(delivery_id, downstream_repo, check_run_id)
 
@@ -259,45 +263,50 @@ def set_callback_state(
 
         if state == CallbackState.DISPATCHED:
             if current_record is not None:
-                logger.warning("rejecting duplicate DISPATCHED key=%s", key)
-                return False
+                error_msg = "rejecting duplicate DISPATCHED key=%s" % key
         elif state == CallbackState.IN_PROGRESS:
             if current_record is not None:
-                logger.warning(
+                error_msg = (
                     "rejecting replay attack IN_PROGRESS for same "
-                    "check_run_id=%s, downstream_repo=%s, job_name=%s, run_id=%s",
-                    check_run_id,
-                    downstream_repo,
-                    job_name,
-                    run_id,
+                    "check_run_id=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    % (
+                        check_run_id,
+                        downstream_repo,
+                        job_name,
+                        run_id,
+                    )
                 )
-                return False
 
         elif state == CallbackState.COMPLETED:
             if current_record is None:
-                logger.warning(
+                error_msg = (
                     "rejecting COMPLETED without prior IN_PROGRESS "
-                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s",
-                    key,
-                    downstream_repo,
-                    job_name,
-                    run_id,
+                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    % (
+                        key,
+                        downstream_repo,
+                        job_name,
+                        run_id,
+                    )
                 )
-                return False
-            if current_record.state == CallbackState.COMPLETED:
-                logger.warning("rejecting duplicate COMPLETED key=%s", key)
-                return False
-            if current_record.state != CallbackState.IN_PROGRESS:
-                logger.warning(
+            elif current_record.state == CallbackState.COMPLETED:
+                error_msg = "rejecting duplicate COMPLETED key=%s" % key
+            elif current_record.state != CallbackState.IN_PROGRESS:
+                error_msg = (
                     "rejecting abnormal state transition %s -> COMPLETED "
-                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s",
-                    current_record.state.value,
-                    key,
-                    downstream_repo,
-                    job_name,
-                    run_id,
+                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    % (
+                        current_record.state.value,
+                        key,
+                        downstream_repo,
+                        job_name,
+                        run_id,
+                    )
                 )
-                return False
+
+        if error_msg:
+            logger.warning(error_msg)
+            raise AssertionError(error_msg)
 
         data: dict = {
             "state": state.value,
@@ -314,8 +323,9 @@ def set_callback_state(
             job_name,
             run_id,
         )
-        return True
-
+    except RedisError:
+        logger.exception("set_callback_state: redis is temporary outage or unreachable")
+        raise
     except Exception:
         logger.exception("redis set_callback_state failed")
-        return False
+        raise

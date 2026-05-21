@@ -72,7 +72,7 @@ class TestCallbackStateMachine(unittest.TestCase):
     def test_set_dispatch_state_with_timestamp(self):
         """Webhook sets DISPATCHED state."""
         client = MagicMock()
-        result = set_callback_state(
+        set_callback_state(
             _cfg(),
             "del-123",
             "org/repo",
@@ -81,7 +81,6 @@ class TestCallbackStateMachine(unittest.TestCase):
             1000.0,
             client=client,
         )
-        self.assertTrue(result)
         client.setex.assert_called_once()
 
     def test_get_callback_state_parses_json(self):
@@ -105,8 +104,8 @@ class TestCallbackStateMachine(unittest.TestCase):
         self.assertEqual(record.job_name, "test-job")
         self.assertEqual(record.run_id, "12345")
 
-    def test_get_callback_state_returns_none_on_missing_or_error(self):
-        """get_callback_state returns None on missing key or Redis error."""
+    def test_get_callback_state_returns_none_on_missing_key_and_on_redis_error(self):
+        """get_callback_state returns None on missing key and on Redis error."""
         client = MagicMock()
         cfg = _cfg()
 
@@ -144,16 +143,16 @@ class TestCallbackStateMachine(unittest.TestCase):
                     if existing
                     else None
                 )
-                result = set_callback_state(
-                    _cfg(),
-                    "del-123",
-                    "org/repo",
-                    check_run_id,
-                    state,
-                    1100.0,
-                    client=client,
-                )
-                self.assertFalse(result)
+                with self.assertRaises(AssertionError):
+                    set_callback_state(
+                        _cfg(),
+                        "del-123",
+                        "org/repo",
+                        check_run_id,
+                        state,
+                        1100.0,
+                        client=client,
+                    )
                 client.setex.assert_not_called()
 
     def test_set_completed_from_in_progress_accepts(self):
@@ -167,7 +166,7 @@ class TestCallbackStateMachine(unittest.TestCase):
                 "run_id": "12345",
             }
         )
-        result = set_callback_state(
+        set_callback_state(
             _cfg(),
             "del-123",
             "org/repo",
@@ -178,7 +177,6 @@ class TestCallbackStateMachine(unittest.TestCase):
             run_id="12345",
             client=client,
         )
-        self.assertTrue(result)
 
     def test_set_in_progress_accepts_first_callback(self):
         """None → IN_PROGRESS is accepted when dispatch record exists."""
@@ -194,7 +192,7 @@ class TestCallbackStateMachine(unittest.TestCase):
         with unittest.mock.patch(
             "utils.redis_helper.get_callback_state", side_effect=get_side_effect
         ):
-            result = set_callback_state(
+            set_callback_state(
                 _cfg(),
                 "del-123",
                 "org/repo",
@@ -205,7 +203,6 @@ class TestCallbackStateMachine(unittest.TestCase):
                 run_id="99999",
                 client=client,
             )
-        self.assertTrue(result)
 
     def test_set_non_dispatched_state_with_reserved_check_run_id_rejected(self):
         """Using the reserved DISPATCH_CHECK_RUN_ID for non-DISPATCHED state is rejected."""
@@ -215,20 +212,20 @@ class TestCallbackStateMachine(unittest.TestCase):
         for state in (CallbackState.IN_PROGRESS, CallbackState.COMPLETED):
             with self.subTest(state=state):
                 client.reset_mock()
-                result = set_callback_state(
-                    cfg,
-                    "del-123",
-                    "org/repo",
-                    DISPATCH_CHECK_RUN_ID,
-                    state,
-                    1010.0,
-                    client=client,
-                )
-                self.assertFalse(result)
+                with self.assertRaises(AssertionError):
+                    set_callback_state(
+                        cfg,
+                        "del-123",
+                        "org/repo",
+                        DISPATCH_CHECK_RUN_ID,
+                        state,
+                        1010.0,
+                        client=client,
+                    )
                 client.setex.assert_not_called()
 
-    def test_set_callback_state_redis_exception_returns_false(self):
-        """Redis write failure is caught and returns False."""
+    def test_set_callback_state_redis_exception_raises(self):
+        """Redis write failure is re-raised as RedisError."""
 
         def get_side_effect(cfg, delivery_id, repo, check_run_id_arg, client=None):
             if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
@@ -243,8 +240,8 @@ class TestCallbackStateMachine(unittest.TestCase):
 
         with unittest.mock.patch(
             "utils.redis_helper.get_callback_state", side_effect=get_side_effect
-        ):
-            result = set_callback_state(
+        ), self.assertRaises(redis_lib.exceptions.RedisError):
+            set_callback_state(
                 cfg,
                 "del-123",
                 "org/repo",
@@ -255,8 +252,6 @@ class TestCallbackStateMachine(unittest.TestCase):
                 run_id="99999",
                 client=client,
             )
-
-        self.assertFalse(result)
 
 
 class TestRateLimit(unittest.TestCase):
