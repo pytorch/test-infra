@@ -269,6 +269,13 @@
       "slow"
     ]
   ],
+  "test_combo_kernel_yz_overflow (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180026",
+    "https://github.com/pytorch/pytorch/issues/180026",
+    [
+      "rocm"
+    ]
+  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
@@ -1153,13 +1160,6 @@
     "https://github.com/pytorch/pytorch/issues/158443",
     [
       "linux"
-    ]
-  ],
-  "test_graph_concurrent_replay (__main__.TestCuda)": [
-    "104055",
-    "https://github.com/pytorch/pytorch/issues/104055",
-    [
-      "rocm"
     ]
   ],
   "test_graph_make_graphed_callables_same_pool (__main__.TestCuda)": [
@@ -2105,13 +2105,6 @@
     "https://github.com/pytorch/pytorch/issues/184597",
     [
       "linux"
-    ]
-  ],
-  "test_reflection_pad2d_channels_last_xpu (__main__.GPUTests)": [
-    "184468",
-    "https://github.com/pytorch/pytorch/issues/184468",
-    [
-      "xpu"
     ]
   ],
   "test_remote_group_merge (__main__.ProcessGroupGlooTest)": [
