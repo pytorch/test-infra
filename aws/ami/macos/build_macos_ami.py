@@ -139,7 +139,8 @@ def find_reusable_host(ec2, name_tag: str = HOST_NAME_TAG) -> Optional[str]:
     resp = ec2.describe_hosts(
         Filter=[{"Name": "tag:Name", "Values": [name_tag]}],
     )
-    hosts = [h for h in resp.get("Hosts", []) if h["State"] not in {"released", "released-permanent-failure", "permanent-failure"}]
+    terminal_states = {"released", "released-permanent-failure", "permanent-failure"}
+    hosts = [h for h in resp.get("Hosts", []) if h["State"] not in terminal_states]
     if not hosts:
         return None
 
@@ -253,7 +254,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--release-after",
         action="store_true",
-        help="Release the host after all builds complete. WARNING: Mac hosts are billed for a minimum of 24h regardless. Default: keep host.",
+        help=(
+            "Release the host after all builds complete. WARNING: Mac hosts are "
+            "billed for a minimum of 24h regardless. Default: keep host."
+        ),
     )
     p.add_argument(
         "--skip-create-ami",
@@ -279,7 +283,9 @@ def main() -> int:
     args = parse_args()
 
     if shutil.which("packer") is None:
-        sys.exit("`packer` not found on PATH. Install from https://www.packer.io/downloads")
+        sys.exit(
+            "`packer` not found on PATH. Install from https://www.packer.io/downloads"
+        )
 
     ec2 = boto3.client("ec2", region_name=args.region)
 
@@ -309,7 +315,9 @@ def main() -> int:
 
         for idx, version in enumerate(args.macos_version):
             if idx > 0:
-                log(f"Waiting for host {host_id} to finish scrubbing before next build...")
+                log(
+                    f"Waiting for host {host_id} to finish scrubbing before next build..."
+                )
             wait_for_host_available(ec2, host_id)
             log(f"=== Building macOS {version} (arm64) on host {host_id} ===")
             run_packer_build(
@@ -325,14 +333,18 @@ def main() -> int:
     finally:
         if args.release_after:
             if not allocated_by_us:
-                log(f"--release-after set but host {host_id} was passed in; releasing anyway")
+                log(
+                    f"--release-after set but host {host_id} was passed in; releasing anyway"
+                )
             try:
                 wait_for_host_available(ec2, host_id)
             except Exception as exc:
                 log(f"Could not wait for host to be idle before release: {exc}")
             release_host(ec2, host_id)
         else:
-            log(f"Host {host_id} left allocated. Re-use with --host-id {host_id}, or release with:")
+            log(
+                f"Host {host_id} left allocated. Re-use with --host-id {host_id}, or release with:"
+            )
             log(f"  aws ec2 release-hosts --host-ids {host_id} --region {args.region}")
 
     return 0
