@@ -98,8 +98,14 @@ export function extractDynamoRecord(
   const pr = cb.payload?.pull_request;
   const upstreamRepo = cb.payload?.repository?.full_name ?? "pytorch/pytorch";
 
-  const jobName = wf.job_name ?? "default";
-  const checkRunId = wf.check_run_id ?? "unknown";
+  if (!wf.job_name) {
+    throw new ApiError(400, "Missing required field: workflow.job_name");
+  }
+  if (wf.check_run_id == null) {
+    throw new ApiError(400, "Missing required field: workflow.check_run_id");
+  }
+  const jobName = wf.job_name;
+  const checkRunId = String(wf.check_run_id);
   const runAttempt = Number(wf.run_attempt ?? 1) || 1;
   const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
 

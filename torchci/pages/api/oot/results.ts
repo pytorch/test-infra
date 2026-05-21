@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import {
   ApiError,
   extractDynamoRecord,
@@ -23,9 +24,18 @@ export default async function handler(
   }
 
   try {
-    // 1. Auth: dedicated X-OOT-Relay-Token header
-    const relayToken = req.headers["x-oot-relay-token"];
-    if (!relayToken || relayToken !== process.env.OOT_RELAY_TOKEN) {
+    // 1. Auth: dedicated X-OOT-Relay-Token header (timing-safe comparison)
+    const expected = process.env.OOT_RELAY_TOKEN;
+    if (!expected) {
+      return res.status(500).json({ error: "Server misconfigured" });
+    }
+    const raw = req.headers["x-oot-relay-token"];
+    if (typeof raw !== "string") {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const a = Buffer.from(raw);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
