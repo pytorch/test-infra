@@ -9,7 +9,7 @@ CREATE TABLE misc.autorevert_advisor_verdicts
     `signal_key` String,
     `signal_source` LowCardinality(String),
     `workflow_name` String,
-    `verdict` Enum8('revert' = 1, 'unsure' = 2, 'not_related' = 3, 'garbage' = 4),
+    `verdict` Enum8('revert' = 1, 'unsure' = 2, 'not_related' = 3, 'garbage' = 4, 'related' = 5),
     `confidence` Float32,
     `summary` String,
     `causal_reasoning` String,

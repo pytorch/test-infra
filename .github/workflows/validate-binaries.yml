@@ -27,8 +27,8 @@ on:
         default: false
         required: false
         type: boolean
-      use-version-set:
-        description: 'Use version for each domain'
+      include-torchaudio:
+        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
         default: false
         required: false
         type: boolean
@@ -37,11 +37,6 @@ on:
         default: "false"
         required: false
         type: string
-      use-cloudflare-cdn:
-        description: 'Use cloudflare cdn for installing pip binaries'
-        default: false
-        required: false
-        type: boolean
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -90,16 +85,16 @@ on:
         default: false
         required: false
         type: boolean
+      include-torchaudio:
+        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
+        default: false
+        required: false
+        type: boolean
       use-only-dl-pytorch-org:
         description: 'Use only download.pytorch.org when generating wheel install command'
         default: "false"
         required: false
         type: string
-      use-cloudflare-cdn:
-        description: 'Use cloudflare cdn for installing pip binaries'
-        default: false
-        required: false
-        type: boolean
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -126,9 +121,9 @@ jobs:
       torchonly: ${{ inputs.torchonly }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
+      include-torchaudio: ${{ inputs.include-torchaudio }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   linux:
@@ -141,9 +136,9 @@ jobs:
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       include-test-ops: ${{ inputs.include-test-ops }}
+      include-torchaudio: ${{ inputs.include-torchaudio }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   linux-aarch64:
@@ -155,9 +150,9 @@ jobs:
       torchonly: ${{ inputs.torchonly }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
+      include-torchaudio: ${{ inputs.include-torchaudio }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
 
   mac-arm64:
@@ -169,7 +164,7 @@ jobs:
       torchonly: ${{ inputs.torchonly }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
+      include-torchaudio: ${{ inputs.include-torchaudio }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}

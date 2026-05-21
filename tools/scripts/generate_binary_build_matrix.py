@@ -6,7 +6,7 @@ Important. After making changes to this file please run following command:
 python -m tools.tests.test_generate_binary_build_matrix --update-reference-files
 
 Will output a condensed version of the matrix if on a pull request that only
-includes the latest version of python we support built on four different
+includes the oldest version of python we support built on four different
 architectures:
     * CPU
     * Latest CUDA
@@ -22,9 +22,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
+    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
 
 MACOS_PYTHON_POINT_VERSIONS = {
@@ -37,7 +37,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2"],
     "test": ["12.6", "13.0", "13.2"],
-    "release": ["12.6", "12.8", "13.0"],
+    "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
@@ -84,9 +84,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.12.0"
-CURRENT_CANDIDATE_VERSION = "2.11.0"
-CURRENT_STABLE_VERSION = "2.11.0"
+CURRENT_NIGHTLY_VERSION = "2.13.0"
+CURRENT_CANDIDATE_VERSION = "2.12.0"
+CURRENT_STABLE_VERSION = "2.12.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -107,7 +107,7 @@ WIN_CPU_RUNNER = "windows.4xlarge"
 WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
-PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
@@ -467,10 +467,6 @@ def generate_wheels_matrix(
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
-
-            # TODO: Enable python 3.13t on cpu-s390x or Windows
-            if (gpu_arch_type == "cpu-s390x") and python_version == "3.13t":
-                continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
 

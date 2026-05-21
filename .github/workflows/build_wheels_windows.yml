@@ -143,6 +143,9 @@ jobs:
         with:
           architecture: aarch64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
+      - uses: ./test-infra/.github/actions/setup-windows
+        with:
+          cuda-version: ${{ env.CU_VERSION }}
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: env.CHANNEL == 'test'
@@ -163,7 +166,7 @@ jobs:
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         env:
-          XPU_VERSION: '2025.3'
+          XPU_VERSION: '2026.0'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Update NVIDIA driver

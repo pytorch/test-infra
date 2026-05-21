@@ -1523,6 +1523,7 @@ function getSource(settings) {
             else if (settings.sparseCheckout) {
                 fetchOptions.filter = 'blob:none';
             }
+            fetchOptions.fetchTags = settings.fetchTags;
             if (settings.fetchDepth <= 0) {
                 let refSpec = settings.singleBranch
                     ? refHelper.getRefSpec(settings.ref, settings.commit, settings.additionalFetchRefs)
@@ -1537,7 +1538,6 @@ function getSource(settings) {
             }
             else {
                 fetchOptions.fetchDepth = settings.fetchDepth;
-                fetchOptions.fetchTags = settings.fetchTags;
                 const refSpec = refHelper.getRefSpec(settings.ref, settings.commit, settings.additionalFetchRefs);
                 yield git.fetch(refSpec, fetchOptions);
             }

@@ -23,7 +23,6 @@ const IssueAndPRRegexToLabel: [RegExp, string][] = [
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
   [/revert/gi, "ci-no-td"],
-  [/rocm/gi, "ciflow/rocm-mi300"],
   ...IssueAndPRRegexToLabel,
 ];
 
@@ -492,6 +491,11 @@ function myBot(app: Probot): void {
       context.log({ labels, title, filesChanged });
 
       var labelsToAdd = getLabelsToAddFromPrTitle(title);
+      // Apply ciflow/rocm label on non-pytorch/pytorch PRs to trigger ROCm CI
+      // pytorch/pytorch PRs already run ROCm CI as part of trunk workflow
+      if (!isPyTorchPyTorch(owner, repo) && title.match(/\brocm\b/gi)) {
+        labelsToAdd.push("ciflow/rocm");
+      }
 
       // only categorize for release notes for prs in pytorch/pytorch
       if (isPyTorchPyTorch(owner, repo)) {

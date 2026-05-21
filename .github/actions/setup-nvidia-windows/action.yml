@@ -1,0 +1,14 @@
+name: Setup NVIDIA Windows
+
+description: Update NVIDIA driver on Windows GPU runners
+
+runs:
+  using: composite
+  steps:
+    - name: Update NVIDIA driver
+      shell: cmd
+      run: |
+        ${{ github.action_path }}\..\..\scripts\driver_update.bat
+    - name: Verify NVIDIA driver
+      shell: cmd
+      run: nvidia-smi

@@ -1,8 +1,13 @@
+import { JobStatus } from "components/job/GroupJobConclusion";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
-import { getNameWithoutLF, isFailure } from "./JobClassifierUtil";
+import {
+  getNameWithoutLF,
+  getNameWithoutOSDC,
+  isFailure,
+} from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import {
   HudDataAPIResponse,
@@ -123,6 +128,9 @@ export default async function fetchHud(
     if (params.mergeEphemeralLF) {
       key = getNameWithoutLF(key);
     }
+    if (params.mergeOSDC) {
+      key = getNameWithoutOSDC(key);
+    }
 
     const existingJob = jobsBySha[job.sha!][key];
     if (existingJob !== undefined) {
@@ -130,7 +138,20 @@ export default async function fetchHud(
       // Q: How can there be more than one job with the same name for a given sha?
       // A: Periodic builds can be scheduled multiple times for one sha. In those
       // cases, we want the most recent job to be shown.
-      if (job.id! > existingJob.id!) {
+      // Exception: a `skipped` conclusion has lower priority than any other
+      // status, so a real result always wins over a skip even if the skipped
+      // job has a larger id. This matters for the OSDC merge, where the
+      // unselected variant reports as skipped and would otherwise mask a real
+      // failure on the selected variant.
+      const existingSkipped = existingJob.conclusion === JobStatus.Skipped;
+      const jobSkipped = job.conclusion === JobStatus.Skipped;
+      const replace =
+        existingSkipped && !jobSkipped
+          ? true
+          : !existingSkipped && jobSkipped
+          ? false
+          : job.id! > existingJob.id!;
+      if (replace) {
         jobsBySha[job.sha!][key] = job;
         jobsBySha[job.sha!][key].failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(existingJob.conclusion);

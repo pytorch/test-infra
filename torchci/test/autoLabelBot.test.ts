@@ -118,7 +118,7 @@ describe("auto-label-bot", () => {
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
         expect(body).toMatchObject({
-          labels: ["ciflow/rocm-mi300", "module: rocm"],
+          labels: ["module: rocm"],
         });
         return true;
       })
@@ -133,6 +133,48 @@ describe("auto-label-bot", () => {
 
     scope.done();
     handleScope(checkLabelsScope);
+  });
+
+  test("add ciflow/rocm label when non pytorch/pytorch PR title contains ROCm", async () => {
+    // Reset mock to return false for isPyTorchPyTorch
+    jest.restoreAllMocks();
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(false);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Issue regarding ROCm";
+    payload["pull_request"]["labels"] = [];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200)
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({
+          labels: ["module: rocm", "ciflow/rocm"],
+        });
+        return true;
+      })
+      .reply(200);
+    // Check-labels will post a comment since rocm labels are not required labels
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
   });
 
   test("add ci-no-td label when PR title contains Reland", async () => {

@@ -265,6 +265,7 @@ function constructResultsCommentHelper({
   flakyJobs = [],
   brokenTrunkJobs = [],
   unstableJobs = [],
+  unknownJobs = [],
   awaitingApprovalJobs = [],
   sha = "random sha",
   merge_base = "random_merge_base_sha",
@@ -279,6 +280,7 @@ function constructResultsCommentHelper({
   flakyJobs?: RecentWorkflowsData[];
   brokenTrunkJobs?: RecentWorkflowsData[];
   unstableJobs?: RecentWorkflowsData[];
+  unknownJobs?: RecentWorkflowsData[];
   awaitingApprovalJobs?: RecentWorkflowsData[];
   sha?: string;
   merge_base?: string;
@@ -294,6 +296,7 @@ function constructResultsCommentHelper({
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    unknownJobs,
     awaitingApprovalJobs,
     new Map(),
     new Map(),
@@ -546,6 +549,75 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const comment = formDrciComment(1001, "pytorch", "pytorch", failureInfo);
     expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
+  });
+
+  test("PyTorch OSDC failures are marked unstable", async () => {
+    const failedOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 1, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "a",
+      head_sha: "abcdefg",
+      id: 42,
+      pr_number: 1001,
+      failure_lines: ["a"],
+      failure_captures: ["a"],
+      runnerName: "dummy",
+    });
+    const pendingOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 2, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "",
+      completed_at: TIME_0,
+      html_url: "b",
+      head_sha: "abcdefg",
+      id: 43,
+      pr_number: 1001,
+      runnerName: "dummy",
+    });
+
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      [failedOSDC, pendingOSDC]
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const { failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs, pending } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(2);
+    // The pending OSDC job still counts as pending overall, like other
+    // pending-and-unstable jobs.
+    expect(pending).toBe(1);
+  });
+
+  test("OSDC jobs in non-pytorch repos are not auto-marked unstable", async () => {
+    const failedOSDC = getDummyJob({
+      name: "linux-jammy-py3.10-clang12 / test-osdc (default, 1, 3, mt-l-x86iavx512-8-64)",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "a",
+      head_sha: "abcdefg",
+      id: 42,
+      pr_number: 1001,
+      failure_lines: ["a"],
+      failure_captures: ["a"],
+      runnerName: "dummy",
+    });
+
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "meta-pytorch",
+      "some-other-repo",
+      [failedOSDC]
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const { failedJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+    expect(unstableJobs.length).toBe(0);
+    expect(failedJobs.length).toBe(1);
   });
 
   test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
@@ -829,6 +901,127 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(2);
     expect(flakyJobs.length).toBe(0);
     expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test getBaseCommitJobNames groups names by sha and strips suffix", async () => {
+    const originalWorkflows = [failedA, failedD];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+    const mock = jest.spyOn(fetchRecentWorkflows, "fetchJobNamesFromCommits");
+    mock.mockImplementation(() =>
+      Promise.resolve([
+        { head_sha: failedA.head_sha!, name: failedA.name! },
+        // Different shard than failedD; should collapse to the same key
+        { head_sha: failedA.head_sha!, name: failedE.name! },
+      ])
+    );
+
+    const baseJobNames = await updateDrciBot.getBaseCommitJobNames(
+      workflowsByPR
+    );
+    const names = baseJobNames.get(failedA.head_sha!)!;
+    expect(names.has(failedA.name!)).toBeTruthy();
+    expect(names.has(removeJobNameSuffix(failedD.name!))).toBeTruthy();
+    expect(names.size).toBe(2);
+  });
+
+  test("job that did not run on merge base is classified as Unknown", async () => {
+    const originalWorkflows = [failedC];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const {
+      failedJobs,
+      brokenTrunkJobs,
+      flakyJobs,
+      unstableJobs,
+      unknownJobs,
+    } = await updateDrciBot.getWorkflowJobsStatuses(
+      pr_1001,
+      [],
+      new Map(),
+      [],
+      [],
+      [],
+      [],
+      new Set() // base ran no jobs at all -> failedC didn't run on base
+    );
+    expect(unknownJobs.length).toBe(1);
+    expect(unknownJobs[0].name).toBe(failedC.name);
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("job that ran on merge base and passed stays a New Failure", async () => {
+    const originalWorkflows = [failedC];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      "pytorch",
+      "pytorch",
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const baseJobNames = new Set<string>([removeJobNameSuffix(failedC.name!)]);
+    const {
+      failedJobs,
+      brokenTrunkJobs,
+      flakyJobs,
+      unstableJobs,
+      unknownJobs,
+    } = await updateDrciBot.getWorkflowJobsStatuses(
+      pr_1001,
+      [],
+      new Map(), // no failed jobs on base
+      [],
+      [],
+      [],
+      [],
+      baseJobNames
+    );
+    expect(unknownJobs.length).toBe(0);
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("Unknown failures are rendered in their own section and excluded from New Failures count", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      failedJobs: [failedA],
+      unknownJobs: [failedC],
+    });
+    expect(failureInfoComment.includes("1 New Failure")).toBeTruthy();
+    expect(failureInfoComment.includes("1 Unclassified Failure")).toBeTruthy();
+    expect(failureInfoComment.includes("UNCLASSIFIED FAILURE")).toBeTruthy();
+    expect(
+      failureInfoComment.includes(
+        "DrCI could not classify the following job because the workflow did not run on the merge base"
+      )
+    ).toBeTruthy();
+    expect(failureInfoComment.includes(failedC.name!)).toBeTruthy();
+  });
+
+  test("Unclassified failures alone surface as a failure status, not success", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      unknownJobs: [failedC],
+    });
+    expect(failureInfoComment.includes(":x:")).toBeTruthy();
+    expect(failureInfoComment.includes("No Failures")).toBeFalsy();
+    expect(failureInfoComment.includes(":green_heart:")).toBeFalsy();
+    expect(failureInfoComment.includes("1 Unclassified Failure")).toBeTruthy();
+    // Section is expanded (not collapsed)
+    expect(
+      failureInfoComment.includes("<details open><summary><b>UNCLASSIFIED")
+    ).toBeTruthy();
   });
 
   test("test similar failures marked as flaky", async () => {

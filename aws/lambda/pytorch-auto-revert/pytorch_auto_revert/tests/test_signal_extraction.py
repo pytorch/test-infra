@@ -276,6 +276,38 @@ class TestSignalExtraction(unittest.TestCase):
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
         self.assertEqual(x1.events, [])
 
+    def test_skipped_attempt_yields_no_event(self):
+        # Regression: a `skipped` job (status=completed, conclusion=skipped)
+        # used to fall through JobMeta.status's default and emit a PENDING
+        # event that persisted in autorevert_state until lookback expired.
+        # It should be treated as missing (no event), same as cancelled.
+        jobs = [
+            J(
+                sha="S2",
+                run=701,
+                job=51,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="S1",
+                run=700,
+                job=50,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                status="completed",
+                conclusion="skipped",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        s1 = next(c for c in sig.commits if c.head_sha == "S1")
+        self.assertEqual(s1.events, [])
+
     def test_non_test_inclusion_gate(self):
         # (a) only test failures -> test-failure job signal emitted (not non-test job signal)
         jobs_a = [
@@ -1061,6 +1093,71 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(c2.advisor_result)
         self.assertEqual(c2.advisor_result.verdict.value, "garbage")
         self.assertEqual(c2.advisor_result.signal_key, test_key)
+
+    def test_test_signal_with_empty_file_has_no_test_module(self):
+        # When tests.all_test_runs has empty `file` for a row, TestRow.test_id
+        # falls back to the bare `name` (no `::`). signal_extraction must mark
+        # the resulting Signal as untargeted (test_module=None) instead of
+        # emitting a bogus method-named module that run_test.py --include
+        # would later reject with "invalid choice".
+        jobs = [
+            J(
+                sha="C1",
+                run=900,
+                job=900,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=900,
+                run=900,
+                attempt=1,
+                file="",  # CH row with no file path — primary failure mode
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "test_partial_eval_graph_conv")
+        self.assertIsNotNone(sig)
+        self.assertIsNone(sig.test_module)
+
+    def test_test_signal_with_populated_file_has_test_module(self):
+        # Sanity: the normal `file::name` path still produces a usable
+        # test_module (`test_jit` from `test_jit.py::...`).
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_jit.py",
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_jit.py::test_partial_eval_graph_conv"
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.test_module, "test_jit")
 
 
 if __name__ == "__main__":

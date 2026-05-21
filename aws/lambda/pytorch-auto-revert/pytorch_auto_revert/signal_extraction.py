@@ -138,21 +138,8 @@ class SignalExtractor:
                         continue
                     filtered.append(e)
                     prev_key = key
-                new_commits.append(
-                    SignalCommit(
-                        head_sha=c.head_sha, timestamp=c.timestamp, events=filtered
-                    )
-                )
-            deduped.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+                new_commits.append(c.replace(events=filtered))
+            deduped.append(s.replace(commits=new_commits))
         return deduped
 
     # -----------------------------
@@ -223,22 +210,9 @@ class SignalExtractor:
                             job_id=None,
                         )
                     )
-                new_commits.append(
-                    SignalCommit(
-                        head_sha=c.head_sha, timestamp=c.timestamp, events=synth_events
-                    )
-                )
+                new_commits.append(c.replace(events=synth_events))
 
-            out.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+            out.append(s.replace(commits=new_commits))
         return out
 
     # -----------------------------
@@ -284,26 +258,10 @@ class SignalExtractor:
                         timestamp=ts,
                         signal_key=s.key,
                     )
-                    new_commits.append(
-                        SignalCommit(
-                            head_sha=c.head_sha,
-                            timestamp=c.timestamp,
-                            events=c.events,
-                            advisor_result=advisor_result,
-                        )
-                    )
+                    new_commits.append(c.replace(advisor_result=advisor_result))
                 else:
                     new_commits.append(c)
-            out.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+            out.append(s.replace(commits=new_commits))
         return out
 
     # -----------------------------
@@ -520,9 +478,18 @@ class SignalExtractor:
                 )
 
             if has_any_events:
-                # Extract test module from test_id (format: "file.py::test_name")
-                # Result: "file" or "path/to/file" without .py extension
-                test_module = test_id.split("::")[0].replace(".py", "")
+                # Extract test module from test_id (format: "file.py::test_name").
+                # When the CH row's `file` column is empty, TestRow.test_id falls
+                # back to the bare `name` (no `::`) and we can't derive a path
+                # that `run_test.py --include` would accept. Mark such signals
+                # as untargeted (test_module=None) so the action layer dispatches
+                # them without a tests-to-include filter (job-style restart),
+                # rather than emitting a bogus method-named module that argparse
+                # would reject with "invalid choice".
+                if "::" in test_id:
+                    test_module = test_id.split("::")[0].replace(".py", "")
+                else:
+                    test_module = None
 
                 signals.append(
                     Signal(

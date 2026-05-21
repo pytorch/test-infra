@@ -352,4 +352,32 @@ describe("label-bot", () => {
     await probot.receive(event);
     handleScope(scope);
   });
+
+  test("label actionable without write permissions is rejected", async () => {
+    const event = require("./fixtures/issue_comment.json");
+    event.payload.comment.body = "@pytorchbot label 'actionable'";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const issue_number = event.payload.issue.number;
+    const user = event.payload.comment.user.login;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
+      .reply(200, { permission: "read" })
+      .post(
+        `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            "Only regular contributors are expected to mark issues as actionable."
+          );
+          return true;
+        }
+      )
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
 });

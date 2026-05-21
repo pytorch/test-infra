@@ -179,7 +179,7 @@ jobs:
             console.log(`Set commit author to: ${name} <${email}>`);
 
       - name: Run Claude Code
-        uses: izaitsevfb/claude-code-action@forked-pr-fix
+        uses: anthropics/claude-code-action@b4d67413279fc18c6e5de930ae307c4f108714eb # v1.0.104
         with:
           allowed_bots: "*"
           use_bedrock: "true"

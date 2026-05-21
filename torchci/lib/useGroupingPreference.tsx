@@ -89,3 +89,15 @@ export function useHideNonViableStrictPreference(): [
   );
   return [state, setState];
 }
+
+export function useHideAlwaysSkippedPreference(): [
+  boolean,
+  (_hideAlwaysSkippedValue: boolean) => void
+] {
+  const [state, setState] = usePreference(
+    "hideAlwaysSkipped",
+    /*override*/ undefined,
+    /*default*/ true
+  );
+  return [state, setState];
+}

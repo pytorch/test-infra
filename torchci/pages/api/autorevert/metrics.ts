@@ -1,6 +1,19 @@
+import { verifyFpForPr } from "lib/autorevert/fpVerification";
+import {
+  foldKillswitchWindows,
+  KillswitchLabelEvent,
+  killswitchWindowAt,
+} from "lib/autorevert/killswitchWindows";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
+import pLimit from "p-limit";
+
+// Max concurrent GitHub PR verifications. GitHub Enterprise PAT rate limit is
+// 5000 req/hour and each verification issues 2–4 API calls; 8 concurrent stays
+// well within both rate and burst budgets while collapsing what was a 100–300s
+// serial fan-out at the 90d window into ~10–30s.
+const FP_VERIFY_CONCURRENCY = 8;
 
 // Simple in-memory cache with TTL
 interface CacheEntry {
@@ -80,6 +93,7 @@ interface WeeklyMetric {
   human_revert_rate: number;
   // New metrics
   false_positives: number;
+  false_negatives_killswitch: number;
   precision: number;
   recall: number;
 }
@@ -90,87 +104,8 @@ async function verifyFalsePositive(
 ): Promise<VerifiedFalsePositive> {
   const prNumber = parseInt(candidate.pr_number);
   const revertTime = new Date(candidate.autorevert_time);
-
-  try {
-    // Fetch PR details
-    const { data: pr } = await octokit.rest.pulls.get({
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-    });
-
-    // Fetch commits on the PR
-    const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
-      owner: "pytorch",
-      repo: "pytorch",
-      pull_number: prNumber,
-      per_page: 100,
-    });
-
-    // Count commits after the revert time
-    const commitsAfterRevert = commits.filter((commit: any) => {
-      const commitTime = new Date(
-        commit.commit.committer?.date || commit.commit.author?.date
-      );
-      return commitTime > revertTime;
-    }).length;
-
-    // Determine verification status
-    let verificationStatus: "confirmed_fp" | "legit_revert" | "unknown";
-    let verificationReason: string;
-
-    // Get PR labels
-    const labelNames = (pr.labels || []).map((l: any) => l.name);
-
-    // Check for "Merged" label - PyTorch uses cherry-pick merging via merge bot,
-    // so GitHub's merged_at won't be set. The "Merged" label indicates actual merge.
-    const hasMergedLabel = labelNames.includes("Merged");
-
-    // Check for "autorevert: disable" label - clear signal that autorevert was wrong
-    const hasAutorevertDisable = labelNames.includes("autorevert: disable");
-
-    if (hasAutorevertDisable) {
-      // Author explicitly disabled autorevert - clear false positive
-      verificationStatus = "confirmed_fp";
-      verificationReason = "PR has 'autorevert: disable' label";
-    } else if (pr.state === "open") {
-      // PR is still open - revert was legit, author hasn't relanded
-      verificationStatus = "legit_revert";
-      verificationReason = "PR is still open (not relanded)";
-    } else if (commitsAfterRevert > 0) {
-      // PR had commits after revert - author fixed something
-      verificationStatus = "legit_revert";
-      verificationReason = `PR had ${commitsAfterRevert} commit(s) after revert (author fixed issues)`;
-    } else if (hasMergedLabel) {
-      // PR has "Merged" label and no commits after revert - false positive
-      verificationStatus = "confirmed_fp";
-      verificationReason =
-        "PR was merged (has 'Merged' label) with no changes after revert";
-    } else {
-      // PR was closed but not merged (abandoned)
-      verificationStatus = "legit_revert";
-      verificationReason = "PR was closed without merging (abandoned)";
-    }
-
-    return {
-      ...candidate,
-      pr_state: pr.state,
-      pr_merged: hasMergedLabel,
-      commits_after_revert: commitsAfterRevert,
-      verification_status: verificationStatus,
-      verification_reason: verificationReason,
-    };
-  } catch (error: any) {
-    console.error(`Error verifying PR #${prNumber}:`, error.message);
-    return {
-      ...candidate,
-      pr_state: "unknown",
-      pr_merged: false,
-      commits_after_revert: -1,
-      verification_status: "unknown",
-      verification_reason: `Failed to fetch PR data: ${error.message}`,
-    };
-  }
+  const result = await verifyFpForPr(octokit, prNumber, revertTime);
+  return { ...candidate, ...result };
 }
 
 export default async function handler(
@@ -226,21 +161,28 @@ export default async function handler(
     };
 
     // Run queries in parallel
-    const [significantReverts, autorevertEvents, weeklyMetricsRaw] =
-      await Promise.all([
-        queryClickhouseSaved(
-          "autorevert_significant_reverts",
-          queryParams
-        ) as Promise<SignificantRevert[]>,
-        queryClickhouseSaved(
-          "autorevert_events_with_commits",
-          queryParams
-        ) as Promise<AutorevertEvent[]>,
-        queryClickhouseSaved(
-          "autorevert_weekly_metrics",
-          queryParams
-        ) as Promise<any[]>,
-      ]);
+    const [
+      significantReverts,
+      autorevertEvents,
+      weeklyMetricsRaw,
+      killswitchEvents,
+    ] = await Promise.all([
+      queryClickhouseSaved(
+        "autorevert_significant_reverts",
+        queryParams
+      ) as Promise<SignificantRevert[]>,
+      queryClickhouseSaved(
+        "autorevert_events_with_commits",
+        queryParams
+      ) as Promise<AutorevertEvent[]>,
+      queryClickhouseSaved("autorevert_weekly_metrics", queryParams) as Promise<
+        any[]
+      >,
+      queryClickhouseSaved("autorevert_killswitch_windows", {
+        stopTime: queryParams.stopTime,
+      }) as Promise<KillswitchLabelEvent[]>,
+    ]);
+    const killswitchWindows = foldKillswitchWindows(killswitchEvents);
 
     // Build set of recovery SHAs (reverts that fixed signals)
     const recoveryShaSet = new Set(
@@ -269,29 +211,54 @@ export default async function handler(
       }
     }
 
-    // Count False Negatives: human reverts with signal recovery
-    const falseNegatives = significantReverts.filter(
+    // Count False Negatives: human reverts with signal recovery. Partition
+    // out the ones where the autorevert killswitch was active at recovery
+    // time — those are not a lambda miss; they're an upstream_infra class
+    // (`ci: disable-autorevert` label on an open issue, see
+    // `default.issues_label_event`). Killswitch FNs are surfaced as a
+    // third category and excluded from the recall denominator.
+    const allFalseNegatives = significantReverts.filter(
       (r) => !r.is_autorevert && r.recovery_type === "human_revert_recovery"
     );
+    const falseNegatives: SignificantRevert[] = [];
+    const falseNegativesKillswitch: Array<
+      SignificantRevert & { killswitch_issue: number }
+    > = [];
+    for (const r of allFalseNegatives) {
+      const w = killswitchWindowAt(killswitchWindows, r.recovery_time);
+      if (w) {
+        falseNegativesKillswitch.push({
+          ...r,
+          killswitch_issue: w.issue_number,
+        });
+      } else {
+        falseNegatives.push(r);
+      }
+    }
 
-    // Verify false positive candidates via GitHub API
+    // Verify false positive candidates via GitHub API. Each verification issues
+    // 2–4 API calls; running them serially over a 90d window can take 100–300s.
+    // Fan out with a bounded concurrency to keep total wall time in the 10–30s
+    // range without overwhelming the GitHub rate limit.
     let verifiedFPs: VerifiedFalsePositive[] = [];
     if (falsePositiveCandidates.length > 0) {
       const octokit = await getOctokit("pytorch", "pytorch");
+      const limit = pLimit(FP_VERIFY_CONCURRENCY);
 
-      for (const candidate of falsePositiveCandidates) {
-        // Check per-PR cache
-        const prCacheKey = `pr-verify-${candidate.pr_number}-${candidate.autorevert_time}`;
-        const cachedVerification = getCached(prCacheKey);
-
-        if (cachedVerification) {
-          verifiedFPs.push(cachedVerification);
-        } else {
-          const verified = await verifyFalsePositive(octokit, candidate);
-          setCache(prCacheKey, verified);
-          verifiedFPs.push(verified);
-        }
-      }
+      verifiedFPs = await Promise.all(
+        falsePositiveCandidates.map((candidate) =>
+          limit(async () => {
+            const prCacheKey = `pr-verify-${candidate.pr_number}-${candidate.autorevert_time}`;
+            const cachedVerification = getCached(prCacheKey);
+            if (cachedVerification) {
+              return cachedVerification as VerifiedFalsePositive;
+            }
+            const verified = await verifyFalsePositive(octokit, candidate);
+            setCache(prCacheKey, verified);
+            return verified;
+          })
+        )
+      );
     }
 
     // Separate confirmed FPs from legit reverts
@@ -314,22 +281,32 @@ export default async function handler(
     const precision = tp + fp > 0 ? (tp / (tp + fp)) * 100 : 100;
     const recall = tp + fn > 0 ? (tp / (tp + fn)) * 100 : 100;
 
-    // Enhance weekly metrics with precision/recall
-    // Group FPs by week for weekly precision calculation
+    // Enhance weekly metrics with precision/recall.
+    // Group FPs and killswitch-FNs by week for the weekly aggregation.
     const fpByWeek = new Map<string, number>();
     for (const fp of confirmedFPs) {
       const week = getWeekStart(new Date(fp.autorevert_time));
       fpByWeek.set(week, (fpByWeek.get(week) || 0) + 1);
     }
+    const fnKsByWeek = new Map<string, number>();
+    for (const r of falseNegativesKillswitch) {
+      const week = getWeekStart(new Date(r.recovery_time));
+      fnKsByWeek.set(week, (fnKsByWeek.get(week) || 0) + 1);
+    }
 
     const weeklyMetrics: WeeklyMetric[] = weeklyMetricsRaw.map((w) => {
       const weekFPs = fpByWeek.get(w.week) || 0;
+      const weekFNKs = fnKsByWeek.get(w.week) || 0;
       const weekTP = w.autorevert_recoveries;
-      const weekFN = w.human_revert_recoveries;
+      // human_revert_recoveries from the saved query counts all human
+      // reverts with signal recovery; subtract the killswitch-attributed
+      // ones so weekly recall matches the overall recall semantics.
+      const weekFN = Math.max(0, w.human_revert_recoveries - weekFNKs);
 
       return {
         ...w,
         false_positives: weekFPs,
+        false_negatives_killswitch: weekFNKs,
         precision:
           weekTP + weekFPs > 0
             ? Math.round((weekTP / (weekTP + weekFPs)) * 1000) / 10
@@ -350,6 +327,7 @@ export default async function handler(
         tp_without_signal_recovery: tpWithoutSignalRecovery,
         confirmed_false_positives: fp,
         false_negatives: fn,
+        false_negatives_killswitch: falseNegativesKillswitch.length,
         // Rates
         precision: Math.round(precision * 10) / 10,
         recall: Math.round(recall * 10) / 10,
@@ -360,6 +338,7 @@ export default async function handler(
       },
       weeklyMetrics,
       significantReverts,
+      killswitchWindows,
       falsePositives: {
         candidates_checked: falsePositiveCandidates.length,
         confirmed: confirmedFPs,
@@ -371,6 +350,13 @@ export default async function handler(
         recovery_time: r.recovery_time,
         signals_fixed: r.signals_fixed,
         reverted_pr_numbers: r.reverted_pr_numbers,
+      })),
+      falseNegativesKillswitch: falseNegativesKillswitch.map((r) => ({
+        recovery_sha: r.recovery_sha,
+        recovery_time: r.recovery_time,
+        signals_fixed: r.signals_fixed,
+        reverted_pr_numbers: r.reverted_pr_numbers,
+        killswitch_issue: r.killswitch_issue,
       })),
     };
 

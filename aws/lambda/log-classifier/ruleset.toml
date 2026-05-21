@@ -314,6 +314,10 @@ name = 'ghstack merge check error'
 pattern = '^Mergeability Error: .*'
 
 [[rule]]
+name = 'OSDC step script failure'
+pattern = '\[OSDC\] Step script exited.*'
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
 

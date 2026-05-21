@@ -32,7 +32,7 @@ PYTORCH_MATRIX_URL = (
 )
 
 # CUDA arches to skip (PyTorch supports them but we don't build Docker images for them)
-SKIP_CUDA_ARCHES = {"12.6"}
+SKIP_CUDA_ARCHES = {"12.9"}
 
 # ---------------------------------------------------------------------------
 # Fetching & parsing PyTorch version info

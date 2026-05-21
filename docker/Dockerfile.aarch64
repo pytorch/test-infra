@@ -52,9 +52,6 @@ RUN dnf install -y \
         gcc-toolset-13-gcc-c++ \
         gcc-toolset-13-gcc-gfortran \
         gcc-toolset-13-gdb \
-        gcc-toolset-14-gcc \
-        gcc-toolset-14-gcc-c++ \
-        gcc-toolset-14-gcc-gfortran \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 

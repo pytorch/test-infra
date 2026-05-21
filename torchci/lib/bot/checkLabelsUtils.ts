@@ -52,7 +52,7 @@ export function formLabelErrComment(): string {
 export function isLabelErrComment(body: string, author: string): boolean {
   return (
     body.includes(LABEL_COMMENT_START) &&
-    BOT_AUTHORS.includes(author.toLowerCase())
+    BOT_AUTHORS.includes(author.toLowerCase().replace("[bot]", ""))
   );
 }
 

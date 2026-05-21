@@ -7,12 +7,23 @@ from .bisection_planner import GapBisectionPlanner
 
 
 class AdvisorVerdict(Enum):
-    """Verdict from the AI advisor workflow."""
+    """Verdict from the AI advisor workflow.
+
+    `related` is the context-neutral successor to `revert`: it asserts that
+    the suspect commit caused the failure. On trunk, the autorevert lambda
+    treats `related` and `revert` identically (both trigger a revert when
+    confidence is above threshold). On PRs the verdict is display-only and
+    `related` reads more naturally than `revert` (the PR has not merged yet).
+
+    `revert` is retained indefinitely for backward compatibility with
+    historical CH rows produced before the rename.
+    """
 
     REVERT = "revert"
     UNSURE = "unsure"
     NOT_RELATED = "not_related"
     GARBAGE = "garbage"
+    RELATED = "related"
 
 
 @dataclass(frozen=True)
@@ -173,6 +184,25 @@ class SignalCommit:
             self.statuses[e.status] = self.statuses.get(e.status, 0) + 1
         # Optional AI advisor result for this (commit, signal) pair
         self.advisor_result = advisor_result
+
+    def replace(self, **changes) -> "SignalCommit":
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
+
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
+        """
+        new_fields = {
+            "head_sha": changes.pop("head_sha", self.head_sha),
+            "timestamp": changes.pop("timestamp", self.timestamp),
+            "events": changes.pop("events", self.events),
+            "advisor_result": changes.pop("advisor_result", self.advisor_result),
+        }
+        if changes:
+            raise TypeError(
+                f"SignalCommit.replace() got unexpected keyword argument(s): "
+                f"{sorted(changes)}"
+            )
+        return type(self)(**new_fields)
 
     @property
     def has_pending(self) -> bool:
@@ -359,6 +389,27 @@ class Signal:
         # Track the origin of the signal (test-track or job-track).
         self.source = source
 
+    def replace(self, **changes) -> "Signal":
+        """Return a copy with selected fields replaced (`dataclasses.replace`-style).
+
+        Centralizes reconstruction so adding a new field never silently gets
+        dropped on schema evolution. Raises TypeError on unknown kwargs.
+        """
+        new_fields = {
+            "key": changes.pop("key", self.key),
+            "workflow_name": changes.pop("workflow_name", self.workflow_name),
+            "commits": changes.pop("commits", self.commits),
+            "job_base_name": changes.pop("job_base_name", self.job_base_name),
+            "test_module": changes.pop("test_module", self.test_module),
+            "source": changes.pop("source", self.source),
+        }
+        if changes:
+            raise TypeError(
+                f"Signal.replace() got unexpected keyword argument(s): "
+                f"{sorted(changes)}"
+            )
+        return type(self)(**new_fields)
+
     def detect_fixed(self) -> bool:
         """
         Find the first commit with any non‑pending event; if it contains a success, consider the signal recovered.
@@ -476,7 +527,7 @@ class Signal:
         """Check if an AI advisor verdict is available for the suspect commit.
 
         Returns:
-            - AutorevertPattern if advisor says "revert" with sufficient confidence
+            - AutorevertPattern if advisor says "revert" or "related" with sufficient confidence
             - Ineligible if advisor says "not_related" or "garbage" (within 2h window)
             - None if no verdict, verdict is "unsure", or confidence below threshold
         """
@@ -493,7 +544,7 @@ class Signal:
         if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD:
             return None
 
-        if result.verdict == AdvisorVerdict.REVERT:
+        if result.verdict in (AdvisorVerdict.REVERT, AdvisorVerdict.RELATED):
             return self._build_autorevert_pattern(partition, advisor_result=result)
 
         if result.verdict == AdvisorVerdict.NOT_RELATED:

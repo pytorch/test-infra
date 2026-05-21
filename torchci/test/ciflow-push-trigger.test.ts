@@ -279,6 +279,7 @@ describe("Push trigger integration tests", () => {
 
   test("synchronization of PR without permissions skips tag sync but keeps labels", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.synchronize");
+    const prNum = payload.pull_request.number;
     mockApprovedWorkflowRuns(
       payload.repository.full_name,
       payload.pull_request.head.sha,
@@ -290,7 +291,21 @@ describe("Push trigger integration tests", () => {
       "read"
     );
     // No label removal or tag creation should happen -- labels are kept,
-    // tags are simply not created until workflows are approved.
+    // tags are simply not created until workflows are approved. The pending
+    // comment is refreshed so a previous "CI has now been triggered" message
+    // doesn't linger after a new commit re-gates approval.
+    const pendingCommentId = 99;
+    mockListComments(payload.repository.full_name, prNum, [
+      {
+        id: pendingCommentId,
+        body: "<!-- ciflow-pending -->\n~~Workflows were awaiting approval.~~ CI has now been triggered for the ciflow labels on this PR.",
+      },
+    ]);
+    mockUpdateComment(
+      payload.repository.full_name,
+      pendingCommentId,
+      "awaiting approval"
+    );
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
@@ -517,6 +532,51 @@ describe("Push trigger integration tests", () => {
     // No tag creation or label removal should happen
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
+
+  test.each([
+    // Transient pre-approval states surfaced via `status`.
+    { status: "waiting", conclusion: null },
+    { status: "action_required", conclusion: null },
+    // Observed on pytorch/pytorch#182109: GitHub created and "completed" the
+    // run in the same instant, expressing the deferral via `conclusion` rather
+    // than a transient `status`. The handler must catch this shape too.
+    { status: "completed", conclusion: "action_required" },
+    { status: "completed", conclusion: "startup_failure" },
+  ])(
+    "workflow_run gated on approval (status=$status, conclusion=$conclusion) does not create tags",
+    async ({ status, conclusion }) => {
+      // workflow_run.requested fires when GitHub creates the run record, including
+      // for runs that haven't been approved yet on first-time-contributor PRs.
+      // The handler must not mint tags off these events.
+      const payload = {
+        action: "requested",
+        workflow_run: {
+          event: "pull_request",
+          status,
+          conclusion,
+          head_sha: "abc123",
+          head_branch: "feature-branch",
+          head_repository: {
+            owner: { login: "fork-user" },
+          },
+          pull_requests: [{ number: 42 }],
+        },
+        repository: {
+          owner: { login: "suo" },
+          name: "actions-test",
+          full_name: "suo/actions-test",
+        },
+      };
+
+      // No requests should be made -- the handler should bail out before
+      // touching the GitHub API.
+      await probot.receive({
+        name: "workflow_run" as any,
+        id: "789",
+        payload: payload as any,
+      });
+    }
+  );
 
   test("workflow_run with empty pull_requests falls back to SHA lookup", async () => {
     const head_sha = "abc123def456";

@@ -17,26 +17,21 @@ on:
         default: ""
         required: false
         type: string
-      use-version-set:
-        description: 'Applies when version is used, use version for each domain'
-        default: false
-        required: false
-        type: boolean
       release-matrix:
         description: 'Release matrix - optional'
         default: ""
         required: false
         type: string
+      include-torchaudio:
+        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
+        default: false
+        required: false
+        type: boolean
       use-only-dl-pytorch-org:
         description: 'Use only download.pytorch.org when generating wheel install command'
         default: "false"
         required: false
         type: string
-      use-cloudflare-cdn:
-        description: 'Use cloudflare cdn for installing pip binaries'
-        default: false
-        required: false
-        type: boolean
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -73,16 +68,16 @@ on:
         default: ""
         required: false
         type: string
+      include-torchaudio:
+        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
+        default: false
+        required: false
+        type: boolean
       use-only-dl-pytorch-org:
         description: 'Use only download.pytorch.org when generating wheel install command'
         default: "false"
         required: false
         type: string
-      use-cloudflare-cdn:
-        description: 'Use cloudflare cdn for installing pip binaries'
-        default: false
-        required: false
-        type: boolean
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -90,11 +85,6 @@ on:
         type: boolean
       use-wheel-variants:
         description: 'Use wheel-variants for installing pip binaries'
-        default: false
-        required: false
-        type: boolean
-      use-version-set:
-        description: 'Applies when version is used, use version for each domain'
         default: false
         required: false
         type: boolean
@@ -128,18 +118,12 @@ jobs:
         export TORCH_ONLY=${{ inputs.torchonly }}
         export RELEASE_VERSION=${{ inputs.version }}
         export USE_FORCE_REINSTALL="true"
+        export INCLUDE_TORCHAUDIO=${{ inputs.include-torchaudio }}
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
-        export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
         export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
-        export USE_VERSION_SET=${{ inputs.use-version-set }}
 
         if [[ ${{ matrix.package_type }} == "conda" ]]; then
           export IS_M1_CONDA_BUILD_JOB=1
-        fi
-
-        if [[ ${USE_VERSION_SET} == 'true' ]]; then
-          export VISION_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchvision }}
-          export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
         fi
 
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json

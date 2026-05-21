@@ -447,6 +447,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       );
     }
 
+    if (
+      labelsToAdd.includes("actionable") &&
+      !(await this.hasWritePermissions(ctx.payload?.comment?.user?.login))
+    ) {
+      return await this.addComment(
+        "Only regular contributors are expected to mark issues as actionable."
+      );
+    }
+
     // Labels only people with write access to the repo should be able to add
     const labels_requiring_write_access: string[] = ["skip-pr-sanity-check"];
     const write_required_labels = labelsToAdd.filter((l: string) =>

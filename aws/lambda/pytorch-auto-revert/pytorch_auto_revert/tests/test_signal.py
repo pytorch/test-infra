@@ -882,6 +882,16 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         self.assertEqual(res.older_successful_commit, "sha_old")
         self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
 
+    def test_advisor_related_produces_autorevert_pattern(self):
+        """When advisor says 'related' (context-neutral successor to 'revert'),
+        produce AutorevertPattern just like 'revert'."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.RELATED)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_mid")
+        self.assertEqual(res.older_successful_commit, "sha_old")
+        self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
+
     def test_advisor_not_related_produces_ineligible(self):
         """When advisor says 'not_related', return Ineligible."""
         s = self._make_signal_with_advisor(AdvisorVerdict.NOT_RELATED)
@@ -1099,6 +1109,164 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, AutorevertPattern)
+
+
+class TestSignalReplace(unittest.TestCase):
+    """Tests for Signal.replace() — `dataclasses.replace`-style API."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    # Sentinels pinned per current Signal API — non-default values for
+    # every __init__ field. Adding a new Signal field MUST add an entry
+    # here (otherwise the introspection assertion fires) AND propagate
+    # the field inside Signal.replace (otherwise the no-changes round
+    # trip assertion fires).
+    _SENTINELS = {
+        "key": "test/foo.py::test_bar",
+        "workflow_name": "trunk",
+        "commits": [SignalCommit("sha_a", datetime(2025, 8, 19, 12, 0, 0), [])],
+        "job_base_name": "linux-jammy / test",
+        "test_module": "test_foo",
+        "source": SignalSource.JOB,
+    }
+
+    def _init_params(self):
+        import inspect
+
+        return [p for p in inspect.signature(Signal.__init__).parameters if p != "self"]
+
+    def test_sentinels_cover_all_init_fields(self):
+        """Adding a new Signal field forces this test to fail until a
+        sentinel is pinned in `_SENTINELS`. Forces the test author to
+        consider whether `Signal.replace()` propagates the new field too
+        (which the next test would otherwise catch silently as a
+        "dropped field" with an unhelpful default value).
+        """
+        missing = set(self._init_params()) - set(self._SENTINELS)
+        self.assertFalse(
+            missing,
+            (
+                f"Signal has new __init__ field(s) {sorted(missing)!r} not "
+                "pinned in _SENTINELS. Add a sentinel value AND propagate the "
+                "field inside Signal.replace, then re-run."
+            ),
+        )
+
+    def test_replace_with_no_changes_preserves_all_fields(self):
+        """`replace()` with no kwargs must return a copy where every field
+        equals the original. Catches the bug class where Signal.replace
+        forgets to forward a field — without enumerating each individually.
+        """
+        s = Signal(**self._SENTINELS)
+        out = s.replace()
+        self.assertIsNot(out, s, "replace() must return a new instance")
+        for name in self._init_params():
+            self.assertEqual(
+                getattr(out, name),
+                self._SENTINELS[name],
+                f"Signal.replace() dropped field {name!r}",
+            )
+
+    def test_replace_swaps_a_field(self):
+        """Smoke test: `replace(commits=...)` actually swaps the commit list."""
+        s = Signal(**self._SENTINELS)
+        new_commits = [SignalCommit("sha_b", self.t0, [])]
+        out = s.replace(commits=new_commits)
+        self.assertEqual(out.commits, new_commits)
+        # original untouched
+        self.assertEqual(s.commits, self._SENTINELS["commits"])
+        # other fields preserved
+        self.assertEqual(out.key, self._SENTINELS["key"])
+        self.assertEqual(out.workflow_name, self._SENTINELS["workflow_name"])
+
+    def test_replace_unknown_kwarg_raises(self):
+        """Stale or typo'd kwargs are caught at runtime."""
+        s = Signal(**self._SENTINELS)
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
+            s.replace(this_field_does_not_exist=42)
+
+
+class TestSignalCommitReplace(unittest.TestCase):
+    """Tests for SignalCommit.replace() — same shape as TestSignalReplace."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    # Sentinels pinned per current SignalCommit API — non-default values
+    # for every __init__ field. Adding a new SignalCommit field MUST add
+    # an entry here AND propagate the field inside SignalCommit.replace.
+    _SENTINELS = {
+        "head_sha": "sha_abc",
+        "timestamp": datetime(2025, 8, 19, 12, 0, 0),
+        "events": [
+            SignalEvent(
+                "ev_a",
+                SignalStatus.FAILURE,
+                datetime(2025, 8, 19, 12, 0, 0),
+                wf_run_id=1,
+            )
+        ],
+        "advisor_result": AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.9,
+            timestamp=datetime(2025, 8, 19, 12, 0, 0),
+            signal_key="k",
+        ),
+    }
+
+    def _init_params(self):
+        import inspect
+
+        return [
+            p
+            for p in inspect.signature(SignalCommit.__init__).parameters
+            if p != "self"
+        ]
+
+    def test_sentinels_cover_all_init_fields(self):
+        missing = set(self._init_params()) - set(self._SENTINELS)
+        self.assertFalse(
+            missing,
+            (
+                f"SignalCommit has new __init__ field(s) {sorted(missing)!r} not "
+                "pinned in _SENTINELS. Add a sentinel value AND propagate the "
+                "field inside SignalCommit.replace, then re-run."
+            ),
+        )
+
+    def test_replace_with_no_changes_preserves_all_fields(self):
+        c = SignalCommit(**self._SENTINELS)
+        out = c.replace()
+        self.assertIsNot(out, c)
+        # `events` may have been re-sorted by SignalCommit.__init__; compare
+        # by event names which are preserved in order for our sentinels.
+        for name in self._init_params():
+            if name == "events":
+                self.assertEqual(
+                    [e.name for e in out.events],
+                    [e.name for e in self._SENTINELS["events"]],
+                    "SignalCommit.replace() dropped 'events'",
+                )
+            else:
+                self.assertEqual(
+                    getattr(out, name),
+                    self._SENTINELS[name],
+                    f"SignalCommit.replace() dropped field {name!r}",
+                )
+
+    def test_replace_swaps_a_field(self):
+        c = SignalCommit(**self._SENTINELS)
+        new_events = [SignalEvent("ev_b", SignalStatus.SUCCESS, self.t0, wf_run_id=2)]
+        out = c.replace(events=new_events)
+        self.assertEqual([e.name for e in out.events], ["ev_b"])
+        # advisor_result preserved
+        self.assertEqual(out.advisor_result, self._SENTINELS["advisor_result"])
+
+    def test_replace_unknown_kwarg_raises(self):
+        c = SignalCommit(**self._SENTINELS)
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
+            c.replace(this_field_does_not_exist=42)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
+import { EC2_TO_ARC_RUNNER_MAPPING } from "./arcRunnerMapping";
 import { IssueData, RowData } from "./types";
 
 type RepoViableStrictBlockingJobsMap = {
@@ -406,6 +407,9 @@ export function getGroupingData(
   // Track which jobs have failures
   const jobsWithFailures = new Set<string>();
 
+  // Track which jobs are always skipped (every recorded run was skipped)
+  const jobsAlwaysSkipped = new Set<string>();
+
   // Track which jobs are viable/strict blocking
   const jobsViableStrictBlocking = new Set<string>();
 
@@ -419,6 +423,27 @@ export function getGroupingData(
 
     if (hasFailure) {
       jobsWithFailures.add(name);
+    }
+
+    // A job is "always skipped" iff at least one real run exists and every
+    // real run has conclusion === 'skipped'. `nameToJobs` always has an entry
+    // per column (empty `{}` stubs for commits where the job didn't run), so
+    // we identify real runs by the presence of `id`.
+    let sawAnyJob = false;
+    let sawNonSkipped = false;
+    for (const row of shaGrid) {
+      const job = row.nameToJobs.get(name);
+      if (!job || !job.id) {
+        continue;
+      }
+      sawAnyJob = true;
+      if (job.conclusion !== JobStatus.Skipped) {
+        sawNonSkipped = true;
+        break;
+      }
+    }
+    if (sawAnyJob && !sawNonSkipped) {
+      jobsAlwaysSkipped.add(name);
     }
 
     // Check if this job is viable/strict blocking
@@ -455,11 +480,24 @@ export function getGroupingData(
     }
   }
 
+  // A group is "always skipped" iff every job in it is always skipped
+  const groupsAlwaysSkipped = new Set<string>();
+  for (const [groupName, jobs] of groupNameMapping.entries()) {
+    if (
+      jobs.length > 0 &&
+      jobs.every((jobName) => jobsAlwaysSkipped.has(jobName))
+    ) {
+      groupsAlwaysSkipped.add(groupName);
+    }
+  }
+
   return {
     shaGrid,
     groupNameMapping,
     jobsWithFailures,
     groupsWithFailures,
+    jobsAlwaysSkipped,
+    groupsAlwaysSkipped,
     jobsViableStrictBlocking,
     groupsViableStrictBlocking,
   };
@@ -485,4 +523,37 @@ export function getNameWithoutLF(name: string) {
   name = name.replace(lfRegex, ", $1");
   const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
   return name.replace(ephemeralRegex, ", $1");
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Precomputed regex that matches any EC2 runner label present in the mapping
+// as a whole token (preceded by `,`, `(`, or whitespace; followed by `,`,
+// `)`, whitespace, or end-of-string) so substrings like `linux.2xlarge`
+// inside `linux.2xlarge.amx` do not match.
+const EC2_RUNNER_REGEX = new RegExp(
+  `(?<=[,(\\s])(${Object.keys(EC2_TO_ARC_RUNNER_MAPPING)
+    .map(escapeRegex)
+    .join("|")})(?=[,)\\s]|$)`,
+  "g"
+);
+
+// Condense the ARC (OSDC) variant of a job down to its EC2 counterpart so
+// both variants collapse into one HUD column. Performs three rewrites:
+//   1. Strip the `-osdc` suffix from job IDs (`test-osdc` -> `test`).
+//   2. Strip the `mt-` prefix the ARC launcher prepends to runner labels.
+//   3. Forward-map EC2 runner labels to their ARC equivalents using the
+//      same table that `map_ec2_to_arc.py` uses in the workflow, so
+//      matrix-expanded names like `test (cfg, 1, 3, linux.c7i.2xlarge)`
+//      and `test-osdc (cfg, 1, 3, mt-l-x86iavx512-8-64)` line up.
+export function getNameWithoutOSDC(name: string) {
+  let result = name.replace(/-osdc(?=[\s()/]|$)/g, "");
+  result = result.replace(/(?<=[,(\s])mt-(?=l-)/g, "");
+  result = result.replace(
+    EC2_RUNNER_REGEX,
+    (match) => EC2_TO_ARC_RUNNER_MAPPING[match] ?? match
+  );
+  return result;
 }

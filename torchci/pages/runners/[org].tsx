@@ -161,9 +161,10 @@ export default function RunnersPage() {
   const filteredAndSortedGroups = useMemo(() => {
     let groups = runnersData?.groups || [];
 
-    // Filter based on search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    // Filter based on search term (ignore leading/trailing whitespace)
+    const trimmedSearch = searchTerm.trim();
+    if (trimmedSearch) {
+      const term = trimmedSearch.toLowerCase();
       groups = groups.filter(
         (group) =>
           group.label.toLowerCase().includes(term) ||

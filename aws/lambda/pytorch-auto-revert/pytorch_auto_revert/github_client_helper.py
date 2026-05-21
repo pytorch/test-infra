@@ -89,24 +89,41 @@ class GHClientFactory:
             and hasattr(cls, "_installation_id")
         )
 
+    def _build_auth(self) -> "github.Auth.Auth":
+        if self.token_auth_provided():
+            return github.Auth.Token(self._token)
+        if self.key_auth_provided():
+            return github.Auth.AppInstallationAuth(
+                github.Auth.AppAuth(
+                    app_id=self._app_id,
+                    private_key=self._app_secret,
+                ),
+                installation_id=self._installation_id,
+            )
+        raise RuntimeError(
+            "GitHub client not properly configured. Call setup_client first."
+            + " Please note that you can only use one type of authentication at a time."
+        )
+
     @property
     def client(self) -> github.Github:
         if "client" not in self._data:
-            if self.token_auth_provided():
-                auth = github.Auth.Token(self._token)
-            elif self.key_auth_provided():
-                auth = github.Auth.AppInstallationAuth(
-                    github.Auth.AppAuth(
-                        app_id=self._app_id,
-                        private_key=self._app_secret,
-                    ),
-                    installation_id=self._installation_id,
-                )
-            else:
-                raise RuntimeError(
-                    "GitHub client not properly configured. Call setup_client first."
-                    + " Please note that you can only use one type of authentication at a time."
-                )
-
-            self._data["client"] = github.Github(auth=auth)
+            self._data["client"] = github.Github(auth=self._build_auth())
         return self._data["client"]
+
+    @property
+    def dispatch_client(self) -> github.Github:
+        """Github client with urllib3 retries disabled — for non-idempotent POSTs.
+
+        GitHub's ``POST /repos/{owner}/{repo}/actions/workflows/{id}/dispatches`` can
+        return 5xx after it has already accepted the dispatch and created a workflow
+        run. PyGithub's default ``GithubRetry`` retries 5xx for POST, which silently
+        produces duplicate runs. This client opts out of those retries; callers are
+        expected to wrap dispatch calls in a small explicit retry (e.g.
+        ``RetryWithBackoff``) instead.
+        """
+        if "dispatch_client" not in self._data:
+            self._data["dispatch_client"] = github.Github(
+                auth=self._build_auth(), retry=0
+            )
+        return self._data["dispatch_client"]

@@ -110,6 +110,22 @@ function MetricsLegend() {
             </Typography>
           </Box>
         </Tooltip>
+        <Tooltip title="Human reverts that landed while autorevert was disabled via the `ci: disable-autorevert` label on an open issue. Excluded from recall.">
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                bgcolor: "#9c6ade",
+                borderRadius: 0.5,
+              }}
+            />
+            <Typography variant="body2">
+              <strong>FN (disabled)</strong> = autorevert was off (excluded from
+              recall)
+            </Typography>
+          </Box>
+        </Tooltip>
         <Tooltip title="Autoreverts that were wrong: no signal recovery AND PR was merged unchanged after revert">
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box
@@ -178,6 +194,7 @@ function WeeklyTrendChart({ data }: { data: any[] | undefined }) {
       data: [
         "TP (Autorevert)",
         "FN (Human Revert)",
+        "FN (Disabled)",
         "FP (Wrong Revert)",
         "Non-Revert Fix",
         "Precision %",
@@ -212,8 +229,21 @@ function WeeklyTrendChart({ data }: { data: any[] | undefined }) {
         name: "FN (Human Revert)",
         type: "bar",
         stack: "counts",
-        data: data.map((d) => d.human_revert_recoveries),
+        data: data.map((d) =>
+          Math.max(
+            0,
+            (d.human_revert_recoveries || 0) -
+              (d.false_negatives_killswitch || 0)
+          )
+        ),
         itemStyle: { color: "#ed6c02" },
+      },
+      {
+        name: "FN (Disabled)",
+        type: "bar",
+        stack: "counts",
+        data: data.map((d) => d.false_negatives_killswitch || 0),
+        itemStyle: { color: "#9c6ade" },
       },
       {
         name: "FP (Wrong Revert)",
@@ -419,7 +449,27 @@ function FalsePositivesTable({ data }: { data: any | undefined }) {
   );
 }
 
-function SignificantRevertsTable({ data }: { data: any[] | undefined }) {
+function killswitchIssueAt(
+  windows: any[] | undefined,
+  t: string
+): number | null {
+  if (!windows) return null;
+  const ts = new Date(t).getTime();
+  for (const w of windows) {
+    const on = new Date(w.on).getTime();
+    const off = w.off === null ? Infinity : new Date(w.off).getTime();
+    if (ts >= on && ts <= off) return w.issue_number;
+  }
+  return null;
+}
+
+function SignificantRevertsTable({
+  data,
+  killswitchWindows,
+}: {
+  data: any[] | undefined;
+  killswitchWindows?: any[];
+}) {
   if (data === undefined) {
     return <Skeleton variant="rectangular" height={400} />;
   }
@@ -464,19 +514,47 @@ function SignificantRevertsTable({ data }: { data: any[] | undefined }) {
                   </Tooltip>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={
-                      row.recovery_type === "autorevert_recovery" ? "TP" : "FN"
-                    }
-                    size="small"
-                    sx={{
-                      backgroundColor:
-                        row.recovery_type === "autorevert_recovery"
-                          ? "#3ba272"
-                          : "#ed6c02",
-                      color: "white",
-                    }}
-                  />
+                  {(() => {
+                    const isAR = row.recovery_type === "autorevert_recovery";
+                    const ksIssue = isAR
+                      ? null
+                      : killswitchIssueAt(killswitchWindows, row.recovery_time);
+                    const label = isAR
+                      ? "TP"
+                      : ksIssue !== null
+                      ? "FN (disabled)"
+                      : "FN";
+                    const bg = isAR
+                      ? "#3ba272"
+                      : ksIssue !== null
+                      ? "#9c6ade"
+                      : "#ed6c02";
+                    const tooltip =
+                      ksIssue !== null
+                        ? `Killswitch active via ci: disable-autorevert on issue #${ksIssue}`
+                        : "";
+                    const chip = (
+                      <Chip
+                        label={label}
+                        size="small"
+                        sx={{ backgroundColor: bg, color: "white" }}
+                      />
+                    );
+                    return ksIssue !== null ? (
+                      <Tooltip title={tooltip}>
+                        <a
+                          href={`https://github.com/pytorch/pytorch/issues/${ksIssue}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ textDecoration: "none" }}
+                        >
+                          {chip}
+                        </a>
+                      </Tooltip>
+                    ) : (
+                      chip
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>{row.max_red_streak_length}</TableCell>
                 <TableCell>
@@ -513,9 +591,9 @@ function SignificantRevertsTable({ data }: { data: any[] | undefined }) {
 }
 
 export default function AutorevertMetricsPage() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(90, "day"));
+  const [startTime, setStartTime] = useState(dayjs().subtract(30, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
-  const [timeRange, setTimeRange] = useState<number>(90);
+  const [timeRange, setTimeRange] = useState<number>(30);
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>(
     VIABLE_STRICT_WORKFLOWS
   );
@@ -634,7 +712,7 @@ export default function AutorevertMetricsPage() {
             value={
               summary?.recall !== undefined ? `${summary.recall}%` : undefined
             }
-            tooltip="TP / (TP + FN) - How many reverts autorevert catches"
+            tooltip="TP / (TP + FN) - How many reverts autorevert catches. Excludes FN (Disabled) — reverts where the `ci: disable-autorevert` killswitch was active."
             color="#91cc75"
           />
         </Grid>
@@ -668,6 +746,14 @@ export default function AutorevertMetricsPage() {
         </Grid>
         <Grid size={{ xs: 6, sm: 2 }}>
           <ScalarMetric
+            title="FN (Disabled)"
+            value={summary?.false_negatives_killswitch}
+            tooltip="Human reverts that landed while autorevert was disabled via the `ci: disable-autorevert` label on an open issue. Excluded from recall."
+            color="#9c6ade"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 2 }}>
+          <ScalarMetric
             title="Total Autoreverts"
             value={summary?.total_autoreverts}
             tooltip="Total autorevert events in the selected workflows"
@@ -682,7 +768,10 @@ export default function AutorevertMetricsPage() {
       <WeeklyTrendChart data={metricsData?.weeklyMetrics} />
 
       {/* Significant Reverts Table */}
-      <SignificantRevertsTable data={metricsData?.significantReverts} />
+      <SignificantRevertsTable
+        data={metricsData?.significantReverts}
+        killswitchWindows={metricsData?.killswitchWindows}
+      />
 
       {/* False Positives Table */}
       <FalsePositivesTable data={metricsData?.falsePositives} />

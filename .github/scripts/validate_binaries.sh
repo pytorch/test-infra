@@ -27,10 +27,6 @@ get_python_config() {
             PYTHON_V=3.14.0rc1
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
-        3.13t)
-            PYTHON_V=3.13
-            CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
-            ;;
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
             CONDA_EXTRA_PARAM=""
@@ -64,14 +60,14 @@ build_installation_command() {
         installation=${installation/"--index-url"/"--extra-index-url"}
     fi
 
-    # use-cloudflare-cdn: use cloudflare cdn for pypi download
-    if [[ ${USE_CLOUDFLARE_CDN:-} == 'true' ]]; then
-        installation=${installation/"download.pytorch.org"/"download-r2.pytorch.org"}
+    # torch-only option: remove torchvision
+    if [[ ${TORCH_ONLY:-} == 'true' ]]; then
+        installation=${installation/" torchvision"/""}
     fi
 
-    # torch-only option: remove vision and audio
-    if [[ ${TORCH_ONLY:-} == 'true' ]]; then
-        installation=${installation/"torchvision torchaudio"/""}
+    # include-torchaudio option: add torchaudio to installation
+    if [[ ${INCLUDE_TORCHAUDIO:-} == 'true' ]]; then
+        installation=${installation/"torchvision "/"torchvision torchaudio "}
     fi
 
     # if RELEASE version is passed as parameter - install specific version
@@ -79,11 +75,6 @@ build_installation_command() {
         installation=${installation/"torch "/"torch==${RELEASE_VERSION} "}
         installation=${installation/"-y pytorch "/"-y pytorch==${RELEASE_VERSION} "}
         installation=${installation/"::pytorch "/"::pytorch==${RELEASE_VERSION} "}
-
-        if [[ ${USE_VERSION_SET:-} == 'true' ]]; then
-            installation=${installation/"torchvision "/"torchvision==${VISION_RELEASE_VERSION} "}
-            installation=${installation/"torchaudio "/"torchaudio==${AUDIO_RELEASE_VERSION} "}
-        fi
     fi
 
     echo "${installation}"
@@ -93,8 +84,10 @@ build_installation_command() {
 get_test_suffix() {
     if [[ ${TORCH_ONLY:-} == 'true' ]]; then
         echo "--package torchonly"
-    else
+    elif [[ ${INCLUDE_TORCHAUDIO:-} == 'true' ]]; then
         echo ""
+    else
+        echo "--package torch_torchvision"
     fi
 }
 
@@ -241,7 +234,7 @@ fi
 # Setup conda environment
 update_conda
 get_python_config
-conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" ${CONDA_EXTRA_PARAM}
+conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
 conda activate "${ENV_NAME}"
 
 # Save original PATH for macos-arm64 workaround
