@@ -1306,9 +1306,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         )
 
     def _empty(self, sha: str, minute: int) -> SignalCommit:
-        return SignalCommit(
-            head_sha=sha, timestamp=ts(self.t0, minute), events=[]
-        )
+        return SignalCommit(head_sha=sha, timestamp=ts(self.t0, minute), events=[])
 
     def _test_signal(self, commits, key: str = "f.py::t") -> Signal:
         return Signal(

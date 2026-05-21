@@ -873,7 +873,9 @@ class TestBuildSignalPatternJson(unittest.TestCase):
             ],
         )
         signal = Signal(
-            key="k", workflow_name="trunk", commits=[c_fail, c_base],
+            key="k",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
             source=SignalSource.TEST,
         )
         advisor = DispatchAdvisor(

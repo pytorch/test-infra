@@ -774,9 +774,7 @@ class SignalActionProcessor:
                 "no_signal: baseline commits where this test signal was not "
                 "observed (no extracted events). See top-level pattern_context."
             )
-            LABEL_PRIOR = (
-                "prior: even older commits with no signal observation"
-            )
+            LABEL_PRIOR = "prior: even older commits with no signal observation"
         else:
             LABEL_SUCCESSFUL = (
                 "successful: baseline commits where this signal was GREEN "

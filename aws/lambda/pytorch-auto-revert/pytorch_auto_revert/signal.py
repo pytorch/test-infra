@@ -647,9 +647,7 @@ class Signal:
         `SignalActionsLogger`; this method just emits the request.
         """
         born_red = (
-            self.partition_born_red()
-            if self.source == SignalSource.TEST
-            else None
+            self.partition_born_red() if self.source == SignalSource.TEST else None
         )
         if born_red is None:
             return Ineligible(
