@@ -52,21 +52,40 @@
       ansible.builtin.shell: |
         bash /opt/runner_scripts/install-ssm-agent.sh
 
+    # Avoid community.general.homebrew_cask / .homebrew: Homebrew 5.x emits
+    # "already installed" / progress lines on stderr, which the modules treat
+    # as hard failures. Same workaround as macos-runners/playbooks/install-runner.yml.
     - name: Install Homebrew cask dependencies
-      community.general.homebrew_cask:
-        name:
-          - miniconda
-        state: present
+      register: brew_cask_install
+      changed_when: "'Installing' in brew_cask_install.stdout"
+      ansible.builtin.shell: |
+        set -eu
+        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:${PATH:-}"
+        for cask in miniconda; do
+          if /opt/homebrew/bin/brew list --cask "$cask" >/dev/null 2>&1; then
+            echo "Present: $cask"
+          else
+            echo "Installing: $cask"
+            HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
+              /opt/homebrew/bin/brew install --cask "$cask"
+          fi
+        done
 
     - name: Install Homebrew dependencies
-      community.general.homebrew:
-        name:
-          - gh
-          - jq
-          - tmux
-          - libomp
-          - pstree
-        state: present
+      register: brew_install
+      changed_when: "'Installing' in brew_install.stdout"
+      ansible.builtin.shell: |
+        set -eu
+        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:${PATH:-}"
+        for pkg in gh jq tmux libomp pstree; do
+          if /opt/homebrew/bin/brew list --formula "$pkg" >/dev/null 2>&1; then
+            echo "Present: $pkg"
+          else
+            echo "Installing: $pkg"
+            HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
+              /opt/homebrew/bin/brew install "$pkg"
+          fi
+        done
 
     - name: Initialize conda in shell rc files
       register: conda_init
