@@ -1328,7 +1328,8 @@ class TestBornRedTestSignal(unittest.TestCase):
             self._empty("e2", -30),
         ]
         part = self._test_signal(commits).partition_born_red()
-        assert part is not None
+        self.assertIsNotNone(part)
+        assert part is not None  # narrow type for mypy
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
         self.assertEqual([c.head_sha for c in part.successful], ["e1", "e2"])
         self.assertEqual(part.unknown, [])

@@ -759,13 +759,14 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         # Timestamps are human-readable
         self.assertIn("UTC", commits["sha_fail"]["timestamp"])
 
-    def test_born_red_relabels_baseline_partition(self):
-        """When is_born_red=True, the SUCCESSFUL partition is relabeled.
+    def test_born_red_attaches_pattern_context_and_short_label(self):
+        """When is_born_red=True, the JSON carries the long framing once at
+        the top level (`pattern_context`) and uses a SHORT partition label
+        for each baseline commit.
 
-        The advisor must be asked "did the suspect introduce the failing
-        test?" rather than "was this signal green here?" — the new label
-        names the four causes (introduction / enable / move / sharding)
-        explicitly so the model picks the right one.
+        Earlier iterations duplicated the full natural-language framing into
+        every commit's `partition` field. Said once: `pattern_context`. Per
+        commit: a terse label that points back at the top-level context.
         """
         import json
 
@@ -816,20 +817,79 @@ class TestBuildSignalPatternJson(unittest.TestCase):
             )
         )
 
-        # Top-level flag plumbed for advisor prompt branching
-        self.assertTrue(result["is_born_red"])
+        # Top-level pattern_context carries the long framing (said once).
+        self.assertIn("pattern_context", result)
+        ctx = result["pattern_context"]
+        self.assertIn("born-red", ctx)
+        # Enumerates the four ambiguity causes the advisor must distinguish.
+        for cue in ("ADDED", "ENABLED", "MOVED", "sharding"):
+            self.assertIn(cue, ctx)
+        # Tells the advisor what to recommend in each case.
+        self.assertIn("revert", ctx)
+        self.assertIn("not_related", ctx)
 
+        # Per-commit partition labels stay SHORT — they only point back at
+        # the top-level context.
         commits = {c["sha"]: c for c in result["commits"]}
         baseline_label = commits["e1"]["partition"]
-        # Relabeled from "successful: ... GREEN ..." to a "no_signal:" framing
-        # that explicitly asks the advisor to distinguish introduction vs.
-        # enable vs. move vs. sharding.
         self.assertIn("no_signal", baseline_label)
-        self.assertNotIn("GREEN", baseline_label)
-        self.assertIn("NOT", baseline_label.upper())
-        # Must enumerate the four ambiguity causes the advisor has to pick from.
-        for cue in ("ADDED", "ENABLED", "MOVED", "sharding"):
-            self.assertIn(cue, baseline_label)
+        self.assertLess(
+            len(baseline_label),
+            len(ctx) // 3,
+            "per-commit label must be short relative to pattern_context",
+        )
+        # The fully-spelled-out cause cues live in pattern_context, NOT in
+        # every commit's label.
+        for cue in ("ADDED", "ENABLED", "MOVED"):
+            self.assertNotIn(cue, baseline_label)
+
+    def test_non_born_red_has_no_pattern_context(self):
+        """`pattern_context` is born-red-only — not emitted for normal
+        green→red patterns."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2026, 5, 21, 12, 0, 0)
+        c_fail = SignalCommit(
+            head_sha="f1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=11),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="b1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=12),
+            ],
+        )
+        signal = Signal(
+            key="k", workflow_name="trunk", commits=[c_fail, c_base],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="f1",
+            failed_commits=("f1",),
+            successful_commits=("b1",),
+            is_born_red=False,
+        )
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        self.assertNotIn("pattern_context", result)
 
     def test_unknown_partition_label(self):
         """Commits between failed and successful partitions get 'unknown' label."""
