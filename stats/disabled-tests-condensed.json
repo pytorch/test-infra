@@ -1148,13 +1148,6 @@
       "mac"
     ]
   ],
-  "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180655",
-    "https://github.com/pytorch/pytorch/issues/180655",
-    [
-      "dynamo"
-    ]
-  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -1357,13 +1350,6 @@
       "xpu"
     ]
   ],
-  "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180520",
-    "https://github.com/pytorch/pytorch/issues/180520",
-    [
-      "dynamo"
-    ]
-  ],
   "test_linalg_solve_triangular_large_cuda_complex128 (__main__.TestLinalgCUDA)": [
     "150959",
     "https://github.com/pytorch/pytorch/issues/150959",
@@ -1382,13 +1368,6 @@
   "test_make_fx_jacrev_cpu (__main__.TestComposabilityCPU)": [
     "179895",
     "https://github.com/pytorch/pytorch/issues/179895",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_make_fx_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180944",
-    "https://github.com/pytorch/pytorch/issues/180944",
     [
       "dynamo"
     ]
@@ -1581,13 +1560,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_mm_decompose_mm_dde (__main__.HasDecompTest)": [
-    "182752",
-    "https://github.com/pytorch/pytorch/issues/182752",
-    [
-      "linux"
     ]
   ],
   "test_mm_padding_deterministic_True (__main__.DeterministicTest)": [
@@ -1792,6 +1764,16 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpyCatCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "179909",
+    "https://github.com/pytorch/pytorch/issues/179909",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -2739,9 +2721,37 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
+    "181629",
+    "https://github.com/pytorch/pytorch/issues/181629",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
     "182397",
     "https://github.com/pytorch/pytorch/issues/182397",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
+    "123890",
+    "https://github.com/pytorch/pytorch/issues/123890",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
+    "152632",
+    "https://github.com/pytorch/pytorch/issues/152632",
     [
       "asan",
       "linux",
@@ -2782,6 +2792,13 @@
   "test_torchvision_models_segmentation_deeplabv3_resnet50 (__main__.TestVisionTracing)": [
     "184506",
     "https://github.com/pytorch/pytorch/issues/184506",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_segmentation_fcn_resnet101 (__main__.TestVisionTracing)": [
+    "184636",
+    "https://github.com/pytorch/pytorch/issues/184636",
     [
       "linux"
     ]
