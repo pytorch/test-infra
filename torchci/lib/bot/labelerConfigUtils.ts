@@ -11,6 +11,24 @@ export type LabelerRule =
       draft?: boolean;
     };
 
+export function labelerRuleSkipReason(
+  rawRule: unknown
+): "invalid_draft" | "invalid_shape" | null {
+  if (
+    rawRule !== null &&
+    typeof rawRule === "object" &&
+    "globs" in rawRule &&
+    Array.isArray((rawRule as { globs: unknown }).globs) &&
+    (rawRule as { globs: unknown[] }).globs.every((x) => typeof x === "string")
+  ) {
+    const r = rawRule as { globs: string[]; draft?: unknown };
+    if ("draft" in r && typeof r.draft !== "boolean") {
+      return "invalid_draft";
+    }
+  }
+  return "invalid_shape";
+}
+
 export function normalizeLabelerRule(rule: unknown): LabelerRule | null {
   if (Array.isArray(rule) && rule.every((x) => typeof x === "string")) {
     return rule as string[];
@@ -23,6 +41,9 @@ export function normalizeLabelerRule(rule: unknown): LabelerRule | null {
     (rule as { globs: unknown[] }).globs.every((x) => typeof x === "string")
   ) {
     const r = rule as { globs: string[]; draft?: unknown };
+    if ("draft" in r && typeof r.draft !== "boolean") {
+      return null;
+    }
     const out: { globs: string[]; draft?: boolean } = { globs: r.globs };
     if (typeof r.draft === "boolean") {
       out.draft = r.draft;
@@ -62,10 +83,22 @@ export async function getLabelsFromLabelerConfig(
   for (const [label, rawRule] of Object.entries(config)) {
     const rule = normalizeLabelerRule(rawRule);
     if (rule === null) {
-      context.log(
-        { label, rawRule },
-        "getLabelsFromLabelerConfig: unknown rule shape, skipping"
-      );
+      const skipReason = labelerRuleSkipReason(rawRule);
+      if (skipReason === "invalid_draft") {
+        context.log(
+          {
+            label,
+            rawRule,
+            draft: (rawRule as { draft?: unknown }).draft,
+          },
+          "getLabelsFromLabelerConfig: invalid draft type (expected boolean), skipping"
+        );
+      } else {
+        context.log(
+          { label, rawRule },
+          "getLabelsFromLabelerConfig: unknown rule shape, skipping"
+        );
+      }
       continue;
     }
     if (!draftConstraintAllowsLabel(rule, isDraft)) {

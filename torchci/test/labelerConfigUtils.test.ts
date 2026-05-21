@@ -17,6 +17,10 @@ describe("labelerConfigUtils", () => {
       });
     });
 
+    test("rejects non-boolean draft", () => {
+      expect(normalizeLabelerRule({ globs: ["x/**"], draft: "false" })).toBeNull();
+    });
+
     test("rejects invalid shapes", () => {
       expect(normalizeLabelerRule(null)).toBeNull();
       expect(normalizeLabelerRule({ globs: "bad" })).toBeNull();
@@ -77,6 +81,51 @@ describe("labelerConfigUtils", () => {
         tracker as any,
         ["torch/a.py"],
         false
+      );
+      expect(labels).toEqual(["ciflow/x"]);
+    });
+
+    test("skips rule with invalid draft type and logs distinct message", async () => {
+      const tracker = {
+        loadLabelsConfig: async () => ({
+          "ciflow/x": {
+            globs: ["torch/**"],
+            draft: "false",
+          },
+        }),
+      };
+      const context = { log: jest.fn() } as any;
+      const labels = await getLabelsFromLabelerConfig(
+        context,
+        tracker as any,
+        ["torch/a.py"],
+        false
+      );
+      expect(labels).toEqual([]);
+      expect(context.log).toHaveBeenCalledWith(
+        {
+          label: "ciflow/x",
+          rawRule: { globs: ["torch/**"], draft: "false" },
+          draft: "false",
+        },
+        "getLabelsFromLabelerConfig: invalid draft type (expected boolean), skipping"
+      );
+    });
+
+    test("defaults isDraft to false when omitted (3-arg call)", async () => {
+      const tracker = {
+        loadLabelsConfig: async () => ({
+          "ciflow/x": {
+            globs: ["torch/**"],
+            draft: false,
+          },
+        }),
+      };
+      const context = { log: jest.fn() } as any;
+      const labels = await getLabelsFromLabelerConfig(
+        context,
+        tracker as any,
+        ["torch/a.py"]
       );
       expect(labels).toEqual(["ciflow/x"]);
     });
