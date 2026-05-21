@@ -112,6 +112,20 @@
       "windows"
     ]
   ],
+  "test_autograd_function_no_setup_context_transform_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180591",
+    "https://github.com/pytorch/pytorch/issues/180591",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_autograd_functional_jvp_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "179876",
+    "https://github.com/pytorch/pytorch/issues/179876",
+    [
+      "dynamo"
+    ]
+  ],
   "test_automatic_dynamo_graph_breaks_device_cpu (__main__.TestPackage)": [
     "183810",
     "https://github.com/pytorch/pytorch/issues/183810",
@@ -866,14 +880,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_lstm_serdes_strict (__main__.SerDesExportTestExport)": [
-    "180488",
-    "https://github.com/pytorch/pytorch/issues/180488",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_dynamic_lstm_strict (__main__.StrictExportTestExport)": [
     "180556",
     "https://github.com/pytorch/pytorch/issues/180556",
@@ -1180,6 +1186,13 @@
     "https://github.com/pytorch/pytorch/issues/70753",
     [
       "mac"
+    ]
+  ],
+  "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180894",
+    "https://github.com/pytorch/pytorch/issues/180894",
+    [
+      "dynamo"
     ]
   ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
@@ -1500,6 +1513,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_memory_stats_multigpu (__main__.TestCudaMultiGPU)": [
+    "129860",
+    "https://github.com/pytorch/pytorch/issues/129860",
+    [
+      "linux"
     ]
   ],
   "test_memory_stats_of_multiple_generators_and_graphs (__main__.TestCuda)": [
@@ -1979,6 +1999,14 @@
   "test_pickle_SparseCSC_cuda_float64 (__main__.TestSparseCompressedCUDA)": [
     "181682",
     "https://github.com/pytorch/pytorch/issues/181682",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_pickle_SparseCSR_cuda_float64 (__main__.TestSparseCompressedCUDA)": [
+    "182086",
+    "https://github.com/pytorch/pytorch/issues/182086",
     [
       "linux",
       "slow"
@@ -2498,13 +2526,6 @@
       "dynamo"
     ]
   ],
-  "test_sparse_matmul_cpu_complex64 (__main__.TestSparseCPU)": [
-    "179809",
-    "https://github.com/pytorch/pytorch/issues/179809",
-    [
-      "dynamo"
-    ]
-  ],
   "test_sparse_matmul_cpu_float32 (__main__.TestSparseCPU)": [
     "176967",
     "https://github.com/pytorch/pytorch/issues/176967",
@@ -2627,6 +2648,14 @@
       "inductor"
     ]
   ],
+  "test_tensor_and_unbacked_symbol_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "184682",
+    "https://github.com/pytorch/pytorch/issues/184682",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
@@ -2727,6 +2756,15 @@
     "https://github.com/pytorch/pytorch/issues/182417",
     [
       "linux"
+    ]
+  ],
+  "test_torchvision_models_densenet201 (__main__.TestVisionTracing)": [
+    "184681",
+    "https://github.com/pytorch/pytorch/issues/184681",
+    [
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
