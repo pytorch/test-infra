@@ -54,7 +54,7 @@ export async function getLabelsFromLabelerConfig(
   context: Context,
   labelerConfigTracker: CachedLabelerConfigTracker,
   changed_files: string[],
-  isDraft: boolean
+  isDraft: boolean = false
 ): Promise<string[]> {
   const config = await labelerConfigTracker.loadLabelsConfig(context);
   const labels: string[] = [];
