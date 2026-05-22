@@ -1139,6 +1139,14 @@
       "linux"
     ]
   ],
+  "test_functional_call_sequential_params_and_buffers (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "177056",
+    "https://github.com/pytorch/pytorch/issues/177056",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
     "170259",
     "https://github.com/pytorch/pytorch/issues/170259",
@@ -1341,6 +1349,18 @@
     "https://github.com/pytorch/pytorch/issues/115859",
     [
       "rocm"
+    ]
+  ],
+  "test_is_retain_graph_cpu (__main__.TestAutogradMultipleDispatchCPU)": [
+    "181228",
+    "https://github.com/pytorch/pytorch/issues/181228",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_is_retain_graph_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
@@ -1808,9 +1828,9 @@
       "macos"
     ]
   ],
-  "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180206",
-    "https://github.com/pytorch/pytorch/issues/180206",
+  "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180196",
+    "https://github.com/pytorch/pytorch/issues/180196",
     [
       "asan",
       "linux",
