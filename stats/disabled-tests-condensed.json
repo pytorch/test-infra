@@ -263,6 +263,13 @@
       "dynamo"
     ]
   ],
+  "test_can_use_vmap_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
+    "180592",
+    "https://github.com/pytorch/pytorch/issues/180592",
+    [
+      "dynamo"
+    ]
+  ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
     "https://github.com/pytorch/pytorch/issues/97402",
@@ -1336,18 +1343,6 @@
       "rocm"
     ]
   ],
-  "test_is_retain_graph_cpu (__main__.TestAutogradMultipleDispatchCPU)": [
-    "181228",
-    "https://github.com/pytorch/pytorch/issues/181228",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
   "test_is_retain_graph_cuda (__main__.TestAutogradMultipleDispatchCUDA)": [
     "181323",
     "https://github.com/pytorch/pytorch/issues/181323",
@@ -1806,16 +1801,6 @@
   "test_opcheck_opinfo_NumpyCubeCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "179992",
     "https://github.com/pytorch/pytorch/issues/179992",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_opcheck_opinfo_NumpyMulCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180196",
-    "https://github.com/pytorch/pytorch/issues/180196",
     [
       "asan",
       "linux",
@@ -2976,6 +2961,14 @@
     "https://github.com/pytorch/pytorch/issues/179881",
     [
       "linux"
+    ]
+  ],
+  "test_unbacked_symbol_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "177003",
+    "https://github.com/pytorch/pytorch/issues/177003",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_unbacked_symint (__main__.TestMemoryPlanning)": [
