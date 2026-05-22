@@ -134,6 +134,13 @@
       "linux"
     ]
   ],
+  "test_automatic_dynamo_lazy_backward_device_cpu (__main__.TestPackage)": [
+    "184832",
+    "https://github.com/pytorch/pytorch/issues/184832",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -1541,18 +1548,19 @@
       "linux"
     ]
   ],
+  "test_meta_simple (__main__.TestMultiprocessing)": [
+    "167522",
+    "https://github.com/pytorch/pytorch/issues/167522",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_method_overloading (__main__.TestScript)": [
     "131104",
     "https://github.com/pytorch/pytorch/issues/131104",
     [
       "dynamo"
-    ]
-  ],
-  "test_mha_mem_eff_attention_backward_large_batch_compile (__main__.CudaReproTests)": [
-    "181085",
-    "https://github.com/pytorch/pytorch/issues/181085",
-    [
-      "xpu"
     ]
   ],
   "test_missing_abstract_impl_cpu (__main__.TestCustomOpTestingCPU)": [
@@ -1910,13 +1918,6 @@
       "rocm"
     ]
   ],
-  "test_pending_fusions_multiple_use_async_compile_True (__main__.TestPrologueFusion)": [
-    "183415",
-    "https://github.com/pytorch/pytorch/issues/183415",
-    [
-      "inductor"
-    ]
-  ],
   "test_permute_masked_cpu_float64 (__main__.TestSparseCPU)": [
     "184598",
     "https://github.com/pytorch/pytorch/issues/184598",
@@ -2161,6 +2162,17 @@
       "slow"
     ]
   ],
+  "test_remove_noop_slice_cpu (__main__.CpuTests)": [
+    "151384",
+    "https://github.com/pytorch/pytorch/issues/151384",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_remove_noop_slice_scatter_cpu (__main__.CpuTests)": [
     "151382",
     "https://github.com/pytorch/pytorch/issues/151382",
@@ -2177,6 +2189,18 @@
     "https://github.com/pytorch/pytorch/issues/151378",
     [
       "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_remove_noop_view_default_cpu (__main__.CpuTests)": [
+    "151512",
+    "https://github.com/pytorch/pytorch/issues/151512",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
       "rocm",
       "slow"
     ]
@@ -2577,6 +2601,14 @@
     "https://github.com/pytorch/pytorch/issues/119949",
     [
       "dynamo"
+    ]
+  ],
+  "test_tensor_to_list_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "184831",
+    "https://github.com/pytorch/pytorch/issues/184831",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
