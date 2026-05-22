@@ -59,6 +59,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+
 try:
     import boto3
 except ImportError:
@@ -90,7 +91,9 @@ def allocate_host(
     availability_zone: str,
     tags: dict[str, str],
 ) -> str:
-    log(f"Allocating Dedicated Host: instance-type={instance_type} az={availability_zone}")
+    log(
+        f"Allocating Dedicated Host: instance-type={instance_type} az={availability_zone}"
+    )
     resp = ec2.allocate_hosts(
         AvailabilityZone=availability_zone,
         InstanceType=instance_type,
@@ -163,7 +166,9 @@ def find_reusable_host(ec2, name_tag: str = HOST_NAME_TAG) -> Optional[str]:
     return chosen["HostId"]
 
 
-def wait_for_host_available(ec2, host_id: str, timeout_s: int = HOST_AVAILABLE_TIMEOUT_SECONDS) -> None:
+def wait_for_host_available(
+    ec2, host_id: str, timeout_s: int = HOST_AVAILABLE_TIMEOUT_SECONDS
+) -> None:
     """
     Wait until host State == 'available' and no instance is running on it.
     After an instance terminates the host can spend up to ~2h in 'pending' /
@@ -249,7 +254,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--no-reuse",
         action="store_true",
-        help="Do not search for an existing host tagged Name=" + HOST_NAME_TAG + "; allocate a fresh one.",
+        help="Do not search for an existing host tagged Name="
+        + HOST_NAME_TAG
+        + "; allocate a fresh one.",
     )
     p.add_argument(
         "--release-after",
