@@ -19,3 +19,4 @@ WHERE
     pr_number = {pr: UInt64}
 ORDER BY
     downstream_repo, started_at DESC
+LIMIT 100

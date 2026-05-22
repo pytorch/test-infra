@@ -26,7 +26,12 @@ export interface RelayWorkflow {
   run_attempt?: number | string;
   started_at?: string;
   completed_at?: string;
-  test_results?: any;
+  test_results?: {
+    passed?: number;
+    failed?: number;
+    skipped?: number;
+    total?: number;
+  };
   artifact_url?: string;
 }
 
@@ -73,7 +78,6 @@ export interface OotWorkflowJobRecord {
   passed_tests?: number;
   failed_tests?: number;
   skipped_tests?: number;
-  failed_tests_json?: string;
   downstream_repo_level?: string;
   artifact_url?: string;
   environment?: string;

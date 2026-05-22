@@ -124,7 +124,9 @@ function Page() {
         )}
       </ErrorBoundary>
       <ErrorBoundary>
-        {prNumber && <OotPrSection prNumber={parseInt(prNumber as string)} />}
+        {prNumber && repoOwner === "pytorch" && repoName === "pytorch" && (
+          <OotPrSection prNumber={parseInt(prNumber as string)} />
+        )}
       </ErrorBoundary>
     </div>
   );

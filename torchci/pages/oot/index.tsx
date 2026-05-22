@@ -102,7 +102,9 @@ function OotSummaryTable({ days }: { days: number }) {
         </TableHead>
         <TableBody>
           {data.map((row) => {
-            const [org, repo] = row.repo.split("/");
+            const parts = row.repo?.split("/") ?? [];
+            if (parts.length !== 2) return null;
+            const [org, repo] = parts;
             return (
               <TableRow key={row.repo} hover>
                 <TableCell>

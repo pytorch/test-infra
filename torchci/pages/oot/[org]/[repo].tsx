@@ -205,7 +205,9 @@ function OotMatrix({
               <TableRow key={row.prNumber} hover>
                 <TableCell>
                   <NextLink
-                    href={`https://github.com/pytorch/pytorch/pull/${row.prNumber}`}
+                    href={`https://github.com/${
+                      row.upstreamRepo ?? "pytorch/pytorch"
+                    }/pull/${row.prNumber}`}
                     passHref
                     legacyBehavior
                   >

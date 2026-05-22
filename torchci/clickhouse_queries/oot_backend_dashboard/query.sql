@@ -1,4 +1,5 @@
 SELECT
+    upstream_repo,
     pr_number,
     pytorch_head_sha,
     workflow_name,
