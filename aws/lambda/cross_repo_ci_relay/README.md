@@ -188,7 +188,7 @@ deployment/
 │   └── event_handler.py
 ├── callback/
 │   ├── lambda_function.py
-│   └── result_handler.py
+│   └── callback_handler.py
 └── utils/
     └── ...
 ```
@@ -264,10 +264,10 @@ make clean
   smee --url https://smee.io/<your-channel> --path /github/webhook --port 8000
   ```
 
-  CLI to forward GitHub result callbacks to localhost (set this URL as `callback-url` in the downstream workflow):
+  CLI to forward GitHub callback callbacks to localhost (set this URL as `callback-url` in the downstream workflow):
   ```bash
   npm install -g smee-client
-  smee --url https://smee.io/<your-channel> --path /github/result --port 8000
+  smee --url https://smee.io/<your-channel> --path /github/callback --port 8000
   ```
 
 #### Remote

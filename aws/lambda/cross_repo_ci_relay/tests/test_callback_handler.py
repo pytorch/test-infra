@@ -2,7 +2,7 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from callback.result_handler import handle
+from callback.callback_handler import handle
 from utils.allowlist import AllowlistLevel
 from utils.misc import CallbackState, DISPATCH_CHECK_RUN_ID, HTTPException
 from utils.redis_helper import CallbackStateRecord
@@ -39,16 +39,16 @@ def _body(status="completed", job_name="default", check_run_id="12345", run_id="
     }
 
 
-class TestResultHandler(unittest.TestCase):
+class TestCallbackHandler(unittest.TestCase):
     def setUp(self):
-        self.patcher_allowlist = patch("callback.result_handler.load_allowlist")
+        self.patcher_allowlist = patch("callback.callback_handler.load_allowlist")
         self.mock_load_allowlist = self.patcher_allowlist.start()
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
         mock_map.get_repo_level.return_value = AllowlistLevel.L2
         self.mock_load_allowlist.return_value = mock_map
 
-        self.patcher_redis = patch("callback.result_handler.redis_helper")
+        self.patcher_redis = patch("callback.callback_handler.redis_helper")
         self.mock_redis = self.patcher_redis.start()
         self.mock_redis.create_client.return_value = MagicMock()
 
@@ -66,11 +66,11 @@ class TestResultHandler(unittest.TestCase):
 
         self.mock_redis.get_callback_state.side_effect = default_get_state
 
-        self.patcher_rate_limit = patch("callback.result_handler.check_rate_limit")
+        self.patcher_rate_limit = patch("callback.callback_handler.check_rate_limit")
         self.mock_check_rate_limit = self.patcher_rate_limit.start()
         self.mock_check_rate_limit.return_value = True
 
-        self.patcher_hud = patch("callback.result_handler.forward_to_hud")
+        self.patcher_hud = patch("callback.callback_handler.forward_to_hud")
         self.mock_hud = self.patcher_hud.start()
 
     def tearDown(self):

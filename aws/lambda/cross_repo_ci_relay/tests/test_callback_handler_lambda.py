@@ -10,7 +10,7 @@ from utils.misc import HTTPException
 def _event(
     *,
     method="POST",
-    path="/github/result",
+    path="/github/callback",
     body=None,
     headers=None,
     base64_encoded=False,
@@ -31,7 +31,7 @@ def _event(
     }
 
 
-class TestResultLambdaHandler(unittest.TestCase):
+class TestCallbackLambdaHandler(unittest.TestCase):
     def setUp(self):
         import utils.config
 
@@ -65,7 +65,7 @@ class TestResultLambdaHandler(unittest.TestCase):
 
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
-    @patch("callback.lambda_function.result_handler.handle")
+    @patch("callback.lambda_function.callback_handler.handle")
     def test_happy_path_forwards_body_and_verified_repo(
         self, mock_handle, mock_oidc, mock_get_config
     ):
@@ -85,7 +85,7 @@ class TestResultLambdaHandler(unittest.TestCase):
 
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
-    @patch("callback.lambda_function.result_handler.handle")
+    @patch("callback.lambda_function.callback_handler.handle")
     def test_hud_error_from_handler_is_forwarded(
         self, mock_handle, mock_oidc, mock_get_config
     ):
@@ -100,7 +100,7 @@ class TestResultLambdaHandler(unittest.TestCase):
 
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
-    @patch("callback.lambda_function.result_handler.handle")
+    @patch("callback.lambda_function.callback_handler.handle")
     def test_unhandled_exception_returns_500(
         self, mock_handle, mock_oidc, mock_get_config
     ):

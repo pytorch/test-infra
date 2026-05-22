@@ -132,9 +132,7 @@ def _update_state_and_compute_metrics(
     except AssertionError as e:
         msg = (
             "callback rejected: invalid state transition delivery_id=%s repo=%s status=%s"
-            % (delivery_id,
-            verified_repo,
-            status)
+            % (delivery_id, verified_repo, status)
         )
         raise HTTPException(400, msg) from e
     except Exception:

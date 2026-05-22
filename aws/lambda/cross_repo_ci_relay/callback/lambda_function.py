@@ -7,7 +7,7 @@ from utils import jwt_helper
 from utils.config import get_config
 from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
-from . import result_handler
+from . import callback_handler
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -19,8 +19,8 @@ def lambda_handler(event, context):
 
     logger.info("request method=%s path=%s", method, path)
 
-    if method != "POST" or path != "/github/result":
-        if path == "/github/result":
+    if method != "POST" or path != "/github/callback":
+        if path == "/github/callback":
             return {
                 "statusCode": 405,
                 "headers": JSON_HEADERS,
@@ -44,7 +44,7 @@ def lambda_handler(event, context):
         oidc_claims = jwt_helper.verify_oidc_token(headers.get("authorization", ""))
         verified_repo = oidc_claims["repository"]
 
-        result = result_handler.handle(config, body, verified_repo)
+        result = callback_handler.handle(config, body, verified_repo)
         return {"statusCode": 200, "headers": JSON_HEADERS, "body": json.dumps(result)}
 
     except json.JSONDecodeError:

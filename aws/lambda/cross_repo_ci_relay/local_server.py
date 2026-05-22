@@ -35,8 +35,8 @@ async def github_webhook(req: Request):
     )
 
 
-@relay_router.post("/github/result")
-async def github_result(req: Request):
+@relay_router.post("/github/callback")
+async def github_callback(req: Request):
     body = await req.body()
     event = {
         "requestContext": {
