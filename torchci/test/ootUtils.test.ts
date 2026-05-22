@@ -7,11 +7,13 @@ import {
   validatePayloadSize,
 } from "../lib/oot/ootUtils";
 
-function makePayload(overrides: {
-  trusted?: any;
-  workflow?: any;
-  callback?: any;
-} = {}): RelayPayload {
+function makePayload(
+  overrides: {
+    trusted?: any;
+    workflow?: any;
+    callback?: any;
+  } = {}
+): RelayPayload {
   return {
     trusted: {
       verified_repo: "Ascend/pytorch",
@@ -92,7 +94,9 @@ describe("extractDynamoRecord", () => {
 
   test("sets execution_time when provided", () => {
     const record = extractDynamoRecord(
-      makePayload({ trusted: { ci_metrics: { queue_time: null, execution_time: 45.2 } } })
+      makePayload({
+        trusted: { ci_metrics: { queue_time: null, execution_time: 45.2 } },
+      })
     );
     expect(record.execution_time).toBe(45.2);
     expect(record.queue_time).toBeUndefined();
@@ -105,7 +109,9 @@ describe("extractDynamoRecord", () => {
 
   test("sets artifact_url when provided", () => {
     const record = extractDynamoRecord(
-      makePayload({ workflow: { artifact_url: "https://example.com/artifacts.zip" } })
+      makePayload({
+        workflow: { artifact_url: "https://example.com/artifacts.zip" },
+      })
     );
     expect(record.artifact_url).toBe("https://example.com/artifacts.zip");
   });
@@ -138,7 +144,9 @@ describe("extractDynamoRecord", () => {
 
   test("defaults pr_number to 0 when no pull_request", () => {
     const record = extractDynamoRecord(
-      makePayload({ callback: { payload: { repository: { full_name: "pytorch/pytorch" } } } })
+      makePayload({
+        callback: { payload: { repository: { full_name: "pytorch/pytorch" } } },
+      })
     );
     expect(record.pr_number).toBe(0);
     expect(record.pytorch_head_sha).toBe("");
@@ -199,7 +207,9 @@ describe("extractDynamoRecord", () => {
 
   test("does not set test results for in_progress status", () => {
     const record = extractDynamoRecord(
-      makePayload({ workflow: { test_results: { passed: 10, failed: 0, skipped: 0 } } })
+      makePayload({
+        workflow: { test_results: { passed: 10, failed: 0, skipped: 0 } },
+      })
     );
     expect(record.passed_tests).toBeUndefined();
     expect(record.total_tests).toBeUndefined();
@@ -222,7 +232,9 @@ describe("extractDynamoRecord", () => {
 
   test("throws 400 when check_run_id is missing", () => {
     expect(() =>
-      extractDynamoRecord(makePayload({ workflow: { check_run_id: undefined } }))
+      extractDynamoRecord(
+        makePayload({ workflow: { check_run_id: undefined } })
+      )
     ).toThrow(ApiError);
     try {
       extractDynamoRecord(makePayload({ workflow: { check_run_id: null } }));

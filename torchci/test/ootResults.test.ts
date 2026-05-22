@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import handler from "../pages/api/oot/results";
 import * as ootUtils from "../lib/oot/ootUtils";
+import handler from "../pages/api/oot/results";
 
 jest.mock("../lib/oot/ootUtils", () => {
   const actual = jest.requireActual("../lib/oot/ootUtils");
@@ -109,10 +109,7 @@ describe("POST /api/oot/results", () => {
 
   test("returns 401 when token has different length", async () => {
     const res = mockRes();
-    await handler(
-      mockReq({ headers: { "x-oot-relay-token": "short" } }),
-      res
-    );
+    await handler(mockReq({ headers: { "x-oot-relay-token": "short" } }), res);
     expect(res._status).toBe(401);
     expect(res._json.error).toBe("Unauthorized");
   });
