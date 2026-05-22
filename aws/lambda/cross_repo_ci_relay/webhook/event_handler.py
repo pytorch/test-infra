@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
-import gh_helper
-from allowlist import AllowlistLevel, load_allowlist
-from config import RelayConfig
-from utils import EventDispatchPayload, HTTPException
+from utils import gh_helper, redis_helper
+from utils.allowlist import AllowlistLevel, load_allowlist
+from utils.config import RelayConfig
+from utils.misc import (
+    CallbackState,
+    DISPATCH_CHECK_RUN_ID,
+    EventDispatchPayload,
+    HTTPException,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +37,18 @@ def _dispatch_one(
         repo_full_name=downstream_repo,
         event_type=event_type,
         client_payload=client_payload,
+    )
+
+    # Set dispatch state with timestamp to prove valid webhook occurred.
+    # Keyed by delivery_id + repo + DISPATCH_JOB_NAME="*" (repo-level, not job-specific).
+    # Timestamp is used for queue_time calculation (dispatch → in_progress).
+    redis_helper.set_callback_state(
+        config,
+        client_payload["delivery_id"],
+        downstream_repo,
+        DISPATCH_CHECK_RUN_ID,
+        CallbackState.DISPATCHED,
+        time.time(),
     )
 
 
@@ -77,13 +95,12 @@ def _dispatch_to_allowlist(
                 )
                 dispatched.append({"repo": downstream_repo})
             except Exception as e:
-                error_message = str(e)
-                logger.error(
-                    "dispatch failed event_type=%s repo=%s error=%s",
+                logger.exception(
+                    "dispatch failed event_type=%s repo=%s",
                     event_type,
                     downstream_repo,
-                    error_message,
                 )
+                error_message = str(e)
                 failed.append(
                     {
                         "repo": downstream_repo,

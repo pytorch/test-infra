@@ -1,13 +1,19 @@
+import json
 import unittest
+import unittest.mock
 from unittest.mock import MagicMock
 
 import redis as redis_lib
-import redis_helper
-from redis_helper import (
+from utils import redis_helper
+from utils.misc import CallbackState, DISPATCH_CHECK_RUN_ID
+from utils.redis_helper import (
     _ALLOWLIST_CACHE_KEY,
+    CallbackStateRecord,
     create_client,
     get_cached_yaml,
+    get_callback_state,
     set_cached_yaml,
+    set_callback_state,
 )
 
 
@@ -16,6 +22,8 @@ def _cfg():
     cfg.redis_endpoint = "host:6379"
     cfg.redis_login = ""
     cfg.allowlist_ttl_seconds = 600
+    cfg.oot_status_ttl = 3600
+    cfg.rate_limit_per_min = 20
     return cfg
 
 
@@ -54,6 +62,226 @@ class TestCachedYaml(unittest.TestCase):
         self.assertIs(first, client)
         self.assertIs(second, client)
         mock_from_url.assert_called_once()
+
+
+class TestCallbackStateMachine(unittest.TestCase):
+    def setUp(self):
+        redis_helper._cached_client = None
+        redis_helper._cached_client_url = None
+
+    def test_set_dispatch_state_with_timestamp(self):
+        """Webhook sets DISPATCHED state."""
+        client = MagicMock()
+        set_callback_state(
+            _cfg(),
+            "del-123",
+            "org/repo",
+            DISPATCH_CHECK_RUN_ID,
+            CallbackState.DISPATCHED,
+            1000.0,
+            client=client,
+        )
+        client.setex.assert_called_once()
+
+    def test_get_callback_state_parses_json(self):
+        """get_callback_state returns CallbackStateRecord from JSON."""
+        client = MagicMock()
+        client.get.return_value = json.dumps(
+            {
+                "state": "IN_PROGRESS",
+                "timestamp": 1010.5,
+                "job_name": "test-job",
+                "run_id": "12345",
+            }
+        )
+        cfg = _cfg()
+
+        record = get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+
+        self.assertIsNotNone(record)
+        self.assertEqual(record.state, CallbackState.IN_PROGRESS)
+        self.assertEqual(record.timestamp, 1010.5)
+        self.assertEqual(record.job_name, "test-job")
+        self.assertEqual(record.run_id, "12345")
+
+    def test_get_callback_state_returns_none_on_missing_key_and_on_redis_error(self):
+        """get_callback_state returns None on missing key and on Redis error."""
+        client = MagicMock()
+        cfg = _cfg()
+
+        client.get.return_value = None
+        self.assertIsNone(
+            get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+        )
+
+        client.get.side_effect = redis_lib.exceptions.RedisError("boom")
+        self.assertIsNone(
+            get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+        )
+
+    def test_invalid_state_transitions_rejected(self):
+        """Duplicate or invalid state transitions are all rejected."""
+        cases = [
+            # (check_run_id, new_state, existing_state_value_or_None)
+            (DISPATCH_CHECK_RUN_ID, CallbackState.DISPATCHED, "DISPATCHED"),
+            ("check-run", CallbackState.IN_PROGRESS, "IN_PROGRESS"),
+            ("check-run", CallbackState.COMPLETED, None),  # None → COMPLETED
+            ("check-run", CallbackState.COMPLETED, "COMPLETED"),
+        ]
+        for check_run_id, state, existing in cases:
+            with self.subTest(state=state, existing=existing):
+                client = MagicMock()
+                client.get.return_value = (
+                    json.dumps(
+                        {
+                            "state": existing,
+                            "timestamp": 1000.0,
+                            "job_name": "job",
+                            "run_id": "111",
+                        }
+                    )
+                    if existing
+                    else None
+                )
+                with self.assertRaises(AssertionError):
+                    set_callback_state(
+                        _cfg(),
+                        "del-123",
+                        "org/repo",
+                        check_run_id,
+                        state,
+                        1100.0,
+                        client=client,
+                    )
+                client.setex.assert_not_called()
+
+    def test_set_completed_from_in_progress_accepts(self):
+        """IN_PROGRESS → COMPLETED transition is accepted."""
+        client = MagicMock()
+        client.get.return_value = json.dumps(
+            {
+                "state": "IN_PROGRESS",
+                "timestamp": 1010.0,
+                "job_name": "test-job",
+                "run_id": "12345",
+            }
+        )
+        set_callback_state(
+            _cfg(),
+            "del-123",
+            "org/repo",
+            "test-job",
+            CallbackState.COMPLETED,
+            1020.0,
+            job_name="test-job",
+            run_id="12345",
+            client=client,
+        )
+
+    def test_set_in_progress_accepts_first_callback(self):
+        """None → IN_PROGRESS is accepted when dispatch record exists."""
+
+        def get_side_effect(cfg, delivery_id, repo, check_run_id_arg, client=None):
+            if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
+                return CallbackStateRecord(
+                    CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
+                )
+            return None
+
+        client = MagicMock()
+        with unittest.mock.patch(
+            "utils.redis_helper.get_callback_state", side_effect=get_side_effect
+        ):
+            set_callback_state(
+                _cfg(),
+                "del-123",
+                "org/repo",
+                "check-run-456",
+                CallbackState.IN_PROGRESS,
+                1010.0,
+                job_name="test-job",
+                run_id="99999",
+                client=client,
+            )
+
+    def test_set_non_dispatched_state_with_reserved_check_run_id_rejected(self):
+        """Using the reserved DISPATCH_CHECK_RUN_ID for non-DISPATCHED state is rejected."""
+        client = MagicMock()
+        cfg = _cfg()
+
+        for state in (CallbackState.IN_PROGRESS, CallbackState.COMPLETED):
+            with self.subTest(state=state):
+                client.reset_mock()
+                with self.assertRaises(AssertionError):
+                    set_callback_state(
+                        cfg,
+                        "del-123",
+                        "org/repo",
+                        DISPATCH_CHECK_RUN_ID,
+                        state,
+                        1010.0,
+                        client=client,
+                    )
+                client.setex.assert_not_called()
+
+    def test_set_callback_state_redis_exception_raises(self):
+        """Redis write failure is re-raised as RedisError."""
+
+        def get_side_effect(cfg, delivery_id, repo, check_run_id_arg, client=None):
+            if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
+                return CallbackStateRecord(
+                    CallbackState.DISPATCHED, 1000.0, "dispatch-job", "11111"
+                )
+            return None
+
+        cfg = _cfg()
+        client = MagicMock()
+        client.setex.side_effect = redis_lib.exceptions.RedisError("write failed")
+
+        with unittest.mock.patch(
+            "utils.redis_helper.get_callback_state", side_effect=get_side_effect
+        ), self.assertRaises(redis_lib.exceptions.RedisError):
+            set_callback_state(
+                cfg,
+                "del-123",
+                "org/repo",
+                "check-run-456",
+                CallbackState.IN_PROGRESS,
+                1010.0,
+                job_name="test-job",
+                run_id="99999",
+                client=client,
+            )
+
+
+class TestRateLimit(unittest.TestCase):
+    def setUp(self):
+        redis_helper._cached_client = None
+        redis_helper._cached_client_url = None
+
+    def test_check_rate_limit_allowed(self):
+        from utils.redis_helper import check_rate_limit
+
+        client = MagicMock()
+        client.zcard.return_value = 10
+        self.assertTrue(check_rate_limit(_cfg(), "org/repo", client=client))
+
+    def test_check_rate_limit_exceeded(self):
+        from utils.redis_helper import check_rate_limit
+
+        client = MagicMock()
+        client.zcard.return_value = 25
+        self.assertFalse(check_rate_limit(_cfg(), "org/repo", client=client))
+
+    def test_check_rate_limit_redis_error_raises_500(self):
+        from utils.misc import HTTPException
+        from utils.redis_helper import check_rate_limit
+
+        client = MagicMock()
+        client.zadd.side_effect = redis_lib.exceptions.RedisError("boom")
+        with self.assertRaises(HTTPException) as ctx:
+            check_rate_limit(_cfg(), "org/repo", client=client)
+        self.assertEqual(ctx.exception.status_code, 500)
 
 
 if __name__ == "__main__":

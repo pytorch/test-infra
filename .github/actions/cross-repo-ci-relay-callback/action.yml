@@ -1,0 +1,179 @@
+name: Cross-Repo CI Relay Callback
+
+description: >
+  Report the status of a downstream CI workflow back to the Cross-Repo CI
+  Relay server.  The job must have `id-token: write` permission so that a
+  GitHub OIDC token can be minted and used to authenticate the callback.
+
+  This action is meant to run in a workflow triggered by a `repository_dispatch`
+  event from the relay.  It reads the dispatch payload (`github.event.client_payload`)
+  and the ambient `github` context directly, so workflow authors only need to
+  supply the relay URL, the status/conclusion, and optional structured test
+  results.
+
+inputs:
+  status:
+    description: >
+      Workflow status to report.  Must be either "in_progress" or "completed".
+    required: true
+  conclusion:
+    description: >
+      Conclusion of the workflow run.  Required (and must be "success" or
+      "failure") when status is "completed".  Ignored when status is
+      "in_progress".
+    required: false
+    default: ''
+  test-results:
+    description: >
+      Optional JSON string with test result summary (counts: passed/failed/skipped).
+      Note: This should be a summary only, not a full enumeration of all test cases.
+      Full test results should be uploaded as artifacts and referenced via `artifact-url`.
+    required: false
+    default: ''
+  callback-url:
+    description: >
+      Base URL of the result callback server.
+    required: true
+  artifact-url:
+    description: >
+      URL to downstream-hosted artifacts (logs, reports, results),
+      any publicly accessible URL.
+    required: false
+    default: ''
+  max-time:
+    description: >
+      Maximum time in seconds to wait for the callback HTTP request to complete.
+    required: false
+    default: 10
+  max-retries:
+    description: >
+      Maximum number of retries for the callback HTTP request in case of failure.
+    required: false
+    default: 3
+  retry-delay:
+    description: >
+      Delay in seconds between retries for the callback HTTP request.
+    required: false
+    default: 2
+
+runs:
+  using: composite
+  steps:
+    - name: Mint OIDC token
+      id: oidc
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const token = await core.getIDToken("pytorch-cross-repo-ci-relay");
+          core.setSecret(token);
+          core.setOutput('token', token);
+
+    - name: Send callback to relay server
+      shell: bash
+      env:
+        SCHEMA_VERSION: 1
+        STATUS: ${{ inputs.status }}
+        CONCLUSION: ${{ inputs.conclusion }}
+        WORKFLOW_NAME: ${{ github.workflow }}
+        WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        TEST_RESULTS: ${{ inputs.test-results }}
+        CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        CALLBACK_URL: ${{ inputs.callback-url }}
+        ARTIFACT_URL: ${{ inputs.artifact-url }}
+        JOB_NAME: ${{ github.job }}
+        CHECK_RUN_ID: ${{ job.check_run_id }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        MAX_TIME: ${{ inputs.max-time }}
+        MAX_RETRIES: ${{ inputs.max-retries }}
+        RETRY_DELAY: ${{ inputs.retry-delay }}
+      run: |
+        set -euo pipefail
+
+        PAYLOAD=$(python3 - <<'PYEOF'
+        import json, os, sys
+        from datetime import datetime, timezone
+
+        status = os.environ["STATUS"]
+        if status not in ("in_progress", "completed"):
+            sys.exit(f"::error::status must be 'in_progress' or 'completed', got {status!r}")
+
+        conclusion = os.environ.get("CONCLUSION", "").strip() or None
+        if status == "completed" and conclusion not in ("success", "failure"):
+            sys.exit("::error::conclusion must be 'success' or 'failure' when status is 'completed'")
+        if status == "in_progress":
+            conclusion = None
+
+        try:
+            client_payload = json.loads(os.environ["CLIENT_PAYLOAD"])
+        except json.JSONDecodeError as exc:
+            sys.exit(f"::error::github.event.client_payload is not valid JSON: {exc}")
+
+        current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        # In case check_run_id is not exist (edge case), replace it
+        # with {run_id}-{run_attempt}, which is also unique for each job run.
+        check_run_id = os.environ.get("CHECK_RUN_ID", "").strip()
+        if not check_run_id:
+            check_run_id = f"{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
+
+        # Relay's original dispatch payload (event_type, delivery_id, payload) is
+        # forwarded verbatim.  Downstream-reported fields live in a sibling
+        # `workflow` dict so the two sources stay clearly separated on the wire.
+        workflow: dict = {
+            "schema_version": str(os.environ["SCHEMA_VERSION"]),
+            "status": status,
+            "conclusion": conclusion,
+            "name": os.environ["WORKFLOW_NAME"],
+            "url": os.environ["WORKFLOW_URL"],
+            "run_attempt": os.environ["RUN_ATTEMPT"],
+            "job_name": os.environ["JOB_NAME"],
+            "check_run_id": check_run_id,
+            "run_id": str(os.environ["RUN_ID"]),
+            "started_at": None if status == "completed" else current_time,
+            "completed_at": None if status == "in_progress" else current_time,
+        }
+
+        test_results = os.environ.get("TEST_RESULTS", "").strip()
+        if test_results:
+            try:
+                workflow["test_results"] = json.loads(test_results)
+            except json.JSONDecodeError as exc:
+                sys.exit(f"::error::test-results input is not valid JSON: {exc}")
+
+        artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
+        if artifact_url:
+            workflow["artifact_url"] = artifact_url
+
+        client_payload["workflow"] = workflow
+        print(json.dumps(client_payload))
+        PYEOF
+        )
+
+        set +e
+        HTTP_CODE=$(
+          curl --silent --show-error --fail-with-body --output /tmp/relay_response.json \
+            --write-out "%{http_code}" \
+            -X POST \
+            --max-time ${MAX_TIME} \
+            --retry ${MAX_RETRIES} \
+            --retry-delay ${RETRY_DELAY} \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${OIDC_TOKEN}" \
+            --data "${PAYLOAD}" \
+            "${CALLBACK_URL%/}"
+        )
+        CURL_EXIT_CODE=$?
+        set -e
+
+        if [[ "${CURL_EXIT_CODE}" -ne 0 ]]; then
+          echo "::error::Callback server returned HTTP ${HTTP_CODE}."
+          if [[ -s /tmp/relay_response.json ]]; then
+            echo "Relay server error response body:"
+            cat /tmp/relay_response.json
+          fi
+          exit "${CURL_EXIT_CODE}"
+        fi
+
+        echo "Relay server response HTTP: ${HTTP_CODE}"

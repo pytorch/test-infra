@@ -13,10 +13,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from urllib.parse import urlparse
 
-import gh_helper
-import redis_helper
 import yaml
-from config import RelayConfig
+
+from . import gh_helper, redis_helper
+from .config import RelayConfig
 
 
 logger = logging.getLogger(__name__)
@@ -96,8 +96,13 @@ class AllowlistMap:
             oncalls.extend(lvl_oncalls)
         return repos, oncalls
 
-    def __bool__(self) -> bool:
-        return any(bool(entries) for entries in self._levels.values())
+    def get_repo_level(self, repo: str) -> AllowlistLevel | None:
+        """Return the level for a specific repo, or None if repo is not in allowlist."""
+        for level, entries in self._levels.items():
+            for entry in entries:
+                if entry.repo == repo:
+                    return level
+        return None
 
     @classmethod
     def _parse(cls, raw: dict) -> "AllowlistMap":
