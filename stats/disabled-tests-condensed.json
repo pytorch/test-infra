@@ -249,6 +249,13 @@
       "mac"
     ]
   ],
+  "test_can_use_functionalize_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
+    "184862",
+    "https://github.com/pytorch/pytorch/issues/184862",
+    [
+      "dynamo"
+    ]
+  ],
   "test_can_use_grad_when_key_is_excluded_cpu (__main__.TestComposabilityCPU)": [
     "181155",
     "https://github.com/pytorch/pytorch/issues/181155",
@@ -2214,6 +2221,18 @@
       "slow"
     ]
   ],
+  "test_remove_noop_view_dtype_cpu (__main__.CpuTests)": [
+    "151540",
+    "https://github.com/pytorch/pytorch/issues/151540",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_remove_noop_view_dtype_cuda (__main__.GPUTests)": [
     "151541",
     "https://github.com/pytorch/pytorch/issues/151541",
@@ -2802,6 +2821,13 @@
   "test_torchvision_models_segmentation_fcn_resnet101 (__main__.TestVisionTracing)": [
     "184636",
     "https://github.com/pytorch/pytorch/issues/184636",
+    [
+      "linux"
+    ]
+  ],
+  "test_torchvision_models_shufflenet_v2_x1_5 (__main__.TestVisionTracing)": [
+    "184863",
+    "https://github.com/pytorch/pytorch/issues/184863",
     [
       "linux"
     ]
