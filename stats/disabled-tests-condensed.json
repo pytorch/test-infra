@@ -1183,13 +1183,6 @@
       "linux"
     ]
   ],
-  "test_graph_concurrent_replay (__main__.TestCuda)": [
-    "104055",
-    "https://github.com/pytorch/pytorch/issues/104055",
-    [
-      "rocm"
-    ]
-  ],
   "test_graph_make_graphed_callables_same_pool (__main__.TestCuda)": [
     "179961",
     "https://github.com/pytorch/pytorch/issues/179961",
