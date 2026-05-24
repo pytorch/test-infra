@@ -29,6 +29,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 
 interface OotJobRow {
+  upstream_repo: string;
   pr_number: number;
   pytorch_head_sha: string;
   workflow_name: string;
@@ -92,6 +93,7 @@ function JobChip({ job }: { job: OotJobRow }) {
 interface MatrixRow {
   prNumber: number;
   sha: string;
+  upstreamRepo: string;
   jobs: Map<string, OotJobRow>;
 }
 
@@ -109,6 +111,7 @@ function buildMatrix(data: OotJobRow[]): {
       row = {
         prNumber: job.pr_number,
         sha: job.pytorch_head_sha,
+        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         jobs: new Map(),
       };
       prMap.set(job.pr_number, row);
