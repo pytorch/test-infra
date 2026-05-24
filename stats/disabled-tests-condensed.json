@@ -2949,15 +2949,6 @@
       "slow"
     ]
   ],
-  "test_unbacked_symint (__main__.TestMemoryPlanning)": [
-    "168171",
-    "https://github.com/pytorch/pytorch/issues/168171",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_unshard_async (__main__.TestFullyShardUnshardMultiProcess)": [
     "149349",
     "https://github.com/pytorch/pytorch/issues/149349",
