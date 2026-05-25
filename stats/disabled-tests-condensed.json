@@ -1682,6 +1682,13 @@
       "linux"
     ]
   ],
+  "test_native_matmul_config_block_numel_limit (__main__.TestTritonHeuristics)": [
+    "185104",
+    "https://github.com/pytorch/pytorch/issues/185104",
+    [
+      "xpu"
+    ]
+  ],
   "test_nccl_watchdog_cudagraph (__main__.ProcessGroupNCCLOpTest)": [
     "157896",
     "https://github.com/pytorch/pytorch/issues/157896",
