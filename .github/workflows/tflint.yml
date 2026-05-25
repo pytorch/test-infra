@@ -8,6 +8,9 @@ on:
       - ".github/workflows/tflint.yml"
       - "terraform-aws-github-runner/**"
 
+permissions:
+  contents: read
+
 jobs:
   tflint:
     name: TFLint
