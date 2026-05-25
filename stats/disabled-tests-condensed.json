@@ -1176,6 +1176,14 @@
       "mac"
     ]
   ],
+  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179742",
+    "https://github.com/pytorch/pytorch/issues/179742",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_grad_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180894",
     "https://github.com/pytorch/pytorch/issues/180894",
@@ -1442,6 +1450,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_mem_get_info (__main__.TestCuda)": [
+    "103495",
+    "https://github.com/pytorch/pytorch/issues/103495",
+    [
+      "rocm"
     ]
   ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
@@ -1813,6 +1828,16 @@
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180214",
+    "https://github.com/pytorch/pytorch/issues/180214",
     [
       "asan",
       "linux",
@@ -2713,6 +2738,14 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
+    "180414",
+    "https://github.com/pytorch/pytorch/issues/180414",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
@@ -2777,13 +2810,6 @@
   "test_torchvision_models_resnext101_64x4d (__main__.TestVisionTracing)": [
     "184505",
     "https://github.com/pytorch/pytorch/issues/184505",
-    [
-      "linux"
-    ]
-  ],
-  "test_torchvision_models_segmentation_deeplabv3_resnet101 (__main__.TestVisionTracing)": [
-    "182932",
-    "https://github.com/pytorch/pytorch/issues/182932",
     [
       "linux"
     ]
