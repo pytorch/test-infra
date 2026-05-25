@@ -1051,6 +1051,13 @@
       "dynamo"
     ]
   ],
+  "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180437",
+    "https://github.com/pytorch/pytorch/issues/180437",
+    [
+      "dynamo"
+    ]
+  ],
   "test_find_or_create_pg (__main__.TestPgTag)": [
     "107278",
     "https://github.com/pytorch/pytorch/issues/107278",
@@ -1095,6 +1102,13 @@
     "https://github.com/pytorch/pytorch/issues/164193",
     [
       "rocm"
+    ]
+  ],
+  "test_foreach_max_empty_tensor_error__foreach_max_xpu_bfloat16 (__main__.TestForeachXPU)": [
+    "185095",
+    "https://github.com/pytorch/pytorch/issues/185095",
+    [
+      "xpu"
     ]
   ],
   "test_forward_mode_AD_cholesky_solve_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
@@ -1796,9 +1810,9 @@
       "macos"
     ]
   ],
-  "test_opcheck_opinfo_NumpySortCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
-    "180214",
-    "https://github.com/pytorch/pytorch/issues/180214",
+  "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
+    "180206",
+    "https://github.com/pytorch/pytorch/issues/180206",
     [
       "asan",
       "linux",
