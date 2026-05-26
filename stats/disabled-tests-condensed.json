@@ -68,9 +68,25 @@
       "linux"
     ]
   ],
+  "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185267",
+    "https://github.com/pytorch/pytorch/issues/185267",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_correctness_with_reusing_ir_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185197",
     "https://github.com/pytorch/pytorch/issues/185197",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_correctness_with_reusing_ir_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185268",
+    "https://github.com/pytorch/pytorch/issues/185268",
     [
       "asan",
       "linux"
@@ -124,6 +140,14 @@
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179853",
+    "https://github.com/pytorch/pytorch/issues/179853",
     [
       "linux",
       "slow"
@@ -405,6 +429,13 @@
     "https://github.com/pytorch/pytorch/issues/182396",
     [
       "linux"
+    ]
+  ],
+  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180213",
+    "https://github.com/pytorch/pytorch/issues/180213",
+    [
+      "dynamo"
     ]
   ]
 }
