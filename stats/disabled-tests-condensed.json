@@ -597,6 +597,22 @@
       "rocm"
     ]
   ],
+  "test_correctness_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185196",
+    "https://github.com/pytorch/pytorch/issues/185196",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_correctness_with_reusing_ir_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185197",
+    "https://github.com/pytorch/pytorch/issues/185197",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_cow_input_nn_functional_linear_cross_entropy_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "181685",
     "https://github.com/pytorch/pytorch/issues/181685",
@@ -1266,6 +1282,14 @@
       "asan",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_hessian_vectorize_raises_no_warnings_logging_tensor (__main__.TestAutogradFunctional)": [
