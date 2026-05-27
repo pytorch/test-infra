@@ -191,6 +191,13 @@
       "slow"
     ]
   ],
+  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "184539",
+    "https://github.com/pytorch/pytorch/issues/184539",
+    [
+      "xpu"
+    ]
+  ],
   "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
     "171985",
     "https://github.com/pytorch/pytorch/issues/171985",
@@ -232,13 +239,6 @@
     "https://github.com/pytorch/pytorch/issues/150877",
     [
       "dynamo"
-    ]
-  ],
-  "test_native_matmul_config_block_numel_limit (__main__.TestTritonHeuristics)": [
-    "185104",
-    "https://github.com/pytorch/pytorch/issues/185104",
-    [
-      "xpu"
     ]
   ],
   "test_opaque_obj_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
