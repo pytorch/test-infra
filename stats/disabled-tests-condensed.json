@@ -76,6 +76,14 @@
       "linux"
     ]
   ],
+  "test_correctness_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185305",
+    "https://github.com/pytorch/pytorch/issues/185305",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_correctness_with_reusing_ir_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185197",
     "https://github.com/pytorch/pytorch/issues/185197",
@@ -90,6 +98,21 @@
     [
       "asan",
       "linux"
+    ]
+  ],
+  "test_correctness_with_reusing_ir_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185306",
+    "https://github.com/pytorch/pytorch/issues/185306",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180259",
+    "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
     ]
   ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
@@ -417,6 +440,13 @@
       "linux"
     ]
   ],
+  "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
+    "180321",
+    "https://github.com/pytorch/pytorch/issues/180321",
+    [
+      "dynamo"
+    ]
+  ],
   "test_var_mean_tile_reduction_True_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
     "149016",
     "https://github.com/pytorch/pytorch/issues/149016",
@@ -434,6 +464,13 @@
   "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180213",
     "https://github.com/pytorch/pytorch/issues/180213",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "179879",
+    "https://github.com/pytorch/pytorch/issues/179879",
     [
       "dynamo"
     ]
