@@ -51,6 +51,13 @@
       "mac"
     ]
   ],
+  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "185367",
+    "https://github.com/pytorch/pytorch/issues/185367",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -217,14 +224,6 @@
     "https://github.com/pytorch/pytorch/issues/103495",
     [
       "rocm"
-    ]
-  ],
-  "test_mempool_empty_cache_inactive (__main__.TestMemPool)": [
-    "159663",
-    "https://github.com/pytorch/pytorch/issues/159663",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
@@ -474,6 +473,13 @@
     "https://github.com/pytorch/pytorch/issues/182396",
     [
       "linux"
+    ]
+  ],
+  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180194",
+    "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
