@@ -145,6 +145,13 @@
       "slow"
     ]
   ],
+  "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180655",
+    "https://github.com/pytorch/pytorch/issues/180655",
+    [
+      "dynamo"
+    ]
+  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -171,6 +178,14 @@
   "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179853",
     "https://github.com/pytorch/pytorch/issues/179853",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
     [
       "linux",
       "slow"
