@@ -90,19 +90,6 @@ export function isUnstableJob(
   return openUnstableIssues !== undefined && openUnstableIssues.length !== 0;
 }
 
-// Matches the `-osdc` suffix that PyTorch's OSDC (ARC) workflow variants
-// append to the job id, e.g. `test-osdc`, `test-osdc (cfg, ...)`,
-// `linux-jammy-py3.10-clang12 / test-osdc`. Mirrors the regex used by
-// `getNameWithoutOSDC` in JobClassifierUtil.ts.
-export const OSDC_JOB_NAME_REGEX = /-osdc(?=[\s()/]|$)/;
-
-export function isOSDCJob(jobName?: string): boolean {
-  if (!jobName) {
-    return false;
-  }
-  return OSDC_JOB_NAME_REGEX.test(jobName);
-}
-
 export function getOpenUnstableIssues(
   jobName?: string,
   unstableIssues?: IssueData[]
