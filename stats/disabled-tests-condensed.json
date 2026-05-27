@@ -198,6 +198,14 @@
       "slow"
     ]
   ],
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "184539",
     "https://github.com/pytorch/pytorch/issues/184539",
@@ -478,6 +486,13 @@
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
     "180194",
     "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180195",
+    "https://github.com/pytorch/pytorch/issues/180195",
     [
       "dynamo"
     ]
