@@ -214,6 +214,14 @@
       "slow"
     ]
   ],
+  "test_jacrev_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180264",
+    "https://github.com/pytorch/pytorch/issues/180264",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "184539",
     "https://github.com/pytorch/pytorch/issues/184539",
