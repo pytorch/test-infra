@@ -174,6 +174,13 @@
       "linux"
     ]
   ],
+  "test_graph_grad_scaling_foreach_False_fused_True_Adagrad_cpu_float32 (__main__.TestXpuOptimsCPU)": [
+    "185477",
+    "https://github.com/pytorch/pytorch/issues/185477",
+    [
+      "xpu"
+    ]
+  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -201,6 +208,14 @@
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179990",
     "https://github.com/pytorch/pytorch/issues/179990",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180204",
+    "https://github.com/pytorch/pytorch/issues/180204",
     [
       "linux",
       "slow"
