@@ -94,7 +94,7 @@ jobs:
           CUDA_DIR: ${{ matrix.cuda_dir }}
           FORCE_REBUILD: ${{ inputs.force_rebuild }}
           MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
-          DRY_RUN: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'true' || '' }}
           AWS_NO_SIGN_REQUEST: ${{ github.event_name == 'pull_request' && 'true' || '' }}
         run: python3 .github/scripts/pypi_cache/build.py
 

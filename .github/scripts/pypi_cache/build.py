@@ -154,11 +154,17 @@ def run_cmd(
     )
 
 
+def _no_sign() -> bool:
+    return os.environ.get("AWS_NO_SIGN_REQUEST", "").lower() in ("1", "true", "yes")
+
+
 def aws_s3_cp(src: str, dst: str, *, recursive: bool = False) -> None:
     """``aws s3 cp`` wrapper.  Raises on failure."""
     cmd = ["aws", "s3", "cp", src, dst]
     if recursive:
         cmd.append("--recursive")
+    if _no_sign():
+        cmd.append("--no-sign-request")
     run_cmd(cmd)
 
 
@@ -168,7 +174,10 @@ def aws_s3_ls(path: str) -> list[str]:
     Returns an empty list when the prefix does not exist or the command
     fails (mirrors the ``|| true`` in the original bash).
     """
-    result = run_cmd(["aws", "s3", "ls", path], check=False, capture=True)
+    cmd = ["aws", "s3", "ls", path]
+    if _no_sign():
+        cmd.append("--no-sign-request")
+    result = run_cmd(cmd, check=False, capture=True)
     if result.returncode != 0:
         return []
     names: list[str] = []
