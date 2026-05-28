@@ -331,6 +331,13 @@
       "dynamo"
     ]
   ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value0_expected_buffer_size_bytes_1024 (__main__.TestBenchmarker)": [
+    "184470",
+    "https://github.com/pytorch/pytorch/issues/184470",
+    [
+      "xpu"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
