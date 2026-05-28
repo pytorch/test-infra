@@ -340,6 +340,13 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_convnext_large (__main__.TestVisionTracing)": [
+    "185452",
+    "https://github.com/pytorch/pytorch/issues/185452",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_convnext_small (__main__.TestVisionTracing)": [
     "184462",
     "https://github.com/pytorch/pytorch/issues/184462",
