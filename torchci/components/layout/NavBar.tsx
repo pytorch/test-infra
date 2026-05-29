@@ -67,6 +67,14 @@ function NavBar() {
       name: "Test File Reports",
       href: "/tests/fileReport",
     },
+    {
+      name: "CUDA Trunk test stats",
+      href: "/cuda_test_stats",
+    },
+    {
+      name: "MacOS test stats",
+      href: "/mac_test_stats",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
