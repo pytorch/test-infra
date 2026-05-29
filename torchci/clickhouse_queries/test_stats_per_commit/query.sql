@@ -48,14 +48,19 @@ matched_runs AS (
     GROUP BY wr.head_sha
 ),
 matched_jobs AS (
+    -- No FINAL: workflow_job is wide and run_id+name filtering is selective
+    -- enough that the cost of merging ReplacingMergeTree parts isn't worth it.
     SELECT
         wj.id AS job_id,
         mr.sha AS sha
-    FROM default.workflow_job wj FINAL
+    FROM default.workflow_job wj
     JOIN matched_runs mr ON wj.run_id = mr.workflow_id
     WHERE match(wj.name, {jobFilter: String })
 ),
 test_statuses AS (
+    -- Mirror the join+IN pattern from tests/test_status_counts_on_commits_by_file:
+    -- the WHERE...IN gives ClickHouse a sargable predicate to skip data parts
+    -- before the JOIN materializes the (sha) column.
     SELECT
         mj.sha AS sha,
         atr.invoking_file AS invoking_file,
@@ -80,6 +85,7 @@ test_statuses AS (
         ) AS status
     FROM tests.all_test_runs atr
     JOIN matched_jobs mj ON mj.job_id = atr.job_id
+    WHERE atr.job_id IN (SELECT job_id FROM matched_jobs)
     GROUP BY mj.sha, atr.invoking_file, atr.name, atr.classname
 ),
 per_sha_counts AS (
