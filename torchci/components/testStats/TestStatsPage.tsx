@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Link,
   Stack,
   Table,
@@ -37,8 +38,15 @@ type Row = {
   run_status: string | null;
 };
 
-const COUNT_KEYS = ["success", "skipped", "flaky", "failure"] as const;
+const COUNT_KEYS = ["total", "skipped", "flaky", "failure"] as const;
 type CountKey = typeof COUNT_KEYS[number];
+
+const COUNT_LABELS: Record<CountKey, string> = {
+  total: "Total",
+  skipped: "Skip",
+  flaky: "Flaky",
+  failure: "Fail",
+};
 
 function formatDelta(d: number | undefined): string {
   if (d === undefined) return "";
@@ -52,8 +60,9 @@ function deltaColor(
   mode: "light" | "dark"
 ): string | undefined {
   if (delta === 0) return undefined;
-  // For success: more is better. For skipped/flaky/failure: more is worse.
-  const isImprovement = key === "success" ? delta > 0 : delta < 0;
+  // For total: more tests is "more coverage" → green. For skipped/flaky/failure:
+  // more is worse → red.
+  const isImprovement = key === "total" ? delta > 0 : delta < 0;
   if (mode === "dark") {
     return isImprovement ? "#4caf50" : "#ef5350";
   }
@@ -104,6 +113,17 @@ export function TestStatsPage({
     return <LoadingPage />;
   }
 
+  // Pre-compute the "total" column (sum of every category, not just success).
+  const counts: Record<string, Record<CountKey, number>> = {};
+  for (const row of data) {
+    counts[row.sha] = {
+      total: row.success + row.skipped + row.flaky + row.failure,
+      skipped: row.skipped,
+      flaky: row.flaky,
+      failure: row.failure,
+    };
+  }
+
   // Iterate oldest -> newest so deltas reference the prior commit, then flip
   // back to newest-first for display.
   const oldestFirst = [...data].reverse();
@@ -115,12 +135,7 @@ export function TestStatsPage({
       prevCounts = null;
       continue;
     }
-    const curr: Record<CountKey, number> = {
-      success: row.success,
-      skipped: row.skipped,
-      flaky: row.flaky,
-      failure: row.failure,
-    };
+    const curr = counts[row.sha];
     deltas[row.sha] = {};
     if (prevCounts) {
       for (const k of COUNT_KEYS) {
@@ -134,7 +149,7 @@ export function TestStatsPage({
     <Stack spacing={2} sx={{ p: 2 }}>
       <Typography variant="h4">{title}</Typography>
       <Typography>
-        Per-commit pass/skip/flaky/fail counts for the last {count} commits on{" "}
+        Per-commit total/skip/flaky/fail counts for the last {count} commits on{" "}
         <code>
           {REPO}@{REF.replace("refs/heads/", "")}
         </code>
@@ -150,20 +165,43 @@ export function TestStatsPage({
         URL params: <code>?count=N</code> (max {MAX_COUNT}),{" "}
         <code>?sha=&lt;hex&gt;</code> to end the window at a specific commit.
       </Typography>
+      <Stack direction="row" spacing={1}>
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={!sha}
+          onClick={() => router.back()}
+        >
+          ← Prev
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={data.length === 0}
+          onClick={() =>
+            router.push({
+              pathname: router.pathname,
+              query: { ...router.query, sha: data[data.length - 1].sha, count },
+            })
+          }
+        >
+          Next →
+        </Button>
+      </Stack>
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Commit</TableCell>
               <TableCell>Time</TableCell>
-              <TableCell align="right">Pass</TableCell>
-              <TableCell align="right">Δ</TableCell>
-              <TableCell align="right">Skip</TableCell>
-              <TableCell align="right">Δ</TableCell>
-              <TableCell align="right">Flaky</TableCell>
-              <TableCell align="right">Δ</TableCell>
-              <TableCell align="right">Fail</TableCell>
-              <TableCell align="right">Δ</TableCell>
+              {COUNT_KEYS.flatMap((k) => [
+                <TableCell key={`${k}-h`} align="right">
+                  {COUNT_LABELS[k]}
+                </TableCell>,
+                <TableCell key={`${k}-dh`} align="right">
+                  Δ
+                </TableCell>,
+              ])}
               <TableCell>Title</TableCell>
             </TableRow>
           </TableHead>
@@ -229,7 +267,7 @@ export function TestStatsPage({
                           : undefined;
                       return [
                         <TableCell key={`${k}-v`} align="right">
-                          {row[k]}
+                          {counts[row.sha][k]}
                         </TableCell>,
                         <TableCell
                           key={`${k}-d`}
