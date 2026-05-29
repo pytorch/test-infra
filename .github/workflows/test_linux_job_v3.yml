@@ -70,6 +70,8 @@ jobs:
         nvcc --version | grep "cuda_12.8"
         conda create --yes --quiet -n test python=3.10
         conda activate test
+
+        sleep 7200
         # The ARC image's pip config + injected CPU-only mirror
         # (PIP_EXTRA_INDEX_URL=.../whl/cpu) makes pip resolve torch to a +cpu
         # wheel; clearing only the env var then falls through to external PyPI
