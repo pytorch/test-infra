@@ -21,6 +21,7 @@ WITH anchor_time AS (
             )
         ) AS ts
 ),
+
 recent_commits AS (
     SELECT
         p.head_commit.id AS sha,
@@ -34,6 +35,7 @@ recent_commits AS (
     ORDER BY p.head_commit.timestamp DESC
     LIMIT {count: UInt32 }
 ),
+
 matched_runs AS (
     SELECT
         wr.head_sha AS sha,
@@ -47,6 +49,7 @@ matched_runs AS (
     AND wr.repository.full_name = {repo: String }
     GROUP BY wr.head_sha
 ),
+
 matched_jobs AS (
     -- No FINAL: workflow_job is wide and run_id+name filtering is selective
     -- enough that the cost of merging ReplacingMergeTree parts isn't worth it.
@@ -59,6 +62,7 @@ matched_jobs AS (
     JOIN matched_runs mr ON wj.run_id = mr.workflow_id
     WHERE match(wj.name, {jobFilter: String })
 ),
+
 per_sha_pending AS (
     -- A job is "in progress" until it reaches a final conclusion.
     -- conclusion_kg is empty while queued / in_progress and gets filled when
@@ -69,6 +73,7 @@ per_sha_pending AS (
     FROM matched_jobs
     GROUP BY sha
 ),
+
 test_statuses AS (
     -- Mirror the join+IN pattern from tests/test_status_counts_on_commits_by_file:
     -- the WHERE...IN gives ClickHouse a sargable predicate to skip data parts
@@ -100,6 +105,7 @@ test_statuses AS (
     WHERE atr.job_id IN (SELECT job_id FROM matched_jobs)
     GROUP BY mj.sha, atr.invoking_file, atr.name, atr.classname
 ),
+
 per_sha_counts AS (
     SELECT
         sha,
@@ -110,6 +116,7 @@ per_sha_counts AS (
     FROM test_statuses
     GROUP BY sha
 )
+
 SELECT
     rc.sha AS sha,
     rc.message AS message,
