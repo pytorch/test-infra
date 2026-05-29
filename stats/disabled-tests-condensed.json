@@ -51,13 +51,6 @@
       "mac"
     ]
   ],
-  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "185367",
-    "https://github.com/pytorch/pytorch/issues/185367",
-    [
-      "xpu"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -185,13 +178,6 @@
       "linux"
     ]
   ],
-  "test_graph_grad_scaling_foreach_False_fused_True_Adagrad_cpu_float32 (__main__.TestXpuOptimsCPU)": [
-    "185477",
-    "https://github.com/pytorch/pytorch/issues/185477",
-    [
-      "xpu"
-    ]
-  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -253,34 +239,6 @@
     "https://github.com/pytorch/pytorch/issues/180438",
     [
       "dynamo"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "171988",
-    "https://github.com/pytorch/pytorch/issues/171988",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "184539",
-    "https://github.com/pytorch/pytorch/issues/184539",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
-    "171985",
-    "https://github.com/pytorch/pytorch/issues/171985",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward6_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "184540",
-    "https://github.com/pytorch/pytorch/issues/184540",
-    [
-      "xpu"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
