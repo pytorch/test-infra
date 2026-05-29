@@ -394,6 +394,13 @@
       "xpu"
     ]
   ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock-hip_expected_buffer_size_bytes_268435456 (__main__.TestBenchmarker)": [
+    "185616",
+    "https://github.com/pytorch/pytorch/issues/185616",
+    [
+      "xpu"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
