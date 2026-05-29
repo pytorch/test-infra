@@ -39,9 +39,12 @@ recent_commits AS (
 ),
 
 matched_runs AS (
+    -- argMin grabs the status of the SAME row that min(id) picks, so run_status
+    -- describes the original push run that we're aggregating jobs from.
     SELECT
         wr.head_sha AS sha,
-        min(wr.id) AS workflow_id
+        min(wr.id) AS workflow_id,
+        argMin(wr.status, wr.id) AS run_status
     FROM default.workflow_run wr FINAL
     WHERE
         wr.id IN (
@@ -130,7 +133,8 @@ SELECT
     coalesce(s.skipped, 0) AS skipped,
     coalesce(s.flaky, 0) AS flaky,
     coalesce(s.failure, 0) AS failure,
-    coalesce(p.pending_jobs, 0) AS pending_jobs
+    coalesce(p.pending_jobs, 0) AS pending_jobs,
+    mr.run_status AS run_status
 FROM recent_commits rc
 LEFT JOIN matched_runs mr ON mr.sha = rc.sha
 LEFT JOIN per_sha_counts s ON s.sha = rc.sha

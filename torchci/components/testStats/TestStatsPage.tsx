@@ -34,6 +34,7 @@ type Row = {
   flaky: number;
   failure: number;
   pending_jobs: number;
+  run_status: string | null;
 };
 
 const COUNT_KEYS = ["success", "skipped", "flaky", "failure"] as const;
@@ -171,7 +172,14 @@ export function TestStatsPage({
               const hasRun = row.workflow_id != null;
               const rowDeltas = deltas[row.sha] ?? {};
               const title = (row.message ?? "").split("\n")[0].slice(0, 80);
-              const pending = row.pending_jobs > 0;
+              // Pending if any matched job is still running, OR if the run
+              // itself is queued/in_progress (in which case workflow_job rows
+              // for the matched jobs may not exist yet, so pending_jobs is 0).
+              const runPending =
+                hasRun &&
+                row.run_status !== null &&
+                row.run_status !== "completed";
+              const pending = row.pending_jobs > 0 || runPending;
               // Subtle amber tint so the row stands out without clashing with
               // the red/green delta colors. Lower alpha on dark mode.
               const pendingBg = pending
@@ -186,7 +194,9 @@ export function TestStatsPage({
                   sx={{ backgroundColor: pendingBg }}
                   title={
                     pending
-                      ? `${row.pending_jobs} job(s) still running`
+                      ? runPending && row.pending_jobs === 0
+                        ? `workflow run is ${row.run_status}`
+                        : `${row.pending_jobs} job(s) still running`
                       : undefined
                   }
                 >
