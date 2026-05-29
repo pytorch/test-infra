@@ -122,6 +122,15 @@
       "dynamo"
     ]
   ],
+  "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
+    "159150",
+    "https://github.com/pytorch/pytorch/issues/159150",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
