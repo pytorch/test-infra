@@ -248,6 +248,13 @@
       "slow"
     ]
   ],
+  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180438",
+    "https://github.com/pytorch/pytorch/issues/180438",
+    [
+      "dynamo"
+    ]
+  ],
   "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
     "171987",
     "https://github.com/pytorch/pytorch/issues/171987",
