@@ -70,6 +70,10 @@ export default function Page() {
   const count = Number.isFinite(parsed)
     ? Math.max(1, Math.min(MAX_COUNT, parsed))
     : DEFAULT_COUNT;
+  const shaParam = ((router.query.sha as string) ?? "").trim();
+  // Only forward full 40-char or short (>=7) hex shas; anything else is ignored
+  // and the query falls back to "most recent".
+  const sha = /^[0-9a-f]{7,40}$/i.test(shaParam) ? shaParam : "";
 
   const { data, error, isLoading } = useClickHouseAPIImmutable<Row>(
     "test_stats_per_commit",
@@ -79,6 +83,7 @@ export default function Page() {
       workflow: WORKFLOW,
       jobFilter: JOB_FILTER,
       count,
+      sha,
     }
   );
 
@@ -128,9 +133,16 @@ export default function Page() {
         <code>
           {REPO}@{REF.replace("refs/heads/", "")}
         </code>
+        {sha ? (
+          <>
+            {" "}
+            ending at <code>{sha}</code>
+          </>
+        ) : null}
         , restricted to the <code>{WORKFLOW}</code> workflow and jobs matching{" "}
         <code>{JOB_FILTER}</code>. Δ is relative to the previous commit shown.
-        Override the window with <code>?count=N</code> (max {MAX_COUNT}).
+        URL params: <code>?count=N</code> (max {MAX_COUNT}),{" "}
+        <code>?sha=&lt;hex&gt;</code> to end the window at a specific commit.
       </Typography>
       <TableContainer>
         <Table size="small">

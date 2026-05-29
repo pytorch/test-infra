@@ -3,7 +3,25 @@
 --
 -- Mirrors the per-commit table produced by skip_delta.py: the "earliest"
 -- workflow_run (min id) is picked per commit so reruns don't shift the totals.
-WITH recent_commits AS (
+WITH anchor_time AS (
+    -- If a sha is supplied, window ends at that commit's timestamp; otherwise
+    -- the window ends at the latest push.
+    SELECT
+        if(
+            {sha: String } = '',
+            toDateTime64('2099-01-01 00:00:00', 3),
+            (
+                SELECT head_commit.'timestamp'
+                FROM default.push
+                WHERE repository.'full_name' = {repo: String }
+                    AND ref = {ref: String }
+                    AND startsWith(head_commit.'id', {sha: String })
+                ORDER BY head_commit.'timestamp' DESC
+                LIMIT 1
+            )
+        ) AS ts
+),
+recent_commits AS (
     SELECT
         head_commit.'id' AS sha,
         head_commit.'message' AS message,
@@ -12,6 +30,7 @@ WITH recent_commits AS (
     FROM default.push
     WHERE repository.'full_name' = {repo: String }
         AND ref = {ref: String }
+        AND head_commit.'timestamp' <= (SELECT ts FROM anchor_time)
     ORDER BY head_commit.'timestamp' DESC
     LIMIT {count: UInt32 }
 ),

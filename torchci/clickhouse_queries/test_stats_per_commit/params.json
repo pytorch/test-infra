@@ -4,7 +4,8 @@
     "ref": "String",
     "workflow": "String",
     "jobFilter": "String",
-    "count": "UInt32"
+    "count": "UInt32",
+    "sha": "String"
   },
   "tests": [
     {
@@ -12,7 +13,8 @@
       "ref": "refs/heads/main",
       "workflow": "trunk",
       "jobFilter": "(?i)macos",
-      "count": 5
+      "count": 5,
+      "sha": ""
     }
   ]
 }
