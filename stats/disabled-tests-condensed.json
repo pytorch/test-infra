@@ -256,8 +256,8 @@
     ]
   ],
   "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "171987",
-    "https://github.com/pytorch/pytorch/issues/171987",
+    "171988",
+    "https://github.com/pytorch/pytorch/issues/171988",
     [
       "xpu"
     ]
@@ -518,6 +518,15 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_regnet_y_400mf (__main__.TestVisionTracing)": [
+    "140531",
+    "https://github.com/pytorch/pytorch/issues/140531",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_resnext101_64x4d (__main__.TestVisionTracing)": [
     "184505",
     "https://github.com/pytorch/pytorch/issues/184505",
@@ -579,6 +588,14 @@
     "https://github.com/pytorch/pytorch/issues/180195",
     [
       "dynamo"
+    ]
+  ],
+  "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180366",
+    "https://github.com/pytorch/pytorch/issues/180366",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
