@@ -132,12 +132,6 @@ jobs:
                                                                       inputs.gpu-arch-version)
                                                             || inputs.docker-image }}
       options: ${{ inputs.gpu-arch-type == 'cuda' && '--gpus all' || '' }}
-      # On ARC (k8s) the container is created as a pod, so GPU driver capabilities
-      # must be requested via container env at creation time (the --gpus / -e flags
-      # in `options` are not honored). These are harmless on CPU runners.
-      env:
-        NVIDIA_VISIBLE_DEVICES: ${{ inputs.gpu-arch-type == 'cuda' && 'all' || '' }}
-        NVIDIA_DRIVER_CAPABILITIES: ${{ inputs.gpu-arch-type == 'cuda' && 'compute,utility' || '' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
