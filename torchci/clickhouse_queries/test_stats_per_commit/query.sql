@@ -13,7 +13,8 @@ WITH anchor_time AS (
             (
                 SELECT p.head_commit.timestamp
                 FROM default.push p
-                WHERE p.repository.full_name = {repo: String }
+                WHERE
+                    p.repository.full_name = {repo: String }
                     AND p.ref = {ref: String }
                     AND startsWith(p.head_commit.id, {sha: String })
                 ORDER BY p.head_commit.timestamp DESC
@@ -29,7 +30,8 @@ recent_commits AS (
         p.head_commit.author.name AS author,
         p.head_commit.timestamp AS time
     FROM default.push p
-    WHERE p.repository.full_name = {repo: String }
+    WHERE
+        p.repository.full_name = {repo: String }
         AND p.ref = {ref: String }
         AND p.head_commit.timestamp <= (SELECT ts FROM anchor_time)
     ORDER BY p.head_commit.timestamp DESC
@@ -41,12 +43,13 @@ matched_runs AS (
         wr.head_sha AS sha,
         min(wr.id) AS workflow_id
     FROM default.workflow_run wr FINAL
-    WHERE wr.id IN (
-        SELECT id FROM materialized_views.workflow_run_by_head_sha
-        WHERE head_sha IN (SELECT sha FROM recent_commits)
-    )
-    AND wr.name = {workflow: String }
-    AND wr.repository.full_name = {repo: String }
+    WHERE
+        wr.id IN (
+            SELECT id FROM materialized_views.workflow_run_by_head_sha
+            WHERE head_sha IN (SELECT sha FROM recent_commits)
+        )
+        AND wr.name = {workflow: String }
+        AND wr.repository.full_name = {repo: String }
     GROUP BY wr.head_sha
 ),
 
