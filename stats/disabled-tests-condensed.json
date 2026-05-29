@@ -131,6 +131,15 @@
       "rocm"
     ]
   ],
+  "test_fake_crossref_backward_no_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
+    "159151",
+    "https://github.com/pytorch/pytorch/issues/159151",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -226,6 +235,14 @@
   "test_jacrev_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180264",
     "https://github.com/pytorch/pytorch/issues/180264",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180324",
+    "https://github.com/pytorch/pytorch/issues/180324",
     [
       "linux",
       "slow"
