@@ -52,10 +52,22 @@ matched_jobs AS (
     -- enough that the cost of merging ReplacingMergeTree parts isn't worth it.
     SELECT
         wj.id AS job_id,
-        mr.sha AS sha
+        mr.sha AS sha,
+        wj.status AS status,
+        wj.conclusion_kg AS conclusion
     FROM default.workflow_job wj
     JOIN matched_runs mr ON wj.run_id = mr.workflow_id
     WHERE match(wj.name, {jobFilter: String })
+),
+per_sha_pending AS (
+    -- A job is "in progress" until it reaches a final conclusion.
+    -- conclusion_kg is empty while queued / in_progress and gets filled when
+    -- the job completes (mirrors the logic in hud_query / commit_jobs_query).
+    SELECT
+        sha,
+        countIf(conclusion = '' OR status != 'completed') AS pending_jobs
+    FROM matched_jobs
+    GROUP BY sha
 ),
 test_statuses AS (
     -- Mirror the join+IN pattern from tests/test_status_counts_on_commits_by_file:
@@ -107,8 +119,10 @@ SELECT
     coalesce(s.success, 0) AS success,
     coalesce(s.skipped, 0) AS skipped,
     coalesce(s.flaky, 0) AS flaky,
-    coalesce(s.failure, 0) AS failure
+    coalesce(s.failure, 0) AS failure,
+    coalesce(p.pending_jobs, 0) AS pending_jobs
 FROM recent_commits rc
 LEFT JOIN matched_runs mr ON mr.sha = rc.sha
 LEFT JOIN per_sha_counts s ON s.sha = rc.sha
+LEFT JOIN per_sha_pending p ON p.sha = rc.sha
 ORDER BY rc.time DESC
