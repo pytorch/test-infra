@@ -1,0 +1,207 @@
+name: Test build/test linux workflow (v3 / OSDC)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/linux_job_v3.yml
+      - .github/workflows/test_linux_job_v3.yml
+      - .github/actions/setup-linux/action.yml
+      - .github/scripts/run_with_env_secrets.py
+  workflow_dispatch:
+
+jobs:
+  test-cpu:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-py3.10-cpu"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      checkout-mode: "treeless"
+      submodules: "recursive"
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        conda create --yes --quiet -n test python=3.10
+        conda activate test
+        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        # Can import pytorch
+        python3 -c 'import torch'
+  test-cpu-arm64:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-arm64-cpu"
+      runner: mt-l-arm64g4-16-62
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      # The test-infra aarch64 image is a known, pre-built image that ARC can
+      # pull. It does not ship conda, so keep this script dependency-free.
+      docker-image: ghcr.io/pytorch/test-infra:cpu-aarch64-latest
+      script: |
+        uname -m | grep -E 'aarch64|arm64'
+        echo "hello from arm64 OSDC"
+  test-gpu:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        runner_type: ["mt-l-x86iavx512-11-125-a100"]
+    with:
+      job-name: "linux-py3.10-cu128"
+      runner: ${{ matrix.runner_type }}
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      submodules: ${{ 'true' }}
+      gpu-arch-type: cuda
+      gpu-arch-version: "12.8"
+      timeout: 60
+      script: |
+        nvidia-smi
+        nvcc --version | grep "cuda_12.8"
+        conda create --yes --quiet -n test python=3.10
+        conda activate test
+        # The ARC image's pip config + injected CPU-only mirror
+        # (PIP_EXTRA_INDEX_URL=.../whl/cpu) makes pip resolve torch to a +cpu
+        # wheel; clearing only the env var then falls through to external PyPI
+        # (files.pythonhosted.org), which ARC cannot reach. Disable both so pip
+        # uses only the self-contained, reachable cu128 index.
+        PIP_CONFIG_FILE=/dev/null PIP_EXTRA_INDEX_URL= \
+          python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu128 --pre torch
+        # Can import pytorch, cuda is available
+        python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
+        python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
+        python3 -c 'import torch;assert(torch.version.cuda == "12.8")'
+  test-docker-image:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      # On OSDC the checkout runs inside the job container, so the image must
+      # ship git (>= 2.18). Use a pre-built pytorch image that has it rather
+      # than a bare distro image like fedora:37, which has no git installed.
+      docker-image: ghcr.io/pytorch/test-infra:cpu-x86_64-latest
+      script: |
+        source /etc/os-release && [[ "${ID}" = "almalinux" ]] || exit 1
+        git --version
+  test-upload-artifact:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact-v3
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-no-artifact:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact-v3
+      script: |
+        echo "hello"
+  test-upload-artifact-s3:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact-v3
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-upload-artifact-s3-no-artifact:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact-v3
+      upload-artifact-to-s3: true
+      script: |
+        echo "hello"
+  test-download-artifact:
+    needs: test-upload-artifact
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      download-artifact: my-cool-artifact-v3
+      script: |
+        grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  upload-docs:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        echo "hello" > "${RUNNER_DOCS_DIR}/index.html"
+  verify-upload-docs:
+    needs: upload-docs
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        # Sleep a couple of seconds just in case S3 is being slow (might not be needed?)
+        sleep 10
+        REPO_NAME="$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f2)"
+        curl -fsSL "https://docs-preview.pytorch.org/pytorch/${REPO_NAME}/${PR_NUMBER}/index.html" | grep "hello"
+  test-with-matrix:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        python_version: ["3.10", "3.11", "3.12", "3.13"]
+    with:
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      binary-matrix: ${{ toJSON(matrix) }}
+      script: |
+        set -x
+        PYTHON_VERSION="${{ matrix.python_version }}"
+        conda create --yes --quiet -n test python="${PYTHON_VERSION}"
+        conda activate test
+        python --version | grep "${PYTHON_VERSION}"
