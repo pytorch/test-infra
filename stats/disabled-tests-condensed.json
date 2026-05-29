@@ -363,6 +363,13 @@
       "xpu"
     ]
   ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock (__main__.TestBenchmarker)": [
+    "184491",
+    "https://github.com/pytorch/pytorch/issues/184491",
+    [
+      "xpu"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
