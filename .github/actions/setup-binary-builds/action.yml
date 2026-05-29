@@ -92,7 +92,7 @@ runs:
         uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           miniconda-version: "latest"
-          python-version: 3.9
+          python-version: "3.10"
       - name: Clean conda environment
         shell: bash -l {0}
         run: |
@@ -113,7 +113,7 @@ runs:
           conda create \
             --yes --quiet \
             --prefix "${CONDA_ENV}" \
-            "python=3.9" pip
+            "python=3.10" pip
           CONDA_ENV="${CONDA_ENV}"
           CONDA_RUN="conda run --no-capture-output -p ${CONDA_ENV}"
           ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
