@@ -1,0 +1,293 @@
+name: Build / Test on Linux v3 (OSDC)
+
+# Same inputs as linux_job_v2.yml, but compatible with OSDC (ARC) runners.
+on:
+  workflow_call:
+    inputs:
+      script:
+        description: 'Script to utilize'
+        default: "python setup.py bdist_wheel"
+        type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 30
+        type: number
+      runner:
+        description: 'ARC runner label to utilize (e.g. mt-l-x86iavx512-8-64)'
+        default: "mt-l-x86iavx512-8-64"
+        type: string
+      upload-artifact:
+        description: |
+          Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}, all the wheel files
+          under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
+        default: ''
+        type: string
+      upload-artifact-to-s3:
+        description: |
+          Upload the artifact to S3 instead of GitHub. This is used for large artifacts like
+          exported model
+        required: false
+        default: false
+        type: boolean
+      download-artifact:
+        description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      fetch-depth:
+        description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
+        default: 1
+        type: number
+      single-branch:
+        description: 'Whether to fetch only a single branch, defaults to true'
+        default: true
+        type: boolean
+      additional-fetch-refs:
+        description: 'Additional refs to fetch, space separated'
+        default: |
+          refs/heads/main
+        type: string
+      checkout-mode:
+        description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
+        default: "normal"
+        type: string
+      submodules:
+        description:
+          Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
+          recursively checkout everything
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: ""
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      use-custom-docker-registry:
+        description: "[Ignored on OSDC] Kept for compatibility with linux_job_v2.yml."
+        default: true
+        type: boolean
+      docker-image:
+        description: |
+          Fully-qualified, already-built Docker image to run the job inside, e.g.
+          ghcr.io/pytorch/test-infra:cpu-x86_64-<hash> or an ECR path. The image is pulled
+          by the runner before any step runs.
+        default: "pytorch/almalinux-builder"
+        type: string
+      gpu-arch-type:
+        description: "GPU arch type to use"
+        default: "cpu"
+        type: string
+      gpu-arch-version:
+        description: "GPU arch version to use"
+        default: ""
+        type: string
+      job-name:
+        description: "Name for the job, which is displayed in the GitHub UI"
+        default: "linux-job"
+        type: string
+      continue-on-error:
+        description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
+      binary-matrix:
+        description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
+        required: false
+        default: ''
+        type: string
+      secrets-env:
+        description: "List of secrets to be exported to environment variables"
+        type: string
+        default: ''
+
+jobs:
+  job:
+    strategy:
+      fail-fast: false
+    name: ${{ inputs.job-name }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      REPOSITORY: ${{ inputs.repository || github.repository }}
+      # Will be blank outside of this
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      SCRIPT: ${{ inputs.script }}
+      filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
+    runs-on: ${{ inputs.runner }}
+    # On OSDC the job runs inside this pre-built container; cuda exposes the GPUs.
+    container:
+      image: >-
+        ${{ inputs.docker-image == 'pytorch/almalinux-builder' && format('pytorch/almalinux-builder:{0}{1}',
+                                                                      inputs.gpu-arch-type,
+                                                                      inputs.gpu-arch-version)
+                                                            || inputs.docker-image }}
+      options: ${{ inputs.gpu-arch-type == 'cuda' && '--gpus all' || '' }}
+    timeout-minutes: ${{ inputs.timeout }}
+    steps:
+      - name: Clean workspace
+        run: |
+          set -euxo pipefail
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
+
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+          # PyTorch, the primary target for this job template, heavily
+          # relies on submodules. Clone them by default to avoid
+          # surprises.
+          submodules: 'recursive'
+
+      - name: Configure AWS credentials
+        id: aws-creds
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
+          # The max duration enforced by the server side
+          role-duration-seconds: 18000
+
+      - name: Setup environment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in ARTIFACT:artifacts TEST_RESULTS:test-results DOCS:docs; do
+            var="RUNNER_${name%%:*}_DIR"
+            dir="${RUNNER_TEMP}/${name##*:}"
+            rm -rf "${dir}"
+            mkdir -p "${dir}"
+            echo "${var}=${dir}" >> "${GITHUB_ENV}"
+          done
+
+      - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
+        uses: pytorch/test-infra/.github/actions/checkout@main
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          single-branch: ${{ inputs.single-branch }}
+          additional-fetch-refs: ${{ inputs.additional-fetch-refs }}
+          path: ${{ inputs.repository || github.repository }}
+          fetch-depth: ${{ inputs.fetch-depth }}
+          submodules: ${{ inputs.submodules }}
+          filter: ${{ env.filter }}
+          submodules-filter: ${{ env.filter }}
+
+      - name: Download artifacts (if any)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: ${{ inputs.download-artifact != '' }}
+        with:
+          name: ${{ inputs.download-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Export matrix variables (if any)
+        uses: pytorch/test-infra/.github/actions/export-matrix-variables@main
+        if: ${{ inputs.binary-matrix != '' }}
+        with:
+          binary-matrix: ${{ inputs.binary-matrix }}
+          target-os: "linux"
+
+      - name: Run script
+        continue-on-error: ${{ inputs.continue-on-error }}
+        working-directory: ${{ inputs.repository || github.repository }}
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          set -ex
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            # shellcheck disable=SC2016
+            echo 'eval "$(conda shell.bash hook)"';
+            echo "set -x";
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          chmod +x "${RUNNER_TEMP}/exec_script"
+          # Use $GITHUB_WORKSPACE (remapped to the container mount, e.g. /__w/...)
+          # rather than the github.workspace expression, which returns the host path.
+          python3 -u "${GITHUB_WORKSPACE}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+
+      - name: Surface failing tests
+        if: always()
+        uses: pmeier/pytest-results-action@a2c1430e2bddadbad9f49a6f9b879f062c6b19b1 # v0.3.0
+        with:
+          path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
+          fail-on-empty: false
+
+      - name: Prepare artifacts for upload
+        if: always()
+        working-directory: ${{ inputs.repository || github.repository }}
+        id: check-artifacts
+        env:
+          UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
+        run: |
+          # Only do these steps if we actually want to upload an artifact
+          if [[ -n "${UPLOAD_ARTIFACT_NAME}" ]]; then
+            # If the default execution path is followed then we should get a wheel in the dist/ folder
+            # attempt to just grab whatever is in there and scoop it all up
+            if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+              mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            if [[ -d "artifacts-to-be-uploaded" ]]; then
+              mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            if [[ -d "${RUNNER_TEMP}/artifacts-to-be-uploaded" ]]; then
+              mv -v "${RUNNER_TEMP}"/artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+            fi
+          fi
+
+          upload_docs=0
+          # Check if there are files in the documentation folder to upload, note that
+          # empty folders do not count
+          if find "${RUNNER_DOCS_DIR}" -mindepth 1 -maxdepth 1 -type f | read -r; then
+            upload_docs=1
+          fi
+          echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload artifacts to GitHub (if any)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
+        with:
+          name: ${{ inputs.upload-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Upload artifacts to S3 (if any)
+        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@main
+        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
+        with:
+          retention-days: 14
+          s3-bucket: gha-artifacts
+          s3-prefix: |
+            ${{ env.REPOSITORY }}/${{ github.run_id }}/artifacts
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Upload documentation to S3 (if any)
+        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@main
+        if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
+        with:
+          retention-days: 14
+          s3-bucket: doc-previews
+          if-no-files-found: error
+          path: ${{ env.RUNNER_DOCS_DIR }}
+          # ${{ env.REPOSITORY }} is $OWNER/$REPO
+          s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
+          # Overwrite doc previews for the same PR
+          overwrite: true
