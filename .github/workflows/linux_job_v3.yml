@@ -135,6 +135,7 @@ jobs:
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
+        shell: bash
         run: |
           set -euxo pipefail
           echo "::group::Cleanup debug output"
@@ -234,6 +235,7 @@ jobs:
 
       - name: Prepare artifacts for upload
         if: always()
+        shell: bash
         working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
         env:
