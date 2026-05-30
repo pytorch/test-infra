@@ -71,15 +71,12 @@ jobs:
         conda create --yes --quiet -n test python=3.10
         conda activate test
 
-        # Route the nightly cu128 channel THROUGH the in-cluster pypi-cache. It is the only
-        # source of the cu128 nightly (so pip can't prefer a competing pypi final torch), and
-        # the cache rewrites the deps' otherwise-blocked files.pythonhosted.org URLs to
-        # reachable proxied paths. (cache-enforcer iptables-blocks pypi.org/pythonhosted on ARC;
-        # a literal download.pytorch.org index can't fetch deps, and adding /simple/ as an extra
-        # index lets the pypi final torch win over the nightly.) Clear the runner's default cpu
-        # extra index so it can't add a competing torch.
-        PIP_EXTRA_INDEX_URL= PIP_TRUSTED_HOST=pypi-cache-cu128.pypi-cache.svc.cluster.local \
-          python3 -m pip install --index-url http://pypi-cache-cu128.pypi-cache.svc.cluster.local:8080/whl/nightly/cu128/ --pre torch
+        # Pre-install torch's pure-python deps from the in-cluster pypi-cache for speed.
+        python3 -m pip install filelock typing-extensions "setuptools<82" sympy networkx jinja2 fsspec
+        # Clear PIP_EXTRA_INDEX_URL (the runner's default cpu /whl/cpu/) so it can't supply a
+        # +cpu torch; --index-url then makes the literal nightly cu128 index the only torch source.
+        PIP_EXTRA_INDEX_URL= \
+          python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu128 --pre torch
         # Can import pytorch, cuda is available
         python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
         python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
