@@ -51,6 +51,13 @@
       "mac"
     ]
   ],
+  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "185367",
+    "https://github.com/pytorch/pytorch/issues/185367",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -178,6 +185,13 @@
       "linux"
     ]
   ],
+  "test_graph_grad_scaling_foreach_False_fused_True_Adagrad_cpu_float32 (__main__.TestXpuOptimsCPU)": [
+    "185477",
+    "https://github.com/pytorch/pytorch/issues/185477",
+    [
+      "xpu"
+    ]
+  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -239,6 +253,13 @@
     "https://github.com/pytorch/pytorch/issues/180438",
     [
       "dynamo"
+    ]
+  ],
+  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
+    "171987",
+    "https://github.com/pytorch/pytorch/issues/171987",
+    [
+      "xpu"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
@@ -343,27 +364,6 @@
     "https://github.com/pytorch/pytorch/issues/158664",
     [
       "dynamo"
-    ]
-  ],
-  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value0_expected_buffer_size_bytes_1024 (__main__.TestBenchmarker)": [
-    "184470",
-    "https://github.com/pytorch/pytorch/issues/184470",
-    [
-      "xpu"
-    ]
-  ],
-  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock (__main__.TestBenchmarker)": [
-    "184491",
-    "https://github.com/pytorch/pytorch/issues/184491",
-    [
-      "xpu"
-    ]
-  ],
-  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock-hip_expected_buffer_size_bytes_268435456 (__main__.TestBenchmarker)": [
-    "185616",
-    "https://github.com/pytorch/pytorch/issues/185616",
-    [
-      "xpu"
     ]
   ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
