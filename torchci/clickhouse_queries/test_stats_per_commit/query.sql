@@ -57,16 +57,27 @@ matched_runs AS (
 ),
 
 matched_jobs AS (
-    -- No FINAL: workflow_job is wide and run_id+name filtering is selective
-    -- enough that the cost of merging ReplacingMergeTree parts isn't worth it.
+    -- FINAL is needed: workflow_job is a ReplacingMergeTree and unmerged parts
+    -- can carry stale duplicate rows for the same job_id with differing
+    -- status/conclusion_kg, which would inflate pending_jobs and could even
+    -- misclassify a completed job as pending.
+    --
+    -- The id IN (materialized_views.workflow_job_by_head_sha ...) predicate is
+    -- the same trick commit_jobs_batch_query uses: it bounds the workflow_job
+    -- scan to just the rows for our 30 commits via the materialized view's
+    -- sort key, instead of letting the JOIN stream all rows of the wide table.
     SELECT
         wj.id AS job_id,
         mr.sha AS sha,
         wj.status AS status,
         wj.conclusion_kg AS conclusion
-    FROM default.workflow_job wj
+    FROM default.workflow_job wj FINAL
     JOIN matched_runs mr ON wj.run_id = mr.workflow_id
-    WHERE match(wj.name, {jobFilter: String })
+    WHERE wj.id IN (
+        SELECT id FROM materialized_views.workflow_job_by_head_sha
+        WHERE head_sha IN (SELECT sha FROM recent_commits)
+    )
+    AND match(wj.name, {jobFilter: String })
 ),
 
 per_sha_pending AS (
