@@ -86,8 +86,9 @@ export function TestStatsPage({
     : DEFAULT_COUNT;
   const shaParam = ((router.query.sha as string) ?? "").trim();
   // Only forward full 40-char or short (>=7) hex shas; anything else is ignored
-  // and the query falls back to "most recent".
-  const sha = /^[0-9a-f]{7,40}$/i.test(shaParam) ? shaParam : "";
+  // and the query falls back to "most recent". Lowercased so a SHA pasted from
+  // GitHub's URL still matches the case-sensitive startsWith() in the query.
+  const sha = /^[0-9a-f]{7,40}$/i.test(shaParam) ? shaParam.toLowerCase() : "";
 
   const { data, error, isLoading } = useClickHouseAPIImmutable<Row>(
     "test_stats_per_commit",
@@ -170,7 +171,13 @@ export function TestStatsPage({
           variant="outlined"
           size="small"
           disabled={!sha}
-          onClick={() => router.back()}
+          onClick={() => {
+            // Drop ?sha so we go back to the HEAD window. Works for both the
+            // "navigated via Next" case and the "landed on a sha-anchored URL
+            // directly" case (where router.back() would leave the page).
+            const { sha: _drop, ...rest } = router.query;
+            router.push({ pathname: router.pathname, query: rest });
+          }}
         >
           ← Prev
         </Button>
@@ -209,7 +216,9 @@ export function TestStatsPage({
             {data.map((row) => {
               const hasRun = row.workflow_id != null;
               const rowDeltas = deltas[row.sha] ?? {};
-              const title = (row.message ?? "").split("\n")[0].slice(0, 80);
+              const commitTitle = (row.message ?? "")
+                .split("\n")[0]
+                .slice(0, 80);
               // Pending if any matched job is still running, OR if the run
               // itself is queued/in_progress (in which case workflow_job rows
               // for the matched jobs may not exist yet, so pending_jobs is 0).
@@ -296,7 +305,7 @@ export function TestStatsPage({
                       }}
                       title={row.message}
                     >
-                      {title}
+                      {commitTitle}
                     </Box>
                   </TableCell>
                 </TableRow>
