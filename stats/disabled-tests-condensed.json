@@ -371,6 +371,13 @@
       "linux"
     ]
   ],
+  "test_serialization_2gb_file (__main__.TestSerialization)": [
+    "92746",
+    "https://github.com/pytorch/pytorch/issues/92746",
+    [
+      "linux"
+    ]
+  ],
   "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
     "145189",
     "https://github.com/pytorch/pytorch/issues/145189",
