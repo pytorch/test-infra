@@ -13,6 +13,16 @@
       "rocm"
     ]
   ],
+  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "182260",
+    "https://github.com/pytorch/pytorch/issues/182260",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -354,13 +364,6 @@
       "rocm"
     ]
   ],
-  "test_sdpa_rewriter_14_cpu (__main__.SDPAPatternRewriterCpuTests)": [
-    "184211",
-    "https://github.com/pytorch/pytorch/issues/184211",
-    [
-      "linux"
-    ]
-  ],
   "test_sdpa_rewriter_5_cpu (__main__.SDPAPatternRewriterCpuDynamicTests)": [
     "184212",
     "https://github.com/pytorch/pytorch/issues/184212",
@@ -583,6 +586,14 @@
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180490",
+    "https://github.com/pytorch/pytorch/issues/180490",
     [
       "linux",
       "slow"
