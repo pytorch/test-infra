@@ -13,16 +13,6 @@
       "rocm"
     ]
   ],
-  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
-    "182260",
-    "https://github.com/pytorch/pytorch/issues/182260",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -329,6 +319,13 @@
       "mac"
     ]
   ],
+  "test_retain_grad_inside_transform_cpu (__main__.TestComposabilityCPU)": [
+    "181013",
+    "https://github.com/pytorch/pytorch/issues/181013",
+    [
+      "dynamo"
+    ]
+  ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
@@ -467,11 +464,26 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_regnet_y_400mf (__main__.TestVisionTracing)": [
     "140531",
     "https://github.com/pytorch/pytorch/issues/140531",
     [
       "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_resnext101_32x8d (__main__.TestVisionTracing)": [
+    "185801",
+    "https://github.com/pytorch/pytorch/issues/185801",
+    [
       "linux",
       "slow"
     ]
@@ -542,6 +554,14 @@
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180366",
     "https://github.com/pytorch/pytorch/issues/180366",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180439",
+    "https://github.com/pytorch/pytorch/issues/180439",
     [
       "linux",
       "slow"
