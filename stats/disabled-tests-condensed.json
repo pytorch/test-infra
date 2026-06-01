@@ -51,6 +51,13 @@
       "mac"
     ]
   ],
+  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "185367",
+    "https://github.com/pytorch/pytorch/issues/185367",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
