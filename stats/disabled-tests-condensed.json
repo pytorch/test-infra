@@ -51,13 +51,6 @@
       "mac"
     ]
   ],
-  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "185367",
-    "https://github.com/pytorch/pytorch/issues/185367",
-    [
-      "xpu"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -255,27 +248,6 @@
       "dynamo"
     ]
   ],
-  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "171987",
-    "https://github.com/pytorch/pytorch/issues/171987",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "184539",
-    "https://github.com/pytorch/pytorch/issues/184539",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
-    "171985",
-    "https://github.com/pytorch/pytorch/issues/171985",
-    [
-      "xpu"
-    ]
-  ],
   "test_max_pool2d_with_indices_backward6_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
     "184540",
     "https://github.com/pytorch/pytorch/issues/184540",
@@ -424,15 +396,6 @@
     "https://github.com/pytorch/pytorch/issues/182174",
     [
       "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b1 (__main__.TestVisionTracing)": [
-    "123889",
-    "https://github.com/pytorch/pytorch/issues/123889",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
