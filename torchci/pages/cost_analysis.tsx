@@ -1137,13 +1137,13 @@ export default function Page() {
         <Grid container marginTop={4} size={{ xs: 11.5 }}>
           <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
             <Typography fontSize={"1rem"} fontWeight={"bold"}>
-              Top-down: attributed CI vs overhead/idle (account-wide, list prices, ignores the
-              repo/dimension filters). Overhead = idle warm runners, k8s control plane, base
-              infra, non-CI EC2.
+              Top-down: non-idle CI vs idle vs control-plane (account-wide, list prices, ignores
+              the repo/dimension filters). Idle = runner fleet (classic EC2 + EKS nodes) not
+              running a job; control-plane = dedicated base/system nodes.
             </Typography>
             {!isLoading && (
               <TimeSeriesPanel
-                title={`EC2 cost: CI vs overhead per ${granularity}`}
+                title={`EC2 cost: CI / idle / control-plane per ${granularity}`}
                 queryName={"infra_overhead"}
                 queryParams={{ ...timeParamsClickHouse }}
                 granularity={granularity}
