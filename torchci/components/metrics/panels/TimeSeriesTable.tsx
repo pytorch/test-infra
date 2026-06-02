@@ -310,6 +310,7 @@ export default function TimeSeriesTable({
           rows={tableData}
           columns={columns}
           density="compact"
+          disableVirtualization
           pageSizeOptions={[25, 50, 100]}
           columnVisibilityModel={{
             // Ensure all columns are visible by default
@@ -348,14 +349,25 @@ export default function TimeSeriesTable({
                   ? "rgba(255, 255, 255, 0.04)"
                   : "rgba(0, 0, 0, 0.04)",
             },
-            // First column styling
+            // First column: pinned/sticky so row titles stay visible when scrolling right.
+            // (Community DataGrid has no column pinning, so we do it with sticky CSS +
+            // disableVirtualization so off-screen columns still render.)
             "& .first-column-header": {
+              position: "sticky",
+              left: 0,
+              zIndex: 4,
               backgroundColor: "#1a635d" /* Darker shade for emphasis */,
               color: "#ffffff",
             },
             "& .first-column-cell": {
-              backgroundColor: "rgba(47, 132, 124, 0.1)",
+              position: "sticky",
+              left: 0,
+              zIndex: 3,
+              // opaque (not translucent) so scrolled cells don't show through
+              backgroundColor: (theme) =>
+                theme.palette.mode === "dark" ? "#10403b" : "#e8f1f0",
               fontWeight: "bold",
+              borderRight: "2px solid var(--table-border-color)",
             },
             // Cell borders using CSS variable
             "& .MuiDataGrid-cell": {
