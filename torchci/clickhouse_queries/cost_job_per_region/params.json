@@ -7,9 +7,7 @@
     "selectedGPU": "Array(UInt8)",
     "selectedPlatforms": "Array(String)",
     "selectedProviders": "Array(String)",
-    "selectedOwners": "Array(String)",
-    "selectedRegions": "Array(String)",
-    "selectedFleets": "Array(String)"
+    "selectedOwners": "Array(String)"
   },
   "tests": []
 }

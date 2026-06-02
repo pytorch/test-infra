@@ -1,9 +1,7 @@
+-- Duration (hours) by region. Region/fleet is inferred from the runner type (runner_cost has no region column); approximate.
 select
-    DATE_TRUNC(
-        {granularity: String},
-        rc.date
-    ) as granularity_bucket,
-    rc.region as region,
+    DATE_TRUNC({granularity: String}, rc.date) as granularity_bucket,
+    multiIf(rc.runner_type like 'mt-%', 'us-east-2', rc.provider = 'github', 'github-hosted', 'us-east-1') as region,
     sum(rc.duration) as total_duration
 from
     misc.runner_cost rc final
@@ -16,8 +14,6 @@ where
     and rc.os in {selectedPlatforms: Array(String)}
     and rc.provider in {selectedProviders: Array(String)}
     and rc.owning_account in {selectedOwners: Array(String)}
-    and rc.region in {selectedRegions: Array(String)}
-    and multiIf(rc.runner_type like 'mt-%', 'OSDC/ciforge', rc.provider = 'github', 'GitHub-hosted', rc.owning_account = 'linux_foundation', 'Linux Foundation', 'Regular EC2') in {selectedFleets: Array(String)}
 group by
     granularity_bucket,
     region
