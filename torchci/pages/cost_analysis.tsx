@@ -1133,6 +1133,34 @@ export default function Page() {
             </div>
           </Grid>
         </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }}>
+          <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+            <Typography fontSize={"1rem"} fontWeight={"bold"}>
+              Top-down: attributed CI vs overhead/idle (account-wide, list prices, ignores the
+              repo/dimension filters). Overhead = idle warm runners, k8s control plane, base
+              infra, non-CI EC2.
+            </Typography>
+            {!isLoading && (
+              <TimeSeriesPanel
+                title={`EC2 cost: CI vs overhead per ${granularity}`}
+                queryName={"infra_overhead"}
+                queryParams={{ ...timeParamsClickHouse }}
+                granularity={granularity}
+                groupByFieldName={"series"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"value"}
+                yAxisRenderer={costDisplay}
+                chartType={"stacked_bar"}
+                smooth={false}
+                timeFieldDisplayFormat="M/D (UTC)"
+                sort_by="name"
+                auto_refresh={false}
+                useUTC={true}
+              />
+            )}
+          </Grid>
+        </Grid>
       </Grid>
     </div>
   );
