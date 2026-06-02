@@ -74,6 +74,13 @@
       "slow"
     ]
   ],
+  "test_conv_large_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
+    "185907",
+    "https://github.com/pytorch/pytorch/issues/185907",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "158115",
     "https://github.com/pytorch/pytorch/issues/158115",
@@ -584,6 +591,13 @@
       "slow"
     ]
   ],
+  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180337",
+    "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
+    ]
+  ],
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
@@ -595,6 +609,14 @@
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180490",
     "https://github.com/pytorch/pytorch/issues/180490",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180542",
+    "https://github.com/pytorch/pytorch/issues/180542",
     [
       "linux",
       "slow"
