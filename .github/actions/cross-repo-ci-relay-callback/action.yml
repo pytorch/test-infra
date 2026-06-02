@@ -33,7 +33,8 @@ inputs:
   callback-url:
     description: >
       Base URL of the result callback server.
-    required: true
+    required: false
+    default: https://gwuj7w5coh4y4l66urspge6mnm0pwaxq.lambda-url.us-east-1.on.aws/github/callback/
   artifact-url:
     description: >
       URL to downstream-hosted artifacts (logs, reports, results),
