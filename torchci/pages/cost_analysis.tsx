@@ -992,8 +992,9 @@ export default function Page() {
               sx={{ mb: 1 }}
             >
               <Typography fontSize={"1rem"} fontWeight={"bold"}>
-                Per PR by fleet (OSDC vs Regular EC2) — during shadow both ran the
-                same PRs; compare for efficiency/regression ($ is estimated for OSDC)
+                Per PR by fleet (OSDC vs Regular EC2). During the shadow window both
+                ran the same PRs, so the lines are directly comparable. $ is Vantage
+                list price (OSDC GPUs priced per card).
               </Typography>
               <ToggleButtonGroup
                 size="small"
