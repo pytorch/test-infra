@@ -583,6 +583,13 @@ def safe_parse_version(ver_str: str) -> Version:
         return Version("0.0.0")
 
 
+def index_has_external_links(html: str) -> bool:
+    # A links package index must point at external sources (PyPI CDN /
+    # pypi.nvidia.com). A relative-path index is S3-wheel-based and must not
+    # overwrite the real links index. See pytorch/test-infra#8115
+    return "files.pythonhosted.org" in html or "pypi.nvidia.com" in html
+
+
 class S3Index:
     def __init__(self, objects: List[S3Object], prefix: str) -> None:
         self.objects = objects
@@ -1067,6 +1074,19 @@ class S3Index:
                         root_obj = BUCKET.Object(key=root_index_key)
                         root_index_html = root_obj.get()["Body"].read().decode("utf-8")
 
+                        # For links packages, only copy an index that points at
+                        # external sources; skip a relative-path (S3 wheel) index
+                        # so it cannot overwrite the real links index. Non-links
+                        # packages are unaffected (they never reach this branch).
+                        if (
+                            pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST
+                            and not index_has_external_links(root_index_html)
+                        ):
+                            print(
+                                f"INFO: Skipping copy of {root_index_key}: no external links"
+                            )
+                            return
+
                         # Upload to subdirectory in S3
                         BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                             ACL="public-read",
@@ -1227,6 +1247,19 @@ class S3Index:
                         # Read the root index.html
                         with open(root_index_path, mode="r", encoding="utf-8") as src:
                             root_index_html = src.read()
+
+                        # For links packages, only copy an index that points at
+                        # external sources; skip a relative-path (S3 wheel) index
+                        # so it cannot overwrite the real links index. Non-links
+                        # packages are unaffected (they never reach this branch).
+                        if (
+                            pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST
+                            and not index_has_external_links(root_index_html)
+                        ):
+                            print(
+                                f"INFO: Skipping copy of {root_index_path}: no external links"
+                            )
+                            continue
 
                         # Save to subdirectory
                         with open(
