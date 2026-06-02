@@ -58,6 +58,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_multi_margin_loss_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "182592",
+    "https://github.com/pytorch/pytorch/issues/182592",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -65,6 +72,14 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
+    "158115",
+    "https://github.com/pytorch/pytorch/issues/158115",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_correctness_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
