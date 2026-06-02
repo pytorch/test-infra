@@ -1,5 +1,5 @@
 -- Per-bucket CI volume + cost-by-category + merge/slop for pytorch/pytorch (long format for a table).
--- Categories: inside-PR (PR CI) / after-merge (main) / nightly / benchmark·periodic·other.
+-- Categories: inside-PR / after-merge / nightly / periodic / benchmark / other.
 -- merged PRs come from squash-merge messages on main (pull_request.merged is unreliable here).
 with
   k as (
@@ -15,8 +15,8 @@ with
   ),
   c as (
     select DATE_TRUNC({granularity: String}, date) as b,
-           sum(pr_cost) as prc, sum(main_cost) as mc, sum(nightly_cost) as nc,
-           sum(bpo_cost) as bpo, sum(total_cost) as tot
+           sum(pr_cost) prc, sum(main_cost) mc, sum(nightly_cost) nc,
+           sum(periodic_cost) pe, sum(benchmark_cost) be, sum(other_cost) ot, sum(total_cost) tot
     from misc.unit_cost_daily
     where date > {startTime: DateTime64(9)} and date < {stopTime: DateTime64(9)}
       and repo in {selectedRepos: Array(String)}
@@ -31,7 +31,9 @@ from (
     union all select c.b, 'inside-PR $', round(prc) from c
     union all select c.b, 'after-merge $', round(mc) from c
     union all select c.b, 'nightly $', round(nc) from c
-    union all select c.b, 'benchmark/periodic/other $', round(bpo) from c
+    union all select c.b, 'periodic $', round(pe) from c
+    union all select c.b, 'benchmark $', round(be) from c
+    union all select c.b, 'other $', round(ot) from c
     union all select c.b, 'TOTAL $', round(tot) from c
     union all select k.b, 'unmerged PR $ (est)', round(prc * (1 - n_merged / nullIf(n_pr, 0)))
       from k inner join c on k.b = c.b
