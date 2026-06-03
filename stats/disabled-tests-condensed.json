@@ -379,15 +379,6 @@
       "linux"
     ]
   ],
-  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
-    "145189",
-    "https://github.com/pytorch/pytorch/issues/145189",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -407,13 +398,6 @@
   "test_torchvision_models_convnext_large (__main__.TestVisionTracing)": [
     "185452",
     "https://github.com/pytorch/pytorch/issues/185452",
-    [
-      "linux"
-    ]
-  ],
-  "test_torchvision_models_convnext_small (__main__.TestVisionTracing)": [
-    "184462",
-    "https://github.com/pytorch/pytorch/issues/184462",
     [
       "linux"
     ]
