@@ -538,6 +538,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "onemkl-license",
         "mkl",
         "pyelftools",
+        "pyzes",
     ]
 }
 

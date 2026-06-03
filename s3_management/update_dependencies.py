@@ -662,6 +662,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "onemkl-license": [{"project": "torch_xpu", "target": "xpu"}],
     "mkl": [{"project": "torch_xpu", "target": "xpu"}],
     "pyelftools": [{"project": "torch_xpu", "target": "xpu"}],
+    "pyzes": [{"project": "torch_xpu", "target": "xpu"}],
     # vLLM
     "ninja": [{"project": "vllm"}],
     "cuda-python": [{"project": "vllm"}],
