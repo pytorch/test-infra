@@ -85,7 +85,7 @@ export function useHideNonViableStrictPreference(): [
   const [state, setState] = usePreference(
     "hideNonViableStrict",
     /*override*/ undefined,
-    /*default*/ false
+    /*default*/ true
   );
   return [state, setState];
 }
