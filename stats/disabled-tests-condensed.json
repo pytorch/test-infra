@@ -462,13 +462,6 @@
       "linux"
     ]
   ],
-  "test_torchvision_models_segmentation_fcn_resnet101 (__main__.TestVisionTracing)": [
-    "184636",
-    "https://github.com/pytorch/pytorch/issues/184636",
-    [
-      "linux"
-    ]
-  ],
   "test_torchvision_models_shufflenet_v2_x1_5 (__main__.TestVisionTracing)": [
     "184863",
     "https://github.com/pytorch/pytorch/issues/184863",
