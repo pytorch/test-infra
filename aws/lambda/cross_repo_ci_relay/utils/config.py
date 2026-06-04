@@ -146,11 +146,14 @@ class RelayConfig:
         except ValueError:
             raise RuntimeError("RATE_LIMIT_PER_MIN must be a positive integer")
 
-        hud_api_url = os.getenv("HUD_API_URL", "")
+        hud_api_url = os.getenv("HUD_API_URL", "https://hud.pytorch.org/api")
         if hud_api_url and not hud_api_url.startswith("https://"):
             raise RuntimeError(
                 "HUD_API_URL must use https:// to protect the bot key in transit"
             )
+        # Add hud_api_url ends with /oot/results for flexibility of adding features later
+        if hud_api_url:
+            hud_api_url = hud_api_url.rstrip("/") + "/oot/results"
 
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
