@@ -45,6 +45,24 @@ class TestForwardToHud(unittest.TestCase):
         self.assertEqual(sent["untrusted"]["callback_payload"], report)
 
     @patch("utils.hud.urllib.request.urlopen")
+    def test_bot_key_sent_as_internal_bot_header(self, mock_urlopen):
+        # HUD identifies internal-bot traffic by the x-hud-internal-bot header
+        # and exempts it from rate limiting; the relay must send the bot key
+        # under that header so its callbacks are not throttled (HTTP 429).
+        resp = MagicMock()
+        resp.status = 200
+        mock_urlopen.return_value.__enter__.return_value = resp
+
+        forward_to_hud(
+            _cfg(key="secret-bot-key"),
+            {"ci_metrics": {}, "verified_repo": "org/repo"},
+            {"callback_payload": {}},
+        )
+
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.get_header("X-hud-internal-bot"), "secret-bot-key")
+
+    @patch("utils.hud.urllib.request.urlopen")
     def test_4xx_propagates_with_huds_status(self, mock_urlopen):
         # 4xx means the caller sent bad data — propagate so the downstream
         # workflow author sees a red step.

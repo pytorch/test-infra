@@ -46,7 +46,7 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
         data=hud_payload,
         headers={
             "Content-Type": "application/json",
-            "X-OOT-Relay-Token": config.hud_bot_key,
+            "x-hud-internal-bot": config.hud_bot_key,
         },
         method="POST",
     )
