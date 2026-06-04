@@ -309,6 +309,13 @@
       "rocm"
     ]
   ],
+  "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
+    "186203",
+    "https://github.com/pytorch/pytorch/issues/186203",
+    [
+      "linux"
+    ]
+  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
@@ -467,6 +474,13 @@
     "https://github.com/pytorch/pytorch/issues/184863",
     [
       "linux"
+    ]
+  ],
+  "test_trailing_args_forwarded (__main__.TestSubclassCodegen)": [
+    "186202",
+    "https://github.com/pytorch/pytorch/issues/186202",
+    [
+      "dynamo"
     ]
   ],
   "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
