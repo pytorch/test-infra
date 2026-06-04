@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import * as authModule from "../lib/auth/auth";
 import * as ootUtils from "../lib/oot/ootUtils";
 import handler from "../pages/api/oot/results";
 
@@ -10,12 +11,16 @@ jest.mock("../lib/oot/ootUtils", () => {
   };
 });
 
-const VALID_TOKEN = "test-relay-token-abc123";
+jest.mock("../lib/auth/auth", () => ({
+  checkAuthWithApiToken: jest.fn(),
+}));
+
+const mockCheckAuth = authModule.checkAuthWithApiToken as jest.Mock;
 
 function mockReq(overrides: Partial<NextApiRequest> = {}): NextApiRequest {
   return {
     method: "POST",
-    headers: { "x-oot-relay-token": VALID_TOKEN },
+    headers: { "x-hud-internal-bot": "valid-token" },
     body: {
       trusted: {
         verified_repo: "Ascend/pytorch",
@@ -64,15 +69,9 @@ function mockRes(): NextApiResponse & { _status: number; _json: any } {
 }
 
 describe("POST /api/oot/results", () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
-    process.env = { ...originalEnv, OOT_RELAY_TOKEN: VALID_TOKEN };
     jest.clearAllMocks();
-  });
-
-  afterAll(() => {
-    process.env = originalEnv;
+    mockCheckAuth.mockResolvedValue({ ok: true, type: "header" });
   });
 
   test("rejects non-POST methods with 405", async () => {
@@ -82,34 +81,10 @@ describe("POST /api/oot/results", () => {
     expect(res._json.error).toBe("Method not allowed");
   });
 
-  test("returns 500 when OOT_RELAY_TOKEN env is not set", async () => {
-    delete process.env.OOT_RELAY_TOKEN;
+  test("returns 401 when auth fails", async () => {
+    mockCheckAuth.mockResolvedValue({ ok: false });
     const res = mockRes();
     await handler(mockReq(), res);
-    expect(res._status).toBe(500);
-    expect(res._json.error).toBe("Server misconfigured");
-  });
-
-  test("returns 401 when token header is missing", async () => {
-    const res = mockRes();
-    await handler(mockReq({ headers: {} }), res);
-    expect(res._status).toBe(401);
-    expect(res._json.error).toBe("Unauthorized");
-  });
-
-  test("returns 401 when token header is wrong", async () => {
-    const res = mockRes();
-    await handler(
-      mockReq({ headers: { "x-oot-relay-token": "wrong-token" } }),
-      res
-    );
-    expect(res._status).toBe(401);
-    expect(res._json.error).toBe("Unauthorized");
-  });
-
-  test("returns 401 when token has different length", async () => {
-    const res = mockRes();
-    await handler(mockReq({ headers: { "x-oot-relay-token": "short" } }), res);
     expect(res._status).toBe(401);
     expect(res._json.error).toBe("Unauthorized");
   });

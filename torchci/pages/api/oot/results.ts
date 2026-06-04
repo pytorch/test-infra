@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "crypto";
+import { checkAuthWithApiToken } from "lib/auth/auth";
 import {
   ApiError,
   extractDynamoRecord,
@@ -24,18 +24,8 @@ export default async function handler(
   }
 
   try {
-    // 1. Auth: dedicated X-OOT-Relay-Token header (timing-safe comparison)
-    const expected = process.env.OOT_RELAY_TOKEN;
-    if (!expected) {
-      return res.status(500).json({ error: "Server misconfigured" });
-    }
-    const raw = req.headers["x-oot-relay-token"];
-    if (typeof raw !== "string") {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    const a = new Uint8Array(Buffer.from(raw));
-    const b = new Uint8Array(Buffer.from(expected));
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    const auth = await checkAuthWithApiToken(req, res);
+    if (!auth.ok) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
