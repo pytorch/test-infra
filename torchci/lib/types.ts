@@ -135,6 +135,10 @@ export interface HudParams {
   useRegexFilter?: boolean;
 }
 
+export function isPyTorchPyTorchRepo(params: HudParams): boolean {
+  return params.repoOwner === "pytorch" && params.repoName === "pytorch";
+}
+
 export interface PRData {
   title: string;
   body: string;
