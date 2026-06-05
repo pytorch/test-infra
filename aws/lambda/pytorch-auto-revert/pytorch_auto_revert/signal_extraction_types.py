@@ -58,18 +58,49 @@ class JobRow:
 
     @cached_property
     def base_name(self) -> JobBaseName:
-        """Normalize job name to a stable base for matching across commits.
+        """Normalize a job name to a stable signal key for matching across commits.
 
-        - Drop any trailing parenthetical qualifiers (e.g., "(rocm)", shard notes)
-        - Strip common shard suffixes like ", 1, 1, " used in CI naming
-        - Collapse redundant whitespace
+        PyTorch CI test jobs are named like::
+
+            <env> / <step> (<config>, <shard_idx>, <num_shards>, <runner>[, <flags>])
+
+        e.g. ``linux-jammy-cuda13.0-py3.10-gcc11 / test (pr_time_benchmarks, 1, 1, runner)``.
+        The first token inside the parenthetical is the test *config*; the
+        remaining tokens are volatile per-run metadata (shard index, shard
+        count, runner label, and flags such as ``unstable`` /
+        ``rerun_disabled_tests``).
+
+        Normalization keeps the config so that distinct configs become distinct
+        signals, while shards of the same config still aggregate together:
+
+        1. **Config present** -- if any parenthetical contains a comma, its
+           first token is the config and is preserved as ``(<config>)``. This
+           stops a config (e.g. the ``pr_time_benchmarks`` perf gate) from being
+           merged into -- and diluted by -- noisier sibling configs such as
+           ``default`` / ``distributed`` under the same step.
+        2. **No config** -- drop every parenthetical qualifier and group on the
+           cleaned name.
+
+        Each parenthetical group is stripped independently (not as a single
+        greedy span), so a leading build-env qualifier like ``(3.12)`` does not
+        swallow the trailing config parenthetical or the step label in between.
+
+        DISCLAIMER: build-env qualifiers carried *outside* the config
+        parenthetical -- notably the Python version in
+        ``inductor-cpu-core-test (3.11|3.12|3.13)`` -- are dropped, so those
+        variants intentionally collapse into a single signal. This is accepted
+        for simplicity for now; revisit if one version proves independently
+        flaky and reintroduces cross-variant mixing.
         """
-        # Drop any trailing parenthetical qualifier
-        base = re.sub(r"\s*\(.*\)$", "", self.name)
-        # Remove patterns like ", 1, 1, " or ", 2, 3, " from job names
-        base = re.sub(r", \d+, \d+, ", ", ", base)
-        # Collapse multiple spaces
+        # Config = first token before the first comma inside any parenthetical.
+        m = re.search(r"\(([^,()]+),", self.name)
+        config = m.group(1).strip() if m else None
+        # Drop all parenthetical groups (each stripped on its own, not greedily
+        # spanning across multiple groups), then collapse whitespace.
+        base = re.sub(r"\s*\([^()]*\)", "", self.name)
         base = re.sub(r"\s+", " ", base).strip()
+        if config:
+            base = f"{base} ({config})".strip()
         return JobBaseName(base)
 
     # ---- Convenience properties for verdicts/status ----
