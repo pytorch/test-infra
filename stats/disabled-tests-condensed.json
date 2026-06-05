@@ -75,13 +75,6 @@
       "slow"
     ]
   ],
-  "test_conv_large_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
-    "185907",
-    "https://github.com/pytorch/pytorch/issues/185907",
-    [
-      "xpu"
-    ]
-  ],
   "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "158115",
     "https://github.com/pytorch/pytorch/issues/158115",
@@ -152,13 +145,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
-    "186314",
-    "https://github.com/pytorch/pytorch/issues/186314",
-    [
-      "xpu"
     ]
   ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
