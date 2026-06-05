@@ -146,6 +146,14 @@
       "slow"
     ]
   ],
+  "test_cupti_monitor_collection_repeated_lifecycle (__main__.TestProfilerCUDA)": [
+    "186400",
+    "https://github.com/pytorch/pytorch/issues/186400",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
     "186314",
     "https://github.com/pytorch/pytorch/issues/186314",
@@ -396,6 +404,18 @@
       "rocm"
     ]
   ],
+  "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119346",
+    "https://github.com/pytorch/pytorch/issues/119346",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -452,16 +472,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
@@ -503,13 +513,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_torchvision_models_resnext101_64x4d (__main__.TestVisionTracing)": [
-    "184505",
-    "https://github.com/pytorch/pytorch/issues/184505",
-    [
-      "linux"
     ]
   ],
   "test_trailing_args_forwarded (__main__.TestSubclassCodegen)": [
