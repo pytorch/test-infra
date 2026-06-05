@@ -365,13 +365,6 @@
       "dynamo"
     ]
   ],
-  "test_rowwise_scaling_acceptable_input_dims_M_1024_K_1024_N_16_persistent_matmul_False_xpu (__main__.TestFP8LoweringXPU)": [
-    "186311",
-    "https://github.com/pytorch/pytorch/issues/186311",
-    [
-      "xpu"
-    ]
-  ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
