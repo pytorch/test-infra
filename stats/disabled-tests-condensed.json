@@ -138,6 +138,13 @@
       "linux"
     ]
   ],
+  "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
+    "186314",
+    "https://github.com/pytorch/pytorch/issues/186314",
+    [
+      "xpu"
+    ]
+  ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
     "https://github.com/pytorch/pytorch/issues/180259",
@@ -206,6 +213,27 @@
     "https://github.com/pytorch/pytorch/issues/158443",
     [
       "linux"
+    ]
+  ],
+  "test_hardtanh_backward_low_precision_boundary_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
+    "186312",
+    "https://github.com/pytorch/pytorch/issues/186312",
+    [
+      "xpu"
+    ]
+  ],
+  "test_hardtanh_backward_low_precision_boundary_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "186316",
+    "https://github.com/pytorch/pytorch/issues/186316",
+    [
+      "xpu"
+    ]
+  ],
+  "test_hardtanh_backward_low_precision_boundary_xpu (__main__.GPUTests)": [
+    "186313",
+    "https://github.com/pytorch/pytorch/issues/186313",
+    [
+      "xpu"
     ]
   ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -335,6 +363,13 @@
     "https://github.com/pytorch/pytorch/issues/181013",
     [
       "dynamo"
+    ]
+  ],
+  "test_rowwise_scaling_acceptable_input_dims_M_1024_K_1024_N_16_persistent_matmul_False_xpu (__main__.TestFP8LoweringXPU)": [
+    "186311",
+    "https://github.com/pytorch/pytorch/issues/186311",
+    [
+      "xpu"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
