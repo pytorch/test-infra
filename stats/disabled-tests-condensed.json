@@ -138,6 +138,14 @@
       "linux"
     ]
   ],
+  "test_cupti_monitor_collection_raw_dump_smoke (__main__.TestProfilerCUDA)": [
+    "186344",
+    "https://github.com/pytorch/pytorch/issues/186344",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
     "186314",
     "https://github.com/pytorch/pytorch/issues/186314",
@@ -500,13 +508,6 @@
   "test_torchvision_models_resnext101_64x4d (__main__.TestVisionTracing)": [
     "184505",
     "https://github.com/pytorch/pytorch/issues/184505",
-    [
-      "linux"
-    ]
-  ],
-  "test_torchvision_models_shufflenet_v2_x1_5 (__main__.TestVisionTracing)": [
-    "184863",
-    "https://github.com/pytorch/pytorch/issues/184863",
     [
       "linux"
     ]
