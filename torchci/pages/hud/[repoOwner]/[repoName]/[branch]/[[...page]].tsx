@@ -45,6 +45,7 @@ import {
   formatHudUrlForRoute,
   Highlight,
   HudParams,
+  isPyTorchPyTorchRepo,
   IssueData,
   JobData,
   packHudParams,
@@ -399,9 +400,11 @@ function FiltersAndSettings({}: {}) {
 
   // Only show autorevert toggle for pytorch/pytorch main
   const isPyTorchMain =
-    params.repoOwner === "pytorch" &&
-    params.repoName === "pytorch" &&
-    params.branch === "main";
+    isPyTorchPyTorchRepo(params) && params.branch === "main";
+
+  // The viable/strict concept (and thus this filter) only exists for
+  // pytorch/pytorch, so the toggle is a no-op for any other repo.
+  const isPyTorchRepo = isPyTorchPyTorchRepo(params);
 
   return (
     <div className={styles.hudControlsRow}>
@@ -450,6 +453,12 @@ function FiltersAndSettings({}: {}) {
                   checkBoxName="hideNonViableStrict"
                   key="hideNonViableStrict"
                   labelText={"Hide non-viable-strict jobs"}
+                  disabled={!isPyTorchRepo}
+                  title={
+                    isPyTorchRepo
+                      ? undefined
+                      : "Only applies to the pytorch/pytorch repo"
+                  }
                 />,
                 <CheckBoxSelector
                   value={hideAlwaysSkipped}
@@ -855,8 +864,10 @@ function GroupedHudTable({ params }: { params: HudParams }) {
       return false;
     }
 
-    // If hiding non-viable-strict, only show jobs/groups that are viable/strict blocking
-    if (hideNonViableStrict) {
+    // If hiding non-viable-strict, only show jobs/groups that are viable/strict
+    // blocking. The viable/strict concept only exists for pytorch/pytorch, so
+    // this filter is ignored for any other repo (even if the setting is checked).
+    if (hideNonViableStrict && isPyTorchPyTorchRepo(params)) {
       if (
         !groupsViableStrictBlocking.has(name) &&
         !jobsViableStrictBlocking.has(name)
