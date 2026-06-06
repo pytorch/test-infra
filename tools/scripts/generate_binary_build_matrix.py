@@ -456,7 +456,13 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        # TEMPORARY (DO NOT MERGE): force PR builds to exercise 3.15 / 3.15t on
+        # Linux so this PR's CI validates the new versions. Revert to
+        # `python_versions = [python_versions[0]]` before merging.
+        if os in (LINUX, LINUX_AARCH64):
+            python_versions = ["3.15", "3.15t"]
+        else:
+            python_versions = [python_versions[0]]
 
     global WHEEL_CONTAINER_IMAGES
 
