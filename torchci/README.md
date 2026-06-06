@@ -76,6 +76,33 @@ We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
 
+## Grafana CLI token (`gcx`)
+
+`GET /api/gcx-token` mints a **read-only (Viewer)** Grafana service-account
+token for the [`gcx`](https://github.com/grafana/gcx) CLI, so contributors can
+self-serve a `GRAFANA_TOKEN` instead of creating one by hand in the Grafana UI.
+Access is gated by GitHub identity exactly like Flambeau: the caller must have
+write access to `pytorch/pytorch` (or be on the Flambeau allow list).
+
+Primary usage — reuse an existing GitHub token (no browser, nothing to install):
+
+```bash
+export GRAFANA_TOKEN=$(curl -fsSL \
+  -H "Authorization: Bearer $(gh auth token)" \
+  https://hud.pytorch.org/api/gcx-token)
+```
+
+Each GitHub user gets a dedicated service account named `gcx-<github-login>`
+with the Viewer role. Tokens are long-lived; revoke them manually in the Grafana
+UI (delete the token or the `gcx-<login>` service account).
+
+Required server-side env vars (Vercel):
+
+- `GRAFANA_ADMIN_TOKEN` — a Grafana service-account token with Admin role
+  (`serviceaccounts:write` / `serviceaccounts.tokens:write`). Used only
+  server-side to mint Viewer tokens; never returned to callers.
+- `GRAFANA_SERVER` — optional, defaults to `https://pytorchci.grafana.net`.
+
 ## How to edit ClickHouse queries
 
 If you are familiar with the old setup for Rockset, ClickHouse does not have
