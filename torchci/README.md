@@ -89,12 +89,14 @@ Primary usage — reuse an existing GitHub token (no browser, nothing to install
 ```bash
 export GRAFANA_TOKEN=$(curl -fsSL \
   -H "Authorization: Bearer $(gh auth token)" \
-  https://hud.pytorch.org/api/gcx-token)
+  "https://hud.pytorch.org/api/gcx-token?token_name=$(hostname)")
 ```
 
 Each GitHub user gets a dedicated service account named `gcx-<github-login>`
-with the Viewer role. Tokens are long-lived; revoke them manually in the Grafana
-UI (delete the token or the `gcx-<login>` service account).
+with the Viewer role. The optional `token_name` param labels the token
+(defaults to "default"), so you can hold one token per machine; re-running with
+the same label replaces only that token. Revoke manually in the Grafana UI if
+needed.
 
 Required server-side env vars (Vercel):
 

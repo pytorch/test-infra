@@ -80,20 +80,57 @@ async function createViewerServiceAccount(name: string): Promise<number> {
   return data.id;
 }
 
+// Delete tokens on the service account whose name starts with `prefix`, so a
+// new mint supersedes only the previous token with the same label, leaving
+// other labels' tokens intact.
+async function revokeTokensWithPrefix(
+  saId: number,
+  prefix: string
+): Promise<void> {
+  const res = await grafanaFetch(`/api/serviceaccounts/${saId}/tokens`);
+  if (!res.ok) {
+    throw new Error(
+      `Grafana token list failed: ${res.status} ${await res.text()}`
+    );
+  }
+  const tokens: Array<{ id: number; name: string }> = (await res.json()) || [];
+  for (const token of tokens) {
+    if (token.name.startsWith(prefix)) {
+      await grafanaFetch(`/api/serviceaccounts/${saId}/tokens/${token.id}`, {
+        method: "DELETE",
+      });
+    }
+  }
+}
+
+// Slug for the caller-supplied token label (no dashes, so it can't collide with
+// the dash separators in the token name). Defaults to "default".
+function labelSlug(label: string): string {
+  return (label || "").replace(/[^A-Za-z0-9.]/g, "").slice(0, 40) || "default";
+}
+
 /**
- * Find-or-create the Viewer service account for `login` and mint a token on it.
- * Returns the raw token key (the only time Grafana exposes it).
+ * Find-or-create the Viewer service account for `login`, revoke any previous
+ * token with the same `label`, and mint a fresh one. Returns the raw token key
+ * (the only time Grafana exposes it). Tokens are named per label so a user can
+ * hold one per machine; re-minting with the same label replaces that token.
  */
-export async function mintGcxViewerToken(login: string): Promise<string> {
+export async function mintGcxViewerToken(
+  login: string,
+  label: string
+): Promise<string> {
   const name = serviceAccountName(login);
+  const prefix = `${name}-${labelSlug(label)}-`;
 
   let saId = await findServiceAccountIdByName(name);
   if (saId == null) {
     saId = await createViewerServiceAccount(name);
+  } else {
+    await revokeTokensWithPrefix(saId, prefix);
   }
 
-  // Timestamp keeps the token name unique per service account.
-  const tokenName = `${name}-${Date.now()}`;
+  // Timestamp keeps the token name unique per (service account, label).
+  const tokenName = `${prefix}${Date.now()}`;
   const res = await grafanaFetch(`/api/serviceaccounts/${saId}/tokens`, {
     method: "POST",
     body: JSON.stringify({ name: tokenName }),
