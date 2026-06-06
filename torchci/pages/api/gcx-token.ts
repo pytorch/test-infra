@@ -6,7 +6,7 @@
  * the caller must have write access to pytorch/pytorch (or be on the
  * Flambeau allow list).
  *
- * Primary usage (no browser, no extra CLI to install) — reuse an existing
+ * Primary usage (no browser, no extra CLI to install) reuses an existing
  * GitHub token:
  *
  *   export GRAFANA_TOKEN=$(curl -fsSL \
@@ -18,27 +18,15 @@
  * caller sends `Accept: application/json` or `?format=json`.
  */
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { hasWritePermissionsUsingOctokit } from "../../lib/GeneralUtils";
-import { getOctokitWithUserToken } from "../../lib/github";
+import {
+  authorizeGithubToken,
+  resolveGithubToken,
+} from "../../lib/auth/githubAuth";
 import {
   grafanaServer,
   mintGcxViewerToken,
 } from "../../lib/grafana/serviceAccount";
-import allowList from "../../lib/torchagent/allowList.json";
 import { authOptions } from "./auth/[...nextauth]";
-
-const REPO_OWNER = "pytorch";
-const REPO_NAME = "pytorch";
-
-function getBearerToken(req: NextApiRequest): string | null {
-  const auth = req.headers["authorization"];
-  if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
-    const token = auth.slice("bearer ".length).trim();
-    return token || null;
-  }
-  return null;
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -48,15 +36,8 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // 1. Resolve a GitHub token: bearer header (curl one-liner) takes precedence,
-  //    otherwise fall back to a browser NextAuth session.
-  let githubToken = getBearerToken(req);
-  if (!githubToken) {
-    // @ts-ignore – next-auth's Session type is not exported here
-    const session = await getServerSession(req, res, authOptions);
-    // @ts-ignore
-    githubToken = session?.accessToken ?? null;
-  }
+  // 1. Resolve a GitHub token (bearer header, else NextAuth session).
+  const githubToken = await resolveGithubToken(req, res, authOptions);
   if (!githubToken) {
     return res.status(401).json({
       error:
@@ -66,37 +47,15 @@ export default async function handler(
   }
 
   // 2. Validate GitHub identity + pytorch/pytorch write access (Flambeau gate).
-  let login: string;
-  try {
-    const octokit = await getOctokitWithUserToken(githubToken);
-    const user = await octokit.rest.users.getAuthenticated();
-    login = user?.data?.login;
-    if (!login) {
-      return res.status(401).json({ error: "GitHub authentication failed" });
-    }
-
-    const allowed =
-      (allowList as string[]).includes(login) ||
-      (await hasWritePermissionsUsingOctokit(
-        octokit,
-        login,
-        REPO_OWNER,
-        REPO_NAME
-      ));
-    if (!allowed) {
-      return res.status(403).json({
-        error: `Write permissions to ${REPO_OWNER}/${REPO_NAME} required`,
-      });
-    }
-  } catch (error) {
-    console.error("gcx-token: GitHub auth/permission check failed", error);
-    return res.status(401).json({ error: "GitHub authentication failed" });
+  const auth = await authorizeGithubToken(githubToken);
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
   }
 
   // 3. Mint a read-only (Viewer) Grafana token for this user.
   try {
-    const token = await mintGcxViewerToken(login);
-    console.log(`gcx-token: minted Viewer token for ${login}`);
+    const token = await mintGcxViewerToken(auth.login);
+    console.log(`gcx-token: minted Viewer token for ${auth.login}`);
 
     const accept = (req.headers["accept"] as string) || "";
     if (accept.includes("application/json") || req.query.format === "json") {
