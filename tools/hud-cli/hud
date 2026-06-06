@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""
+hud - a small CLI over the PyTorch HUD APIs (hud.pytorch.org).
+
+Auth: reuses your GitHub login via `gh auth token`, sent as a Bearer header to
+the authed API shim (/api/authed/*), which validates it and forwards to the real
+HUD endpoint. `hud login` also sets up gcx for Grafana dashboards / raw
+ClickHouse access.
+
+Serves humans (tables) and agents (`--json`). Replaces ad-hoc HUD MCP calls: the
+generic `hud query` runs any saved ClickHouse query, named commands wrap common
+ones.
+
+Examples:
+  hud login
+  hud trunk --days 1
+  hud pr 12345
+  hud user wdvr
+  hud query master_commit_red -p granularity=hour -p usePercentage=false --days 1
+"""
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+HUD_URL = os.environ.get("HUD_URL", "https://hud.pytorch.org")
+API = "/api/authed"  # authed shim: validates the GitHub token, forwards to /api/*
+GITHUB_API = "https://api.github.com"
+_TOKEN = None
+
+
+def gh_token():
+    global _TOKEN
+    if _TOKEN is None:
+        try:
+            _TOKEN = subprocess.check_output(
+                ["gh", "auth", "token"], text=True
+            ).strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            sys.exit("error: no GitHub token. Run `gh auth login`.")
+    return _TOKEN
+
+
+def _get(url):
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", f"Bearer {gh_token()}")
+    req.add_header("Accept", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:300]
+        if e.code == 429:
+            sys.exit(
+                "error: 429 (Vercel bot challenge). The /api/authed firewall "
+                "bypass rule is missing. See README."
+            )
+        sys.exit(f"error: HTTP {e.code} from {url}\n{body}")
+
+
+def hud_query(name, params):
+    qs = urllib.parse.urlencode({"parameters": json.dumps(params)})
+    return _get(f"{HUD_URL}{API}/clickhouse/{name}?{qs}")
+
+
+def hud_get(path):
+    return _get(f"{HUD_URL}{API}{path}")
+
+
+def github_get(path, params=None):
+    url = f"{GITHUB_API}{path}"
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    return _get(url)
+
+
+def ch_time(dt):
+    return dt.strftime("%Y-%m-%d %H:%M:%S.000")
+
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
+def emit(data, as_json, rows=None, headers=None):
+    if as_json or rows is None:
+        print(json.dumps(data, indent=2, default=str))
+    else:
+        print_table(rows, headers)
+
+
+def print_table(rows, headers):
+    if not rows:
+        print("(no rows)")
+        return
+    cols = headers or list(rows[0].keys())
+    body = [[str(r.get(c, "")) for c in cols] for r in rows]
+    w = [max(len(cols[i]), *(len(r[i]) for r in body)) for i in range(len(cols))]
+    print("  ".join(h.ljust(w[i]) for i, h in enumerate(cols)))
+    print("  ".join("-" * w[i] for i in range(len(cols))))
+    for r in body:
+        print("  ".join(r[i].ljust(w[i]) for i in range(len(cols))))
+
+
+# ----- commands -----
+
+
+def cmd_login(args):
+    gh_token()  # verifies gh is logged in
+    label = socket.gethostname().split(".")[0]
+    info = _get(f"{HUD_URL}/api/gcx-token?token_name={label}&format=json")
+    grafana_token = info["token"]
+    server = info.get("grafanaServer", "https://pytorchci.grafana.net")
+    print(f"HUD: ready (uses your GitHub login as {label}).", flush=True)
+    if subprocess.run(["which", "gcx"], capture_output=True).returncode == 0:
+        subprocess.run(
+            ["gcx", "login", "pytorchci", "--server", server, "--yes",
+             "--token", grafana_token],
+            check=True,
+        )
+        print("gcx: configured. Try `gcx dashboards list`.")
+    else:
+        print("gcx not installed (optional, for dashboards/raw ClickHouse):")
+        print("  curl -fsSL https://raw.githubusercontent.com/grafana/gcx/main/scripts/install.sh | sh")
+        print(f"  gcx login pytorchci --server {server} --yes --token {grafana_token}")
+
+
+def cmd_query(args):
+    params = {}
+    for kv in args.param or []:
+        if "=" not in kv:
+            sys.exit(f"bad -p '{kv}', expected key=value")
+        k, v = kv.split("=", 1)
+        try:
+            params[k] = json.loads(v)
+        except json.JSONDecodeError:
+            params[k] = v
+    if args.days is not None:
+        params.setdefault("stopTime", ch_time(now_utc()))
+        params.setdefault("startTime", ch_time(now_utc() - timedelta(days=args.days)))
+        params.setdefault("timezone", "UTC")
+    rows = hud_query(args.name, params)
+    emit(rows, args.json, rows=rows if isinstance(rows, list) else None)
+
+
+def cmd_trunk(args):
+    rows = hud_query("master_commit_red", {
+        "startTime": ch_time(now_utc() - timedelta(days=args.days)),
+        "stopTime": ch_time(now_utc()),
+        "timezone": "UTC",
+        "granularity": args.granularity,
+        "usePercentage": False,
+    })
+    emit(rows, args.json, rows=rows if isinstance(rows, list) else None)
+
+
+def cmd_pr(args):
+    owner, repo = args.repo.split("/", 1)
+    data = hud_get(f"/{owner}/{repo}/pull/{args.pr}")
+    if args.json:
+        emit(data, True)
+        return
+    jobs = data.get("jobs", []) if isinstance(data, dict) else []
+    failing = [j for j in jobs if (j.get("conclusion") or "") == "failure"]
+    print(f"PR {owner}/{repo}#{args.pr}: {data.get('title', '')}")
+    print(f"  jobs: {len(jobs)}  failing: {len(failing)}")
+    if failing:
+        print_table([{"job": j.get("name", ""), "conclusion": j.get("conclusion", "")}
+                     for j in failing], ["job", "conclusion"])
+
+
+def cmd_user(args):
+    q = f"repo:{args.repo} is:pr is:open author:{args.user}"
+    items = github_get("/search/issues", {"q": q, "per_page": args.limit}).get("items", [])
+    if args.json:
+        emit(items, True)
+        return
+    rows = [{"pr": f"#{it['number']}", "created": it["created_at"][:10],
+             "draft": "draft" if it.get("draft") else "", "title": it["title"][:70]}
+            for it in items]
+    print(f"open PRs by {args.user} in {args.repo}: {len(items)}")
+    print_table(rows, ["pr", "created", "draft", "title"])
+
+
+def main():
+    p = argparse.ArgumentParser(prog="hud", description="PyTorch HUD CLI")
+    p.add_argument("--json", action="store_true", help="JSON output (for agents)")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("login", help="set up gh + gcx").set_defaults(func=cmd_login)
+
+    q = sub.add_parser("query", help="run any saved ClickHouse query")
+    q.add_argument("name")
+    q.add_argument("-p", "--param", action="append", help="key=value (repeatable)")
+    q.add_argument("--days", type=int, help="set startTime/stopTime to last N days")
+    q.set_defaults(func=cmd_query)
+
+    t = sub.add_parser("trunk", help="trunk red/green over time")
+    t.add_argument("--days", type=int, default=1)
+    t.add_argument("--granularity", default="hour", choices=["hour", "day"])
+    t.set_defaults(func=cmd_trunk)
+
+    pr = sub.add_parser("pr", help="CI status for a PR")
+    pr.add_argument("pr")
+    pr.add_argument("--repo", default="pytorch/pytorch")
+    pr.set_defaults(func=cmd_pr)
+
+    u = sub.add_parser("user", help="open PRs for a user")
+    u.add_argument("user")
+    u.add_argument("--repo", default="pytorch/pytorch")
+    u.add_argument("--limit", type=int, default=30)
+    u.set_defaults(func=cmd_user)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

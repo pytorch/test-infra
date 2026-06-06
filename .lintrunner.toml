@@ -263,6 +263,7 @@ exclude_patterns = [
     '**/snapshots/**',
     # Putting this exclusion just to get the linter running.
     "tools/stronghold/bin/build-check-api-compatibility",
+    "tools/hud-cli/hud",
 ]
 command = [
     'python3',
