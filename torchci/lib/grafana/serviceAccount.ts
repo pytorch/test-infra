@@ -5,8 +5,7 @@
  * Used by the `/api/gcx-token` route so contributors can self-serve a
  * `GRAFANA_TOKEN` for the `gcx` CLI without manually creating one in the
  * Grafana UI. Each GitHub user gets a dedicated service account named
- * `gcx-<github-login>` with the Viewer role; revocation is manual (delete the
- * token or the service account in the Grafana UI).
+ * `gcx-<github-login>` with the Viewer role.
  *
  * Requires the server-side env var `GRAFANA_ADMIN_TOKEN`: a Grafana
  * service-account token with `serviceaccounts:write` /
@@ -82,9 +81,8 @@ async function createViewerServiceAccount(name: string): Promise<number> {
 }
 
 /**
- * Find-or-create the Viewer service account for `login` and mint a new
- * long-lived token on it. Returns the raw token key (the only time Grafana
- * ever exposes it).
+ * Find-or-create the Viewer service account for `login` and mint a token on it.
+ * Returns the raw token key (the only time Grafana exposes it).
  */
 export async function mintGcxViewerToken(login: string): Promise<string> {
   const name = serviceAccountName(login);
@@ -94,7 +92,7 @@ export async function mintGcxViewerToken(login: string): Promise<string> {
     saId = await createViewerServiceAccount(name);
   }
 
-  // Long-lived (no secondsToLive); timestamp keeps the token name unique per SA.
+  // Timestamp keeps the token name unique per service account.
   const tokenName = `${name}-${Date.now()}`;
   const res = await grafanaFetch(`/api/serviceaccounts/${saId}/tokens`, {
     method: "POST",

@@ -6,6 +6,10 @@
  * the caller must have write access to pytorch/pytorch (or be on the
  * Flambeau allow list).
  *
+ * Intended use: one-time setup. Run it once, save the returned token in
+ * GRAFANA_TOKEN, and reuse it for read-only `gcx` access. Not meant to be
+ * called on every gcx invocation.
+ *
  * Primary usage (no browser, no extra CLI to install) reuses an existing
  * GitHub token:
  *
