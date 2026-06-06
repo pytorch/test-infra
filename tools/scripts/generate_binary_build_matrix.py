@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
@@ -463,6 +463,10 @@ def generate_wheels_matrix(
     ret: List[Dict[str, Any]] = []
     for python_version in python_versions:
         for arch_version in arches:
+            # Python 3.15 and 3.15t are currently only built for Linux wheels.
+            if os not in (LINUX, LINUX_AARCH64) and python_version.startswith("3.15"):
+                continue
+
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
