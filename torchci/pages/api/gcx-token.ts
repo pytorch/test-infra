@@ -15,7 +15,11 @@
  *
  *   export GRAFANA_TOKEN=$(curl -fsSL \
  *     -H "Authorization: Bearer $(gh auth token)" \
- *     https://hud.pytorch.org/api/gcx-token)
+ *     "https://hud.pytorch.org/api/gcx-token?token_name=$(hostname)")
+ *
+ * The optional `token_name` param labels the token (defaults to "default"), so a
+ * user can hold one token per machine and re-minting only replaces the token
+ * with the same label.
  *
  * Browser-authenticated users (a live NextAuth session) are also accepted as a
  * fallback. Returns the raw token as text/plain by default, or JSON when the
@@ -56,10 +60,18 @@ export default async function handler(
     return res.status(auth.status).json({ error: auth.error });
   }
 
-  // 3. Mint a read-only (Viewer) Grafana token for this user.
+  // 3. Mint a read-only (Viewer) Grafana token for this user. The optional
+  //    `token_name` query param (e.g. ?token_name=$(hostname)) labels the token
+  //    so re-minting only supersedes the token with the same label.
   try {
-    const token = await mintGcxViewerToken(auth.login);
-    console.log(`gcx-token: minted Viewer token for ${auth.login}`);
+    const label =
+      typeof req.query.token_name === "string" ? req.query.token_name : "";
+    const token = await mintGcxViewerToken(auth.login, label);
+    console.log(
+      `gcx-token: minted Viewer token for ${auth.login}${
+        label ? ` (${label})` : ""
+      }`
+    );
 
     const accept = (req.headers["accept"] as string) || "";
     if (accept.includes("application/json") || req.query.format === "json") {
