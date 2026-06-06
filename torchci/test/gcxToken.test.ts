@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import * as nextAuth from "next-auth";
-import handler from "../pages/api/gcx-token";
 import * as generalUtils from "../lib/GeneralUtils";
 import * as github from "../lib/github";
 import * as serviceAccount from "../lib/grafana/serviceAccount";
+import handler from "../pages/api/gcx-token";
 
 function mockReqRes(overrides: Partial<NextApiRequest> = {}) {
   const req = {
