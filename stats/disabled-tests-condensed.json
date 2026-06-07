@@ -147,6 +147,13 @@
       "slow"
     ]
   ],
+  "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
+    "186314",
+    "https://github.com/pytorch/pytorch/issues/186314",
+    [
+      "xpu"
+    ]
+  ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
     "https://github.com/pytorch/pytorch/issues/180259",
