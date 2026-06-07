@@ -62,7 +62,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "jinja2": [{"project": "torch"}],
     "filelock": [{"project": "torch"}],
     "fsspec": [{"project": "torch"}],
-    "spmd_types": [{"project": "torch"}],
+    "spmd-types": [{"project": "torch"}],
     "nvidia-cudnn-cu11": [{"project": "torch"}],
     "typing-extensions": [{"project": "torch"}],
     "cuda-bindings": [
