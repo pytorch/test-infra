@@ -482,6 +482,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "fsspec",
         "typing-extensions",
         "spmd-types",
+        "spmd_types",
         "cuda-bindings",
         "cuda-toolkit",
         "nvidia-cuda-nvrtc-cu12",
