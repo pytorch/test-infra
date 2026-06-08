@@ -470,8 +470,10 @@ PT_R2_PACKAGES_PROD = {
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
 # For example: whl/nightly/filelock/index.html -> whl/nightly/cu128/filelock/index.html
+# Both dash and underscore forms are added so matching treats e.g.
+# "spmd-types" and "spmd_types" as the same package.
 PACKAGE_LINKS_ALLOW_LIST = {
-    x.lower()
+    variant
     for x in [
         "filelock",
         "sympy",
@@ -482,7 +484,6 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "fsspec",
         "typing-extensions",
         "spmd-types",
-        "spmd_types",
         "cuda-bindings",
         "cuda-toolkit",
         "nvidia-cuda-nvrtc-cu12",
@@ -542,6 +543,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "pyelftools",
         "pyzes",
     ]
+    for variant in (x.lower().replace("_", "-"), x.lower().replace("-", "_"))
 }
 
 
