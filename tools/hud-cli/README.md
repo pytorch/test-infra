@@ -20,6 +20,7 @@ hud trunk --days 1
 hud pr 12345
 hud user wdvr
 hud query <name> -p key=value      # any saved ClickHouse query
+hud sql "SELECT ... LIMIT 10"       # any read-only ClickHouse query
 ```
 
 Add `--json` to any command for agent output.
