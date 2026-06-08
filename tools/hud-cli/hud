@@ -64,6 +64,26 @@ def _get(url):
         sys.exit(f"error: HTTP {e.code} from {url}\n{body}")
 
 
+def _post(url, body):
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), method="POST"
+    )
+    req.add_header("Authorization", f"Bearer {gh_token()}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        msg = e.read().decode("utf-8", "replace")[:300]
+        if e.code == 429:
+            sys.exit(
+                "error: 429 (Vercel bot challenge). The /api/authed firewall "
+                "bypass rule is missing. See README."
+            )
+        sys.exit(f"error: HTTP {e.code} from {url}\n{msg}")
+
+
 def hud_query(name, params):
     qs = urllib.parse.urlencode({"parameters": json.dumps(params)})
     return _get(f"{HUD_URL}{API}/clickhouse/{name}?{qs}")
@@ -109,6 +129,11 @@ def print_table(rows, headers):
 
 
 # ----- commands -----
+
+
+def cmd_sql(args):
+    rows = _post(f"{HUD_URL}{API}/raw-query", {"sql": args.sql})
+    emit(rows, args.json, rows=rows if isinstance(rows, list) else None)
 
 
 def cmd_login(args):
@@ -200,6 +225,10 @@ def main():
     q.add_argument("-p", "--param", action="append", help="key=value (repeatable)")
     q.add_argument("--days", type=int, help="set startTime/stopTime to last N days")
     q.set_defaults(func=cmd_query)
+
+    s = sub.add_parser("sql", help="run a read-only ClickHouse SELECT query")
+    s.add_argument("sql")
+    s.set_defaults(func=cmd_sql)
 
     t = sub.add_parser("trunk", help="trunk red/green over time")
     t.add_argument("--days", type=int, default=1)

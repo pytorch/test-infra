@@ -32,7 +32,8 @@ export async function queryClickhouse(
   query: string,
   params: Record<string, unknown>,
   query_id?: string,
-  useQueryCache?: boolean
+  useQueryCache?: boolean,
+  extraSettings?: Record<string, unknown>
 ): Promise<any[]> {
   if (query_id === undefined) {
     query_id = "adhoc";
@@ -44,6 +45,7 @@ export async function queryClickhouse(
    * @param query: string, the sql query
    * @param params: Record<string, unknown>, the parameters to the query ex { sha: "abcd" }
    * @param useQueryCache: boolean, if true, cache the query result on Ch side (1 minute TTL)
+   * @param extraSettings: extra ClickHouse settings, e.g. { readonly: 2 }
    */
   const clickhouseClient = getClickhouseClient();
 
@@ -55,6 +57,7 @@ export async function queryClickhouse(
       output_format_json_quote_64bit_integers: 0,
       date_time_output_format: "iso",
       use_query_cache: useQueryCache ? 1 : 0,
+      ...extraSettings,
     },
     query_id,
   });
