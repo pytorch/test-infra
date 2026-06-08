@@ -170,6 +170,14 @@
       "slow"
     ]
   ],
+  "test_cupti_monitor_multithread_runtime_thread_assignment (__main__.TestProfilerCUDA)": [
+    "186637",
+    "https://github.com/pytorch/pytorch/issues/186637",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_depthwise_conv_64bit_indexing_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
     "186314",
     "https://github.com/pytorch/pytorch/issues/186314",
@@ -224,19 +232,19 @@
       "slow"
     ]
   ],
+  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179742",
+    "https://github.com/pytorch/pytorch/issues/179742",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
     "180655",
     "https://github.com/pytorch/pytorch/issues/180655",
     [
       "dynamo"
-    ]
-  ],
-  "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179799",
-    "https://github.com/pytorch/pytorch/issues/179799",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
