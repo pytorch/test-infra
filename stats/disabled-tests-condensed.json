@@ -161,6 +161,13 @@
       "xpu"
     ]
   ],
+  "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
+    "180948",
+    "https://github.com/pytorch/pytorch/issues/180948",
+    [
+      "xpu"
+    ]
+  ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
     "https://github.com/pytorch/pytorch/issues/180259",
@@ -254,6 +261,13 @@
       "slow"
     ]
   ],
+  "test_integer_parameter_serialization_xpu (__main__.TestMultiprocessingDeviceTypeXPU)": [
+    "186585",
+    "https://github.com/pytorch/pytorch/issues/186585",
+    [
+      "xpu"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -299,6 +313,13 @@
     "https://github.com/pytorch/pytorch/issues/180438",
     [
       "dynamo"
+    ]
+  ],
+  "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
+    "181699",
+    "https://github.com/pytorch/pytorch/issues/181699",
+    [
+      "xpu"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
