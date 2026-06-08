@@ -75,6 +75,13 @@
       "slow"
     ]
   ],
+  "test_conv_large_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
+    "185907",
+    "https://github.com/pytorch/pytorch/issues/185907",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "158115",
     "https://github.com/pytorch/pytorch/issues/158115",
