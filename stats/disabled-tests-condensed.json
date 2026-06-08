@@ -224,23 +224,9 @@
       "linux"
     ]
   ],
-  "test_hardtanh_backward_low_precision_boundary_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "186312",
-    "https://github.com/pytorch/pytorch/issues/186312",
-    [
-      "xpu"
-    ]
-  ],
   "test_hardtanh_backward_low_precision_boundary_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "186316",
     "https://github.com/pytorch/pytorch/issues/186316",
-    [
-      "xpu"
-    ]
-  ],
-  "test_hardtanh_backward_low_precision_boundary_xpu (__main__.GPUTests)": [
-    "186313",
-    "https://github.com/pytorch/pytorch/issues/186313",
     [
       "xpu"
     ]
@@ -432,6 +418,13 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
+    "182174",
+    "https://github.com/pytorch/pytorch/issues/182174",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
     "180414",
     "https://github.com/pytorch/pytorch/issues/180414",
@@ -465,6 +458,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
+    "123890",
+    "https://github.com/pytorch/pytorch/issues/123890",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
@@ -488,7 +491,9 @@
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
     [
-      "linux"
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_torchvision_models_regnet_y_400mf (__main__.TestVisionTracing)": [
