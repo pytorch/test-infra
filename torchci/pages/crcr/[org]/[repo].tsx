@@ -253,15 +253,15 @@ export default function OotBackendPage() {
   return (
     <>
       <Head>
-        <title>{repoFullName} — OOT CI | PyTorch HUD</title>
+        <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
       </Head>
       <Stack spacing={3} sx={{ p: 3, maxWidth: 1600, mx: "auto" }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Stack spacing={0.5}>
             <Typography variant="h4">{repoFullName}</Typography>
-            <NextLink href="/oot" passHref legacyBehavior>
+            <NextLink href="/crcr" passHref legacyBehavior>
               <Link variant="body2" underline="hover">
-                ← Back to OOT Summary
+                ← Back to CRCR Summary
               </Link>
             </NextLink>
           </Stack>

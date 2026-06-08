@@ -109,7 +109,7 @@ function OotSummaryTable({ days }: { days: number }) {
               <TableRow key={row.repo} hover>
                 <TableCell>
                   <NextLink
-                    href={`/oot/${org}/${repo}`}
+                    href={`/crcr/${org}/${repo}`}
                     passHref
                     legacyBehavior
                   >
@@ -150,11 +150,11 @@ export default function OotSummaryPage() {
   return (
     <>
       <Head>
-        <title>Out-of-Tree CI Summary | PyTorch HUD</title>
+        <title>Cross-Repository CI Summary | PyTorch HUD</title>
       </Head>
       <Stack spacing={3} sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h4">Out-of-Tree CI Summary</Typography>
+          <Typography variant="h4">Cross-Repository CI Summary</Typography>
           <FormControl size="small" sx={{ minWidth: 140 }}>
             <InputLabel>Time Range</InputLabel>
             <Select
