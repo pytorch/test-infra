@@ -730,16 +730,10 @@ class S3Index:
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
-                # S3 package directories and PACKAGE_LINKS_ALLOW_LIST are both
-                # keyed with dashes, so keep the dash form here. Converting to
-                # underscores caused hyphenated packages (e.g. spmd-types,
-                # typing-extensions) to never match the allow list and never get
-                # copied into the cpu/cu* subdirectories.
+                # Keep the dash form to match PACKAGE_LINKS_ALLOW_LIST
                 parent_packages.add(parts[0].lower())
 
-        # Now filter for PACKAGE_LINKS_ALLOW_LIST packages not in subdirectory.
-        # Normalize subdir package names to the dash form too so both sides of
-        # the comparison agree regardless of wheel-name underscores.
+        # Now filter for PACKAGE_LINKS_ALLOW_LIST packages not in subdirectory
         packages_in_subdir_normalized = {
             p.lower().replace("_", "-") for p in packages_in_subdir
         }
