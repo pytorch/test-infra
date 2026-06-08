@@ -246,6 +246,22 @@
       "linux"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186604",
+    "https://github.com/pytorch/pytorch/issues/186604",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186605",
+    "https://github.com/pytorch/pytorch/issues/186605",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_hardtanh_backward_low_precision_boundary_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "186316",
     "https://github.com/pytorch/pytorch/issues/186316",
@@ -410,6 +426,13 @@
       "linux"
     ]
   ],
+  "test_simple_sharing_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
+    "186606",
+    "https://github.com/pytorch/pytorch/issues/186606",
+    [
+      "linux"
+    ]
+  ],
   "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
     "145189",
     "https://github.com/pytorch/pytorch/issues/145189",
@@ -550,13 +573,6 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lstsq_cpu_float32 (__main__.TestJitCPU)": [
-    "182396",
-    "https://github.com/pytorch/pytorch/issues/182396",
-    [
-      "linux"
     ]
   ],
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
