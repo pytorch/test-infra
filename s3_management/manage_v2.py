@@ -481,7 +481,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "numpy",
         "fsspec",
         "typing-extensions",
-        "spmd-types",
+        "spmd_types",
         "cuda-bindings",
         "cuda-toolkit",
         "nvidia-cuda-nvrtc-cu12",
@@ -730,16 +730,14 @@ class S3Index:
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
-                # Keep the dash form to match PACKAGE_LINKS_ALLOW_LIST
-                parent_packages.add(parts[0].lower())
+                # Convert from URL format (dashes) to package name format (underscores)
+                pkg_name_with_underscores = parts[0].replace("-", "_")
+                parent_packages.add(pkg_name_with_underscores)
 
         # Now filter for PACKAGE_LINKS_ALLOW_LIST packages not in subdirectory
-        packages_in_subdir_normalized = {
-            p.lower().replace("_", "-") for p in packages_in_subdir
-        }
         for pkg_name in parent_packages:
-            if pkg_name in PACKAGE_LINKS_ALLOW_LIST:
-                if pkg_name not in packages_in_subdir_normalized:
+            if pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST:
+                if pkg_name.lower() not in {p.lower() for p in packages_in_subdir}:
                     packages_to_copy.add(pkg_name)
                     print(
                         f"INFO: Found PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' in '{parent_prefix}' to copy to '{subdir}'"
