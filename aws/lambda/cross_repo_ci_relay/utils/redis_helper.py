@@ -19,6 +19,8 @@ _ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
 _STATE_PREFIX = "crcr:state:"
 _RATE_LIMIT_PREFIX = "crcr:rate:"
 _IN_PROGRESS_ZSET = "crcr:in_progress"
+_DISPATCH_WORKFLOW_PREFIX = "crcr:dispatch_workflow:"
+_CHECK_RUN_WANTED_PREFIX = "crcr:check_run_wanted:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -167,6 +169,89 @@ def check_rate_limit(
     except RedisError as e:
         logger.exception("redis rate limit check failed")
         raise HTTPException(500, f"rate limit check failed: {e}") from e
+
+
+def set_dispatch_workflow(
+    config: RelayConfig,
+    head_sha: str,
+    downstream_repo: str,
+    status: str,
+    conclusion: str | None,
+    job_url: str | None,
+    run_id: str | None = None,
+    workflow_name: str | None = None,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    """Store the latest downstream job summary keyed by (head_sha, downstream_repo)."""
+    try:
+        if client is None:
+            client = create_client(config)
+        key = f"{_DISPATCH_WORKFLOW_PREFIX}{head_sha}:{downstream_repo}"
+        value = json.dumps(
+            {
+                "status": status,
+                "conclusion": conclusion,
+                "job_url": job_url,
+                "run_id": run_id,
+                "workflow_name": workflow_name,
+            }
+        )
+        client.setex(key, config.oot_status_ttl, value)
+    except RedisError:
+        logger.exception("set_dispatch_workflow: redis error")
+
+
+def get_dispatch_workflow(
+    config: RelayConfig,
+    head_sha: str,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> dict | None:
+    """Return the latest job summary for (head_sha, downstream_repo), or None if not found."""
+    try:
+        if client is None:
+            client = create_client(config)
+        key = f"{_DISPATCH_WORKFLOW_PREFIX}{head_sha}:{downstream_repo}"
+        val = client.get(key)
+        if val is None:
+            return None
+        return json.loads(val)
+    except (RedisError, json.JSONDecodeError, TypeError):
+        logger.exception("get_dispatch_workflow: failed")
+        return None
+
+
+def mark_check_run_wanted(
+    config: RelayConfig,
+    head_sha: str,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    """Record that an upstream check run is wanted for this (head_sha, repo)."""
+    try:
+        if client is None:
+            client = create_client(config)
+        key = f"{_CHECK_RUN_WANTED_PREFIX}{head_sha}:{downstream_repo}"
+        client.setex(key, config.oot_status_ttl, "1")
+    except RedisError:
+        logger.exception("mark_check_run_wanted: redis error")
+
+
+def is_check_run_wanted(
+    config: RelayConfig,
+    head_sha: str,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> bool:
+    """Return True if an upstream check run is wanted for this (head_sha, repo)."""
+    try:
+        if client is None:
+            client = create_client(config)
+        key = f"{_CHECK_RUN_WANTED_PREFIX}{head_sha}:{downstream_repo}"
+        return bool(client.exists(key))
+    except RedisError:
+        logger.exception("is_check_run_wanted: redis error")
+        return False
 
 
 def _state_key(

@@ -57,6 +57,17 @@ class CallbackStateRecord:
     payload: dict | None
 
 
+def extract_pr_labels(envelope: dict) -> set[str]:
+    """Return the set of PR label names from a dispatch/callback envelope.
+
+    Both the webhook dispatch ``client_payload`` and the downstream callback
+    ``body`` carry the original webhook under ``payload.pull_request``, so the
+    labels live at ``payload.pull_request.labels`` in either case.
+    """
+    pull_request = (envelope.get("payload") or {}).get("pull_request") or {}
+    return {lbl.get("name", "") for lbl in (pull_request.get("labels") or [])}
+
+
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:
     """Extract method, path, body bytes, and lower-cased headers from a Lambda event dict."""
     http = event.get("requestContext", {}).get("http", {})

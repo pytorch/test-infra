@@ -13,6 +13,7 @@ from utils.misc import (
     DISPATCH_RUN_ATTEMPT,
     DISPATCH_RUN_ID,
     EventDispatchPayload,
+    extract_pr_labels,
     HTTPException,
 )
 
@@ -27,6 +28,7 @@ def _dispatch_one(
     downstream_repo: str,
     event_type: str,
     client_payload: EventDispatchPayload,
+    needs_check_run: bool = False,
 ) -> None:
     installation_token = gh_helper.get_repo_access_token(
         config.github_app_id,
@@ -54,6 +56,20 @@ def _dispatch_one(
         time.time(),
     )
 
+    if needs_check_run:
+        # This repo should get an upstream check run for this commit (L4 always,
+        # or L3 with the ciflow/crcr label already on the PR). Record a per-commit
+        # flag so the callback creates it even when the downstream echoes back a
+        # dispatch payload whose labels don't reflect the PR's current state
+        # (e.g. on reopen, where no new `labeled` event fires to set this flag).
+        head_sha = (
+            ((client_payload.get("payload") or {}).get("pull_request") or {})
+            .get("head", {})
+            .get("sha", "")
+        )
+        if head_sha:
+            redis_helper.mark_check_run_wanted(config, head_sha, downstream_repo)
+
 
 def _dispatch_to_allowlist(
     *,
@@ -70,6 +86,11 @@ def _dispatch_to_allowlist(
 
     targets = sorted(backends)
 
+    # Labels from the dispatch payload, used to record a per-commit check-run
+    # trigger for L3 repos whose ciflow/crcr label is already on the PR (so the
+    # callback can create the check run regardless of the downstream's echo).
+    pr_labels = extract_pr_labels(client_payload)
+
     dispatched: list[dict] = []
     failed: list[dict] = []
     # Dispatch is I/O bound on GitHub API calls, so cap workers by the number
@@ -83,6 +104,7 @@ def _dispatch_to_allowlist(
                 downstream_repo=downstream_repo,
                 event_type=event_type,
                 client_payload=client_payload,
+                needs_check_run=allowlist.needs_check_run(downstream_repo, pr_labels),
             ): downstream_repo
             for downstream_repo in targets
         }
@@ -113,12 +135,107 @@ def _dispatch_to_allowlist(
     return dispatched, failed
 
 
+def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
+    """Handle pull_request.labeled for ciflow/crcr/* labels.
+
+    - No job info yet: mark the check run as wanted so the callback creates it
+      when it fires (handles label-added-before-callback and label-before-dispatch).
+    - in_progress job: create in_progress check run with workflow name and link.
+    - completed job: create completed check run directly.
+    """
+    label_name = (payload.get("label") or {}).get("name", "")
+    device = label_name.removeprefix("ciflow/crcr/")
+
+    allowlist = load_allowlist(config)
+    l3_repos, _ = allowlist.get_repos_for_device(device)
+    if not l3_repos:
+        return {"ok": True, "created_check_runs": []}
+
+    pr = payload.get("pull_request") or {}
+    pr_number = str(pr.get("number", ""))
+    head_sha = (pr.get("head") or {}).get("sha", "")
+    if not pr_number or not head_sha:
+        return {"ignored": True, "reason": "missing pr context"}
+
+    created: list[str] = []
+    for downstream_repo in l3_repos:
+        redis_helper.mark_check_run_wanted(config, head_sha, downstream_repo)
+        job_info = redis_helper.get_dispatch_workflow(config, head_sha, downstream_repo)
+        if not job_info:
+            logger.info(
+                "l3_labeled: no job info for repo=%s; check run marked wanted for callback",
+                downstream_repo,
+            )
+            continue
+
+        try:
+            upstream_token = gh_helper.get_repo_access_token(
+                config.github_app_id,
+                config.github_app_private_key,
+                config.upstream_repo,
+            )
+
+            job_status = job_info.get("status")
+            job_conclusion = job_info.get("conclusion")
+            workflow_name = job_info.get("workflow_name")
+            external_id = job_info.get("run_id")  # opaque run identifier
+            details_url = job_info.get("job_url")  # full URL for the link
+
+            if job_status == "in_progress":
+                gh_helper.create_check_run(
+                    token=upstream_token,
+                    repo_full_name=config.upstream_repo,
+                    name=gh_helper.check_run_name(downstream_repo, workflow_name),
+                    head_sha=head_sha,
+                    status="in_progress",
+                    details_url=details_url,
+                    external_id=external_id,
+                    output=gh_helper.build_check_run_output(
+                        workflow_name, details_url, downstream_repo
+                    ),
+                )
+            elif job_status == "completed":
+                gh_helper.create_check_run(
+                    token=upstream_token,
+                    repo_full_name=config.upstream_repo,
+                    name=gh_helper.check_run_name(downstream_repo, workflow_name),
+                    head_sha=head_sha,
+                    status="completed",
+                    conclusion=job_conclusion,
+                    details_url=details_url,
+                    external_id=external_id,
+                    output=gh_helper.build_check_run_output(
+                        workflow_name, details_url, downstream_repo
+                    ),
+                )
+            else:
+                continue
+
+            created.append(downstream_repo)
+            logger.info(
+                "l3_labeled: check run created repo=%s status=%s",
+                downstream_repo,
+                job_status,
+            )
+        except Exception:
+            logger.exception(
+                "l3_labeled: failed to create check run for repo=%s", downstream_repo
+            )
+
+    return {"ok": True, "created_check_runs": created}
+
+
 def handle(
     config: RelayConfig, payload: dict, event_type: str, delivery_id: str
 ) -> dict:
     if event_type == "pull_request":
         action = payload.get("action", "")
-        if action not in _PULL_REQUEST_ALLOW_ACTIONS:
+        if action == "labeled":
+            label_name = (payload.get("label") or {}).get("name", "")
+            if label_name.startswith("ciflow/crcr/"):
+                return _handle_pr_labeled(config, payload)
+            return {"ignored": True}
+        elif action not in _PULL_REQUEST_ALLOW_ACTIONS:
             logger.info("pull_request action=%s ignored", action)
             return {"ignored": True}
 
