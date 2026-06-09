@@ -446,13 +446,6 @@
       "rocm"
     ]
   ],
-  "test_sdpa_rewriter_5_cpu (__main__.SDPAPatternRewriterCpuDynamicTests)": [
-    "184212",
-    "https://github.com/pytorch/pytorch/issues/184212",
-    [
-      "linux"
-    ]
-  ],
   "test_simple_sharing_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186606",
     "https://github.com/pytorch/pytorch/issues/186606",
@@ -486,6 +479,19 @@
     "https://github.com/pytorch/pytorch/issues/119357",
     [
       "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_close_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119364",
+    "https://github.com/pytorch/pytorch/issues/119364",
+    [
+      "asan",
+      "dynamo",
       "linux",
       "mac",
       "macos",
