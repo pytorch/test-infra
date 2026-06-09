@@ -105,25 +105,9 @@
       "linux"
     ]
   ],
-  "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185267",
-    "https://github.com/pytorch/pytorch/issues/185267",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_correctness_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185305",
     "https://github.com/pytorch/pytorch/issues/185305",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_correctness_with_reusing_ir_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185268",
-    "https://github.com/pytorch/pytorch/issues/185268",
     [
       "asan",
       "linux"
@@ -172,6 +156,14 @@
   "test_cupti_monitor_record_shapes (__main__.TestProfilerCUDA)": [
     "186773",
     "https://github.com/pytorch/pytorch/issues/186773",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_cupti_monitor_trace_has_expected_events (__main__.TestProfilerCUDA)": [
+    "186823",
+    "https://github.com/pytorch/pytorch/issues/186823",
     [
       "linux",
       "slow"
@@ -289,9 +281,9 @@
       "xpu"
     ]
   ],
-  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179853",
-    "https://github.com/pytorch/pytorch/issues/179853",
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
     [
       "linux",
       "slow"
@@ -671,13 +663,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180213",
-    "https://github.com/pytorch/pytorch/issues/180213",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
