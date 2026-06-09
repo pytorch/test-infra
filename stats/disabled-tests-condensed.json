@@ -98,14 +98,6 @@
       "linux"
     ]
   ],
-  "test_correctness_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185196",
-    "https://github.com/pytorch/pytorch/issues/185196",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185267",
     "https://github.com/pytorch/pytorch/issues/185267",
@@ -117,14 +109,6 @@
   "test_correctness_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185305",
     "https://github.com/pytorch/pytorch/issues/185305",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_correctness_with_reusing_ir_native_layer_norm_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185197",
-    "https://github.com/pytorch/pytorch/issues/185197",
     [
       "asan",
       "linux"
@@ -173,6 +157,14 @@
   "test_cupti_monitor_multithread_runtime_thread_assignment (__main__.TestProfilerCUDA)": [
     "186637",
     "https://github.com/pytorch/pytorch/issues/186637",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_cupti_monitor_record_shapes (__main__.TestProfilerCUDA)": [
+    "186773",
+    "https://github.com/pytorch/pytorch/issues/186773",
     [
       "linux",
       "slow"
@@ -252,6 +244,14 @@
       "dynamo"
     ]
   ],
+  "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179799",
+    "https://github.com/pytorch/pytorch/issues/179799",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -280,14 +280,6 @@
     "https://github.com/pytorch/pytorch/issues/186316",
     [
       "xpu"
-    ]
-  ],
-  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179811",
-    "https://github.com/pytorch/pytorch/issues/179811",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
