@@ -15,7 +15,7 @@ on:
       model:
         description: 'Bedrock model ID'
         type: string
-        default: 'global.anthropic.claude-opus-4-6-v1'
+        default: 'global.anthropic.claude-opus-4-8'
       timeout_minutes:
         description: 'Job timeout in minutes'
         type: number
@@ -179,7 +179,7 @@ jobs:
             console.log(`Set commit author to: ${name} <${email}>`);
 
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@b4d67413279fc18c6e5de930ae307c4f108714eb # v1.0.104
+        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
         with:
           allowed_bots: "*"
           use_bedrock: "true"
