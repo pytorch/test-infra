@@ -4,6 +4,11 @@ YAML format:
   L1:
     - org1/repo1
     - org2/repo2
+  L3:
+    device1:
+      org3/device1-repo: [oncall1, oncall2]
+    device2:
+      org4/device2-repo: [oncall1]
   L4:
     - org5/repo5: oncall1, oncall2
 """
@@ -33,6 +38,7 @@ class AllowlistLevel(str, Enum):
 class AllowlistEntry:
     repo: str
     oncalls: list[str] = field(default_factory=list)
+    device: str = ""  # L3 only: suffix of the ciflow/crcr/{device} label
 
     @classmethod
     def _from_raw(cls, raw_entry, level: AllowlistLevel, idx: int) -> "AllowlistEntry":
@@ -79,6 +85,23 @@ class AllowlistMap:
             [o for e in entries for o in e.oncalls],
         )
 
+    def get_repos_for_device(self, device: str) -> tuple[list[str], list[str]]:
+        """Return (backends, oncalls) for L3 repos registered under the given device label.
+
+        device is the suffix of ciflow/crcr/{device}.
+        """
+        entries = [
+            e for e in self._levels.get(AllowlistLevel.L3, []) if e.device == device
+        ]
+        return [e.repo for e in entries], [o for e in entries for o in e.oncalls]
+
+    def get_repo_device(self, repo: str) -> str | None:
+        """Return the device label suffix for an L3 repo, or None if not L3."""
+        for entry in self._levels.get(AllowlistLevel.L3, []):
+            if entry.repo == repo:
+                return entry.device or None
+        return None
+
     def get_repos_at_or_above_level(
         self, level: AllowlistLevel
     ) -> tuple[list[str], list[str]]:
@@ -104,6 +127,21 @@ class AllowlistMap:
                     return level
         return None
 
+    def needs_check_run(self, repo: str, pr_labels: set[str]) -> bool:
+        """Return True when an upstream check run should be created for this repo.
+
+        L4+: always True.
+        L3: True only when the matching ciflow/crcr/<device> label is present.
+        L1/L2/unknown: False.
+        """
+        level = self.get_repo_level(repo)
+        if level is None or level.value < AllowlistLevel.L3.value:
+            return False
+        if level.value >= AllowlistLevel.L4.value:
+            return True
+        device = self.get_repo_device(repo)
+        return bool(device and f"ciflow/crcr/{device}" in pr_labels)
+
     @classmethod
     def _parse(cls, raw: dict) -> "AllowlistMap":
         if not isinstance(raw, dict):
@@ -113,20 +151,63 @@ class AllowlistMap:
         seen_repos: set[str] = set()
         levels: dict[AllowlistLevel, list[AllowlistEntry]] = {}
         for level in AllowlistLevel:
-            raw_entries = raw.get(level) or []
-            if not isinstance(raw_entries, list):
-                raise RuntimeError(
-                    f"Invalid allowlist: {level} must be a list, got {type(raw_entries).__name__}"
-                )
             entries: list[AllowlistEntry] = []
-            for idx, raw_entry in enumerate(raw_entries):
-                entry = AllowlistEntry._from_raw(raw_entry, level, idx)
-                if entry.repo in seen_repos:
+            if level == AllowlistLevel.L3:
+                raw_entries = raw.get(level) or {}
+                if not isinstance(raw_entries, dict):
                     raise RuntimeError(
-                        f"Invalid allowlist: duplicate repo {entry.repo!r}"
+                        f"Invalid allowlist: L3 must be a device mapping "
+                        f"(e.g. 'device:\\n  org/repo: [oncall]'), "
+                        f"got {type(raw_entries).__name__}"
                     )
-                seen_repos.add(entry.repo)
-                entries.append(entry)
+                for device, repos_raw in raw_entries.items():
+                    device = str(device).strip()
+                    if not device:
+                        raise RuntimeError(
+                            "Invalid allowlist: L3 device name must not be empty"
+                        )
+                    if not isinstance(repos_raw, dict):
+                        raise RuntimeError(
+                            f"Invalid allowlist: L3.{device} must be a repo mapping, "
+                            f"got {type(repos_raw).__name__}"
+                        )
+                    for repo_raw, oncalls_raw in repos_raw.items():
+                        repo = str(repo_raw).strip().strip("/")
+                        if not repo or "/" not in repo:
+                            raise RuntimeError(
+                                f"Invalid allowlist: L3.{device}.{repo_raw!r} must be in owner/repo format"
+                            )
+                        if repo in seen_repos:
+                            raise RuntimeError(
+                                f"Invalid allowlist: duplicate repo {repo!r}"
+                            )
+                        seen_repos.add(repo)
+                        oncalls = (
+                            [
+                                str(o).strip()
+                                for o in (oncalls_raw or [])
+                                if str(o).strip()
+                            ]
+                            if oncalls_raw
+                            else []
+                        )
+                        entries.append(
+                            AllowlistEntry(repo=repo, oncalls=oncalls, device=device)
+                        )
+            else:
+                raw_entries = raw.get(level) or []
+                if not isinstance(raw_entries, list):
+                    raise RuntimeError(
+                        f"Invalid allowlist: {level} must be a list, got {type(raw_entries).__name__}"
+                    )
+                for idx, raw_entry in enumerate(raw_entries):
+                    entry = AllowlistEntry._from_raw(raw_entry, level, idx)
+                    if entry.repo in seen_repos:
+                        raise RuntimeError(
+                            f"Invalid allowlist: duplicate repo {entry.repo!r}"
+                        )
+                    seen_repos.add(entry.repo)
+                    entries.append(entry)
             levels[level] = entries
         return cls(levels)
 
