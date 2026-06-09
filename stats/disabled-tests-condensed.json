@@ -217,6 +217,11 @@
       "rocm"
     ]
   ],
+  "test_fd_pool (__main__.TestMultiprocessing)": [
+    "69660",
+    "https://github.com/pytorch/pytorch/issues/69660",
+    []
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -288,6 +293,14 @@
   "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179853",
     "https://github.com/pytorch/pytorch/issues/179853",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
+    "186750",
+    "https://github.com/pytorch/pytorch/issues/186750",
     [
       "linux",
       "slow"
@@ -462,6 +475,18 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_basic_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119357",
+    "https://github.com/pytorch/pytorch/issues/119357",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -496,21 +521,14 @@
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
     [
-      "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
-    "181629",
-    "https://github.com/pytorch/pytorch/issues/181629",
-    [
       "asan",
       "linux",
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
-    "182397",
-    "https://github.com/pytorch/pytorch/issues/182397",
+  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
+    "181629",
+    "https://github.com/pytorch/pytorch/issues/181629",
     [
       "asan",
       "linux",
@@ -581,6 +599,13 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lstsq_cpu_float32 (__main__.TestJitCPU)": [
+    "182396",
+    "https://github.com/pytorch/pytorch/issues/182396",
+    [
+      "linux"
     ]
   ],
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
