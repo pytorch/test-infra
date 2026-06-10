@@ -5,6 +5,7 @@ import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
+  DRCI_COMMENT_AUTHOR,
   fetchPRLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
@@ -556,11 +557,18 @@ from
   default.issue_comment final
 where
   body like '%<!-- drci-comment-start -->%'
+  and user.login = {drciCommentAuthor: String}
   and issue_url in {prUrls: Array(String)}
+-- Order so the oldest comment lands last; the Map below keeps the last entry
+-- per PR, so we deterministically pick the original Dr. CI comment if there
+-- ever are multiple bot-authored marker comments (matches getDrciComment,
+-- which returns the first match from chronologically-ordered listComments).
+order by id desc
     `;
   return new Map(
     (
       await queryClickhouse(existingCommentsQuery, {
+        drciCommentAuthor: DRCI_COMMENT_AUTHOR,
         prUrls: Array.from(workflowsByPR.keys()).map(
           (prNumber) =>
             `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`

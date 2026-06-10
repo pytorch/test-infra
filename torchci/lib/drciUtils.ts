@@ -26,6 +26,12 @@ export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
 export const OWNER: string = "pytorch";
 export const DRCI_COMMENT_START = "<!-- drci-comment-start -->\n";
+// Dr. CI's comment is always created/updated through the pytorch-bot GitHub App
+// installation, so its author login is always this. Other tools (e.g. internal
+// diff-handoff bots) sometimes embed the DRCI_COMMENT_START marker inside their
+// own comments; without this author check Dr. CI mistakes such a comment for its
+// own and overwrites it. So match on the marker AND the author.
+export const DRCI_COMMENT_AUTHOR = "pytorch-bot[bot]";
 export const DOCS_URL = "https://docs-preview.pytorch.org";
 export const PYTHON_DOCS_PATH = "index.html";
 export const CPP_DOCS_PATH = "cppdocs/index.html";
@@ -121,7 +127,10 @@ export async function getDrciComment(
     issue_number: prNum,
   });
   for (const comment of commentsRes.data) {
-    if (comment.body!.includes(DRCI_COMMENT_START)) {
+    if (
+      comment.user?.login === DRCI_COMMENT_AUTHOR &&
+      comment.body!.includes(DRCI_COMMENT_START)
+    ) {
       return { id: comment.id, body: comment.body! };
     }
   }
