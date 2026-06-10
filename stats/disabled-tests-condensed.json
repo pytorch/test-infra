@@ -409,14 +409,6 @@
       "xpu"
     ]
   ],
-  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179990",
-    "https://github.com/pytorch/pytorch/issues/179990",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180204",
     "https://github.com/pytorch/pytorch/issues/180204",
@@ -781,20 +773,6 @@
     "https://github.com/pytorch/pytorch/issues/182396",
     [
       "linux"
-    ]
-  ],
-  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180194",
-    "https://github.com/pytorch/pytorch/issues/180194",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "180195",
-    "https://github.com/pytorch/pytorch/issues/180195",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
