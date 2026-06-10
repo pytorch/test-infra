@@ -116,6 +116,7 @@ jobs:
       package-type: wheel,libtorch
       os: linux
       channel: ${{ inputs.channel }}
+      test-infra-ref: release/2.12
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
 
