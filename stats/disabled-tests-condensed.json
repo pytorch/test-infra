@@ -1,4 +1,11 @@
 {
+  "test_LSTM_dropout_per_call_randomness_dropout_p_0_5_training_True_cuda (__main__.TestNNDeviceTypeCUDA)": [
+    "186868",
+    "https://github.com/pytorch/pytorch/issues/186868",
+    [
+      "rocm"
+    ]
+  ],
   "test_TransformerEncoderLayer_gelu_activation_cuda_tf32 (__main__.TestNN)": [
     "155217",
     "https://github.com/pytorch/pytorch/issues/155217",
@@ -9,6 +16,13 @@
   "test_Transformer_multilayer_coder_cuda_tf32 (__main__.TestNN)": [
     "155235",
     "https://github.com/pytorch/pytorch/issues/155235",
+    [
+      "rocm"
+    ]
+  ],
+  "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186871",
+    "https://github.com/pytorch/pytorch/issues/186871",
     [
       "rocm"
     ]
@@ -59,6 +73,21 @@
       "mac"
     ]
   ],
+  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186872",
+    "https://github.com/pytorch/pytorch/issues/186872",
+    [
+      "rocm"
+    ]
+  ],
+  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
+    "100074",
+    "https://github.com/pytorch/pytorch/issues/100074",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_combo_kernel_no_bench_carve_out (__main__.ComboKernelTests)": [
     "186782",
     "https://github.com/pytorch/pytorch/issues/186782",
@@ -100,22 +129,6 @@
   "test_conv_transpose_unary_fusion_ops (__main__.TestMkldnnFusion)": [
     "158115",
     "https://github.com/pytorch/pytorch/issues/158115",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_correctness_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185305",
-    "https://github.com/pytorch/pytorch/issues/185305",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_correctness_with_reusing_ir_neg_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185306",
-    "https://github.com/pytorch/pytorch/issues/185306",
     [
       "asan",
       "linux"
@@ -176,6 +189,13 @@
       "xpu"
     ]
   ],
+  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
+    "186865",
+    "https://github.com/pytorch/pytorch/issues/186865",
+    [
+      "linux"
+    ]
+  ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
     "180948",
     "https://github.com/pytorch/pytorch/issues/180948",
@@ -183,11 +203,12 @@
       "xpu"
     ]
   ],
-  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180259",
-    "https://github.com/pytorch/pytorch/issues/180259",
+  "test_export_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "186869",
+    "https://github.com/pytorch/pytorch/issues/186869",
     [
-      "dynamo"
+      "linux",
+      "rocm"
     ]
   ],
   "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
@@ -206,6 +227,21 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_fake_device_guard_no_use_after_free_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "186870",
+    "https://github.com/pytorch/pytorch/issues/186870",
+    [
+      "rocm"
+    ]
+  ],
+  "test_fake_device_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "176138",
+    "https://github.com/pytorch/pytorch/issues/176138",
+    [
+      "rocm",
+      "xpu"
     ]
   ],
   "test_fd_pool (__main__.TestMultiprocessing)": [
@@ -266,9 +302,25 @@
       "macos"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186866",
+    "https://github.com/pytorch/pytorch/issues/186866",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
     "186605",
     "https://github.com/pytorch/pytorch/issues/186605",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186867",
+    "https://github.com/pytorch/pytorch/issues/186867",
     [
       "mac",
       "macos"
@@ -286,6 +338,7 @@
     "https://github.com/pytorch/pytorch/issues/179811",
     [
       "linux",
+      "rocm",
       "slow"
     ]
   ],
@@ -371,6 +424,13 @@
       "xpu"
     ]
   ],
+  "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186873",
+    "https://github.com/pytorch/pytorch/issues/186873",
+    [
+      "rocm"
+    ]
+  ],
   "test_multiple_module (__main__.TestInvokeSubgraphExportStrict)": [
     "150877",
     "https://github.com/pytorch/pytorch/issues/150877",
@@ -409,6 +469,15 @@
       "linux"
     ]
   ],
+  "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
+    "86735",
+    "https://github.com/pytorch/pytorch/issues/86735",
+    [
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
@@ -426,6 +495,13 @@
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
+    [
+      "rocm"
+    ]
+  ],
+  "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
+    "167693",
+    "https://github.com/pytorch/pytorch/issues/167693",
     [
       "rocm"
     ]
@@ -513,6 +589,16 @@
       "linux"
     ]
   ],
+  "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
+    "123891",
+    "https://github.com/pytorch/pytorch/issues/123891",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
@@ -550,6 +636,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
@@ -583,11 +679,13 @@
       "dynamo"
     ]
   ],
-  "test_transforms_dont_support_saved_tensor_hooks_transform_hessian_cpu (__main__.TestComposabilityCPU)": [
-    "180321",
-    "https://github.com/pytorch/pytorch/issues/180321",
+  "test_triggers (__main__.CallbackTests)": [
+    "186864",
+    "https://github.com/pytorch/pytorch/issues/186864",
     [
-      "dynamo"
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_var_mean_tile_reduction_True_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
@@ -655,13 +753,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "179879",
-    "https://github.com/pytorch/pytorch/issues/179879",
-    [
-      "dynamo"
     ]
   ]
 }
