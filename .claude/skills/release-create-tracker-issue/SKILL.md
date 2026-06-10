@@ -138,13 +138,13 @@ Changes will likely require a discussion with the larger release team over VC or
 
 ```
 Link to landed trunk PR (if applicable):
-* 
+*
 
 Link to release branch PR:
-* 
+*
 
 Criteria Category:
-* 
+*
 ```
 
 1. Someone from the release team will reply with approved / denied or ask for more information.
@@ -155,7 +155,7 @@ Criteria Category:
 Please note HUD Link with branch CI status and link to the HUD to be provided here.
 [HUD](https://hud.pytorch.org/hud/pytorch/pytorch/release%2F{BRANCH})
 
-cc @seemethere @malfet @pytorch/pytorch-dev-infra 
+cc @seemethere @malfet @pytorch/pytorch-dev-infra
 
 ### Versions
 
