@@ -143,7 +143,7 @@ jobs:
 
         # Validate binaries. Poetry-based validation now lives in the
         # standalone linux-poetry job below so Poetry's own ecosystem
-        # churn (it was previously installed from poetry@main) cannot
+        # churn (it was previously installed from poetry@release/2.13) cannot
         # flake the binary matrix.
         source ../../test-infra/.github/scripts/validate_binaries.sh
 
