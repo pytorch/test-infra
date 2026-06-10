@@ -1,5 +1,5 @@
 ---
-name: create-validation-issue
+name: release-create-validation-issue
 description: Generate a PyTorch release validation checklist issue by pulling open/closed issues from a GitHub milestone and cherry-picks from a release tracker issue. Triggered by mentions of "validation issue", "validation checklist", "release validation", or "release checklist".
 ---
 
