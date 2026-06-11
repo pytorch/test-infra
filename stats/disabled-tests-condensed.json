@@ -123,6 +123,13 @@
       "xpu"
     ]
   ],
+  "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
+    "187019",
+    "https://github.com/pytorch/pytorch/issues/187019",
+    [
+      "xpu"
+    ]
+  ],
   "test_compile_function_transform_wrappers_compiled_fn (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "186588",
     "https://github.com/pytorch/pytorch/issues/186588",
@@ -433,11 +440,12 @@
       "slow"
     ]
   ],
-  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180204",
-    "https://github.com/pytorch/pytorch/issues/180204",
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
     [
       "linux",
+      "rocm",
       "slow"
     ]
   ],
@@ -554,6 +562,13 @@
   "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "186203",
     "https://github.com/pytorch/pytorch/issues/186203",
+    [
+      "linux"
+    ]
+  ],
+  "test_redistribute_cost_latency (__main__.TestCostModel)": [
+    "187020",
+    "https://github.com/pytorch/pytorch/issues/187020",
     [
       "linux"
     ]
