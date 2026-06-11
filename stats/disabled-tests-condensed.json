@@ -426,24 +426,6 @@
       "xpu"
     ]
   ],
-  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179811",
-    "https://github.com/pytorch/pytorch/issues/179811",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179853",
-    "https://github.com/pytorch/pytorch/issues/179853",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -459,18 +441,18 @@
       "xpu"
     ]
   ],
-  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179897",
-    "https://github.com/pytorch/pytorch/issues/179897",
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
     [
       "linux",
       "rocm",
       "slow"
     ]
   ],
-  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179990",
-    "https://github.com/pytorch/pytorch/issues/179990",
+  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180204",
+    "https://github.com/pytorch/pytorch/issues/180204",
     [
       "linux",
       "rocm",
@@ -580,6 +562,14 @@
       "macos"
     ]
   ],
+  "test_out_of_memory_retry (__main__.TestCuda)": [
+    "187043",
+    "https://github.com/pytorch/pytorch/issues/187043",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_profiler_mark_wrapper_call_cuda_dynamic_shapes_gpu_wrapper (__main__.DynamicShapesGpuWrapperGpuTests)": [
     "176822",
     "https://github.com/pytorch/pytorch/issues/176822",
@@ -605,7 +595,8 @@
     "187020",
     "https://github.com/pytorch/pytorch/issues/187020",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
@@ -704,6 +695,13 @@
     "https://github.com/pytorch/pytorch/issues/158664",
     [
       "dynamo"
+    ]
+  ],
+  "test_tensor_with_unbacked_shape_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "187046",
+    "https://github.com/pytorch/pytorch/issues/187046",
+    [
+      "rocm"
     ]
   ],
   "test_torch_binomial_dtype_errors (__main__.TestDistributionsGPU)": [
