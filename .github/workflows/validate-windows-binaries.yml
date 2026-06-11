@@ -96,6 +96,7 @@ jobs:
       package-type: wheel,libtorch #  We stopped producing conda nightlies
       os: windows
       channel: ${{ inputs.channel }}
+      test-infra-ref: release/2.13
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
 
