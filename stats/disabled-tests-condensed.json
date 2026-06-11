@@ -426,6 +426,15 @@
       "xpu"
     ]
   ],
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -563,8 +572,8 @@
     ]
   ],
   "test_out_of_memory_retry (__main__.TestCuda)": [
-    "187043",
-    "https://github.com/pytorch/pytorch/issues/187043",
+    "187045",
+    "https://github.com/pytorch/pytorch/issues/187045",
     [
       "linux",
       "rocm"
@@ -740,15 +749,6 @@
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
-    "181629",
-    "https://github.com/pytorch/pytorch/issues/181629",
     [
       "asan",
       "linux",
