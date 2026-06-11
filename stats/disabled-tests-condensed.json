@@ -27,11 +27,25 @@
       "rocm"
     ]
   ],
+  "test_add_complex_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187036",
+    "https://github.com/pytorch/pytorch/issues/187036",
+    [
+      "xpu"
+    ]
+  ],
   "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186871",
     "https://github.com/pytorch/pytorch/issues/186871",
     [
       "rocm"
+    ]
+  ],
+  "test_aliased_buffer_reuse_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187037",
+    "https://github.com/pytorch/pytorch/issues/187037",
+    [
+      "xpu"
     ]
   ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -40,6 +54,13 @@
     [
       "inductor",
       "rocm"
+    ]
+  ],
+  "test_aoti_profiler_enable_kernel_profile_False_enable_kernel_context_guard_False_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187035",
+    "https://github.com/pytorch/pytorch/issues/187035",
+    [
+      "xpu"
     ]
   ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
@@ -126,6 +147,13 @@
   "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
     "187019",
     "https://github.com/pytorch/pytorch/issues/187019",
+    [
+      "xpu"
+    ]
+  ],
+  "test_combo_kernel_no_bench_stitched_config (__main__.ComboKernelTests)": [
+    "187031",
+    "https://github.com/pytorch/pytorch/issues/187031",
     [
       "xpu"
     ]
@@ -486,6 +514,13 @@
       "xpu"
     ]
   ],
+  "test_max_autotune_cutlass_backend_cpp_wrapper_float16_num_gemms_1 (__main__.TestCutlassBackend)": [
+    "187033",
+    "https://github.com/pytorch/pytorch/issues/187033",
+    [
+      "xpu"
+    ]
+  ],
   "test_max_autotune_cutlass_backend_cpp_wrapper_float16_num_gemms_2 (__main__.TestCutlassBackend)": [
     "186878",
     "https://github.com/pytorch/pytorch/issues/186878",
@@ -671,6 +706,13 @@
       "dynamo"
     ]
   ],
+  "test_torch_binomial_dtype_errors (__main__.TestDistributionsGPU)": [
+    "187030",
+    "https://github.com/pytorch/pytorch/issues/187030",
+    [
+      "xpu"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
@@ -812,6 +854,13 @@
     "https://github.com/pytorch/pytorch/issues/182396",
     [
       "linux"
+    ]
+  ],
+  "test_views_op_having_view_copy (__main__.TestPasses)": [
+    "187034",
+    "https://github.com/pytorch/pytorch/issues/187034",
+    [
+      "xpu"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
