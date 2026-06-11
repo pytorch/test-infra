@@ -1100,6 +1100,130 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         reparsed = json.loads(json.dumps(result))
         self.assertEqual(reparsed, result)
 
+    def test_test_identity_surfaced_for_test_signals(self):
+        """TEST signals surface authoritative test identity (file/classname/name)
+        once at the top of the payload. Every FAILURE event in the signal IS
+        this specific test failing — no duplication per event."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        t1 = datetime(2025, 8, 19, 11, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent(
+                    "test", SignalStatus.FAILURE, t0, wf_run_id=100, job_id=200
+                ),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t1,
+            events=[
+                SignalEvent("test", SignalStatus.SUCCESS, t1, wf_run_id=99, job_id=199),
+            ],
+        )
+        signal = Signal(
+            key="test/inductor/test_comm_analysis.py::test_nccl_estimate_device_resolution_gpu",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy / test",
+            test_file="test/inductor/test_comm_analysis.py",
+            test_classname="TestNcclEstimateDeviceResolution",
+            test_name="test_nccl_estimate_device_resolution_gpu",
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        # Top-level test identity is present, populated, and authoritative
+        self.assertEqual(result["test_file"], "test/inductor/test_comm_analysis.py")
+        self.assertEqual(result["test_classname"], "TestNcclEstimateDeviceResolution")
+        self.assertEqual(
+            result["test_name"], "test_nccl_estimate_device_resolution_gpu"
+        )
+
+        # No per-event test_failures emission (would be redundant with signal_key)
+        for c in result["commits"]:
+            for ev in c["events"]:
+                self.assertNotIn("test_failures", ev)
+                self.assertNotIn("test_file", ev)
+                self.assertNotIn("test_classname", ev)
+                self.assertNotIn("test_name", ev)
+
+    def test_test_identity_omitted_for_job_signals(self):
+        """JOB signals (and TEST signals without identity populated) must not
+        emit the test_* top-level keys."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t0,
+            events=[
+                SignalEvent("j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=2),
+            ],
+        )
+        signal = Signal(
+            key="lint",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.JOB,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        for k in ("test_file", "test_classname", "test_name"):
+            self.assertNotIn(k, result)
+
 
 class TestDispatchAdvisorsMethod(unittest.TestCase):
     """Tests for SignalActionProcessor.dispatch_advisors."""
@@ -1403,6 +1527,108 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         self.assertEqual(
             result[0].commits[0].advisor_result.verdict, AdvisorVerdict.UNSURE
         )
+
+    def test_preserves_test_identity_on_attach(self):
+        # Signal-level test_file/test_classname/test_name must survive the
+        # Signal reconstruction inside _attach_advisor_verdicts.
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10)],
+        )
+        signal = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="trunk",
+            commits=[c1],
+            source=SignalSource.TEST,
+            test_file="test/foo.py",
+            test_classname="TestFooBar",
+            test_name="test_bar",
+        )
+        extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {
+            ("sha_aaa", "test/foo.py::test_bar"): ("revert", 0.95, t0),
+        }
+        out = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
+        self.assertEqual(out[0].test_file, "test/foo.py")
+        self.assertEqual(out[0].test_classname, "TestFooBar")
+        self.assertEqual(out[0].test_name, "test_bar")
+
+
+class TestInjectPendingWorkflowEvents(unittest.TestCase):
+    """Tests for SignalExtractor._inject_pending_workflow_events."""
+
+    def test_preserves_test_identity_on_inject(self):
+        # Signal-level test_file/test_classname/test_name must survive the
+        # Signal reconstruction inside _inject_pending_workflow_events.
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import (
+            JobBaseName,
+            JobId,
+            JobName,
+            JobRow,
+            RunAttempt,
+            Sha,
+            WfRunId,
+            WorkflowName,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10)],
+        )
+        signal = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="trunk",
+            commits=[c1],
+            source=SignalSource.TEST,
+            test_file="test/foo.py",
+            test_classname="TestFooBar",
+            test_name="test_bar",
+        )
+        # One pending JobRow on a different wf_run_id triggers synthesis on c1.
+        pending_job = JobRow(
+            head_sha=Sha("sha_aaa"),
+            workflow_name=WorkflowName("trunk"),
+            wf_run_id=WfRunId(2),
+            job_id=JobId(20),
+            run_attempt=RunAttempt(1),
+            name=JobName("j"),
+            status="in_progress",
+            conclusion="",
+            started_at=t0,
+            created_at=t0,
+            rule="",
+        )
+        extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
+        out = extractor._inject_pending_workflow_events([signal], [pending_job])
+        self.assertEqual(out[0].test_file, "test/foo.py")
+        self.assertEqual(out[0].test_classname, "TestFooBar")
+        self.assertEqual(out[0].test_name, "test_bar")
+        # Synthesis actually fired (otherwise the test wouldn't exercise
+        # the reconstruction path)
+        self.assertGreater(len(out[0].commits[0].events), 1)
 
 
 class TestGroupActionsTestsToInclude(unittest.TestCase):

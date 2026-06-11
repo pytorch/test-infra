@@ -1129,6 +1129,9 @@ class TestSignalReplace(unittest.TestCase):
         "job_base_name": "linux-jammy / test",
         "test_module": "test_foo",
         "source": SignalSource.JOB,
+        "test_file": "test/foo.py",
+        "test_classname": "TestFooBar",
+        "test_name": "test_bar",
     }
 
     def _init_params(self):

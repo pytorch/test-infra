@@ -113,13 +113,14 @@ def T(
     name: str,
     failure_runs: int,
     success_runs: int = 0,
+    classname: str = "",
 ):
     return TestRow(
         job_id=JobId(job),
         wf_run_id=WfRunId(run),
         workflow_run_attempt=RunAttempt(attempt),
         file=file,
-        classname="",
+        classname=classname,
         name=name,
         failure_runs=failure_runs,
         success_runs=success_runs,
@@ -1158,6 +1159,94 @@ class TestSignalExtraction(unittest.TestCase):
         )
         self.assertIsNotNone(sig)
         self.assertEqual(sig.test_module, "test_jit")
+
+    def test_test_classname_unique_is_surfaced(self):
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoader",
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_dataloader.py::test_shuffle_pin_memory"
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.test_file, "test_dataloader.py")
+        self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
+        self.assertEqual(sig.test_classname, "TestDataLoader")
+
+    def test_test_classname_ambiguous_is_omitted(self):
+        # Same file::name failing under two different classes: the collapsed
+        # test_id cannot disambiguate, so classname must be omitted, not
+        # guessed (regression guard for nondeterministic classname capture).
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C2",
+                run=902,
+                job=902,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoaderPersistentWorkers",
+            ),
+            T(
+                job=902,
+                run=902,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoader",
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_dataloader.py::test_shuffle_pin_memory"
+        )
+        self.assertIsNotNone(sig)
+        self.assertIsNone(sig.test_classname)
+        self.assertEqual(sig.test_file, "test_dataloader.py")
+        self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
 
 
 if __name__ == "__main__":

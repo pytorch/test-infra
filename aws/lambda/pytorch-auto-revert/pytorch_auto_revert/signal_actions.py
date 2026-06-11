@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
 import github
 
@@ -18,6 +18,7 @@ from .signal import (
     Ineligible,
     RestartCommits,
     Signal,
+    SignalSource,
 )
 from .signal_extraction_types import RunContext
 from .utils import (
@@ -863,15 +864,27 @@ class SignalActionProcessor:
                 }
             )
 
-        payload = {
+        payload: Dict[str, Any] = {
             "signal_key": signal.key,
             "signal_source": signal.source.value if signal.source else "unknown",
             "workflow_name": signal.workflow_name,
             "job_base_name": signal.job_base_name,
             "commit_order": "newest_first",
             "suspect_commit": dispatch_advisor.suspect_commit,
-            "commits": commits_json,
         }
+        # For TEST signals, surface authoritative test identity once at the
+        # top of the payload (file/classname/name from tests.all_test_runs).
+        # Every FAILURE event in this signal IS this specific test failing —
+        # the AI advisor does not need to re-derive from logs. Only emitted
+        # when populated to keep the payload backward-compatible.
+        if signal.source == SignalSource.TEST:
+            if signal.test_file:
+                payload["test_file"] = signal.test_file
+            if signal.test_classname:
+                payload["test_classname"] = signal.test_classname
+            if signal.test_name:
+                payload["test_name"] = signal.test_name
+        payload["commits"] = commits_json
         if dispatch_advisor.is_born_red:
             payload["pattern_context"] = _BORN_RED_PATTERN_CONTEXT
         return json.dumps(payload)
