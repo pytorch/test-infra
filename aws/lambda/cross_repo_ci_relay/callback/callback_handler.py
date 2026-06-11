@@ -109,6 +109,10 @@ def _update_state_and_compute_metrics(
 
     Both metrics default to None when the required prior state is unavailable
     (e.g. Redis cache miss or rerun without matching prior record).
+
+    For a re-run, ``queue_time`` is measured against the original dispatch (the
+    re-run reuses its delivery_id), so it is not a meaningful queue interval —
+    HUD distinguishes re-runs via ``workflow.run_attempt`` in the forwarded body.
     """
     if status not in ("in_progress", "completed"):
         raise HTTPException(400, f"unknown callback status: {status!r}")

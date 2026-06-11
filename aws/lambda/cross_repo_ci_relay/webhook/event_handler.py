@@ -233,10 +233,128 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
     return {"ok": True, "created_check_runs": created}
 
 
+def _downstream_repo_from_check_run(name: str) -> str | None:
+    """Parse the downstream ``owner/repo`` out of a check run name.
+
+    Check runs are named ``crcr/<owner>/<repo>/<workflow_name>`` (see
+    ``gh_helper.check_run_name``), so the downstream repo is the first two
+    path segments after the ``crcr/`` prefix. Returns None for any name the
+    relay didn't create.
+    """
+    prefix = "crcr/"
+    if not name.startswith(prefix):
+        return None
+    parts = name[len(prefix) :].split("/")
+    if len(parts) < 3 or not parts[0] or not parts[1]:
+        return None
+    return f"{parts[0]}/{parts[1]}"
+
+
+def _rerun_downstream_workflow(
+    config: RelayConfig, downstream_repo: str, run_id: str
+) -> None:
+    """Re-trigger a downstream workflow run by its run_id.
+
+    The run_id is stored as the upstream check run's ``external_id`` when the
+    check run is created, so a re-request can locate the original downstream run.
+    """
+    token = gh_helper.get_repo_access_token(
+        config.github_app_id,
+        config.github_app_private_key,
+        downstream_repo,
+    )
+    gh_helper.rerun_workflow(
+        token=token,
+        repo_full_name=downstream_repo,
+        run_id=int(run_id),
+    )
+
+
+def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
+    """Re-run a single downstream workflow when its upstream check run is re-requested."""
+    check_run = payload.get("check_run") or {}
+    name = check_run.get("name", "")
+    external_id = check_run.get("external_id") or ""
+    downstream_repo = _downstream_repo_from_check_run(name)
+    if not downstream_repo or not external_id:
+        return {"ignored": True, "reason": "not a crcr check run"}
+
+    allowlist = load_allowlist(config)
+    level = allowlist.get_repo_level(downstream_repo)
+    if level is None or level.value < AllowlistLevel.L3.value:
+        return {"ignored": True, "reason": "downstream repo not L3+"}
+
+    try:
+        _rerun_downstream_workflow(config, downstream_repo, external_id)
+    except Exception as e:
+        logger.exception(
+            "check_run rerequested: rerun failed repo=%s run_id=%s",
+            downstream_repo,
+            external_id,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "failed to rerun downstream workflow",
+                "repo": downstream_repo,
+                "error": str(e),
+            },
+        ) from e
+
+    logger.info(
+        "check_run rerequested: re-triggered repo=%s run_id=%s",
+        downstream_repo,
+        external_id,
+    )
+    return {"ok": True, "rerun": [downstream_repo]}
+
+
+def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
+    """Re-run every downstream workflow whose check run is in a re-requested check suite."""
+    check_suite = payload.get("check_suite") or {}
+    head_sha = check_suite.get("head_sha", "")
+    if not head_sha:
+        return {"ignored": True, "reason": "missing head_sha"}
+
+    allowlist = load_allowlist(config)
+    repos, _ = allowlist.get_repos_at_or_above_level(AllowlistLevel.L3)
+    rerun: list[str] = []
+    for downstream_repo in repos:
+        job_info = redis_helper.get_dispatch_workflow(config, head_sha, downstream_repo)
+        run_id = (job_info or {}).get("run_id")
+        if not run_id:
+            continue
+        try:
+            _rerun_downstream_workflow(config, downstream_repo, run_id)
+            rerun.append(downstream_repo)
+        except Exception:
+            logger.exception(
+                "check_suite rerequested: rerun failed repo=%s run_id=%s",
+                downstream_repo,
+                run_id,
+            )
+
+    logger.info(
+        "check_suite rerequested: re-triggered repos=%s sha=%s", rerun, head_sha
+    )
+    return {"ok": True, "rerun": rerun}
+
+
 def handle(
     config: RelayConfig, payload: dict, event_type: str, delivery_id: str
 ) -> dict:
-    if event_type == "pull_request":
+    # Re-run requests for upstream check runs do not go through the dispatch
+    # path; they re-trigger the existing downstream run, which re-reports via the
+    # normal callback flow.
+    if event_type == "check_run":
+        if payload.get("action") == "rerequested":
+            return _handle_check_run_rerequested(config, payload)
+        return {"ignored": True}
+    elif event_type == "check_suite":
+        if payload.get("action") == "rerequested":
+            return _handle_check_suite_rerequested(config, payload)
+        return {"ignored": True}
+    elif event_type == "pull_request":
         action = payload.get("action", "")
         if action == "labeled":
             label_name = (payload.get("label") or {}).get("name", "")
