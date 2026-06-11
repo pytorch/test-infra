@@ -11,7 +11,8 @@ from utils.hud import forward_to_hud
 from utils.misc import (
     CallbackState,
     CallbackStateRecord,
-    DISPATCH_CHECK_RUN_ID,
+    DISPATCH_RUN_ATTEMPT,
+    DISPATCH_RUN_ID,
     HTTPException,
 )
 from utils.redis_helper import check_rate_limit
@@ -59,11 +60,11 @@ def _verify_access(
     return allowlist, repo_level
 
 
-def _parse_callback_body(body: dict) -> tuple[str, str, str, str, str]:
-    """Return (delivery_id, status, check_run_id, job_name, run_id) from ``body``.
+def _parse_callback_body(body: dict) -> tuple[str, str, int, int, str]:
+    """Return (delivery_id, status, run_id, run_attempt, workflow_name) from ``body``.
 
-    check_run_id is set by GitHub Actions (job.check_run_id context) and
-    cannot be tampered with, ensuring replay-attack detection integrity.
+    run_id and run_attempt uniquely identify a workflow run execution.
+    run_attempt defaults to 1 when not present in the callback body.
 
     Raises HTTPException(400) on any missing or mis-typed field.
     """
@@ -71,29 +72,29 @@ def _parse_callback_body(body: dict) -> tuple[str, str, str, str, str]:
         delivery_id = body["delivery_id"]
         workflow_dict = body["workflow"]
         status = workflow_dict["status"]
-        check_run_id = workflow_dict["check_run_id"]  # Required
-        job_name = workflow_dict["job_name"]  # Required for HUD grouping
         run_id = workflow_dict["run_id"]  # Required for HUD grouping
+        run_attempt = workflow_dict.get("run_attempt", 1)  # Default to 1 if not present
+        workflow_name = workflow_dict["name"]  # Required for HUD grouping
     except (KeyError, TypeError) as exc:
         logger.warning(f"missing required field in callback body: {exc}")
         raise HTTPException(
             400, f"callback body missing required field: {exc}"
         ) from exc
-    return delivery_id, status, check_run_id, job_name, run_id
+    return delivery_id, status, run_id, run_attempt, workflow_name
 
 
 def _update_state_and_compute_metrics(
     config: RelayConfig,
     delivery_id: str,
     verified_repo: str,
-    check_run_id: str,
-    job_name: str,
-    run_id: str,
+    run_id: int,
+    run_attempt: int,
+    workflow_name: str,
     status: str,
     dispatch_record: CallbackStateRecord,
-    job_record: CallbackStateRecord | None,
+    workflow_record: CallbackStateRecord | None,
 ) -> dict:
-    """Persist the new job state to Redis and return CI timing metrics.
+    """Persist the new workflow state to Redis and return CI timing metrics.
 
     Writes IN_PROGRESS or COMPLETED state (with the current timestamp), then
     reads back the stored record to compute:
@@ -119,11 +120,11 @@ def _update_state_and_compute_metrics(
             config,
             delivery_id,
             verified_repo,
-            check_run_id,
+            run_id,
+            run_attempt,
             state,
             current_timestamp,
-            job_name,
-            run_id,
+            workflow_name,
         )
     except RedisError:
         raise HTTPException(
@@ -138,22 +139,24 @@ def _update_state_and_compute_metrics(
     except Exception:
         raise
 
-    updated_job_record = redis_helper.get_callback_state(
-        config, delivery_id, verified_repo, check_run_id
+    updated_workflow_record = redis_helper.get_callback_state(
+        config, delivery_id, verified_repo, run_id, run_attempt
     )
-    if updated_job_record is None:
+    if updated_workflow_record is None:
         return ci_metrics
 
     if state == CallbackState.IN_PROGRESS:
         ci_metrics["queue_time"] = _safe_delta(
             dispatch_record.timestamp,
-            updated_job_record.timestamp,
+            updated_workflow_record.timestamp,
             "queue_time",
         )
     else:
-        if job_record is not None:
+        if workflow_record is not None:
             ci_metrics["execution_time"] = _safe_delta(
-                job_record.timestamp, updated_job_record.timestamp, "execution_time"
+                workflow_record.timestamp,
+                updated_workflow_record.timestamp,
+                "execution_time",
             )
 
     return ci_metrics
@@ -181,10 +184,10 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         return {"ok": True, "status": "ignored"}
     _, repo_level = result
 
-    delivery_id, status, check_run_id, job_name, run_id = _parse_callback_body(body)
+    delivery_id, status, run_id, run_attempt, workflow_name = _parse_callback_body(body)
 
     dispatch_record = redis_helper.get_callback_state(
-        config, delivery_id, verified_repo, DISPATCH_CHECK_RUN_ID
+        config, delivery_id, verified_repo, DISPATCH_RUN_ID, DISPATCH_RUN_ATTEMPT
     )
     if not dispatch_record:
         logger.warning(
@@ -194,20 +197,20 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         )
         raise HTTPException(400, "callback rejected: no matching dispatch record")
 
-    job_record = redis_helper.get_callback_state(
-        config, delivery_id, verified_repo, check_run_id
+    workflow_record = redis_helper.get_callback_state(
+        config, delivery_id, verified_repo, run_id, run_attempt
     )
 
     ci_metrics = _update_state_and_compute_metrics(
         config,
         delivery_id,
         verified_repo,
-        check_run_id,
-        job_name,
         run_id,
+        run_attempt,
+        workflow_name,
         status,
         dispatch_record,
-        job_record,
+        workflow_record,
     )
 
     trusted = {

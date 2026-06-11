@@ -10,7 +10,8 @@ from utils.allowlist import AllowlistLevel, load_allowlist
 from utils.config import RelayConfig
 from utils.misc import (
     CallbackState,
-    DISPATCH_CHECK_RUN_ID,
+    DISPATCH_RUN_ATTEMPT,
+    DISPATCH_RUN_ID,
     EventDispatchPayload,
     HTTPException,
 )
@@ -40,13 +41,15 @@ def _dispatch_one(
     )
 
     # Set dispatch state with timestamp to prove valid webhook occurred.
-    # Keyed by delivery_id + repo + DISPATCH_JOB_NAME="*" (repo-level, not job-specific).
+    # Keyed by delivery_id + repo + run_id + run_attempt.
+    # Uses DISPATCH_RUN_ID/DISPATCH_RUN_ATTEMPT sentinels for repo-level dispatch.
     # Timestamp is used for queue_time calculation (dispatch → in_progress).
     redis_helper.set_callback_state(
         config,
         client_payload["delivery_id"],
         downstream_repo,
-        DISPATCH_CHECK_RUN_ID,
+        DISPATCH_RUN_ID,
+        DISPATCH_RUN_ATTEMPT,
         CallbackState.DISPATCHED,
         time.time(),
     )

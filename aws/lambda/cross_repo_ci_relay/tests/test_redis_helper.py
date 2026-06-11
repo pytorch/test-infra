@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import redis as redis_lib
 from utils import redis_helper
-from utils.misc import CallbackState, DISPATCH_CHECK_RUN_ID
+from utils.misc import CallbackState, DISPATCH_RUN_ATTEMPT, DISPATCH_RUN_ID
 from utils.redis_helper import (
     _ALLOWLIST_CACHE_KEY,
     CallbackStateRecord,
@@ -76,7 +76,8 @@ class TestCallbackStateMachine(unittest.TestCase):
             _cfg(),
             "del-123",
             "org/repo",
-            DISPATCH_CHECK_RUN_ID,
+            DISPATCH_RUN_ID,
+            DISPATCH_RUN_ATTEMPT,
             CallbackState.DISPATCHED,
             1000.0,
             client=client,
@@ -90,19 +91,15 @@ class TestCallbackStateMachine(unittest.TestCase):
             {
                 "state": "IN_PROGRESS",
                 "timestamp": 1010.5,
-                "job_name": "test-job",
-                "run_id": "12345",
             }
         )
         cfg = _cfg()
 
-        record = get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+        record = get_callback_state(cfg, "del-123", "org/repo", 12345, 1, client)
 
         self.assertIsNotNone(record)
         self.assertEqual(record.state, CallbackState.IN_PROGRESS)
         self.assertEqual(record.timestamp, 1010.5)
-        self.assertEqual(record.job_name, "test-job")
-        self.assertEqual(record.run_id, "12345")
 
     def test_get_callback_state_returns_none_on_missing_key_and_on_redis_error(self):
         """get_callback_state returns None on missing key and on Redis error."""
@@ -111,24 +108,29 @@ class TestCallbackStateMachine(unittest.TestCase):
 
         client.get.return_value = None
         self.assertIsNone(
-            get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+            get_callback_state(cfg, "del-123", "org/repo", 12345, 1, client)
         )
 
         client.get.side_effect = redis_lib.exceptions.RedisError("boom")
         self.assertIsNone(
-            get_callback_state(cfg, "del-123", "org/repo", "test-job", client)
+            get_callback_state(cfg, "del-123", "org/repo", 12345, 1, client)
         )
 
     def test_invalid_state_transitions_rejected(self):
         """Duplicate or invalid state transitions are all rejected."""
         cases = [
-            # (check_run_id, new_state, existing_state_value_or_None)
-            (DISPATCH_CHECK_RUN_ID, CallbackState.DISPATCHED, "DISPATCHED"),
-            ("check-run", CallbackState.IN_PROGRESS, "IN_PROGRESS"),
-            ("check-run", CallbackState.COMPLETED, None),  # None → COMPLETED
-            ("check-run", CallbackState.COMPLETED, "COMPLETED"),
+            # (run_id, run_attempt, new_state, existing_state_value_or_None)
+            (
+                DISPATCH_RUN_ID,
+                DISPATCH_RUN_ATTEMPT,
+                CallbackState.DISPATCHED,
+                "DISPATCHED",
+            ),
+            (12345, 1, CallbackState.IN_PROGRESS, "IN_PROGRESS"),
+            (12345, 1, CallbackState.COMPLETED, None),  # None → COMPLETED
+            (12345, 1, CallbackState.COMPLETED, "COMPLETED"),
         ]
-        for check_run_id, state, existing in cases:
+        for run_id, run_attempt, state, existing in cases:
             with self.subTest(state=state, existing=existing):
                 client = MagicMock()
                 client.get.return_value = (
@@ -136,8 +138,6 @@ class TestCallbackStateMachine(unittest.TestCase):
                         {
                             "state": existing,
                             "timestamp": 1000.0,
-                            "job_name": "job",
-                            "run_id": "111",
                         }
                     )
                     if existing
@@ -148,7 +148,8 @@ class TestCallbackStateMachine(unittest.TestCase):
                         _cfg(),
                         "del-123",
                         "org/repo",
-                        check_run_id,
+                        run_id,
+                        run_attempt,
                         state,
                         1100.0,
                         client=client,
@@ -162,30 +163,28 @@ class TestCallbackStateMachine(unittest.TestCase):
             {
                 "state": "IN_PROGRESS",
                 "timestamp": 1010.0,
-                "job_name": "test-job",
-                "run_id": "12345",
             }
         )
         set_callback_state(
             _cfg(),
             "del-123",
             "org/repo",
-            "test-job",
+            12345,
+            1,
             CallbackState.COMPLETED,
             1020.0,
-            job_name="test-job",
-            run_id="12345",
+            workflow_name="test-workflow",
             client=client,
         )
 
     def test_set_in_progress_accepts_first_callback(self):
         """None → IN_PROGRESS is accepted when dispatch record exists."""
 
-        def get_side_effect(cfg, delivery_id, repo, check_run_id_arg, client=None):
-            if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
-                return CallbackStateRecord(
-                    CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
-                )
+        def get_side_effect(
+            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+        ):
+            if run_id_arg == DISPATCH_RUN_ID:
+                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0)
             return None
 
         client = MagicMock()
@@ -196,16 +195,16 @@ class TestCallbackStateMachine(unittest.TestCase):
                 _cfg(),
                 "del-123",
                 "org/repo",
-                "check-run-456",
+                99999,
+                1,
                 CallbackState.IN_PROGRESS,
                 1010.0,
-                job_name="test-job",
-                run_id="99999",
+                workflow_name="test-workflow",
                 client=client,
             )
 
-    def test_set_non_dispatched_state_with_reserved_check_run_id_rejected(self):
-        """Using the reserved DISPATCH_CHECK_RUN_ID for non-DISPATCHED state is rejected."""
+    def test_set_non_dispatched_state_with_reserved_run_id_rejected(self):
+        """Using the reserved DISPATCH_RUN_ID for non-DISPATCHED state is rejected."""
         client = MagicMock()
         cfg = _cfg()
 
@@ -217,7 +216,8 @@ class TestCallbackStateMachine(unittest.TestCase):
                         cfg,
                         "del-123",
                         "org/repo",
-                        DISPATCH_CHECK_RUN_ID,
+                        DISPATCH_RUN_ID,
+                        DISPATCH_RUN_ATTEMPT,
                         state,
                         1010.0,
                         client=client,
@@ -227,11 +227,11 @@ class TestCallbackStateMachine(unittest.TestCase):
     def test_set_callback_state_redis_exception_raises(self):
         """Redis write failure is re-raised as RedisError."""
 
-        def get_side_effect(cfg, delivery_id, repo, check_run_id_arg, client=None):
-            if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
-                return CallbackStateRecord(
-                    CallbackState.DISPATCHED, 1000.0, "dispatch-job", "11111"
-                )
+        def get_side_effect(
+            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+        ):
+            if run_id_arg == DISPATCH_RUN_ID:
+                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0)
             return None
 
         cfg = _cfg()
@@ -245,11 +245,11 @@ class TestCallbackStateMachine(unittest.TestCase):
                 cfg,
                 "del-123",
                 "org/repo",
-                "check-run-456",
+                99999,
+                1,
                 CallbackState.IN_PROGRESS,
                 1010.0,
-                job_name="test-job",
-                run_id="99999",
+                workflow_name="test-workflow",
                 client=client,
             )
 

@@ -9,12 +9,7 @@ import redis as redis_lib
 from redis.exceptions import RedisError
 
 from .config import RelayConfig
-from .misc import (
-    CallbackState,
-    CallbackStateRecord,
-    DISPATCH_CHECK_RUN_ID,
-    HTTPException,
-)
+from .misc import CallbackState, CallbackStateRecord, DISPATCH_RUN_ID, HTTPException
 
 
 logger = logging.getLogger(__name__)
@@ -172,30 +167,33 @@ def check_rate_limit(
         raise HTTPException(500, f"rate limit check failed: {e}") from e
 
 
-def _state_key(delivery_id: str, downstream_repo: str, check_run_id: str) -> str:
+def _state_key(
+    delivery_id: str, downstream_repo: str, run_id: int, run_attempt: int
+) -> str:
     """Redis key for callback state machine.
 
-    Keyed by delivery_id + repo + check_run_id to support per-execution state tracking.
-    check_run_id is unique per job execution, enabling replay attack detection.
+    Keyed by delivery_id + repo + run_id + run_attempt to support per-execution state tracking.
+    run_id + run_attempt uniquely identify a workflow run execution.
     """
-    return f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{check_run_id}"
+    return f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
 
 
 def get_callback_state(
     config: RelayConfig,
     delivery_id: str,
     downstream_repo: str,
-    check_run_id: str,
+    run_id: int,
+    run_attempt: int,
     client: redis_lib.Redis | None = None,
 ) -> CallbackStateRecord | None:
     """Get callback state record from Redis, or None if no record exists.
 
-    Returns a record containing state, timestamp, and optional job metadata.
+    Returns a record containing state, timestamp.
     """
     try:
         if client is None:
             client = create_client(config)
-        key = _state_key(delivery_id, downstream_repo, check_run_id)
+        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt)
         value = client.get(key)
         if value is None:
             return None
@@ -203,8 +201,6 @@ def get_callback_state(
         return CallbackStateRecord(
             state=CallbackState(data["state"]),
             timestamp=data["timestamp"],
-            job_name=data["job_name"],
-            run_id=data["run_id"],
         )
     except RedisError:
         logger.exception("redis temporary outage or unreachable")
@@ -217,11 +213,11 @@ def set_callback_state(
     config: RelayConfig,
     delivery_id: str,
     downstream_repo: str,
-    check_run_id: str,
+    run_id: int,
+    run_attempt: int,
     state: CallbackState,
     timestamp: float,
-    job_name: str | None = None,
-    run_id: int | None = None,
+    workflow_name: str | None = None,
     client: redis_lib.Redis | None = None,
 ) -> None:
     """Set callback state with timestamp in Redis.
@@ -233,8 +229,8 @@ def set_callback_state(
     - DISPATCHED -> DISPATCHED: reject (duplicate webhook)
 
     IN_PROGRESS state (callback-side):
-    - None -> IN_PROGRESS: accept (first callback for this check_run_id)
-    - IN_PROGRESS -> IN_PROGRESS: reject (replay attack for same check_run_id)
+    - None -> IN_PROGRESS: accept (first callback for this run_id + run_attempt)
+    - IN_PROGRESS -> IN_PROGRESS: reject (replay attack for same run_id + run_attempt)
 
     COMPLETED state (callback-side):
     - None -> COMPLETED: reject (no prior in_progress)
@@ -246,19 +242,19 @@ def set_callback_state(
         if client is None:
             client = create_client(config)
 
-        if check_run_id == DISPATCH_CHECK_RUN_ID and state != CallbackState.DISPATCHED:
+        if run_id == DISPATCH_RUN_ID and state != CallbackState.DISPATCHED:
             error_msg = (
-                "check_run_id '%s' is preserved for DISPATCHED state only, rejecting invalid state=%s"
+                "run_id '%s' is preserved for DISPATCHED state only, rejecting invalid state=%s"
                 % (
-                    DISPATCH_CHECK_RUN_ID,
+                    DISPATCH_RUN_ID,
                     state.value,
                 )
             )
 
-        key = _state_key(delivery_id, downstream_repo, check_run_id)
+        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt)
 
         current_record = get_callback_state(
-            config, delivery_id, downstream_repo, check_run_id, client
+            config, delivery_id, downstream_repo, run_id, run_attempt, client
         )
 
         if state == CallbackState.DISPATCHED:
@@ -268,12 +264,12 @@ def set_callback_state(
             if current_record is not None:
                 error_msg = (
                     "rejecting replay attack IN_PROGRESS for same "
-                    "check_run_id=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    "run_id=%s, run_attempt=%s, downstream_repo=%s, workflow_name=%s"
                     % (
-                        check_run_id,
-                        downstream_repo,
-                        job_name,
                         run_id,
+                        run_attempt,
+                        downstream_repo,
+                        workflow_name,
                     )
                 )
 
@@ -281,12 +277,13 @@ def set_callback_state(
             if current_record is None:
                 error_msg = (
                     "rejecting COMPLETED without prior IN_PROGRESS "
-                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    "key=%s, downstream_repo=%s, workflow_name=%s, run_id=%s, run_attempt=%s"
                     % (
                         key,
                         downstream_repo,
-                        job_name,
+                        workflow_name,
                         run_id,
+                        run_attempt,
                     )
                 )
             elif current_record.state == CallbackState.COMPLETED:
@@ -294,13 +291,14 @@ def set_callback_state(
             elif current_record.state != CallbackState.IN_PROGRESS:
                 error_msg = (
                     "rejecting abnormal state transition %s -> COMPLETED "
-                    "key=%s, downstream_repo=%s, job_name=%s, run_id=%s"
+                    "key=%s, downstream_repo=%s, workflow_name=%s, run_id=%s, run_attempt=%s"
                     % (
                         current_record.state.value,
                         key,
                         downstream_repo,
-                        job_name,
+                        workflow_name,
                         run_id,
+                        run_attempt,
                     )
                 )
 
@@ -311,17 +309,13 @@ def set_callback_state(
         data: dict = {
             "state": state.value,
             "timestamp": timestamp,
-            "job_name": job_name,
-            "run_id": run_id,
         }
         client.setex(key, config.oot_status_ttl, json.dumps(data))
         logger.info(
-            "callback state set key=%s state=%s timestamp=%s job_name=%s run_id=%s",
+            "callback state set key=%s state=%s timestamp=%s",
             key,
             state.value,
             timestamp,
-            job_name,
-            run_id,
         )
     except RedisError:
         logger.exception("set_callback_state: redis is temporary outage or unreachable")

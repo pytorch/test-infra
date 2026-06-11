@@ -27,19 +27,20 @@ class EventDispatchPayload(TypedDict):
     payload: dict
 
 
-# Specific check_run_id used to identify callbacks
-# from dispatches that didn't specify a real check_run_id.
-# Here we set as a string for better readability,
-# but it could be any unique identifier.
-DISPATCH_CHECK_RUN_ID = "dispatched"
+# Sentinels for dispatch records in the state machine.
+# DISPATCH_RUN_ID = 0 is used as the run_id for dispatch records
+# (real GitHub Actions run_ids are positive integers).
+# DISPATCH_RUN_ATTEMPT = 0 is used as the run_attempt for dispatch records.
+DISPATCH_RUN_ID = 0
+DISPATCH_RUN_ATTEMPT = 0
 
 
 class CallbackState(str, Enum):
     """Unified state machine for callback lifecycle (both webhook and callback sides).
 
-    - ``DISPATCHED``: webhook side, when repository_dispatch is sent (job_name=DISPATCH_JOB_NAME).
-    - ``IN_PROGRESS``: callback side, when downstream workflow reports started (per-job).
-    - ``COMPLETED``: callback side, when downstream workflow reports finished (per-job).
+    - ``DISPATCHED``: webhook side, when repository_dispatch is sent (run_id=DISPATCH_CHECK_RUN_ID).
+    - ``IN_PROGRESS``: callback side, when downstream workflow reports started (per-workflow).
+    - ``COMPLETED``: callback side, when downstream workflow reports finished (per-workflow).
     """
 
     DISPATCHED = "DISPATCHED"
@@ -49,12 +50,10 @@ class CallbackState(str, Enum):
 
 @dataclass
 class CallbackStateRecord:
-    """Record containing state, timestamp, and job metadata for HUD grouping."""
+    """Record containing state, timestamp."""
 
     state: CallbackState
     timestamp: float
-    job_name: str
-    run_id: str
 
 
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:
