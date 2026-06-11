@@ -25,7 +25,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> None:
         raise HTTPException(status_code=401, detail="Bad signature")
 
 
-_SUPPORTED_EVENTS = frozenset({"pull_request", "push"})
+_SUPPORTED_EVENTS = frozenset({"pull_request", "push", "check_run", "check_suite"})
 
 
 def lambda_handler(event, context):

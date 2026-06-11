@@ -106,7 +106,10 @@ The HUD request looks like (two top-level namespaces: `trusted` and `untrusted`)
         "conclusion": "success",
         "name": "CI",
         "url": "https://github.com/org/repo/actions/runs/123",
+        "run_id": "123",        // stable across re-runs of the same run
+        "run_attempt": "2",     // increments each re-run; (run_id, run_attempt) distinguishes attempts
         "job_name": "my-ci-job",
+        "check_run_id": "456",  // unique per attempt
         "started_at": "2026-05-04T20:48:28Z", // when status == in_progress, else None
         "completed_at": "2026-05-04T21:23:45Z", // when status == completed, else None
         "test_results": { "passed": 42, "failed": 3, "skipped": 5 },
@@ -216,6 +219,18 @@ For L3 the upstream check run is gated on the `ciflow/crcr/<device>` label, whic
 3. **Label added after the workflow finished** — the `labeled` handler creates a completed check run directly from that cached state.
 
 Because the downstream echoes back the *dispatch-time* payload — whose labels can be stale, e.g. on **reopen** where no fresh `labeled` event fires — the relay records a per-commit "check run wanted" flag (`crcr:check_run_wanted:<head_sha>:<repo>`) at dispatch time (when the label is already present) and in the `labeled` handler. The callback consults this flag so it still creates the check run when the echoed labels don't reflect the PR's current state.
+
+### Re-running checks
+
+A developer can re-run downstream CI directly from the upstream PR's checks UI. The GitHub App subscribes to the `check_run` and `check_suite` events, and the relay handles their `rerequested` action:
+
+- **Re-run a single check** (`check_run` `rerequested`) — the downstream `run_id` was stored as the check run's `external_id` when it was created, and the downstream repo is encoded in the check run name (`crcr/<owner>/<repo>/<workflow_name>`). The relay parses both, verifies the repo is L3+, and re-triggers that downstream workflow run.
+- **Re-run all checks** (`check_suite` `rerequested`) — the suite covers every check on the commit, so the relay re-triggers each L3+ downstream whose latest run it cached at `crcr:dispatch_workflow:<head_sha>:<repo>`.
+
+Because the re-run carries the **original `delivery_id`** but a **new `check_run_id`** (GitHub mints fresh check runs per attempt), the two CI timing metrics behave differently:
+
+- **`execution_time`** (in_progress → completed) is correct as-is — the new `check_run_id` gets its own fresh state records.
+- **`queue_time`** (dispatch → in_progress) would otherwise be measured against the *original* dispatch timestamp (possibly days old). Thus, using `run_attempt` keyword in payload to identify whether it is a trustworthy value.
 
 ## Build, Deploy, and Test
 

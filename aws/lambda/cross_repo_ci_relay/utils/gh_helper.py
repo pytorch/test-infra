@@ -41,6 +41,21 @@ def get_repo_access_token(
     return gh_client.get_access_token(installation.id).token
 
 
+def rerun_workflow(
+    *,
+    token: str,
+    repo_full_name: str,
+    run_id: int,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> None:
+    """Trigger a re-run of an existing downstream workflow run by its run_id."""
+    logger.info("rerun_workflow repo=%s run_id=%d", repo_full_name, run_id)
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    gh_client.get_repo(repo_full_name).get_workflow_run(run_id).rerun()
+
+
 def create_repository_dispatch(
     *,
     token: str,

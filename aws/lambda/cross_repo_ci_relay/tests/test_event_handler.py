@@ -2,6 +2,7 @@ import unittest
 import unittest.mock
 from unittest.mock import MagicMock, patch
 
+from utils.allowlist import AllowlistLevel
 from webhook.event_handler import handle
 
 
@@ -244,6 +245,79 @@ class TestPrLabeledHandler(unittest.TestCase):
             "del-x",
         )
         self.assertEqual(result, {"ignored": True})
+
+
+class TestCheckRunRerun(unittest.TestCase):
+    """check_run / check_suite rerequested re-trigger the downstream workflow run."""
+
+    def setUp(self):
+        self.patcher_gh = patch("webhook.event_handler.gh_helper")
+        self.mock_gh = self.patcher_gh.start()
+        self.mock_gh.get_repo_access_token.return_value = "tok"
+
+        self.patcher_redis = patch("webhook.event_handler.redis_helper")
+        self.mock_redis = self.patcher_redis.start()
+
+        self.patcher_load = patch("webhook.event_handler.load_allowlist")
+        self.mock_load = self.patcher_load.start()
+        self.mock_map = MagicMock()
+        self.mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        self.mock_map.get_repos_at_or_above_level.return_value = (["org/l3repo"], [])
+        self.mock_load.return_value = self.mock_map
+
+    def tearDown(self):
+        self.patcher_gh.stop()
+        self.patcher_redis.stop()
+        self.patcher_load.stop()
+
+    def _check_run_payload(self, name="crcr/org/l3repo/CI", external_id="99999"):
+        return {
+            "action": "rerequested",
+            "check_run": {
+                "name": name,
+                "external_id": external_id,
+                "head_sha": "abc123",
+            },
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+
+    def test_check_run_rerequested_reruns_downstream(self):
+        result = handle(_cfg(), self._check_run_payload(), "check_run", "del-1")
+        self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
+        self.mock_gh.rerun_workflow.assert_called_once_with(
+            token="tok", repo_full_name="org/l3repo", run_id=99999
+        )
+
+    def test_non_crcr_check_run_is_ignored(self):
+        result = handle(
+            _cfg(),
+            self._check_run_payload(name="some-other-check"),
+            "check_run",
+            "del-2",
+        )
+        self.assertTrue(result["ignored"])
+        self.mock_gh.rerun_workflow.assert_not_called()
+
+    def test_check_run_non_rerequested_action_ignored(self):
+        payload = self._check_run_payload()
+        payload["action"] = "created"
+        self.assertEqual(
+            handle(_cfg(), payload, "check_run", "del-3"), {"ignored": True}
+        )
+        self.mock_gh.rerun_workflow.assert_not_called()
+
+    def test_check_suite_rerequested_reruns_cached_runs(self):
+        self.mock_redis.get_dispatch_workflow.return_value = {"run_id": "12345"}
+        payload = {
+            "action": "rerequested",
+            "check_suite": {"head_sha": "abc123"},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        result = handle(_cfg(), payload, "check_suite", "del-4")
+        self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
+        self.mock_gh.rerun_workflow.assert_called_once_with(
+            token="tok", repo_full_name="org/l3repo", run_id=12345
+        )
 
 
 if __name__ == "__main__":
