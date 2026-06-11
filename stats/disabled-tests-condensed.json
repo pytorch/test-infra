@@ -73,6 +73,13 @@
       "linux"
     ]
   ],
+  "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "186999",
+    "https://github.com/pytorch/pytorch/issues/186999",
+    [
+      "inductor"
+    ]
+  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -287,6 +294,14 @@
       "xpu"
     ]
   ],
+  "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "176147",
+    "https://github.com/pytorch/pytorch/issues/176147",
+    [
+      "rocm",
+      "xpu"
+    ]
+  ],
   "test_fd_pool (__main__.TestMultiprocessing)": [
     "69660",
     "https://github.com/pytorch/pytorch/issues/69660",
@@ -407,6 +422,15 @@
     "https://github.com/pytorch/pytorch/issues/186585",
     [
       "xpu"
+    ]
+  ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -641,13 +665,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_convnext_large (__main__.TestVisionTracing)": [
-    "185452",
-    "https://github.com/pytorch/pytorch/issues/185452",
-    [
-      "linux"
-    ]
-  ],
   "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
     "182174",
     "https://github.com/pytorch/pytorch/issues/182174",
@@ -759,6 +776,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "187000",
+    "https://github.com/pytorch/pytorch/issues/187000",
+    [
+      "inductor"
     ]
   ],
   "test_var_mean_tile_reduction_True_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
