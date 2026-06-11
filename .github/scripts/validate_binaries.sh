@@ -220,7 +220,7 @@ cleanup_conda_env() {
 handle_aarch64_cuda_override
 
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
-    curl "${MATRIX_INSTALLATION}" -o libtorch.zip
+    curl -L "${MATRIX_INSTALLATION}" -o libtorch.zip
     unzip libtorch.zip
     exit 0
 fi
