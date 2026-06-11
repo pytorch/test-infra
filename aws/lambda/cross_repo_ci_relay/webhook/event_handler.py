@@ -155,6 +155,13 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
         return {"ignored": True, "reason": "missing pr context"}
 
     created: list[str] = []
+
+    # Minted lazily on the first repo that needs a check run, then reused: the
+    # token is always for config.upstream_repo, so it's shared across all repos
+    # under this device. A mint failure fails identically for every repo, so it
+    # is left to propagate rather than retried per-iteration.
+    upstream_token: str | None = None
+
     for downstream_repo in l3_repos:
         redis_helper.mark_check_run_wanted(config, head_sha, downstream_repo)
         job_info = redis_helper.get_dispatch_workflow(config, head_sha, downstream_repo)
@@ -165,13 +172,14 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
             )
             continue
 
-        try:
+        if upstream_token is None:
             upstream_token = gh_helper.get_repo_access_token(
                 config.github_app_id,
                 config.github_app_private_key,
                 config.upstream_repo,
             )
 
+        try:
             job_status = job_info.get("status")
             job_conclusion = job_info.get("conclusion")
             workflow_name = job_info.get("workflow_name")

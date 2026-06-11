@@ -202,6 +202,27 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.assertEqual(kw["status"], "completed")
         self.assertEqual(kw["conclusion"], "success")
 
+    def test_upstream_token_minted_once_for_multiple_repos(self):
+        """A device mapping to multiple repos mints the upstream token once, not per repo."""
+        self.mock_load.return_value.get_repos_for_device.return_value = (
+            ["org/repoA", "org/repoB"],
+            [],
+        )
+        self.mock_redis.get_dispatch_workflow.return_value = {
+            "status": "completed",
+            "check_run_id": "1",
+            "conclusion": "success",
+            "job_url": "https://github.com/org/repo/actions/runs/1",
+            "run_id": "1",
+            "workflow_name": "CI",
+        }
+
+        result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
+
+        self.assertEqual(set(result["created_check_runs"]), {"org/repoA", "org/repoB"})
+        self.assertEqual(self.mock_gh.get_repo_access_token.call_count, 1)
+        self.assertEqual(self.mock_gh.create_check_run.call_count, 2)
+
     def test_no_job_info_marks_check_run_wanted(self):
         """No job info yet → mark check run wanted so the callback creates it when it fires."""
         self.mock_redis.get_dispatch_workflow.return_value = None
