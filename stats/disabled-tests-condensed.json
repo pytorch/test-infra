@@ -101,6 +101,13 @@
       "macos"
     ]
   ],
+  "test_autotune_int64_user_defined_triton_kernel_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187181",
+    "https://github.com/pytorch/pytorch/issues/187181",
+    [
+      "xpu"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
@@ -400,6 +407,13 @@
       "slow"
     ]
   ],
+  "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187176",
+    "https://github.com/pytorch/pytorch/issues/187176",
+    [
+      "rocm"
+    ]
+  ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
@@ -529,6 +543,15 @@
       "slow"
     ]
   ],
+  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180324",
+    "https://github.com/pytorch/pytorch/issues/180324",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_kernel_metadata_has_expected_fields (__main__.TestMetadataJsonFormat)": [
     "187119",
     "https://github.com/pytorch/pytorch/issues/187119",
@@ -542,13 +565,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180438",
-    "https://github.com/pytorch/pytorch/issues/180438",
-    [
-      "dynamo"
     ]
   ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
