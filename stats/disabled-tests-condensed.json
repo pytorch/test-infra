@@ -48,6 +48,27 @@
       "xpu"
     ]
   ],
+  "test_amp_fallback_random_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187121",
+    "https://github.com/pytorch/pytorch/issues/187121",
+    [
+      "xpu"
+    ]
+  ],
+  "test_aot_inductor_consts_cpp_build_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187124",
+    "https://github.com/pytorch/pytorch/issues/187124",
+    [
+      "xpu"
+    ]
+  ],
+  "test_aoti_constant_tensor_name_collision_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187123",
+    "https://github.com/pytorch/pytorch/issues/187123",
+    [
+      "xpu"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "149080",
     "https://github.com/pytorch/pytorch/issues/149080",
@@ -59,6 +80,13 @@
   "test_aoti_profiler_enable_kernel_profile_False_enable_kernel_context_guard_False_xpu (__main__.AOTInductorTestDualWrapper)": [
     "187035",
     "https://github.com/pytorch/pytorch/issues/187035",
+    [
+      "xpu"
+    ]
+  ],
+  "test_aoti_profiler_enable_kernel_profile_True_enable_kernel_context_guard_True_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "187125",
+    "https://github.com/pytorch/pytorch/issues/187125",
     [
       "xpu"
     ]
@@ -274,6 +302,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
+    "187120",
+    "https://github.com/pytorch/pytorch/issues/187120",
+    [
+      "xpu"
+    ]
+  ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
     "180948",
     "https://github.com/pytorch/pytorch/issues/180948",
@@ -318,6 +353,7 @@
     "186870",
     "https://github.com/pytorch/pytorch/issues/186870",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -435,6 +471,15 @@
       "slow"
     ]
   ],
+  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179853",
+    "https://github.com/pytorch/pytorch/issues/179853",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -474,6 +519,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_kernel_metadata_has_expected_fields (__main__.TestMetadataJsonFormat)": [
+    "187119",
+    "https://github.com/pytorch/pytorch/issues/187119",
+    [
+      "rocm"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
