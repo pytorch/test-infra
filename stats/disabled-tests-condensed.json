@@ -373,6 +373,13 @@
       "xpu"
     ]
   ],
+  "test_fake_dispatch_keys_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187157",
+    "https://github.com/pytorch/pytorch/issues/187157",
+    [
+      "rocm"
+    ]
+  ],
   "test_fd_pool (__main__.TestMultiprocessing)": [
     "69660",
     "https://github.com/pytorch/pytorch/issues/69660",
@@ -495,6 +502,15 @@
       "xpu"
     ]
   ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179990",
     "https://github.com/pytorch/pytorch/issues/179990",
@@ -510,14 +526,6 @@
     [
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180324",
-    "https://github.com/pytorch/pytorch/issues/180324",
-    [
-      "linux",
       "slow"
     ]
   ],
@@ -541,6 +549,20 @@
     "https://github.com/pytorch/pytorch/issues/180438",
     [
       "dynamo"
+    ]
+  ],
+  "test_load_with_map_location (__main__.TestCheckpointer)": [
+    "187156",
+    "https://github.com/pytorch/pytorch/issues/187156",
+    [
+      "rocm"
+    ]
+  ],
+  "test_max_autotune_cutlass_backend_cpp_wrapper_bfloat16_num_gemms_1 (__main__.TestCutlassBackend)": [
+    "186781",
+    "https://github.com/pytorch/pytorch/issues/186781",
+    [
+      "xpu"
     ]
   ],
   "test_max_autotune_cutlass_backend_cpp_wrapper_bfloat16_num_gemms_2 (__main__.TestCutlassBackend)": [
@@ -943,6 +965,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180213",
+    "https://github.com/pytorch/pytorch/issues/180213",
+    [
+      "dynamo"
     ]
   ]
 }
