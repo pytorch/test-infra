@@ -13,20 +13,6 @@
       "rocm"
     ]
   ],
-  "test_TransformerEncoderLayer_gelu_activation_cuda_tf32 (__main__.TestNN)": [
-    "155217",
-    "https://github.com/pytorch/pytorch/issues/155217",
-    [
-      "rocm"
-    ]
-  ],
-  "test_Transformer_multilayer_coder_cuda_tf32 (__main__.TestNN)": [
-    "155235",
-    "https://github.com/pytorch/pytorch/issues/155235",
-    [
-      "rocm"
-    ]
-  ],
   "test_add_complex_xpu (__main__.AOTInductorTestDualWrapper)": [
     "187036",
     "https://github.com/pytorch/pytorch/issues/187036",
@@ -56,8 +42,8 @@
     ]
   ],
   "test_aot_inductor_consts_cpp_build_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187124",
-    "https://github.com/pytorch/pytorch/issues/187124",
+    "187127",
+    "https://github.com/pytorch/pytorch/issues/187127",
     [
       "xpu"
     ]
@@ -168,6 +154,13 @@
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
+    ]
+  ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
     [
       "linux"
     ]
@@ -302,6 +295,13 @@
       "xpu"
     ]
   ],
+  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
+    "187203",
+    "https://github.com/pytorch/pytorch/issues/187203",
+    [
+      "rocm"
+    ]
+  ],
   "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
     "186865",
     "https://github.com/pytorch/pytorch/issues/186865",
@@ -310,8 +310,8 @@
     ]
   ],
   "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "187120",
-    "https://github.com/pytorch/pytorch/issues/187120",
+    "187122",
+    "https://github.com/pytorch/pytorch/issues/187122",
     [
       "xpu"
     ]
@@ -596,8 +596,8 @@
     ]
   ],
   "test_max_autotune_cutlass_backend_cpp_wrapper_float16_num_gemms_2 (__main__.TestCutlassBackend)": [
-    "186878",
-    "https://github.com/pytorch/pytorch/issues/186878",
+    "187162",
+    "https://github.com/pytorch/pytorch/issues/187162",
     [
       "xpu"
     ]
