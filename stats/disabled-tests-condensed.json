@@ -109,27 +109,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_no_bench_carve_out (__main__.ComboKernelTests)": [
-    "186782",
-    "https://github.com/pytorch/pytorch/issues/186782",
-    [
-      "xpu"
-    ]
-  ],
-  "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
-    "187019",
-    "https://github.com/pytorch/pytorch/issues/187019",
-    [
-      "xpu"
-    ]
-  ],
-  "test_combo_kernel_no_bench_stitched_config (__main__.ComboKernelTests)": [
-    "187031",
-    "https://github.com/pytorch/pytorch/issues/187031",
-    [
-      "xpu"
-    ]
-  ],
   "test_compile_function_transform_wrappers_compiled_fn (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "186588",
     "https://github.com/pytorch/pytorch/issues/186588",
@@ -230,13 +209,6 @@
     "https://github.com/pytorch/pytorch/issues/186865",
     [
       "linux"
-    ]
-  ],
-  "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "187122",
-    "https://github.com/pytorch/pytorch/issues/187122",
-    [
-      "xpu"
     ]
   ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
