@@ -143,6 +143,9 @@ class RegressionPolicy:
     threshold: float
     baseline_aggregation: Literal["max", "min", "latest", "earliest"] = "max"
     rel_tol: float = 1e-3  # used only for "equal_to"
+    exclude_zero: bool = (
+        False  # exclude zero values from baseline and comparison points
+    )
 
     def is_violation(self, value: float, baseline: float) -> bool:
         target = baseline * self.threshold
