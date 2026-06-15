@@ -695,13 +695,6 @@
       "mac"
     ]
   ],
-  "test_retain_grad_inside_transform_cpu (__main__.TestComposabilityCPU)": [
-    "181013",
-    "https://github.com/pytorch/pytorch/issues/181013",
-    [
-      "dynamo"
-    ]
-  ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
@@ -774,6 +767,19 @@
     "https://github.com/pytorch/pytorch/issues/119514",
     [
       "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_complex_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119490",
+    "https://github.com/pytorch/pytorch/issues/119490",
+    [
+      "asan",
+      "dynamo",
       "linux",
       "mac",
       "macos",
@@ -884,14 +890,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_resnext101_32x8d (__main__.TestVisionTracing)": [
-    "185801",
-    "https://github.com/pytorch/pytorch/issues/185801",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
     "186909",
     "https://github.com/pytorch/pytorch/issues/186909",
@@ -943,19 +941,20 @@
       "xpu"
     ]
   ],
+  "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180366",
+    "https://github.com/pytorch/pytorch/issues/180366",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
     "180337",
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180439",
-    "https://github.com/pytorch/pytorch/issues/180439",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
