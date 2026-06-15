@@ -47,14 +47,25 @@ Use when the user asks to:
 `analyze_reverts_missing_from_branch` compares `main` against the release branch
 and, for every revert that is on `main` but not on the release branch, checks
 whether the **reverted** commit carries a release-candidate tag
-(`v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+`). Three outcomes per revert:
+(`v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+`). Three outcomes per revert (the analyzer
+prints the status lines with **two** spaces after the emoji, e.g.
+`🔴  WARNING`; match on the emoji, not the exact spacing):
 
-- `🔴 WARNING ...` — the reverted commit shipped in an RC, so it is (likely) in
-  `release/X.Y`. **This is a missing revert — act on it.**
+- `🔴 WARNING ...` — the reverted commit carries an RC tag, so it **may** be in
+  `release/X.Y`. **Treat as a missing-revert candidate**, but verify before
+  acting (see caveat below).
 - `✅ DETECTED: The reverted commit ... was cherry-picked to <branch>` — the
   revert is already on the release branch. **Skip.**
 - `🟢 STATUS: ... may not be needed` — the reverted commit was never in the
   release branch. **Skip.**
+
+> **Caveat — the WARNING is a heuristic, not a guarantee.** The tag regex matches
+> an RC tag from **any** release line, not just the target. For `release/2.13` a
+> commit that only ever shipped in a `v2.12.0-rcN` (and was never on
+> `release/2.13`) is still flagged `🔴`. So a `🔴 WARNING` does **not** prove the
+> reverted commit is on the target branch — Step 3 must confirm with
+> `git merge-base --is-ancestor` before cherry-picking, or it may try to revert
+> code that isn't there (empty/conflicting cherry-pick).
 
 Each flagged entry prints, in order:
 
@@ -94,7 +105,9 @@ python test-infra/tools/analytics/github_analyze.py \
 
 ## Step 2 — Parse the flagged reverts
 
-Extract every entry whose status line is `🔴 WARNING`. For each, capture:
+Extract every entry whose status line contains the `🔴` (WARNING) emoji — match
+on the emoji rather than exact text/spacing, since the analyzer emits two spaces
+(`🔴  WARNING`). For each, capture:
 - `revert_sha` ← the `Commit Hash:` line (cherry-pick target)
 - `reverted_sha` ← the `Reverted GitHub Commit:` line
 - `pr` ← the `#NNNN` in the `Title:` line (the original PR that was reverted)
@@ -103,6 +116,11 @@ Extract every entry whose status line is `🔴 WARNING`. For each, capture:
 A revert with `✅ DETECTED` or `🟢 STATUS` is **not** missing — skip it. Report
 the counts (flagged vs skipped) so nothing is silently dropped.
 
+> Reverts of Phabricator diffs print `Reverted Phabricator Diff:` instead of
+> `Reverted GitHub Commit:`; the analyzer never resolves a GitHub SHA for them,
+> so they can't get a `🔴 WARNING` and won't appear here. They are out of scope
+> for this skill (no GitHub commit to cherry-pick).
+
 ## Step 3 — One cherry-pick PR per missing revert
 
 Operate on the pytorch/pytorch checkout. For each flagged revert:
@@ -110,6 +128,13 @@ Operate on the pytorch/pytorch checkout. For each flagged revert:
 ```bash
 REL=release/X.Y
 git -C <pytorch> fetch upstream "$REL" main --tags
+
+# Confirm the reverted commit is actually on the target branch before reverting
+# it (the 🔴 WARNING can fire on an RC tag from a different release line). If it
+# is not an ancestor, skip and report "reverted commit not in <REL>".
+git -C <pytorch> merge-base --is-ancestor <reverted_sha> "upstream/$REL" \
+  || { echo "skip: <reverted_sha> not in $REL"; continue; }
+
 BR="cherry-pick-revert-<PR>-${REL#release/}"     # e.g. cherry-pick-revert-185760-2.13
 git -C <pytorch> checkout -B "$BR" "upstream/$REL"
 git -C <pytorch> cherry-pick -x <revert_sha>
@@ -172,9 +197,9 @@ tracker is outward-facing: confirm first.
 ## Step 5 — Summary
 
 Report a table: PR, original title, revert_sha, and outcome — `PR #<n> opened`,
-`skipped (already on <branch>)`, or `conflict — needs manual cherry-pick`.
-Include the new branch names, PR URLs, and (if a tracker issue was given) the
-tracker comment links.
+`skipped (already on <branch>)`, `skipped (reverted commit not in <branch>)`, or
+`conflict — needs manual cherry-pick`. Include the new branch names, PR URLs, and
+(if a tracker issue was given) the tracker comment links.
 
 ## Guardrails
 
@@ -184,6 +209,9 @@ tracker comment links.
 - **Never push to `release/X.Y`**; only to fork branches, PRs target the release
   branch for review.
 - **Skip non-missing reverts** (`✅ DETECTED` / `🟢 STATUS`).
+- **Verify the reverted commit is on the target branch** (`git merge-base
+  --is-ancestor`) before cherry-picking — `🔴 WARNING` can be a false positive
+  for RC tags from another release line.
 - **Stop on cherry-pick conflicts** for that revert (abort + report); do not
   hand-resolve unless the user asks.
 - Requires `gh` authenticated for `pytorch/pytorch` and a pytorch checkout whose
