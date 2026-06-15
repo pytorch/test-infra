@@ -1,6 +1,6 @@
 ---
 name: release-cherry-pick-missing-reverts
-description: Find reverts that landed on pytorch/pytorch main but are missing from a release branch (release/X.Y) because the reverted commit was already shipped in a release candidate, and open one cherry-pick PR per missing revert against the release branch (on a fork branch, never pushing to release/X.Y directly). Driven by tools/analytics/github_analyze.py --analyze-missing-reverts-from-branch (the "GitHub Analytics Daily" workflow). Triggered by "missing reverts", "analyze reverts for release", "cherry-pick missing reverts", "reverts not in release/X.Y", or pointing at a GitHub Analytics Daily run and asking to cherry-pick the flagged reverts.
+description: Find reverts that landed on pytorch/pytorch main but are missing from a release branch (release/X.Y) because the reverted commit was already shipped in a release candidate, and open one cherry-pick PR per missing revert against the release branch (on a fork branch, never pushing to release/X.Y directly), optionally posting a cherry-pick nomination comment for each on the release tracker issue. Driven by tools/analytics/github_analyze.py --analyze-missing-reverts-from-branch (the "GitHub Analytics Daily" workflow). Triggered by "missing reverts", "analyze reverts for release", "cherry-pick missing reverts", "reverts not in release/X.Y", or pointing at a GitHub Analytics Daily run and asking to cherry-pick the flagged reverts.
 ---
 
 # Release: Cherry-pick missing reverts
@@ -27,9 +27,12 @@ checkout.
 | **Source** | one of | a GHA run URL, or "run the analyzer" | Either a `GitHub Analytics Daily` run URL/ID whose log already has the analysis, or run the analyzer locally for fresh data. |
 | **pytorch/pytorch path** | yes (for cherry-pick) | `~/pytorch` | A checkout with `upstream` → `pytorch/pytorch` and `origin` → the user's fork. |
 | **Fork remote** | defaults to `origin` | `origin` | Where the cherry-pick branches are pushed. |
+| **Tracker issue** | optional | `186934` | The `[vX.Y.Z] Release Tracker` issue. When given, post one cherry-pick nomination comment per opened PR (see Step 4). |
 
 If the release branch was not supplied, ask for it before doing anything — do
-not guess.
+not guess. If a tracker issue is given, the matching `release/X.Y` should agree
+with the tracker's version (e.g. issue `[v2.13.0] Release Tracker` →
+`release/2.13`); confirm before posting comments.
 
 ## When to use this skill
 
@@ -144,16 +147,40 @@ Detected by tools/analytics/github_analyze.py --analyze-missing-reverts-from-bra
 This PR was authored with the assistance of an AI coding agent.
 ```
 
-## Step 4 — Summary
+## Step 4 — Nominate on the release tracker (if a tracker issue was given)
+
+For each cherry-pick PR opened in Step 3, post one comment on the tracker issue
+in the tracker's standard nomination format. The **landed trunk PR is the
+original PR that was reverted** (the `#<PR>` from the revert title), and the
+**release branch PR is the cherry-pick PR**:
+
+```bash
+gh issue comment <tracker_issue> --repo pytorch/pytorch --body "Link to landed trunk PR (if applicable):
+* https://github.com/pytorch/pytorch/pull/<PR>
+
+Link to release branch PR:
+* https://github.com/pytorch/pytorch/pull/<cherry_pick_PR>
+
+Criteria Category:
+* cherry-pick revert"
+```
+
+One comment per revert. Only comment for PRs actually opened in Step 3 — skip
+the ones that were skipped or hit a conflict. Like opening PRs, posting to the
+tracker is outward-facing: confirm first.
+
+## Step 5 — Summary
 
 Report a table: PR, original title, revert_sha, and outcome — `PR #<n> opened`,
 `skipped (already on <branch>)`, or `conflict — needs manual cherry-pick`.
-Include the new branch names and PR URLs.
+Include the new branch names, PR URLs, and (if a tracker issue was given) the
+tracker comment links.
 
 ## Guardrails
 
-- **Confirm before opening PRs.** Creating multiple cherry-pick PRs is an
-  outward-facing action — list what will be opened and confirm first.
+- **Confirm before opening PRs or commenting.** Creating multiple cherry-pick
+  PRs and posting tracker comments are outward-facing actions — list what will be
+  opened/posted and confirm first.
 - **Never push to `release/X.Y`**; only to fork branches, PRs target the release
   branch for review.
 - **Skip non-missing reverts** (`✅ DETECTED` / `🟢 STATUS`).
