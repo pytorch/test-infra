@@ -422,6 +422,13 @@
       "linux"
     ]
   ],
+  "test_grad_capture_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187378",
+    "https://github.com/pytorch/pytorch/issues/187378",
+    [
+      "rocm"
+    ]
+  ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179742",
     "https://github.com/pytorch/pytorch/issues/179742",
@@ -794,6 +801,18 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_complex_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119536",
+    "https://github.com/pytorch/pytorch/issues/119536",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -962,6 +981,15 @@
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
+    ]
+  ],
+  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180439",
+    "https://github.com/pytorch/pytorch/issues/180439",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
