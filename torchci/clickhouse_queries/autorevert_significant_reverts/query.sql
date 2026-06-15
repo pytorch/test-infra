@@ -233,7 +233,9 @@ recovery_with_reverted_sha AS (
         rm.red_shas AS red_shas
     FROM recovery_events r
     LEFT JOIN red_streak_members rm
-        ON rm.base_name = r.signal_key AND rm.streak_id = r.red_streak_id
+        ON
+            rm.base_name = r.signal_key
+            AND rm.streak_id = r.red_streak_id
 ),
 
 -- Step 9: Join with autorevert events on full SHA match
@@ -271,7 +273,8 @@ recovery_with_attribution AS (
 -- Reapply / Back out shapes), the row is kept unchanged.
 reverts_only AS (
     SELECT * FROM recovery_with_attribution
-    WHERE is_revert = 1
+    WHERE
+        is_revert = 1
         AND (
             reverted_commit_sha = ''
             OR has(red_shas, reverted_commit_sha)
