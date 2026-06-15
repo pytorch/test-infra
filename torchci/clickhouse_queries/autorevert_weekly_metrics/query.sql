@@ -138,9 +138,23 @@ streak_lengths AS (
     GROUP BY base_name, streak_id, status
 ),
 
+-- SHAs comprising each red streak, for causal attribution: a revert only
+-- genuinely "fixes" a signal if the reverted commit is part of the red streak
+-- that recovered (mirrors autorevert_significant_reverts).
+red_streak_members AS (
+    SELECT
+        base_name,
+        streak_id,
+        groupArray(sha) AS red_shas
+    FROM signal_with_streak_ids
+    WHERE status = 'red'
+    GROUP BY base_name, streak_id
+),
+
 recovery_events AS (
     SELECT
         green.base_name AS signal_key,
+        red.streak_id AS red_streak_id,
         red.streak_length AS red_streak_length,
         green.streak_length AS green_streak_length,
         green.first_sha AS recovery_sha,
@@ -188,8 +202,13 @@ recovery_with_reverted_sha AS (
         -- The regex captures the full 40-char SHA since commit messages include full SHAs
         arrayElement(
             extractAll(r.recovery_message, 'reverts commit ([a-f0-9]+)'), 1
-        ) AS reverted_commit_sha
+        ) AS reverted_commit_sha,
+        rm.red_shas AS red_shas
     FROM recovery_events r
+    LEFT JOIN red_streak_members rm
+        ON
+            rm.base_name = r.signal_key
+            AND rm.streak_id = r.red_streak_id
 ),
 
 -- Join with autorevert events on full SHA match
@@ -205,6 +224,7 @@ recovery_with_attribution AS (
         r.last_red_time,
         r.is_revert,
         r.reverted_commit_sha,
+        r.red_shas,
         -- Check for autorevert attribution by matching the reverted commit SHA
         a.reverted_sha IS NOT NULL AND a.reverted_sha != '' AS is_autorevert
     FROM recovery_with_reverted_sha r
@@ -220,6 +240,14 @@ unique_recoveries AS (
         max(is_revert) AS is_revert,
         max(is_autorevert) AS is_autorevert
     FROM recovery_with_attribution
+    -- Causal filter (mirrors autorevert_significant_reverts): a revert only counts
+    -- as fixing a signal if the reverted commit is part of that signal's red streak.
+    -- Drops coincidental flake-clears at the revert commit so the weekly chart's
+    -- human_revert_recoveries / recall stay consistent with the summary numbers.
+    -- Non-revert recoveries have an empty reverted_commit_sha and are kept.
+    WHERE
+        reverted_commit_sha = ''
+        OR has(red_shas, reverted_commit_sha)
     GROUP BY recovery_sha
 )
 
