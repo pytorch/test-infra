@@ -86,6 +86,11 @@ class DispatchAdvisor:
     suspect_commit: str
     failed_commits: Tuple[str, ...]  # SHAs in failed partition (newest first)
     successful_commits: Tuple[str, ...]  # SHAs in successful partition (newest first)
+    # When True, `successful_commits` are baseline commits where this signal
+    # did NOT exist (test-track born-red case), not green observations.
+    # The advisor JSON layer relabels them so the model is asked "did the
+    # suspect commit introduce this failing test?".
+    is_born_red: bool = False
 
 
 @dataclass
@@ -496,8 +501,60 @@ class Signal:
 
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
+    def partition_born_red(self) -> Optional[PartitionedCommits]:
+        """Partition for the test-track "born-red" pattern: failing head + empty-events tail.
+
+        Returns a partition only when the signal shape is `[FAIL...][EMPTY...]`
+        (newest → oldest) with no interleaving:
+        - At least 2 commits in window
+        - No commits with success events (otherwise the main partition path applies)
+        - At least 1 commit with failure events at the head
+        - At least 1 trailing commit with no events — these are commits where this
+          test did not run or did not yet exist, used as the implicit baseline
+          ("commits without the signal")
+        - No pending-only or other-shape commits in between
+
+        Trailing empty-events commits are placed in `successful` so the advisor
+        check / pattern construction can reuse the standard primitives. The
+        advisor JSON layer relabels them via `DispatchAdvisor.is_born_red` so
+        the model is asked about test introduction, not green→red transition.
+        `unknown` is always empty — there is no gap to bisect.
+        """
+        if len(self.commits) < 2 or self.has_successes():
+            return None
+
+        failed: List[SignalCommit] = []
+        baseline: List[SignalCommit] = []
+        for c in self.commits:
+            if c.has_failure:
+                if baseline:
+                    # Failure after an empty-events commit (newer→older order) —
+                    # out of shape.
+                    return None
+                failed.append(c)
+            elif not c.events:
+                baseline.append(c)
+            else:
+                # Pending-only or other shape — bail; the advisor needs a clean
+                # introduction-vs-baseline split.
+                return None
+
+        if not failed or not baseline:
+            return None
+
+        return PartitionedCommits(failed=failed, unknown=[], successful=baseline)
+
     # Minimum confidence threshold for acting on advisor verdicts
     ADVISOR_CONFIDENCE_THRESHOLD = 0.89
+
+    # Minimum number of *distinct failing commits* required before dispatching
+    # an advisor on a born-red test signal. Counting distinct commits (rather
+    # than events) is deliberate: multiple FAILURE events on the same commit
+    # (retries, multiple shards / variants of the same test, etc.) describe
+    # one trunk observation, not two. Requiring two failing commits means the
+    # failure has persisted across at least one trunk advance — strong enough
+    # to justify the advisor cost without waiting indefinitely.
+    REQUIRE_FAILED_COMMITS_BORN_RED = 2
 
     def _build_autorevert_pattern(
         self,
@@ -571,6 +628,64 @@ class Signal:
         # "unsure" or expired garbage → continue normally
         return None
 
+    def _handle_no_successes(self) -> Union[AutorevertPattern, Ineligible]:
+        """Handle the `not has_successes()` branch.
+
+        Default behavior: emit `Ineligible(NO_SUCCESSES)` with no advisor — the
+        standard green→red partition has no anchor to work from.
+
+        Test-track exception (born-red detection): when the signal shape matches
+        `[FAIL...][EMPTY...]` (`partition_born_red` returns a partition), the
+        suspect commit is likely the one that introduced the test. Defer to the
+        AI advisor:
+        - If a prior advisor verdict exists on the suspect, act on it
+          (revert/related → `AutorevertPattern`; not_related/garbage → blocked).
+        - Otherwise, dispatch a fresh advisor request alongside the `Ineligible`
+          response. Next tick can act on the verdict.
+
+        Advisor dedup + the per-(workflow, commit) cap of 8 are handled by
+        `SignalActionsLogger`; this method just emits the request.
+        """
+        born_red = (
+            self.partition_born_red() if self.source == SignalSource.TEST else None
+        )
+        if born_red is None:
+            return Ineligible(
+                IneligibleReason.NO_SUCCESSES,
+                "no successful commits present in window",
+            )
+
+        if len(born_red.failed) < self.REQUIRE_FAILED_COMMITS_BORN_RED:
+            # Not enough distinct failing commits to justify advisor cost —
+            # wait for the next trunk advance. Retries / multiple shards on a
+            # single commit do not count as independent observations.
+            return Ineligible(
+                IneligibleReason.NO_SUCCESSES,
+                f"born-red test signal: need ≥{self.REQUIRE_FAILED_COMMITS_BORN_RED} "
+                f"failing commits before advisor dispatch (have "
+                f"{len(born_red.failed)})",
+            )
+
+        # If the advisor already weighed in on the suspect, use that verdict.
+        advisor_decision = self._check_advisor_verdict(born_red)
+        if advisor_decision is not None:
+            return advisor_decision
+
+        # No verdict yet — request one. `successful_commits` carry the implicit
+        # baseline (commits where the signal didn't exist); `is_born_red=True`
+        # tells the advisor JSON builder to relabel them accordingly.
+        advisor = DispatchAdvisor(
+            suspect_commit=born_red.failed[-1].head_sha,
+            failed_commits=tuple(c.head_sha for c in born_red.failed),
+            successful_commits=tuple(c.head_sha for c in born_red.successful),
+            is_born_red=True,
+        )
+        return Ineligible(
+            IneligibleReason.NO_SUCCESSES,
+            "born-red test signal: no successful commits in window — advisor dispatched",
+            advisor=advisor,
+        )
+
     def process_valid_autorevert_pattern(
         self, *, bisection_limit: Optional[int] = None
     ) -> Union[AutorevertPattern, RestartCommits, Ineligible]:
@@ -591,9 +706,7 @@ class Signal:
                 IneligibleReason.FIXED, "signal appears recovered at head"
             )
         if not self.has_successes():
-            return Ineligible(
-                IneligibleReason.NO_SUCCESSES, "no successful commits present in window"
-            )
+            return self._handle_no_successes()
 
         partition = self.partition_by_autorevert_pattern()
         if partition is None:

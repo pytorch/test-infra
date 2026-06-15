@@ -35,6 +35,33 @@ from .workflow_checker import WorkflowRestartChecker
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
 
 
+# Top-level natural-language framing attached to the advisor's
+# `signal_pattern.json` payload when `DispatchAdvisor.is_born_red` is set.
+# Said once at the top level rather than duplicated into every baseline
+# commit's `partition` label.
+_BORN_RED_PATTERN_CONTEXT = (
+    "born-red / newly-observed-red test signal: this test signal has NO "
+    "observations on any commit older than the suspect in the lookback "
+    "window. The suspect commit is the first commit on which the signal "
+    "appears, and it fails. Older commits in the `no_signal` partition "
+    "have empty events because the test was not extracted there — this "
+    "is ambiguous and could mean any of:\n"
+    "  (a) the suspect ADDED this test;\n"
+    "  (b) the suspect ENABLED / un-skipped an existing test or removed a "
+    "TD / skipping filter that previously masked it;\n"
+    "  (c) the suspect MOVED or RENAMED the test so its identity is newly "
+    "visible;\n"
+    "  (d) the suspect changed sharding / job selection so an existing "
+    "already-failing test became visible.\n"
+    "Read the suspect commit's diff and decide which of (a)-(d) applies. "
+    "Recommend `revert` only if the suspect's diff explicitly introduces "
+    "or enables the failing test (cases a / b / c). For (d) — sharding "
+    "or job-selection change exposing a pre-existing failure — recommend "
+    "`not_related` because the suspect did not cause the test to fail, "
+    "only made it observable."
+)
+
+
 class CommitPRSourceAction(Enum):
     MERGE = "merge"
     REVERT = "revert"
@@ -736,15 +763,28 @@ class SignalActionProcessor:
             "unknown: commits between failed and successful partitions "
             "with no resolved events (pending or missing data)"
         )
-        LABEL_SUCCESSFUL = (
-            "successful: baseline commits where this signal was GREEN "
-            "before the suspect commit"
-        )
-        LABEL_PRIOR = (
-            "prior: older commits before the successful baseline. "
-            "Important: the signal may have been fixed and then failed again. "
-            "Don't make assumptions just based on the presence of failures here."
-        )
+        # Born-red / newly-observed-red case: a test-track signal with no green
+        # observations in the lookback window. The "successful" set actually
+        # carries commits where this test signal was NOT OBSERVED (no extracted
+        # events). The label stays short — the natural-language framing of what
+        # the advisor needs to figure out lives in `pattern_context` at the
+        # top level (so it's said once, not duplicated per commit).
+        if dispatch_advisor.is_born_red:
+            LABEL_SUCCESSFUL = (
+                "no_signal: baseline commits where this test signal was not "
+                "observed (no extracted events). See top-level pattern_context."
+            )
+            LABEL_PRIOR = "prior: even older commits with no signal observation"
+        else:
+            LABEL_SUCCESSFUL = (
+                "successful: baseline commits where this signal was GREEN "
+                "before the suspect commit"
+            )
+            LABEL_PRIOR = (
+                "prior: older commits before the successful baseline. "
+                "Important: the signal may have been fixed and then failed again. "
+                "Don't make assumptions just based on the presence of failures here."
+            )
 
         def _fmt_ts(dt: Optional[datetime]) -> str:
             if dt is None:
@@ -823,17 +863,18 @@ class SignalActionProcessor:
                 }
             )
 
-        return json.dumps(
-            {
-                "signal_key": signal.key,
-                "signal_source": signal.source.value if signal.source else "unknown",
-                "workflow_name": signal.workflow_name,
-                "job_base_name": signal.job_base_name,
-                "commit_order": "newest_first",
-                "suspect_commit": dispatch_advisor.suspect_commit,
-                "commits": commits_json,
-            }
-        )
+        payload = {
+            "signal_key": signal.key,
+            "signal_source": signal.source.value if signal.source else "unknown",
+            "workflow_name": signal.workflow_name,
+            "job_base_name": signal.job_base_name,
+            "commit_order": "newest_first",
+            "suspect_commit": dispatch_advisor.suspect_commit,
+            "commits": commits_json,
+        }
+        if dispatch_advisor.is_born_red:
+            payload["pattern_context"] = _BORN_RED_PATTERN_CONTEXT
+        return json.dumps(payload)
 
     def _commit_message_check_pr_is_revert(
         self, commit_message: str, ctx: RunContext
