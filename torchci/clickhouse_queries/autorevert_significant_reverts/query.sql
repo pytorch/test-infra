@@ -147,10 +147,26 @@ streak_lengths AS (
     GROUP BY base_name, streak_id, status
 ),
 
+-- Step 5b: Collect the SHAs that make up each red streak (for causal attribution).
+-- A revert only genuinely "fixes" a signal if the reverted commit is actually part
+-- of the red streak that recovered. Otherwise the red->green transition at the
+-- revert commit is coincidental -- e.g. a flaky signal that merely happened to go
+-- green at the revert -- and crediting the revert with it inflates the FN count.
+red_streak_members AS (
+    SELECT
+        base_name,
+        streak_id,
+        groupArray(sha) AS red_shas
+    FROM signal_with_streak_ids
+    WHERE status = 'red'
+    GROUP BY base_name, streak_id
+),
+
 -- Step 6: Find recovery events: green streak that follows a red streak
 recovery_events AS (
     SELECT
         green.base_name AS signal_key,
+        red.streak_id AS red_streak_id,
         red.streak_length AS red_streak_length,
         green.streak_length AS green_streak_length,
         green.first_sha AS recovery_sha,
@@ -212,8 +228,12 @@ recovery_with_reverted_sha AS (
         -- The regex captures the full 40-char SHA since commit messages include full SHAs
         arrayElement(
             extractAll(r.recovery_message, 'reverts commit ([a-f0-9]+)'), 1
-        ) AS reverted_commit_sha
+        ) AS reverted_commit_sha,
+        -- SHAs comprising the red streak this recovery resolves (causal filter input)
+        rm.red_shas AS red_shas
     FROM recovery_events r
+    LEFT JOIN red_streak_members rm
+        ON rm.base_name = r.signal_key AND rm.streak_id = r.red_streak_id
 ),
 
 -- Step 9: Join with autorevert events on full SHA match
@@ -233,6 +253,7 @@ recovery_with_attribution AS (
         r.reverted_pr_numbers,
         r.merge_pr_numbers,
         r.reverted_commit_sha,
+        r.red_shas,
         -- Check for autorevert attribution by matching the reverted commit SHA
         a.reverted_sha IS NOT NULL AND a.reverted_sha != '' AS is_autorevert,
         a.autorevert_time,
@@ -241,10 +262,20 @@ recovery_with_attribution AS (
     LEFT JOIN autorevert_events a ON r.reverted_commit_sha = a.reverted_sha
 ),
 
--- Filter to only actual reverts before aggregating
+-- Filter to only actual reverts before aggregating, and require the reverted
+-- commit to actually belong to the red streak it supposedly recovered. This drops
+-- spurious recoveries where an unrelated/flaky signal merely went red->green at the
+-- revert commit while the reverted commit was never part of that red streak (e.g.
+-- out-of-plane reverts -- ghfirst/nosignal -- credited with a coincidental flake
+-- clear). When the reverted commit SHA can't be parsed from the message (e.g.
+-- Reapply / Back out shapes), the row is kept unchanged.
 reverts_only AS (
     SELECT * FROM recovery_with_attribution
     WHERE is_revert = 1
+        AND (
+            reverted_commit_sha = ''
+            OR has(red_shas, reverted_commit_sha)
+        )
 ),
 
 -- Aggregate by recovery_sha (one row per unique revert commit)
