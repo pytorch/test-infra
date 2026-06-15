@@ -383,6 +383,9 @@ class Signal:
         job_base_name: Optional[str] = None,
         test_module: Optional[str] = None,
         source: SignalSource = SignalSource.TEST,
+        test_file: Optional[str] = None,
+        test_classname: Optional[str] = None,
+        test_name: Optional[str] = None,
     ):
         self.key = key
         self.workflow_name = workflow_name
@@ -393,6 +396,16 @@ class Signal:
         self.test_module = test_module
         # Track the origin of the signal (test-track or job-track).
         self.source = source
+        # For TEST signals: structured identity of the failing test, sourced
+        # from tests.all_test_runs and surfaced at the top of the advisor
+        # signal_pattern JSON. test_file/test_name are authoritative — they
+        # are the components of the signal key ("file::name"). test_classname
+        # is only populated when a single classname was observed for this
+        # test_id; it is None when the same file::name spans multiple classes
+        # (ambiguous — better omitted than guessed).
+        self.test_file = test_file
+        self.test_classname = test_classname
+        self.test_name = test_name
 
     def replace(self, **changes) -> "Signal":
         """Return a copy with selected fields replaced (`dataclasses.replace`-style).
@@ -407,6 +420,9 @@ class Signal:
             "job_base_name": changes.pop("job_base_name", self.job_base_name),
             "test_module": changes.pop("test_module", self.test_module),
             "source": changes.pop("source", self.source),
+            "test_file": changes.pop("test_file", self.test_file),
+            "test_classname": changes.pop("test_classname", self.test_classname),
+            "test_name": changes.pop("test_name", self.test_name),
         }
         if changes:
             raise TypeError(
