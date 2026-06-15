@@ -381,6 +381,13 @@
       "rocm"
     ]
   ],
+  "test_fake_mode_error_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187344",
+    "https://github.com/pytorch/pytorch/issues/187344",
+    [
+      "rocm"
+    ]
+  ],
   "test_fd_pool (__main__.TestMultiprocessing)": [
     "69660",
     "https://github.com/pytorch/pytorch/issues/69660",
