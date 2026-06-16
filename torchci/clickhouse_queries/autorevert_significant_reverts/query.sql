@@ -2,6 +2,14 @@
 -- Finds recovery events that are reverts and attributes them to autorevert vs human
 -- Used for autorevert metrics precision/recall calculations
 
+-- The block between the @autorevert-shared-recovery-pipeline markers below is kept
+-- BYTE-IDENTICAL with autorevert_weekly_metrics/query.sql. The
+-- autorevertSharedPipeline test (torchci/test/autorevertSharedPipeline.test.ts)
+-- fails CI if the two copies drift, so any change to the recovery-detection or
+-- causal-attribution pipeline (e.g. the #8176 causal red-streak filter) MUST be
+-- applied identically to BOTH files. Only each query's final aggregation, below the
+-- :end marker, is allowed to differ.
+-- @autorevert-shared-recovery-pipeline:begin
 WITH commits AS (
     SELECT
         push.head_commit.'timestamp' AS time,
@@ -264,21 +272,32 @@ recovery_with_attribution AS (
     LEFT JOIN autorevert_events a ON r.reverted_commit_sha = a.reverted_sha
 ),
 
--- Filter to only actual reverts before aggregating, and require the reverted
--- commit to actually belong to the red streak it supposedly recovered. This drops
--- spurious recoveries where an unrelated/flaky signal merely went red->green at the
--- revert commit while the reverted commit was never part of that red streak (e.g.
--- out-of-plane reverts -- ghfirst/nosignal -- credited with a coincidental flake
--- clear). When the reverted commit SHA can't be parsed from the message (e.g.
--- Reapply / Back out shapes), the row is kept unchanged.
-reverts_only AS (
+-- Step 10: Apply the causal-attribution filter centrally, so BOTH downstream
+-- queries (autorevert_significant_reverts and autorevert_weekly_metrics) share it
+-- and cannot drift. A revert only "fixes" a signal when the reverted commit is
+-- actually part of the red streak that recovered; spurious recoveries -- an
+-- unrelated/flaky signal that merely went red->green at the revert commit while the
+-- reverted commit was never in that red streak (e.g. out-of-plane ghfirst/nosignal
+-- reverts credited with a coincidental flake clear) -- are dropped. When the
+-- reverted commit SHA can't be parsed from the message (Reapply / Back out shapes),
+-- the row is kept unchanged.
+causally_attributed_recoveries AS (
     SELECT * FROM recovery_with_attribution
     WHERE
-        is_revert = 1
-        AND (
-            reverted_commit_sha = ''
-            OR has(red_shas, reverted_commit_sha)
-        )
+        reverted_commit_sha = ''
+        OR has(red_shas, reverted_commit_sha)
+),
+-- @autorevert-shared-recovery-pipeline:end
+
+-- ===========================================================================
+-- Query-specific tail: per-revert-commit detail for the precision/recall table.
+-- ===========================================================================
+
+-- Filter to only actual reverts (the causal-attribution filter is already applied
+-- upstream in causally_attributed_recoveries).
+reverts_only AS (
+    SELECT * FROM causally_attributed_recoveries
+    WHERE is_revert = 1
 ),
 
 -- Aggregate by recovery_sha (one row per unique revert commit)
