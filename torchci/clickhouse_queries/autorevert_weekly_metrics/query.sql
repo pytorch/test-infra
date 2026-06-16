@@ -2,6 +2,13 @@
 -- Aggregates signal recovery and revert data by week for trend analysis
 -- Computes key metrics: total recoveries, autorevert rate, human revert rate
 
+-- The block between the @autorevert-shared-recovery-pipeline markers below is kept
+-- BYTE-IDENTICAL with autorevert_significant_reverts/query.sql. The
+-- AUTOREVERT_SHARED_CTE lintrunner check fails CI if the two copies drift, so any
+-- change to the recovery-detection or causal-attribution pipeline (e.g. the #8176
+-- causal red-streak filter) MUST be applied identically to BOTH files. Only each
+-- query's final aggregation, below the :end marker, is allowed to differ.
+-- @autorevert-shared-recovery-pipeline:begin
 WITH commits AS (
     SELECT
         push.head_commit.'timestamp' AS time,
@@ -42,6 +49,7 @@ all_jobs AS (
         all_runs.workflow_name AS workflow_name,
         job.run_attempt AS run_attempt,
         job.conclusion AS raw_conclusion,
+        -- Normalize job name to group shards together (same as auto-revert logic)
         trim(
             replaceRegexpAll(
                 replaceRegexpAll(
@@ -64,6 +72,7 @@ all_jobs AS (
         )
 ),
 
+-- Step 1: For each (sha, base_name, run_attempt), determine attempt status
 attempt_status AS (
     SELECT
         time,
@@ -79,6 +88,7 @@ attempt_status AS (
     GROUP BY time, sha, message, base_name, workflow_name, run_attempt
 ),
 
+-- Step 2: For each (sha, base_name), aggregate across all attempts
 signal_status AS (
     SELECT
         time,
@@ -96,6 +106,7 @@ signal_status AS (
     GROUP BY time, sha, message, base_name
 ),
 
+-- Step 3: Assign streak IDs using cumulative status changes
 signal_with_streaks AS (
     SELECT
         base_name,
@@ -104,25 +115,30 @@ signal_with_streaks AS (
         time,
         message,
         status,
+        -- Change marker: 1 when status differs from previous
         if(status != lagInFrame(status, 1, status) OVER w, 1, 0) AS is_change
     FROM signal_status
-    WHERE status IN ('red', 'green')
+    WHERE status IN ('red', 'green')  -- Focus on definitive states
     WINDOW w AS (
         PARTITION BY base_name
         ORDER BY time ASC
     )
 ),
 
+-- Step 4: Compute streak ID (cumulative sum of changes)
 signal_with_streak_ids AS (
     SELECT
         *,
-        sum(is_change) OVER (
-            PARTITION BY base_name
-            ORDER BY time ASC ROWS UNBOUNDED PRECEDING
-        ) AS streak_id
+        sum(is_change)
+            OVER (
+                PARTITION BY base_name
+                ORDER BY time ASC ROWS UNBOUNDED PRECEDING
+            )
+            AS streak_id
     FROM signal_with_streaks
 ),
 
+-- Step 5: Count streak lengths and find boundaries
 streak_lengths AS (
     SELECT
         base_name,
@@ -138,9 +154,11 @@ streak_lengths AS (
     GROUP BY base_name, streak_id, status
 ),
 
--- SHAs comprising each red streak, for causal attribution: a revert only
--- genuinely "fixes" a signal if the reverted commit is part of the red streak
--- that recovered (mirrors autorevert_significant_reverts).
+-- Step 5b: Collect the SHAs that make up each red streak (for causal attribution).
+-- A revert only genuinely "fixes" a signal if the reverted commit is actually part
+-- of the red streak that recovered. Otherwise the red->green transition at the
+-- revert commit is coincidental -- e.g. a flaky signal that merely happened to go
+-- green at the revert -- and crediting the revert with it inflates the FN count.
 red_streak_members AS (
     SELECT
         base_name,
@@ -151,6 +169,7 @@ red_streak_members AS (
     GROUP BY base_name, streak_id
 ),
 
+-- Step 6: Find recovery events: green streak that follows a red streak
 recovery_events AS (
     SELECT
         green.base_name AS signal_key,
@@ -161,7 +180,9 @@ recovery_events AS (
         green.streak_start AS recovery_time,
         green.first_message AS recovery_message,
         red.last_sha AS last_red_sha,
-        red.streak_end AS last_red_time
+        red.streak_end AS last_red_time,
+        red.first_sha AS first_red_sha,
+        red.streak_start AS first_red_time
     FROM streak_lengths green
     JOIN streak_lengths red
         ON
@@ -173,7 +194,7 @@ recovery_events AS (
         AND green.streak_length >= {minGreenCommits: UInt8}
 ),
 
--- Get autorevert events for attribution
+-- Step 7: Get autorevert events for attribution
 autorevert_events AS (
     SELECT
         toString(commit_sha) AS reverted_sha,
@@ -185,24 +206,37 @@ autorevert_events AS (
         AND action = 'revert'
         AND dry_run = 0
         AND failed = 0
+        -- Convert DateTime64 params to DateTime for comparison
         AND ts >= toDateTime({startTime: DateTime64(3)}) - INTERVAL 1 DAY
         AND ts < toDateTime({stopTime: DateTime64(3)}) + INTERVAL 1 DAY
 ),
 
--- Extract reverted commit SHA from recovery message
+-- Step 8: Extract reverted commit SHA from recovery message
 recovery_with_reverted_sha AS (
     SELECT
         r.*,
+        -- Check if recovery commit is a revert
         (
             r.recovery_message LIKE 'Revert %'
             OR r.recovery_message LIKE 'Reapply %'
             OR r.recovery_message LIKE 'Back out%'
         ) AS is_revert,
+        -- Extract reverted PR number if it's a revert
+        extractAll(
+            r.recovery_message,
+            'Reverted https://github.com/pytorch/pytorch/pull/(\\d+)'
+        ) AS reverted_pr_numbers,
+        -- Extract PR number from merge commit message
+        extractAll(
+            r.recovery_message,
+            'Pull Request resolved: https://github.com/pytorch/pytorch/pull/(\\d+)'
+        ) AS merge_pr_numbers,
         -- Extract the actual reverted commit SHA from message (e.g., "This reverts commit abc123...")
         -- The regex captures the full 40-char SHA since commit messages include full SHAs
         arrayElement(
             extractAll(r.recovery_message, 'reverts commit ([a-f0-9]+)'), 1
         ) AS reverted_commit_sha,
+        -- SHAs comprising the red streak this recovery resolves (causal filter input)
         rm.red_shas AS red_shas
     FROM recovery_events r
     LEFT JOIN red_streak_members rm
@@ -211,7 +245,7 @@ recovery_with_reverted_sha AS (
             AND rm.streak_id = r.red_streak_id
 ),
 
--- Join with autorevert events on full SHA match
+-- Step 9: Join with autorevert events on full SHA match
 recovery_with_attribution AS (
     SELECT
         r.signal_key,
@@ -222,32 +256,52 @@ recovery_with_attribution AS (
         r.recovery_message,
         r.last_red_sha,
         r.last_red_time,
+        r.first_red_sha,
+        r.first_red_time,
         r.is_revert,
+        r.reverted_pr_numbers,
+        r.merge_pr_numbers,
         r.reverted_commit_sha,
         r.red_shas,
         -- Check for autorevert attribution by matching the reverted commit SHA
-        a.reverted_sha IS NOT NULL AND a.reverted_sha != '' AS is_autorevert
+        a.reverted_sha IS NOT NULL AND a.reverted_sha != '' AS is_autorevert,
+        a.autorevert_time,
+        a.source_signal_keys AS autorevert_signal_keys
     FROM recovery_with_reverted_sha r
     LEFT JOIN autorevert_events a ON r.reverted_commit_sha = a.reverted_sha
 ),
 
--- Deduplicate by recovery_sha to count unique revert commits
--- A single revert can fix multiple signals, but we count it as one revert event
+-- Step 10: Apply the causal-attribution filter centrally, so BOTH downstream
+-- queries (autorevert_significant_reverts and autorevert_weekly_metrics) share it
+-- and cannot drift. A revert only "fixes" a signal when the reverted commit is
+-- actually part of the red streak that recovered; spurious recoveries -- an
+-- unrelated/flaky signal that merely went red->green at the revert commit while the
+-- reverted commit was never in that red streak (e.g. out-of-plane ghfirst/nosignal
+-- reverts credited with a coincidental flake clear) -- are dropped. When the
+-- reverted commit SHA can't be parsed from the message (Reapply / Back out shapes),
+-- the row is kept unchanged.
+causally_attributed_recoveries AS (
+    SELECT * FROM recovery_with_attribution
+    WHERE
+        reverted_commit_sha = ''
+        OR has(red_shas, reverted_commit_sha)
+),
+-- @autorevert-shared-recovery-pipeline:end
+
+-- ===========================================================================
+-- Query-specific tail: weekly aggregation of recovery counts and rates.
+-- ===========================================================================
+
+-- Deduplicate by recovery_sha to count unique revert commits. A single revert can
+-- fix multiple signals, but we count it as one revert event. The causal-attribution
+-- filter is already applied upstream in causally_attributed_recoveries.
 unique_recoveries AS (
     SELECT
         recovery_sha,
         any(recovery_time) AS recovery_time,
         max(is_revert) AS is_revert,
         max(is_autorevert) AS is_autorevert
-    FROM recovery_with_attribution
-    -- Causal filter (mirrors autorevert_significant_reverts): a revert only counts
-    -- as fixing a signal if the reverted commit is part of that signal's red streak.
-    -- Drops coincidental flake-clears at the revert commit so the weekly chart's
-    -- human_revert_recoveries / recall stay consistent with the summary numbers.
-    -- Non-revert recoveries have an empty reverted_commit_sha and are kept.
-    WHERE
-        reverted_commit_sha = ''
-        OR has(red_shas, reverted_commit_sha)
+    FROM causally_attributed_recoveries
     GROUP BY recovery_sha
 )
 

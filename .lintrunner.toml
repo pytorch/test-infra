@@ -403,6 +403,22 @@ command = [
 is_formatter = false
 
 [[linter]]
+code = 'AUTOREVERT_SHARED_CTE'
+include_patterns = [
+    'torchci/clickhouse_queries/autorevert_significant_reverts/query.sql',
+    'torchci/clickhouse_queries/autorevert_weekly_metrics/query.sql',
+    'torchci/clickhouse_queries/autorevert_significant_reverts/params.json',
+    'torchci/clickhouse_queries/autorevert_weekly_metrics/params.json',
+    'tools/linter/adapters/autorevert_shared_cte_linter.py',
+]
+command = [
+    'python3',
+    'tools/linter/adapters/autorevert_shared_cte_linter.py',
+    '@{{PATHSFILE}}',
+]
+is_formatter = false
+
+[[linter]]
 code = 'RUSTFMT'
 include_patterns = ['**/*.rs']
 command = [
