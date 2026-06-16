@@ -1404,17 +1404,52 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
         self.assertEqual(part.failed[-1].head_sha, "f2")
 
-    def test_partition_born_red_defers_on_pending_in_introduction_gap(self):
-        # An unconcluded (pending) commit between the suspect and the nearest
-        # older baseline could itself be the real introducer → defer (None)
-        # rather than dispatch on a too-new suspect.
+    def test_partition_born_red_fires_with_pending_in_introduction_gap(self):
+        # An unconcluded (pending) commit sits between the suspect and the
+        # nearest older baseline. We do NOT defer: dispatch on the oldest
+        # OBSERVED failure (f2) now. If p1 later concludes to a failure older
+        # than f2, the suspect moves and a second advisor runs on the corrected
+        # commit — accepted (≤1 superfluous, rare in practice).
         commits = [
             self._fail("f1", 0),
             self._fail("f2", -10),
-            self._unrun("p1", -15),  # unconcluded gap commit, no info yet
+            self._unrun("p1", -15),  # unconcluded gap commit, ignored
             self._baseline("e1", -20),
         ]
-        self.assertIsNone(self._test_signal(commits).partition_born_red())
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual(part.failed[-1].head_sha, "f2")  # suspect = oldest fail
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
+
+    def test_partition_born_red_fires_with_pending_head_and_gap(self):
+        # Full real-world shape (newest→oldest): a pending head, two failures,
+        # pending commits in the introduction gap, then concluded baselines
+        # with another pending interleaved among them:
+        #     P P P F F P P P C P C
+        # Born-red fires on the oldest observed failure (f4); every pending is
+        # ignored regardless of position.
+        commits = [
+            self._pending("p0", 100),
+            self._pending("p1", 90),
+            self._pending("p2", 80),
+            self._fail("f3", 70, job_id=13),
+            self._fail("f4", 60, job_id=14),
+            self._pending("p5", 50),
+            self._pending("p6", 40),
+            self._pending("p7", 30),
+            self._baseline("c8", 20),
+            self._pending("p9", 10),
+            self._baseline("c10", 0),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f3", "f4"])
+        self.assertEqual(part.failed[-1].head_sha, "f4")  # suspect = oldest fail
+        # Baselines = concluded-empty commits older than the suspect.
+        self.assertEqual([c.head_sha for c in part.successful], ["c8", "c10"])
 
     def test_partition_born_red_none_without_concluded_baseline(self):
         # The only empty commits are unconcluded (jobs not finished) → no proof

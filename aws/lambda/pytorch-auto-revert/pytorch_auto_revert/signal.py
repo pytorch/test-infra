@@ -546,19 +546,34 @@ class Signal:
         ignores pending commits entirely.
 
         Born-red requires (the caller guarantees `not has_successes()`):
+        - ≥1 failing commit; the suspect is the OLDEST *observed* failing
+          commit (the introduction point). `failed` collects every failing
+          commit so the caller's distinct-commit threshold and pattern builder
+          work unchanged.
         - ≥1 *concluded baseline* commit OLDER than the suspect — a commit
           where the test's job group ran to conclusion but produced no event
           for this test (`job_group_concluded and not events`). That is proof
           the test was genuinely absent there, as opposed to a commit whose
           jobs are merely still pending and carry no information yet.
-        - ≥1 failing commit; the suspect is the OLDEST failing commit (the
-          introduction point). `failed` collects every failing commit so the
-          caller's distinct-commit threshold and pattern builder work unchanged.
-        - An unambiguous introduction boundary: no unconcluded (pending)
-          commit sits between the suspect and the nearest older concluded
-          baseline. If one does, it might itself be the real introducer, so we
-          return None and defer to a later tick rather than dispatch the
-          advisor on a too-new suspect (which would read the wrong diff).
+
+        Pending commits are ignored wherever they sit — at the head, *or*
+        interleaved in the introduction gap between the suspect and the
+        baseline. The advisor is dispatched on the oldest observed failure
+        now, rather than deferring until every gap commit settles. If a
+        pending gap commit later concludes to a failure older than the current
+        suspect, the suspect moves and a second advisor runs on the corrected
+        commit; the stale verdict on the too-new suspect is keyed to that
+        commit (`_check_advisor_verdict` matches on `failed[-1]`; dedup/caps in
+        `SignalActionsLogger` are per-(commit, signal_key)) and is never
+        consulted for the corrected suspect. On real `autorevert_state` data
+        this costs ≤1 superfluous advisor run per episode, usually 0.
+
+        This is an accepted precision/latency tradeoff, not a free lunch: the
+        advisor reads the too-new suspect's diff, and while it almost always
+        returns `not_related` (the commit didn't introduce the test), a
+        confident wrong verdict is possible — bounded by the
+        `ADVISOR_CONFIDENCE_THRESHOLD` gate. We prefer that bounded risk over
+        deferring every born-red episode until its introduction gap settles.
 
         `failed` = all failing commits (newest first; `failed[-1]` is the
         suspect); `successful` = concluded baseline commits older than the
@@ -572,26 +587,17 @@ class Signal:
         if not failed:
             return None
 
-        # Suspect = oldest failing commit (the introduction point).
+        # Suspect = oldest observed failing commit (the introduction point).
         suspect_idx = max(i for i, c in enumerate(self.commits) if c.has_failure)
         older = self.commits[suspect_idx + 1 :]
 
+        # ≥1 concluded-empty baseline older than the suspect is positive proof
+        # the test was absent before it. Pending commits in the gap carry no
+        # information yet and are ignored (see docstring) rather than deferred
+        # on — we dispatch on the oldest observed failure.
         baseline = [c for c in older if c.job_group_concluded and not c.events]
         if not baseline:
             return None
-
-        # Introduction-boundary gate: walk commits older than the suspect; the
-        # first concluded baseline confirms the boundary, but an unconcluded
-        # (pending) commit encountered first means the true introducer is
-        # ambiguous — defer.
-        for c in older:
-            if c.job_group_concluded and not c.events:
-                break  # reached the baseline with no pending gap in between
-            if not c.job_group_concluded:
-                return None  # pending / unresolved in the introduction gap
-            # A concluded commit WITH events older than the suspect would be a
-            # failure older than the oldest failure (no successes exist) —
-            # impossible by construction; ignore defensively and keep scanning.
 
         return PartitionedCommits(failed=failed, unknown=[], successful=baseline)
 
