@@ -20,13 +20,6 @@
       "rocm"
     ]
   ],
-  "test_add_complex_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187036",
-    "https://github.com/pytorch/pytorch/issues/187036",
-    [
-      "xpu"
-    ]
-  ],
   "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186871",
     "https://github.com/pytorch/pytorch/issues/186871",
@@ -41,23 +34,9 @@
       "xpu"
     ]
   ],
-  "test_amp_fallback_random_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187121",
-    "https://github.com/pytorch/pytorch/issues/187121",
-    [
-      "xpu"
-    ]
-  ],
   "test_aot_inductor_consts_cpp_build_xpu (__main__.AOTInductorTestDualWrapper)": [
     "187127",
     "https://github.com/pytorch/pytorch/issues/187127",
-    [
-      "xpu"
-    ]
-  ],
-  "test_aoti_constant_tensor_name_collision_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187123",
-    "https://github.com/pytorch/pytorch/issues/187123",
     [
       "xpu"
     ]
@@ -68,20 +47,6 @@
     [
       "inductor",
       "rocm"
-    ]
-  ],
-  "test_aoti_profiler_enable_kernel_profile_False_enable_kernel_context_guard_False_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187035",
-    "https://github.com/pytorch/pytorch/issues/187035",
-    [
-      "xpu"
-    ]
-  ],
-  "test_aoti_profiler_enable_kernel_profile_True_enable_kernel_context_guard_True_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187125",
-    "https://github.com/pytorch/pytorch/issues/187125",
-    [
-      "xpu"
     ]
   ],
   "test_autotune_int64_user_defined_triton_kernel_xpu (__main__.AOTInductorTestDualWrapper)": [
@@ -498,13 +463,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_integer_parameter_serialization_xpu (__main__.TestMultiprocessingDeviceTypeXPU)": [
-    "186585",
-    "https://github.com/pytorch/pytorch/issues/186585",
-    [
-      "xpu"
     ]
   ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
