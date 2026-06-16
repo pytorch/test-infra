@@ -3,11 +3,12 @@
 -- Used for autorevert metrics precision/recall calculations
 
 -- The block between the @autorevert-shared-recovery-pipeline markers below is kept
--- BYTE-IDENTICAL with autorevert_weekly_metrics/query.sql. The AUTOREVERT_SHARED_CTE
--- lintrunner check fails CI if the two copies drift, so any change to the
--- recovery-detection or causal-attribution pipeline (e.g. the #8176 causal
--- red-streak filter) MUST be applied identically to BOTH files. Only each query's
--- final aggregation, below the :end marker, is allowed to differ.
+-- BYTE-IDENTICAL with autorevert_weekly_metrics/query.sql. The
+-- autorevertSharedPipeline test (torchci/test/autorevertSharedPipeline.test.ts)
+-- fails CI if the two copies drift, so any change to the recovery-detection or
+-- causal-attribution pipeline (e.g. the #8176 causal red-streak filter) MUST be
+-- applied identically to BOTH files. Only each query's final aggregation, below the
+-- :end marker, is allowed to differ.
 -- @autorevert-shared-recovery-pipeline:begin
 WITH commits AS (
     SELECT
