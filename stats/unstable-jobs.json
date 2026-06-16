@@ -23,14 +23,6 @@
     "Lint URLs",
     "linux-job"
   ],
-  "docs-build / linux-docs / build-docs-python-false": [
-    "huydhn",
-    "187454",
-    "https://github.com/pytorch/pytorch/issues/187454",
-    "docs-build",
-    "linux-docs",
-    "build-docs-python-false"
-  ],
   "inductor / inductor-cpu-test / test (cpu_inductor_torchbench)": [
     "xmfan",
     "174929",
