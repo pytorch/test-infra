@@ -576,13 +576,6 @@
       "xpu"
     ]
   ],
-  "test_max_reads_limits_fusion (__main__.OverFusionTest)": [
-    "181699",
-    "https://github.com/pytorch/pytorch/issues/181699",
-    [
-      "xpu"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
