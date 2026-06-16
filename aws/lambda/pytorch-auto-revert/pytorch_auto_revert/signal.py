@@ -537,15 +537,16 @@ class Signal:
         path bails with NO_SUCCESSES without asking the advisor. This recognizes
         that case from the signal contents.
 
-        Test-track only; the caller guarantees `not has_successes()`. Returns a
-        partition when both hold:
-        - ≥1 failing commit — the suspect is the OLDEST failing one (the
-          introduction point);
-        - ≥1 *concluded baseline* commit older than the suspect: its job group
-          ran to a terminal conclusion but recorded no event for this test
-          (`job_group_concluded and not events`), proving the test was genuinely
-          absent there. A pending or unrun commit is not a baseline — it carries
-          no information.
+        Test-track only; the caller guarantees `not has_successes()` across the
+        full window. The partition is scoped to the most-recent *concluded
+        baseline* (`job_group_concluded and not events` — the latest commit
+        proving the test absent) and everything newer than it; commits older
+        than that baseline are out of scope. Returns a partition when, in scope:
+        - there is ≥1 failing commit — the suspect is the OLDEST failing one
+          (the introduction point).
+        A concluded baseline NEWER than every failure means the test was removed
+        / disabled again (recovered): the scope then holds no failure and
+        nothing fires — the born-red analog of "recovered at head".
 
         Ordering and pending commits are ignored for the suspect choice: act on
         the oldest *observed* failure now instead of waiting for in-flight
@@ -554,47 +555,49 @@ class Signal:
         is keyed per-(commit, signal_key) and never reused.
 
         Partition layout:
-        - `failed`: every failing commit, newest first; `failed[-1]` = suspect.
-        - `successful`: concluded baselines older than the suspect (relabeled
+        - `failed`: every in-scope failing commit, newest first; `failed[-1]` =
+          suspect.
+        - `successful`: the most-recent concluded baseline (relabeled
           `no_signal` in the advisor JSON via `DispatchAdvisor.is_born_red`);
-          `successful[0]` = newest baseline.
+          `successful[0]` = that baseline.
         - `unknown`: the *introduction gap* — commits strictly between the
-          suspect and the newest baseline. *Unrun* ones (no job result: a job
-          never scheduled — e.g. a ghstack stack-middle, since `push` only runs
-          jobs for the stack head — the test not run, or a crash without
-          reporting) are restarted by the caller (`cover_gap_unknown_commits`)
-          to bisect the true introducer; pending commits here are
-          already-covered separators.
+          suspect and the baseline. *Unrun* ones (no job result: a job never
+          scheduled — e.g. a ghstack stack-middle, since `push` only runs jobs
+          for the stack head — the test not run, or a crash without reporting)
+          are restarted by the caller (`cover_gap_unknown_commits`) to bisect
+          the true introducer; pending commits here are already-covered
+          separators.
         """
         if self.has_successes():
             return None
 
-        failed = [c for c in self.commits if c.has_failure]
+        # Scope to the most-recent concluded baseline (the latest proof the test
+        # was absent) and everything newer. A baseline NEWER than the failures
+        # means the test recovered — its stale failures fall out of scope.
+        baseline_idx = next(
+            (
+                i
+                for i, c in enumerate(self.commits)
+                if c.job_group_concluded and not c.events
+            ),
+            None,
+        )
+        if baseline_idx is None:
+            return None
+        window = self.commits[: baseline_idx + 1]
+
+        failed = [c for c in window if c.has_failure]
         if not failed:
             return None
 
-        # Suspect = oldest observed failing commit (the introduction point).
-        suspect_idx = max(i for i, c in enumerate(self.commits) if c.has_failure)
-        older = self.commits[suspect_idx + 1 :]
+        # Suspect = oldest observed failing commit in scope (introduction point).
+        suspect_idx = max(i for i, c in enumerate(window) if c.has_failure)
 
-        # ≥1 concluded-empty baseline older than the suspect is positive proof
-        # the test was absent before it. Pending commits in the gap carry no
-        # information yet and are ignored for the suspect decision (see
-        # docstring) rather than deferred on — we dispatch on the oldest
-        # observed failure.
-        baseline = [c for c in older if c.job_group_concluded and not c.events]
-        if not baseline:
-            return None
-
-        # Introduction gap = commits strictly between the suspect and the
-        # NEWEST concluded baseline. Unrun commits here (no jobs, no events) are
-        # bisection candidates the caller restarts; pending commits are covered
-        # separators. Everything older than the newest baseline is past proven
-        # absence and needs no coverage.
-        first_baseline_offset = next(
-            i for i, c in enumerate(older) if c.job_group_concluded and not c.events
-        )
-        gap = older[:first_baseline_offset]
+        # The most-recent concluded baseline (window's last commit, at
+        # `baseline_idx`) is the only one in scope; the introduction gap is
+        # everything strictly between it and the suspect.
+        baseline = [self.commits[baseline_idx]]
+        gap = window[suspect_idx + 1 : -1]
 
         return PartitionedCommits(failed=failed, unknown=gap, successful=baseline)
 

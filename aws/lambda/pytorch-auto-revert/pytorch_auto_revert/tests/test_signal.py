@@ -1367,7 +1367,8 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertIsNotNone(part)
         assert part is not None  # narrow type for mypy
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
-        self.assertEqual([c.head_sha for c in part.successful], ["e1", "e2"])
+        # Scope stops at the most-recent baseline (e1); e2 is out of scope.
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
         self.assertEqual(part.unknown, [])
 
     def test_partition_born_red_fires_despite_leading_pending(self):
@@ -1387,22 +1388,35 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
         self.assertEqual([c.head_sha for c in part.successful], ["e1"])
 
-    def test_partition_born_red_fires_with_interleaved_empty(self):
-        # A concluded-empty commit sits BETWEEN two failures (the test isn't
-        # observed on every commit — sharding / TD). The old strict shape
-        # rejected this; the set predicate does not.
+    def test_partition_born_red_scoped_to_most_recent_baseline(self):
+        # A concluded baseline (g1) sits between two failures: it proves the
+        # test was absent there, i.e. the older failure (f_old) belongs to a
+        # *prior* episode that already recovered. Scope is the most-recent
+        # baseline (g1) and newer, so only the newer failures fire on it.
         commits = [
             self._fail("f1", 0),
-            self._baseline("g1", -5),  # interleaved concluded-empty
-            self._fail("f2", -10),
+            self._fail("f2", -5),
+            self._baseline("g1", -10),  # most-recent baseline → scope boundary
+            self._fail("f_old", -15),  # pre-recovery failure, out of scope
             self._baseline("e1", -20),
         ]
         part = self._test_signal(commits).partition_born_red()
         self.assertIsNotNone(part)
         assert part is not None
-        # Suspect = oldest failure (f2); both failures collected.
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
-        self.assertEqual(part.failed[-1].head_sha, "f2")
+        self.assertEqual(part.failed[-1].head_sha, "f2")  # suspect = oldest in scope
+        self.assertEqual([c.head_sha for c in part.successful], ["g1"])
+
+    def test_partition_born_red_none_when_recovered_at_head(self):
+        # A concluded baseline NEWER than the failures (the test was removed /
+        # disabled again) → recovered. Scope = [C] only, holds no failure → None.
+        commits = [
+            self._baseline("c_head", 0),  # most-recent baseline, newer than fails
+            self._fail("f1", -10),
+            self._fail("f2", -20),
+            self._baseline("e1", -30),
+        ]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
 
     def test_partition_born_red_fires_with_unrun_in_introduction_gap(self):
         # An unrun (no jobs, no events) commit sits between the suspect and the
@@ -1449,12 +1463,12 @@ class TestBornRedTestSignal(unittest.TestCase):
         assert part is not None
         self.assertEqual([c.head_sha for c in part.failed], ["f3", "f4"])
         self.assertEqual(part.failed[-1].head_sha, "f4")  # suspect = oldest fail
-        # Baselines = concluded-empty commits older than the suspect.
-        self.assertEqual([c.head_sha for c in part.successful], ["c8", "c10"])
+        # Baseline = the most-recent concluded-empty (c8); c10 is out of scope.
+        self.assertEqual([c.head_sha for c in part.successful], ["c8"])
         # Introduction gap = commits strictly between suspect (f4) and the
-        # newest baseline (c8): the pending p5/p6/p7. They are covered
-        # separators (have events), so they trigger no restart — see the
-        # process-level test below.
+        # baseline (c8): the pending p5/p6/p7. They are covered separators
+        # (have events), so they trigger no restart — see the process-level
+        # test below.
         self.assertEqual([c.head_sha for c in part.unknown], ["p5", "p6", "p7"])
 
     def test_partition_born_red_none_without_concluded_baseline(self):
@@ -1511,14 +1525,14 @@ class TestBornRedTestSignal(unittest.TestCase):
 
     def test_process_dispatches_on_real_flip_shape(self):
         # Regression for the real-world shape that the old strict partition
-        # never fired on: pending head + a failure + an interleaved
-        # concluded-empty + another failure + concluded baseline tail.
-        # (Mirrors inductor flip_zero_dim_dynamic_shapes_cuda, 2026-05-21.)
+        # never fired on: pending head + a failure + an interleaved *pending*
+        # commit (jobs not finished yet) + another failure + concluded baseline
+        # tail. (Mirrors inductor flip_zero_dim_dynamic_shapes_cuda, 2026-05-21.)
         commits = [
             self._pending("p1", 30),
             self._pending("p2", 25),
             self._fail("f1", 20, job_id=11),
-            self._baseline("g1", 15),  # interleaved: test not observed here
+            self._pending("g1", 15),  # interleaved pending (not yet finished)
             self._fail("f2", 10, job_id=12),
             self._baseline("e1", 0),
             self._baseline("e2", -10),
@@ -1531,8 +1545,8 @@ class TestBornRedTestSignal(unittest.TestCase):
         # Suspect = oldest failure (f2); both failures reported.
         self.assertEqual(res.advisor.suspect_commit, "f2")
         self.assertEqual(res.advisor.failed_commits, ("f1", "f2"))
-        # Baseline = concluded-empty commits older than the suspect.
-        self.assertEqual(res.advisor.successful_commits, ("e1", "e2"))
+        # Baseline = the most-recent concluded-empty (e1); e2 is out of scope.
+        self.assertEqual(res.advisor.successful_commits, ("e1",))
 
     def test_process_holds_advisor_below_failing_commit_threshold(self):
         # Single failing commit — wait for the next trunk advance before paying
