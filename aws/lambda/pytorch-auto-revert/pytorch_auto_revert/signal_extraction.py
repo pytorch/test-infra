@@ -407,6 +407,14 @@ class SignalExtractor:
             # y-axis: commits (newest → older)
             for commit_sha, _ in commits:
                 events: List[SignalEvent] = []
+                # Track whether this test's job group ran to a terminal
+                # conclusion on this commit: ≥1 non-cancelled run and none of
+                # them still pending. A concluded commit with no events is a
+                # born-red baseline witness (the test was genuinely absent),
+                # as opposed to a commit whose jobs are still running and thus
+                # carry no information about whether the test exists yet.
+                group_runs = 0
+                group_pending = False
 
                 # x-axis: events for the signal
                 for wf_run_id, run_attempt in run_ids_attempts.get(
@@ -419,6 +427,9 @@ class SignalExtractor:
                     if meta.is_cancelled:
                         # canceled attempts are treated as missing
                         continue
+                    group_runs += 1
+                    if meta.is_pending:
+                        group_pending = True
                     outcome = tests_by_group_attempt.get(
                         (
                             commit_sha,
@@ -486,6 +497,7 @@ class SignalExtractor:
                         head_sha=commit_sha,
                         timestamp=commit_timestamps[commit_sha],
                         events=events,
+                        job_group_concluded=(group_runs > 0 and not group_pending),
                     )
                 )
 

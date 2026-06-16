@@ -176,9 +176,18 @@ class SignalCommit:
         timestamp: datetime,
         events: List[SignalEvent],
         advisor_result: Optional[AIAdvisorResult] = None,
+        job_group_concluded: bool = False,
     ):
         self.head_sha = head_sha
         self.timestamp = timestamp
+        # For TEST signals: True when the test's job group (workflow,
+        # job_base_name) ran to a terminal conclusion on this commit — i.e.
+        # the jobs that would have run this test are done, not still pending.
+        # A concluded commit with no events for this test is positive proof
+        # the test was genuinely absent / not-yet-failing there (the born-red
+        # baseline), as opposed to a commit whose jobs simply have not
+        # finished yet and carry no information.
+        self.job_group_concluded = job_group_concluded
         # enforce events ordered by time, then by wf_run_id (oldest first)
         self.events = (
             sorted(events, key=lambda e: (e.started_at, e.wf_run_id)) if events else []
@@ -201,6 +210,9 @@ class SignalCommit:
             "timestamp": changes.pop("timestamp", self.timestamp),
             "events": changes.pop("events", self.events),
             "advisor_result": changes.pop("advisor_result", self.advisor_result),
+            "job_group_concluded": changes.pop(
+                "job_group_concluded", self.job_group_concluded
+            ),
         }
         if changes:
             raise TypeError(
@@ -518,45 +530,68 @@ class Signal:
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
     def partition_born_red(self) -> Optional[PartitionedCommits]:
-        """Partition for the test-track "born-red" pattern: failing head + empty-events tail.
+        """Partition for the test-track "born-red" pattern (order-independent).
 
-        Returns a partition only when the signal shape is `[FAIL...][EMPTY...]`
-        (newest → oldest) with no interleaving:
-        - At least 2 commits in window
-        - No commits with success events (otherwise the main partition path applies)
-        - At least 1 commit with failure events at the head
-        - At least 1 trailing commit with no events — these are commits where this
-          test did not run or did not yet exist, used as the implicit baseline
-          ("commits without the signal")
-        - No pending-only or other-shape commits in between
+        A test introduced — or enabled / un-skipped / renamed-into-existence —
+        already broken has no green observation to bisect, so the green→red
+        partition path bails with NO_SUCCESSES and the advisor is never asked.
+        This detects that case from the signal *contents* rather than a strict
+        `[FAIL...][EMPTY...]` shape.
 
-        Trailing empty-events commits are placed in `successful` so the advisor
-        check / pattern construction can reuse the standard primitives. The
-        advisor JSON layer relabels them via `DispatchAdvisor.is_born_red` so
-        the model is asked about test introduction, not green→red transition.
-        `unknown` is always empty — there is no gap to bisect.
+        The strict shape was abandoned because it never matched real trunk
+        signals: the newest commits are almost always still running (pending),
+        and the test legitimately isn't observed on every commit (sharding /
+        TD), so empty commits are interleaved among the failures. Both of those
+        defeated the old contiguous walk. This predicate ignores ordering and
+        ignores pending commits entirely.
+
+        Born-red requires (the caller guarantees `not has_successes()`):
+        - ≥1 *concluded baseline* commit OLDER than the suspect — a commit
+          where the test's job group ran to conclusion but produced no event
+          for this test (`job_group_concluded and not events`). That is proof
+          the test was genuinely absent there, as opposed to a commit whose
+          jobs are merely still pending and carry no information yet.
+        - ≥1 failing commit; the suspect is the OLDEST failing commit (the
+          introduction point). `failed` collects every failing commit so the
+          caller's distinct-commit threshold and pattern builder work unchanged.
+        - An unambiguous introduction boundary: no unconcluded (pending)
+          commit sits between the suspect and the nearest older concluded
+          baseline. If one does, it might itself be the real introducer, so we
+          return None and defer to a later tick rather than dispatch the
+          advisor on a too-new suspect (which would read the wrong diff).
+
+        `failed` = all failing commits (newest first; `failed[-1]` is the
+        suspect); `successful` = concluded baseline commits older than the
+        suspect (relabeled `no_signal` in the advisor JSON via
+        `DispatchAdvisor.is_born_red`); `unknown` = [] (nothing to bisect).
         """
-        if len(self.commits) < 2 or self.has_successes():
+        if self.has_successes():
             return None
 
-        failed: List[SignalCommit] = []
-        baseline: List[SignalCommit] = []
-        for c in self.commits:
-            if c.has_failure:
-                if baseline:
-                    # Failure after an empty-events commit (newer→older order) —
-                    # out of shape.
-                    return None
-                failed.append(c)
-            elif not c.events:
-                baseline.append(c)
-            else:
-                # Pending-only or other shape — bail; the advisor needs a clean
-                # introduction-vs-baseline split.
-                return None
-
-        if not failed or not baseline:
+        failed = [c for c in self.commits if c.has_failure]
+        if not failed:
             return None
+
+        # Suspect = oldest failing commit (the introduction point).
+        suspect_idx = max(i for i, c in enumerate(self.commits) if c.has_failure)
+        older = self.commits[suspect_idx + 1 :]
+
+        baseline = [c for c in older if c.job_group_concluded and not c.events]
+        if not baseline:
+            return None
+
+        # Introduction-boundary gate: walk commits older than the suspect; the
+        # first concluded baseline confirms the boundary, but an unconcluded
+        # (pending) commit encountered first means the true introducer is
+        # ambiguous — defer.
+        for c in older:
+            if c.job_group_concluded and not c.events:
+                break  # reached the baseline with no pending gap in between
+            if not c.job_group_concluded:
+                return None  # pending / unresolved in the introduction gap
+            # A concluded commit WITH events older than the suspect would be a
+            # failure older than the oldest failure (no successes exist) —
+            # impossible by construction; ignore defensively and keep scanning.
 
         return PartitionedCommits(failed=failed, unknown=[], successful=baseline)
 
@@ -650,8 +685,9 @@ class Signal:
         Default behavior: emit `Ineligible(NO_SUCCESSES)` with no advisor — the
         standard green→red partition has no anchor to work from.
 
-        Test-track exception (born-red detection): when the signal shape matches
-        `[FAIL...][EMPTY...]` (`partition_born_red` returns a partition), the
+        Test-track exception (born-red detection): when `partition_born_red`
+        returns a partition (≥1 failing commit + a concluded baseline commit
+        older than the suspect, with an unambiguous introduction boundary), the
         suspect commit is likely the one that introduced the test. Defer to the
         AI advisor:
         - If a prior advisor verdict exists on the suspect, act on it

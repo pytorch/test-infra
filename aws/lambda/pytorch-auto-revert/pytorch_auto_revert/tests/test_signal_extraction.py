@@ -1248,6 +1248,64 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(sig.test_file, "test_dataloader.py")
         self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
 
+    def test_job_group_concluded_flag_per_commit(self):
+        # The per-commit `job_group_concluded` flag drives born-red baseline
+        # detection. It must be True when the test's job group reached a
+        # terminal conclusion on a commit (even with no event for this test —
+        # the baseline witness) and False when the job group is still pending.
+        jobs = [
+            # C1 (newest): job concluded, the test failed here.
+            J(
+                sha="C1",
+                run=101,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2: job concluded (success), but this test has no row → baseline.
+            J(sha="C2", run=102, job=2, attempt=1, started_at=ts(self.t0, 20)),
+            # C3 (oldest): job still running → not concluded, no info yet.
+            J(
+                sha="C3",
+                run=103,
+                job=3,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                status="in_progress",
+                conclusion="",
+            ),
+        ]
+        tests = [
+            T(
+                job=1,
+                run=101,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        # Failing commit: concluded.
+        self.assertTrue(by_sha["C1"].job_group_concluded)
+        self.assertTrue(by_sha["C1"].has_failure)
+        # Concluded baseline: concluded, no events for this test.
+        self.assertTrue(by_sha["C2"].job_group_concluded)
+        self.assertEqual(by_sha["C2"].events, [])
+        # Pending job group: not concluded.
+        self.assertFalse(by_sha["C3"].job_group_concluded)
+        # End to end: this is a born-red signal (C2 is the concluded baseline).
+        part = sig.partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual(part.failed[-1].head_sha, "C1")
+        self.assertIn("C2", [c.head_sha for c in part.successful])
+
 
 if __name__ == "__main__":
     unittest.main()
