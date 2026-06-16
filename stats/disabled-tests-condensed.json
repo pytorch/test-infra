@@ -805,6 +805,19 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119537",
+    "https://github.com/pytorch/pytorch/issues/119537",
+    [
+      "asan",
+      "dynamo",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -968,6 +981,13 @@
       "slow"
     ]
   ],
+  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180337",
+    "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
+    ]
+  ],
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
@@ -980,6 +1000,15 @@
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180490",
     "https://github.com/pytorch/pytorch/issues/180490",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180542",
+    "https://github.com/pytorch/pytorch/issues/180542",
     [
       "linux",
       "rocm",
