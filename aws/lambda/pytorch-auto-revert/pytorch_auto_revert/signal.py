@@ -540,10 +540,10 @@ class Signal:
 
         The strict shape was abandoned because it never matched real trunk
         signals: the newest commits are almost always still running (pending),
-        and the test legitimately isn't observed on every commit (sharding /
-        TD), so empty commits are interleaved among the failures. Both of those
-        defeated the old contiguous walk. This predicate ignores ordering and
-        ignores pending commits entirely.
+        and *pending* commits (jobs not finished yet) also appear interleaved
+        between the failures and the older baseline. Both of those defeated the
+        old contiguous walk. This predicate ignores ordering and ignores
+        pending commits entirely for the suspect decision.
 
         Born-red requires (the caller guarantees `not has_successes()`):
         - ≥1 failing commit; the suspect is the OLDEST *observed* failing
@@ -577,13 +577,14 @@ class Signal:
 
         `unknown` carries the *introduction gap*: commits strictly between the
         suspect and the newest concluded baseline. Uncovered ones — *unrun*
-        commits (`not job_group_concluded and not events`: no jobs ever
-        scheduled, e.g. the stack-middle commits when a ghstack lands and
-        `push` only runs jobs for the stack head) — are bisection candidates
-        the caller restarts via `cover_gap_unknown_commits` to find the true
-        introducer. Pending gap commits sit here too but act as already-covered
-        separators (they have events). Commits older than the newest baseline
-        are past proven absence and are not included.
+        commits (`not job_group_concluded and not events`: no job result for
+        this test, because the job was never scheduled (ghstack lands a stack
+        and `push` only runs jobs for the stack head), the test did not run, or
+        it crashed without reporting) — are bisection candidates the caller
+        restarts via `cover_gap_unknown_commits` to find the true introducer.
+        Pending gap commits sit here too but act as already-covered separators
+        (they have events). Commits older than the newest baseline are past
+        proven absence and are not included.
 
         `failed` = all failing commits (newest first; `failed[-1]` is the
         suspect); `successful` = concluded baseline commits older than the
