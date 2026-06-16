@@ -373,14 +373,6 @@
       "dynamo"
     ]
   ],
-  "test_forward_nn_LinearCrossEntropyLoss_cuda_bfloat16 (__main__.TestModuleCUDA)": [
-    "185136",
-    "https://github.com/pytorch/pytorch/issues/185136",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
     "https://github.com/pytorch/pytorch/issues/187176",
