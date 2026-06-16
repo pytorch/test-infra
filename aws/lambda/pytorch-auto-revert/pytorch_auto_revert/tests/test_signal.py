@@ -1404,16 +1404,15 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
         self.assertEqual(part.failed[-1].head_sha, "f2")
 
-    def test_partition_born_red_fires_with_pending_in_introduction_gap(self):
-        # An unconcluded (pending) commit sits between the suspect and the
-        # nearest older baseline. We do NOT defer: dispatch on the oldest
-        # OBSERVED failure (f2) now. If p1 later concludes to a failure older
-        # than f2, the suspect moves and a second advisor runs on the corrected
-        # commit — accepted (≤1 superfluous, rare in practice).
+    def test_partition_born_red_fires_with_unrun_in_introduction_gap(self):
+        # An unrun (no jobs, no events) commit sits between the suspect and the
+        # nearest older baseline. We do NOT defer the suspect decision: dispatch
+        # on the oldest OBSERVED failure (f2). The unrun commit lands in
+        # `unknown` so the caller can restart it to find the true introducer.
         commits = [
             self._fail("f1", 0),
             self._fail("f2", -10),
-            self._unrun("p1", -15),  # unconcluded gap commit, ignored
+            self._unrun("u1", -15),  # unrun gap commit → restart candidate
             self._baseline("e1", -20),
         ]
         part = self._test_signal(commits).partition_born_red()
@@ -1422,6 +1421,8 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
         self.assertEqual(part.failed[-1].head_sha, "f2")  # suspect = oldest fail
         self.assertEqual([c.head_sha for c in part.successful], ["e1"])
+        # Introduction gap = the unrun commit between suspect and baseline.
+        self.assertEqual([c.head_sha for c in part.unknown], ["u1"])
 
     def test_partition_born_red_fires_with_pending_head_and_gap(self):
         # Full real-world shape (newest→oldest): a pending head, two failures,
@@ -1450,6 +1451,11 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual(part.failed[-1].head_sha, "f4")  # suspect = oldest fail
         # Baselines = concluded-empty commits older than the suspect.
         self.assertEqual([c.head_sha for c in part.successful], ["c8", "c10"])
+        # Introduction gap = commits strictly between suspect (f4) and the
+        # newest baseline (c8): the pending p5/p6/p7. They are covered
+        # separators (have events), so they trigger no restart — see the
+        # process-level test below.
+        self.assertEqual([c.head_sha for c in part.unknown], ["p5", "p6", "p7"])
 
     def test_partition_born_red_none_without_concluded_baseline(self):
         # The only empty commits are unconcluded (jobs not finished) → no proof
@@ -1556,6 +1562,153 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
         self.assertIsNone(res.advisor)
+
+    def test_process_restarts_unrun_gap_and_dispatches_advisor_in_parallel(self):
+        # ≥2 failures + an unrun (no jobs, no events) commit in the introduction
+        # gap → restart the unrun commit to bisect AND dispatch the advisor on
+        # the oldest observed failure in the same tick (Option A).
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._unrun("u1", -15),  # ghstack stack-middle: never scheduled
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertIn("u1", res.commit_shas)
+        # Advisor fires in parallel, on the oldest observed failure.
+        self.assertIsNotNone(res.advisor)
+        assert res.advisor is not None
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+        self.assertTrue(res.advisor.is_born_red)
+
+    def test_process_ghstack_restarts_gap_below_single_failure(self):
+        # The motivating case: a ghstack of commits lands and introduces a
+        # broken test; `push` only runs jobs for the stack head, so the
+        # stack-middles are unrun. Only the head has failed so far (< 2
+        # observed failures → no advisor yet), but we still restart the unrun
+        # middles to gather the coverage needed to pinpoint the introducer.
+        commits = [
+            self._fail("head", 0, job_id=11),
+            self._unrun("mid1", -10),
+            self._unrun("mid2", -20),
+            self._baseline("base", -30),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"mid1", "mid2"})
+        # No advisor: only one observed failure so far.
+        self.assertIsNone(res.advisor)
+
+    def test_process_pending_gap_no_restart_dispatches_advisor(self):
+        # A *pending* (jobs running) commit in the gap is a covered separator,
+        # not a restart candidate — it resolves on its own. No restart; the
+        # advisor dispatches on the oldest observed failure.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._pending("p1", -15),  # jobs running — covered separator
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+
+    def test_process_restart_respects_bisection_limit(self):
+        # Three unrun commits in the gap, bisection_limit=1 → only the bisection
+        # midpoint is scheduled (the same hybrid planner the green→red path uses).
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._unrun("u1", -15),
+            self._unrun("u2", -20),
+            self._unrun("u3", -25),
+            self._baseline("e1", -30),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern(
+            bisection_limit=1
+        )
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(len(res.commit_shas), 1)
+        self.assertTrue(res.commit_shas <= {"u1", "u2", "u3"})
+
+    def test_process_mixed_pending_and_unrun_gap_restarts_only_unrun(self):
+        # Gap holds one pending (covered separator) and one unrun (candidate).
+        # Only the unrun commit is restarted; the pending resolves on its own.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._pending("p1", -13),  # jobs running — separator, no restart
+            self._unrun("u1", -16),  # no jobs — restart candidate
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+
+    def test_process_block_verdict_keeps_covering_uncovered_gap(self):
+        # A not_related verdict on the current suspect, but an unrun commit is
+        # still uncovered in the gap → keep restarting it (the real introducer
+        # may be there) rather than surfacing the block. No fresh advisor.
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.NOT_RELATED,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+            job_group_concluded=True,
+        )
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            suspect,
+            self._unrun("u1", -15),
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+        self.assertIsNone(res.advisor)  # suspect ruled out — no re-dispatch
+
+    def test_process_revert_verdict_acts_even_with_uncovered_gap(self):
+        # Option-A tradeoff, made explicit: a confident revert verdict on the
+        # oldest observed failure is acted on immediately, even though an unrun
+        # gap commit below it has not concluded. Bounded by the advisor's
+        # diff-introduction semantics + the confidence gate.
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+            job_group_concluded=True,
+        )
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            suspect,
+            self._unrun("u1", -15),
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        assert isinstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "f2")
 
     def test_process_no_advisor_for_job_track_born_red(self):
         # Born-red detection is test-track only. Job-track signals with the

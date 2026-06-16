@@ -556,17 +556,17 @@ class Signal:
           the test was genuinely absent there, as opposed to a commit whose
           jobs are merely still pending and carry no information yet.
 
-        Pending commits are ignored wherever they sit — at the head, *or*
-        interleaved in the introduction gap between the suspect and the
-        baseline. The advisor is dispatched on the oldest observed failure
-        now, rather than deferring until every gap commit settles. If a
-        pending gap commit later concludes to a failure older than the current
-        suspect, the suspect moves and a second advisor runs on the corrected
-        commit; the stale verdict on the too-new suspect is keyed to that
-        commit (`_check_advisor_verdict` matches on `failed[-1]`; dedup/caps in
-        `SignalActionsLogger` are per-(commit, signal_key)) and is never
-        consulted for the corrected suspect. On real `autorevert_state` data
-        this costs ≤1 superfluous advisor run per episode, usually 0.
+        Pending commits are ignored for the *suspect* decision wherever they
+        sit — at the head, *or* interleaved in the introduction gap between the
+        suspect and the baseline. The advisor is dispatched on the oldest
+        observed failure now, rather than deferring until every gap commit
+        settles. If a pending gap commit later concludes to a failure older
+        than the current suspect, the suspect moves and a second advisor runs
+        on the corrected commit; the stale verdict on the too-new suspect is
+        keyed to that commit (`_check_advisor_verdict` matches on `failed[-1]`;
+        dedup/caps in `SignalActionsLogger` are per-(commit, signal_key)) and is
+        never consulted for the corrected suspect. On real `autorevert_state`
+        data this costs ≤1 superfluous advisor run per episode, usually 0.
 
         This is an accepted precision/latency tradeoff, not a free lunch: the
         advisor reads the too-new suspect's diff, and while it almost always
@@ -575,10 +575,21 @@ class Signal:
         `ADVISOR_CONFIDENCE_THRESHOLD` gate. We prefer that bounded risk over
         deferring every born-red episode until its introduction gap settles.
 
+        `unknown` carries the *introduction gap*: commits strictly between the
+        suspect and the newest concluded baseline. Uncovered ones — *unrun*
+        commits (`not job_group_concluded and not events`: no jobs ever
+        scheduled, e.g. the stack-middle commits when a ghstack lands and
+        `push` only runs jobs for the stack head) — are bisection candidates
+        the caller restarts via `cover_gap_unknown_commits` to find the true
+        introducer. Pending gap commits sit here too but act as already-covered
+        separators (they have events). Commits older than the newest baseline
+        are past proven absence and are not included.
+
         `failed` = all failing commits (newest first; `failed[-1]` is the
         suspect); `successful` = concluded baseline commits older than the
         suspect (relabeled `no_signal` in the advisor JSON via
-        `DispatchAdvisor.is_born_red`); `unknown` = [] (nothing to bisect).
+        `DispatchAdvisor.is_born_red`); `unknown` = introduction-gap commits to
+        cover by restart.
         """
         if self.has_successes():
             return None
@@ -593,13 +604,24 @@ class Signal:
 
         # ≥1 concluded-empty baseline older than the suspect is positive proof
         # the test was absent before it. Pending commits in the gap carry no
-        # information yet and are ignored (see docstring) rather than deferred
-        # on — we dispatch on the oldest observed failure.
+        # information yet and are ignored for the suspect decision (see
+        # docstring) rather than deferred on — we dispatch on the oldest
+        # observed failure.
         baseline = [c for c in older if c.job_group_concluded and not c.events]
         if not baseline:
             return None
 
-        return PartitionedCommits(failed=failed, unknown=[], successful=baseline)
+        # Introduction gap = commits strictly between the suspect and the
+        # NEWEST concluded baseline. Unrun commits here (no jobs, no events) are
+        # bisection candidates the caller restarts; pending commits are covered
+        # separators. Everything older than the newest baseline is past proven
+        # absence and needs no coverage.
+        first_baseline_offset = next(
+            i for i, c in enumerate(older) if c.job_group_concluded and not c.events
+        )
+        gap = older[:first_baseline_offset]
+
+        return PartitionedCommits(failed=failed, unknown=gap, successful=baseline)
 
     # Minimum confidence threshold for acting on advisor verdicts
     ADVISOR_CONFIDENCE_THRESHOLD = 0.89
@@ -685,7 +707,9 @@ class Signal:
         # "unsure" or expired garbage → continue normally
         return None
 
-    def _handle_no_successes(self) -> Union[AutorevertPattern, Ineligible]:
+    def _handle_no_successes(
+        self, *, bisection_limit: Optional[int] = None
+    ) -> Union[AutorevertPattern, RestartCommits, Ineligible]:
         """Handle the `not has_successes()` branch.
 
         Default behavior: emit `Ineligible(NO_SUCCESSES)` with no advisor — the
@@ -693,13 +717,31 @@ class Signal:
 
         Test-track exception (born-red detection): when `partition_born_red`
         returns a partition (≥1 failing commit + a concluded baseline commit
-        older than the suspect, with an unambiguous introduction boundary), the
-        suspect commit is likely the one that introduced the test. Defer to the
-        AI advisor:
-        - If a prior advisor verdict exists on the suspect, act on it
-          (revert/related → `AutorevertPattern`; not_related/garbage → blocked).
-        - Otherwise, dispatch a fresh advisor request alongside the `Ineligible`
-          response. Next tick can act on the verdict.
+        older than the suspect), the suspect commit is likely the one that
+        introduced the test. Two actions, which can happen on the same tick:
+
+        1. **Cover the introduction gap.** Unrun commits between the suspect and
+           the baseline (e.g. ghstack stack-middles that `push` never scheduled
+           jobs for) are restarted via the same hybrid bisection the green→red
+           path uses (`cover_gap_unknown_commits`), so a later tick can pinpoint
+           the true introducer. This fires independent of the failing-commit
+           threshold — the ghstack case starts with a single observed failure.
+        2. **Dispatch / act on the advisor** (only with ≥2 distinct failing
+           commits). If a prior verdict exists on the suspect: revert/related →
+           `AutorevertPattern`; not_related/garbage → blocked (unless the gap
+           still has uncovered commits, in which case keep covering it — the
+           real introducer may be there). Otherwise dispatch a fresh advisor on
+           the oldest observed failure, *in parallel* with any gap restarts.
+
+        Option-A tradeoff: a confident revert/related verdict on the oldest
+        observed failure is acted on immediately, even if an unrun gap commit
+        below it has not yet concluded (so could in principle be an older, truer
+        introducer). This is bounded by the advisor's own semantics — it is
+        asked whether *this* commit's diff introduced the test, so it returns
+        revert only when it sees the introduction there — and by the
+        `ADVISOR_CONFIDENCE_THRESHOLD` gate. In the normal ghstack flow the gap
+        is already being restarted on earlier ticks, so by the time ≥2 failures
+        exist the suspect is usually the true (oldest) one.
 
         Advisor dedup + the per-(workflow, commit) cap of 8 are handled by
         `SignalActionsLogger`; this method just emits the request.
@@ -713,31 +755,50 @@ class Signal:
                 "no successful commits present in window",
             )
 
-        if len(born_red.failed) < self.REQUIRE_FAILED_COMMITS_BORN_RED:
-            # Not enough distinct failing commits to justify advisor cost —
-            # wait for the next trunk advance. Retries / multiple shards on a
-            # single commit do not count as independent observations.
+        # (1) Restart unrun commits in the introduction gap (bisection-limited).
+        # Independent of the failing-commit threshold: the ghstack case starts
+        # with one observed failure and needs the restarts to gather coverage.
+        restart_commits = born_red.cover_gap_unknown_commits(
+            bisection_limit=bisection_limit
+        )
+
+        # (2) Advisor path — only with ≥2 distinct failing commits. Retries /
+        # multiple shards on a single commit are one observation, not two.
+        advisor: Optional[DispatchAdvisor] = None
+        if len(born_red.failed) >= self.REQUIRE_FAILED_COMMITS_BORN_RED:
+            advisor_decision = self._check_advisor_verdict(born_red)
+            if isinstance(advisor_decision, AutorevertPattern):
+                # Confident revert/related on the suspect — act now.
+                return advisor_decision
+            if advisor_decision is not None:
+                # Block verdict (not_related / garbage) on the current suspect.
+                # If the gap still has uncovered commits, the real introducer
+                # may be there → keep covering it (fall through to restart, no
+                # fresh advisor). Otherwise surface the block.
+                if not restart_commits:
+                    return advisor_decision
+            else:
+                # No verdict yet — dispatch on the oldest observed failure, in
+                # parallel with any gap restarts. `successful_commits` carry the
+                # implicit baseline; `is_born_red=True` tells the advisor JSON
+                # builder to relabel them.
+                advisor = DispatchAdvisor(
+                    suspect_commit=born_red.failed[-1].head_sha,
+                    failed_commits=tuple(c.head_sha for c in born_red.failed),
+                    successful_commits=tuple(c.head_sha for c in born_red.successful),
+                    is_born_red=True,
+                )
+
+        if restart_commits:
+            return RestartCommits(commit_shas=restart_commits, advisor=advisor)
+
+        if advisor is None:
             return Ineligible(
                 IneligibleReason.NO_SUCCESSES,
                 f"born-red test signal: need ≥{self.REQUIRE_FAILED_COMMITS_BORN_RED} "
                 f"failing commits before advisor dispatch (have "
                 f"{len(born_red.failed)})",
             )
-
-        # If the advisor already weighed in on the suspect, use that verdict.
-        advisor_decision = self._check_advisor_verdict(born_red)
-        if advisor_decision is not None:
-            return advisor_decision
-
-        # No verdict yet — request one. `successful_commits` carry the implicit
-        # baseline (commits where the signal didn't exist); `is_born_red=True`
-        # tells the advisor JSON builder to relabel them accordingly.
-        advisor = DispatchAdvisor(
-            suspect_commit=born_red.failed[-1].head_sha,
-            failed_commits=tuple(c.head_sha for c in born_red.failed),
-            successful_commits=tuple(c.head_sha for c in born_red.successful),
-            is_born_red=True,
-        )
         return Ineligible(
             IneligibleReason.NO_SUCCESSES,
             "born-red test signal: no successful commits in window — advisor dispatched",
@@ -764,7 +825,7 @@ class Signal:
                 IneligibleReason.FIXED, "signal appears recovered at head"
             )
         if not self.has_successes():
-            return self._handle_no_successes()
+            return self._handle_no_successes(bisection_limit=bisection_limit)
 
         partition = self.partition_by_autorevert_pattern()
         if partition is None:
