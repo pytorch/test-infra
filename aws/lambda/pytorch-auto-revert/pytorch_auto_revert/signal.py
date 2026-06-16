@@ -530,67 +530,41 @@ class Signal:
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
     def partition_born_red(self) -> Optional[PartitionedCommits]:
-        """Partition for the test-track "born-red" pattern (order-independent).
+        """Detect the test-track "born-red" pattern (order-independent).
 
-        A test introduced — or enabled / un-skipped / renamed-into-existence —
-        already broken has no green observation to bisect, so the green→red
-        partition path bails with NO_SUCCESSES and the advisor is never asked.
-        This detects that case from the signal *contents* rather than a strict
-        `[FAIL...][EMPTY...]` shape.
+        A test introduced already-broken — added, enabled / un-skipped, or
+        renamed-into-existence — has no green run to bisect, so the green→red
+        path bails with NO_SUCCESSES without asking the advisor. This recognizes
+        that case from the signal contents.
 
-        The strict shape was abandoned because it never matched real trunk
-        signals: the newest commits are almost always still running (pending),
-        and *pending* commits (jobs not finished yet) also appear interleaved
-        between the failures and the older baseline. Both of those defeated the
-        old contiguous walk. This predicate ignores ordering and ignores
-        pending commits entirely for the suspect decision.
+        Test-track only; the caller guarantees `not has_successes()`. Returns a
+        partition when both hold:
+        - ≥1 failing commit — the suspect is the OLDEST failing one (the
+          introduction point);
+        - ≥1 *concluded baseline* commit older than the suspect: its job group
+          ran to a terminal conclusion but recorded no event for this test
+          (`job_group_concluded and not events`), proving the test was genuinely
+          absent there. A pending or unrun commit is not a baseline — it carries
+          no information.
 
-        Born-red requires (the caller guarantees `not has_successes()`):
-        - ≥1 failing commit; the suspect is the OLDEST *observed* failing
-          commit (the introduction point). `failed` collects every failing
-          commit so the caller's distinct-commit threshold and pattern builder
-          work unchanged.
-        - ≥1 *concluded baseline* commit OLDER than the suspect — a commit
-          where the test's job group ran to conclusion but produced no event
-          for this test (`job_group_concluded and not events`). That is proof
-          the test was genuinely absent there, as opposed to a commit whose
-          jobs are merely still pending and carry no information yet.
+        Ordering and pending commits are ignored for the suspect choice: act on
+        the oldest *observed* failure now instead of waiting for in-flight
+        commits to settle. A pending gap commit that later concludes to an older
+        failure simply moves the suspect; the stale verdict on the too-new one
+        is keyed per-(commit, signal_key) and never reused.
 
-        Pending commits are ignored for the *suspect* decision wherever they
-        sit — at the head, *or* interleaved in the introduction gap between the
-        suspect and the baseline. The advisor is dispatched on the oldest
-        observed failure now, rather than deferring until every gap commit
-        settles. If a pending gap commit later concludes to a failure older
-        than the current suspect, the suspect moves and a second advisor runs
-        on the corrected commit; the stale verdict on the too-new suspect is
-        keyed to that commit (`_check_advisor_verdict` matches on `failed[-1]`;
-        dedup/caps in `SignalActionsLogger` are per-(commit, signal_key)) and is
-        never consulted for the corrected suspect. On real `autorevert_state`
-        data this costs ≤1 superfluous advisor run per episode, usually 0.
-
-        This is an accepted precision/latency tradeoff, not a free lunch: the
-        advisor reads the too-new suspect's diff, and while it almost always
-        returns `not_related` (the commit didn't introduce the test), a
-        confident wrong verdict is possible — bounded by the
-        `ADVISOR_CONFIDENCE_THRESHOLD` gate. We prefer that bounded risk over
-        deferring every born-red episode until its introduction gap settles.
-
-        `unknown` carries the *introduction gap*: commits strictly between the
-        suspect and the newest concluded baseline. Uncovered ones — *unrun*
-        commits (`not job_group_concluded and not events`: no job result for
-        this test, because the job was never scheduled (ghstack lands a stack
-        and `push` only runs jobs for the stack head), the test did not run, or
-        it crashed without reporting) — are bisection candidates the caller
-        restarts via `cover_gap_unknown_commits` to find the true introducer.
-        Pending gap commits sit here too but act as already-covered separators
-        (they have events). Commits older than the newest baseline are past
-        proven absence and are not included.
-
-        `failed` = all failing commits (newest first; `failed[-1]` is the
-        suspect); `successful` = concluded baseline commits older than the
-        suspect (relabeled `no_signal` in the advisor JSON via
-        `DispatchAdvisor.is_born_red`); `unknown` = introduction-gap commits to
-        cover by restart.
+        Partition layout:
+        - `failed`: every failing commit, newest first; `failed[-1]` = suspect.
+        - `successful`: concluded baselines older than the suspect (relabeled
+          `no_signal` in the advisor JSON via `DispatchAdvisor.is_born_red`);
+          `successful[0]` = newest baseline.
+        - `unknown`: the *introduction gap* — commits strictly between the
+          suspect and the newest baseline. *Unrun* ones (no job result: a job
+          never scheduled — e.g. a ghstack stack-middle, since `push` only runs
+          jobs for the stack head — the test not run, or a crash without
+          reporting) are restarted by the caller (`cover_gap_unknown_commits`)
+          to bisect the true introducer; pending commits here are
+          already-covered separators.
         """
         if self.has_successes():
             return None
