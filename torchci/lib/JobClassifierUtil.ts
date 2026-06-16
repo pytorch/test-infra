@@ -9,7 +9,7 @@ type RepoViableStrictBlockingJobsMap = {
 
 // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
 export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
-  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i],
+  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i, /docs-build/i],
 };
 
 export function isJobViableStrictBlocking(

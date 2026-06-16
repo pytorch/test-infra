@@ -33,7 +33,8 @@ all_runs AS (
             'Lint',
             'pull',
             'trunk',
-            'linux-aarch64'
+            'linux-aarch64',
+            'docs-build'
         )
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow_run.id IN (

@@ -24,7 +24,7 @@ export default function Kpis() {
           queryParams={{
             ...timeParams,
             granularity: "week",
-            workflowNames: ["lint", "pull", "trunk"],
+            workflowNames: ["lint", "pull", "trunk", "docs-build"],
           }}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}

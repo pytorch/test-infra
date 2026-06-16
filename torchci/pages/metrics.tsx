@@ -496,7 +496,7 @@ export default function Page() {
     JSON.stringify({
       ...timeParams,
       // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: ["lint", "pull", "trunk", "linux-aarch64"],
+      workflowNames: ["lint", "pull", "trunk", "linux-aarch64", "docs-build"],
     })
   )}`;
 
@@ -841,7 +841,7 @@ export default function Page() {
             <WorkflowDuration
               percentile={ttsPercentile}
               timeParams={timeParams}
-              workflowNames={["pull", "trunk"]}
+              workflowNames={["pull", "trunk", "docs-build"]}
             />
           </Stack>
         </Grid>
