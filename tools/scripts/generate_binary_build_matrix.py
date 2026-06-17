@@ -37,7 +37,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2"],
     "test": ["12.6", "13.0", "13.2"],
-    "release": ["12.6", "12.8", "13.0"],
+    "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
@@ -91,7 +91,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.13.0"
 CURRENT_CANDIDATE_VERSION = "2.12.1"
-CURRENT_STABLE_VERSION = "2.12.0"
+CURRENT_STABLE_VERSION = "2.12.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
