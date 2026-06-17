@@ -55,6 +55,11 @@ class JobRow:
     started_at: datetime
     created_at: datetime
     rule: str
+    # GitHub Actions trigger of the run this job belongs to (push / schedule /
+    # workflow_dispatch / ...). Default "" for callers that don't populate it
+    # (treated as a natural run). Autorevert's own restarts are
+    # `workflow_dispatch`; see `is_workflow_dispatch`.
+    workflow_event: str = ""
 
     @cached_property
     def base_name(self) -> JobBaseName:
@@ -138,6 +143,16 @@ class JobRow:
         # produced no signal-bearing outcome (e.g. `if:` gate, required-check
         # skip when an upstream dependency was cancelled/failed).
         return self._conclusion_l == "skipped"
+
+    @property
+    def is_workflow_dispatch(self) -> bool:
+        # True when this run was triggered via the GitHub workflow_dispatch
+        # API — which is how autorevert fires its own restarts. Such runs are
+        # job/test-filtered, so a concluded dispatch run with no event for a
+        # given test is NOT proof the test was absent (it may simply not have
+        # been in the dispatch's test filter). They must not establish a
+        # born-red baseline; see signal_extraction._build_test_signals.
+        return self.workflow_event.lower() == "workflow_dispatch"
 
     @property
     def is_failure(self) -> bool:

@@ -408,11 +408,13 @@ class SignalExtractor:
             for commit_sha, _ in commits:
                 events: List[SignalEvent] = []
                 # Track whether this test's job group ran to a terminal
-                # conclusion on this commit: ≥1 non-cancelled run and none of
-                # them still pending. A concluded commit with no events is a
-                # born-red baseline witness (the test was genuinely absent),
-                # as opposed to a commit whose jobs are still running and thus
-                # carry no information about whether the test exists yet.
+                # conclusion on this commit via a NATURAL run: ≥1 non-cancelled,
+                # non-skipped, non-workflow_dispatch run, and none still pending.
+                # A naturally-concluded commit with no events is a born-red
+                # baseline witness (the test was genuinely absent), as opposed
+                # to a commit whose jobs are still running (no info yet) or were
+                # only exercised by an autorevert restart (which is job/test-
+                # filtered and so cannot prove the test absent).
                 group_runs = 0
                 group_pending = False
 
@@ -432,9 +434,17 @@ class SignalExtractor:
                         # it is NOT proof the test was absent. Counting it would
                         # fabricate a born-red baseline witness.
                         continue
-                    group_runs += 1
-                    if meta.is_pending:
-                        group_pending = True
+                    # Only NATURAL runs (push/schedule) establish the born-red
+                    # baseline. An autorevert workflow_dispatch restart is
+                    # job/test-filtered, so a concluded dispatch with no event
+                    # for this test is not proof of absence. Dispatch runs still
+                    # emit their outcome/pending events below — so a gap-restart
+                    # that the test fails still surfaces a FAILURE and moves the
+                    # suspect — they just don't count toward `job_group_concluded`.
+                    if not meta.is_workflow_dispatch:
+                        group_runs += 1
+                        if meta.is_pending:
+                            group_pending = True
                     outcome = tests_by_group_attempt.get(
                         (
                             commit_sha,

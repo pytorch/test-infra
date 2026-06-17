@@ -154,7 +154,11 @@ class SignalExtractionDatasource:
             wf.conclusion_kg AS conclusion_kg,
             wf.started_at,
             wf.created_at,
-            tupleElement(wf.torchci_classification_kg,'rule') AS rule
+            tupleElement(wf.torchci_classification_kg,'rule') AS rule,
+            -- Trigger of the run (push / schedule / workflow_dispatch / ...).
+            -- Used to exclude autorevert's own workflow_dispatch restarts from
+            -- establishing a born-red baseline (they are job/test-filtered).
+            wf.workflow_event AS workflow_event
         FROM default.workflow_job AS wf FINAL
         WHERE wf.repository_full_name = {{repo:String}}
           AND wf.head_sha IN {{head_shas:Array(String)}}
@@ -194,6 +198,7 @@ class SignalExtractionDatasource:
                     started_at,
                     created_at,
                     rule,
+                    workflow_event,
                 ) in res.result_rows:
                     # Guard against placeholder started_at by using the later of
                     # started_at and created_at as the effective start.
@@ -212,6 +217,7 @@ class SignalExtractionDatasource:
                             started_at=effective_started,
                             created_at=created_at,
                             rule=str(rule or ""),
+                            workflow_event=str(workflow_event or ""),
                         )
                     )
         dt = time.perf_counter() - t0
