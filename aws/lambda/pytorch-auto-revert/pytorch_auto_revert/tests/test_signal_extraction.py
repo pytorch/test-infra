@@ -1306,6 +1306,57 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(part.failed[-1].head_sha, "C1")
         self.assertIn("C2", [c.head_sha for c in part.successful])
 
+    def test_job_group_concluded_excludes_skipped_group(self):
+        # A fully-skipped job group (e.g. an `if:` gate, or a required-check
+        # skip when an upstream dependency failed/cancelled) never ran the
+        # test, so it must NOT count as a concluded born-red baseline — it is
+        # "missing", same as cancelled. Otherwise a skipped commit fabricates a
+        # "test absent" baseline witness and can manufacture / mis-scope a
+        # born-red detection.
+        jobs = [
+            # C1 (newest): job concluded, the test failed here.
+            J(
+                sha="C1",
+                run=201,
+                job=11,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2 (oldest): the test's job group was SKIPPED — no run.
+            J(
+                sha="C2",
+                run=202,
+                job=12,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                status="completed",
+                conclusion="skipped",
+            ),
+        ]
+        tests = [
+            T(
+                job=11,
+                run=201,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        self.assertTrue(by_sha["C1"].job_group_concluded)
+        # Skipped group → treated as missing: not concluded, no event.
+        self.assertFalse(by_sha["C2"].job_group_concluded)
+        self.assertEqual(by_sha["C2"].events, [])
+        # No genuine concluded baseline anywhere → NOT born-red (the skipped
+        # commit must not serve as the baseline witness).
+        self.assertIsNone(sig.partition_born_red())
+
 
 if __name__ == "__main__":
     unittest.main()

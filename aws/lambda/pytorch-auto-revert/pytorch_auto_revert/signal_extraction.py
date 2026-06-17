@@ -424,8 +424,13 @@ class SignalExtractor:
                         (commit_sha, wf_name, job_base_name, wf_run_id, run_attempt),
                         default=JobMeta(),
                     )
-                    if meta.is_cancelled:
-                        # canceled attempts are treated as missing
+                    if meta.is_cancelled or meta.is_skipped:
+                        # Cancelled / skipped attempts are treated as missing
+                        # (same as JobMeta.status → None). A skipped job — an
+                        # `if:` gate, or a required-check skip when an upstream
+                        # dependency failed/cancelled — never ran the test, so
+                        # it is NOT proof the test was absent. Counting it would
+                        # fabricate a born-red baseline witness.
                         continue
                     group_runs += 1
                     if meta.is_pending:
