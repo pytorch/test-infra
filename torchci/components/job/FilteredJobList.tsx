@@ -1,3 +1,4 @@
+import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import { fetcher } from "lib/GeneralUtils";
 import { IssueData, JobAnnotation, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
@@ -27,15 +28,18 @@ function FailedJobInfo({
   return (
     <li key={job.id} id={job.id}>
       <JobSummary job={job} unstableIssues={unstableIssues} />
-      {prNum > 0 && job.name && job.sha && (
-        <AiAdvisorIndicator
-          jobName={job.name}
-          sha={job.sha}
-          prNumber={prNum}
-          conclusion={job.conclusion}
-          workflowName={job.workflowName}
-        />
-      )}
+      {prNum > 0 &&
+        job.name &&
+        job.sha &&
+        isAdvisorEnabled(repoOwner as string, repoName as string) && (
+          <AiAdvisorIndicator
+            jobName={job.name}
+            sha={job.sha}
+            prNumber={prNum}
+            conclusion={job.conclusion}
+            workflowName={job.workflowName}
+          />
+        )}
       <div>
         <JobLinks job={job} />
       </div>

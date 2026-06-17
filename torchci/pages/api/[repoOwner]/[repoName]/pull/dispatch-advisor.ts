@@ -1,13 +1,25 @@
+import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import {
   dispatchAdvisorWorkflow,
   isValidSha,
+  readDispatchStates,
+  recordDispatch,
   signalKeyForJob,
 } from "lib/advisor/advisorDispatch";
-import { queryClickhouse } from "lib/clickhouse";
 import { hasWritePermissionsUsingOctokit } from "lib/GeneralUtils";
 import { getOctokitWithUserToken } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+/**
+ * Manual "AI Analyze" dispatch endpoint (the HUD button). Thin wrapper over the
+ * shared advisor dispatch logic in lib/advisor/advisorDispatch: it adds the
+ * interactive auth + write-permission gate, the per-repo enable check, and a
+ * best-effort dedup record so the automatic Dr.CI loop won't re-dispatch a job a
+ * human already triggered.
+ *
+ * Unlike the auto path, dedup here is best-effort (human-rate, no storm risk):
+ * a ClickHouse read/write hiccup must not block a user's click.
+ */
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -37,12 +49,18 @@ export default async function handler(
   if (!Number.isInteger(prNumber) || prNumber <= 0) {
     return void res.status(400).json({ error: "Invalid prNumber" });
   }
-
   if (!isValidSha(headSha)) {
     return void res.status(400).json({ error: "Invalid headSha format" });
   }
   if (mergeBaseSha && !isValidSha(mergeBaseSha)) {
     return void res.status(400).json({ error: "Invalid mergeBaseSha format" });
+  }
+
+  // Per-repo enable gate (shared with the auto loop and the button visibility).
+  if (!isAdvisorEnabled(owner, repo)) {
+    return void res.status(404).json({
+      error: `AI advisor is not enabled for ${owner}/${repo}`,
+    });
   }
 
   const octokit = await getOctokitWithUserToken(authorization);
@@ -64,28 +82,35 @@ export default async function handler(
   }
 
   const signalKey = signalKeyForJob(jobName);
+  const record = {
+    owner,
+    repo,
+    headSha,
+    signalKey,
+    retryCount: 0,
+    prNumber,
+    jobName,
+  };
 
-  // Server-side dedup: skip if a verdict for this (sha, signal_key) was
-  // already produced in the last 10 minutes, meaning a prior dispatch
-  // already completed or is in-flight.
+  // Best-effort dedup: skip if already dispatching/dispatched. A read failure
+  // must not block the click, so fall through on error.
   try {
-    const recentRows = await queryClickhouse(
-      `SELECT 1
-       FROM misc.autorevert_advisor_verdicts
-       WHERE repo = {repo: String}
-         AND suspect_commit = {sha: String}
-         AND signal_key = {signalKey: String}
-         AND timestamp > now() - INTERVAL 10 MINUTE
-       LIMIT 1`,
-      { repo: `${owner}/${repo}`, sha: headSha, signalKey }
-    );
-    if (recentRows.length > 0) {
+    const states = await readDispatchStates(owner, repo, headSha, [signalKey]);
+    const prev = states.get(signalKey);
+    if (prev && (prev.state === "dispatching" || prev.state === "dispatched")) {
       return void res.status(409).json({
-        error: "Advisor was already dispatched for this job recently",
+        error: "Advisor was already dispatched for this job",
       });
     }
-  } catch {
-    // If the dedup check fails, proceed with dispatch anyway
+  } catch (e) {
+    console.error("dispatch-advisor: dedup read failed, proceeding", e);
+  }
+
+  // Best-effort pre-dispatch marker (so the auto loop sees the manual dispatch).
+  try {
+    await recordDispatch({ ...record, state: "dispatching" });
+  } catch (e) {
+    console.error("dispatch-advisor: pre-dispatch write failed", e);
   }
 
   try {
@@ -98,18 +123,30 @@ export default async function handler(
       jobName,
       workflowName,
     });
-    return void res.status(200).json({
-      message: "Advisor workflow dispatched",
-      prNumber,
-      headSha,
-      jobName,
-    });
   } catch (error: any) {
     console.error("Failed to dispatch advisor:", error);
+    try {
+      await recordDispatch({ ...record, state: "failed" });
+    } catch {
+      // best-effort
+    }
     return void res.status(500).json({
       error: "Failed to dispatch advisor workflow",
       details:
         process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
+
+  try {
+    await recordDispatch({ ...record, state: "dispatched" });
+  } catch (e) {
+    console.error("dispatch-advisor: post-dispatch write failed", e);
+  }
+
+  return void res.status(200).json({
+    message: "Advisor workflow dispatched",
+    prNumber,
+    headSha,
+    jobName,
+  });
 }

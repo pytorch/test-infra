@@ -1,0 +1,245 @@
+import { DEFAULT_MAX_NEW_FAILURES } from "lib/advisor/advisorConfig";
+import {
+  autoDispatchAdvisorForNewFailures,
+  AutoDispatchDeps,
+  MAX_DISPATCH_RETRIES,
+  signalKeyForJob,
+} from "lib/advisor/advisorDispatch";
+import { RecentWorkflowsData } from "lib/types";
+
+const VALID_SHA = "a".repeat(40);
+
+function job(
+  name: string,
+  conclusion = "failure",
+  failure_captures: string[] = []
+): RecentWorkflowsData {
+  return {
+    name,
+    conclusion,
+    failure_captures,
+  } as unknown as RecentWorkflowsData;
+}
+
+function makeDeps(overrides: Partial<AutoDispatchDeps> = {}): AutoDispatchDeps {
+  return {
+    readDispatchStates: jest.fn().mockResolvedValue(new Map()),
+    recordDispatch: jest.fn().mockResolvedValue(undefined),
+    dispatchAdvisorWorkflow: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+const baseArgs = {
+  owner: "pytorch",
+  repo: "pytorch",
+  prNumber: 123,
+  headSha: VALID_SHA,
+  mergeBaseSha: "b".repeat(40),
+};
+
+describe("autoDispatchAdvisorForNewFailures", () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV };
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "true";
+    process.env.VERCEL_ENV = "production";
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+    jest.restoreAllMocks();
+  });
+
+  it("no-ops when the feature flag is off", async () => {
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "false";
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.readDispatchStates).not.toHaveBeenCalled();
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when not in production", async () => {
+    process.env.VERCEL_ENV = "preview";
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("no-ops for a repo without advisor config", async () => {
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, repo: "vision", newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("dispatches each new failure with pre/post writes", async () => {
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a"), job("wf / b")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(2);
+    // 2 jobs x (dispatching + dispatched)
+    expect(deps.recordDispatch).toHaveBeenCalledTimes(4);
+    const states = (deps.recordDispatch as jest.Mock).mock.calls.map(
+      (c) => c[0].state
+    );
+    expect(states).toEqual([
+      "dispatching",
+      "dispatched",
+      "dispatching",
+      "dispatched",
+    ]);
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobName: "wf / a", workflowName: "wf" })
+    );
+  });
+
+  it("excludes cancelled jobs", async () => {
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "cancelled"), job("wf / b")],
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobName: "wf / b" })
+    );
+  });
+
+  it("skips jobs already dispatching or dispatched", async () => {
+    const states = new Map([
+      [
+        signalKeyForJob("wf / a"),
+        { state: "dispatched" as const, retryCount: 0 },
+      ],
+      [
+        signalKeyForJob("wf / b"),
+        { state: "dispatching" as const, retryCount: 0 },
+      ],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a"), job("wf / b")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a failed job that is out of retries", async () => {
+    const states = new Map([
+      [
+        signalKeyForJob("wf / a"),
+        { state: "failed" as const, retryCount: MAX_DISPATCH_RETRIES },
+      ],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed job under the retry limit and increments retry_count", async () => {
+    const states = new Map([
+      [signalKeyForJob("wf / a"), { state: "failed" as const, retryCount: 1 }],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+    expect(deps.recordDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ state: "dispatching", retryCount: 2 })
+    );
+  });
+
+  it("fails closed when the dedup read throws (dispatches nothing)", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockRejectedValue(new Error("CH down")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.recordDispatch).not.toHaveBeenCalled();
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("aborts the PR when the pre-dispatch write throws", async () => {
+    const deps = makeDeps({
+      recordDispatch: jest.fn().mockRejectedValue(new Error("write down")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a"), job("wf / b")] },
+      deps
+    );
+    // Pre-write attempted once, then aborts before dispatching anything.
+    expect(deps.recordDispatch).toHaveBeenCalledTimes(1);
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("records a failed state when the dispatch throws", async () => {
+    const deps = makeDeps({
+      dispatchAdvisorWorkflow: jest.fn().mockRejectedValue(new Error("gh 500")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    const states = (deps.recordDispatch as jest.Mock).mock.calls.map(
+      (c) => c[0].state
+    );
+    expect(states).toEqual(["dispatching", "failed"]);
+  });
+
+  it("bails entirely when new failures exceed the per-repo max", async () => {
+    const failures = Array.from(
+      { length: DEFAULT_MAX_NEW_FAILURES + 1 },
+      (_, i) => job(`wf / job-${i}`)
+    );
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    // Bails before even reading dedup state.
+    expect(deps.readDispatchStates).not.toHaveBeenCalled();
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("dispatches all when new failures are exactly at the max", async () => {
+    const failures = Array.from({ length: DEFAULT_MAX_NEW_FAILURES }, (_, i) =>
+      job(`wf / job-${i}`)
+    );
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
+      DEFAULT_MAX_NEW_FAILURES
+    );
+  });
+});
