@@ -41,11 +41,14 @@
       "xpu"
     ]
   ],
-  "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "149080",
-    "https://github.com/pytorch/pytorch/issues/149080",
+  "test_aoti_custom_op_bad_fake_dtype_fails_fast_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "187562",
+    "https://github.com/pytorch/pytorch/issues/187562",
     [
-      "inductor",
+      "asan",
+      "linux",
+      "mac",
+      "macos",
       "rocm"
     ]
   ],
@@ -989,6 +992,14 @@
     "https://github.com/pytorch/pytorch/issues/182396",
     [
       "linux"
+    ]
+  ],
+  "test_view_ops (__main__.TestViewOpsWithLocalTensor)": [
+    "187561",
+    "https://github.com/pytorch/pytorch/issues/187561",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_views_op_having_view_copy (__main__.TestPasses)": [
