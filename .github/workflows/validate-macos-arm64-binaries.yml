@@ -143,5 +143,5 @@ jobs:
           export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
         fi
 
-        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > .ci/release_matrix.json
         source ../../test-infra/.github/scripts/validate_binaries.sh

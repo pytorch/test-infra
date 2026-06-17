@@ -140,7 +140,7 @@ jobs:
           export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
         fi
 
-        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > .ci/release_matrix.json
         source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
         if [[ ${MATRIX_GPU_ARCH_TYPE} == "cuda" ]]; then
           ./.ci/pytorch/windows/internal/driver_update.bat

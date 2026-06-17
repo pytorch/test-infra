@@ -158,7 +158,7 @@ jobs:
           export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
         fi
 
-        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > .ci/release_matrix.json
         eval "$(conda shell.bash hook)"
 
         # NB: The latest conda 23.11.0 pulls in some dependencies of conda-libmamba-solver that
