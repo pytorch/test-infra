@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
@@ -239,6 +240,27 @@ export async function updateDrciComments(
         UNKNOWN: unknownJobs,
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
+
+      // Auto-dispatch the AI CI Advisor on NEW failures. No-op unless the
+      // feature flag + production env + per-repo config are all set; dispatch
+      // only (no comment/merge changes), with its own ClickHouse dedup +
+      // outage guard. Wrapped so an advisor error can never break the comment.
+      try {
+        await autoDispatchAdvisorForNewFailures({
+          owner,
+          repo,
+          prNumber: pr_info.pr_number,
+          headSha: pr_info.head_sha,
+          mergeBaseSha: pr_info.merge_base,
+          newFailures: failedJobs,
+        });
+      } catch (e) {
+        console.error(
+          "advisor auto-dispatch threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
 
       const failureInfo = constructResultsComment(
         pending,
