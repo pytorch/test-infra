@@ -121,6 +121,7 @@ jobs:
     uses: ./.github/workflows/generate_release_matrix.yml
     with:
       version: ${{ inputs.version }}
+      test-infra-ref: release/2.12
 
   win:
     if:  inputs.os == 'windows' || inputs.os == 'all'
