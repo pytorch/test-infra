@@ -171,6 +171,34 @@ install_numpy_1x() {
     fi
 }
 
+# Known smoke test failure that should not fail validation.
+#
+# CUDA 13.2 ships cuFile >= 1.17, whose expanded compatibility mode lets
+# cuFileHandleRegister succeed without the nvidia-fs driver (I/O falls back to
+# POSIX). test_cuda_gds_errors_captured() in pytorch's smoke_test.py assumes
+# registration always fails in CI and errors out. This is fixed on pytorch
+# main (pytorch/pytorch#180577) but not on release/2.12, so ignore it here.
+GDS_KNOWN_FAILURE="Expected cuFileHandleRegister failed RuntimeError but have not received!"
+
+# Run smoke_test.py, tolerating the known GDS/cuFile failure above. Any other
+# failure is propagated so it still fails validation.
+run_smoke_test_script() {
+    local smoke_test_log
+    smoke_test_log="$(mktemp)"
+    local rc=0
+    if ${PYTHON_RUN} ./smoke_test/smoke_test.py "$@" 2>&1 | tee "${smoke_test_log}"; then
+        rc=0
+    else
+        rc=${PIPESTATUS[0]}
+        if grep -qF "${GDS_KNOWN_FAILURE}" "${smoke_test_log}"; then
+            echo "::warning::Ignoring known GDS/cuFile smoke test failure on CUDA 13.2 (pytorch/pytorch#180577)"
+            rc=0
+        fi
+    fi
+    rm -f "${smoke_test_log}"
+    return ${rc}
+}
+
 # Run smoke tests
 run_smoke_tests() {
     local test_suffix="$1"
@@ -189,12 +217,12 @@ run_smoke_tests() {
     fi
 
     # Regular smoke test
-    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+    run_smoke_test_script ${test_suffix}
 
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --upgrade --force-reinstall
-        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+        run_smoke_test_script ${test_suffix}
     fi
 
     popd
