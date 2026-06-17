@@ -383,6 +383,13 @@
       "rocm"
     ]
   ],
+  "test_fsdp_flat_param_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187571",
+    "https://github.com/pytorch/pytorch/issues/187571",
+    [
+      "rocm"
+    ]
+  ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
     "https://github.com/pytorch/pytorch/issues/187176",
