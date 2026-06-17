@@ -371,18 +371,56 @@ export async function recordDispatch(record: DispatchRecord): Promise<void> {
   });
 }
 
+// Auto-dispatch is skipped on draft PRs (work-in-progress, not ready for
+// review). Flip to false to also analyze drafts.
+const SKIP_DRAFT_PRS = true;
+
+/**
+ * Fetch the minimal PR state needed to gate auto-dispatch, from the
+ * default.pull_request ClickHouse mirror rather than the GitHub API. The rest
+ * of the advisor path already reads from CH (and getPRsWithPendingJobInComment
+ * in drci.ts already reads pull_request.state the same way), so this keeps the
+ * Dr.CI cron off the GitHub rate limit. The mirror lags GitHub by ~1 minute,
+ * well within the 15-minute cron cadence. A PR not yet mirrored (no row) is
+ * treated as open so we don't drop dispatches on brand-new PRs.
+ */
+export async function getPullRequestMeta(
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<{ state: string; draft: boolean }> {
+  const rows = await queryClickhouseSaved("advisor_pr_state", {
+    prNumber,
+    htmlUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+  });
+  if (rows.length === 0) return { state: "open", draft: false };
+  // Decode draft robustly: depending on the CH client/format a Bool can come
+  // back as a JS boolean, a number, or a string ("0"/"1"/"true"/"false"). A
+  // naive Boolean() would treat the string "0"/"false" as truthy and wrongly
+  // mark every non-draft PR as draft (suppressing all open PRs).
+  const draftRaw = rows[0].draft;
+  const draft =
+    draftRaw === true ||
+    draftRaw === 1 ||
+    draftRaw === "1" ||
+    draftRaw === "true";
+  return { state: rows[0].state as string, draft };
+}
+
 // Injectable dependencies so the orchestration logic is unit-testable without
 // touching ClickHouse or GitHub.
 export interface AutoDispatchDeps {
   readDispatchStates: typeof readDispatchStates;
   recordDispatch: typeof recordDispatch;
   dispatchAdvisorWorkflow: typeof dispatchAdvisorWorkflow;
+  getPullRequestMeta: typeof getPullRequestMeta;
 }
 
 const defaultDeps: AutoDispatchDeps = {
   readDispatchStates,
   recordDispatch,
   dispatchAdvisorWorkflow,
+  getPullRequestMeta,
 };
 
 export interface AutoDispatchArgs {
@@ -417,7 +455,9 @@ export function autoDispatchEnabled(owner: string, repo: string): boolean {
  *   - 'dispatched' is written on success; a 'failed' row supersedes the pre row
  *     when the dispatch throws, re-enabling retry up to MAX_DISPATCH_RETRIES,
  *   - bails entirely (dispatches nothing) if a PR has more NEW failures than the
- *     per-repo max (outage guard).
+ *     per-repo max (outage guard),
+ *   - skips PRs that are not open (closed/merged) or, by default, draft -- the
+ *     PR state is only looked up once there is fresh work to dispatch.
  */
 export async function autoDispatchAdvisorForNewFailures(
   args: AutoDispatchArgs,
@@ -471,8 +511,14 @@ export async function autoDispatchAdvisorForNewFailures(
     return;
   }
 
-  // The byKey set is already bounded by the outage guard above (<= the per-repo
-  // max), so dispatch every fresh failure; dedup state skips repeats.
+  // Which failures still need a dispatch (skip already dispatching/dispatched,
+  // or failed-and-out-of-retries). The byKey set is already bounded by the
+  // outage guard above.
+  const toDispatch: {
+    signalKey: string;
+    job: RecentWorkflowsData;
+    retryCount: number;
+  }[] = [];
   for (const [signalKey, job] of byKey) {
     const prev = states.get(signalKey);
     if (prev) {
@@ -484,7 +530,35 @@ export async function autoDispatchAdvisorForNewFailures(
       }
     }
     const retryCount = prev?.state === "failed" ? prev.retryCount + 1 : 0;
+    toDispatch.push({ signalKey, job, retryCount });
+  }
+  if (toDispatch.length === 0) return;
 
+  // Don't auto-dispatch on PRs that aren't open: a closed/merged PR won't be
+  // worked on, and (by default) draft PRs are work-in-progress. Looked up only
+  // now -- after dedup -- so the PR lookup is paid only when there is fresh
+  // work. Fail closed: a lookup error skips this pass (the next pass retries).
+  try {
+    const pr = await deps.getPullRequestMeta(owner, repo, prNumber);
+    if (pr.state !== "open") {
+      console.log(
+        `advisor auto-dispatch: PR ${prNumber} is ${pr.state}; skipping`
+      );
+      return;
+    }
+    if (pr.draft && SKIP_DRAFT_PRS) {
+      console.log(`advisor auto-dispatch: PR ${prNumber} is a draft; skipping`);
+      return;
+    }
+  } catch (e) {
+    console.error(
+      `advisor auto-dispatch: PR-state lookup failed for PR ${prNumber}, skipping pass`,
+      e
+    );
+    return;
+  }
+
+  for (const { signalKey, job, retryCount } of toDispatch) {
     const base = {
       owner,
       repo,

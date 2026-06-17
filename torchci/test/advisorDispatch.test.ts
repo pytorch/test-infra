@@ -26,6 +26,9 @@ function makeDeps(overrides: Partial<AutoDispatchDeps> = {}): AutoDispatchDeps {
     readDispatchStates: jest.fn().mockResolvedValue(new Map()),
     recordDispatch: jest.fn().mockResolvedValue(undefined),
     dispatchAdvisorWorkflow: jest.fn().mockResolvedValue(undefined),
+    getPullRequestMeta: jest
+      .fn()
+      .mockResolvedValue({ state: "open", draft: false }),
     ...overrides,
   };
 }
@@ -241,5 +244,51 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
       DEFAULT_MAX_NEW_FAILURES
     );
+  });
+
+  it("does not dispatch on a closed PR", async () => {
+    const deps = makeDeps({
+      getPullRequestMeta: jest
+        .fn()
+        .mockResolvedValue({ state: "closed", draft: false }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+    // Skipped after dedup but before any marker write.
+    expect(deps.recordDispatch).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch on a draft PR", async () => {
+    const deps = makeDeps({
+      getPullRequestMeta: jest
+        .fn()
+        .mockResolvedValue({ state: "open", draft: true }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("does not look up PR state when every failure is already deduped", async () => {
+    const states = new Map([
+      [
+        signalKeyForJob("wf / a"),
+        { state: "dispatched" as const, retryCount: 0 },
+      ],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.getPullRequestMeta).not.toHaveBeenCalled();
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
   });
 });
