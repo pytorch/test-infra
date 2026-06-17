@@ -390,6 +390,13 @@
       "rocm"
     ]
   ],
+  "test_full_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187598",
+    "https://github.com/pytorch/pytorch/issues/187598",
+    [
+      "rocm"
+    ]
+  ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
     "https://github.com/pytorch/pytorch/issues/187176",
