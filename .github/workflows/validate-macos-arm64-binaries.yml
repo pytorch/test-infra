@@ -12,6 +12,11 @@ on:
         default: false
         required: false
         type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
+        default: false
+        required: false
+        type: boolean
       version:
         description: 'Version to validate - optional'
         default: ""
@@ -60,6 +65,11 @@ on:
           - all
       torchonly:
         description: 'Validate torchonly'
+        default: false
+        required: false
+        type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
         default: false
         required: false
         type: boolean
@@ -127,6 +137,7 @@ jobs:
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
         export TORCH_ONLY=${{ inputs.torchonly }}
+        export NO_TORCHAUDIO=${{ inputs.no-torchaudio }}
         export RELEASE_VERSION=${{ inputs.version }}
         export USE_FORCE_REINSTALL="true"
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}

@@ -12,6 +12,11 @@ on:
         default: false
         required: false
         type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
+        default: false
+        required: false
+        type: boolean
       version:
         description: 'Version to validate - optional'
         default: ""
@@ -65,6 +70,11 @@ on:
           - all
       torchonly:
         description: 'Validate torchonly'
+        default: false
+        required: false
+        type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
         default: false
         required: false
         type: boolean
@@ -140,6 +150,7 @@ jobs:
         set -ex
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TORCH_ONLY=${{ inputs.torchonly }}
+        export NO_TORCHAUDIO=${{ inputs.no-torchaudio }}
         export INCLUDE_TEST_OPS=${{ inputs.include-test-ops }}
         export USE_ONLY_DL_PYTORCH_ORG=${{ inputs.use-only-dl-pytorch-org }}
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
