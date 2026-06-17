@@ -22,6 +22,11 @@ on:
         default: false
         required: false
         type: boolean
+      version:
+        description: 'Version to validate'
+        default: "2.12.1"
+        required: false
+        type: string
       include-test-ops:
         description: 'Include Test Ops tests (only Linux)'
         default: false
@@ -82,7 +87,7 @@ on:
         type: boolean
       version:
         description: 'Version to validate'
-        default: ""
+        default: "2.12.1"
         required: false
         type: string
       include-test-ops:
