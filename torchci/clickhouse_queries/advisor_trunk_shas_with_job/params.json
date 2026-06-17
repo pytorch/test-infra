@@ -1,0 +1,9 @@
+{
+  "params": {
+    "repo": "String",
+    "branch": "String",
+    "jobPattern": "String",
+    "limit": "UInt32"
+  },
+  "tests": []
+}

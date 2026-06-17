@@ -1,0 +1,8 @@
+{
+  "params": {
+    "repo": "String",
+    "jobPattern": "String",
+    "shas": "Array(String)"
+  },
+  "tests": []
+}
