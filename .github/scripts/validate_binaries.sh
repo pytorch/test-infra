@@ -68,6 +68,9 @@ build_installation_command() {
     # torch-only option: remove vision and audio
     if [[ ${TORCH_ONLY:-} == 'true' ]]; then
         installation=${installation/"torchvision torchaudio"/""}
+    # no-torchaudio option: remove audio only, keep vision
+    elif [[ ${NO_TORCHAUDIO:-} == 'true' ]]; then
+        installation=${installation/" torchaudio"/""}
     fi
 
     # if RELEASE version is passed as parameter - install specific version
@@ -89,6 +92,8 @@ build_installation_command() {
 get_test_suffix() {
     if [[ ${TORCH_ONLY:-} == 'true' ]]; then
         echo "--package torchonly"
+    elif [[ ${NO_TORCHAUDIO:-} == 'true' ]]; then
+        echo "--package torch_torchvision"
     else
         echo ""
     fi

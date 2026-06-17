@@ -22,6 +22,11 @@ on:
         default: false
         required: false
         type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
+        default: false
+        required: false
+        type: boolean
       version:
         description: 'Version to validate'
         default: "2.12.1"
@@ -85,6 +90,11 @@ on:
         default: false
         required: false
         type: boolean
+      no-torchaudio:
+        description: 'Validate without torchaudio (torch + torchvision only)'
+        default: false
+        required: false
+        type: boolean
       version:
         description: 'Version to validate'
         default: "2.12.1"
@@ -130,6 +140,7 @@ jobs:
     with:
       channel: ${{ inputs.channel }}
       torchonly: ${{ inputs.torchonly }}
+      no-torchaudio: ${{ inputs.no-torchaudio }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
@@ -144,6 +155,7 @@ jobs:
     with:
       channel: ${{ inputs.channel }}
       torchonly: ${{ inputs.torchonly }}
+      no-torchaudio: ${{ inputs.no-torchaudio }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       include-test-ops: ${{ inputs.include-test-ops }}
@@ -159,6 +171,7 @@ jobs:
     with:
       channel: ${{ inputs.channel }}
       torchonly: ${{ inputs.torchonly }}
+      no-torchaudio: ${{ inputs.no-torchaudio }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
@@ -173,6 +186,7 @@ jobs:
     with:
       channel: ${{ inputs.channel }}
       torchonly: ${{ inputs.torchonly }}
+      no-torchaudio: ${{ inputs.no-torchaudio }}
       version: ${{ inputs.version }}
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
