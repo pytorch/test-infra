@@ -373,6 +373,13 @@
       "dynamo"
     ]
   ],
+  "test_from_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187539",
+    "https://github.com/pytorch/pytorch/issues/187539",
+    [
+      "rocm"
+    ]
+  ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
     "https://github.com/pytorch/pytorch/issues/187176",
@@ -811,6 +818,18 @@
     [
       "asan",
       "dynamo",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_open_in_scope_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119668",
+    "https://github.com/pytorch/pytorch/issues/119668",
+    [
+      "asan",
       "linux",
       "mac",
       "macos",
