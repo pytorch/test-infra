@@ -112,6 +112,10 @@ jobs:
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
             # Backfill SHA256 metadata for wheels missing it (skips existing).
+            # Bare --recompute-sha256-pattern scans all prod accelerator
+            # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
             # shellcheck disable=SC2086
-            PREFIX=whl ./s3_management/recompute_release_sha256.sh \
-              "${PACKAGE}=${!version}"
+            python s3_management/manage_v2.py whl \
+              --recompute-sha256-pattern \
+              --package-name "${PACKAGE}" \
+              --package-version "${!version}"

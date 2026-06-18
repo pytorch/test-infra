@@ -49,11 +49,22 @@ jobs:
             # uses ${PYTORCH_VERSION:-...}); otherwise the file default is used.
             source ./release/release_versions.sh
 
+            # Recompute missing SHA256 across all prod accelerator subfolders
+            # (cu*/rocm*/cpu/xpu) for a package/version. Bare
+            # --recompute-sha256-pattern scans every subfolder; existing
+            # checksums are skipped.
+            recompute() {
+              echo "=== Recomputing SHA256 for $1 $2 on whl/ (prod) ==="
+              python s3_management/manage_v2.py whl \
+                --recompute-sha256-pattern \
+                --package-name "$1" \
+                --package-version "$2"
+            }
+
             # The torch project covers the core PyTorch wheel set. triton,
             # triton_rocm and triton_xpu all share TRITON_VERSION.
-            PREFIX=whl ./s3_management/recompute_release_sha256.sh \
-              "torch=${PYTORCH_VERSION}" \
-              "torchvision=${TORCHVISION_VERSION}" \
-              "triton=${TRITON_VERSION}" \
-              "triton_rocm=${TRITON_VERSION}" \
-              "triton_xpu=${TRITON_VERSION}"
+            recompute torch "${PYTORCH_VERSION}"
+            recompute torchvision "${TORCHVISION_VERSION}"
+            recompute triton "${TRITON_VERSION}"
+            recompute triton_rocm "${TRITON_VERSION}"
+            recompute triton_xpu "${TRITON_VERSION}"
