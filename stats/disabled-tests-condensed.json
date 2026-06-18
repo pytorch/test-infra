@@ -63,6 +63,13 @@
       "rocm"
     ]
   ],
+  "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
+    "187645",
+    "https://github.com/pytorch/pytorch/issues/187645",
+    [
+      "rocm"
+    ]
+  ],
   "test_autotune_int64_user_defined_triton_kernel_xpu (__main__.AOTInductorTestDualWrapper)": [
     "187181",
     "https://github.com/pytorch/pytorch/issues/187181",
@@ -506,6 +513,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_complex64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187646",
+    "https://github.com/pytorch/pytorch/issues/187646",
+    [
+      "rocm"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -908,6 +922,13 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_convnext_large (__main__.TestVisionTracing)": [
+    "185452",
+    "https://github.com/pytorch/pytorch/issues/185452",
+    [
+      "linux"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
     "182174",
     "https://github.com/pytorch/pytorch/issues/182174",
@@ -995,13 +1016,6 @@
     "https://github.com/pytorch/pytorch/issues/186909",
     [
       "rocm"
-    ]
-  ],
-  "test_trailing_args_forwarded (__main__.TestSubclassCodegen)": [
-    "186202",
-    "https://github.com/pytorch/pytorch/issues/186202",
-    [
-      "dynamo"
     ]
   ],
   "test_triggers (__main__.CallbackTests)": [
