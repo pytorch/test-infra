@@ -27,8 +27,11 @@
 #     the digest as S3 object metadata (x-amz-meta-checksum-sha256).
 #   - --set-checksum: compute and set SHA256 metadata for a specific
 #     package/version combination (requires --package-name and --package-version).
-#   - --recompute-sha256-pattern PATTERN: compute SHA256 for all .whl files
-#     matching PATTERN under the given prefix that are missing checksums.
+#   - --recompute-sha256-pattern [PATTERN]: compute SHA256 for .whl files that
+#     are missing checksums. With PATTERN, only that subfolder under the prefix
+#     is scanned; with no value, all accelerator subfolders (cu*/rocm*/cpu/xpu)
+#     under the prefix are scanned (nightly/test excluded). Combine with
+#     --package-name / --package-version to scope to a single release.
 #   - --recompute-missing-sha256: scan the entire prefix for .whl files that
 #     are missing x-amz-meta-checksum-sha256 metadata and compute/set it.
 #     Example: python s3_management/manage_v2.py channel --recompute-missing-sha256
@@ -60,6 +63,10 @@
 #
 #   # Recompute SHA256 for a specific subdir pattern:
 #   python s3_management/manage_v2.py whl/test --recompute-sha256-pattern rocm6.4
+#
+#   # Recompute SHA256 for one release across all prod accelerator subfolders:
+#   python s3_management/manage_v2.py whl --recompute-sha256-pattern \
+#       --package-name torch --package-version 2.12.1
 
 import argparse
 import base64
@@ -1686,21 +1693,42 @@ def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
     _compute_and_set_checksums(matching_objects)
 
 
+def list_accelerator_subdirs(prefix: str) -> List[str]:
+    """List immediate accelerator subdirectories under a prefix as scan prefixes.
+
+    Returns scan prefixes like 'whl/cu126/', 'whl/rocm7.1/', 'whl/cpu/' for
+    every immediate subdirectory whose name matches ACCEPTED_SUBDIR_PATTERNS.
+    Nested channels such as whl/nightly and whl/test are excluded because their
+    names do not match the accelerator patterns.
+    """
+    scan_prefixes: List[str] = []
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(
+        Bucket=BUCKET.name, Prefix=f"{prefix}/", Delimiter="/"
+    ):
+        for common_prefix in page.get("CommonPrefixes", []):
+            name = common_prefix["Prefix"].rstrip("/").split("/")[-1]
+            if any(match(f"{pat}$", name) for pat in ACCEPTED_SUBDIR_PATTERNS):
+                scan_prefixes.append(common_prefix["Prefix"])
+    return scan_prefixes
+
+
 def recompute_sha256_for_pattern(
     prefix: str,
-    pattern: str,
+    pattern: Optional[str] = None,
     package_name: Optional[str] = None,
     version: Optional[str] = None,
 ) -> None:
     """Compute SHA256 checksums for objects matching a pattern that don't have checksums.
 
     Args:
-        prefix: The S3 prefix to search in (e.g., "whl/test")
-        pattern: The pattern to match against object keys (e.g., "rocm6.4")
+        prefix: The S3 prefix to search in (e.g., "whl", "whl/test")
+        pattern: The subfolder to scan under the prefix (e.g., "rocm6.4"). When
+            empty/None, every accelerator subfolder (cu*/rocm*/cpu/xpu) under the
+            prefix is scanned (nightly/test channels are excluded).
         package_name: Optional package name to filter (e.g., "torch", "torchvision")
         version: Optional version to filter (e.g., "2.5.0", "2.5.0+rocm7.1")
     """
-    print(f"INFO: Searching in '{prefix}' for objects matching pattern '{pattern}'")
     normalized_package = None
     if package_name:
         print(f"INFO: Filtering by package name: '{package_name}'")
@@ -1710,44 +1738,54 @@ def recompute_sha256_for_pattern(
     if version:
         print(f"INFO: Filtering by version: '{version}'")
 
+    # Determine which prefixes to scan. A pattern selects a single subfolder;
+    # no pattern scans all accelerator subfolders under the prefix.
+    if pattern:
+        print(f"INFO: Searching in '{prefix}' for objects matching pattern '{pattern}'")
+        scan_prefixes = [f"{prefix}/{pattern}/"]
+    else:
+        scan_prefixes = list_accelerator_subdirs(prefix)
+        names = ", ".join(p.rstrip("/").split("/")[-1] for p in scan_prefixes)
+        print(
+            f"INFO: No pattern given; scanning all accelerator subfolders under "
+            f"'{prefix}/': {names or '(none found)'}"
+        )
+
     # Find all matching objects
     matching_objects = []
+    for scan_prefix in scan_prefixes:
+        print(f"INFO: Scanning prefix '{scan_prefix}'...")
+        for obj in BUCKET.objects.filter(Prefix=scan_prefix):
+            key = obj.key
+            # Only process wheel files
+            if key.endswith(".whl"):
+                basename = path.basename(key).lower()
+                # If package_name is specified, filter by it
+                if normalized_package:
+                    # Wheel filename format: {package}-{version}-...
+                    if not basename.startswith(f"{normalized_package}-"):
+                        continue
 
-    # Construct the scan prefix by combining prefix and pattern
-    scan_prefix = f"{prefix}/{pattern}/"
-    print(f"INFO: Scanning prefix '{scan_prefix}'...")
+                # If version is specified, filter by it
+                if version:
+                    # Check for version pattern in the filename
+                    # Handle both URL-encoded (+) and regular versions
+                    # Also handle local version specifiers (e.g., 2.9.1+rocm6.4)
+                    version_encoded = version.replace("+", "%2B").lower()
+                    version_lower = version.lower()
+                    # Version can be followed by - (exact match) or + or %2B (local version)
+                    version_match = (
+                        f"-{version_encoded}-" in basename
+                        or f"-{version_lower}-" in basename
+                        or f"-{version_encoded}+" in basename
+                        or f"-{version_lower}+" in basename
+                        or f"-{version_encoded}%2b" in basename
+                        or f"-{version_lower}%2b" in basename
+                    )
+                    if not version_match:
+                        continue
 
-    for obj in BUCKET.objects.filter(Prefix=scan_prefix):
-        key = obj.key
-        # Only process wheel files
-        if key.endswith(".whl"):
-            basename = path.basename(key).lower()
-            # If package_name is specified, filter by it
-            if normalized_package:
-                # Wheel filename format: {package}-{version}-...
-                if not basename.startswith(f"{normalized_package}-"):
-                    continue
-
-            # If version is specified, filter by it
-            if version:
-                # Check for version pattern in the filename
-                # Handle both URL-encoded (+) and regular versions
-                # Also handle local version specifiers (e.g., 2.9.1+rocm6.4)
-                version_encoded = version.replace("+", "%2B").lower()
-                version_lower = version.lower()
-                # Version can be followed by - (exact match) or + or %2B (local version)
-                version_match = (
-                    f"-{version_encoded}-" in basename
-                    or f"-{version_lower}-" in basename
-                    or f"-{version_encoded}+" in basename
-                    or f"-{version_lower}+" in basename
-                    or f"-{version_encoded}%2b" in basename
-                    or f"-{version_lower}%2b" in basename
-                )
-                if not version_match:
-                    continue
-
-            matching_objects.append(key)
+                matching_objects.append(key)
 
     if not matching_objects:
         filters = []
@@ -1756,7 +1794,8 @@ def recompute_sha256_for_pattern(
         if version:
             filters.append(f"version '{version}'")
         filter_msg = f" for {', '.join(filters)}" if filters else ""
-        print(f"WARNING: No matching objects found for pattern '{pattern}'{filter_msg}")
+        scope = f"pattern '{pattern}'" if pattern else f"all subfolders of '{prefix}'"
+        print(f"WARNING: No matching objects found for {scope}{filter_msg}")
         return
 
     print(f"INFO: Found {len(matching_objects)} matching wheel files")
@@ -1864,9 +1903,15 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--recompute-sha256-pattern",
         type=str,
+        nargs="?",
+        const="",
+        default=None,
         metavar="PATTERN",
-        help="Compute SHA256 checksums for objects matching this pattern that don't already have "
-        "checksums (e.g., 'whl/test/rocm7.1'). Objects with existing checksums are skipped.",
+        help="Compute SHA256 checksums for .whl objects that don't already have them. "
+        "With a PATTERN (e.g. 'rocm7.1') only that subfolder under the prefix is scanned. "
+        "Passed with no value, all accelerator subfolders (cu*/rocm*/cpu/xpu) under the "
+        "prefix are scanned (nightly/test excluded). Combine with --package-name / "
+        "--package-version to scope to a single release. Existing checksums are skipped.",
     )
     parser.add_argument(
         "--recompute-missing-sha256",
@@ -1895,7 +1940,7 @@ def main() -> None:
         return
 
     # Handle --recompute-sha256-pattern command
-    if args.recompute_sha256_pattern:
+    if args.recompute_sha256_pattern is not None:
         recompute_sha256_for_pattern(
             args.prefix,
             args.recompute_sha256_pattern,
