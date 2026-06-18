@@ -179,8 +179,11 @@ export function renderVerdictLine(
 ): string {
   const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName);
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
-  // Collapse newlines so a multi-line summary can't break the blockquote.
-  const oneLine = (summary || "").replace(/\s*\n\s*/g, " ").trim();
+  // The advisor summary is model-generated from (attacker-influenceable) PR
+  // content, so HTML-escape it before embedding in the comment: collapse
+  // newlines (can't break the blockquote) and neutralize markup so it can't
+  // close the <details>/<blockquote> or inject tags.
+  const oneLine = escapeXml((summary || "").replace(/\s*\n\s*/g, " ").trim());
   return (
     `  <details><summary>AI verdict: <a href="${link}"><img src="${badge}"></a></summary><blockquote>\n\n` +
     `  ${oneLine}\n\n` +

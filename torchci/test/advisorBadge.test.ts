@@ -134,6 +134,23 @@ describe("renderInProgressLine / renderVerdictLine", () => {
     expect(line).toContain("Line one. Line two.");
     expect(line).not.toContain("Line one.\n");
   });
+
+  it("escapes HTML in the summary so it can't break out of the expand", () => {
+    const line = renderVerdictLine(
+      HUD,
+      "pytorch",
+      "pytorch",
+      123,
+      "abc",
+      "trunk / x / test",
+      42,
+      "</blockquote></details><img src=x onerror=alert(1)>"
+    );
+    expect(line).not.toContain("</blockquote></details><img");
+    expect(line).toContain("&lt;/blockquote&gt;&lt;/details&gt;");
+    // exactly one real closing pair (the structural one we emit)
+    expect(line.match(/<\/details>/g)?.length).toBe(1);
+  });
 });
 
 describe("selectAdvisorLines", () => {

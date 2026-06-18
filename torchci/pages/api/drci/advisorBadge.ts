@@ -14,13 +14,23 @@ import {
   renderBadgeSvg,
   verdictBadge,
 } from "lib/advisor/advisorBadge";
+import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import { isValidSha, readDispatchStates } from "lib/advisor/advisorDispatch";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const SHORT_CACHE =
   "public, max-age=60, s-maxage=60, stale-while-revalidate=60";
-const LONG_CACHE = "public, max-age=31536000, s-maxage=31536000, immutable";
+// Long but NOT immutable: a verdict is normally written once per (sha, job),
+// but a manual re-analyze or a retried dispatch can land a newer row, and the
+// query returns the latest by timestamp. A finite TTL lets a corrected verdict
+// propagate (within a day) instead of being cached forever by the proxy.
+const LONG_CACHE =
+  "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400";
+
+// GitHub owner/repo name shape, to bound the public endpoint's CH lookups.
+const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
+const MAX_JOB_LEN = 256;
 
 function one(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] : value ?? "";
@@ -47,8 +57,21 @@ export default async function handler(
 
   // Bad input -> a neutral pending pill (never a 4xx/5xx, which would render a
   // broken-image icon in the comment). Don't cache bad requests.
-  if (!owner || !repo || !job || !isValidSha(sha)) {
+  if (
+    !NAME_RE.test(owner) ||
+    !NAME_RE.test(repo) ||
+    !isValidSha(sha) ||
+    !job ||
+    job.length > MAX_JOB_LEN
+  ) {
     sendSvg(res, renderBadgeSvg(PENDING_BADGE), "no-store");
+    return;
+  }
+
+  // Only serve badges for advisor-enabled repos (same gate as the comment
+  // path); a neutral pending pill for anything else.
+  if (!isAdvisorEnabled(owner, repo)) {
+    sendSvg(res, renderBadgeSvg(PENDING_BADGE), SHORT_CACHE);
     return;
   }
 
