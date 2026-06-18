@@ -449,6 +449,13 @@
       "slow"
     ]
   ],
+  "test_grad_non_tensor_input (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187658",
+    "https://github.com/pytorch/pytorch/issues/187658",
+    [
+      "rocm"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
