@@ -1,0 +1,8 @@
+{
+  "params": {
+    "repo": "String",
+    "sha": "String",
+    "signalKey": "String"
+  },
+  "tests": []
+}
