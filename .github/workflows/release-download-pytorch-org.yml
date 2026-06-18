@@ -99,3 +99,19 @@ jobs:
 
             # shellcheck disable=SC2086
             promote_s3 ${PACKAGE} whl "${!version}"
+
+      - name: Recompute SHA256 on whl/ (prod) for promoted package
+        if: ${{ inputs.dryrun == 'disabled' }}
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+        run: |
+            set -ex
+            # Init release versions variables
+            source ./release/release_versions.sh
+            # shellcheck disable=SC2086
+            version="${PACKAGE^^}_VERSION"
+            # Backfill SHA256 metadata for wheels missing it (skips existing).
+            # shellcheck disable=SC2086
+            PREFIX=whl ./s3_management/recompute_release_sha256.sh \
+              "${PACKAGE}=${!version}"
