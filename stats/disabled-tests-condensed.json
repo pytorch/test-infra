@@ -325,6 +325,7 @@
     "176147",
     "https://github.com/pytorch/pytorch/issues/176147",
     [
+      "linux",
       "rocm",
       "xpu"
     ]
@@ -498,6 +499,13 @@
       "slow"
     ]
   ],
+  "test_index_cuda_with_cpu_complex128_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187632",
+    "https://github.com/pytorch/pytorch/issues/187632",
+    [
+      "rocm"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -604,6 +612,15 @@
     "https://github.com/pytorch/pytorch/issues/103495",
     [
       "rocm"
+    ]
+  ],
+  "test_memory_snapshot (__main__.TestCudaAllocator)": [
+    "179745",
+    "https://github.com/pytorch/pytorch/issues/179745",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
@@ -911,6 +928,15 @@
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
+    "182397",
+    "https://github.com/pytorch/pytorch/issues/182397",
     [
       "asan",
       "linux",
