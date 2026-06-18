@@ -177,9 +177,19 @@ class SignalCommit:
         events: List[SignalEvent],
         advisor_result: Optional[AIAdvisorResult] = None,
         job_group_concluded: bool = False,
+        has_dispatch_run: bool = False,
     ):
         self.head_sha = head_sha
         self.timestamp = timestamp
+        # True when a `workflow_dispatch` run is present for the test's job
+        # group on this commit — i.e. it has already been restarted once (that
+        # is how autorevert fires its gap restarts). The gap-bisection
+        # (`cover_gap_unknown_commits`) treats such a commit as a covered
+        # separator — already probed, do not restart it again — so a gap commit
+        # is dispatched at most once. Distinct from `job_group_concluded`: a
+        # filtered dispatch can't establish a baseline (it may not have run this
+        # test), but its presence does mean "this commit was already probed".
+        self.has_dispatch_run = has_dispatch_run
         # For TEST signals: True when the test's job group (workflow,
         # job_base_name) ran to a terminal conclusion on this commit — i.e.
         # the jobs that would have run this test are done, not still pending.
@@ -213,6 +223,7 @@ class SignalCommit:
             "job_group_concluded": changes.pop(
                 "job_group_concluded", self.job_group_concluded
             ),
+            "has_dispatch_run": changes.pop("has_dispatch_run", self.has_dispatch_run),
         }
         if changes:
             raise TypeError(
@@ -293,6 +304,12 @@ class PartitionedCommits:
         using the hybrid bisection algorithm with an optional limit.
 
         - Already pending commits act as separators (covered=True)
+        - Commits we already dispatched a restart on (`has_dispatch_run`) are
+          also separators: they have been probed once, so we never restart the
+          same commit twice. If that probe found the test failing it surfaces a
+          FAILURE event (the commit leaves the gap and moves the suspect); if it
+          found the test absent there is no event, but we still must not
+          re-dispatch.
         - Missing commits are candidates (covered=False)
         - When limit is None: schedule all candidates
         - When limit is set: allowed = max(0, limit - currently_pending)
@@ -301,7 +318,7 @@ class PartitionedCommits:
         if not self.unknown:
             return set()
 
-        covered = [bool(c.events) for c in self.unknown]
+        covered = [bool(c.events) or c.has_dispatch_run for c in self.unknown]
         if all(covered) or bisection_limit == 0:
             return set()
 

@@ -417,6 +417,11 @@ class SignalExtractor:
                 # filtered and so cannot prove the test absent).
                 group_runs = 0
                 group_pending = False
+                # True once autorevert has dispatched a restart on this commit's
+                # job group (a workflow_dispatch run is present, pending or
+                # concluded). Drives `SignalCommit.has_dispatch_run` so the gap
+                # bisection won't restart the same commit twice.
+                group_had_dispatch = False
 
                 # x-axis: events for the signal
                 for wf_run_id, run_attempt in run_ids_attempts.get(
@@ -441,7 +446,11 @@ class SignalExtractor:
                     # emit their outcome/pending events below — so a gap-restart
                     # that the test fails still surfaces a FAILURE and moves the
                     # suspect — they just don't count toward `job_group_concluded`.
-                    if not meta.is_workflow_dispatch:
+                    if meta.is_workflow_dispatch:
+                        # A restart we already dispatched on this commit — probed
+                        # once, so the gap bisection must not restart it again.
+                        group_had_dispatch = True
+                    else:
                         group_runs += 1
                         if meta.is_pending:
                             group_pending = True
@@ -513,6 +522,7 @@ class SignalExtractor:
                         timestamp=commit_timestamps[commit_sha],
                         events=events,
                         job_group_concluded=(group_runs > 0 and not group_pending),
+                        has_dispatch_run=group_had_dispatch,
                     )
                 )
 

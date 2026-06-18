@@ -1442,6 +1442,55 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertTrue(c1.has_failure)
         # …but the dispatch run does not establish the group as concluded.
         self.assertFalse(c1.job_group_concluded)
+        # …and it records that we already dispatched a restart here.
+        self.assertTrue(c1.has_dispatch_run)
+
+    def test_has_dispatch_run_flag_tracks_workflow_dispatch(self):
+        # `has_dispatch_run` records that autorevert already restarted a commit
+        # (a workflow_dispatch run is present), so the gap bisection won't
+        # restart it twice. A natural-only commit has it False.
+        jobs = [
+            # C1: natural run only → no dispatch recorded.
+            J(
+                sha="C1",
+                run=501,
+                job=41,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2: a workflow_dispatch restart concluded here with no event for
+            # this test (test absent / filtered) → has_dispatch_run, not a
+            # baseline.
+            J(
+                sha="C2",
+                run=502,
+                job=42,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="success",
+                workflow_event="workflow_dispatch",
+            ),
+        ]
+        tests = [
+            T(
+                job=41,
+                run=501,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        self.assertFalse(by_sha["C1"].has_dispatch_run)  # natural only
+        self.assertTrue(by_sha["C2"].has_dispatch_run)  # restarted once
+        self.assertFalse(by_sha["C2"].job_group_concluded)  # not a baseline
+        self.assertEqual(by_sha["C2"].events, [])
 
 
 if __name__ == "__main__":

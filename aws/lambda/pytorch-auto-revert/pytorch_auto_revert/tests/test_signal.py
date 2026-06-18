@@ -1217,6 +1217,7 @@ class TestSignalCommitReplace(unittest.TestCase):
             signal_key="k",
         ),
         "job_group_concluded": True,
+        "has_dispatch_run": True,
     }
 
     def _init_params(self):
@@ -1344,6 +1345,18 @@ class TestBornRedTestSignal(unittest.TestCase):
             timestamp=ts(self.t0, minute),
             events=[],
             job_group_concluded=False,
+        )
+
+    def _dispatched(self, sha: str, minute: int) -> SignalCommit:
+        # Already restarted once via workflow_dispatch, concluded with no event
+        # for this test (test absent / filtered out). Not a baseline (the
+        # dispatch can't prove absence), but must NOT be restarted again.
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[],
+            job_group_concluded=False,
+            has_dispatch_run=True,
         )
 
     def _test_signal(self, commits, key: str = "f.py::t") -> Signal:
@@ -1723,6 +1736,39 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertIsInstance(res, AutorevertPattern)
         assert isinstance(res, AutorevertPattern)
         self.assertEqual(res.suspected_commit, "f2")
+
+    def test_process_does_not_redispatch_already_dispatched_gap_commit(self):
+        # The whole point of has_dispatch_run: a gap commit we already restarted
+        # once (workflow_dispatch concluded, test still absent → no event) is a
+        # covered separator. Only the not-yet-probed unrun commit is restarted —
+        # no second dispatch on the same commit.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._dispatched("d1", -15),  # already restarted once → don't repeat
+            self._unrun("u1", -18),  # never probed → restart this one
+            self._baseline("e1", -25),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+
+    def test_process_all_gap_commits_dispatched_no_restart(self):
+        # Once every gap commit has been probed once, there is nothing left to
+        # restart — the advisor still dispatches on the oldest observed failure.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._dispatched("d1", -15),
+            self._dispatched("d2", -18),
+            self._baseline("e1", -25),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        self.assertEqual(res.advisor.suspect_commit, "f2")
 
     def test_process_no_advisor_for_job_track_born_red(self):
         # Born-red detection is test-track only. Job-track signals with the
