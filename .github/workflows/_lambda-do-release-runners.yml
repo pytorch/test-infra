@@ -8,18 +8,6 @@ on:
 
 name: Upload Release for lambdas
 
-# Build every lambda zip in parallel and stage it as a workflow artifact, then
-# publish the release from a single job with one release-action call.
-#
-# Previously each build job uploaded directly to the release with
-# `ncipollo/release-action` (allowUpdates + draft). When the release did not yet
-# exist, the parallel jobs each hit "look up by tag -> not found -> create" and
-# GitHub allowed multiple draft releases to share the same tag name. The
-# artifacts then scattered across those duplicate drafts and `finish-release`
-# published only one of them, so a tag could end up missing assets (e.g.
-# cross-repo-ci-callback.zip stranded on an unpublished draft). Funnelling all
-# uploads through one release-action call removes the concurrent-create race.
-
 jobs:
   build-runner-lambdas:
     name: Build runners lambdas
