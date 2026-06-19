@@ -552,6 +552,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_float64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187725",
+    "https://github.com/pytorch/pytorch/issues/187725",
+    [
+      "rocm"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
