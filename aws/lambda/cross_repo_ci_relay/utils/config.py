@@ -140,7 +140,7 @@ class RelayConfig:
             raise RuntimeError("HUD_MAX_RETRIES must be a non-negative integer")
 
         try:
-            rate_limit_per_min = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
+            rate_limit_per_min = int(os.getenv("RATE_LIMIT_PER_MIN", "60"))
             if rate_limit_per_min <= 0:
                 raise ValueError("must be positive")
         except ValueError:

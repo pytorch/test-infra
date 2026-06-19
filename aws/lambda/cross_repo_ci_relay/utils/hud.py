@@ -97,7 +97,7 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
             "An internal failure occurred. "
             "Your update was not saved, but the CI run is still valid. "
             "You can attempt progressive retries after "
-            f"{60 // config.rate_limit_per_min} seconds or ignore this failure.",
+            f"{max(1, 60 // config.rate_limit_per_min)} seconds or ignore this failure.",
         ) from last_exception
     else:
         logger.error(
