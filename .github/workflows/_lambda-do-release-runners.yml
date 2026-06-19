@@ -9,14 +9,12 @@ on:
 name: Upload Release for lambdas
 
 jobs:
-  release-lambdas:
-    name: Upload Release for runners lambdas
+  build-runner-lambdas:
+    name: Build runners lambdas
     runs-on: ubuntu-latest
     container: node:20
     permissions:
-      contents: write
-    env:
-      REF: ${{ inputs.tag }}
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -71,16 +69,18 @@ jobs:
         with:
           args: zip webhook.zip index.js
 
-      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+      - name: Stage runner lambda zips
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          artifacts: "runner-binaries-syncer.zip,runners.zip,webhook.zip"
-          allowUpdates: true
-          draft: true
-          name: ${{ inputs.tag }}
-          tag: ${{ inputs.tag }}
-          updateOnlyUnreleased: true
+          name: lambda-runner-bundle
+          path: |
+            runner-binaries-syncer.zip
+            runners.zip
+            webhook.zip
+          if-no-files-found: error
+          retention-days: 1
 
-  release-python-lambdas:
+  build-python-lambdas:
     strategy:
       fail-fast: false
       matrix:
@@ -96,12 +96,10 @@ jobs:
           { dir-name: 'cross_repo_ci_relay/callback', zip-name: 'cross-repo-ci-callback' },
           { dir-name: 'cross_repo_ci_relay/webhook', zip-name: 'cross-repo-ci-webhook' },
         ]
-    name: Upload Release for ${{ matrix.dir-name }} lambda
+    name: Build ${{ matrix.dir-name }} lambda
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    env:
-      REF: ${{ inputs.tag }}
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -119,31 +117,52 @@ jobs:
       - name: Copy deployment.zip to root
         run: cp aws/lambda/${{ matrix.dir-name }}/deployment.zip ${{ matrix.zip-name }}.zip
 
-      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+      - name: Stage ${{ matrix.zip-name }} zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          artifacts: "${{ matrix.zip-name }}.zip"
+          name: lambda-${{ matrix.zip-name }}
+          path: ${{ matrix.zip-name }}.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish release
+    needs:
+      - build-runner-lambdas
+      - build-python-lambdas
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Download all staged lambda zips
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: release-dist
+          merge-multiple: true
+
+      - name: List release artifacts
+        run: ls -l release-dist
+
+      # Single release-action invocation: create/update the draft with every
+      # artifact, then publish. One call -> no concurrent create -> no duplicate
+      # releases and no scattered assets.
+      - name: Upload artifacts to draft release
+        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+        with:
+          artifacts: "release-dist/*.zip"
           allowUpdates: true
           draft: true
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
 
-  finish-release:
-    needs:
-      - release-lambdas
-      - release-python-lambdas
-    name: Mark the release as final and publish it
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      REF: ${{ inputs.tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ inputs.tag }}
-      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+      - name: Mark the release as final and publish it
+        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
         with:
           allowUpdates: true
           draft: false
