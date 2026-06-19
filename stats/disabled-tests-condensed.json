@@ -250,6 +250,16 @@
       "slow"
     ]
   ],
+  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
+    "127536",
+    "https://github.com/pytorch/pytorch/issues/127536",
+    [
+      "dynamo",
+      "inductor",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
     "187203",
     "https://github.com/pytorch/pytorch/issues/187203",
@@ -341,6 +351,7 @@
     "187157",
     "https://github.com/pytorch/pytorch/issues/187157",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -452,6 +463,13 @@
   "test_grad_non_tensor_input (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187658",
     "https://github.com/pytorch/pytorch/issues/187658",
+    [
+      "rocm"
+    ]
+  ],
+  "test_grad_two_tensor_all_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187718",
+    "https://github.com/pytorch/pytorch/issues/187718",
     [
       "rocm"
     ]
