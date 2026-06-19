@@ -7,11 +7,13 @@ from utils.hud import forward_to_hud
 from utils.misc import HTTPException
 
 
-def _cfg(url="http://hud/api/oot-ci-events", key="bot-key", max_retries=3):
+def _cfg(url="http://hud/api/oot-ci-events", key="bot-key", max_retries=3,
+         rate_limit_per_min=60):
     cfg = MagicMock()
     cfg.hud_api_url = url
     cfg.hud_bot_key = key
     cfg.hud_max_retries = max_retries
+    cfg.rate_limit_per_min = rate_limit_per_min
     return cfg
 
 
