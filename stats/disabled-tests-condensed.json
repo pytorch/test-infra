@@ -27,20 +27,6 @@
       "rocm"
     ]
   ],
-  "test_aliased_buffer_reuse_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187037",
-    "https://github.com/pytorch/pytorch/issues/187037",
-    [
-      "xpu"
-    ]
-  ],
-  "test_aot_inductor_consts_cpp_build_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187127",
-    "https://github.com/pytorch/pytorch/issues/187127",
-    [
-      "xpu"
-    ]
-  ],
   "test_aoti_custom_op_bad_fake_dtype_fails_fast_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "187562",
     "https://github.com/pytorch/pytorch/issues/187562",
@@ -68,13 +54,6 @@
     "https://github.com/pytorch/pytorch/issues/187645",
     [
       "rocm"
-    ]
-  ],
-  "test_autotune_int64_user_defined_triton_kernel_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "187181",
-    "https://github.com/pytorch/pytorch/issues/187181",
-    [
-      "xpu"
     ]
   ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
@@ -178,13 +157,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_conv_large_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
-    "185907",
-    "https://github.com/pytorch/pytorch/issues/185907",
-    [
-      "xpu"
     ]
   ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
