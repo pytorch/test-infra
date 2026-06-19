@@ -474,6 +474,13 @@
       "rocm"
     ]
   ],
+  "test_grad_two_tensor_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187738",
+    "https://github.com/pytorch/pytorch/issues/187738",
+    [
+      "rocm"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
