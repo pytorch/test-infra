@@ -527,6 +527,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_float32_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187705",
+    "https://github.com/pytorch/pytorch/issues/187705",
+    [
+      "rocm"
+    ]
+  ],
   "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
     "186750",
     "https://github.com/pytorch/pytorch/issues/186750",
@@ -750,6 +757,13 @@
     "https://github.com/pytorch/pytorch/issues/179951",
     [
       "rocm"
+    ]
+  ],
+  "test_scatter_add_to_large_input_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "187704",
+    "https://github.com/pytorch/pytorch/issues/187704",
+    [
+      "inductor"
     ]
   ],
   "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
