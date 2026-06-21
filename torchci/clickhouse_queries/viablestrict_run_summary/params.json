@@ -1,0 +1,15 @@
+{
+  "params": {
+    "sha": "String",
+    "workflows": "Array(String)"
+  },
+  "defaults": {
+    "workflows": ["pull", "trunk", "lint"]
+  },
+  "tests": [
+    {
+      "sha": "c808af514d59e25ea4a880c1e1e07d3232984e5d",
+      "workflows": ["pull", "trunk", "lint"]
+    }
+  ]
+}
