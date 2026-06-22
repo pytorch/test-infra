@@ -18,9 +18,10 @@ inputs:
     required: true
   conclusion:
     description: >
-      Conclusion of the workflow run.  Required (and must be "success" or
-      "failure") when status is "completed".  Ignored when status is
-      "in_progress".
+      Conclusion of the workflow run, passed through to the check run as-is
+      (typically "${{ job.status }}").  Required when status is "completed" and
+      must be a value GitHub accepts (e.g. success, failure, cancelled).  Ignored
+      when status is "in_progress".
     required: false
     default: ''
   test-results:
@@ -88,9 +89,9 @@ runs:
         if status not in ("in_progress", "completed"):
             sys.exit(f"::error::status must be 'in_progress' or 'completed', got {status!r}")
 
+        # Pass the conclusion through as-is for completed runs; GitHub validates
+        # it when the check run is created. in_progress runs carry no conclusion.
         conclusion = os.environ.get("CONCLUSION", "").strip() or None
-        if status == "completed" and conclusion not in ("success", "failure"):
-            sys.exit("::error::conclusion must be 'success' or 'failure' when status is 'completed'")
         if status == "in_progress":
             conclusion = None
 

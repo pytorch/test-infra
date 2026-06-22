@@ -170,7 +170,7 @@ jobs:
 | Input | Required | Default | Description |
 |---|---|---|---|
 | `status` | **yes** | — | `in_progress` or `completed` |
-| `conclusion` | no | `''` | `success` or `failure` (required when `status=completed`) |
+| `conclusion` | no | `''` | Passed through to the check run as-is (typically `${{ job.status }}`); required when `status=completed` and must be a value GitHub accepts (e.g. `success`, `failure`, `cancelled`) |
 | `test-results` | no | `''` | Optional JSON string with test result summary (counts: passed/failed/skipped) |
 | `callback-url` | **yes** | — | Callback endpoint URL (production Lambda URL; set once at the workflow level) |
 | `artifact-url` | no | `''` | URL to downstream-hosted artifacts (logs, reports, results) |
