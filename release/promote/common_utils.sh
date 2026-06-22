@@ -155,7 +155,10 @@ r2_promote() {
 
     # List matching files from S3 first (using current OIDC credentials)
     echo "+ Listing matching files from S3..."
-    local s3_from_path="${PYTORCH_S3_FROM/\/$//}"
+    local s3_from_path="${PYTORCH_S3_FROM%/}"
+    # Bucket-relative source prefix (e.g. "libtorch/test"), used to preserve the
+    # per-arch subfolder layout (cpu/, cu126/, ...) when mapping keys onto R2.
+    local s3_from_prefix="${s3_from_path#"${PYTORCH_S3_BUCKET}"/}"
     local file_list="${tmp_dir}/file_list.txt"
     ${AWS} s3 ls "${s3_from_path}/" --recursive \
         | grep -E "${match_pattern}" \
@@ -202,6 +205,12 @@ r2_promote() {
         filename=$(basename "${s3_key}")
         local local_file="${tmp_dir}/${filename}"
 
+        # Preserve the source subfolder layout relative to the promotion
+        # channel so per-arch directories (cpu/, cu126/, ...) are kept on R2
+        # instead of being flattened to the destination root.
+        local rel_path="${s3_key#"${s3_from_prefix}"/}"
+        local r2_target="${r2_dest%/}/${rel_path}"
+
         # Download single file from S3 (using S3 credentials)
         _restore_s3_creds
         (
@@ -217,7 +226,7 @@ r2_promote() {
         _set_r2_creds
         (
             set -x
-            ${AWS} s3 cp "${local_file}" "${r2_dest/\/$//}/${filename}" \
+            ${AWS} s3 cp "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
         )

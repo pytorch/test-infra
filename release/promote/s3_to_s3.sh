@@ -16,13 +16,17 @@ PYTORCH_S3_FROM=${PYTORCH_S3_FROM:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${FROM}}
 TO=${TO:-}
 PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
 
-# R2_ONLY: set to "true" to skip S3-to-S3 copy and only promote to R2
+# R2_ONLY: set to "true" to skip the S3-to-S3 copy and only promote to R2.
+# In that mode the S3 prod promotion has already happened, so mirror from the
+# prod (destination) location instead of the test channel, keeping R2 in sync
+# with what is actually live on S3.
 R2_ONLY=${R2_ONLY:-false}
 
 if [[ "${R2_ONLY}" != "true" ]]; then
     aws_promote "${PACKAGE_NAME}"
 else
-    echo "+ R2_ONLY=true, skipping S3-to-S3 promotion"
+    echo "+ R2_ONLY=true, skipping S3-to-S3 promotion; mirroring ${PYTORCH_S3_TO} to R2"
+    PYTORCH_S3_FROM="${PYTORCH_S3_TO}"
 fi
 
 # Promote to R2 (Cloudflare) before the slow SHA256 recomputation step so R2
