@@ -18,7 +18,9 @@ describe("labelerConfigUtils", () => {
     });
 
     test("rejects non-boolean draft", () => {
-      expect(normalizeLabelerRule({ globs: ["x/**"], draft: "false" })).toBeNull();
+      expect(
+        normalizeLabelerRule({ globs: ["x/**"], draft: "false" })
+      ).toBeNull();
     });
 
     test("rejects invalid shapes", () => {
@@ -122,11 +124,9 @@ describe("labelerConfigUtils", () => {
         }),
       };
       const context = { log: jest.fn() } as any;
-      const labels = await getLabelsFromLabelerConfig(
-        context,
-        tracker as any,
-        ["torch/a.py"]
-      );
+      const labels = await getLabelsFromLabelerConfig(context, tracker as any, [
+        "torch/a.py",
+      ]);
       expect(labels).toEqual(["ciflow/x"]);
     });
   });
