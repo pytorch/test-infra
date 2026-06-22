@@ -62,7 +62,27 @@ export const ToolUse: React.FC<ToolUseProps> = ({
         >
           Input:
         </Typography>
-        <ToolInput>{JSON.stringify(toolInput, null, 2)}</ToolInput>
+        {(() => {
+          const hasQuery =
+            toolInput &&
+            typeof toolInput === "object" &&
+            typeof toolInput.query === "string";
+          if (!hasQuery) {
+            return <ToolInput>{JSON.stringify(toolInput, null, 2)}</ToolInput>;
+          }
+          const { query, ...rest } = toolInput;
+          const restKeys = Object.keys(rest);
+          return (
+            <>
+              <ToolInput>{query.trim()}</ToolInput>
+              {restKeys.length > 0 && (
+                <ToolInput sx={{ mt: 1 }}>
+                  {JSON.stringify(rest, null, 2)}
+                </ToolInput>
+              )}
+            </>
+          );
+        })()}
 
         {toolResult && (
           <>
