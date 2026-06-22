@@ -17,6 +17,7 @@ import argparse
 import ctypes
 import glob
 import os
+import shutil
 import sys
 import urllib.request
 import zipfile
@@ -43,7 +44,11 @@ def main() -> None:
         sys.exit("ERROR: libtorch download URL not provided")
 
     print(f"Downloading {args.url}")
-    urllib.request.urlretrieve(args.url, "libtorch.zip")
+    # Set an explicit User-Agent: the R2-backed CDN behind download.pytorch.org
+    # returns 403 for the default "Python-urllib/x.y" agent.
+    request = urllib.request.Request(args.url, headers={"User-Agent": "libtorch-validation"})
+    with urllib.request.urlopen(request) as response, open("libtorch.zip", "wb") as out:
+        shutil.copyfileobj(response, out)
     with zipfile.ZipFile("libtorch.zip") as zf:
         zf.extractall(".")
 
