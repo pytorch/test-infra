@@ -156,14 +156,6 @@
       "xpu"
     ]
   ],
-  "test_compile_function_transform_wrappers_compiled_fn (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "186588",
-    "https://github.com/pytorch/pytorch/issues/186588",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
