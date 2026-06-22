@@ -466,25 +466,9 @@
       "linux"
     ]
   ],
-  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
-    "186604",
-    "https://github.com/pytorch/pytorch/issues/186604",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186866",
     "https://github.com/pytorch/pytorch/issues/186866",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186605",
-    "https://github.com/pytorch/pytorch/issues/186605",
     [
       "mac",
       "macos"
@@ -540,6 +524,13 @@
   "test_index_cuda_with_cpu_float64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187725",
     "https://github.com/pytorch/pytorch/issues/187725",
+    [
+      "rocm"
+    ]
+  ],
+  "test_index_cuda_with_cpu_float8_e4m3fn_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187836",
+    "https://github.com/pytorch/pytorch/issues/187836",
     [
       "rocm"
     ]
@@ -781,13 +772,6 @@
     "https://github.com/pytorch/pytorch/issues/167693",
     [
       "rocm"
-    ]
-  ],
-  "test_simple_sharing_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
-    "186606",
-    "https://github.com/pytorch/pytorch/issues/186606",
-    [
-      "linux"
     ]
   ],
   "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
