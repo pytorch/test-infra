@@ -23,19 +23,19 @@
  * queueTimeS → created/started/completed. No extra API call / backend change.
  * Loaded lazily (next/dynamic, ssr:false) so it adds nothing until opened.
  */
+import { useTheme } from "@mui/material";
 import { JobData } from "lib/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const BUILD_COLOR = "#1f77b4";
-const QUEUE_COLOR = "#d9d9d9";
+// Vivid status hues read on both light and dark backgrounds. The neutral grays
+// (queued/neutral fallbacks) and the queue/spin-up bar are derived from the MUI
+// theme at render time instead (see WorkflowGantt), so they adapt to the mode.
 const STATUS_COLOR: Record<string, string> = {
   success: "#2e9e44",
   failure: "#e03b3b",
-  skipped: "#c7c7c7",
   cancelled: "#f0932b",
   pending: "#1b74e4",
-  queued: "#9aa0a6",
-  neutral: "#9aa0a6",
 };
 
 const ROW = 16;
@@ -85,8 +85,8 @@ function buildColorMap(keys: string[]): Record<string, string> {
   });
   return map;
 }
-function statusColor(s: string) {
-  return STATUS_COLOR[s] || STATUS_COLOR.neutral;
+function statusColor(s: string, neutral: string) {
+  return STATUS_COLOR[s] || neutral;
 }
 
 function niceStep(span: number, targetTicks: number): number {
@@ -170,6 +170,14 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
   const [colorMode, setColorMode] = useState<"group" | "status">("status");
   const [locked, setLocked] = useState(false);
   const [containerRef, containerWidth] = useContainerWidth();
+  const theme = useTheme();
+  // Chrome/neutral colors must work on light and dark backgrounds (torchci
+  // guideline): take border/muted-text from the palette, and pick the queue and
+  // neutral-status grays by mode so they don't wash out on either background.
+  const muted = theme.palette.text.secondary;
+  const borderColor = theme.palette.divider;
+  const neutralColor = theme.palette.mode === "dark" ? "#7a7d82" : "#9aa0a6";
+  const queueColor = theme.palette.mode === "dark" ? "#4a4a4a" : "#d9d9d9";
   // NOTE: we intentionally do NOT draw dependency edges. They can only be inferred
   // from timing (created ~ completed of a predecessor), which is a guess, not the
   // real `needs` DAG — it mislabels parallel siblings and multi-needs jobs. The
@@ -177,7 +185,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
 
   if (!data) {
     return (
-      <div style={{ padding: 8, fontSize: 12, color: "#888" }}>
+      <div style={{ padding: 8, fontSize: 12, color: muted }}>
         No timing data available for this workflow.
       </div>
     );
@@ -204,7 +212,9 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
   for (let m = 0; m <= maxEnd + 1e-6; m += step) grid.push(Math.round(m));
 
   const colorOf = (r: PJob) =>
-    colorMode === "group" ? colorMap[r.groupKey] : statusColor(r.status);
+    colorMode === "group"
+      ? colorMap[r.groupKey]
+      : statusColor(r.status, neutralColor);
 
   // legend entries for current mode
   const legend =
@@ -218,14 +228,14 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
             label: k === "build" ? "build" : shortName(k),
           }))
       : Array.from(new Set(rows.map((r) => r.status))).map((s) => ({
-          color: statusColor(s),
+          color: statusColor(s, neutralColor),
           label: s,
         }));
 
   return (
     <div
       style={{
-        border: "1px solid #ccc",
+        border: `1px solid ${borderColor}`,
         borderRadius: 8,
         margin: "6px 0",
         background: "rgba(127,127,127,0.04)",
@@ -241,7 +251,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
           fontSize: 12,
         }}
       >
-        <span style={{ color: "#888" }}>
+        <span style={{ color: muted }}>
           {rows.length} jobs · {Math.round(maxEnd)} min
           {nFail > 0 && (
             <span style={{ color: "#e03b3b" }}> · {nFail} failing</span>
@@ -249,7 +259,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
           {skipped > 0 && ` · ${skipped} skipped hidden`}
         </span>
         <span>
-          <span style={{ color: "#888", marginRight: 6 }}>Color:</span>
+          <span style={{ color: muted, marginRight: 6 }}>Color:</span>
           <label style={{ marginRight: 8 }}>
             <input
               type="radio"
@@ -356,7 +366,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
                       y={y}
                       width={qw}
                       height={bh}
-                      fill={QUEUE_COLOR}
+                      fill={queueColor}
                     />
                   )}
                   <rect
@@ -400,7 +410,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
           flexWrap: "wrap",
           padding: "6px 10px",
           fontSize: 11,
-          color: "#888",
+          color: muted,
         }}
       >
         {legend.map((e) => (
@@ -426,7 +436,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
               width: 11,
               height: 10,
               borderRadius: 2,
-              background: QUEUE_COLOR,
+              background: queueColor,
             }}
           />
           queue/spin-up
