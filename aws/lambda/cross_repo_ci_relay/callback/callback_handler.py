@@ -93,6 +93,7 @@ def _update_state_and_compute_metrics(
     status: str,
     dispatch_record: CallbackStateRecord,
     workflow_record: CallbackStateRecord | None,
+    payload: dict | None = None,
 ) -> dict:
     """Persist the new workflow state to Redis and return CI timing metrics.
 
@@ -125,6 +126,7 @@ def _update_state_and_compute_metrics(
             state,
             current_timestamp,
             workflow_name,
+            payload=payload,
         )
     except RedisError:
         raise HTTPException(
@@ -201,6 +203,20 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         config, delivery_id, verified_repo, run_id, run_attempt
     )
 
+    payload = None
+    if status == "in_progress":
+        payload = {
+            "trusted": {
+                "ci_metrics": {
+                    "queue_time": None,
+                    "execution_time": None,
+                },
+                "verified_repo": verified_repo,
+                "downstream_repo_level": repo_level.value,
+            },
+            "untrusted": {"callback_payload": body},
+        }
+
     ci_metrics = _update_state_and_compute_metrics(
         config,
         delivery_id,
@@ -211,7 +227,18 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         status,
         dispatch_record,
         workflow_record,
+        payload=payload,
     )
+
+    # Track in-progress jobs for zombie detection.
+    if status == "in_progress":
+        redis_helper.add_in_progress_tracker(
+            config, delivery_id, verified_repo, run_id, run_attempt
+        )
+    elif status == "completed":
+        redis_helper.remove_in_progress_tracker(
+            config, delivery_id, verified_repo, run_id, run_attempt
+        )
 
     trusted = {
         "ci_metrics": ci_metrics,

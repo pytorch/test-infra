@@ -7,7 +7,7 @@ from utils import jwt_helper
 from utils.config import get_config
 from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
-from . import callback_handler
+from . import callback_handler, cleanup_handler
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -15,6 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 def lambda_handler(event, context):
+    # EventBridge scheduled events trigger zombie-job cleanup.
+    if event.get("source") == "crcr.sweeper":
+        config = get_config()
+        result = cleanup_handler.handle(config)
+        return {
+            "statusCode": 200,
+            "headers": JSON_HEADERS,
+            "body": json.dumps(result),
+        }
+
     method, path, body_bytes, headers = parse_lambda_event(event)
 
     logger.info("request method=%s path=%s", method, path)

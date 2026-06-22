@@ -64,6 +64,8 @@ class RelayConfig:
     oot_status_ttl: int
     hud_max_retries: int
     rate_limit_per_min: int
+    zombie_timeout_seconds: int
+    max_cleanup_workers: int
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
@@ -146,6 +148,15 @@ class RelayConfig:
         except ValueError:
             raise RuntimeError("RATE_LIMIT_PER_MIN must be a positive integer")
 
+        # Maximum duration an in-progress job is expected to run before being
+        # considered abandoned (zombie).  Default 24 hours (86400 s).
+        try:
+            zombie_timeout_seconds = int(os.getenv("ZOMBIE_TIMEOUT_SECONDS", "86400"))
+            if zombie_timeout_seconds <= 0:
+                raise ValueError("must be positive")
+        except ValueError:
+            raise RuntimeError("ZOMBIE_TIMEOUT_SECONDS must be a positive integer")
+
         hud_api_url = os.getenv("HUD_API_URL", "https://hud.pytorch.org/api")
         if hud_api_url and not hud_api_url.startswith("https://"):
             raise RuntimeError(
@@ -170,6 +181,8 @@ class RelayConfig:
             oot_status_ttl=oot_status_ttl,
             hud_max_retries=hud_max_retries,
             rate_limit_per_min=rate_limit_per_min,
+            zombie_timeout_seconds=zombie_timeout_seconds,
+            max_cleanup_workers=int(os.getenv("MAX_CLEANUP_WORKERS", "16")),
         )
 
 

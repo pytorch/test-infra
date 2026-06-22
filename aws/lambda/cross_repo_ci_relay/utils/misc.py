@@ -50,10 +50,11 @@ class CallbackState(str, Enum):
 
 @dataclass
 class CallbackStateRecord:
-    """Record containing state, timestamp."""
+    """Record containing state, timestamp, and stored payload (optional)."""
 
     state: CallbackState
     timestamp: float
+    payload: dict | None
 
 
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:
