@@ -220,8 +220,9 @@ cleanup_conda_env() {
 handle_aarch64_cuda_override
 
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
-    curl "${MATRIX_INSTALLATION}" -o libtorch.zip
-    unzip libtorch.zip
+    LIBTORCH_PYTHON="python3"
+    [[ ${TARGET_OS} == 'windows' ]] && LIBTORCH_PYTHON="python"
+    "${LIBTORCH_PYTHON}" "${SCRIPT_DIR}/validate_libtorch.py" "${MATRIX_INSTALLATION}"
     exit 0
 fi
 
