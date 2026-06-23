@@ -871,6 +871,10 @@ export function constructResultsComment(
     );
   }
 
+  // advisorLines is threaded only into the NEW FAILURES and UNCLASSIFIED
+  // sections below -- those are the only failures the advisor dispatches on.
+  // Broken-trunk / flaky / unstable / awaiting-approval jobs are already
+  // explained by their own section, so they intentionally get no verdict line.
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,

@@ -4,8 +4,7 @@
 -- granules.
 SELECT
     verdict,
-    confidence,
-    run_id
+    confidence
 FROM
     misc.autorevert_advisor_verdicts
 WHERE
