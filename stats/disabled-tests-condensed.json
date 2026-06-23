@@ -426,6 +426,15 @@
       "slow"
     ]
   ],
+  "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179799",
+    "https://github.com/pytorch/pytorch/issues/179799",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_grad_non_tensor_input (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187658",
     "https://github.com/pytorch/pytorch/issues/187658",
