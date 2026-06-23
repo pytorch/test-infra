@@ -196,7 +196,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                     details_url=details_url,
                     external_id=external_id,
                     output=gh_helper.build_check_run_output(
-                        workflow_name, details_url, downstream_repo
+                        "in_progress", None, details_url, downstream_repo
                     ),
                 )
             elif job_status == "completed":
@@ -210,7 +210,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                     details_url=details_url,
                     external_id=external_id,
                     output=gh_helper.build_check_run_output(
-                        workflow_name, details_url, downstream_repo
+                        "completed", job_conclusion, details_url, downstream_repo
                     ),
                 )
             else:

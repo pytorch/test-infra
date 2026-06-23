@@ -75,13 +75,20 @@ def create_repository_dispatch(
 
 
 def build_check_run_output(
-    workflow_name: str,
+    status: str,
+    conclusion: str,
     details_url: str,
     downstream_repo: str,
-) -> dict | None:
+) -> dict:
     """Return a GitHub Check Run output dict shown in the detail panel."""
+    if status != "completed":
+        title = "In progress"
+    elif conclusion:
+        title = conclusion.capitalize()
+    else:
+        title = "Completed"
     return {
-        "title": workflow_name,
+        "title": title,
         "summary": f"{downstream_repo} workflow: {details_url}",
     }
 

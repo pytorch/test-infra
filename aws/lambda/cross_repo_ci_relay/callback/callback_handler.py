@@ -218,7 +218,9 @@ def _update_upstream_check_run(
         )
         return
 
-    output = gh_helper.build_check_run_output(workflow_name, details_url, verified_repo)
+    output = gh_helper.build_check_run_output(
+        status, conclusion, details_url, verified_repo
+    )
 
     try:
         upstream_token = gh_helper.get_repo_access_token(
