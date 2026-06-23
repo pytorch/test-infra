@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
@@ -262,6 +263,27 @@ export async function updateDrciComments(
         );
       }
 
+      // Look up AI advisor verdicts / in-progress dispatches for this PR's new
+      // and unclassified failures, rendered as an inline "AI verdict:" line per
+      // job. Wrapped so an advisor / ClickHouse error can never break the comment.
+      let advisorLines: Map<number, string> = new Map();
+      try {
+        advisorLines = await buildAdvisorVerdictLines(
+          HUD_URL,
+          owner,
+          repo,
+          pr_info.pr_number,
+          pr_info.head_sha,
+          [...failedJobs, ...unknownJobs]
+        );
+      } catch (e) {
+        console.error(
+          "advisor verdict-line build threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
+
       const failureInfo = constructResultsComment(
         pending,
         failedJobs,
@@ -279,7 +301,8 @@ export async function updateDrciComments(
         HUD_URL,
         owner,
         repo,
-        pr_info.pr_number
+        pr_info.pr_number,
+        advisorLines
       );
 
       const comment = formDrciComment(
@@ -615,7 +638,9 @@ function constructResultsJobsSections(
   collapsed: boolean = false,
   relatedJobs: Map<number, RecentWorkflowsData> = new Map(),
   relatedIssues: Map<number, IssueData[]> = new Map(),
-  relatedInfo: Map<number, string> = new Map()
+  relatedInfo: Map<number, string> = new Map(),
+  // job.id -> pre-rendered "AI verdict:" line, appended under each bullet.
+  advisorLines: Map<number, string> = new Map()
 ): string {
   if (jobs.length === 0) {
     return "";
@@ -677,6 +702,12 @@ function constructResultsJobsSections(
     if (job.failure_captures && job.failure_captures.length > 0) {
       output += `    \`${job.failure_captures[0]}\`\n`;
     }
+
+    // AI advisor verdict line (badge + optional reasoning expand), if any.
+    const advisorLine = advisorLines.get(job.id);
+    if (advisorLine) {
+      output += advisorLine;
+    }
   }
   output += "</p></details>";
   return output;
@@ -711,7 +742,9 @@ export function constructResultsComment(
   hudBaseUrl: string,
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  // job.id -> pre-rendered "AI verdict:" line (empty unless advisor-enabled).
+  advisorLines: Map<number, string> = new Map()
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -838,6 +871,10 @@ export function constructResultsComment(
     );
   }
 
+  // advisorLines is threaded only into the NEW FAILURES and UNCLASSIFIED
+  // sections below -- those are the only failures the advisor dispatches on.
+  // Broken-trunk / flaky / unstable / awaiting-approval jobs are already
+  // explained by their own section, so they intentionally get no verdict line.
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -853,7 +890,8 @@ export function constructResultsComment(
       false,
       relatedJobs,
       relatedIssues,
-      relatedInfo
+      relatedInfo,
+      advisorLines
     );
   }
 
@@ -879,7 +917,8 @@ export function constructResultsComment(
       false,
       relatedJobs,
       relatedIssues,
-      relatedInfo
+      relatedInfo,
+      advisorLines
     );
   }
 
