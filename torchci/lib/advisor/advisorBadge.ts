@@ -7,6 +7,8 @@
 //   - selectAdvisorLines / renderVerdictLine / renderInProgressLine: the
 //     "AI verdict:" line emitted under each new failure in the comment.
 
+import _ from "lodash";
+
 // The signal_key prefix for HUD-originated (Dr.CI) advisor dispatches. Mirrors
 // signalKeyForJob() in advisorDispatch.ts; duplicated here to keep this module
 // free of any server-only imports.
@@ -101,21 +103,13 @@ export function verdictBadge(
   return { label: "inconclusive", color: "#8b949e", darkText: false };
 }
 
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // A minimal flat single-segment SVG pill (shields "flat" look, no left label).
 export function renderBadgeSvg(badge: AdvisorBadge): string {
   const text = badge.label;
   // Approximate text width; Verdana ~6.5px/char at 11px, plus horizontal pad.
   const width = Math.max(46, Math.round(text.length * 6.5) + 16);
   const textColor = badge.darkText ? "#33333a" : "#ffffff";
-  const safe = escapeXml(text);
+  const safe = _.escape(text);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="${safe}">
 <title>${safe}</title>
 <rect width="${width}" height="20" rx="3" fill="${badge.color}"/>
@@ -183,7 +177,7 @@ export function renderVerdictLine(
   // content, so HTML-escape it before embedding in the comment: collapse
   // newlines (can't break the blockquote) and neutralize markup so it can't
   // close the <details>/<blockquote> or inject tags.
-  const oneLine = escapeXml((summary || "").replace(/\s*\n\s*/g, " ").trim());
+  const oneLine = _.escape((summary || "").replace(/\s*\n\s*/g, " ").trim());
   return (
     `  <details><summary>AI verdict: <a href="${link}"><img src="${badge}"></a></summary><blockquote>\n\n` +
     `  ${oneLine}\n\n` +
