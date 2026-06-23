@@ -46,7 +46,9 @@ def main() -> None:
     print(f"Downloading {args.url}")
     # Set an explicit User-Agent: the R2-backed CDN behind download.pytorch.org
     # returns 403 for the default "Python-urllib/x.y" agent.
-    request = urllib.request.Request(args.url, headers={"User-Agent": "libtorch-validation"})
+    request = urllib.request.Request(
+        args.url, headers={"User-Agent": "libtorch-validation"}
+    )
     with urllib.request.urlopen(request) as response, open("libtorch.zip", "wb") as out:
         shutil.copyfileobj(response, out)
     with zipfile.ZipFile("libtorch.zip") as zf:
