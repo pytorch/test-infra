@@ -220,8 +220,14 @@ cleanup_conda_env() {
 handle_aarch64_cuda_override
 
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
-    curl "${MATRIX_INSTALLATION}" -o libtorch.zip
-    unzip libtorch.zip
+    LIBTORCH_PYTHON="python3"
+    if [[ ${TARGET_OS} == 'windows' ]]; then
+        # Windows runners only source conda.sh at this point without activating
+        # an env, so no python is on PATH yet. Activate base to get one.
+        conda activate base
+        LIBTORCH_PYTHON="python"
+    fi
+    "${LIBTORCH_PYTHON}" "${SCRIPT_DIR}/validate_libtorch.py" "${MATRIX_INSTALLATION}"
     exit 0
 fi
 
