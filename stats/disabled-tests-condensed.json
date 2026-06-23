@@ -553,6 +553,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_float8_e5m2fnuz_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187942",
+    "https://github.com/pytorch/pytorch/issues/187942",
+    [
+      "rocm"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -978,15 +985,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
-    "182418",
-    "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
     "182397",
     "https://github.com/pytorch/pytorch/issues/182397",
@@ -1022,15 +1020,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
-    "182095",
-    "https://github.com/pytorch/pytorch/issues/182095",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
