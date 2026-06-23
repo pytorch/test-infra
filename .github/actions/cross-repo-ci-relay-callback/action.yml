@@ -19,7 +19,7 @@ inputs:
   conclusion:
     description: >
       Conclusion of the workflow run, passed through to the check run as-is
-      (typically "${{ job.status }}").  Required when status is "completed" and
+      (typically "job.status").  Required when status is "completed" and
       must be a value GitHub accepts (e.g. success, failure, cancelled).  Ignored
       when status is "in_progress".
     required: false
