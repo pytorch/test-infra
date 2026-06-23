@@ -361,11 +361,6 @@
       "rocm"
     ]
   ],
-  "test_fd_pool (__main__.TestMultiprocessing)": [
-    "69660",
-    "https://github.com/pytorch/pytorch/issues/69660",
-    []
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -422,6 +417,15 @@
       "rocm"
     ]
   ],
+  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179742",
+    "https://github.com/pytorch/pytorch/issues/179742",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -458,9 +462,25 @@
       "linux"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186604",
+    "https://github.com/pytorch/pytorch/issues/186604",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186866",
     "https://github.com/pytorch/pytorch/issues/186866",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186605",
+    "https://github.com/pytorch/pytorch/issues/186605",
     [
       "mac",
       "macos"
@@ -534,12 +554,11 @@
       "rocm"
     ]
   ],
-  "test_integer_parameter_serialization_cuda (__main__.TestMultiprocessingDeviceTypeCUDA)": [
-    "186750",
-    "https://github.com/pytorch/pytorch/issues/186750",
+  "test_index_cuda_with_cpu_float8_e5m2_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "187895",
+    "https://github.com/pytorch/pytorch/issues/187895",
     [
-      "linux",
-      "slow"
+      "rocm"
     ]
   ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
