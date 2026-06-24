@@ -17,6 +17,15 @@ class AdvisorVerdict(Enum):
 
     `revert` is retained indefinitely for backward compatibility with
     historical CH rows produced before the rename.
+
+    `infra_issue` means the CI environment failed before producing a real
+    code-level outcome (runner/container/GPU/network/checkout failure). Like
+    `not_related`, it is not the suspect's fault, so the lambda treats it the
+    same as `not_related`: block this signal from autorevert (no revert). It is
+    kept as a distinct verdict so the reason is recorded faithfully.
+
+    `garbage` means the recorded signal itself is invalid/corrupt as data; it
+    suppresses the signal for a 2h window, then falls through to re-confirm.
     """
 
     REVERT = "revert"
@@ -24,6 +33,7 @@ class AdvisorVerdict(Enum):
     NOT_RELATED = "not_related"
     GARBAGE = "garbage"
     RELATED = "related"
+    INFRA_ISSUE = "infra_issue"
 
 
 @dataclass(frozen=True)
@@ -118,6 +128,7 @@ class IneligibleReason(Enum):
     PENDING_GAP = "pending_gap"  # unknown/pending commits present
     ADVISOR_NOT_RELATED = "advisor_not_related"  # AI advisor says not related
     ADVISOR_GARBAGE = "advisor_garbage"  # AI advisor says signal is garbage
+    ADVISOR_INFRA_ISSUE = "advisor_infra_issue"  # AI advisor says infra failure
 
 
 @dataclass
@@ -601,7 +612,7 @@ class Signal:
 
         Returns:
             - AutorevertPattern if advisor says "revert" or "related" with sufficient confidence
-            - Ineligible if advisor says "not_related" or "garbage" (within 2h window)
+            - Ineligible if advisor says "not_related"/"infra_issue", or "garbage" (within 2h window)
             - None if no verdict, verdict is "unsure", or confidence below threshold
         """
         suspected = partition.failed[-1]
@@ -620,14 +631,24 @@ class Signal:
         if result.verdict in (AdvisorVerdict.REVERT, AdvisorVerdict.RELATED):
             return self._build_autorevert_pattern(partition, advisor_result=result)
 
-        if result.verdict == AdvisorVerdict.NOT_RELATED:
+        # `infra_issue` (CI environment failed before producing a real
+        # code-level outcome) is not the suspect's fault, so it is handled
+        # exactly like `not_related`: block this signal from autorevert. Kept as
+        # a distinct IneligibleReason so the cause is recorded.
+        if result.verdict in (AdvisorVerdict.NOT_RELATED, AdvisorVerdict.INFRA_ISSUE):
+            if result.verdict == AdvisorVerdict.INFRA_ISSUE:
+                reason, label = IneligibleReason.ADVISOR_INFRA_ISSUE, "infra issue"
+            else:
+                reason, label = IneligibleReason.ADVISOR_NOT_RELATED, "not related"
             return Ineligible(
-                IneligibleReason.ADVISOR_NOT_RELATED,
-                f"AI advisor says not related (confidence={result.confidence:.2f})",
+                reason,
+                f"AI advisor says {label} (confidence={result.confidence:.2f})",
             )
 
         if result.verdict == AdvisorVerdict.GARBAGE:
-            # Garbage verdict blocks the signal for 2 hours since the verdict timestamp
+            # Garbage (invalid/corrupt signal) blocks the signal for 2 hours
+            # since the verdict timestamp, then falls through so a fresh run can
+            # re-confirm.
             from datetime import timezone
 
             now = datetime.now(timezone.utc)
@@ -639,7 +660,7 @@ class Signal:
                     f"(confidence={result.confidence:.2f}, "
                     f"age={int(verdict_age.total_seconds() / 60)}min)",
                 )
-            # Garbage verdict expired — fall through to normal processing
+            # Garbage window expired — fall through to normal processing
 
         # "unsure" or expired garbage → continue normally
         return None
@@ -655,7 +676,7 @@ class Signal:
         suspect commit is likely the one that introduced the test. Defer to the
         AI advisor:
         - If a prior advisor verdict exists on the suspect, act on it
-          (revert/related → `AutorevertPattern`; not_related/garbage → blocked).
+          (revert/related → `AutorevertPattern`; not_related/infra_issue/garbage → blocked).
         - Otherwise, dispatch a fresh advisor request alongside the `Ineligible`
           response. Next tick can act on the verdict.
 

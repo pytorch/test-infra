@@ -1,6 +1,6 @@
 import { Tooltip } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
-import { AdvisorVerdict } from "lib/advisorVerdictUtils";
+import { AdvisorVerdict, AdvisorVerdictType } from "lib/advisorVerdictUtils";
 import styles from "./autorevert.module.css";
 import {
   CellEvent,
@@ -33,17 +33,19 @@ const ADV_VERDICT_CLS: Record<string, string> = {
   revert: styles.advRevert,
   related: styles.advRevert,
   not_related: styles.advNotRelated,
+  infra_issue: styles.advInfra,
   garbage: styles.advGarbage,
   unsure: styles.advUnsure,
-};
+} satisfies Record<AdvisorVerdictType, string>;
 
 const ADV_VERDICT_SHORT: Record<string, string> = {
   revert: "REV",
   related: "REV",
   not_related: "OK",
+  infra_issue: "INF",
   garbage: "JNK",
   unsure: "?",
-};
+} satisfies Record<AdvisorVerdictType, string>;
 
 interface AutorevertCellProps {
   events: CellEvent[];

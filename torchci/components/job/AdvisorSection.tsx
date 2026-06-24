@@ -1,13 +1,18 @@
-import { AdvisorVerdict, advisorRunUrl } from "lib/advisorVerdictUtils";
+import {
+  AdvisorVerdict,
+  AdvisorVerdictType,
+  advisorRunUrl,
+} from "lib/advisorVerdictUtils";
 import { useState } from "react";
 
 const VERDICT_COLORS: Record<string, { border: string; badge: string }> = {
   revert: { border: "#d32f2f", badge: "#d32f2f" },
   related: { border: "#d32f2f", badge: "#d32f2f" },
   not_related: { border: "#388e3c", badge: "#2e7d32" },
+  infra_issue: { border: "#57606a", badge: "#57606a" },
   garbage: { border: "#8d6e63", badge: "#6d4c41" },
   unsure: { border: "#757575", badge: "#616161" },
-};
+} satisfies Record<AdvisorVerdictType, { border: string; badge: string }>;
 
 export default function AdvisorSection({
   verdict,

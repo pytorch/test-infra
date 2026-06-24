@@ -5,6 +5,8 @@
  * The API merges multiple workflow-set rows into a unified response.
  */
 
+import { AdvisorVerdictType } from "lib/advisorVerdictUtils";
+
 // --- API Response ---
 
 export interface AutorevertStateResponse {
@@ -43,7 +45,7 @@ export interface CellEvent {
 }
 
 export interface ColumnAdvisorResult {
-  verdict: "revert" | "not_related" | "garbage" | "unsure";
+  verdict: AdvisorVerdictType;
   confidence: number;
   signal_key: string;
 }

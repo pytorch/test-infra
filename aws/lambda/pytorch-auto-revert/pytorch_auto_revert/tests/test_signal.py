@@ -973,6 +973,56 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         # Garbage expired — should proceed to AutorevertPattern
         self.assertIsInstance(res, AutorevertPattern)
 
+    def test_advisor_infra_issue_produces_ineligible(self):
+        """infra_issue is treated like not_related: block the signal, no revert."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.INFRA_ISSUE)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_INFRA_ISSUE)
+
+    def test_advisor_infra_issue_does_not_expire(self):
+        """Unlike garbage, infra_issue has no 2h window — an old verdict still blocks."""
+        old_timestamp = datetime.now(tz=timezone.utc) - timedelta(hours=3)
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.INFRA_ISSUE,
+            confidence=0.95,
+            timestamp=old_timestamp,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # infra_issue has no expiry window — still blocked as not-the-suspect's-fault
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_INFRA_ISSUE)
+
     def test_advisor_unsure_continues_normal_processing(self):
         """When advisor says 'unsure', continue with normal autorevert logic."""
         s = self._make_signal_with_advisor(AdvisorVerdict.UNSURE)

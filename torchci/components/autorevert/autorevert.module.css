@@ -358,6 +358,11 @@
   color: #8d6e63;
 }
 
+.advInfra {
+  background: rgba(87, 96, 106, 0.2);
+  color: #57606a;
+}
+
 .advUnsure {
   background: rgba(117, 117, 117, 0.2);
   color: #757575;
