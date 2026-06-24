@@ -245,13 +245,6 @@
       "xpu"
     ]
   ],
-  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180259",
-    "https://github.com/pytorch/pytorch/issues/180259",
-    [
-      "dynamo"
-    ]
-  ],
   "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
     "159150",
     "https://github.com/pytorch/pytorch/issues/159150",
