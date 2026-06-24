@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 from argparse import ArgumentParser
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -92,19 +92,41 @@ def close_pr(source_repo: str, pr_number: str) -> None:
 
 
 def is_newer_hash(new_hash: str, old_hash: str, repo_name: str) -> bool:
-    def _get_date(hash: str) -> int:
+    def _get_date(hash: str) -> Optional[int]:
         # this git command prints the unix timestamp of the hash
-        return int(
+        def _show() -> str:
+            return (
+                subprocess.run(
+                    f"git show --no-patch --no-notes --pretty=%ct {hash}".split(),
+                    capture_output=True,
+                    cwd=f"{repo_name}",
+                )
+                .stdout.decode("utf-8")
+                .strip()
+            )
+
+        timestamp = _show()
+        if not timestamp:
+            # The hash may be unreachable from the cloned branch, e.g. the old
+            # pinned commit was orphaned by a force-push/rebase upstream. Fetch
+            # it explicitly before giving up.
             subprocess.run(
-                f"git show --no-patch --no-notes --pretty=%ct {hash}".split(),
+                f"git fetch --quiet origin {hash}".split(),
                 capture_output=True,
                 cwd=f"{repo_name}",
             )
-            .stdout.decode("utf-8")
-            .strip()
-        )
+            timestamp = _show()
+        return int(timestamp) if timestamp else None
 
-    return _get_date(new_hash) > _get_date(old_hash)
+    new_date = _get_date(new_hash)
+    old_date = _get_date(old_hash)
+    # If the old pinned commit can no longer be found (orphaned upstream), treat
+    # the branch tip as newer so the pin moves forward instead of crashing.
+    if old_date is None:
+        return True
+    if new_date is None:
+        return False
+    return new_date > old_date
 
 
 def main() -> None:
