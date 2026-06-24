@@ -20,7 +20,10 @@ L1:
 L2:
   - org3/repo3
 L3:
-  - org4/repo4
+  device1:
+    org41/device1-repo: [oncall1, oncall2]
+  device2:
+    org42/device2-repo: [oncall3]
 L4:
   - org5/repo5: oncall1, oncall2
 ```
@@ -30,6 +33,22 @@ All levels (L1–L4) are dispatched to. Dispatch targets are the union of all re
 Each entry is either a plain `owner/repo` string or a `owner/repo: oncall1, oncall2` mapping. Duplicate repositories across levels are not allowed.
 
 The allowlist is cached in Redis under the key `crcr:allowlist_yaml` with a TTL controlled by `ALLOWLIST_TTL_SECONDS`. On a Redis error the function falls back to fetching directly from GitHub.
+
+### Repository levels
+
+Every level is dispatched to. Higher levels add capabilities on top, and each level includes everything the lower ones grant:
+
+| Level | Dispatch | Report results to HUD | Upstream check run on the PR |
+|---|---|---|---|
+| **L1** | ✅ | — | — |
+| **L2** | ✅ | ✅ | — |
+| **L3** | ✅ | ✅ | ✅ — only when the PR carries the matching `ciflow/crcr/<device>` label |
+| **L4** | ✅ | ✅ | ✅ — always |
+
+- **L3** entries are grouped by *device*. A repo registered under `device1` gets an upstream check run only when the PR has the `ciflow/crcr/device1` label, letting maintainers opt specific PRs into a backend's CI. The `[oncall, ...]` list is the oncalls associated with that repo.
+- **L4** repos always get an upstream check run, with no label required.
+
+The dispatch/HUD-reporting path (L1/L2) is covered below; the upstream check run path (L3/L4) is covered in [Upstream Check Runs](#upstream-check-runs-l3-and-l4).
 
 ## Reporting Results from Downstream CI
 
@@ -87,7 +106,10 @@ The HUD request looks like (two top-level namespaces: `trusted` and `untrusted`)
         "conclusion": "success",
         "name": "CI",
         "url": "https://github.com/org/repo/actions/runs/123",
+        "run_id": "123",        // stable across re-runs of the same run
+        "run_attempt": "2",     // increments each re-run; (run_id, run_attempt) distinguishes attempts
         "job_name": "my-ci-job",
+        "check_run_id": "456",  // unique per attempt
         "started_at": "2026-05-04T20:48:28Z", // when status == in_progress, else None
         "completed_at": "2026-05-04T21:23:45Z", // when status == completed, else None
         "test_results": { "passed": 42, "failed": 3, "skipped": 5 },
@@ -174,6 +196,41 @@ jobs:
 | `test-results` | no | `''` | Optional JSON string with test result summary (counts: passed/failed/skipped) |
 | `callback-url` | **yes** | — | Callback endpoint URL (production Lambda URL; set once at the workflow level) |
 | `artifact-url` | no | `''` | URL to downstream-hosted artifacts (logs, reports, results) |
+
+## Upstream Check Runs (L3 and L4)
+
+For L3 and L4 repositories the relay creates a **check run on the upstream PR** that mirrors the downstream workflow's status, so the upstream sees downstream CI as a normal PR check. This is built on top of the same callback used for HUD reporting (L2+), so an L3/L4 repo still reports results to HUD exactly as described above.
+
+### How it works
+
+The check run is named `crcr/<downstream_repo>/<workflow_name>` and is created from the **callback**, not at dispatch time:
+
+- On an `in_progress` callback the relay creates an in-progress check run linking to the downstream run.
+- On a `completed` callback it creates a completed check run carrying the downstream `conclusion`.
+
+The relay always **creates** a new check run rather than editing an existing one. GitHub only surfaces the latest check run of a given name on a commit, so each new one naturally supersedes the previous. This keeps the logic stateless and makes reruns and reopens self-correcting.
+
+### L3 label timing
+
+For L3 the upstream check run is gated on the `ciflow/crcr/<device>` label, which a maintainer can add at any point relative to the workflow. The relay covers all three orderings:
+
+1. **Label present before dispatch** — the callback sees the label and creates the check run directly.
+2. **Label added while the workflow is running** — the `pull_request.labeled` handler reads the cached downstream job state (`crcr:dispatch_workflow:<head_sha>:<repo>`) and backfills an in-progress check run.
+3. **Label added after the workflow finished** — the `labeled` handler creates a completed check run directly from that cached state.
+
+Because the downstream echoes back the *dispatch-time* payload — whose labels can be stale, e.g. on **reopen** where no fresh `labeled` event fires — the relay records a per-commit "check run wanted" flag (`crcr:check_run_wanted:<head_sha>:<repo>`) at dispatch time (when the label is already present) and in the `labeled` handler. The callback consults this flag so it still creates the check run when the echoed labels don't reflect the PR's current state.
+
+### Re-running checks
+
+A developer can re-run downstream CI directly from the upstream PR's checks UI. The GitHub App subscribes to the `check_run` and `check_suite` events, and the relay handles their `rerequested` action:
+
+- **Re-run a single check** (`check_run` `rerequested`) — the downstream `run_id` was stored as the check run's `external_id` when it was created, and the downstream repo is encoded in the check run name (`crcr/<owner>/<repo>/<workflow_name>`). The relay parses both, verifies the repo is L3+, and re-triggers that downstream workflow run.
+- **Re-run all checks** (`check_suite` `rerequested`) — the suite covers every check on the commit, so the relay re-triggers each L3+ downstream whose latest run it cached at `crcr:dispatch_workflow:<head_sha>:<repo>`.
+
+Because the re-run carries the **original `delivery_id`** but a **new `check_run_id`** (GitHub mints fresh check runs per attempt), the two CI timing metrics behave differently:
+
+- **`execution_time`** (in_progress → completed) is correct as-is — the new `check_run_id` gets its own fresh state records.
+- **`queue_time`** (dispatch → in_progress) would otherwise be measured against the *original* dispatch timestamp (possibly days old). Thus, using `run_attempt` keyword in payload to identify whether it is a trustworthy value.
 
 ## Build, Deploy, and Test
 

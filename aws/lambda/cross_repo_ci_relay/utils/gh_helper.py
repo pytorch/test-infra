@@ -11,6 +11,11 @@ from .misc import EventDispatchPayload
 logger = logging.getLogger(__name__)
 
 
+def check_run_name(downstream_repo: str, workflow_name: str) -> str:
+    """Canonical check run name shown on the upstream PR (e.g. 'crcr/org/repo/CI')."""
+    return f"crcr/{downstream_repo}/{workflow_name}"
+
+
 def get_repo_access_token(
     app_id: str,
     private_key: str,
@@ -36,6 +41,21 @@ def get_repo_access_token(
     return gh_client.get_access_token(installation.id).token
 
 
+def rerun_workflow(
+    *,
+    token: str,
+    repo_full_name: str,
+    run_id: int,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> None:
+    """Trigger a re-run of an existing downstream workflow run by its run_id."""
+    logger.info("rerun_workflow repo=%s run_id=%d", repo_full_name, run_id)
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    gh_client.get_repo(repo_full_name).get_workflow_run(run_id).rerun()
+
+
 def create_repository_dispatch(
     *,
     token: str,
@@ -52,6 +72,65 @@ def create_repository_dispatch(
     gh_client.get_repo(repo_full_name).create_repository_dispatch(
         event_type, dict(client_payload)
     )
+
+
+def build_check_run_output(
+    status: str,
+    conclusion: str,
+    details_url: str,
+    downstream_repo: str,
+) -> dict:
+    """Return a GitHub Check Run output dict shown in the detail panel."""
+    if status != "completed":
+        title = "In progress"
+    elif conclusion:
+        title = conclusion.capitalize()
+    else:
+        title = "Completed"
+    return {
+        "title": title,
+        "summary": f"{downstream_repo} workflow: {details_url}",
+    }
+
+
+def create_check_run(
+    *,
+    token: str,
+    repo_full_name: str,
+    name: str,
+    head_sha: str,
+    status: str,
+    conclusion: str | None = None,
+    details_url: str | None = None,
+    external_id: str | None = None,
+    output: dict | None = None,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> int:
+    """Create a check run on the upstream repo. Returns the check run ID.
+
+    Pass status='completed' and conclusion for Scenario 3 (label arrives after
+    workflow has already finished — create a completed check run directly).
+    external_id stores the downstream workflow run_id so rerequested events can
+    identify the original run.
+    output (optional) sets the detail-panel content: {"title": str, "summary": str}.
+    """
+    logger.info(
+        "create_check_run repo=%s name=%s status=%s", repo_full_name, name, status
+    )
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    create_kwargs: dict = {"name": name, "head_sha": head_sha, "status": status}
+    if status == "completed" and conclusion is not None:
+        create_kwargs["conclusion"] = conclusion
+    if details_url is not None:
+        create_kwargs["details_url"] = details_url
+    if external_id is not None:
+        create_kwargs["external_id"] = external_id
+    if output is not None:
+        create_kwargs["output"] = output
+    check_run = gh_client.get_repo(repo_full_name).create_check_run(**create_kwargs)
+    return check_run.id
 
 
 def get_repo_file(
