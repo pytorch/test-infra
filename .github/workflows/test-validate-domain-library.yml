@@ -7,6 +7,9 @@ on:
       - .github/workflows/test-validate-domain-library.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-validate-domain-library:
     uses: ./.github/workflows/validate-domain-library.yml
