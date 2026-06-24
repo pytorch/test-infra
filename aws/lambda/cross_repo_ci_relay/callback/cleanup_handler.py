@@ -29,8 +29,8 @@ def _build_timeout_payload(zombie: dict, completed_at: str) -> tuple[dict, dict]
     """
     state_record = zombie["state_record"]
     stored = state_record.payload
-    stored_trusted = stored["trusted"]
-    stored_untrusted = stored["untrusted"]
+    stored_trusted = dict(stored["trusted"])
+    stored_untrusted = dict(stored["untrusted"])
 
     # ci_metrics: execution_time from in_progress → now
     execution_time = round(time.time() - state_record.timestamp, 3)

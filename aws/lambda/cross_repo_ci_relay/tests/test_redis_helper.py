@@ -231,7 +231,7 @@ class TestCallbackStateMachine(unittest.TestCase):
             cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
         ):
             if run_id_arg == DISPATCH_RUN_ID:
-                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0)
+                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
             return None
 
         cfg = _cfg()
@@ -251,6 +251,7 @@ class TestCallbackStateMachine(unittest.TestCase):
                 1010.0,
                 workflow_name="test-workflow",
                 client=client,
+                payload={},
             )
 
 
@@ -292,6 +293,7 @@ class TestInProgressTracker(unittest.TestCase):
     def _cfg_with_zombie_timeout(self):
         cfg = _cfg()
         cfg.zombie_timeout_seconds = 86400
+        cfg.in_progress_warn_threshold = 1000
         return cfg
 
     def test_add_in_progress_tracker_zadd_with_correct_score(self):
@@ -353,6 +355,7 @@ class TestInProgressTracker(unittest.TestCase):
 
         cfg = self._cfg_with_zombie_timeout()
         client = MagicMock()
+        client.zcard.return_value = 0
         now = 1700000000.0
         client.zrangebyscore.return_value = [
             "del-1:org/repo:10:1",
@@ -390,6 +393,7 @@ class TestInProgressTracker(unittest.TestCase):
 
         cfg = self._cfg_with_zombie_timeout()
         client = MagicMock()
+        client.zcard.return_value = 0
         client.zrangebyscore.return_value = ["del-missing:org/repo:5:1"]
         client.get.return_value = None  # state record expired
 
@@ -408,6 +412,7 @@ class TestInProgressTracker(unittest.TestCase):
 
         cfg = self._cfg_with_zombie_timeout()
         client = MagicMock()
+        client.zcard.return_value = 0
         client.zrangebyscore.return_value = ["bad-member"]
 
         with unittest.mock.patch("utils.redis_helper.time") as mock_time:

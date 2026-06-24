@@ -424,6 +424,18 @@ def scan_expired_in_progress(
         if client is None:
             client = create_client(config)
         now = time.time()
+
+        # Warn if the ZSET is growing unusually large — may indicate the sweeper
+        # is not keeping up or has stopped running, allowing zombies to accumulate.
+        zset_size = client.zcard(_IN_PROGRESS_ZSET)
+        if zset_size > config.in_progress_warn_threshold:
+            logger.warning(
+                "in_progress ZSET cardinality %d exceeds threshold %d — "
+                "sweeper may be falling behind or not running",
+                zset_size,
+                config.in_progress_warn_threshold,
+            )
+
         expired_members = client.zrangebyscore(_IN_PROGRESS_ZSET, "-inf", now)
         if not expired_members:
             logger.info("no expired in_progress members found")
