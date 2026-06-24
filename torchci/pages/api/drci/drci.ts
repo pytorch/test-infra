@@ -242,10 +242,17 @@ export async function updateDrciComments(
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
 
-      // Auto-dispatch the AI CI Advisor on NEW failures. No-op unless the
-      // feature flag + production env + per-repo config are all set; dispatch
-      // only (no comment/merge changes), with its own ClickHouse dedup +
-      // outage guard. Wrapped so an advisor error can never break the comment.
+      // Auto-dispatch the AI CI Advisor on NEW + UNCLASSIFIED failures. Both are
+      // PR failures the advisor can usefully analyze: unknownJobs (Unclassified)
+      // are failures whose job did not run on the merge base, so Dr.CI has no
+      // same-job baseline -- but the advisor builds its own recent-trunk baseline
+      // by job-name pattern, so it still has signal. They're passed as one list
+      // so the maxNewFailures outage guard bounds the combined per-PR fan-out
+      // (Unclassified were historically part of the new-failure bucket; splitting
+      // them in the Dr.CI comment was only to reduce comment noise). No-op unless
+      // the feature flag + production env + per-repo config are all set; dispatch
+      // only (no comment/merge changes), with its own ClickHouse dedup + outage
+      // guard. Wrapped so an advisor error can never break the comment.
       try {
         await autoDispatchAdvisorForNewFailures({
           owner,
@@ -253,7 +260,7 @@ export async function updateDrciComments(
           prNumber: pr_info.pr_number,
           headSha: pr_info.head_sha,
           mergeBaseSha: pr_info.merge_base,
-          newFailures: failedJobs,
+          newFailures: [...failedJobs, ...unknownJobs],
         });
       } catch (e) {
         console.error(
