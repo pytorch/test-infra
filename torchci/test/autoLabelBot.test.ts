@@ -62,6 +62,91 @@ describe("auto-label-bot", () => {
     emptyMockConfig(payload.repository.full_name);
 
     const scope = nock("https://api.github.com")
+      .get(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
+      )
+      .reply(200, [])
+      .post(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
+        (body) => {
+          expect(body).toMatchObject({ labels: ["triage review"] });
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("do not re-add triage review if it was just removed (within the hour)", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.labeled");
+    payload["label"] = { name: "high priority" };
+    payload["issue"]["labels"] = [{ name: "high priority" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const recent = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const scope = nock("https://api.github.com")
+      .get(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
+      )
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "high priority" },
+          created_at: recent,
+        },
+        {
+          event: "labeled",
+          label: { name: "triage review" },
+          created_at: recent,
+        },
+        {
+          event: "unlabeled",
+          label: { name: "triage review" },
+          created_at: recent,
+        },
+      ]);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("re-add triage review if old issue resurfaces (stale removal)", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.labeled");
+    payload["label"] = { name: "high priority" };
+    payload["issue"]["labels"] = [{ name: "high priority" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    // Triage review was removed long ago — issue is resurfacing and
+    // should be triaged again.
+    const old = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const scope = nock("https://api.github.com")
+      .get(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
+      )
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "triage review" },
+          created_at: old,
+        },
+        {
+          event: "unlabeled",
+          label: { name: "triage review" },
+          created_at: old,
+        },
+      ])
       .post(
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
         (body) => {
