@@ -84,6 +84,13 @@
       "mac"
     ]
   ],
+  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186872",
+    "https://github.com/pytorch/pytorch/issues/186872",
+    [
+      "rocm"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -243,6 +250,21 @@
     "https://github.com/pytorch/pytorch/issues/180948",
     [
       "xpu"
+    ]
+  ],
+  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180259",
+    "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_export_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "186869",
+    "https://github.com/pytorch/pytorch/issues/186869",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
@@ -436,9 +458,25 @@
       "macos"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186866",
+    "https://github.com/pytorch/pytorch/issues/186866",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
     "186605",
     "https://github.com/pytorch/pytorch/issues/186605",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186867",
+    "https://github.com/pytorch/pytorch/issues/186867",
     [
       "mac",
       "macos"
@@ -952,16 +990,6 @@
     "https://github.com/pytorch/pytorch/issues/182174",
     [
       "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
-    "123891",
-    "https://github.com/pytorch/pytorch/issues/123891",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
