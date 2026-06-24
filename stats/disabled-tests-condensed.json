@@ -20,13 +20,6 @@
       "rocm"
     ]
   ],
-  "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186871",
-    "https://github.com/pytorch/pytorch/issues/186871",
-    [
-      "rocm"
-    ]
-  ],
   "test_aoti_custom_op_bad_fake_dtype_fails_fast_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "187562",
     "https://github.com/pytorch/pytorch/issues/187562",
@@ -89,13 +82,6 @@
     "https://github.com/pytorch/pytorch/issues/69179",
     [
       "mac"
-    ]
-  ],
-  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186872",
-    "https://github.com/pytorch/pytorch/issues/186872",
-    [
-      "rocm"
     ]
   ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
@@ -245,13 +231,6 @@
       "rocm"
     ]
   ],
-  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
-    "186865",
-    "https://github.com/pytorch/pytorch/issues/186865",
-    [
-      "linux"
-    ]
-  ],
   "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
     "187120",
     "https://github.com/pytorch/pytorch/issues/187120",
@@ -271,14 +250,6 @@
     "https://github.com/pytorch/pytorch/issues/180259",
     [
       "dynamo"
-    ]
-  ],
-  "test_export_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "186869",
-    "https://github.com/pytorch/pytorch/issues/186869",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
@@ -337,6 +308,7 @@
     "187291",
     "https://github.com/pytorch/pytorch/issues/187291",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -471,25 +443,9 @@
       "macos"
     ]
   ],
-  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
-    "186866",
-    "https://github.com/pytorch/pytorch/issues/186866",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
     "186605",
     "https://github.com/pytorch/pytorch/issues/186605",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186867",
-    "https://github.com/pytorch/pytorch/issues/186867",
     [
       "mac",
       "macos"
@@ -576,6 +532,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_int32_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "188040",
+    "https://github.com/pytorch/pytorch/issues/188040",
+    [
+      "rocm"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -592,6 +555,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_jacfwd_randomness (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "188041",
+    "https://github.com/pytorch/pytorch/issues/188041",
+    [
+      "rocm"
     ]
   ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1039,6 +1009,15 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_regnet_y_400mf (__main__.TestVisionTracing)": [
     "140531",
     "https://github.com/pytorch/pytorch/issues/140531",
@@ -1098,6 +1077,13 @@
     "https://github.com/pytorch/pytorch/issues/187034",
     [
       "xpu"
+    ]
+  ],
+  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180194",
+    "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
