@@ -569,6 +569,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_int16_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "188010",
+    "https://github.com/pytorch/pytorch/issues/188010",
+    [
+      "rocm"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
