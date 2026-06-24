@@ -48,10 +48,17 @@ describe("verdictBadge", () => {
     expect(verdictBadge("revert", 0.95).label).toBe("related");
   });
 
-  it("handles garbage / unsure / unknown without confidence wording", () => {
+  it("handles garbage / infra_issue / unsure / unknown without confidence wording", () => {
     expect(verdictBadge("garbage", 0.9).label).toBe("garbage");
+    expect(verdictBadge("infra_issue", 0.9).label).toBe("infra issue");
     expect(verdictBadge("unsure", 0.9).label).toBe("inconclusive");
     expect(verdictBadge("something_new", 0.9).label).toBe("inconclusive");
+  });
+
+  it("gives infra_issue its own color, distinct from garbage", () => {
+    expect(verdictBadge("infra_issue", 0.9).color).not.toBe(
+      verdictBadge("garbage", 0.9).color
+    );
   });
 
   it("does NOT prefix the badge with 'AI:' (the line carries that)", () => {
