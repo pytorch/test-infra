@@ -973,6 +973,79 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         # Garbage expired — should proceed to AutorevertPattern
         self.assertIsInstance(res, AutorevertPattern)
 
+    def test_advisor_infra_issue_produces_ineligible_within_2h(self):
+        """When advisor says 'infra_issue' and verdict is < 2h old, suppress signal."""
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.INFRA_ISSUE,
+            confidence=0.95,
+            timestamp=datetime.now(tz=timezone.utc),
+            signal_key="job",
+        )
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.FAILURE, 4),
+                self._ev("job", SignalStatus.FAILURE, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 2),
+                self._ev("job", SignalStatus.SUCCESS, 3),
+            ],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_fail, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_INFRA_ISSUE)
+
+    def test_advisor_infra_issue_expires_after_2h(self):
+        """When infra_issue verdict is > 2h old, it expires and normal processing resumes."""
+        old_timestamp = datetime.now(tz=timezone.utc) - timedelta(hours=3)
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.INFRA_ISSUE,
+            confidence=0.95,
+            timestamp=old_timestamp,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # infra_issue expired — should proceed to AutorevertPattern
+        self.assertIsInstance(res, AutorevertPattern)
+
     def test_advisor_unsure_continues_normal_processing(self):
         """When advisor says 'unsure', continue with normal autorevert logic."""
         s = self._make_signal_with_advisor(AdvisorVerdict.UNSURE)

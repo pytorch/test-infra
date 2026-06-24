@@ -63,6 +63,12 @@ export function verdictBadge(
   if (v === "garbage") {
     return { label: "garbage", color: "#6e7781", darkText: false };
   }
+  if (v === "infra_issue") {
+    // Same "suppressed, not the code's fault" family as garbage, but a
+    // distinct blue-grey so reviewers can tell CI-infra failures apart from
+    // genuinely corrupt signals.
+    return { label: "infra issue", color: "#57606a", darkText: false };
+  }
   if (v === "unsure") {
     return { label: "inconclusive", color: "#8b949e", darkText: false };
   }
