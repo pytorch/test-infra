@@ -26,11 +26,14 @@ jobs:
         echo ::group::setup Python environment
         python -m venv .venv/
         source .venv/bin/activate
-        pip install pip==23.0.1 pytest==7.2.0 jsonschema==4.17.3 clickhouse-connect==0.8.14
+        pip install pip==23.0.1 pytest==7.2.0 jsonschema==4.17.3 clickhouse-connect==0.8.14 requests==2.32.2
         echo ::endgroup::
 
         # Test tools
         python3 -m unittest discover -vs tools/tests -p 'test_*.py'
+
+        # Test .github/scripts
+        (cd .github/scripts && python3 -m unittest -v test_update_commit_hashes)
 
   test-aws-lambda:
     name: Test aws lambda

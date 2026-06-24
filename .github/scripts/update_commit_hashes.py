@@ -7,13 +7,11 @@ from typing import Any, Dict, Optional
 import requests
 
 
-UPDATEBOT_TOKEN = os.environ["UPDATEBOT_TOKEN"]
-PYTORCHBOT_TOKEN = os.environ["PYTORCHBOT_TOKEN"]
-
-
 def git_api(
-    url: str, params: Dict[str, str], type: str = "get", token: str = UPDATEBOT_TOKEN
+    url: str, params: Dict[str, str], type: str = "get", token: Optional[str] = None
 ) -> Any:
+    if token is None:
+        token = os.environ["UPDATEBOT_TOKEN"]
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "Authorization": f"token {token}",
@@ -67,7 +65,7 @@ def approve_pr(source_repo: str, pr_number: str) -> None:
         f"/repos/{source_repo}/pulls/{pr_number}/reviews",
         params,
         type="post",
-        token=PYTORCHBOT_TOKEN,
+        token=os.environ["PYTORCHBOT_TOKEN"],
     )
 
 
@@ -78,7 +76,7 @@ def make_comment(source_repo: str, pr_number: str, msg: str) -> None:
         f"/repos/{source_repo}/issues/{pr_number}/comments",
         params,
         type="post",
-        token=PYTORCHBOT_TOKEN,
+        token=os.environ["PYTORCHBOT_TOKEN"],
     )
 
 
@@ -91,35 +89,37 @@ def close_pr(source_repo: str, pr_number: str) -> None:
     )
 
 
+def _git_show_timestamp(repo_name: str, hash: str) -> str:
+    # Print the unix commit timestamp of the hash, or "" if it can't be read.
+    return (
+        subprocess.run(
+            f"git show --no-patch --no-notes --pretty=%ct {hash}".split(),
+            capture_output=True,
+            cwd=repo_name,
+        )
+        .stdout.decode("utf-8")
+        .strip()
+    )
+
+
+def _get_commit_date(repo_name: str, hash: str) -> Optional[int]:
+    timestamp = _git_show_timestamp(repo_name, hash)
+    if not timestamp:
+        # The hash may be unreachable from the cloned branch, e.g. the old
+        # pinned commit was orphaned by a force-push/rebase upstream. Fetch it
+        # explicitly before giving up.
+        subprocess.run(
+            f"git fetch --quiet origin {hash}".split(),
+            capture_output=True,
+            cwd=repo_name,
+        )
+        timestamp = _git_show_timestamp(repo_name, hash)
+    return int(timestamp) if timestamp else None
+
+
 def is_newer_hash(new_hash: str, old_hash: str, repo_name: str) -> bool:
-    def _get_date(hash: str) -> Optional[int]:
-        # this git command prints the unix timestamp of the hash
-        def _show() -> str:
-            return (
-                subprocess.run(
-                    f"git show --no-patch --no-notes --pretty=%ct {hash}".split(),
-                    capture_output=True,
-                    cwd=f"{repo_name}",
-                )
-                .stdout.decode("utf-8")
-                .strip()
-            )
-
-        timestamp = _show()
-        if not timestamp:
-            # The hash may be unreachable from the cloned branch, e.g. the old
-            # pinned commit was orphaned by a force-push/rebase upstream. Fetch
-            # it explicitly before giving up.
-            subprocess.run(
-                f"git fetch --quiet origin {hash}".split(),
-                capture_output=True,
-                cwd=f"{repo_name}",
-            )
-            timestamp = _show()
-        return int(timestamp) if timestamp else None
-
-    new_date = _get_date(new_hash)
-    old_date = _get_date(old_hash)
+    new_date = _get_commit_date(repo_name, new_hash)
+    old_date = _get_commit_date(repo_name, old_hash)
     # If the old pinned commit can no longer be found (orphaned upstream), treat
     # the branch tip as newer so the pin moves forward instead of crashing.
     if old_date is None:
