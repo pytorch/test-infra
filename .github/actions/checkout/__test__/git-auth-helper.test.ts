@@ -1145,6 +1145,7 @@ async function setup(testName: string): Promise<void> {
         return [...new Set(keys)] // Remove duplicates
       }
     ),
+    setupAlternates: jest.fn(),
     tryReset: jest.fn(),
     version: jest.fn()
   }
@@ -1176,7 +1177,8 @@ async function setup(testName: string): Promise<void> {
     sshUser: '',
     workflowOrganizationId: 123456,
     setSafeDirectory: true,
-    githubServerUrl: githubServerUrl
+    githubServerUrl: githubServerUrl,
+    gitMirrorsPath: ''
   }
 }
 
