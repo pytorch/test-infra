@@ -27,7 +27,7 @@ export const QuerySection = styled(Paper)(({ theme }) => ({
   padding: "20px",
   position: "sticky",
   bottom: 0,
-  zIndex: 5,
+  zIndex: 15,
   borderTop: `1px solid ${theme.palette.divider}`,
 }));
 
