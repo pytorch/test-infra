@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from callback.callback_handler import handle
 from utils.allowlist import AllowlistLevel
-from utils.misc import CallbackState, DISPATCH_CHECK_RUN_ID, HTTPException
+from utils.misc import CallbackState, DISPATCH_RUN_ID, HTTPException
 from utils.redis_helper import CallbackStateRecord
 
 
@@ -19,7 +19,7 @@ def _cfg():
     return cfg
 
 
-def _body(status="completed", job_name="default", check_run_id="12345", run_id="99999"):
+def _body(status="completed", workflow_name="default", run_id=99999, run_attempt=1):
     return {
         "event_type": "pull_request",
         "delivery_id": "del-123",
@@ -32,9 +32,9 @@ def _body(status="completed", job_name="default", check_run_id="12345", run_id="
             "conclusion": "success" if status == "completed" else None,
             "name": "CI",
             "url": "http://ci.example.com/run/1",
-            "job_name": job_name,
-            "check_run_id": check_run_id,
+            "workflow_name": workflow_name,
             "run_id": run_id,
+            "run_attempt": run_attempt,
         },
     }
 
@@ -52,15 +52,19 @@ class TestCallbackHandler(unittest.TestCase):
         self.mock_redis = self.patcher_redis.start()
         self.mock_redis.create_client.return_value = MagicMock()
 
-        # Setup default: dispatch exists, job state is None (in_progress not yet reported)
-        def default_get_state(cfg, delivery_id, repo, check_run_id_arg, client=None):
-            if check_run_id_arg == DISPATCH_CHECK_RUN_ID:
+        # Setup default: dispatch exists, workflow state is None (in_progress not yet reported)
+        def default_get_state(
+            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+        ):
+            if run_id_arg == DISPATCH_RUN_ID:
                 return CallbackStateRecord(
-                    CallbackState.DISPATCHED, time.time() - 30, "dispatch-job", 11111
+                    CallbackState.DISPATCHED,
+                    time.time() - 30,
                 )
-            elif check_run_id_arg == "12345":  # default check_run_id in _body()
+            elif run_id_arg == 99999:  # default run_id in _body()
                 return CallbackStateRecord(
-                    CallbackState.IN_PROGRESS, time.time() - 20, "default", 99999
+                    CallbackState.IN_PROGRESS,
+                    time.time() - 20,
                 )
             return None
 
@@ -110,15 +114,17 @@ class TestCallbackHandler(unittest.TestCase):
     def test_queue_time_calculated_from_state_records(self):
         """queue_time is the dispatch-to-in_progress delta."""
         dispatch_record = CallbackStateRecord(
-            CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
+            CallbackState.DISPATCHED,
+            1000.0,
         )
-        job_record = CallbackStateRecord(
-            CallbackState.IN_PROGRESS, 1030.0, "default", 99999
+        workflow_record = CallbackStateRecord(
+            CallbackState.IN_PROGRESS,
+            1030.0,
         )
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,  # dispatch lookup
-            None,  # job state: not yet set
-            job_record,  # re-read after set_callback_state
+            None,  # workflow state: not yet set
+            workflow_record,  # re-read after set_callback_state
         ]
 
         handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
@@ -131,17 +137,20 @@ class TestCallbackHandler(unittest.TestCase):
     def test_execution_time_calculated_from_state_records(self):
         """execution_time is the in_progress-to-completed delta."""
         dispatch_record = CallbackStateRecord(
-            CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
+            CallbackState.DISPATCHED,
+            1000.0,
         )
-        job_record = CallbackStateRecord(
-            CallbackState.IN_PROGRESS, 1030.0, "default", 99999
+        workflow_record = CallbackStateRecord(
+            CallbackState.IN_PROGRESS,
+            1030.0,
         )
         completed_record = CallbackStateRecord(
-            CallbackState.COMPLETED, 1060.0, "default", 99999
+            CallbackState.COMPLETED,
+            1060.0,
         )
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,  # dispatch lookup
-            job_record,  # job state: in_progress
+            workflow_record,  # workflow state: in_progress
             completed_record,  # re-read after set_callback_state
         ]
 
@@ -199,16 +208,17 @@ class TestCallbackHandler(unittest.TestCase):
             handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 400)
 
-    def test_redis_error_fetching_job_record_proceeds(self):
-        """Redis error on job record lookup returns None; callback proceeds."""
+    def test_redis_error_fetching_workflow_record_proceeds(self):
+        """Redis error on workflow record lookup returns None; callback proceeds."""
         dispatch_record = CallbackStateRecord(
-            CallbackState.DISPATCHED, 1000.0, "dispatch-job", 11111
+            CallbackState.DISPATCHED,
+            1000.0,
         )
-        # Three calls: dispatch lookup, job record lookup, re-read after set.
+        # Three calls: dispatch lookup, workflow record lookup, re-read after set.
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,
-            None,  # job record lookup returns None (get_callback_state catches RedisError)
-            None,  # updated_job_record re-read → early return with empty metrics
+            None,  # workflow record lookup returns None (get_callback_state catches RedisError)
+            None,  # updated_workflow_record re-read → early return with empty metrics
         ]
 
         handle(_cfg(), _body(status="completed"), verified_repo="org/repo")

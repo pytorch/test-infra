@@ -122,7 +122,7 @@ class RelayConfig:
         # avoidable rate-limit risk in production.
         allowlist_ttl_seconds = max(allowlist_ttl_seconds, 900)
 
-        # GitHub can keep a workflow job in `pending` state for up to 3 days before
+        # GitHub can keep a workflow in `pending` state for up to 3 days before
         # auto-cancelling it, so OOT-status records must live at least that long.
         # Default to 3 days (259200 s).
         try:
