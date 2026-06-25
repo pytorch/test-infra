@@ -23,9 +23,19 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
+
+# Python versions validated on Linux (x86 and aarch64) only for now. They are
+# stripped from Windows and macOS matrices since torch wheels for these versions
+# are not built/validated there yet.
+LINUX_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
+
+# Python versions for which only torch is validated (no torchvision). torchvision
+# wheels are not published for these versions yet, so the install command must
+# request torch alone.
+TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
 
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
@@ -293,6 +303,11 @@ def get_wheel_install_command(
         else PACKAGES_TO_INSTALL_WHL
     )
 
+    # Validate torch only (no torchvision) for versions without published
+    # torchvision wheels, e.g. 3.15 / 3.15t.
+    if python_version in TORCH_ONLY_PYTHON_ARCHES:
+        PACKAGES_TO_INSTALL = "torch"
+
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
@@ -429,6 +444,13 @@ def generate_wheels_matrix(
 
     if os == WINDOWS_ARM64:
         python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
+
+    # Restrict Linux-only Python versions (e.g. 3.15/3.15t) to the Linux x86 and
+    # aarch64 matrices so Windows/macOS validation is unaffected.
+    if os not in (LINUX, LINUX_AARCH64):
+        python_versions = [
+            pv for pv in python_versions if pv not in LINUX_ONLY_PYTHON_ARCHES
+        ]
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux

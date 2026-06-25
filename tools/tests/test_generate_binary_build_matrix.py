@@ -126,6 +126,54 @@ class GenerateBuildMatrixTest(TestCase):
             reference_output_file="build_matrix_linux_wheel_xpu.json",
         )
 
+    def _test_channel_python_versions(self, operating_system: str) -> set:
+        out = generate_build_matrix(
+            "wheel",
+            operating_system,
+            "test",
+            "enable",
+            "enable" if operating_system in ("linux",) else "disable",
+            "enable",
+            "enable" if operating_system in ("linux", "windows") else "disable",
+            "false",
+            "false",
+            "disable",
+        )
+        return {entry["python_version"] for entry in out["include"]}
+
+    def test_linux_only_python_arches_on_linux(self):
+        # 3.15 / 3.15t are validated on Linux x86 and aarch64 for the test channel.
+        for operating_system in ("linux", "linux-aarch64"):
+            versions = self._test_channel_python_versions(operating_system)
+            self.assertIn("3.15", versions)
+            self.assertIn("3.15t", versions)
+
+    def test_linux_only_python_arches_excluded_elsewhere(self):
+        # Windows and macOS must not pick up the Linux-only versions.
+        for operating_system in ("windows", "macos"):
+            versions = self._test_channel_python_versions(operating_system)
+            self.assertNotIn("3.15", versions)
+            self.assertNotIn("3.15t", versions)
+
+    def test_torch_only_install_command_for_linux_only_arches(self):
+        out = generate_build_matrix(
+            "wheel",
+            "linux",
+            "test",
+            "enable",
+            "enable",
+            "enable",
+            "enable",
+            "false",
+            "false",
+            "disable",
+        )
+        for entry in out["include"]:
+            if entry["python_version"] in ("3.15", "3.15t"):
+                # torchvision is not published for these versions yet.
+                self.assertNotIn("torchvision", entry["installation"])
+                self.assertIn("torch", entry["installation"])
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Test generate build matrix")
