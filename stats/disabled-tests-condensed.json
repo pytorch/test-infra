@@ -621,15 +621,6 @@
       "rocm"
     ]
   ],
-  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180204",
-    "https://github.com/pytorch/pytorch/issues/180204",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180324",
     "https://github.com/pytorch/pytorch/issues/180324",
@@ -974,13 +965,6 @@
     "https://github.com/pytorch/pytorch/issues/158664",
     [
       "dynamo"
-    ]
-  ],
-  "test_tensor_with_unbacked_shape_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
-    "187046",
-    "https://github.com/pytorch/pytorch/issues/187046",
-    [
-      "rocm"
     ]
   ],
   "test_torch_binomial_dtype_errors (__main__.TestDistributionsGPU)": [
