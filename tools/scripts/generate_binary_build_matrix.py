@@ -23,14 +23,19 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
 
-# Python versions validated on Linux (x86 and aarch64) only for now. They are
-# stripped from Windows and macOS matrices since torch wheels for these versions
-# are not built/validated there yet.
-LINUX_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
+# Preview Python versions validated for torch only, on Linux x86 and aarch64.
+# These are opt-in via INCLUDE_PREVIEW_PYTHON_VERSIONS so that the shared
+# generator default is unchanged for domain libraries (torchvision, torchaudio)
+# and for Windows/macOS, which do not have wheels for these versions yet.
+PREVIEW_PYTHON_ARCHES_DICT = {
+    "nightly": [],
+    "test": ["3.15", "3.15t"],
+    "release": [],
+}
 
 # Python versions for which only torch is validated (no torchvision). torchvision
 # wheels are not published for these versions yet, so the install command must
@@ -345,7 +350,9 @@ def generate_libtorch_matrix(
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
+    include_preview_python_versions: bool = False,
 ) -> List[Dict[str, str]]:
+    # libtorch is python-agnostic; the preview python versions do not apply.
     ret: List[Dict[str, str]] = []
 
     if arches is None:
@@ -435,6 +442,7 @@ def generate_wheels_matrix(
     getting_started: bool = False,
     python_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
+    include_preview_python_versions: bool = False,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
@@ -442,15 +450,15 @@ def generate_wheels_matrix(
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
 
+        # Opt-in preview versions (e.g. 3.15/3.15t) are torch-only and validated
+        # on Linux x86 and aarch64 only. Append them to the default list so the
+        # shared default (used by domain libraries, Windows and macOS) is
+        # unaffected.
+        if include_preview_python_versions and os in (LINUX, LINUX_AARCH64):
+            python_versions += PREVIEW_PYTHON_ARCHES_DICT.get(channel, [])
+
     if os == WINDOWS_ARM64:
         python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
-
-    # Restrict Linux-only Python versions (e.g. 3.15/3.15t) to the Linux x86 and
-    # aarch64 matrices so Windows/macOS validation is unaffected.
-    if os not in (LINUX, LINUX_AARCH64):
-        python_versions = [
-            pv for pv in python_versions if pv not in LINUX_ONLY_PYTHON_ARCHES
-        ]
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
@@ -548,6 +556,7 @@ def generate_build_matrix(
     build_python_only: str,
     getting_started: str = "false",
     python_versions: Optional[List[str]] = None,
+    include_preview_python_versions: str = "disable",
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -577,6 +586,8 @@ def generate_build_matrix(
                     use_only_dl_pytorch_org == "true",
                     getting_started == "true",
                     python_versions,
+                    include_preview_python_versions=include_preview_python_versions
+                    == ENABLE,
                 )
             )
 
@@ -678,6 +689,15 @@ def main(args: List[str]) -> None:
         default=os.getenv("PYTHON_VERSIONS", "[]"),
     )
 
+    parser.add_argument(
+        "--include-preview-python-versions",
+        help="Include opt-in preview python versions (torch-only, Linux x86 and "
+        "aarch64) in the matrix",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("INCLUDE_PREVIEW_PYTHON_VERSIONS", DISABLE),
+    )
+
     options = parser.parse_args(args)
     try:
         python_versions = json.loads(options.python_versions)
@@ -701,6 +721,7 @@ def main(args: List[str]) -> None:
         options.build_python_only,
         options.getting_started,
         python_versions,
+        options.include_preview_python_versions,
     )
 
     print(json.dumps(build_matrix))

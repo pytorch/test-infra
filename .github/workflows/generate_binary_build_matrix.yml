@@ -52,6 +52,11 @@ on:
         description: "A JSON-encoded list of python versions to build. An empty list means building all supported versions"
         default: "[]"
         type: string
+      include-preview-python-versions:
+        description: "Include opt-in preview python versions (torch-only, Linux x86 and aarch64), e.g. 3.15/3.15t"
+        default: "disable"
+        required: false
+        type: string
       getting-started:
         description: "Release matrix for getting started page"
         required: false
@@ -97,6 +102,7 @@ jobs:
           BUILD_PYTHON_ONLY: ${{ inputs.build-python-only }}
           GETTING_STARTED: ${{ inputs.getting-started }}
           PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          INCLUDE_PREVIEW_PYTHON_VERSIONS: ${{ inputs.include-preview-python-versions }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"
