@@ -614,15 +614,6 @@
       "slow"
     ]
   ],
-  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179990",
-    "https://github.com/pytorch/pytorch/issues/179990",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_jacfwd_randomness (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "188041",
     "https://github.com/pytorch/pytorch/issues/188041",
@@ -1078,13 +1069,6 @@
       "slow"
     ]
   ],
-  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
-    "186909",
-    "https://github.com/pytorch/pytorch/issues/186909",
-    [
-      "rocm"
-    ]
-  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
@@ -1106,13 +1090,6 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lstsq_cpu_float32 (__main__.TestJitCPU)": [
-    "182396",
-    "https://github.com/pytorch/pytorch/issues/182396",
-    [
-      "linux"
     ]
   ],
   "test_view_ops (__main__.TestViewOpsWithLocalTensor)": [
