@@ -118,6 +118,10 @@ function NavBar() {
       href: "/metrics/autorevert",
     },
     {
+      name: "Docs Build Metrics",
+      href: "/docs-metrics",
+    },
+    {
       name: "Claude Billing",
       href: "/claude_billing",
     },
