@@ -670,13 +670,6 @@
       "rocm"
     ]
   ],
-  "test_max_autotune_cutlass_backend_cpp_wrapper_bfloat16_num_gemms_1 (__main__.TestCutlassBackend)": [
-    "186781",
-    "https://github.com/pytorch/pytorch/issues/186781",
-    [
-      "xpu"
-    ]
-  ],
   "test_max_autotune_cutlass_backend_cpp_wrapper_bfloat16_num_gemms_2 (__main__.TestCutlassBackend)": [
     "186895",
     "https://github.com/pytorch/pytorch/issues/186895",
