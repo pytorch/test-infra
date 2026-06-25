@@ -245,6 +245,13 @@
       "slow"
     ]
   ],
+  "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "188144",
+    "https://github.com/pytorch/pytorch/issues/188144",
+    [
+      "linux"
+    ]
+  ],
   "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
     "187203",
     "https://github.com/pytorch/pytorch/issues/187203",
