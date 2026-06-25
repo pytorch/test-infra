@@ -341,6 +341,13 @@
       "rocm"
     ]
   ],
+  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "188131",
+    "https://github.com/pytorch/pytorch/issues/188131",
+    [
+      "xpu"
+    ]
+  ],
   "test_fast_div_int_to_float_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187403",
     "https://github.com/pytorch/pytorch/issues/187403",
