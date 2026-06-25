@@ -64,6 +64,7 @@ ROCM_ARCHES_DICT = {
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
+    "12.9": {"cuda": "12.9.1", "cudnn": "9"},
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
 }
@@ -74,7 +75,11 @@ STABLE_CUDA_VERSIONS = {
     "release": "13.0",
 }
 
-CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64"]
+CUDA_AARCH64_ARCHES_DICT = {
+    "nightly": ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64"],
+    "test": ["12.6-aarch64", "12.9-aarch64", "13.0-aarch64", "13.2-aarch64"],
+    "release": ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64"],
+}
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -106,6 +111,7 @@ CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
 CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
+CUDA_AARCH64_ARCHES = CUDA_AARCH64_ARCHES_DICT[NIGHTLY]
 ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
@@ -182,6 +188,13 @@ def initialize_globals(
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
+    CUDA_AARCH64_ARCHES = CUDA_AARCH64_ARCHES_DICT[channel]
+    # CUDA 12.9 is built for Linux only (x86 and aarch64) in the test channel.
+    # Windows and macOS do not build 12.9. aarch64 is handled via the per-channel
+    # CUDA_AARCH64_ARCHES_DICT above; here we add the x86 arch for Linux only so
+    # that Windows (which shares CUDA_ARCHES_DICT) does not pick it up.
+    if channel == TEST and os == LINUX:
+        CUDA_ARCHES = CUDA_ARCHES + ["12.9"]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
