@@ -27,6 +27,14 @@ get_python_config() {
             PYTHON_V=3.14.0rc1
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
+        3.15t)
+            PYTHON_V=3.15
+            CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+            ;;
+        3.15)
+            PYTHON_V=3.15
+            CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
+            ;;
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
             CONDA_EXTRA_PARAM=""
