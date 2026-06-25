@@ -20,6 +20,13 @@
       "rocm"
     ]
   ],
+  "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186871",
+    "https://github.com/pytorch/pytorch/issues/186871",
+    [
+      "rocm"
+    ]
+  ],
   "test_aoti_custom_op_bad_fake_dtype_fails_fast_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "187562",
     "https://github.com/pytorch/pytorch/issues/187562",
@@ -570,6 +577,13 @@
       "rocm"
     ]
   ],
+  "test_index_cuda_with_cpu_int64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
+    "188123",
+    "https://github.com/pytorch/pytorch/issues/188123",
+    [
+      "rocm"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -673,6 +687,15 @@
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
     "179745",
     "https://github.com/pytorch/pytorch/issues/179745",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_mempool_ctx_multithread (__main__.TestMemPool)": [
+    "153460",
+    "https://github.com/pytorch/pytorch/issues/153460",
     [
       "linux",
       "rocm",
@@ -1096,6 +1119,13 @@
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
     "180194",
     "https://github.com/pytorch/pytorch/issues/180194",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180322",
+    "https://github.com/pytorch/pytorch/issues/180322",
     [
       "dynamo"
     ]
