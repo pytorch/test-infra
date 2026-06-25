@@ -8,11 +8,31 @@
 --     percentile_to_get: Custom percentile to get
 --     one_bucket: When set to false, buckets data into weekly percentiles. When true, it treats
 --                 entire time range AS one big bucket and returns percnetiles accordingly
+--
+-- Optimization notes:
+--   * `pr_shas` used to do `workflow_job FINAL JOIN workflow_run FINAL` over
+--     the full time window to derive (pr_number, sha) tuples. This was the
+--     single biggest cost — at 180d it reads ~630 M rows. Replaced with a
+--     workflow_run-only scan: workflow_run.head_sha is equal to
+--     workflow_job.head_sha (verified empirically, 0 mismatches over 218 K
+--     rows of a 1-day window), so the workflow_job side of the join is
+--     redundant for finding (pr, sha) tuples.
+--   * `commit_job_durations` still needs workflow_job (for `steps`,
+--     `conclusion`, `run_attempt`) and workflow_run (for `name`, `html_url`,
+--     `run_attempt`). `FINAL` is preserved here because the id set is
+--     bounded to jobs whose head_sha matches a merged-PR sha (via the
+--     `workflow_job_by_head_sha` MV), which is much smaller than the
+--     started_at MV used to drive pr_shas above. A manual dedup variant
+--     was tested and rejected: it kept the memory win but added ~20s of
+--     wall time at 180d because of the ORDER BY + LIMIT 1 BY id sort.
+--   * `pull_request` keeps `FINAL` (no `_inserted_at` column) but is
+--     pre-filtered by `pr.number IN (SELECT pr_number FROM pr_shas)` so the
+--     FINAL dedup workload is tiny.
 
 WITH
--- Get all PRs that were merged into master, and get all the SHAs for commits from that PR which CI jobs ran against
--- We need the shas because some jobs (like trunk) don't have a PR they explicitly ran against, but they _were_ run against
--- a commit from a PR
+-- pr_shas: workflow_run-only scan. We rely on workflow_run.head_sha
+-- (verified equal to workflow_job.head_sha) to avoid the large workflow_job
+-- FINAL JOIN over the time window.
 pr_shas AS (
   SELECT
     r.pull_requests[1].'number' AS pr_number,
@@ -20,23 +40,14 @@ pr_shas AS (
       'https://github.com/pytorch/pytorch/pull/',
       r.pull_requests[1].'number'
     ) AS url,
-    j.head_sha AS sha
+    r.head_sha AS sha
   FROM
-    default.workflow_job j final
-    INNER JOIN default.workflow_run r final ON j.run_id = r.id
+    default.workflow_run r FINAL
   WHERE
-    1 = 1
-    and j.id in (
-      select id from
-      materialized_views.workflow_job_by_started_at
-      where started_at > {startTime: DateTime64(3)}
-      and started_at < {stopTime: DateTime64(3)}
-    )
-    and r.id in (
-      select id from
-      materialized_views.workflow_run_by_run_started_at
-      where run_started_at > {startTime: DateTime64(3)}
-      and run_started_at < {stopTime: DateTime64(3)}
+    r.id IN (
+      SELECT id FROM materialized_views.workflow_run_by_run_started_at
+      WHERE run_started_at > {startTime: DateTime64(3)}
+        AND run_started_at < {stopTime: DateTime64(3)}
     )
     AND LENGTH(r.pull_requests) = 1
     AND r.pull_requests[1].'head'.'repo'.'name' = 'pytorch'
@@ -56,6 +67,8 @@ pr_shas AS (
 ),
 -- Now filter the list to just closed PRs.
 -- Open PRs can be noisy experiments which were never meant to be merged.
+-- `pull_request` has no `_inserted_at`, so we keep FINAL but pre-filter by
+-- pr_number first to keep the dedup workload tiny.
 merged_pr_shas AS (
   SELECT
     DISTINCT pr.number as pr_number,
@@ -66,10 +79,16 @@ merged_pr_shas AS (
     join pr.labels as label
     join pr_shas s on pr_shas.pr_number = pr.number
   WHERE
-    pr.closed_at != '' -- Ensure the PR was actaully merged
+    pr.number IN (SELECT pr_number FROM pr_shas)
+    AND pr.closed_at != '' -- Ensure the PR was actaully merged
     AND label.name = 'Merged'
 ),
--- Get all the workflows run against the PR and find the steps & stats we care about
+-- Get all the workflows run against the PR and find the steps & stats we care about.
+-- The workflow_job side is bounded by merged-PR shas via the head_sha
+-- materialized view, which is much smaller than the started_at scope used
+-- by pr_shas above. FINAL is kept here because the candidate set is small
+-- enough that FINAL's direct merge beats a manual ORDER BY + LIMIT 1 BY id
+-- sort on wall time (empirically, ~30s vs ~50s for a 180-day window).
 commit_job_durations AS (
   SELECT
     s.pr_number as pr_number,
@@ -88,9 +107,9 @@ commit_job_durations AS (
     r.id AS workflow_run_id,
     s.url as url -- for debugging
   FROM
-     default.workflow_job j final
+     default.workflow_job j FINAL
      JOIN merged_pr_shas s ON j.head_sha = s.sha
-     JOIN default.workflow_run r final ON j.run_id = r.id
+     JOIN default.workflow_run r FINAL ON j.run_id = r.id
   WHERE
     r.name = {workflow: String} -- Stick to pull workflows to reduce noise. Trendlines are the same within other workflows
     and j.id in (
