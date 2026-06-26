@@ -735,13 +735,6 @@
       "slow"
     ]
   ],
-  "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
-    "173473",
-    "https://github.com/pytorch/pytorch/issues/173473",
-    [
-      "xpu"
-    ]
-  ],
   "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186873",
     "https://github.com/pytorch/pytorch/issues/186873",
