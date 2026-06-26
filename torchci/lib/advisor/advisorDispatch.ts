@@ -46,25 +46,17 @@ export function signalKeyForJob(fullJobName: string): string {
 }
 
 /**
- * Deterministically pick up to `n` of `keys`, ordered by sha1(`${salt}:${key}`).
- * Salting with the PR head SHA keeps the chosen subset STABLE across cron passes
- * for a given head: each key's rank is fixed, so repeated passes converge on the
- * same jobs instead of churning through different subsets (which would defeat
- * the per-PR dispatch cap). Returns all keys when `n >= keys.length`, and `[]`
- * when `n <= 0`.
+ * Deterministically pick up to `n` of `keys`, ordered by `sha1(key)`. The key is
+ * the signal_key (job identity), with no PR/SHA salt, so the chosen subset is
+ * stable across cron passes AND across PR updates -- the same jobs are picked
+ * whenever they fail, rather than reshuffling on every push. Returns all keys
+ * when `n >= keys.length`, and `[]` when `n <= 0`.
  */
-export function stableHashSelect(
-  keys: string[],
-  salt: string,
-  n: number
-): string[] {
+export function stableHashSelect(keys: string[], n: number): string[] {
   if (n <= 0) return [];
   if (keys.length <= n) return keys;
   return [...keys]
-    .map((k) => ({
-      k,
-      h: createHash("sha1").update(`${salt}:${k}`).digest("hex"),
-    }))
+    .map((k) => ({ k, h: createHash("sha1").update(k).digest("hex") }))
     .sort((a, b) => (a.h < b.h ? -1 : a.h > b.h ? 1 : 0))
     .slice(0, n)
     .map((x) => x.k);
@@ -351,28 +343,6 @@ export async function readDispatchStates(
   return result;
 }
 
-/**
- * Count DISTINCT signal_keys that have ever been recorded (any state) for one PR
- * head. This is the basis for the per-head dispatch cap: it counts every signal
- * we have already fanned an advisor analysis out for on this head -- including
- * ones that have since stopped failing and dropped out of the current failure
- * set -- so the cap holds cumulatively across cron passes rather than re-budget
- * each time the failing set turns over. (readDispatchStates is filtered to the
- * currently-failing signals for the dedup decision and so undercounts here.)
- */
-export async function countHeadDispatches(
-  owner: string,
-  repo: string,
-  headSha: string
-): Promise<number> {
-  const rows = await queryClickhouseSaved("advisor_head_dispatch_count", {
-    owner,
-    repo,
-    headSha,
-  });
-  return rows.length > 0 ? Number(rows[0].n ?? 0) : 0;
-}
-
 export interface DispatchRecord {
   owner: string;
   repo: string;
@@ -465,7 +435,6 @@ export async function getPullRequestMeta(
 // touching ClickHouse or GitHub.
 export interface AutoDispatchDeps {
   readDispatchStates: typeof readDispatchStates;
-  countHeadDispatches: typeof countHeadDispatches;
   recordDispatch: typeof recordDispatch;
   dispatchAdvisorWorkflow: typeof dispatchAdvisorWorkflow;
   getPullRequestMeta: typeof getPullRequestMeta;
@@ -473,7 +442,6 @@ export interface AutoDispatchDeps {
 
 const defaultDeps: AutoDispatchDeps = {
   readDispatchStates,
-  countHeadDispatches,
   recordDispatch,
   dispatchAdvisorWorkflow,
   getPullRequestMeta,
@@ -514,10 +482,10 @@ export function autoDispatchEnabled(owner: string, repo: string): boolean {
  *     failures than the per-repo max -- UNLESS the PR carries an
  *     OUTAGE_GUARD_BYPASS_LABELS label (e.g. ci-no-td runs the full suite, so a
  *     large failure count is expected, not an outage),
- *   - sanity cap: never fans out more than maxDispatchPerPr analyses on one PR
- *     head. When more failures are eligible than the remaining budget, the
- *     dispatched subset is chosen by a stable hash (salted by head SHA) so the
- *     selection is consistent across cron passes and the cap holds cumulatively,
+ *   - sanity cap: caps a pass to maxDispatchPerPr analyses for the current
+ *     failure snapshot (budget = cap - already-dispatched). When more fresh
+ *     failures are eligible than the budget, the subset is the lowest-sha1 of
+ *     their signal_keys -- stable across cron passes and across PR updates,
  *   - skips PRs that are not open (closed/merged) or, by default, draft -- the
  *     PR state is only looked up once there is fresh work to dispatch.
  */
@@ -629,50 +597,36 @@ export async function autoDispatchAdvisorForNewFailures(
     return;
   }
 
-  // Sanity cap: never fan out more than maxDispatchPerPr DISTINCT signals on one
-  // PR head. The budget is maxDispatchPerPr minus the signals already recorded
-  // for this head (counted across ALL of the head's signals, not just the
-  // currently-failing ones), so the cap holds cumulatively across cron passes
-  // even if the failing set turns over. Only `fresh` (no prior record) draws
-  // down the budget; `failedRetry` re-attempts a signal already counted in that
-  // total. (Caveat: retrying a dispatch whose POST 5xx'd after creating the run
-  // can still produce extra advisor RUNS for an already-counted signal -- the
-  // cap bounds distinct signals, not dispatch attempts.) When more fresh
-  // failures are eligible than the remaining budget, the subset is the
-  // lowest-hash `budget` of them (stable per head), so the choice does not churn
-  // pass-to-pass.
-  let selected = new Set<string>();
-  if (fresh.length > 0) {
-    const maxDispatchPerPr = getMaxDispatchPerPr(owner, repo);
-    let committed: number;
-    try {
-      committed = await deps.countHeadDispatches(owner, repo, headSha);
-    } catch (e) {
-      console.error(
-        `advisor auto-dispatch: head dispatch count failed for PR ${prNumber}, skipping pass`,
-        e
-      );
-      return;
-    }
-    const budget = Math.max(0, maxDispatchPerPr - committed);
-    selected = new Set(
-      stableHashSelect(
-        fresh.map((f) => f.signalKey),
-        headSha,
-        budget
-      )
+  // Sanity cap: in one pass, don't fan out more than maxDispatchPerPr advisor
+  // analyses for this PR's current failure snapshot. The budget is
+  // maxDispatchPerPr minus the currently-failing signals already dispatched
+  // (states.size), so as failures accumulate over cron passes the running total
+  // for a fixed snapshot stays at the cap. When more fresh failures are eligible
+  // than the budget, the subset is the lowest-`sha1(signalKey)` `budget` of them
+  // -- a stable choice that does not churn across passes and stays the same
+  // across PR updates (the same jobs are picked whenever they fail). This is a
+  // per-snapshot cap, not a strict per-head-lifetime one: if the failing set
+  // turns over on a fixed head (e.g. failures re-run green and different jobs
+  // fail), the budget can re-open and the head's cumulative total can exceed the
+  // cap -- an accepted simplification, since that path is rare.
+  const maxDispatchPerPr = getMaxDispatchPerPr(owner, repo);
+  const budget = Math.max(0, maxDispatchPerPr - states.size);
+  const selected = new Set(
+    stableHashSelect(
+      fresh.map((f) => f.signalKey),
+      budget
+    )
+  );
+  if (fresh.length > selected.size) {
+    console.log(
+      `advisor auto-dispatch: PR ${prNumber} capping ${fresh.length} fresh ` +
+        `failures to ${selected.size} (maxDispatchPerPr=${maxDispatchPerPr}, ` +
+        `${states.size} already dispatched)`
     );
-    if (fresh.length > selected.size) {
-      console.log(
-        `advisor auto-dispatch: PR ${prNumber} capping ${fresh.length} fresh ` +
-          `failures to ${selected.size} (maxDispatchPerPr=${maxDispatchPerPr}, ` +
-          `${committed} already recorded for this head)`
-      );
-    }
   }
 
-  // failedRetry first (already counted in the head total), then the capped fresh
-  // subset.
+  // failedRetry first (already counted against the budget), then the capped
+  // fresh subset.
   const toDispatch: {
     signalKey: string;
     job: RecentWorkflowsData;

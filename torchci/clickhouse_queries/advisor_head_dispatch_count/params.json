@@ -1,8 +1,0 @@
-{
-  "params": {
-    "owner": "String",
-    "repo": "String",
-    "headSha": "String"
-  },
-  "tests": []
-}

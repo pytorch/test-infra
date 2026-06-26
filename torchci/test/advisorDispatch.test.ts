@@ -28,7 +28,6 @@ function job(
 function makeDeps(overrides: Partial<AutoDispatchDeps> = {}): AutoDispatchDeps {
   return {
     readDispatchStates: jest.fn().mockResolvedValue(new Map()),
-    countHeadDispatches: jest.fn().mockResolvedValue(0),
     recordDispatch: jest.fn().mockResolvedValue(undefined),
     dispatchAdvisorWorkflow: jest.fn().mockResolvedValue(undefined),
     getPullRequestMeta: jest
@@ -262,16 +261,21 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     );
   });
 
-  it("caps cumulatively per head: prior dispatches reduce the budget even if they no longer fail", async () => {
-    // 30 signals already recorded for this head (now passing, so NOT in the
-    // current failure set), 10 brand-new fresh failures, ci-no-td, cap 32 ->
-    // only 2 new dispatched. The head count (not the current-failure dedup map)
-    // is what bounds the cumulative cap.
-    const failures = Array.from({ length: 10 }, (_, i) =>
-      job(`wf / fresh-${i}`)
+  it("budget is reduced by already-dispatched current failures (cap minus states.size)", async () => {
+    // 30 current failures already dispatched + 10 fresh, ci-no-td, cap 32 ->
+    // only 2 of the fresh get dispatched this pass.
+    const states = new Map(
+      Array.from({ length: 30 }, (_, i) => [
+        signalKeyForJob(`wf / done-${i}`),
+        { state: "dispatched" as const, retryCount: 0 },
+      ])
     );
+    const failures = [
+      ...Array.from({ length: 30 }, (_, i) => job(`wf / done-${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => job(`wf / fresh-${i}`)),
+    ];
     const deps = makeDeps({
-      countHeadDispatches: jest.fn().mockResolvedValue(30),
+      readDispatchStates: jest.fn().mockResolvedValue(states),
       getPullRequestMeta: jest.fn().mockResolvedValue({
         state: "open",
         draft: false,
@@ -287,14 +291,22 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     );
   });
 
-  it("dispatches nothing new once the per-head cap is already reached", async () => {
-    const failures = Array.from({ length: 5 }, (_, i) =>
-      job(`wf / fresh-${i}`)
+  it("dispatches nothing new once the snapshot budget is exhausted", async () => {
+    // 32 current failures already dispatched + 5 fresh, ci-no-td -> budget 0.
+    const states = new Map(
+      Array.from({ length: DEFAULT_MAX_DISPATCH_PER_PR }, (_, i) => [
+        signalKeyForJob(`wf / done-${i}`),
+        { state: "dispatched" as const, retryCount: 0 },
+      ])
     );
+    const failures = [
+      ...Array.from({ length: DEFAULT_MAX_DISPATCH_PER_PR }, (_, i) =>
+        job(`wf / done-${i}`)
+      ),
+      ...Array.from({ length: 5 }, (_, i) => job(`wf / fresh-${i}`)),
+    ];
     const deps = makeDeps({
-      countHeadDispatches: jest
-        .fn()
-        .mockResolvedValue(DEFAULT_MAX_DISPATCH_PER_PR),
+      readDispatchStates: jest.fn().mockResolvedValue(states),
       getPullRequestMeta: jest.fn().mockResolvedValue({
         state: "open",
         draft: false,
@@ -306,19 +318,6 @@ describe("autoDispatchAdvisorForNewFailures", () => {
       deps
     );
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
-  });
-
-  it("fails closed when the head dispatch count throws", async () => {
-    const deps = makeDeps({
-      countHeadDispatches: jest.fn().mockRejectedValue(new Error("CH down")),
-    });
-    await autoDispatchAdvisorForNewFailures(
-      { ...baseArgs, newFailures: [job("wf / a")] },
-      deps
-    );
-    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
-    // The pre-dispatch marker is never written either.
-    expect(deps.recordDispatch).not.toHaveBeenCalled();
   });
 
   it("dispatches all when new failures are exactly at the max", async () => {
@@ -386,33 +385,25 @@ describe("stableHashSelect", () => {
   const keys = Array.from({ length: 20 }, (_, i) => `key-${i}`);
 
   it("returns all keys when n >= length, and [] when n <= 0", () => {
-    expect(stableHashSelect(keys, "sha", keys.length)).toEqual(keys);
-    expect(stableHashSelect(keys, "sha", keys.length + 5)).toEqual(keys);
-    expect(stableHashSelect(keys, "sha", 0)).toEqual([]);
-    expect(stableHashSelect(keys, "sha", -1)).toEqual([]);
+    expect(stableHashSelect(keys, keys.length)).toEqual(keys);
+    expect(stableHashSelect(keys, keys.length + 5)).toEqual(keys);
+    expect(stableHashSelect(keys, 0)).toEqual([]);
+    expect(stableHashSelect(keys, -1)).toEqual([]);
   });
 
-  it("is deterministic for a given salt", () => {
-    expect(stableHashSelect(keys, "sha", 5)).toEqual(
-      stableHashSelect(keys, "sha", 5)
-    );
+  it("is deterministic (depends only on the keys, no PR/SHA salt)", () => {
+    expect(stableHashSelect(keys, 5)).toEqual(stableHashSelect(keys, 5));
   });
 
   it("a smaller pick is a subset of a larger pick from the same set", () => {
     // The lowest-hash 5 are always within the lowest-hash 8 of the same set, so
     // raising the budget only adds jobs -- it never reshuffles existing picks.
-    const five = stableHashSelect(keys, "sha", 5);
-    const eight = stableHashSelect(keys, "sha", 8);
+    const five = stableHashSelect(keys, 5);
+    const eight = stableHashSelect(keys, 8);
     expect(five.every((k) => eight.includes(k))).toBe(true);
   });
 
-  it("varies the selection by salt (head sha)", () => {
-    const a = stableHashSelect(keys, "shaA", 5);
-    const b = stableHashSelect(keys, "shaB", 5);
-    expect(a).not.toEqual(b);
-  });
-
   it("never returns more than n", () => {
-    expect(stableHashSelect(keys, "sha", 7)).toHaveLength(7);
+    expect(stableHashSelect(keys, 7)).toHaveLength(7);
   });
 });
