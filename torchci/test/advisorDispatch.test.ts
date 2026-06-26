@@ -320,6 +320,46 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
   });
 
+  it("budget counts ALL current-failure records (dispatching + exhausted failed), not just dispatched", async () => {
+    // 1 dispatching + 1 exhausted-failed already recorded for current failures
+    // -> both consume budget (states.size = 2). Neither re-dispatches (one is in
+    // flight, the other is out of retries), and 31 fresh failures are eligible,
+    // so only 32 - 2 = 30 of the fresh get dispatched this pass.
+    const states = new Map<
+      string,
+      { state: "dispatching" | "failed"; retryCount: number }
+    >([
+      [
+        signalKeyForJob("wf / inflight"),
+        { state: "dispatching", retryCount: 0 },
+      ],
+      [
+        signalKeyForJob("wf / dead"),
+        { state: "failed", retryCount: MAX_DISPATCH_RETRIES },
+      ],
+    ]);
+    const failures = [
+      job("wf / inflight"),
+      job("wf / dead"),
+      ...Array.from({ length: 31 }, (_, i) => job(`wf / fresh-${i}`)),
+    ];
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+      getPullRequestMeta: jest.fn().mockResolvedValue({
+        state: "open",
+        draft: false,
+        labels: ["ci-no-td"],
+      }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
+      DEFAULT_MAX_DISPATCH_PER_PR - 2
+    );
+  });
+
   it("dispatches all when new failures are exactly at the max", async () => {
     const failures = Array.from({ length: DEFAULT_MAX_NEW_FAILURES }, (_, i) =>
       job(`wf / job-${i}`)
@@ -393,6 +433,21 @@ describe("stableHashSelect", () => {
 
   it("is deterministic (depends only on the keys, no PR/SHA salt)", () => {
     expect(stableHashSelect(keys, 5)).toEqual(stableHashSelect(keys, 5));
+  });
+
+  it("selects by hash, not input order: shuffling the keys yields the same set", () => {
+    // A naive `keys.slice(0, n)` would pass the determinism/subset/length tests
+    // above but FAIL here -- reversing the input changes its first n. The real
+    // hash selection is order-independent.
+    const reversed = [...keys].reverse();
+    expect(new Set(stableHashSelect(reversed, 5))).toEqual(
+      new Set(stableHashSelect(keys, 5))
+    );
+    // And the chosen set is in fact not the leading slice (sanity check that the
+    // hash actually reorders this key set).
+    expect(new Set(stableHashSelect(keys, 5))).not.toEqual(
+      new Set(keys.slice(0, 5))
+    );
   });
 
   it("a smaller pick is a subset of a larger pick from the same set", () => {
