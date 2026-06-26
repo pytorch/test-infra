@@ -541,6 +541,15 @@
       "slow"
     ]
   ],
+  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179853",
+    "https://github.com/pytorch/pytorch/issues/179853",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_index_cuda_with_cpu_complex128_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187632",
     "https://github.com/pytorch/pytorch/issues/187632",
@@ -616,15 +625,6 @@
     "https://github.com/pytorch/pytorch/issues/188123",
     [
       "rocm"
-    ]
-  ],
-  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179897",
-    "https://github.com/pytorch/pytorch/issues/179897",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1168,13 +1168,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180213",
-    "https://github.com/pytorch/pytorch/issues/180213",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
