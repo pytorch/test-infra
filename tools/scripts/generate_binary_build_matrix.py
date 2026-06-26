@@ -22,7 +22,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    # TEMPORARY (revert before merge): restrict nightly to 3.15/3.15t so this
+    # PR's nightly validation exercises the Python 3.15 conda-forge setup.
+    "nightly": ["3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
