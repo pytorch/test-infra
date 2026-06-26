@@ -16,10 +16,10 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { conclusionColor, conclusionLabel } from "lib/oot/ootUtils";
+import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
 import useSWR from "swr";
 
-interface OotPrResult {
+interface CrcrPrResult {
   downstream_repo: string;
   workflow_name: string;
   job_name: string;
@@ -36,11 +36,11 @@ interface OotPrResult {
   execution_time: number | null;
 }
 
-export default function OotPrSection({ prNumber }: { prNumber: number }) {
-  const url = `/api/clickhouse/oot_pr_results?parameters=${encodeURIComponent(
+export default function CrcrPrSection({ prNumber }: { prNumber: number }) {
+  const url = `/api/clickhouse/crcr_pr_results?parameters=${encodeURIComponent(
     JSON.stringify({ pr: String(prNumber) })
   )}`;
-  const { data, error } = useSWR<OotPrResult[]>(url, fetcher, {
+  const { data, error } = useSWR<CrcrPrResult[]>(url, fetcher, {
     refreshInterval: 60_000,
   });
 
@@ -64,7 +64,7 @@ export default function OotPrSection({ prNumber }: { prNumber: number }) {
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="subtitle1">
-            <strong>Out-of-Tree Backends</strong>
+            <strong>Cross-Repo CI Backends</strong>
           </Typography>
           <Typography variant="body2" color="text.secondary">
             ({summaryText})

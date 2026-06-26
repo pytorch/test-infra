@@ -14,7 +14,7 @@ SELECT
     queue_time,
     execution_time
 FROM
-    default.oot_workflow_job FINAL
+    default.crcr_workflow_job FINAL
 WHERE
     pr_number = {pr: UInt64}
 ORDER BY

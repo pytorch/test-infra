@@ -5,7 +5,7 @@ import {
   extractDynamoRecord,
   RelayPayload,
   validatePayloadSize,
-} from "../lib/oot/ootUtils";
+} from "../lib/crcr/crcrUtils";
 
 function makePayload(
   overrides: {
