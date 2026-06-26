@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 import jwt
-
 from utils.misc import HTTPException
 
 

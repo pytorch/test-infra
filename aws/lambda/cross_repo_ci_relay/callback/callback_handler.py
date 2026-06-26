@@ -73,7 +73,9 @@ def _parse_callback_body(body: dict) -> tuple[str, str, int, int, str]:
         workflow_dict = body["workflow"]
         status = workflow_dict["status"]
         run_id = int(workflow_dict["run_id"])  # Required for HUD grouping
-        run_attempt = int(workflow_dict.get("run_attempt", 1))  # Default to 1 if not present
+        run_attempt = int(
+            workflow_dict.get("run_attempt", 1)
+        )  # Default to 1 if not present
         workflow_name = workflow_dict["name"]  # Required for HUD grouping
     except (KeyError, TypeError) as exc:
         logger.warning(f"missing required field in callback body: {exc}")
