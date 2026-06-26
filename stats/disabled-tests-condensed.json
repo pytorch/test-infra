@@ -163,6 +163,20 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_linalg_polar_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "188239",
+    "https://github.com/pytorch/pytorch/issues/188239",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_linalg_polar_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "188238",
+    "https://github.com/pytorch/pytorch/issues/188238",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -170,6 +184,22 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185267",
+    "https://github.com/pytorch/pytorch/issues/185267",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_correctness_with_reusing_ir_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
+    "185268",
+    "https://github.com/pytorch/pytorch/issues/185268",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
@@ -248,6 +278,13 @@
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
+    [
+      "linux"
+    ]
+  ],
+  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
+    "188234",
+    "https://github.com/pytorch/pytorch/issues/188234",
     [
       "linux"
     ]
@@ -510,15 +547,6 @@
       "macos"
     ]
   ],
-  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179811",
-    "https://github.com/pytorch/pytorch/issues/179811",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179853",
     "https://github.com/pytorch/pytorch/issues/179853",
@@ -614,6 +642,15 @@
       "slow"
     ]
   ],
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jacfwd_randomness (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "188041",
     "https://github.com/pytorch/pytorch/issues/188041",
@@ -643,6 +680,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
+    "179874",
+    "https://github.com/pytorch/pytorch/issues/179874",
+    [
+      "dynamo"
     ]
   ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
@@ -1051,6 +1095,13 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_trace_return_dataclass_nested (__main__.TestFX)": [
+    "181322",
+    "https://github.com/pytorch/pytorch/issues/181322",
+    [
+      "dynamo"
     ]
   ],
   "test_triggers (__main__.CallbackTests)": [
