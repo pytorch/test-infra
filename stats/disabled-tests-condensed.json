@@ -426,13 +426,6 @@
       "rocm"
     ]
   ],
-  "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187176",
-    "https://github.com/pytorch/pytorch/issues/187176",
-    [
-      "rocm"
-    ]
-  ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
@@ -627,6 +620,15 @@
       "rocm"
     ]
   ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179990",
     "https://github.com/pytorch/pytorch/issues/179990",
@@ -641,15 +643,6 @@
     "https://github.com/pytorch/pytorch/issues/188041",
     [
       "rocm"
-    ]
-  ],
-  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180324",
-    "https://github.com/pytorch/pytorch/issues/180324",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
