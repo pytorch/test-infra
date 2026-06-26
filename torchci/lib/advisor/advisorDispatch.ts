@@ -5,11 +5,14 @@
 // rest -- the misc.ai_advisor_dispatches dedup/retry state and the
 // autoDispatchAdvisorForNewFailures loop -- backs the automatic Dr.CI path.
 
+import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import {
   getAdvisorRepoConfig,
+  getMaxDispatchPerPr,
   getMaxNewFailures,
+  OUTAGE_GUARD_BYPASS_LABELS,
 } from "lib/advisor/advisorConfig";
 import {
   getClickhouseClientWritable,
@@ -40,6 +43,31 @@ export function isValidSha(sha: string): boolean {
  */
 export function signalKeyForJob(fullJobName: string): string {
   return `dr_ci_${fullJobName}`;
+}
+
+/**
+ * Deterministically pick up to `n` of `keys`, ordered by sha1(`${salt}:${key}`).
+ * Salting with the PR head SHA keeps the chosen subset STABLE across cron passes
+ * for a given head: each key's rank is fixed, so repeated passes converge on the
+ * same jobs instead of churning through different subsets (which would defeat
+ * the per-PR dispatch cap). Returns all keys when `n >= keys.length`, and `[]`
+ * when `n <= 0`.
+ */
+export function stableHashSelect(
+  keys: string[],
+  salt: string,
+  n: number
+): string[] {
+  if (n <= 0) return [];
+  if (keys.length <= n) return keys;
+  return [...keys]
+    .map((k) => ({
+      k,
+      h: createHash("sha1").update(`${salt}:${k}`).digest("hex"),
+    }))
+    .sort((a, b) => (a.h < b.h ? -1 : a.h > b.h ? 1 : 0))
+    .slice(0, n)
+    .map((x) => x.k);
 }
 
 /**
@@ -388,12 +416,12 @@ export async function getPullRequestMeta(
   owner: string,
   repo: string,
   prNumber: number
-): Promise<{ state: string; draft: boolean }> {
+): Promise<{ state: string; draft: boolean; labels: string[] }> {
   const rows = await queryClickhouseSaved("advisor_pr_state", {
     prNumber,
     htmlUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
   });
-  if (rows.length === 0) return { state: "open", draft: false };
+  if (rows.length === 0) return { state: "open", draft: false, labels: [] };
   // Decode draft robustly: depending on the CH client/format a Bool can come
   // back as a JS boolean, a number, or a string ("0"/"1"/"true"/"false"). A
   // naive Boolean() would treat the string "0"/"false" as truthy and wrongly
@@ -404,7 +432,11 @@ export async function getPullRequestMeta(
     draftRaw === 1 ||
     draftRaw === "1" ||
     draftRaw === "true";
-  return { state: rows[0].state as string, draft };
+  // labels.name comes back as a string array; guard against a non-array shape.
+  const labels = Array.isArray(rows[0].labels)
+    ? (rows[0].labels as string[])
+    : [];
+  return { state: rows[0].state as string, draft, labels };
 }
 
 // Injectable dependencies so the orchestration logic is unit-testable without
@@ -454,8 +486,14 @@ export function autoDispatchEnabled(owner: string, repo: string): boolean {
  *     rather than dispatch without a dedup record),
  *   - 'dispatched' is written on success; a 'failed' row supersedes the pre row
  *     when the dispatch throws, re-enabling retry up to MAX_DISPATCH_RETRIES,
- *   - bails entirely (dispatches nothing) if a PR has more NEW failures than the
- *     per-repo max (outage guard),
+ *   - outage guard: bails entirely (dispatches nothing) if a PR has more NEW
+ *     failures than the per-repo max -- UNLESS the PR carries an
+ *     OUTAGE_GUARD_BYPASS_LABELS label (e.g. ci-no-td runs the full suite, so a
+ *     large failure count is expected, not an outage),
+ *   - sanity cap: never fans out more than maxDispatchPerPr analyses on one PR
+ *     head. When more failures are eligible than the remaining budget, the
+ *     dispatched subset is chosen by a stable hash (salted by head SHA) so the
+ *     selection is consistent across cron passes and the cap holds cumulatively,
  *   - skips PRs that are not open (closed/merged) or, by default, draft -- the
  *     PR state is only looked up once there is fresh work to dispatch.
  */
@@ -486,20 +524,9 @@ export async function autoDispatchAdvisorForNewFailures(
   const signalKeys = Array.from(byKey.keys());
   if (signalKeys.length === 0) return;
 
-  // Outage guard: if a PR has more NEW failures than the per-repo max, bail
-  // entirely (dispatch nothing). A flood of new failures is almost always an
-  // outage, not a PR problem, and we don't want to fan dozens of advisor runs
-  // out across one PR.
-  const maxNewFailures = getMaxNewFailures(owner, repo);
-  if (byKey.size > maxNewFailures) {
-    console.log(
-      `advisor auto-dispatch: PR ${prNumber} has ${byKey.size} new failures ` +
-        `(> ${maxNewFailures}); skipping auto-dispatch (likely an outage)`
-    );
-    return;
-  }
-
-  // Fail closed: if we cannot read dedup state, dispatch nothing.
+  // Fail closed: if we cannot read dedup state, dispatch nothing. Read before
+  // the outage guard so the per-PR cap can account for already-recorded signals
+  // and so a pass with no fresh work returns before paying for a PR lookup.
   let states: Map<string, DispatchStateRow>;
   try {
     states = await deps.readDispatchStates(owner, repo, headSha, signalKeys);
@@ -511,45 +538,39 @@ export async function autoDispatchAdvisorForNewFailures(
     return;
   }
 
-  // Which failures still need a dispatch (skip already dispatching/dispatched,
-  // or failed-and-out-of-retries). The byKey set is already bounded by the
-  // outage guard above.
-  const toDispatch: {
+  // Split the work. `fresh` (no prior record) is subject to the per-PR cap
+  // below; `failedRetry` (a prior dispatch whose POST threw, still under the
+  // retry limit) re-uses an already-counted slot, so it is always allowed. Skip
+  // already dispatching/dispatched and exhausted-failed signals.
+  const fresh: { signalKey: string; job: RecentWorkflowsData }[] = [];
+  const failedRetry: {
     signalKey: string;
     job: RecentWorkflowsData;
     retryCount: number;
   }[] = [];
   for (const [signalKey, job] of byKey) {
     const prev = states.get(signalKey);
-    if (prev) {
-      // Already dispatching or completed -> permanent skip.
-      if (prev.state === "dispatching" || prev.state === "dispatched") continue;
-      // Failed and out of retries -> permanent skip.
-      if (prev.state === "failed" && prev.retryCount >= MAX_DISPATCH_RETRIES) {
-        continue;
-      }
+    if (!prev) {
+      fresh.push({ signalKey, job });
+      continue;
     }
-    const retryCount = prev?.state === "failed" ? prev.retryCount + 1 : 0;
-    toDispatch.push({ signalKey, job, retryCount });
+    if (prev.state === "dispatching" || prev.state === "dispatched") continue;
+    if (prev.state === "failed") {
+      if (prev.retryCount >= MAX_DISPATCH_RETRIES) continue;
+      failedRetry.push({ signalKey, job, retryCount: prev.retryCount + 1 });
+    }
   }
-  if (toDispatch.length === 0) return;
+  // Nothing fresh and nothing to retry -> return before paying for a PR lookup.
+  if (fresh.length === 0 && failedRetry.length === 0) return;
 
   // Don't auto-dispatch on PRs that aren't open: a closed/merged PR won't be
   // worked on, and (by default) draft PRs are work-in-progress. Looked up only
   // now -- after dedup -- so the PR lookup is paid only when there is fresh
-  // work. Fail closed: a lookup error skips this pass (the next pass retries).
+  // work. The labels also drive the outage-guard bypass below. Fail closed: a
+  // lookup error skips this pass (the next pass retries).
+  let pr: { state: string; draft: boolean; labels: string[] };
   try {
-    const pr = await deps.getPullRequestMeta(owner, repo, prNumber);
-    if (pr.state !== "open") {
-      console.log(
-        `advisor auto-dispatch: PR ${prNumber} is ${pr.state}; skipping`
-      );
-      return;
-    }
-    if (pr.draft && SKIP_DRAFT_PRS) {
-      console.log(`advisor auto-dispatch: PR ${prNumber} is a draft; skipping`);
-      return;
-    }
+    pr = await deps.getPullRequestMeta(owner, repo, prNumber);
   } catch (e) {
     console.error(
       `advisor auto-dispatch: PR-state lookup failed for PR ${prNumber}, skipping pass`,
@@ -557,6 +578,67 @@ export async function autoDispatchAdvisorForNewFailures(
     );
     return;
   }
+  if (pr.state !== "open") {
+    console.log(
+      `advisor auto-dispatch: PR ${prNumber} is ${pr.state}; skipping`
+    );
+    return;
+  }
+  if (pr.draft && SKIP_DRAFT_PRS) {
+    console.log(`advisor auto-dispatch: PR ${prNumber} is a draft; skipping`);
+    return;
+  }
+
+  // Outage guard: a flood of NEW failures is almost always an outage, not a PR
+  // problem, so bail entirely -- UNLESS the PR carries a bypass label (e.g.
+  // ci-no-td runs the full suite, where a large failure count is expected). In
+  // the bypass case the sanity cap below bounds the fan-out instead.
+  const bypassOutageGuard = pr.labels.some((l) =>
+    OUTAGE_GUARD_BYPASS_LABELS.includes(l)
+  );
+  const maxNewFailures = getMaxNewFailures(owner, repo);
+  if (!bypassOutageGuard && byKey.size > maxNewFailures) {
+    console.log(
+      `advisor auto-dispatch: PR ${prNumber} has ${byKey.size} new failures ` +
+        `(> ${maxNewFailures}); skipping auto-dispatch (likely an outage)`
+    );
+    return;
+  }
+
+  // Sanity cap: never fan out more than maxDispatchPerPr analyses on one PR
+  // head. Already-recorded signals (any prior dispatch) consume the budget, so
+  // the cap holds cumulatively across cron passes. When more fresh failures are
+  // eligible than the remaining budget, pick the subset by a stable hash so the
+  // choice is consistent pass-to-pass.
+  const maxDispatchPerPr = getMaxDispatchPerPr(owner, repo);
+  const budget = Math.max(0, maxDispatchPerPr - states.size);
+  const selected = new Set(
+    stableHashSelect(
+      fresh.map((f) => f.signalKey),
+      headSha,
+      budget
+    )
+  );
+  if (fresh.length > selected.size) {
+    console.log(
+      `advisor auto-dispatch: PR ${prNumber} capping ${fresh.length} fresh ` +
+        `failures to ${selected.size} (maxDispatchPerPr=${maxDispatchPerPr}, ` +
+        `${states.size} already recorded)`
+    );
+  }
+
+  // failedRetry first (already within the cap), then the capped fresh subset.
+  const toDispatch: {
+    signalKey: string;
+    job: RecentWorkflowsData;
+    retryCount: number;
+  }[] = [
+    ...failedRetry,
+    ...fresh
+      .filter((f) => selected.has(f.signalKey))
+      .map((f) => ({ ...f, retryCount: 0 })),
+  ];
+  if (toDispatch.length === 0) return;
 
   for (const { signalKey, job, retryCount } of toDispatch) {
     const base = {

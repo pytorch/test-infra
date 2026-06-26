@@ -1,9 +1,13 @@
-import { DEFAULT_MAX_NEW_FAILURES } from "lib/advisor/advisorConfig";
+import {
+  DEFAULT_MAX_DISPATCH_PER_PR,
+  DEFAULT_MAX_NEW_FAILURES,
+} from "lib/advisor/advisorConfig";
 import {
   autoDispatchAdvisorForNewFailures,
   AutoDispatchDeps,
   MAX_DISPATCH_RETRIES,
   signalKeyForJob,
+  stableHashSelect,
 } from "lib/advisor/advisorDispatch";
 import { RecentWorkflowsData } from "lib/types";
 
@@ -28,7 +32,7 @@ function makeDeps(overrides: Partial<AutoDispatchDeps> = {}): AutoDispatchDeps {
     dispatchAdvisorWorkflow: jest.fn().mockResolvedValue(undefined),
     getPullRequestMeta: jest
       .fn()
-      .mockResolvedValue({ state: "open", draft: false }),
+      .mockResolvedValue({ state: "open", draft: false, labels: [] }),
     ...overrides,
   };
 }
@@ -217,7 +221,7 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     expect(states).toEqual(["dispatching", "failed"]);
   });
 
-  it("bails entirely when new failures exceed the per-repo max", async () => {
+  it("bails entirely when new failures exceed the per-repo max (no bypass label)", async () => {
     const failures = Array.from(
       { length: DEFAULT_MAX_NEW_FAILURES + 1 },
       (_, i) => job(`wf / job-${i}`)
@@ -227,9 +231,62 @@ describe("autoDispatchAdvisorForNewFailures", () => {
       { ...baseArgs, newFailures: failures },
       deps
     );
-    // Bails before even reading dedup state.
-    expect(deps.readDispatchStates).not.toHaveBeenCalled();
+    // Dedup + PR state are read (labels are needed to decide the bypass), but
+    // the outage guard then bails without dispatching anything.
+    expect(deps.readDispatchStates).toHaveBeenCalled();
+    expect(deps.getPullRequestMeta).toHaveBeenCalled();
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+    expect(deps.recordDispatch).not.toHaveBeenCalled();
+  });
+
+  it("does not bail on a ci-no-td PR over the max; caps to maxDispatchPerPr by stable hash", async () => {
+    const failures = Array.from(
+      { length: DEFAULT_MAX_DISPATCH_PER_PR + 10 },
+      (_, i) => job(`wf / job-${i}`)
+    );
+    const deps = makeDeps({
+      getPullRequestMeta: jest.fn().mockResolvedValue({
+        state: "open",
+        draft: false,
+        labels: ["ci-no-td"],
+      }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    // Capped at the sanity ceiling rather than bailed or fanned out in full.
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
+      DEFAULT_MAX_DISPATCH_PER_PR
+    );
+  });
+
+  it("caps cumulatively: already-recorded signals reduce the per-PR budget", async () => {
+    // 30 signals already dispatched + 10 fresh, ci-no-td, cap 32 -> only 2 new.
+    const recorded = Array.from({ length: 30 }, (_, i) => [
+      signalKeyForJob(`wf / done-${i}`),
+      { state: "dispatched" as const, retryCount: 0 },
+    ]) as [string, { state: "dispatched"; retryCount: number }][];
+    const states = new Map(recorded);
+    const failures = [
+      ...Array.from({ length: 30 }, (_, i) => job(`wf / done-${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => job(`wf / fresh-${i}`)),
+    ];
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+      getPullRequestMeta: jest.fn().mockResolvedValue({
+        state: "open",
+        draft: false,
+        labels: ["ci-no-td"],
+      }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
+      DEFAULT_MAX_DISPATCH_PER_PR - 30
+    );
   });
 
   it("dispatches all when new failures are exactly at the max", async () => {
@@ -250,7 +307,7 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     const deps = makeDeps({
       getPullRequestMeta: jest
         .fn()
-        .mockResolvedValue({ state: "closed", draft: false }),
+        .mockResolvedValue({ state: "closed", draft: false, labels: [] }),
     });
     await autoDispatchAdvisorForNewFailures(
       { ...baseArgs, newFailures: [job("wf / a")] },
@@ -265,7 +322,7 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     const deps = makeDeps({
       getPullRequestMeta: jest
         .fn()
-        .mockResolvedValue({ state: "open", draft: true }),
+        .mockResolvedValue({ state: "open", draft: true, labels: [] }),
     });
     await autoDispatchAdvisorForNewFailures(
       { ...baseArgs, newFailures: [job("wf / a")] },
@@ -290,5 +347,40 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     );
     expect(deps.getPullRequestMeta).not.toHaveBeenCalled();
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+});
+
+describe("stableHashSelect", () => {
+  const keys = Array.from({ length: 20 }, (_, i) => `key-${i}`);
+
+  it("returns all keys when n >= length, and [] when n <= 0", () => {
+    expect(stableHashSelect(keys, "sha", keys.length)).toEqual(keys);
+    expect(stableHashSelect(keys, "sha", keys.length + 5)).toEqual(keys);
+    expect(stableHashSelect(keys, "sha", 0)).toEqual([]);
+    expect(stableHashSelect(keys, "sha", -1)).toEqual([]);
+  });
+
+  it("is deterministic for a given salt", () => {
+    expect(stableHashSelect(keys, "sha", 5)).toEqual(
+      stableHashSelect(keys, "sha", 5)
+    );
+  });
+
+  it("a smaller pick is a subset of a larger pick from the same set", () => {
+    // The lowest-hash 5 are always within the lowest-hash 8 of the same set, so
+    // raising the budget only adds jobs -- it never reshuffles existing picks.
+    const five = stableHashSelect(keys, "sha", 5);
+    const eight = stableHashSelect(keys, "sha", 8);
+    expect(five.every((k) => eight.includes(k))).toBe(true);
+  });
+
+  it("varies the selection by salt (head sha)", () => {
+    const a = stableHashSelect(keys, "shaA", 5);
+    const b = stableHashSelect(keys, "shaB", 5);
+    expect(a).not.toEqual(b);
+  });
+
+  it("never returns more than n", () => {
+    expect(stableHashSelect(keys, "sha", 7)).toHaveLength(7);
   });
 });
