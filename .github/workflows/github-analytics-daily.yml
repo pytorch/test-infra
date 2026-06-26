@@ -36,17 +36,17 @@ jobs:
 
     steps:
     - name: Checkout test-infra
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Checkout PyTorch repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: pytorch/pytorch
         path: pytorch
         fetch-depth: 0  # Need full history for analysis
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: '3.10'
 
