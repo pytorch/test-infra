@@ -22,7 +22,7 @@ def _cfg():
     cfg.redis_endpoint = "host:6379"
     cfg.redis_login = ""
     cfg.allowlist_ttl_seconds = 600
-    cfg.oot_status_ttl = 3600
+    cfg.crcr_status_ttl = 3600
     cfg.rate_limit_per_min = 20
     return cfg
 

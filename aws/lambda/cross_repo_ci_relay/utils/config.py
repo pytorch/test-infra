@@ -61,7 +61,7 @@ class RelayConfig:
     max_dispatch_workers: int
     hud_api_url: str
     hud_bot_key: str
-    oot_status_ttl: int
+    crcr_status_ttl: int
     hud_max_retries: int
     rate_limit_per_min: int
 
@@ -123,12 +123,12 @@ class RelayConfig:
         allowlist_ttl_seconds = max(allowlist_ttl_seconds, 900)
 
         # GitHub can keep a workflow in `pending` state for up to 3 days before
-        # auto-cancelling it, so OOT-status records must live at least that long.
+        # auto-cancelling it, so CRCR-status records must live at least that long.
         # Default to 3 days (259200 s).
         try:
-            oot_status_ttl = int(os.getenv("OOT_STATUS_TTL", "259200"))
+            crcr_status_ttl = int(os.getenv("CRCR_STATUS_TTL", "259200"))
         except ValueError:
-            raise RuntimeError("OOT_STATUS_TTL must be a valid integer")
+            raise RuntimeError("CRCR_STATUS_TTL must be a valid integer")
 
         # Maximum number of retry attempts for HUD API calls.
         # Default to 3 retries with exponential backoff.
@@ -151,9 +151,9 @@ class RelayConfig:
             raise RuntimeError(
                 "HUD_API_URL must use https:// to protect the bot key in transit"
             )
-        # Add hud_api_url ends with /oot/results for flexibility of adding features later
+        # Add hud_api_url ends with /crcr/results for flexibility of adding features later
         if hud_api_url:
-            hud_api_url = hud_api_url.rstrip("/") + "/oot/results"
+            hud_api_url = hud_api_url.rstrip("/") + "/crcr/results"
 
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
@@ -167,7 +167,7 @@ class RelayConfig:
             max_dispatch_workers=int(os.getenv("MAX_DISPATCH_WORKERS", "32")),
             hud_api_url=hud_api_url,
             hud_bot_key=hud_bot_key,
-            oot_status_ttl=oot_status_ttl,
+            crcr_status_ttl=crcr_status_ttl,
             hud_max_retries=hud_max_retries,
             rate_limit_per_min=rate_limit_per_min,
         )

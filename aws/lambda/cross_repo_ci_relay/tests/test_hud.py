@@ -8,7 +8,7 @@ from utils.misc import HTTPException
 
 
 def _cfg(
-    url="http://hud/api/oot-ci-events",
+    url="http://hud/api/crcr-ci-events",
     key="bot-key",
     max_retries=3,
     rate_limit_per_min=60,

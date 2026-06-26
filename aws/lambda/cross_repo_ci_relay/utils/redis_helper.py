@@ -14,9 +14,9 @@ from .misc import CallbackState, CallbackStateRecord, DISPATCH_RUN_ID, HTTPExcep
 
 logger = logging.getLogger(__name__)
 
-_ALLOWLIST_CACHE_KEY = "oot:allowlist_yaml"
-_STATE_PREFIX = "oot:state:"
-_RATE_LIMIT_PREFIX = "oot:rate:"
+_ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
+_STATE_PREFIX = "crcr:state:"
+_RATE_LIMIT_PREFIX = "crcr:rate:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -310,7 +310,7 @@ def set_callback_state(
             "state": state.value,
             "timestamp": timestamp,
         }
-        client.setex(key, config.oot_status_ttl, json.dumps(data))
+        client.setex(key, config.crcr_status_ttl, json.dumps(data))
         logger.info(
             "callback state set key=%s state=%s timestamp=%s",
             key,

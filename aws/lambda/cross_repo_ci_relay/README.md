@@ -47,7 +47,7 @@ The callback endpoint validates incoming callbacks and forwards them to HUD for 
 - **State machine**: Relay maintains a **unified state machine** in Redis to validate callback lifecycles, compute timing metrics, and support per-workflow tracking:
   - **Unified structure**: Single enum `CallbackState` with states `DISPATCHED` (webhook side, keyed by sentinel `run_id=0, run_attempt=0`), `IN_PROGRESS`, and `COMPLETED` (callback side, per-workflow). State records stored as JSON: `{"state": "...", "timestamp": 1234.56}`.
   - **Dispatch validation**: `DISPATCHED` state proves valid webhook origin. Callbacks without this state are rejected (no prior dispatch).
-  - **Workflow-level tracking**: Each workflow has independent state and timestamps keyed by `{run_id}:{run_attempt}` (`oot:state:{delivery_id}:{repo}:{run_id}:{run_attempt}`). Supports multiple workflows per webhook.
+  - **Workflow-level tracking**: Each workflow has independent state and timestamps keyed by `{run_id}:{run_attempt}` (`crcr:state:{delivery_id}:{repo}:{run_id}:{run_attempt}`). Supports multiple workflows per webhook.
   - **Timing metrics**: `queue_time = dispatch_timestamp → in_progress_timestamp`, `execution_time = in_progress_timestamp → completed_timestamp`. Timestamps extracted from state records.
   - **State transitions**: Rejects invalid flows (`COMPLETED` without prior `IN_PROGRESS`, duplicate `IN_PROGRESS` for the same `{run_id}:{run_attempt}`, duplicate `COMPLETED`, callbacks without a prior `DISPATCHED` record).
     Note that the direction graph below is for a single check run, reruns have different `run_attempt` and are treated as separate workflows, so they won't violate the state machine since they won't have a prior `IN_PROGRESS` or `COMPLETED` record.
@@ -253,7 +253,7 @@ make clean
 - A running Redis instance:
   ```bash
   # Using the built-in "default" user with a password:
-  docker run -d --name oot-redis \
+  docker run -d --name crcr-redis \
     -p 6379:6379 \
     redis:7-alpine \
     redis-server --requirepass <your-password>
