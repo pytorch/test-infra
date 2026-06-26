@@ -32,7 +32,4 @@ jobs:
     uses: ./.github/workflows/validate-binaries.yml
     with:
       channel: nightly
-      # TEMPORARY (revert before merge): scope to linux and torch-only to test
-      # the Python 3.15 validation path (no torchvision cp315 wheels yet).
-      os: linux
-      torchonly: true
+      os: all
