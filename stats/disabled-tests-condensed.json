@@ -296,13 +296,6 @@
       "rocm"
     ]
   ],
-  "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTestsPerSubkernelBlocks)": [
-    "187120",
-    "https://github.com/pytorch/pytorch/issues/187120",
-    [
-      "xpu"
-    ]
-  ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
     "180948",
     "https://github.com/pytorch/pytorch/issues/180948",
