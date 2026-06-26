@@ -27,17 +27,6 @@
       "rocm"
     ]
   ],
-  "test_aoti_custom_op_bad_fake_dtype_fails_fast_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
-    "187562",
-    "https://github.com/pytorch/pytorch/issues/187562",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "182260",
     "https://github.com/pytorch/pytorch/issues/182260",
