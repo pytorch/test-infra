@@ -38,7 +38,7 @@ DISPATCH_RUN_ATTEMPT = 0
 class CallbackState(str, Enum):
     """Unified state machine for callback lifecycle (both webhook and callback sides).
 
-    - ``DISPATCHED``: webhook side, when repository_dispatch is sent (run_id=DISPATCH_CHECK_RUN_ID).
+    - ``DISPATCHED``: webhook side, when repository_dispatch is sent (run_id=DISPATCH_RUN_ID).
     - ``IN_PROGRESS``: callback side, when downstream workflow reports started (per-workflow).
     - ``COMPLETED``: callback side, when downstream workflow reports finished (per-workflow).
     """
@@ -50,10 +50,11 @@ class CallbackState(str, Enum):
 
 @dataclass
 class CallbackStateRecord:
-    """Record containing state, timestamp."""
+    """Record containing state, timestamp, and stored payload (optional)."""
 
     state: CallbackState
     timestamp: float
+    payload: dict | None
 
 
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:

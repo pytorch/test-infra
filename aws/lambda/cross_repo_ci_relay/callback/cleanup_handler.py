@@ -1,0 +1,166 @@
+"""Zombie-job cleanup handler.
+
+Triggered by EventBridge cron events.  Scans the Redis in-progress ZSET for
+jobs whose timeout has expired, marks them as timed_out in HUD, and cleans up
+the Redis records.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from concurrent.futures import as_completed, ThreadPoolExecutor
+
+import utils.redis_helper as redis_helper
+from redis.exceptions import RedisError
+from utils.config import RelayConfig
+from utils.hud import forward_to_hud
+from utils.misc import CallbackState
+
+
+logger = logging.getLogger(__name__)
+
+
+def _build_timeout_payload(zombie: dict, completed_at: str) -> tuple[dict, dict]:
+    """Build trusted and untrusted HUD payloads for a timed-out job.
+
+    Starts from the stored HUD envelope that was captured at IN_PROGRESS time,
+    then updates ci_metrics and workflow status/conclusion for the timeout.
+    """
+    state_record = zombie["state_record"]
+    stored = state_record.payload
+    stored_trusted = dict(stored["trusted"])
+    stored_untrusted = dict(stored["untrusted"])
+
+    # ci_metrics: execution_time from in_progress → now
+    execution_time = round(time.time() - state_record.timestamp, 3)
+    if execution_time < 0:
+        execution_time = 0
+
+    stored_trusted["ci_metrics"] = {
+        "queue_time": None,
+        "execution_time": execution_time,
+    }
+
+    # Update the stored workflow with timeout conclusion
+
+    workflow = stored_untrusted["callback_payload"]["workflow"]
+    workflow["status"] = "completed"
+    workflow["conclusion"] = "timed_out"
+    workflow["completed_at"] = completed_at
+
+    return stored_trusted, stored_untrusted
+
+
+def _cleanup_one(
+    *,
+    config: RelayConfig,
+    zombie: dict,
+    completed_at: str,
+) -> dict:
+    """Process a single zombie job: forward timeout to HUD, update Redis,
+    and remove the in-progress tracker.
+
+    Returns a dict with ``ok`` indicating whether the zombie was cleaned
+    successfully (HUD forward succeeded).
+    """
+    delivery_id = zombie["delivery_id"]
+    repo = zombie["downstream_repo"]
+    run_id = zombie["run_id"]
+    run_attempt = zombie["run_attempt"]
+    hud_ok = True
+
+    # 1. Build and forward timeout payload to HUD
+    try:
+        trusted, untrusted = _build_timeout_payload(zombie, completed_at)
+        forward_to_hud(config, trusted, untrusted)
+        logger.info(
+            "zombie HUD forward succeeded repo=%s run_id=%s run_attempt=%s",
+            repo,
+            run_id,
+            run_attempt,
+        )
+    except Exception:
+        logger.exception(
+            "zombie HUD forward failed repo=%s run_id=%s run_attempt=%s",
+            repo,
+            run_id,
+            run_attempt,
+        )
+        hud_ok = False
+
+    if hud_ok:
+        # 2. Mark state as COMPLETED in Redis (best-effort)
+        try:
+            redis_helper.set_callback_state(
+                config,
+                delivery_id,
+                repo,
+                run_id,
+                run_attempt,
+                CallbackState.COMPLETED,
+                time.time(),
+            )
+        except (AssertionError, RedisError):
+            # Race: another process already resolved this record, or Redis
+            # was unavailable.
+            logger.warning(
+                "zombie state transition failed (may already be resolved) "
+                "delivery_id=%s repo=%s run_id=%s run_attempt=%s",
+                delivery_id,
+                repo,
+                run_id,
+                run_attempt,
+            )
+        # Erase the records from Redis only when HUD was successfully
+        # updated, keeping the two systems in sync.
+        redis_helper.remove_in_progress_tracker(
+            config, delivery_id, repo, run_id, run_attempt
+        )
+
+    return {"ok": hud_ok}
+
+
+def handle(config: RelayConfig) -> dict:
+    """Scan for zombie jobs and clean them up in parallel.
+
+    Returns a summary dict with counts of cleaned and errored zombies.
+    """
+    zombies = redis_helper.scan_expired_in_progress(config)
+    results = {"cleaned": 0, "errors": 0}
+
+    if not zombies:
+        logger.info("zombie scan: no expired jobs found")
+        return {"ok": True, **results}
+
+    logger.info("zombie scan: found %d expired job(s)", len(zombies))
+    completed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    with ThreadPoolExecutor(max_workers=config.max_cleanup_workers) as pool:
+        future_to_zombie = {
+            pool.submit(
+                _cleanup_one,
+                config=config,
+                zombie=zombie,
+                completed_at=completed_at,
+            ): zombie
+            for zombie in zombies
+        }
+
+        for future in as_completed(future_to_zombie):
+            zombie = future_to_zombie[future]
+            try:
+                result = future.result()
+                if result["ok"]:
+                    results["cleaned"] += 1
+                else:
+                    results["errors"] += 1
+            except Exception:
+                logger.exception(
+                    "zombie cleanup unexpected failure repo=%s run_id=%s",
+                    zombie.get("downstream_repo"),
+                    zombie.get("run_id"),
+                )
+                results["errors"] += 1
+
+    return {"ok": True, **results}

@@ -14,9 +14,11 @@ from .misc import CallbackState, CallbackStateRecord, DISPATCH_RUN_ID, HTTPExcep
 
 logger = logging.getLogger(__name__)
 
+
 _ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
 _STATE_PREFIX = "crcr:state:"
 _RATE_LIMIT_PREFIX = "crcr:rate:"
+_IN_PROGRESS_ZSET = "crcr:in_progress"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -188,7 +190,7 @@ def get_callback_state(
 ) -> CallbackStateRecord | None:
     """Get callback state record from Redis, or None if no record exists.
 
-    Returns a record containing state, timestamp.
+    Returns a record containing state, timestamp, and any stored payload.
     """
     try:
         if client is None:
@@ -201,11 +203,12 @@ def get_callback_state(
         return CallbackStateRecord(
             state=CallbackState(data["state"]),
             timestamp=data["timestamp"],
+            payload=data.get("payload"),
         )
     except RedisError:
         logger.exception("redis temporary outage or unreachable")
     except Exception:
-        logger.exception("redis get_callback_state failed")
+        logger.exception("redis get_callback_state failed to parse record")
     return None
 
 
@@ -219,6 +222,7 @@ def set_callback_state(
     timestamp: float,
     workflow_name: str | None = None,
     client: redis_lib.Redis | None = None,
+    payload: dict | None = None,
 ) -> None:
     """Set callback state with timestamp in Redis.
 
@@ -310,6 +314,9 @@ def set_callback_state(
             "state": state.value,
             "timestamp": timestamp,
         }
+
+        if payload:
+            data["payload"] = payload
         client.setex(key, config.crcr_status_ttl, json.dumps(data))
         logger.info(
             "callback state set key=%s state=%s timestamp=%s",
@@ -323,3 +330,161 @@ def set_callback_state(
     except Exception:
         logger.exception("redis set_callback_state failed")
         raise
+
+
+def _in_progress_member(
+    delivery_id: str, downstream_repo: str, run_id: int, run_attempt: int
+) -> str:
+    """Build a ZSET member string from the state-key components."""
+    return f"{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+
+
+def _parse_in_progress_member(member: str) -> tuple[str, str, int, int]:
+    """Parse a ZSET member string back into its components.
+
+    The repo part may contain '/' (e.g. 'org/repo'), so we split from the right
+    for the integer fields and from the left for delivery_id.
+    """
+    parts = member.split(":")
+    if len(parts) < 4:
+        raise ValueError(f"invalid in-progress member: {member!r}")
+    # delivery_id is the first token, then repo is everything up to the last two tokens
+    delivery_id = parts[0]
+    run_attempt = int(parts[-1])
+    run_id = int(parts[-2])
+    downstream_repo = ":".join(parts[1:-2])
+    return delivery_id, downstream_repo, run_id, run_attempt
+
+
+def add_in_progress_tracker(
+    config: RelayConfig,
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    """Add a job to the in-progress ZSET for zombie detection.
+
+    The ZSET score is the expected timeout timestamp (now + zombie_timeout_seconds).
+    Logs and ignores Redis errors — a missed tracker addition only affects zombie
+    detection for this one job, not the core callback flow.
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+        member = _in_progress_member(delivery_id, downstream_repo, run_id, run_attempt)
+        timeout_ts = time.time() + config.zombie_timeout_seconds
+        client.zadd(_IN_PROGRESS_ZSET, {member: timeout_ts})
+        # Auto-expire the ZSET key so it doesn't accumulate stale members forever.
+        client.expire(_IN_PROGRESS_ZSET, config.zombie_timeout_seconds * 2)
+        logger.info(
+            "in_progress tracker added member=%s timeout_ts=%s", member, timeout_ts
+        )
+    except RedisError:
+        logger.exception("failed to add in_progress tracker member=%s", member)
+
+
+def remove_in_progress_tracker(
+    config: RelayConfig,
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    """Remove a job from the in-progress ZSET after normal completion.
+
+    Logs and ignores Redis errors — the ZSET member will eventually expire anyway.
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+        member = _in_progress_member(delivery_id, downstream_repo, run_id, run_attempt)
+        client.zrem(_IN_PROGRESS_ZSET, member)
+        logger.info("in_progress tracker removed member=%s", member)
+    except RedisError:
+        logger.exception("failed to remove in_progress tracker member=%s", member)
+
+
+def scan_expired_in_progress(
+    config: RelayConfig,
+    client: redis_lib.Redis | None = None,
+) -> list[dict]:
+    """Scan the in-progress ZSET for members whose timeout has expired.
+
+    For each expired member, fetch the corresponding state record.  Only return
+    entries whose state is still IN_PROGRESS (a concurrent normal completion may
+    have already resolved it).
+
+    Returns a list of dicts with keys:
+      delivery_id, downstream_repo, run_id, run_attempt, state_record
+    The state_record includes the stored payload via ``state_record.payload``.
+    """
+    results: list[dict] = []
+    try:
+        if client is None:
+            client = create_client(config)
+        now = time.time()
+
+        # Warn if the ZSET is growing unusually large — may indicate the sweeper
+        # is not keeping up or has stopped running, allowing zombies to accumulate.
+        zset_size = client.zcard(_IN_PROGRESS_ZSET)
+        if zset_size > config.in_progress_warn_threshold:
+            logger.warning(
+                "in_progress ZSET cardinality %d exceeds threshold %d — "
+                "sweeper may be falling behind or not running",
+                zset_size,
+                config.in_progress_warn_threshold,
+            )
+
+        expired_members = client.zrangebyscore(_IN_PROGRESS_ZSET, "-inf", now)
+        if not expired_members:
+            logger.info("no expired in_progress members found")
+            return results
+
+        logger.info("found %d expired in_progress members", len(expired_members))
+        for member in expired_members:
+            try:
+                delivery_id, downstream_repo, run_id, run_attempt = (
+                    _parse_in_progress_member(member)
+                )
+            except ValueError:
+                logger.warning("malformed in_progress member, removing: %s", member)
+                client.zrem(_IN_PROGRESS_ZSET, member)
+                continue
+
+            state_record = get_callback_state(
+                config, delivery_id, downstream_repo, run_id, run_attempt, client
+            )
+            if state_record is None:
+                # State record already expired/removed — clean up the stale ZSET entry.
+                logger.info(
+                    "state record missing for expired member=%s, removing tracker",
+                    member,
+                )
+                client.zrem(_IN_PROGRESS_ZSET, member)
+                continue
+
+            if state_record.state != CallbackState.IN_PROGRESS:
+                # Already resolved (race with normal completion) — just clean up.
+                logger.info(
+                    "state already %s for member=%s, removing tracker",
+                    state_record.state.value,
+                    member,
+                )
+                client.zrem(_IN_PROGRESS_ZSET, member)
+                continue
+
+            results.append(
+                {
+                    "delivery_id": delivery_id,
+                    "downstream_repo": downstream_repo,
+                    "run_id": run_id,
+                    "run_attempt": run_attempt,
+                    "state_record": state_record,
+                }
+            )
+    except RedisError:
+        logger.exception("scan_expired_in_progress failed")
+    return results

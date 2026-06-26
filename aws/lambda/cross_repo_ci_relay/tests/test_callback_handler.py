@@ -60,11 +60,13 @@ class TestCallbackHandler(unittest.TestCase):
                 return CallbackStateRecord(
                     CallbackState.DISPATCHED,
                     time.time() - 30,
+                    {},
                 )
             elif run_id_arg == 99999:  # default run_id in _body()
                 return CallbackStateRecord(
                     CallbackState.IN_PROGRESS,
                     time.time() - 20,
+                    {},
                 )
             return None
 
@@ -116,10 +118,12 @@ class TestCallbackHandler(unittest.TestCase):
         dispatch_record = CallbackStateRecord(
             CallbackState.DISPATCHED,
             1000.0,
+            {},
         )
         workflow_record = CallbackStateRecord(
             CallbackState.IN_PROGRESS,
             1030.0,
+            {},
         )
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,  # dispatch lookup
@@ -139,14 +143,17 @@ class TestCallbackHandler(unittest.TestCase):
         dispatch_record = CallbackStateRecord(
             CallbackState.DISPATCHED,
             1000.0,
+            {},
         )
         workflow_record = CallbackStateRecord(
             CallbackState.IN_PROGRESS,
             1030.0,
+            {},
         )
         completed_record = CallbackStateRecord(
             CallbackState.COMPLETED,
             1060.0,
+            {},
         )
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,  # dispatch lookup
@@ -213,6 +220,7 @@ class TestCallbackHandler(unittest.TestCase):
         dispatch_record = CallbackStateRecord(
             CallbackState.DISPATCHED,
             1000.0,
+            {},
         )
         # Three calls: dispatch lookup, workflow record lookup, re-read after set.
         self.mock_redis.get_callback_state.side_effect = [

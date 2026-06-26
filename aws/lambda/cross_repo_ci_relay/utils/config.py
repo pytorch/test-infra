@@ -48,6 +48,16 @@ def _require(name: str) -> str:
     return value
 
 
+def _check_if_positive_int(name: str, default: str | int | None) -> int:
+    try:
+        int_value = int(os.getenv(name, default))
+        if int_value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
+        return int_value
+    except ValueError as e:
+        raise RuntimeError(f"{name} must be a positive integer") from e
+
+
 @dataclass(frozen=True)
 class RelayConfig:
     github_app_id: str
@@ -64,6 +74,9 @@ class RelayConfig:
     crcr_status_ttl: int
     hud_max_retries: int
     rate_limit_per_min: int
+    zombie_timeout_seconds: int
+    max_cleanup_workers: int
+    in_progress_warn_threshold: int
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
@@ -111,22 +124,20 @@ class RelayConfig:
                     f"Secret at {secret_store_arn!r} is missing keys: {', '.join(missing_in_secret)}"
                 )
 
-        try:
-            allowlist_ttl_seconds = int(os.getenv("ALLOWLIST_TTL_SECONDS", "1200"))
-        except ValueError:
-            raise RuntimeError("ALLOWLIST_TTL_SECONDS must be a valid integer")
-
         # The allowlist is fetched from GitHub without authentication, so cache churn must
         # stay comfortably below GitHub's unauthenticated 60 requests/hour rate limit.
         # Enforce a 15-minute floor so an overly aggressive TTL change does not create
         # avoidable rate-limit risk in production.
-        allowlist_ttl_seconds = max(allowlist_ttl_seconds, 900)
+        allowlist_ttl_seconds = max(
+            _check_if_positive_int("ALLOWLIST_TTL_SECONDS", "900"),
+            900,
+        )
 
         # GitHub can keep a workflow in `pending` state for up to 3 days before
         # auto-cancelling it, so CRCR-status records must live at least that long.
         # Default to 3 days (259200 s).
         try:
-            crcr_status_ttl = int(os.getenv("CRCR_STATUS_TTL", "259200"))
+            crcr_status_ttl = _check_if_positive_int("CRCR_STATUS_TTL", "259200")
         except ValueError:
             raise RuntimeError("CRCR_STATUS_TTL must be a valid integer")
 
@@ -139,12 +150,22 @@ class RelayConfig:
         except ValueError:
             raise RuntimeError("HUD_MAX_RETRIES must be a non-negative integer")
 
-        try:
-            rate_limit_per_min = int(os.getenv("RATE_LIMIT_PER_MIN", "60"))
-            if rate_limit_per_min <= 0:
-                raise ValueError("must be positive")
-        except ValueError:
-            raise RuntimeError("RATE_LIMIT_PER_MIN must be a positive integer")
+        max_dispatch_workers = _check_if_positive_int("MAX_DISPATCH_WORKERS", "32")
+
+        rate_limit_per_min = _check_if_positive_int("RATE_LIMIT_PER_MIN", "20")
+
+        # Maximum duration an in-progress job is expected to run before being
+        # considered abandoned (zombie).  Default 24 hours (86400 s).
+        zombie_timeout_seconds = _check_if_positive_int(
+            "ZOMBIE_TIMEOUT_SECONDS", "86400"
+        )
+
+        max_cleanup_workers = _check_if_positive_int("MAX_CLEANUP_WORKERS", "16")
+
+        in_progress_warn_threshold = _check_if_positive_int(
+            "IN_PROGRESS_WARN_THRESHOLD",
+            "1000",
+        )
 
         hud_api_url = os.getenv("HUD_API_URL", "https://hud.pytorch.org/api")
         if hud_api_url and not hud_api_url.startswith("https://"):
@@ -164,12 +185,15 @@ class RelayConfig:
             redis_endpoint=_require("REDIS_ENDPOINT"),
             redis_login=redis_login,
             allowlist_ttl_seconds=allowlist_ttl_seconds,
-            max_dispatch_workers=int(os.getenv("MAX_DISPATCH_WORKERS", "32")),
+            max_dispatch_workers=max_dispatch_workers,
             hud_api_url=hud_api_url,
             hud_bot_key=hud_bot_key,
             crcr_status_ttl=crcr_status_ttl,
             hud_max_retries=hud_max_retries,
             rate_limit_per_min=rate_limit_per_min,
+            zombie_timeout_seconds=zombie_timeout_seconds,
+            max_cleanup_workers=max_cleanup_workers,
+            in_progress_warn_threshold=in_progress_warn_threshold,
         )
 
 
