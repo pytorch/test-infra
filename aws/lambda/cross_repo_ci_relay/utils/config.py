@@ -71,7 +71,7 @@ class RelayConfig:
     max_dispatch_workers: int
     hud_api_url: str
     hud_bot_key: str
-    oot_status_ttl: int
+    crcr_status_ttl: int
     hud_max_retries: int
     rate_limit_per_min: int
     zombie_timeout_seconds: int
@@ -134,9 +134,12 @@ class RelayConfig:
         )
 
         # GitHub can keep a workflow in `pending` state for up to 3 days before
-        # auto-cancelling it, so OOT-status records must live at least that long.
+        # auto-cancelling it, so CRCR-status records must live at least that long.
         # Default to 3 days (259200 s).
-        oot_status_ttl = _check_if_positive_int("OOT_STATUS_TTL", "259200")
+        try:
+            crcr_status_ttl = _check_if_positive_int("CRCR_STATUS_TTL", "259200")
+        except ValueError:
+            raise RuntimeError("CRCR_STATUS_TTL must be a valid integer")
 
         # Maximum number of retry attempts for HUD API calls.
         # Default to 3 retries with exponential backoff.
@@ -169,9 +172,9 @@ class RelayConfig:
             raise RuntimeError(
                 "HUD_API_URL must use https:// to protect the bot key in transit"
             )
-        # Add hud_api_url ends with /oot/results for flexibility of adding features later
+        # Add hud_api_url ends with /crcr/results for flexibility of adding features later
         if hud_api_url:
-            hud_api_url = hud_api_url.rstrip("/") + "/oot/results"
+            hud_api_url = hud_api_url.rstrip("/") + "/crcr/results"
 
         return cls(
             github_app_id=_require("GITHUB_APP_ID"),
@@ -185,7 +188,7 @@ class RelayConfig:
             max_dispatch_workers=max_dispatch_workers,
             hud_api_url=hud_api_url,
             hud_bot_key=hud_bot_key,
-            oot_status_ttl=oot_status_ttl,
+            crcr_status_ttl=crcr_status_ttl,
             hud_max_retries=hud_max_retries,
             rate_limit_per_min=rate_limit_per_min,
             zombie_timeout_seconds=zombie_timeout_seconds,

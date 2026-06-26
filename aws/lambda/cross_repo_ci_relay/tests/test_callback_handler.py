@@ -10,11 +10,11 @@ from utils.redis_helper import CallbackStateRecord
 
 def _cfg():
     cfg = MagicMock()
-    cfg.hud_api_url = "http://hud/api/oot-ci-events"
+    cfg.hud_api_url = "http://hud/api/crcr-ci-events"
     cfg.hud_bot_key = "bot-key-123"
     cfg.redis_endpoint = "host:6379"
     cfg.redis_login = ""
-    cfg.oot_status_ttl = 259200
+    cfg.crcr_status_ttl = 259200
     cfg.rate_limit_per_min = 20
     return cfg
 

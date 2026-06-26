@@ -11,7 +11,7 @@ from utils.redis_helper import CallbackStateRecord
 
 def _cfg():
     cfg = MagicMock()
-    cfg.hud_api_url = "http://hud/api/oot/results"
+    cfg.hud_api_url = "http://hud/api/crcr/results"
     cfg.hud_bot_key = "bot-key-123"
     cfg.zombie_timeout_seconds = 86400
     cfg.max_cleanup_workers = 4
