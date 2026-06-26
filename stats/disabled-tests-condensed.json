@@ -336,14 +336,6 @@
       "rocm"
     ]
   ],
-  "test_fake_device_guard_no_use_after_free_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "186870",
-    "https://github.com/pytorch/pytorch/issues/186870",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_fake_device_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "176138",
     "https://github.com/pytorch/pytorch/issues/176138",
@@ -540,9 +532,9 @@
       "macos"
     ]
   ],
-  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179853",
-    "https://github.com/pytorch/pytorch/issues/179853",
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
     [
       "linux",
       "rocm",
@@ -658,13 +650,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_kernel_metadata_has_expected_fields (__main__.TestMetadataJsonFormat)": [
-    "187119",
-    "https://github.com/pytorch/pytorch/issues/187119",
-    [
-      "rocm"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
