@@ -187,6 +187,18 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
           architecture: arm64
+      - name: Set BUILD_VERSION for Arm64 RC build
+        # Arm64 does not run setup-binary-builds (x64-only), so pytorch_pkg_helpers
+        # never sets BUILD_VERSION. Without it setup.py appends the git sha
+        # (e.g. torchvision-0.28.0+5a5dd12). For RC (test channel) set BUILD_VERSION
+        # to "<version.txt>+<arch>" to match what pytorch_pkg_helpers produces for
+        # x64 (e.g. torchvision-0.28.0+cpu) and torch's own win_arm64 wheels.
+        if: ${{ inputs.architecture == 'arm64' && env.CHANNEL == 'test' }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          if [[ -f version.txt ]]; then
+            echo "BUILD_VERSION=$(cat version.txt)+${CU_VERSION}" >> "${GITHUB_ENV}"
+          fi
       - name: Install torch dependency
         if: inputs.architecture == 'x64'
         run: |
