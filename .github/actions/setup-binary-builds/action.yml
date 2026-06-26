@@ -130,55 +130,6 @@ runs:
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
 
-          # Python 3.15 is still in pre-release and its C-API/ABI is not frozen.
-          # conda-forge's python=3.15.0a* does not match the python.org alpha the
-          # torch nightly cp315 wheels are built against, so importing torch under
-          # the conda interpreter segfaults during module init. Build against the
-          # manylinux python.org interpreter that produced the torch wheels
-          # instead of conda. pkg-helpers already prepends /opt/python/<abi>/bin
-          # to PATH via BUILD_ENV_FILE, so an empty CONDA_RUN makes every
-          # `${CONDA_RUN} python|pip` in the build resolve to that interpreter --
-          # no ABI skew. We only install the build tooling conda used to provide.
-          case $PYTHON_VERSION in
-            3.15) MANYLINUX_PYTHON=/opt/python/cp315-cp315/bin/python ;;
-            3.15t) MANYLINUX_PYTHON=/opt/python/cp315-cp315t/bin/python ;;
-            *) MANYLINUX_PYTHON="" ;;
-          esac
-
-          if [ -n "${MANYLINUX_PYTHON}" ]; then
-            if [ ! -x "${MANYLINUX_PYTHON}" ]; then
-              echo "::error::Expected manylinux interpreter ${MANYLINUX_PYTHON} not found in build image"
-              exit 1
-            fi
-            # Upgrade setuptools too: the cp315 manylinux interpreter ships an
-            # old setuptools that can't parse PEP 639 SPDX license metadata
-            # (e.g. license = "MIT-CMU"), which breaks building sdists such as
-            # pillow (a torchvision smoke-test dependency with no cp315 wheel
-            # yet, so pip falls back to building it from source).
-            "${MANYLINUX_PYTHON}" -m pip install --upgrade pip setuptools
-            # Build tooling that conda used to provide. PyPI's ninja versioning
-            # differs from conda's (no 1.12.x on PyPI), so pin to the nearest
-            # available release. (libpng/libjpeg/libwebp/pkg-config come from the
-            # manylinux image's system packages rather than conda.)
-            "${MANYLINUX_PYTHON}" -m pip install \
-              "cmake==3.31.2" \
-              "ninja==1.13.0" \
-              "wheel==0.37.1"
-            echo "CONDA_ENV=$(dirname "$(dirname "${MANYLINUX_PYTHON}")")" >> "${GITHUB_ENV}"
-            echo "CONDA_RUN=" >> "${GITHUB_ENV}"
-            # Some domains install native build deps (e.g. libheif/libavif for
-            # torchvision-extra-decoders) via `conda install` in their pre-build
-            # script and locate them through $CONDA_PREFIX. The conda path sets
-            # CONDA_PREFIX by activating the build env; the manylinux path has no
-            # such env, so those deps land in the conda *base* prefix while
-            # CONDA_PREFIX stays unset and the build can't find the headers.
-            # Export the base prefix so the pre-build `conda install`, setup.py's
-            # $CONDA_PREFIX/include header search, and the post-build
-            # $CONDA_PREFIX/lib bundling all resolve to the same place.
-            echo "CONDA_PREFIX=$(conda info --base)" >> "${GITHUB_ENV}"
-            exit 0
-          fi
-
           conda install -y conda=25.3.0
 
           # shellcheck disable=SC2153
@@ -186,6 +137,18 @@ runs:
             3.14t)
               export PYTHON_VERSION=3.14
               export CONDA_EXTRA_PARAM=" python-freethreading"
+              ;;
+            3.15)
+              # 3.15 is pre-release: conda-forge ships it under the python_dev
+              # label (currently 3.15.0a8), and the build depends on the
+              # _python_rc marker that lives on the python_rc label, so both
+              # labels are required.
+              export PYTHON_VERSION=3.15.0a8
+              export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+              ;;
+            3.15t)
+              export PYTHON_VERSION=3.15.0a8
+              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
               ;;
           esac
 
