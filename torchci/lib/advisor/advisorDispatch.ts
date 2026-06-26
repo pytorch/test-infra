@@ -351,6 +351,28 @@ export async function readDispatchStates(
   return result;
 }
 
+/**
+ * Count DISTINCT signal_keys that have ever been recorded (any state) for one PR
+ * head. This is the basis for the per-head dispatch cap: it counts every signal
+ * we have already fanned an advisor analysis out for on this head -- including
+ * ones that have since stopped failing and dropped out of the current failure
+ * set -- so the cap holds cumulatively across cron passes rather than re-budget
+ * each time the failing set turns over. (readDispatchStates is filtered to the
+ * currently-failing signals for the dedup decision and so undercounts here.)
+ */
+export async function countHeadDispatches(
+  owner: string,
+  repo: string,
+  headSha: string
+): Promise<number> {
+  const rows = await queryClickhouseSaved("advisor_head_dispatch_count", {
+    owner,
+    repo,
+    headSha,
+  });
+  return rows.length > 0 ? Number(rows[0].n ?? 0) : 0;
+}
+
 export interface DispatchRecord {
   owner: string;
   repo: string;
@@ -443,6 +465,7 @@ export async function getPullRequestMeta(
 // touching ClickHouse or GitHub.
 export interface AutoDispatchDeps {
   readDispatchStates: typeof readDispatchStates;
+  countHeadDispatches: typeof countHeadDispatches;
   recordDispatch: typeof recordDispatch;
   dispatchAdvisorWorkflow: typeof dispatchAdvisorWorkflow;
   getPullRequestMeta: typeof getPullRequestMeta;
@@ -450,6 +473,7 @@ export interface AutoDispatchDeps {
 
 const defaultDeps: AutoDispatchDeps = {
   readDispatchStates,
+  countHeadDispatches,
   recordDispatch,
   dispatchAdvisorWorkflow,
   getPullRequestMeta,
@@ -605,29 +629,50 @@ export async function autoDispatchAdvisorForNewFailures(
     return;
   }
 
-  // Sanity cap: never fan out more than maxDispatchPerPr analyses on one PR
-  // head. Already-recorded signals (any prior dispatch) consume the budget, so
-  // the cap holds cumulatively across cron passes. When more fresh failures are
-  // eligible than the remaining budget, pick the subset by a stable hash so the
-  // choice is consistent pass-to-pass.
-  const maxDispatchPerPr = getMaxDispatchPerPr(owner, repo);
-  const budget = Math.max(0, maxDispatchPerPr - states.size);
-  const selected = new Set(
-    stableHashSelect(
-      fresh.map((f) => f.signalKey),
-      headSha,
-      budget
-    )
-  );
-  if (fresh.length > selected.size) {
-    console.log(
-      `advisor auto-dispatch: PR ${prNumber} capping ${fresh.length} fresh ` +
-        `failures to ${selected.size} (maxDispatchPerPr=${maxDispatchPerPr}, ` +
-        `${states.size} already recorded)`
+  // Sanity cap: never fan out more than maxDispatchPerPr DISTINCT signals on one
+  // PR head. The budget is maxDispatchPerPr minus the signals already recorded
+  // for this head (counted across ALL of the head's signals, not just the
+  // currently-failing ones), so the cap holds cumulatively across cron passes
+  // even if the failing set turns over. Only `fresh` (no prior record) draws
+  // down the budget; `failedRetry` re-attempts a signal already counted in that
+  // total. (Caveat: retrying a dispatch whose POST 5xx'd after creating the run
+  // can still produce extra advisor RUNS for an already-counted signal -- the
+  // cap bounds distinct signals, not dispatch attempts.) When more fresh
+  // failures are eligible than the remaining budget, the subset is the
+  // lowest-hash `budget` of them (stable per head), so the choice does not churn
+  // pass-to-pass.
+  let selected = new Set<string>();
+  if (fresh.length > 0) {
+    const maxDispatchPerPr = getMaxDispatchPerPr(owner, repo);
+    let committed: number;
+    try {
+      committed = await deps.countHeadDispatches(owner, repo, headSha);
+    } catch (e) {
+      console.error(
+        `advisor auto-dispatch: head dispatch count failed for PR ${prNumber}, skipping pass`,
+        e
+      );
+      return;
+    }
+    const budget = Math.max(0, maxDispatchPerPr - committed);
+    selected = new Set(
+      stableHashSelect(
+        fresh.map((f) => f.signalKey),
+        headSha,
+        budget
+      )
     );
+    if (fresh.length > selected.size) {
+      console.log(
+        `advisor auto-dispatch: PR ${prNumber} capping ${fresh.length} fresh ` +
+          `failures to ${selected.size} (maxDispatchPerPr=${maxDispatchPerPr}, ` +
+          `${committed} already recorded for this head)`
+      );
+    }
   }
 
-  // failedRetry first (already within the cap), then the capped fresh subset.
+  // failedRetry first (already counted in the head total), then the capped fresh
+  // subset.
   const toDispatch: {
     signalKey: string;
     job: RecentWorkflowsData;

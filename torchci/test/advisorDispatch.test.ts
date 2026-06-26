@@ -28,6 +28,7 @@ function job(
 function makeDeps(overrides: Partial<AutoDispatchDeps> = {}): AutoDispatchDeps {
   return {
     readDispatchStates: jest.fn().mockResolvedValue(new Map()),
+    countHeadDispatches: jest.fn().mockResolvedValue(0),
     recordDispatch: jest.fn().mockResolvedValue(undefined),
     dispatchAdvisorWorkflow: jest.fn().mockResolvedValue(undefined),
     getPullRequestMeta: jest
@@ -261,19 +262,16 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     );
   });
 
-  it("caps cumulatively: already-recorded signals reduce the per-PR budget", async () => {
-    // 30 signals already dispatched + 10 fresh, ci-no-td, cap 32 -> only 2 new.
-    const recorded = Array.from({ length: 30 }, (_, i) => [
-      signalKeyForJob(`wf / done-${i}`),
-      { state: "dispatched" as const, retryCount: 0 },
-    ]) as [string, { state: "dispatched"; retryCount: number }][];
-    const states = new Map(recorded);
-    const failures = [
-      ...Array.from({ length: 30 }, (_, i) => job(`wf / done-${i}`)),
-      ...Array.from({ length: 10 }, (_, i) => job(`wf / fresh-${i}`)),
-    ];
+  it("caps cumulatively per head: prior dispatches reduce the budget even if they no longer fail", async () => {
+    // 30 signals already recorded for this head (now passing, so NOT in the
+    // current failure set), 10 brand-new fresh failures, ci-no-td, cap 32 ->
+    // only 2 new dispatched. The head count (not the current-failure dedup map)
+    // is what bounds the cumulative cap.
+    const failures = Array.from({ length: 10 }, (_, i) =>
+      job(`wf / fresh-${i}`)
+    );
     const deps = makeDeps({
-      readDispatchStates: jest.fn().mockResolvedValue(states),
+      countHeadDispatches: jest.fn().mockResolvedValue(30),
       getPullRequestMeta: jest.fn().mockResolvedValue({
         state: "open",
         draft: false,
@@ -287,6 +285,40 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(
       DEFAULT_MAX_DISPATCH_PER_PR - 30
     );
+  });
+
+  it("dispatches nothing new once the per-head cap is already reached", async () => {
+    const failures = Array.from({ length: 5 }, (_, i) =>
+      job(`wf / fresh-${i}`)
+    );
+    const deps = makeDeps({
+      countHeadDispatches: jest
+        .fn()
+        .mockResolvedValue(DEFAULT_MAX_DISPATCH_PER_PR),
+      getPullRequestMeta: jest.fn().mockResolvedValue({
+        state: "open",
+        draft: false,
+        labels: ["ci-no-td"],
+      }),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: failures },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the head dispatch count throws", async () => {
+    const deps = makeDeps({
+      countHeadDispatches: jest.fn().mockRejectedValue(new Error("CH down")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+    // The pre-dispatch marker is never written either.
+    expect(deps.recordDispatch).not.toHaveBeenCalled();
   });
 
   it("dispatches all when new failures are exactly at the max", async () => {
