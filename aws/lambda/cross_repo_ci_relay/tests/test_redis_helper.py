@@ -311,9 +311,9 @@ class TestInProgressTracker(unittest.TestCase):
         expected_member = "del-123:org/repo:99999:1"
         expected_score = now + 86400
         client.zadd.assert_called_once_with(
-            "oot:in_progress", {expected_member: expected_score}
+            "crcr:in_progress", {expected_member: expected_score}
         )
-        client.expire.assert_called_once_with("oot:in_progress", 172800)
+        client.expire.assert_called_once_with("crcr:in_progress", 172800)
 
     def test_add_in_progress_tracker_redis_error_is_silent(self):
         """Redis errors are logged but not raised — tracker is best-effort."""
@@ -335,7 +335,7 @@ class TestInProgressTracker(unittest.TestCase):
         remove_in_progress_tracker(cfg, "del-123", "org/repo", 99999, 1, client=client)
 
         client.zrem.assert_called_once_with(
-            "oot:in_progress", "del-123:org/repo:99999:1"
+            "crcr:in_progress", "del-123:org/repo:99999:1"
         )
 
     def test_remove_in_progress_tracker_redis_error_is_silent(self):
@@ -385,7 +385,7 @@ class TestInProgressTracker(unittest.TestCase):
         self.assertEqual(results[0]["state_record"].state, CallbackState.IN_PROGRESS)
 
         # Second entry (COMPLETED) had its tracker cleaned up
-        client.zrem.assert_any_call("oot:in_progress", "del-2:org/repo:20:1")
+        client.zrem.assert_any_call("crcr:in_progress", "del-2:org/repo:20:1")
 
     def test_scan_expired_skips_missing_state_records(self):
         """Members whose state record is gone are cleaned from the ZSET."""
@@ -403,7 +403,7 @@ class TestInProgressTracker(unittest.TestCase):
 
         self.assertEqual(results, [])
         client.zrem.assert_called_once_with(
-            "oot:in_progress", "del-missing:org/repo:5:1"
+            "crcr:in_progress", "del-missing:org/repo:5:1"
         )
 
     def test_scan_expired_handles_malformed_member(self):
@@ -420,7 +420,7 @@ class TestInProgressTracker(unittest.TestCase):
             results = scan_expired_in_progress(cfg, client=client)
 
         self.assertEqual(results, [])
-        client.zrem.assert_called_once_with("oot:in_progress", "bad-member")
+        client.zrem.assert_called_once_with("crcr:in_progress", "bad-member")
 
     def test_set_callback_state_with_payload(self):
         """Payload is stored alongside state and timestamp under a "payload" key."""
