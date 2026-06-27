@@ -1,6 +1,6 @@
 import { getDynamoClient } from "lib/dynamo";
 
-const OOT_TABLE = "torchci-oot-workflow-job";
+const CRCR_TABLE = "torchci-oot-workflow-job";
 const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB
 
 // ---- Types ----
@@ -55,7 +55,7 @@ export interface RelayPayload {
   untrusted: RelayUntrusted;
 }
 
-export interface OotWorkflowJobRecord {
+export interface CrcrWorkflowJobRecord {
   dynamoKey: string;
   status: string;
   downstream_repo: string;
@@ -95,7 +95,7 @@ export function validatePayloadSize(bodyString: string): void {
 
 export function extractDynamoRecord(
   payload: RelayPayload
-): OotWorkflowJobRecord {
+): CrcrWorkflowJobRecord {
   const { trusted, untrusted } = payload;
   const cb = untrusted.callback_payload;
   const wf = cb.workflow;
@@ -113,7 +113,7 @@ export function extractDynamoRecord(
   const runAttempt = Number(wf.run_attempt ?? 1) || 1;
   const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
 
-  const record: OotWorkflowJobRecord = {
+  const record: CrcrWorkflowJobRecord = {
     dynamoKey,
     status: wf.status,
     downstream_repo: trusted.verified_repo,
@@ -177,7 +177,7 @@ export function extractDynamoRecord(
 // ---- DynamoDB Write (UpdateItem) ----
 
 export async function writeToDynamo(
-  record: OotWorkflowJobRecord
+  record: CrcrWorkflowJobRecord
 ): Promise<void> {
   const client = getDynamoClient();
 
@@ -198,7 +198,7 @@ export async function writeToDynamo(
   }
 
   await client.update({
-    TableName: OOT_TABLE,
+    TableName: CRCR_TABLE,
     Key: { dynamoKey: record.dynamoKey },
     UpdateExpression: `SET ${expressionParts.join(", ")}`,
     ExpressionAttributeValues: expressionValues,

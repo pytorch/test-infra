@@ -25,7 +25,7 @@ import NextLink from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 
-interface OotSummaryRow {
+interface CrcrSummaryRow {
   repo: string;
   downstream_repo_level: string;
   successes: number;
@@ -43,18 +43,18 @@ function PassRateChip({ rate }: { rate: number }) {
   return <Chip label={pct} color="error" size="small" />;
 }
 
-function OotSummaryTable({ days }: { days: number }) {
-  const url = `/api/clickhouse/oot_summary?parameters=${encodeURIComponent(
+function CrcrSummaryTable({ days }: { days: number }) {
+  const url = `/api/clickhouse/crcr_summary?parameters=${encodeURIComponent(
     JSON.stringify({ days: String(days) })
   )}`;
-  const { data, error } = useSWR<OotSummaryRow[]>(url, fetcher, {
+  const { data, error } = useSWR<CrcrSummaryRow[]>(url, fetcher, {
     refreshInterval: 60_000,
   });
 
   if (error) {
     return (
       <Typography color="error">
-        Failed to load OOT summary: {error.message}
+        Failed to load CRCR summary: {error.message}
       </Typography>
     );
   }
@@ -64,7 +64,7 @@ function OotSummaryTable({ days }: { days: number }) {
   if (data.length === 0) {
     return (
       <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-        No OOT CI results in the last {days} days.
+        No CRCR CI results in the last {days} days.
       </Typography>
     );
   }
@@ -144,7 +144,7 @@ function OotSummaryTable({ days }: { days: number }) {
   );
 }
 
-export default function OotSummaryPage() {
+export default function CrcrSummaryPage() {
   const [days, setDays] = useState(7);
 
   return (
@@ -176,7 +176,7 @@ export default function OotSummaryPage() {
           first). Click a row to see the per-backend dashboard.
         </Typography>
 
-        <OotSummaryTable days={days} />
+        <CrcrSummaryTable days={days} />
       </Stack>
     </>
   );

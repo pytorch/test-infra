@@ -2,8 +2,8 @@ import { Stack } from "@mui/material";
 import { CommitInfo } from "components/commit/CommitInfo";
 import DrCIButton from "components/common/DrCIButton";
 import ErrorBoundary from "components/common/ErrorBoundary";
+import CrcrPrSection from "components/crcr/CrcrPrSection";
 import { useSetTitle } from "components/layout/DynamicTitle";
-import OotPrSection from "components/oot/OotPrSection";
 import { fetcher } from "lib/GeneralUtils";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
@@ -125,7 +125,7 @@ function Page() {
       </ErrorBoundary>
       <ErrorBoundary>
         {prNumber && repoOwner === "pytorch" && repoName === "pytorch" && (
-          <OotPrSection prNumber={parseInt(prNumber as string)} />
+          <CrcrPrSection prNumber={parseInt(prNumber as string)} />
         )}
       </ErrorBoundary>
     </div>

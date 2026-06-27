@@ -21,7 +21,7 @@ SELECT
     queue_time,
     execution_time
 FROM
-    default.oot_workflow_job FINAL
+    default.crcr_workflow_job FINAL
 WHERE
     downstream_repo = {repo: String}
     AND started_at > now() - INTERVAL {days: UInt64} DAY
