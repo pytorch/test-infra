@@ -168,7 +168,7 @@ jobs:
 
       - name: Surface failing tests
         if: always()
-        uses: pmeier/pytest-results-action@a2c1430e2bddadbad9f49a6f9b879f062c6b19b1 # v0.3.0
+        uses: pmeier/pytest-results-action@20b595761ba9bf89e115e875f8bc863f913bc8ad # v0.7.2
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
