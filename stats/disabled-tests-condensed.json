@@ -1,11 +1,4 @@
 {
-  "test_Conv2d_depthwise_kernel_flag_cuda_float16 (__main__.TestConvolutionNNCUDACUDA)": [
-    "187290",
-    "https://github.com/pytorch/pytorch/issues/187290",
-    [
-      "linux"
-    ]
-  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
