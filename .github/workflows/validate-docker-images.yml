@@ -59,7 +59,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.13
       job-name: cuda${{ matrix.cuda }}-cudnn${{ matrix.cudnn_version }}-${{ matrix.image_type }}
       binary-matrix: ${{ toJSON(matrix) }}
       docker-image: ${{matrix.docker}}
