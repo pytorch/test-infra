@@ -17,6 +17,13 @@ class AdvisorVerdict(Enum):
 
     `revert` is retained indefinitely for backward compatibility with
     historical CH rows produced before the rename.
+
+    `infra_issue` and `garbage` both suppress the signal without reverting:
+    `infra_issue` means the CI environment failed before producing a real
+    code-level outcome (runner/container/GPU/network/checkout failure), while
+    `garbage` means the recorded signal itself is invalid/corrupt as data. The
+    lambda treats the two identically (2h suppression); they are kept distinct
+    so the verdict faithfully records why the signal was unusable.
     """
 
     REVERT = "revert"
@@ -24,6 +31,7 @@ class AdvisorVerdict(Enum):
     NOT_RELATED = "not_related"
     GARBAGE = "garbage"
     RELATED = "related"
+    INFRA_ISSUE = "infra_issue"
 
 
 @dataclass(frozen=True)
@@ -118,6 +126,7 @@ class IneligibleReason(Enum):
     PENDING_GAP = "pending_gap"  # unknown/pending commits present
     ADVISOR_NOT_RELATED = "advisor_not_related"  # AI advisor says not related
     ADVISOR_GARBAGE = "advisor_garbage"  # AI advisor says signal is garbage
+    ADVISOR_INFRA_ISSUE = "advisor_infra_issue"  # AI advisor says infra failure
 
 
 @dataclass
@@ -601,7 +610,7 @@ class Signal:
 
         Returns:
             - AutorevertPattern if advisor says "revert" or "related" with sufficient confidence
-            - Ineligible if advisor says "not_related" or "garbage" (within 2h window)
+            - Ineligible if advisor says "not_related", or "garbage"/"infra_issue" (within 2h window)
             - None if no verdict, verdict is "unsure", or confidence below threshold
         """
         suspected = partition.failed[-1]
@@ -626,22 +635,31 @@ class Signal:
                 f"AI advisor says not related (confidence={result.confidence:.2f})",
             )
 
-        if result.verdict == AdvisorVerdict.GARBAGE:
-            # Garbage verdict blocks the signal for 2 hours since the verdict timestamp
+        # `garbage` (corrupt/invalid signal) and `infra_issue` (CI environment
+        # failed before producing a real outcome) are both suppress-without-
+        # revert: block the signal for 2 hours since the verdict timestamp,
+        # then fall through so a fresh run can re-confirm.
+        if result.verdict in (AdvisorVerdict.GARBAGE, AdvisorVerdict.INFRA_ISSUE):
             from datetime import timezone
 
             now = datetime.now(timezone.utc)
             verdict_age = now - result.timestamp.replace(tzinfo=timezone.utc)
             if verdict_age.total_seconds() < 2 * 3600:
+                if result.verdict == AdvisorVerdict.GARBAGE:
+                    reason = IneligibleReason.ADVISOR_GARBAGE
+                    label = "garbage signal"
+                else:
+                    reason = IneligibleReason.ADVISOR_INFRA_ISSUE
+                    label = "infra issue"
                 return Ineligible(
-                    IneligibleReason.ADVISOR_GARBAGE,
-                    f"AI advisor says garbage signal, suppressed for 2h "
+                    reason,
+                    f"AI advisor says {label}, suppressed for 2h "
                     f"(confidence={result.confidence:.2f}, "
                     f"age={int(verdict_age.total_seconds() / 60)}min)",
                 )
-            # Garbage verdict expired — fall through to normal processing
+            # Suppression window expired — fall through to normal processing
 
-        # "unsure" or expired garbage → continue normally
+        # "unsure" or expired garbage/infra_issue → continue normally
         return None
 
     def _handle_no_successes(self) -> Union[AutorevertPattern, Ineligible]:
@@ -655,7 +673,7 @@ class Signal:
         suspect commit is likely the one that introduced the test. Defer to the
         AI advisor:
         - If a prior advisor verdict exists on the suspect, act on it
-          (revert/related → `AutorevertPattern`; not_related/garbage → blocked).
+          (revert/related → `AutorevertPattern`; not_related/garbage/infra_issue → blocked).
         - Otherwise, dispatch a fresh advisor request alongside the `Ineligible`
           response. Next tick can act on the verdict.
 

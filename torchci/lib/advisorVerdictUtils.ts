@@ -18,7 +18,8 @@ export type AdvisorVerdictType =
   | "related"
   | "unsure"
   | "not_related"
-  | "garbage";
+  | "garbage"
+  | "infra_issue";
 
 export interface AdvisorVerdict {
   sha: string;
