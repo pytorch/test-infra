@@ -29,7 +29,8 @@ file_duration_per_job AS (
         test_run.invoking_file AS file,
         SUM(time) AS time,
         REGEXP_EXTRACT(job.name, '^(.*) /', 1) AS base_name,
-        REGEXP_EXTRACT(job.name, '/ test \(([\w-]*),', 1) AS test_config
+        REGEXP_EXTRACT(job.name, '/ test(?:-osdc)? \(([\w-]*),', 1)
+            AS test_config
     FROM
         default.test_run_summary test_run
     INNER JOIN job ON test_run.job_id = job.id
