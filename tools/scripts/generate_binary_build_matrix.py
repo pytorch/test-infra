@@ -22,9 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    # TEMPORARY (revert before merge): restrict nightly to 3.15/3.15t so this
-    # PR's nightly validation exercises the uv-provisioned 3.15.0b1 path.
-    "nightly": ["3.15", "3.15t"],
+    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
