@@ -60,10 +60,11 @@ def _verify_access(
     return allowlist, repo_level
 
 
-def _parse_callback_body(body: dict) -> tuple[str, str, int, int, str]:
-    """Return (delivery_id, status, run_id, run_attempt, workflow_name) from ``body``.
+def _parse_callback_body(body: dict) -> tuple[str, str, int, int, str, str | None]:
+    """Return (delivery_id, status, run_id, run_attempt, workflow_name, job_name).
 
-    run_id and run_attempt uniquely identify a workflow run execution.
+    run_id and run_attempt identify a workflow run execution.
+    job_name (``github.job``) disambiguates multiple jobs within the same run.
     run_attempt defaults to 1 when not present in the callback body.
 
     Raises HTTPException(400) on any missing or mis-typed field.
@@ -72,17 +73,16 @@ def _parse_callback_body(body: dict) -> tuple[str, str, int, int, str]:
         delivery_id = body["delivery_id"]
         workflow_dict = body["workflow"]
         status = workflow_dict["status"]
-        run_id = int(workflow_dict["run_id"])  # Required for HUD grouping
-        run_attempt = int(
-            workflow_dict.get("run_attempt", 1)
-        )  # Default to 1 if not present
-        workflow_name = workflow_dict["name"]  # Required for HUD grouping
+        run_id = int(workflow_dict["run_id"])
+        run_attempt = int(workflow_dict.get("run_attempt", 1))
+        workflow_name = workflow_dict["name"]
+        job_name = workflow_dict.get("job_name")
     except (KeyError, TypeError) as exc:
         logger.warning(f"missing required field in callback body: {exc}")
         raise HTTPException(
             400, f"callback body missing required field: {exc}"
         ) from exc
-    return delivery_id, status, run_id, run_attempt, workflow_name
+    return delivery_id, status, run_id, run_attempt, workflow_name, job_name
 
 
 def _update_state_and_compute_metrics(
@@ -96,6 +96,7 @@ def _update_state_and_compute_metrics(
     dispatch_record: CallbackStateRecord,
     workflow_record: CallbackStateRecord | None,
     payload: dict | None = None,
+    job_name: str | None = None,
 ) -> dict:
     """Persist the new workflow state to Redis and return CI timing metrics.
 
@@ -129,6 +130,7 @@ def _update_state_and_compute_metrics(
             current_timestamp,
             workflow_name,
             payload=payload,
+            job_name=job_name,
         )
     except RedisError:
         raise HTTPException(
@@ -144,7 +146,7 @@ def _update_state_and_compute_metrics(
         raise
 
     updated_workflow_record = redis_helper.get_callback_state(
-        config, delivery_id, verified_repo, run_id, run_attempt
+        config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
     )
     if updated_workflow_record is None:
         return ci_metrics
@@ -188,7 +190,9 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         return {"ok": True, "status": "ignored"}
     _, repo_level = result
 
-    delivery_id, status, run_id, run_attempt, workflow_name = _parse_callback_body(body)
+    delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
+        _parse_callback_body(body)
+    )
 
     dispatch_record = redis_helper.get_callback_state(
         config, delivery_id, verified_repo, DISPATCH_RUN_ID, DISPATCH_RUN_ATTEMPT
@@ -202,7 +206,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         raise HTTPException(400, "callback rejected: no matching dispatch record")
 
     workflow_record = redis_helper.get_callback_state(
-        config, delivery_id, verified_repo, run_id, run_attempt
+        config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
     )
 
     payload = None
@@ -230,16 +234,16 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         dispatch_record,
         workflow_record,
         payload=payload,
+        job_name=job_name,
     )
 
-    # Track in-progress jobs for zombie detection.
     if status == "in_progress":
         redis_helper.add_in_progress_tracker(
-            config, delivery_id, verified_repo, run_id, run_attempt
+            config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
         )
     elif status == "completed":
         redis_helper.remove_in_progress_tracker(
-            config, delivery_id, verified_repo, run_id, run_attempt
+            config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
         )
 
     trusted = {
