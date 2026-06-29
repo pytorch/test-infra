@@ -41,7 +41,7 @@ jobs:
       repository: "pytorch/pytorch"
       docker-build-dir: "skip-docker-build"
       binary-matrix: ${{ toJSON(matrix) }}
-      ref: main
+      ref: release/2.13
       script: |
         set -ex
 
