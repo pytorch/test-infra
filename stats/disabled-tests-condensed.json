@@ -1,4 +1,11 @@
 {
+  "test_Conv2d_depthwise_kernel_flag_cuda_float16 (__main__.TestConvolutionNNCUDACUDA)": [
+    "187290",
+    "https://github.com/pytorch/pytorch/issues/187290",
+    [
+      "linux"
+    ]
+  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
@@ -93,14 +100,6 @@
     "https://github.com/pytorch/pytorch/issues/181318",
     [
       "linux"
-    ]
-  ],
-  "test_col2im_uint32_overflow (__main__.TestMPS)": [
-    "187289",
-    "https://github.com/pytorch/pytorch/issues/187289",
-    [
-      "mac",
-      "macos"
     ]
   ],
   "test_combo_kernel_dynamic_scale_rblock (__main__.ComboKernelTests)": [
@@ -363,13 +362,6 @@
     "https://github.com/pytorch/pytorch/issues/187291",
     [
       "linux",
-      "rocm"
-    ]
-  ],
-  "test_fake_mode_error_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187344",
-    "https://github.com/pytorch/pytorch/issues/187344",
-    [
       "rocm"
     ]
   ],
@@ -1025,16 +1017,6 @@
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
