@@ -4,7 +4,7 @@ import {
   extractDynamoRecord,
   validatePayloadSize,
   writeToDynamo,
-} from "lib/oot/ootUtils";
+} from "lib/crcr/crcrUtils";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export const config = {
@@ -49,7 +49,7 @@ export default async function handler(
     if (err instanceof ApiError) {
       return res.status(err.statusCode).json({ error: err.message });
     }
-    console.error("OOT results handler error:", err);
+    console.error("CRCR results handler error:", err);
     return res
       .status(500)
       .json({ error: "Internal error writing to DynamoDB" });

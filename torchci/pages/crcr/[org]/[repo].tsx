@@ -21,14 +21,14 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
-import { conclusionColor, conclusionLabel } from "lib/oot/ootUtils";
+import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 
-interface OotJobRow {
+interface CrcrJobRow {
   upstream_repo: string;
   pr_number: number;
   pytorch_head_sha: string;
@@ -52,7 +52,7 @@ interface OotJobRow {
   execution_time: number | null;
 }
 
-function JobChip({ job }: { job: OotJobRow }) {
+function JobChip({ job }: { job: CrcrJobRow }) {
   const color = conclusionColor(job.status, job.conclusion);
   const label = conclusionLabel(job.status, job.conclusion);
   const tooltipContent = [
@@ -94,10 +94,10 @@ interface MatrixRow {
   prNumber: number;
   sha: string;
   upstreamRepo: string;
-  jobs: Map<string, OotJobRow>;
+  jobs: Map<string, CrcrJobRow>;
 }
 
-function buildMatrix(data: OotJobRow[]): {
+function buildMatrix(data: CrcrJobRow[]): {
   jobNames: string[];
   rows: MatrixRow[];
 } {
@@ -130,7 +130,7 @@ function buildMatrix(data: OotJobRow[]): {
   return { jobNames, rows };
 }
 
-function HealthSummary({ data }: { data: OotJobRow[] }) {
+function HealthSummary({ data }: { data: CrcrJobRow[] }) {
   const completed = data.filter((j) => j.status === "completed");
   const total = completed.length;
   const success = completed.filter((j) => j.conclusion === "success").length;
@@ -149,17 +149,17 @@ function HealthSummary({ data }: { data: OotJobRow[] }) {
   );
 }
 
-function OotMatrix({
+function CrcrMatrix({
   repoFullName,
   days,
 }: {
   repoFullName: string;
   days: number;
 }) {
-  const url = `/api/clickhouse/oot_backend_dashboard?parameters=${encodeURIComponent(
+  const url = `/api/clickhouse/crcr_backend_dashboard?parameters=${encodeURIComponent(
     JSON.stringify({ repo: repoFullName, days: String(days) })
   )}`;
-  const { data, error } = useSWR<OotJobRow[]>(url, fetcher, {
+  const { data, error } = useSWR<CrcrJobRow[]>(url, fetcher, {
     refreshInterval: 60_000,
   });
 
@@ -241,7 +241,7 @@ function OotMatrix({
   );
 }
 
-export default function OotBackendPage() {
+export default function CrcrBackendPage() {
   const router = useRouter();
   const { org, repo } = router.query;
   const [days, setDays] = useState(7);
@@ -286,7 +286,7 @@ export default function OotBackendPage() {
           the workflow run.
         </Typography>
 
-        <OotMatrix repoFullName={repoFullName} days={days} />
+        <CrcrMatrix repoFullName={repoFullName} days={days} />
       </Stack>
     </>
   );

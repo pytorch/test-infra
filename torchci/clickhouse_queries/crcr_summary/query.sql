@@ -8,7 +8,7 @@ SELECT
     avg(duration_seconds) AS avg_duration_s,
     max(started_at) AS last_run
 FROM
-    default.oot_workflow_job FINAL
+    default.crcr_workflow_job FINAL
 WHERE
     started_at > now() - INTERVAL {days: UInt64} DAY
     AND status = 'completed'
