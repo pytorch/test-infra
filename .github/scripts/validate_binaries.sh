@@ -196,13 +196,20 @@ run_smoke_tests() {
         source "${SCRIPT_DIR}/validate_test_ops.sh"
     fi
 
+    # torch.compile is not supported on Python 3.15+ (torch.compile() raises
+    # RuntimeError at call time), so disable the compile smoke test there.
+    local compile_check=""
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        compile_check="--torch-compile-check disabled"
+    fi
+
     # Regular smoke test
-    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
 
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --upgrade --force-reinstall
-        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
     fi
 
     popd
