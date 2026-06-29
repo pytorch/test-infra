@@ -27,6 +27,17 @@ get_python_config() {
             PYTHON_V=3.14.0rc1
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
+        3.15t)
+            # 3.15 is pre-release: conda-forge ships the interpreter under the
+            # python_dev label (alphas), but the build depends on the _python_rc
+            # marker that lives on the python_rc label, so both are required.
+            PYTHON_V=3.15.0a8
+            CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+            ;;
+        3.15)
+            PYTHON_V=3.15.0a8
+            CONDA_EXTRA_PARAM=" -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+            ;;
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
             CONDA_EXTRA_PARAM=""

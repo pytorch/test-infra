@@ -100,6 +100,8 @@ jobs:
       with-cuda: enable
       with-cpu: enable
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
+      # Validate torch-only preview python versions (3.15/3.15t) on the test channel.
+      include-preview-python-versions: enable
 
   linux-aarch64:
     needs: generate-aarch64-linux-matrix
@@ -111,7 +113,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.13
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ matrix.container_image }}
       binary-matrix: ${{ toJSON(matrix) }}

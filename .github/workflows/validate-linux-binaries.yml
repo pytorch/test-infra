@@ -111,6 +111,8 @@ jobs:
       test-infra-ref: add-py315-uv-validation-release-2.13
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
+      # Validate torch-only preview python versions (3.15/3.15t) on the test channel.
+      include-preview-python-versions: enable
 
   linux:
     needs: generate-linux-matrix
@@ -122,7 +124,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.13
       # TEMPORARY (revert before merge): use the PR branch so validate_binaries.sh
       # (with the uv-provisioned Python 3.15.0b1 path) comes from this PR.
       test-infra-ref: add-py315-uv-validation-release-2.13
@@ -160,7 +162,7 @@ jobs:
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.13
       job-name: "poetry-test"
       docker-image: 'pytorch/almalinux-builder:cpu-main'
       docker-build-dir: "skip-docker-build"
@@ -189,7 +191,7 @@ jobs:
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.13
       job-name: "amazon-linux-2023-test"
       docker-image: 'almalinux/9-base'
       docker-build-dir: "skip-docker-build"
