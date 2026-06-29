@@ -634,6 +634,15 @@
       "rocm"
     ]
   ],
+  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180204",
+    "https://github.com/pytorch/pytorch/issues/180204",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
     "186911",
     "https://github.com/pytorch/pytorch/issues/186911",
@@ -1022,28 +1031,9 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
-    "124152",
-    "https://github.com/pytorch/pytorch/issues/124152",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_regnet_y_400mf (__main__.TestVisionTracing)": [
-    "140531",
-    "https://github.com/pytorch/pytorch/issues/140531",
     [
       "asan",
       "linux",
