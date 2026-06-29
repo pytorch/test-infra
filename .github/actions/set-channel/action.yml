@@ -2,12 +2,23 @@ name: Set Channel for Build Matrix Generation/Binary Build Step
 
 description: Add CHANNEL to GITHUB_ENV
 
+inputs:
+  channel:
+    description: 'Channel to use (nightly or test). If not provided, will be auto-detected based on git ref'
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
+    - name: Set CHANNEL from input
+      if: ${{ inputs.channel != '' }}
+      shell: bash
+      run: |
+        set -euxo pipefail
+        echo "CHANNEL=${{ inputs.channel }}" >> "${GITHUB_ENV}"
     - name: Set CHANNEL for tagged pushes
-      if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/') }}
+      if: ${{ inputs.channel == '' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/') }}
       shell: bash
       run: |
         set -euxo pipefail
@@ -16,7 +27,7 @@ runs:
           echo "CHANNEL=test" >> "${GITHUB_ENV}"
         fi
     - name: Set Release CHANNEL for release
-      if: ${{ (github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release') }}
+      if: ${{ inputs.channel == '' && ((github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release')) }}
       shell: bash
       run: |
         set -euxo pipefail
