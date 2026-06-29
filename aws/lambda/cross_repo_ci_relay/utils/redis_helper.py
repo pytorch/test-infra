@@ -170,14 +170,23 @@ def check_rate_limit(
 
 
 def _state_key(
-    delivery_id: str, downstream_repo: str, run_id: int, run_attempt: int
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+    job_name: str | None = None,
 ) -> str:
     """Redis key for callback state machine.
 
-    Keyed by delivery_id + repo + run_id + run_attempt to support per-execution state tracking.
-    run_id + run_attempt uniquely identify a workflow run execution.
+    Keyed by delivery_id + repo + run_id + run_attempt + job_name.
+    job_name disambiguates multiple jobs within the same workflow run
+    (they share run_id + run_attempt but have distinct job names).
+    Omitted for DISPATCHED records which are per-repo, not per-job.
     """
-    return f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    key = f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    if job_name:
+        return f"{key}:{job_name}"
+    return key
 
 
 def get_callback_state(
@@ -187,6 +196,7 @@ def get_callback_state(
     run_id: int,
     run_attempt: int,
     client: redis_lib.Redis | None = None,
+    job_name: str | None = None,
 ) -> CallbackStateRecord | None:
     """Get callback state record from Redis, or None if no record exists.
 
@@ -195,7 +205,7 @@ def get_callback_state(
     try:
         if client is None:
             client = create_client(config)
-        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt)
+        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt, job_name)
         value = client.get(key)
         if value is None:
             return None
@@ -223,6 +233,7 @@ def set_callback_state(
     workflow_name: str | None = None,
     client: redis_lib.Redis | None = None,
     payload: dict | None = None,
+    job_name: str | None = None,
 ) -> None:
     """Set callback state with timestamp in Redis.
 
@@ -233,8 +244,8 @@ def set_callback_state(
     - DISPATCHED -> DISPATCHED: reject (duplicate webhook)
 
     IN_PROGRESS state (callback-side):
-    - None -> IN_PROGRESS: accept (first callback for this run_id + run_attempt)
-    - IN_PROGRESS -> IN_PROGRESS: reject (replay attack for same run_id + run_attempt)
+    - None -> IN_PROGRESS: accept (first callback for this job)
+    - IN_PROGRESS -> IN_PROGRESS: reject (replay attack for same job)
 
     COMPLETED state (callback-side):
     - None -> COMPLETED: reject (no prior in_progress)
@@ -255,10 +266,10 @@ def set_callback_state(
                 )
             )
 
-        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt)
+        key = _state_key(delivery_id, downstream_repo, run_id, run_attempt, job_name)
 
         current_record = get_callback_state(
-            config, delivery_id, downstream_repo, run_id, run_attempt, client
+            config, delivery_id, downstream_repo, run_id, run_attempt, client, job_name
         )
 
         if state == CallbackState.DISPATCHED:
@@ -268,24 +279,22 @@ def set_callback_state(
             if current_record is not None:
                 error_msg = (
                     "rejecting replay attack IN_PROGRESS for same "
-                    "run_id=%s, run_attempt=%s, downstream_repo=%s, workflow_name=%s"
-                    % (
-                        run_id,
-                        run_attempt,
-                        downstream_repo,
-                        workflow_name,
-                    )
+                    "run_id=%s, run_attempt=%s, downstream_repo=%s, "
+                    "workflow_name=%s, job_name=%s"
+                    % (run_id, run_attempt, downstream_repo, workflow_name, job_name)
                 )
 
         elif state == CallbackState.COMPLETED:
             if current_record is None:
                 error_msg = (
                     "rejecting COMPLETED without prior IN_PROGRESS "
-                    "key=%s, downstream_repo=%s, workflow_name=%s, run_id=%s, run_attempt=%s"
+                    "key=%s, downstream_repo=%s, workflow_name=%s, "
+                    "job_name=%s, run_id=%s, run_attempt=%s"
                     % (
                         key,
                         downstream_repo,
                         workflow_name,
+                        job_name,
                         run_id,
                         run_attempt,
                     )
@@ -295,12 +304,14 @@ def set_callback_state(
             elif current_record.state != CallbackState.IN_PROGRESS:
                 error_msg = (
                     "rejecting abnormal state transition %s -> COMPLETED "
-                    "key=%s, downstream_repo=%s, workflow_name=%s, run_id=%s, run_attempt=%s"
+                    "key=%s, downstream_repo=%s, workflow_name=%s, "
+                    "job_name=%s, run_id=%s, run_attempt=%s"
                     % (
                         current_record.state.value,
                         key,
                         downstream_repo,
                         workflow_name,
+                        job_name,
                         run_id,
                         run_attempt,
                     )
@@ -333,27 +344,43 @@ def set_callback_state(
 
 
 def _in_progress_member(
-    delivery_id: str, downstream_repo: str, run_id: int, run_attempt: int
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+    job_name: str | None = None,
 ) -> str:
     """Build a ZSET member string from the state-key components."""
-    return f"{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    base = f"{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    if job_name:
+        return f"{base}:{job_name}"
+    return base
 
 
-def _parse_in_progress_member(member: str) -> tuple[str, str, int, int]:
+def _parse_in_progress_member(
+    member: str,
+) -> tuple[str, str, int, int, str | None]:
     """Parse a ZSET member string back into its components.
 
-    The repo part may contain '/' (e.g. 'org/repo'), so we split from the right
-    for the integer fields and from the left for delivery_id.
+    Supports both old format (without job_name) and new format (with job_name).
+    run_attempt is always an integer; if the last token is non-numeric it is
+    the job_name appended by the new format.
     """
     parts = member.split(":")
     if len(parts) < 4:
         raise ValueError(f"invalid in-progress member: {member!r}")
-    # delivery_id is the first token, then repo is everything up to the last two tokens
     delivery_id = parts[0]
+    # Check if last part is non-numeric (job_name)
+    job_name = None
+    try:
+        int(parts[-1])
+    except ValueError:
+        job_name = parts[-1]
+        parts = parts[:-1]
     run_attempt = int(parts[-1])
     run_id = int(parts[-2])
     downstream_repo = ":".join(parts[1:-2])
-    return delivery_id, downstream_repo, run_id, run_attempt
+    return delivery_id, downstream_repo, run_id, run_attempt, job_name
 
 
 def add_in_progress_tracker(
@@ -363,6 +390,7 @@ def add_in_progress_tracker(
     run_id: int,
     run_attempt: int,
     client: redis_lib.Redis | None = None,
+    job_name: str | None = None,
 ) -> None:
     """Add a job to the in-progress ZSET for zombie detection.
 
@@ -373,7 +401,9 @@ def add_in_progress_tracker(
     try:
         if client is None:
             client = create_client(config)
-        member = _in_progress_member(delivery_id, downstream_repo, run_id, run_attempt)
+        member = _in_progress_member(
+            delivery_id, downstream_repo, run_id, run_attempt, job_name
+        )
         timeout_ts = time.time() + config.zombie_timeout_seconds
         client.zadd(_IN_PROGRESS_ZSET, {member: timeout_ts})
         # Auto-expire the ZSET key so it doesn't accumulate stale members forever.
@@ -392,6 +422,7 @@ def remove_in_progress_tracker(
     run_id: int,
     run_attempt: int,
     client: redis_lib.Redis | None = None,
+    job_name: str | None = None,
 ) -> None:
     """Remove a job from the in-progress ZSET after normal completion.
 
@@ -400,7 +431,9 @@ def remove_in_progress_tracker(
     try:
         if client is None:
             client = create_client(config)
-        member = _in_progress_member(delivery_id, downstream_repo, run_id, run_attempt)
+        member = _in_progress_member(
+            delivery_id, downstream_repo, run_id, run_attempt, job_name
+        )
         client.zrem(_IN_PROGRESS_ZSET, member)
         logger.info("in_progress tracker removed member=%s", member)
     except RedisError:
@@ -418,7 +451,7 @@ def scan_expired_in_progress(
     have already resolved it).
 
     Returns a list of dicts with keys:
-      delivery_id, downstream_repo, run_id, run_attempt, state_record
+      delivery_id, downstream_repo, run_id, run_attempt, job_name, state_record
     The state_record includes the stored payload via ``state_record.payload``.
     """
     results: list[dict] = []
@@ -446,7 +479,7 @@ def scan_expired_in_progress(
         logger.info("found %d expired in_progress members", len(expired_members))
         for member in expired_members:
             try:
-                delivery_id, downstream_repo, run_id, run_attempt = (
+                delivery_id, downstream_repo, run_id, run_attempt, job_name = (
                     _parse_in_progress_member(member)
                 )
             except ValueError:
@@ -455,10 +488,15 @@ def scan_expired_in_progress(
                 continue
 
             state_record = get_callback_state(
-                config, delivery_id, downstream_repo, run_id, run_attempt, client
+                config,
+                delivery_id,
+                downstream_repo,
+                run_id,
+                run_attempt,
+                client,
+                job_name,
             )
             if state_record is None:
-                # State record already expired/removed — clean up the stale ZSET entry.
                 logger.info(
                     "state record missing for expired member=%s, removing tracker",
                     member,
@@ -467,7 +505,6 @@ def scan_expired_in_progress(
                 continue
 
             if state_record.state != CallbackState.IN_PROGRESS:
-                # Already resolved (race with normal completion) — just clean up.
                 logger.info(
                     "state already %s for member=%s, removing tracker",
                     state_record.state.value,
@@ -482,6 +519,7 @@ def scan_expired_in_progress(
                     "downstream_repo": downstream_repo,
                     "run_id": run_id,
                     "run_attempt": run_attempt,
+                    "job_name": job_name,
                     "state_record": state_record,
                 }
             )

@@ -181,7 +181,13 @@ class TestCallbackStateMachine(unittest.TestCase):
         """None → IN_PROGRESS is accepted when dispatch record exists."""
 
         def get_side_effect(
-            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+            cfg,
+            delivery_id,
+            repo,
+            run_id_arg,
+            run_attempt_arg,
+            client=None,
+            job_name=None,
         ):
             if run_id_arg == DISPATCH_RUN_ID:
                 return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
@@ -228,7 +234,13 @@ class TestCallbackStateMachine(unittest.TestCase):
         """Redis write failure is re-raised as RedisError."""
 
         def get_side_effect(
-            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+            cfg,
+            delivery_id,
+            repo,
+            run_id_arg,
+            run_attempt_arg,
+            client=None,
+            job_name=None,
         ):
             if run_id_arg == DISPATCH_RUN_ID:
                 return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
@@ -315,6 +327,26 @@ class TestInProgressTracker(unittest.TestCase):
         )
         client.expire.assert_called_once_with("crcr:in_progress", 172800)
 
+    def test_add_in_progress_tracker_with_job_name(self):
+        """ZADD member includes job_name when provided."""
+        from utils.redis_helper import add_in_progress_tracker
+
+        client = MagicMock()
+        cfg = self._cfg_with_zombie_timeout()
+        now = 1700000000.0
+
+        with unittest.mock.patch("utils.redis_helper.time") as mock_time:
+            mock_time.time.return_value = now
+            add_in_progress_tracker(
+                cfg, "del-123", "org/repo", 99999, 1, client=client, job_name="build"
+            )
+
+        expected_member = "del-123:org/repo:99999:1:build"
+        expected_score = now + 86400
+        client.zadd.assert_called_once_with(
+            "crcr:in_progress", {expected_member: expected_score}
+        )
+
     def test_add_in_progress_tracker_redis_error_is_silent(self):
         """Redis errors are logged but not raised — tracker is best-effort."""
         from utils.redis_helper import add_in_progress_tracker
@@ -336,6 +368,20 @@ class TestInProgressTracker(unittest.TestCase):
 
         client.zrem.assert_called_once_with(
             "crcr:in_progress", "del-123:org/repo:99999:1"
+        )
+
+    def test_remove_in_progress_tracker_with_job_name(self):
+        """ZREM member includes job_name when provided."""
+        from utils.redis_helper import remove_in_progress_tracker
+
+        client = MagicMock()
+        cfg = _cfg()
+        remove_in_progress_tracker(
+            cfg, "del-123", "org/repo", 99999, 1, client=client, job_name="build"
+        )
+
+        client.zrem.assert_called_once_with(
+            "crcr:in_progress", "del-123:org/repo:99999:1:build"
         )
 
     def test_remove_in_progress_tracker_redis_error_is_silent(self):
@@ -362,7 +408,6 @@ class TestInProgressTracker(unittest.TestCase):
             "del-2:org/repo:20:1",
         ]
 
-        # First entry is IN_PROGRESS (zombie), second is already COMPLETED
         get_returns = [
             json.dumps({"state": "IN_PROGRESS", "timestamp": now - 90000}),
             json.dumps({"state": "COMPLETED", "timestamp": now - 100}),
@@ -382,10 +427,32 @@ class TestInProgressTracker(unittest.TestCase):
         self.assertEqual(results[0]["downstream_repo"], "org/repo")
         self.assertEqual(results[0]["run_id"], 10)
         self.assertEqual(results[0]["run_attempt"], 1)
+        self.assertIsNone(results[0]["job_name"])
         self.assertEqual(results[0]["state_record"].state, CallbackState.IN_PROGRESS)
 
-        # Second entry (COMPLETED) had its tracker cleaned up
         client.zrem.assert_any_call("crcr:in_progress", "del-2:org/repo:20:1")
+
+    def test_scan_expired_parses_job_name_from_member(self):
+        """scan_expired_in_progress correctly parses job_name from member strings."""
+        from utils.redis_helper import scan_expired_in_progress
+
+        cfg = self._cfg_with_zombie_timeout()
+        client = MagicMock()
+        client.zcard.return_value = 0
+        now = 1700000000.0
+        client.zrangebyscore.return_value = [
+            "del-1:org/repo:10:1:build-job",
+        ]
+        client.get.return_value = json.dumps(
+            {"state": "IN_PROGRESS", "timestamp": now - 90000}
+        )
+
+        with unittest.mock.patch("utils.redis_helper.time") as mock_time:
+            mock_time.time.return_value = now
+            results = scan_expired_in_progress(cfg, client=client)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["job_name"], "build-job")
 
     def test_scan_expired_skips_missing_state_records(self):
         """Members whose state record is gone are cleaned from the ZSET."""
@@ -421,6 +488,24 @@ class TestInProgressTracker(unittest.TestCase):
 
         self.assertEqual(results, [])
         client.zrem.assert_called_once_with("crcr:in_progress", "bad-member")
+
+    def test_state_key_unique_per_job_name(self):
+        """Two jobs in the same run get distinct state keys via job_name."""
+        from utils.redis_helper import _state_key
+
+        key_a = _state_key("del-1", "org/repo", 100, 1, "job-a")
+        key_b = _state_key("del-1", "org/repo", 100, 1, "job-b")
+        self.assertNotEqual(key_a, key_b)
+        self.assertIn("job-a", key_a)
+        self.assertIn("job-b", key_b)
+
+    def test_state_key_without_job_name_backward_compat(self):
+        """State key without job_name matches the old format."""
+        from utils.redis_helper import _state_key
+
+        key = _state_key("del-1", "org/repo", 100, 1)
+        self.assertFalse(key.endswith(":None"))
+        self.assertEqual(key, "crcr:state:del-1:org/repo:100:1")
 
     def test_set_callback_state_with_payload(self):
         """Payload is stored alongside state and timestamp under a "payload" key."""

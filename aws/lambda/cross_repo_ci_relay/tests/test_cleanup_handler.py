@@ -54,6 +54,7 @@ def _zombie_entry(
     repo="org/repo",
     run_id=99999,
     run_attempt=1,
+    job_name="my-job",
     in_progress_ts=None,
     body_overrides=None,
 ):
@@ -79,6 +80,7 @@ def _zombie_entry(
         "downstream_repo": repo,
         "run_id": run_id,
         "run_attempt": run_attempt,
+        "job_name": job_name,
         "state_record": CallbackStateRecord(
             CallbackState.IN_PROGRESS, in_progress_ts, stored_payload
         ),
@@ -186,7 +188,7 @@ class TestCleanupHandler(unittest.TestCase):
             untrusted["callback_payload"]["workflow"]["conclusion"], "timed_out"
         )
 
-        # Redis state was updated to COMPLETED
+        # Redis state was updated to COMPLETED with job_name
         self.mock_redis.set_callback_state.assert_called_once()
         call_args = self.mock_redis.set_callback_state.call_args[0]
         self.assertEqual(call_args[1], "del-123")
@@ -194,14 +196,13 @@ class TestCleanupHandler(unittest.TestCase):
         self.assertEqual(call_args[3], 99999)
         self.assertEqual(call_args[4], 1)
         self.assertEqual(call_args[5], CallbackState.COMPLETED)
+        call_kwargs = self.mock_redis.set_callback_state.call_args[1]
+        self.assertEqual(call_kwargs.get("job_name"), "my-job")
 
-        # ZSET entry was removed
+        # ZSET entry was removed with job_name
         self.mock_redis.remove_in_progress_tracker.assert_called_once()
-        rm_args = self.mock_redis.remove_in_progress_tracker.call_args[0]
-        self.assertEqual(rm_args[1], "del-123")
-        self.assertEqual(rm_args[2], "org/repo")
-        self.assertEqual(rm_args[3], 99999)
-        self.assertEqual(rm_args[4], 1)
+        rm_kwargs = self.mock_redis.remove_in_progress_tracker.call_args[1]
+        self.assertEqual(rm_kwargs.get("job_name"), "my-job")
 
     def test_cleans_multiple_zombies(self):
         """Multiple zombies are all cleaned independently."""
