@@ -27,6 +27,17 @@
       "rocm"
     ]
   ],
+  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "182260",
+    "https://github.com/pytorch/pytorch/issues/182260",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
     "187645",
     "https://github.com/pytorch/pytorch/issues/187645",
@@ -387,6 +398,15 @@
     "https://github.com/pytorch/pytorch/issues/187598",
     [
       "rocm"
+    ]
+  ],
+  "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187176",
+    "https://github.com/pytorch/pytorch/issues/187176",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
