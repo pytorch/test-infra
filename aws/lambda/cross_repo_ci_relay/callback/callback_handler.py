@@ -245,7 +245,9 @@ def _update_upstream_check_run(
             status=status,
             conclusion=conclusion,
             details_url=details_url,
-            external_id=run_id,
+            external_id=str(
+                run_id
+            ),  # run_id is an int; check run external_id must be str
             output=output,
         )
         logger.info(

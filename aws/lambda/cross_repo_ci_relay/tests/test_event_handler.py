@@ -70,7 +70,7 @@ class TestEventHandler(unittest.TestCase):
     ):
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (
-            ["huawei/repo", "pytorch/repo"],
+            ["org1/repo", "pytorch/repo"],
             [],
         )
         mock_load.return_value = mock_map
@@ -80,7 +80,7 @@ class TestEventHandler(unittest.TestCase):
         self.assertTrue(result["ok"])
         # One token per downstream repo for dispatch only; CR creation moved to callback
         self.assertEqual(mock_get_repo_access_token.call_count, 2)
-        mock_get_repo_access_token.assert_any_call("12345", "fake-key", "huawei/repo")
+        mock_get_repo_access_token.assert_any_call("12345", "fake-key", "org1/repo")
         mock_get_repo_access_token.assert_any_call("12345", "fake-key", "pytorch/repo")
         self.assertEqual(mock_dispatch.call_count, 2)
 

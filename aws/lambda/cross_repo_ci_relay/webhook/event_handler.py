@@ -186,7 +186,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
             job_status = job_info.get("status")
             job_conclusion = job_info.get("conclusion")
             workflow_name = job_info.get("workflow_name")
-            external_id = job_info.get("run_id")  # opaque run identifier
+            external_id = str(job_info.get("run_id"))  # opaque run identifier
             details_url = job_info.get("job_url")  # full URL for the link
 
             if job_status == "in_progress":

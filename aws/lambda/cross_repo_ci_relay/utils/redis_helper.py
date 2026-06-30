@@ -196,7 +196,7 @@ def set_dispatch_workflow(
                 "workflow_name": workflow_name,
             }
         )
-        client.setex(key, config.oot_status_ttl, value)
+        client.setex(key, config.crcr_status_ttl, value)
     except RedisError:
         logger.exception("set_dispatch_workflow: redis error")
 
@@ -232,7 +232,7 @@ def mark_check_run_wanted(
         if client is None:
             client = create_client(config)
         key = f"{_CHECK_RUN_WANTED_PREFIX}{head_sha}:{downstream_repo}"
-        client.setex(key, config.oot_status_ttl, "1")
+        client.setex(key, config.crcr_status_ttl, "1")
     except RedisError:
         logger.exception("mark_check_run_wanted: redis error")
 

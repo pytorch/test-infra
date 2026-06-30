@@ -26,7 +26,7 @@ def _body(
     run_id=99999,
     run_attempt=1,
     job_name=None,
-    labels=None
+    labels=None,
 ):
     wf = {
         "status": status,
@@ -367,6 +367,22 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
 
         handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
 
+        self.mock_gh.create_check_run.assert_called_once()
+
+    def test_l3_passes_body_labels_to_needs_check_run(self):
+        """The PR labels from the callback body are extracted and handed to
+        needs_check_run, which gates whether the L3 check run is created."""
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = True
+        self.mock_load.return_value = mock_map
+
+        body = _body(status="in_progress", labels=["ciflow/crcr/device1", "other"])
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        mock_map.needs_check_run.assert_called_once_with(
+            "org/repo", {"ciflow/crcr/device1", "other"}
+        )
         self.mock_gh.create_check_run.assert_called_once()
 
     def test_l3_without_label_does_not_create_check_run(self):

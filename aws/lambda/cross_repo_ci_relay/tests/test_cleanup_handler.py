@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from callback.cleanup_handler import _build_timeout_payload, handle
+from utils.allowlist import AllowlistLevel
 from utils.misc import CallbackState
 from utils.redis_helper import CallbackStateRecord
 
@@ -257,6 +258,61 @@ class TestCleanupHandler(unittest.TestCase):
         self.assertEqual(result["errors"], 0)
         self.mock_hud.assert_called_once()
         self.mock_redis.remove_in_progress_tracker.assert_called_once()
+
+
+class TestCleanupCheckRunFinalize(unittest.TestCase):
+    """L3+ zombies also get a completed/timed_out upstream check run."""
+
+    def setUp(self):
+        self.patcher_redis = patch("callback.cleanup_handler.redis_helper")
+        self.mock_redis = self.patcher_redis.start()
+        self.patcher_hud = patch("callback.cleanup_handler.forward_to_hud")
+        self.patcher_hud.start()
+
+        self.patcher_load = patch("callback.cleanup_handler.load_allowlist")
+        self.mock_load = self.patcher_load.start()
+        self.mock_map = MagicMock()
+        self.mock_map.get_repo_level.return_value = AllowlistLevel.L4
+        self.mock_map.needs_check_run.return_value = True
+        self.mock_load.return_value = self.mock_map
+
+        self.patcher_gh = patch("callback.cleanup_handler.gh_helper")
+        self.mock_gh = self.patcher_gh.start()
+        self.mock_gh.get_repo_access_token.return_value = "tok"
+        self.mock_gh.create_check_run.return_value = 777
+
+    def tearDown(self):
+        self.patcher_redis.stop()
+        self.patcher_hud.stop()
+        self.patcher_load.stop()
+        self.patcher_gh.stop()
+
+    def _level_zombie(self, level):
+        zombie = _zombie_entry()
+        zombie["state_record"].payload["trusted"]["downstream_repo_level"] = level
+        return zombie
+
+    def test_l4_zombie_finalizes_check_run_timed_out(self):
+        self.mock_redis.scan_expired_in_progress.return_value = [
+            self._level_zombie("L4")
+        ]
+
+        handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["status"], "completed")
+        self.assertEqual(kw["conclusion"], "timed_out")
+        self.assertEqual(kw["head_sha"], "abc123")
+
+    def test_l2_zombie_does_not_finalize_check_run(self):
+        # Default zombie is L2 → the pre-check short-circuits, no upstream check run.
+        self.mock_redis.scan_expired_in_progress.return_value = [_zombie_entry()]
+
+        handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_not_called()
+        self.mock_load.assert_not_called()
 
 
 if __name__ == "__main__":
