@@ -59,6 +59,13 @@
       "linux"
     ]
   ],
+  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
+    "188513",
+    "https://github.com/pytorch/pytorch/issues/188513",
+    [
+      "linux"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -77,6 +84,7 @@
     "186872",
     "https://github.com/pytorch/pytorch/issues/186872",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -419,13 +427,6 @@
     "https://github.com/pytorch/pytorch/issues/186907",
     [
       "linux"
-    ]
-  ],
-  "test_grad_capture_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187378",
-    "https://github.com/pytorch/pytorch/issues/187378",
-    [
-      "rocm"
     ]
   ],
   "test_grad_closure_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1097,20 +1098,20 @@
       "dynamo"
     ]
   ],
+  "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180366",
+    "https://github.com/pytorch/pytorch/issues/180366",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
     "180337",
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180439",
-    "https://github.com/pytorch/pytorch/issues/180439",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
