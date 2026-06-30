@@ -59,7 +59,11 @@ export async function buildAdvisorVerdictLines(
   const verdictByKey = new Map<string, AdvisorLineVerdict>();
   for (const v of deduplicateVerdicts(verdictRows)) {
     if (v.sha === headSha) {
-      verdictByKey.set(v.signalKey, { summary: v.summary });
+      verdictByKey.set(v.signalKey, {
+        verdict: v.verdict,
+        confidence: v.confidence,
+        summary: v.summary,
+      });
     }
   }
 
