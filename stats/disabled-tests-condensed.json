@@ -27,17 +27,6 @@
       "rocm"
     ]
   ],
-  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
-    "182260",
-    "https://github.com/pytorch/pytorch/issues/182260",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
     "187645",
     "https://github.com/pytorch/pytorch/issues/187645",
@@ -372,13 +361,6 @@
       "xpu"
     ]
   ],
-  "test_fast_div_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187426",
-    "https://github.com/pytorch/pytorch/issues/187426",
-    [
-      "rocm"
-    ]
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -412,13 +394,6 @@
     "https://github.com/pytorch/pytorch/issues/186907",
     [
       "linux"
-    ]
-  ],
-  "test_grad_closure_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187425",
-    "https://github.com/pytorch/pytorch/issues/187425",
-    [
-      "rocm"
     ]
   ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -967,6 +942,15 @@
       "dynamo"
     ]
   ],
+  "test_tensor_with_unbacked_shape_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
+    "187046",
+    "https://github.com/pytorch/pytorch/issues/187046",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torch_binomial_dtype_errors (__main__.TestDistributionsGPU)": [
     "187030",
     "https://github.com/pytorch/pytorch/issues/187030",
@@ -1106,9 +1090,9 @@
       "dynamo"
     ]
   ],
-  "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180490",
-    "https://github.com/pytorch/pytorch/issues/180490",
+  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180439",
+    "https://github.com/pytorch/pytorch/issues/180439",
     [
       "linux",
       "rocm",
