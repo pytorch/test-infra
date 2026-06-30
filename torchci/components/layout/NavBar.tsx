@@ -75,6 +75,10 @@ function NavBar() {
       name: "MacOS test stats",
       href: "/mac_test_stats",
     },
+    {
+      name: "ROCm test stats",
+      href: "/rocm_test_stats",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
