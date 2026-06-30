@@ -85,7 +85,8 @@
     "https://github.com/pytorch/pytorch/issues/186872",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
@@ -339,15 +340,6 @@
       "rocm"
     ]
   ],
-  "test_fake_device_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "176138",
-    "https://github.com/pytorch/pytorch/issues/176138",
-    [
-      "linux",
-      "rocm",
-      "xpu"
-    ]
-  ],
   "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "176147",
     "https://github.com/pytorch/pytorch/issues/176147",
@@ -378,13 +370,6 @@
     "https://github.com/pytorch/pytorch/issues/188131",
     [
       "xpu"
-    ]
-  ],
-  "test_fast_div_int_to_float_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187403",
-    "https://github.com/pytorch/pytorch/issues/187403",
-    [
-      "rocm"
     ]
   ],
   "test_fast_div_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -1039,6 +1024,13 @@
       "slow"
     ]
   ],
+  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
+    "186909",
+    "https://github.com/pytorch/pytorch/issues/186909",
+    [
+      "rocm"
+    ]
+  ],
   "test_trace_return_dataclass_nested (__main__.TestFX)": [
     "181322",
     "https://github.com/pytorch/pytorch/issues/181322",
@@ -1130,13 +1122,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "179879",
-    "https://github.com/pytorch/pytorch/issues/179879",
-    [
-      "dynamo"
     ]
   ]
 }
