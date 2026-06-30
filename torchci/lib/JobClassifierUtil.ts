@@ -118,6 +118,10 @@ export const groups = [
     name: GROUP_LINT,
   },
   {
+    regex: /inductor-rocm/,
+    name: GROUP_ROCM,
+  },
+  {
     regex: /inductor/,
     name: GROUP_INDUCTOR,
   },
