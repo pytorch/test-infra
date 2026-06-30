@@ -398,7 +398,7 @@ const SKIP_DRAFT_PRS = true;
 /**
  * Fetch the minimal PR state needed to gate auto-dispatch, from the
  * default.pull_request ClickHouse mirror rather than the GitHub API. The rest
- * of the advisor path already reads from CH (and getPRsWithPendingJobInComment
+ * of the advisor path already reads from CH (and getPRsNeedingCommentRefresh
  * in drci.ts already reads pull_request.state the same way), so this keeps the
  * Dr.CI cron off the GitHub rate limit. The mirror lags GitHub by ~1 minute,
  * well within the 15-minute cron cadence. A PR not yet mirrored (no row) is
