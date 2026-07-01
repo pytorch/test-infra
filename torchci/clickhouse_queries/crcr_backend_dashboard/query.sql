@@ -25,6 +25,17 @@ FROM
 WHERE
     downstream_repo = {repo: String}
     AND started_at > now() - INTERVAL {days: UInt64} DAY
+    AND pr_number IN (
+        SELECT pr_number
+        FROM default.crcr_workflow_job FINAL
+        WHERE
+            downstream_repo = {repo: String}
+            AND started_at > now() - INTERVAL {days: UInt64} DAY
+        GROUP BY pr_number
+        ORDER BY max(started_at) DESC
+        LIMIT
+            {per_page: UInt64}
+            OFFSET {offset: UInt64}
+    )
 ORDER BY
     started_at DESC
-LIMIT 500
