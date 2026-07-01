@@ -75,6 +75,10 @@ function NavBar() {
       name: "MacOS test stats",
       href: "/mac_test_stats",
     },
+    {
+      name: "CRCR CI Summary",
+      href: "/crcr",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
