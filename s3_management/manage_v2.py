@@ -600,6 +600,16 @@ def index_has_external_links(html: str) -> bool:
     return "files.pythonhosted.org" in html or "pypi.nvidia.com" in html
 
 
+# Cache-Control headers for uploaded index pages.
+#
+# Release/prod channels (e.g. whl, libtorch) publish immutable artifacts, so
+# their index pages may be cached for 10 minutes and then must be revalidated.
+# Nightly, test, and preview channels change constantly, so their indexes must
+# never be cached -- newly published packages have to appear immediately.
+PROD_INDEX_CACHE_CONTROL = "max-age=600, public, must-revalidate"
+NO_CACHE_INDEX_CACHE_CONTROL = "no-cache,no-store,must-revalidate"
+
+
 class S3Index:
     def __init__(self, objects: List[S3Object], prefix: str) -> None:
         self.objects = objects
@@ -615,6 +625,18 @@ class S3Index:
         self._parent_packages_cache: Dict[str, Set[str]] = {}
         # Cache for S3 bucket object listings to avoid repeated API calls
         self._bucket_listing_cache: Dict[str, List] = {}
+
+    def _index_cache_control(self, subdir: str) -> str:
+        """Return the ``Cache-Control`` header for an index page under ``subdir``.
+
+        Nightly, test, and preview channels change constantly and must never be
+        cached; release/prod channels may be cached for 10 minutes and then
+        revalidated.
+        """
+        parts = subdir.split("/")
+        if "nightly" in parts or "test" in parts or "preview" in parts:
+            return NO_CACHE_INDEX_CACHE_CONTROL
+        return PROD_INDEX_CACHE_CONTROL
 
     def packages_by_allow_list(self) -> List[S3Object]:
         """Filter packages to only include those in PACKAGE_ALLOW_LIST
@@ -946,7 +968,7 @@ class S3Index:
             )
             BUCKET.Object(key=f"{subdir}/{self.html_name}").put(
                 ACL="public-read",
-                CacheControl="no-cache,no-store,must-revalidate",
+                CacheControl=self._index_cache_control(subdir),
                 ContentType="text/html",
                 Body=index_html,
             )
@@ -958,7 +980,7 @@ class S3Index:
                 )
                 R2_BUCKET.Object(key=f"{subdir}/{self.html_name}").put(
                     ACL="public-read",
-                    CacheControl="no-cache,no-store,must-revalidate",
+                    CacheControl=self._index_cache_control(subdir),
                     ContentType="text/html",
                     Body=index_html,
                 )
@@ -974,7 +996,7 @@ class S3Index:
         )
         BUCKET.Object(key=f"{self.prefix}/{self.html_name}").put(
             ACL="public-read",
-            CacheControl="no-cache,no-store,must-revalidate",
+            CacheControl=self._index_cache_control(self.prefix),
             ContentType="text/html",
             Body=index_html,
         )
@@ -986,7 +1008,7 @@ class S3Index:
             )
             R2_BUCKET.Object(key=f"{self.prefix}/{self.html_name}").put(
                 ACL="public-read",
-                CacheControl="no-cache,no-store,must-revalidate",
+                CacheControl=self._index_cache_control(self.prefix),
                 ContentType="text/html",
                 Body=index_html,
             )
@@ -1007,7 +1029,7 @@ class S3Index:
             print(f"INFO Uploading {subdir}/index.html to S3 bucket {BUCKET.name}")
             BUCKET.Object(key=f"{subdir}/index.html").put(
                 ACL="public-read",
-                CacheControl="no-cache,no-store,must-revalidate",
+                CacheControl=self._index_cache_control(subdir),
                 ContentType="text/html",
                 Body=index_html,
             )
@@ -1019,7 +1041,7 @@ class S3Index:
                 )
                 R2_BUCKET.Object(key=f"{subdir}/index.html").put(
                     ACL="public-read",
-                    CacheControl="no-cache,no-store,must-revalidate",
+                    CacheControl=self._index_cache_control(subdir),
                     ContentType="text/html",
                     Body=index_html,
                 )
@@ -1100,7 +1122,7 @@ class S3Index:
                         # Upload to subdirectory in S3
                         BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                             ACL="public-read",
-                            CacheControl="no-cache,no-store,must-revalidate",
+                            CacheControl=self._index_cache_control(subdir),
                             ContentType="text/html",
                             Body=root_index_html,
                         )
@@ -1111,7 +1133,7 @@ class S3Index:
                                 key=f"{subdir}/{compat_pkg_name}/index.html"
                             ).put(
                                 ACL="public-read",
-                                CacheControl="no-cache,no-store,must-revalidate",
+                                CacheControl=self._index_cache_control(subdir),
                                 ContentType="text/html",
                                 Body=root_index_html,
                             )
@@ -1131,7 +1153,7 @@ class S3Index:
                 )
                 BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                     ACL="public-read",
-                    CacheControl="no-cache,no-store,must-revalidate",
+                    CacheControl=self._index_cache_control(subdir),
                     ContentType="text/html",
                     Body=s3_index_html,
                 )
@@ -1148,7 +1170,7 @@ class S3Index:
                     )
                     R2_BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                         ACL="public-read",
-                        CacheControl="no-cache,no-store,must-revalidate",
+                        CacheControl=self._index_cache_control(subdir),
                         ContentType="text/html",
                         Body=r2_index_html,
                     )
