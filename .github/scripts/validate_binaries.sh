@@ -239,7 +239,9 @@ handle_aarch64_cuda_override
 
 # torchvision wheels are not published for Python 3.15 / 3.15t yet, so validate
 # torch only: skip the torchvision install and its smoke-test module check.
-if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+# Guard with :- since libtorch builds run this before the libtorch exit below
+# and do not set MATRIX_PYTHON_VERSION (set -u would abort otherwise).
+if [[ ${MATRIX_PYTHON_VERSION:-} == "3.15" || ${MATRIX_PYTHON_VERSION:-} == "3.15t" ]]; then
     export TORCH_ONLY=true
 fi
 
