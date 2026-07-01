@@ -716,6 +716,11 @@
       "rocm"
     ]
   ],
+  "test_main_loop_scaling_shape2_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188704",
+    "https://github.com/pytorch/pytorch/issues/188704",
+    []
+  ],
   "test_main_loop_scaling_shape2_use_fast_accum_True_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
     "188675",
     "https://github.com/pytorch/pytorch/issues/188675",
@@ -855,6 +860,11 @@
       "linux",
       "rocm"
     ]
+  ],
+  "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
+    "188705",
+    "https://github.com/pytorch/pytorch/issues/188705",
+    []
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
     "86735",
