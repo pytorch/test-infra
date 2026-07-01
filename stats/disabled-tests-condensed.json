@@ -672,27 +672,6 @@
       "rocm"
     ]
   ],
-  "test_max_autotune_cutlass_backend_cpp_wrapper_bfloat16_num_gemms_2 (__main__.TestCutlassBackend)": [
-    "186895",
-    "https://github.com/pytorch/pytorch/issues/186895",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_cpp_wrapper_float16_num_gemms_1 (__main__.TestCutlassBackend)": [
-    "187033",
-    "https://github.com/pytorch/pytorch/issues/187033",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_autotune_cutlass_backend_cpp_wrapper_float16_num_gemms_2 (__main__.TestCutlassBackend)": [
-    "187162",
-    "https://github.com/pytorch/pytorch/issues/187162",
-    [
-      "xpu"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
