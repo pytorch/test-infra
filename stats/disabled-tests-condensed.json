@@ -27,6 +27,14 @@
       "rocm"
     ]
   ],
+  "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "149080",
+    "https://github.com/pytorch/pytorch/issues/149080",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "182260",
     "https://github.com/pytorch/pytorch/issues/182260",
@@ -179,6 +187,14 @@
     "https://github.com/pytorch/pytorch/issues/188238",
     [
       "xpu"
+    ]
+  ],
+  "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
+    "188627",
+    "https://github.com/pytorch/pytorch/issues/188627",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
@@ -414,6 +430,14 @@
     "https://github.com/pytorch/pytorch/issues/186907",
     [
       "linux"
+    ]
+  ],
+  "test_grad_capture_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187378",
+    "https://github.com/pytorch/pytorch/issues/187378",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -762,6 +786,13 @@
       "slow"
     ]
   ],
+  "test_rank0_broadcast_meta_device_init (__main__.TestFullyShardMetaDeviceInit)": [
+    "188628",
+    "https://github.com/pytorch/pytorch/issues/188628",
+    [
+      "rocm"
+    ]
+  ],
   "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "186259",
     "https://github.com/pytorch/pytorch/issues/186259",
@@ -1103,13 +1134,6 @@
       "slow"
     ]
   ],
-  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180337",
-    "https://github.com/pytorch/pytorch/issues/180337",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180439",
     "https://github.com/pytorch/pytorch/issues/180439",
@@ -1119,9 +1143,9 @@
       "slow"
     ]
   ],
-  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180542",
-    "https://github.com/pytorch/pytorch/issues/180542",
+  "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180490",
+    "https://github.com/pytorch/pytorch/issues/180490",
     [
       "linux",
       "rocm",
