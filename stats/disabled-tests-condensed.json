@@ -1104,13 +1104,6 @@
       "rocm"
     ]
   ],
-  "test_views_op_having_view_copy (__main__.TestPasses)": [
-    "187034",
-    "https://github.com/pytorch/pytorch/issues/187034",
-    [
-      "xpu"
-    ]
-  ],
   "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
     "180194",
     "https://github.com/pytorch/pytorch/issues/180194",
