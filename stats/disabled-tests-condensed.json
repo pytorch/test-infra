@@ -102,6 +102,13 @@
       "slow"
     ]
   ],
+  "test_cat (__main__.NumBytesMetricTests)": [
+    "145344",
+    "https://github.com/pytorch/pytorch/issues/145344",
+    [
+      "rocm"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -423,13 +430,6 @@
       "win"
     ]
   ],
-  "test_fsdp_flat_param_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187571",
-    "https://github.com/pytorch/pytorch/issues/187571",
-    [
-      "rocm"
-    ]
-  ],
   "test_full_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187598",
     "https://github.com/pytorch/pytorch/issues/187598",
@@ -716,6 +716,66 @@
       "rocm"
     ]
   ],
+  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188706",
+    "https://github.com/pytorch/pytorch/issues/188706",
+    []
+  ],
+  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188707",
+    "https://github.com/pytorch/pytorch/issues/188707",
+    []
+  ],
+  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188708",
+    "https://github.com/pytorch/pytorch/issues/188708",
+    []
+  ],
+  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188709",
+    "https://github.com/pytorch/pytorch/issues/188709",
+    []
+  ],
+  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188710",
+    "https://github.com/pytorch/pytorch/issues/188710",
+    []
+  ],
+  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188711",
+    "https://github.com/pytorch/pytorch/issues/188711",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188712",
+    "https://github.com/pytorch/pytorch/issues/188712",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188713",
+    "https://github.com/pytorch/pytorch/issues/188713",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188714",
+    "https://github.com/pytorch/pytorch/issues/188714",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188715",
+    "https://github.com/pytorch/pytorch/issues/188715",
+    []
+  ],
+  "test_main_loop_scaling_shape2_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188716",
+    "https://github.com/pytorch/pytorch/issues/188716",
+    []
+  ],
+  "test_main_loop_scaling_shape2_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188717",
+    "https://github.com/pytorch/pytorch/issues/188717",
+    []
+  ],
   "test_main_loop_scaling_shape2_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188704",
     "https://github.com/pytorch/pytorch/issues/188704",
@@ -758,8 +818,8 @@
     ]
   ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
-    "188689",
-    "https://github.com/pytorch/pytorch/issues/188689",
+    "188692",
+    "https://github.com/pytorch/pytorch/issues/188692",
     []
   ],
   "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
@@ -1037,9 +1097,16 @@
       "slow"
     ]
   ],
+  "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
+    "179979",
+    "https://github.com/pytorch/pytorch/issues/179979",
+    [
+      "rocm"
+    ]
+  ],
   "test_stream_invalid_device_index (__main__.TestCuda)": [
-    "188690",
-    "https://github.com/pytorch/pytorch/issues/188690",
+    "188691",
+    "https://github.com/pytorch/pytorch/issues/188691",
     []
   ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
