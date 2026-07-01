@@ -53,6 +53,11 @@
       "rocm"
     ]
   ],
+  "test_backend_simple (__main__.PrivateUse1BackendTest)": [
+    "188688",
+    "https://github.com/pytorch/pytorch/issues/188688",
+    []
+  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
@@ -236,6 +241,11 @@
       "linux",
       "slow"
     ]
+  ],
+  "test_cudnn_not_mutate_stride_cuda (__main__.TestConvolutionNNCUDACUDA)": [
+    "188683",
+    "https://github.com/pytorch/pytorch/issues/188683",
+    []
   ],
   "test_cupti_monitor_collection_raw_dump_smoke (__main__.TestProfilerCUDA)": [
     "186344",
@@ -694,6 +704,11 @@
       "dynamo"
     ]
   ],
+  "test_linear_block_compile_parity_forward (__main__.TestDropoutAlignRandomEager)": [
+    "188687",
+    "https://github.com/pytorch/pytorch/issues/188687",
+    []
+  ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
     "187156",
     "https://github.com/pytorch/pytorch/issues/187156",
@@ -736,6 +751,11 @@
       "rocm",
       "slow"
     ]
+  ],
+  "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
+    "188689",
+    "https://github.com/pytorch/pytorch/issues/188689",
+    []
   ],
   "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186873",
@@ -805,6 +825,16 @@
     [
       "rocm"
     ]
+  ],
+  "test_redispatch_nn_functional_conv_transpose3d_cuda_bfloat16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
+    "188684",
+    "https://github.com/pytorch/pytorch/issues/188684",
+    []
+  ],
+  "test_redispatch_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
+    "188686",
+    "https://github.com/pytorch/pytorch/issues/188686",
+    []
   ],
   "test_redispatch_nn_functional_conv_transpose3d_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "188678",
@@ -1004,6 +1034,11 @@
       "slow"
     ]
   ],
+  "test_stream_invalid_device_index (__main__.TestCuda)": [
+    "188690",
+    "https://github.com/pytorch/pytorch/issues/188690",
+    []
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1128,6 +1163,11 @@
     [
       "dynamo"
     ]
+  ],
+  "test_vjp_scalar_logging_tensor (__main__.TestAutogradFunctional)": [
+    "188693",
+    "https://github.com/pytorch/pytorch/issues/188693",
+    []
   ],
   "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
     "180322",
