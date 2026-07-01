@@ -32,7 +32,7 @@ PYTHON_ARCHES_DICT = {
 # generator default is unchanged for domain libraries (torchvision, torchaudio)
 # and for Windows/macOS, which do not have wheels for these versions yet.
 PREVIEW_PYTHON_ARCHES_DICT = {
-    "nightly": [],
+    "nightly": ["3.15", "3.15t"],
     "test": ["3.15", "3.15t"],
     "release": [],
 }
