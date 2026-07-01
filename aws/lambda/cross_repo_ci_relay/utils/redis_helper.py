@@ -180,6 +180,8 @@ def set_dispatch_workflow(
     job_url: str | None,
     run_id: str | None = None,
     workflow_name: str | None = None,
+    job_name: str | None = None,
+    job_id: str | None = None,
     client: redis_lib.Redis | None = None,
 ) -> None:
     """Store the latest downstream job summary keyed by (head_sha, downstream_repo)."""
@@ -194,6 +196,8 @@ def set_dispatch_workflow(
                 "job_url": job_url,
                 "run_id": run_id,
                 "workflow_name": workflow_name,
+                "job_name": job_name,
+                "job_id": job_id,
             }
         )
         client.setex(key, config.crcr_status_ttl, value)

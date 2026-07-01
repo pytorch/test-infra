@@ -200,6 +200,8 @@ def _update_upstream_check_run(
     workflow = body.get("workflow") or {}
     conclusion = workflow.get("conclusion")
     workflow_name = workflow.get("name", "")
+    job_name = workflow.get("job_name")
+    job_id = workflow.get("job_id")
 
     details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
 
@@ -212,6 +214,8 @@ def _update_upstream_check_run(
         details_url,
         run_id=run_id,
         workflow_name=workflow_name,
+        job_name=job_name,
+        job_id=job_id,
     )
 
     if not needs_check_run:
@@ -240,14 +244,15 @@ def _update_upstream_check_run(
         cr_id = gh_helper.create_check_run(
             token=upstream_token,
             repo_full_name=config.upstream_repo,
-            name=gh_helper.check_run_name(verified_repo, workflow_name),
+            name=gh_helper.check_run_name(verified_repo, workflow_name, job_name),
             head_sha=head_sha,
             status=status,
             conclusion=conclusion,
             details_url=details_url,
-            external_id=str(
-                run_id
-            ),  # run_id is an int; check run external_id must be str
+            # Store the downstream job_id so a check-run rerequest can re-run
+            # exactly this job (not the whole workflow run). The action
+            # guarantees job_id is present, so no fallback here.
+            external_id=str(job_id),
             output=output,
         )
         logger.info(

@@ -95,6 +95,8 @@ def _finalize_timed_out_check_run(config: RelayConfig, zombie: dict) -> None:
 
     workflow = body.get("workflow") or {}
     workflow_name = workflow.get("name", "")
+    job_name = workflow.get("job_name")
+    job_id = workflow.get("job_id")
     run_id = str(workflow.get("run_id"))
     details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
     output = gh_helper.build_check_run_output(
@@ -110,12 +112,12 @@ def _finalize_timed_out_check_run(config: RelayConfig, zombie: dict) -> None:
         cr_id = gh_helper.create_check_run(
             token=upstream_token,
             repo_full_name=config.upstream_repo,
-            name=gh_helper.check_run_name(verified_repo, workflow_name),
+            name=gh_helper.check_run_name(verified_repo, workflow_name, job_name),
             head_sha=head_sha,
             status="completed",
             conclusion="timed_out",
             details_url=details_url,
-            external_id=run_id,
+            external_id=str(job_id),
             output=output,
         )
         logger.info(

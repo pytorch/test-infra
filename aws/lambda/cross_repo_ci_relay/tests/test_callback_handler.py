@@ -26,6 +26,7 @@ def _body(
     run_id=99999,
     run_attempt=1,
     job_name=None,
+    job_id=None,
     labels=None,
 ):
     wf = {
@@ -39,6 +40,8 @@ def _body(
     }
     if job_name is not None:
         wf["job_name"] = job_name
+    if job_id is not None:
+        wf["job_id"] = job_id
 
     return {
         "event_type": "pull_request",
@@ -337,6 +340,35 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         kw = self.mock_gh.create_check_run.call_args[1]
         self.assertEqual(kw["status"], "completed")
         self.assertEqual(kw["conclusion"], "success")
+
+    def test_check_run_name_is_scoped_by_job_name(self):
+        """The job_name from the callback body is threaded into the check run
+        name so multiple jobs in one workflow run get distinct check runs."""
+        self.mock_gh.create_check_run.return_value = 888
+
+        handle(
+            _cfg(),
+            _body(status="completed", job_name="ec05-multi-job-a"),
+            verified_repo="org/repo",
+        )
+
+        self.mock_gh.check_run_name.assert_called_once_with(
+            "org/repo", "CI", "ec05-multi-job-a"
+        )
+
+    def test_check_run_external_id_is_job_id(self):
+        """external_id carries the downstream job_id so a rerequest can re-run
+        exactly that job."""
+        self.mock_gh.create_check_run.return_value = 888
+
+        handle(
+            _cfg(),
+            _body(status="completed", job_name="build", job_id=555123),
+            verified_repo="org/repo",
+        )
+
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["external_id"], "555123")
 
     def test_in_progress_callback_creates_check_run(self):
         self.mock_gh.create_check_run.return_value = 999

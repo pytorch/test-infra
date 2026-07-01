@@ -248,7 +248,7 @@ class TestPrLabeledHandler(unittest.TestCase):
 
 
 class TestCheckRunRerun(unittest.TestCase):
-    """check_run / check_suite rerequested re-trigger the downstream workflow run."""
+    """check_run rerequested re-runs the single downstream job by its job_id."""
 
     def setUp(self):
         self.patcher_gh = patch("webhook.event_handler.gh_helper")
@@ -270,7 +270,7 @@ class TestCheckRunRerun(unittest.TestCase):
         self.patcher_redis.stop()
         self.patcher_load.stop()
 
-    def _check_run_payload(self, name="crcr/org/l3repo/CI", external_id="99999"):
+    def _check_run_payload(self, name="crcr/org/l3repo/CI/build", external_id="88888"):
         return {
             "action": "rerequested",
             "check_run": {
@@ -281,11 +281,11 @@ class TestCheckRunRerun(unittest.TestCase):
             "repository": {"full_name": "pytorch/pytorch"},
         }
 
-    def test_check_run_rerequested_reruns_downstream(self):
+    def test_check_run_rerequested_reruns_single_job(self):
         result = handle(_cfg(), self._check_run_payload(), "check_run", "del-1")
         self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
-        self.mock_gh.rerun_workflow.assert_called_once_with(
-            token="tok", repo_full_name="org/l3repo", run_id=99999
+        self.mock_gh.rerun_job.assert_called_once_with(
+            token="tok", repo_full_name="org/l3repo", job_id=88888
         )
 
     def test_non_crcr_check_run_is_ignored(self):
@@ -296,7 +296,18 @@ class TestCheckRunRerun(unittest.TestCase):
             "del-2",
         )
         self.assertTrue(result["ignored"])
-        self.mock_gh.rerun_workflow.assert_not_called()
+        self.mock_gh.rerun_job.assert_not_called()
+
+    def test_check_run_without_external_id_is_ignored(self):
+        """No job_id stored (older downstream) -> nothing to rerun, not an error."""
+        result = handle(
+            _cfg(),
+            self._check_run_payload(external_id=""),
+            "check_run",
+            "del-2b",
+        )
+        self.assertTrue(result["ignored"])
+        self.mock_gh.rerun_job.assert_not_called()
 
     def test_check_run_non_rerequested_action_ignored(self):
         payload = self._check_run_payload()
@@ -304,20 +315,52 @@ class TestCheckRunRerun(unittest.TestCase):
         self.assertEqual(
             handle(_cfg(), payload, "check_run", "del-3"), {"ignored": True}
         )
-        self.mock_gh.rerun_workflow.assert_not_called()
+        self.mock_gh.rerun_job.assert_not_called()
 
-    def test_check_suite_rerequested_reruns_cached_runs(self):
-        self.mock_redis.get_dispatch_workflow.return_value = {"run_id": "12345"}
+    def test_check_suite_rerequested_reruns_all_jobs(self):
+        """The suite-level "re-run all" button re-runs every job in the suite,
+        each by its own job_id."""
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "crcr/org/l3repo/CI/build", "external_id": "111"},
+            {"name": "crcr/org/l3repo/CI/test", "external_id": "222"},
+        ]
         payload = {
             "action": "rerequested",
-            "check_suite": {"head_sha": "abc123"},
+            "check_suite": {"id": 9001, "head_sha": "abc123"},
             "repository": {"full_name": "pytorch/pytorch"},
         }
         result = handle(_cfg(), payload, "check_suite", "del-4")
-        self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
-        self.mock_gh.rerun_workflow.assert_called_once_with(
-            token="tok", repo_full_name="org/l3repo", run_id=12345
+
+        self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo", "org/l3repo"]})
+        self.assertEqual(self.mock_gh.rerun_job.call_count, 2)
+        job_ids = {c.kwargs["job_id"] for c in self.mock_gh.rerun_job.call_args_list}
+        self.assertEqual(job_ids, {111, 222})
+
+    def test_check_suite_skips_non_crcr_and_missing_external_id(self):
+        """Non-crcr check runs and ones without a job_id are skipped, not errored."""
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "some-other-check", "external_id": "999"},
+            {"name": "crcr/org/l3repo/CI/build", "external_id": ""},
+        ]
+        payload = {
+            "action": "rerequested",
+            "check_suite": {"id": 9002, "head_sha": "abc123"},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        result = handle(_cfg(), payload, "check_suite", "del-5")
+        self.assertEqual(result, {"ok": True, "rerun": []})
+        self.mock_gh.rerun_job.assert_not_called()
+
+    def test_check_suite_non_rerequested_action_ignored(self):
+        payload = {
+            "action": "completed",
+            "check_suite": {"id": 9003},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        self.assertEqual(
+            handle(_cfg(), payload, "check_suite", "del-6"), {"ignored": True}
         )
+        self.mock_gh.rerun_job.assert_not_called()
 
 
 if __name__ == "__main__":

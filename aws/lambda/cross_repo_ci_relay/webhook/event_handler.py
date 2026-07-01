@@ -186,14 +186,18 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
             job_status = job_info.get("status")
             job_conclusion = job_info.get("conclusion")
             workflow_name = job_info.get("workflow_name")
-            external_id = str(job_info.get("run_id"))  # opaque run identifier
+            job_name = job_info.get("job_name")  # disambiguates jobs in one run
+            job_id = job_info.get("job_id")  # numeric job id for per-job rerun
+            external_id = str(job_id)
             details_url = job_info.get("job_url")  # full URL for the link
 
             if job_status == "in_progress":
                 gh_helper.create_check_run(
                     token=upstream_token,
                     repo_full_name=config.upstream_repo,
-                    name=gh_helper.check_run_name(downstream_repo, workflow_name),
+                    name=gh_helper.check_run_name(
+                        downstream_repo, workflow_name, job_name
+                    ),
                     head_sha=head_sha,
                     status="in_progress",
                     details_url=details_url,
@@ -206,7 +210,9 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                 gh_helper.create_check_run(
                     token=upstream_token,
                     repo_full_name=config.upstream_repo,
-                    name=gh_helper.check_run_name(downstream_repo, workflow_name),
+                    name=gh_helper.check_run_name(
+                        downstream_repo, workflow_name, job_name
+                    ),
                     head_sha=head_sha,
                     status="completed",
                     conclusion=job_conclusion,
@@ -236,7 +242,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
 def _downstream_repo_from_check_run(name: str) -> str | None:
     """Parse the downstream ``owner/repo`` out of a check run name.
 
-    Check runs are named ``crcr/<owner>/<repo>/<workflow_name>`` (see
+    Check runs are named ``crcr/<owner>/<repo>/<workflow_name>/<job_name>`` (see
     ``gh_helper.check_run_name``), so the downstream repo is the first two
     path segments after the ``crcr/`` prefix. Returns None for any name the
     relay didn't create.
@@ -250,28 +256,29 @@ def _downstream_repo_from_check_run(name: str) -> str | None:
     return f"{parts[0]}/{parts[1]}"
 
 
-def _rerun_downstream_workflow(
-    config: RelayConfig, downstream_repo: str, run_id: str
+def _rerun_downstream_job(
+    config: RelayConfig, downstream_repo: str, job_id: str
 ) -> None:
-    """Re-trigger a downstream workflow run by its run_id.
+    """Re-run a single downstream workflow job by its numeric job id.
 
-    The run_id is stored as the upstream check run's ``external_id`` when the
-    check run is created, so a re-request can locate the original downstream run.
+    The job_id is stored as the upstream check run's ``external_id`` when the
+    check run is created, so a re-request re-runs exactly that job rather than
+    the whole workflow run.
     """
     token = gh_helper.get_repo_access_token(
         config.github_app_id,
         config.github_app_private_key,
         downstream_repo,
     )
-    gh_helper.rerun_workflow(
+    gh_helper.rerun_job(
         token=token,
         repo_full_name=downstream_repo,
-        run_id=int(run_id),
+        job_id=int(job_id),
     )
 
 
 def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
-    """Re-run a single downstream workflow when its upstream check run is re-requested."""
+    """Re-run a single downstream job when its upstream check run is re-requested."""
     check_run = payload.get("check_run") or {}
     name = check_run.get("name", "")
     external_id = check_run.get("external_id") or ""
@@ -285,24 +292,24 @@ def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
         return {"ignored": True, "reason": "downstream repo not L3+"}
 
     try:
-        _rerun_downstream_workflow(config, downstream_repo, external_id)
+        _rerun_downstream_job(config, downstream_repo, external_id)
     except Exception as e:
         logger.exception(
-            "check_run rerequested: rerun failed repo=%s run_id=%s",
+            "check_run rerequested: rerun failed repo=%s job_id=%s",
             downstream_repo,
             external_id,
         )
         raise HTTPException(
             status_code=502,
             detail={
-                "message": "failed to rerun downstream workflow",
+                "message": "failed to rerun downstream job",
                 "repo": downstream_repo,
                 "error": str(e),
             },
         ) from e
 
     logger.info(
-        "check_run rerequested: re-triggered repo=%s run_id=%s",
+        "check_run rerequested: re-triggered repo=%s job_id=%s",
         downstream_repo,
         external_id,
     )
@@ -310,32 +317,65 @@ def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
 
 
 def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
-    """Re-run every downstream workflow whose check run is in a re-requested check suite."""
+    """Re-run every downstream job whose check run is in the re-requested suite.
+
+    The suite-level "re-run all checks" button re-runs each job individually
+    (by its job_id), not the whole workflow run. The CRCR app owns a single
+    suite per commit, so listing that suite yields every check run it created;
+    each carries the downstream job_id in ``external_id``.
+    """
     check_suite = payload.get("check_suite") or {}
-    head_sha = check_suite.get("head_sha", "")
-    if not head_sha:
-        return {"ignored": True, "reason": "missing head_sha"}
+    suite_id = check_suite.get("id")
+    if not suite_id:
+        return {"ignored": True, "reason": "missing check_suite id"}
+
+    upstream_token = gh_helper.get_repo_access_token(
+        config.github_app_id,
+        config.github_app_private_key,
+        config.upstream_repo,
+    )
+    check_runs = gh_helper.list_check_runs_in_suite(
+        token=upstream_token,
+        repo_full_name=config.upstream_repo,
+        check_suite_id=suite_id,
+    )
 
     allowlist = load_allowlist(config)
-    repos, _ = allowlist.get_repos_at_or_above_level(AllowlistLevel.L3)
+    # One installation token per downstream repo, reused across its jobs.
+    tokens: dict[str, str] = {}
     rerun: list[str] = []
-    for downstream_repo in repos:
-        job_info = redis_helper.get_dispatch_workflow(config, head_sha, downstream_repo)
-        run_id = (job_info or {}).get("run_id")
-        if not run_id:
+    for check_run in check_runs:
+        downstream_repo = _downstream_repo_from_check_run(check_run.get("name", ""))
+        job_id = check_run.get("external_id") or ""
+        if not downstream_repo or not job_id:
+            continue
+        level = allowlist.get_repo_level(downstream_repo)
+        if level is None or level.value < AllowlistLevel.L3.value:
             continue
         try:
-            _rerun_downstream_workflow(config, downstream_repo, run_id)
+            token = tokens.get(downstream_repo)
+            if token is None:
+                token = gh_helper.get_repo_access_token(
+                    config.github_app_id,
+                    config.github_app_private_key,
+                    downstream_repo,
+                )
+                tokens[downstream_repo] = token
+            gh_helper.rerun_job(
+                token=token,
+                repo_full_name=downstream_repo,
+                job_id=int(job_id),
+            )
             rerun.append(downstream_repo)
         except Exception:
             logger.exception(
-                "check_suite rerequested: rerun failed repo=%s run_id=%s",
+                "check_suite rerequested: rerun failed repo=%s job_id=%s",
                 downstream_repo,
-                run_id,
+                job_id,
             )
 
     logger.info(
-        "check_suite rerequested: re-triggered repos=%s sha=%s", rerun, head_sha
+        "check_suite rerequested: re-ran %d job(s) suite_id=%s", len(rerun), suite_id
     )
     return {"ok": True, "rerun": rerun}
 
