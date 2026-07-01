@@ -1,4 +1,12 @@
 {
+  "B200 Smoke Tests / linux-jammy-cuda13.0-py3.12-gcc11-sm100 / test-osdc (smoke_b200)": [
+    "frgossen",
+    "188721",
+    "https://github.com/pytorch/pytorch/issues/188721",
+    "B200 Smoke Tests",
+    "linux-jammy-cuda13.0-py3.12-gcc11-sm100",
+    "test-osdc (smoke_b200)"
+  ],
   "Build manywheel docker images for s390x / build-docker-cpu-s390x": [
     "huydhn",
     "154074",
