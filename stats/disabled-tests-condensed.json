@@ -338,6 +338,13 @@
       "rocm"
     ]
   ],
+  "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
+    "188668",
+    "https://github.com/pytorch/pytorch/issues/188668",
+    [
+      "rocm"
+    ]
+  ],
   "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
     "159150",
     "https://github.com/pytorch/pytorch/issues/159150",
@@ -1112,6 +1119,15 @@
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180490",
     "https://github.com/pytorch/pytorch/issues/180490",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180542",
+    "https://github.com/pytorch/pytorch/issues/180542",
     [
       "linux",
       "rocm",
