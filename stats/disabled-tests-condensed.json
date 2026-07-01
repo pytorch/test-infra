@@ -395,13 +395,6 @@
       "dynamo"
     ]
   ],
-  "test_from_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187539",
-    "https://github.com/pytorch/pytorch/issues/187539",
-    [
-      "rocm"
-    ]
-  ],
   "test_fsdp_flat_param_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187571",
     "https://github.com/pytorch/pytorch/issues/187571",
@@ -437,7 +430,8 @@
     "https://github.com/pytorch/pytorch/issues/187378",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
