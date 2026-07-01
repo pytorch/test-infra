@@ -712,6 +712,11 @@
       "dynamo"
     ]
   ],
+  "test_linear_block_compile_parity_backward (__main__.TestDropoutAlignRandomEager)": [
+    "188740",
+    "https://github.com/pytorch/pytorch/issues/188740",
+    []
+  ],
   "test_linear_block_compile_parity_forward (__main__.TestDropoutAlignRandomEager)": [
     "188687",
     "https://github.com/pytorch/pytorch/issues/188687",
