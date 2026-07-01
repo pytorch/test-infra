@@ -5,6 +5,18 @@
 ---   initialization time (before actual work starts). Phase 2 captures jobs that
 ---   are in_progress but still initializing containers (<=2 steps completed).
 ---   Jobs with a recorded conclusion are excluded to avoid counting stale entries.
+---
+--- Optimization notes (mirrors PR #8088 on queued_jobs_aggregate):
+---   * `FINAL` on workflow_job is replaced with a manual ReplacingMergeTree
+---     dedup via `LIMIT 1 BY id ORDER BY _inserted_at DESC`, scoped to the
+---     candidate id set. Cheaper than global FINAL because we only read parts
+---     containing candidate ids.
+---   * `workflow_run` keeps FINAL but is aggressively pre-filtered (status,
+---     repository, run_id in candidates) before the JOIN so the right side
+---     shrinks to a handful of rows.
+---   * The `workflow.status != 'completed'` filter (and the repo filter)
+---     are pushed into a single `latest_workflows` CTE used by both the
+---     EC2 and ARC paths instead of being repeated in two FINAL JOINs.
 WITH possible_queued_jobs as (
     select id, run_id from default.workflow_job where
     created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
@@ -18,6 +30,38 @@ WITH possible_queued_jobs as (
          AND conclusion = ''
          AND arrayExists(x -> x LIKE '%l-%', labels))
     )
+),
+--- Manual ReplacingMergeTree dedup using _inserted_at MATERIALIZED column,
+--- scoped to the candidate id set. Replaces `FINAL` on workflow_job.
+latest_jobs AS (
+    SELECT
+        id,
+        run_id,
+        status,
+        conclusion,
+        created_at,
+        labels,
+        steps,
+        name,
+        html_url,
+        runner_group_name
+    FROM default.workflow_job
+    WHERE id IN (SELECT id FROM possible_queued_jobs)
+    ORDER BY id, _inserted_at DESC
+    LIMIT 1 BY id
+),
+--- Pre-filter workflow_run to non-completed pytorch/pytorch runs before the
+--- JOIN so the right side is tiny. FINAL stays here but is cheap because the
+--- predicate keeps the read set small.
+latest_workflows AS (
+    SELECT
+        id,
+        name
+    FROM default.workflow_run FINAL
+    WHERE
+        id IN (SELECT run_id FROM possible_queued_jobs)
+        AND status != 'completed'
+        AND repository.'full_name' = 'pytorch/pytorch'
 ),
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
@@ -39,16 +83,11 @@ ec2_queued_jobs AS (
             IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ])
         ) AS machine_type
     FROM
-        default.workflow_job job final
-        JOIN default.workflow_run workflow final ON workflow.id = job.run_id
+        latest_jobs job
+        JOIN latest_workflows workflow ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
-        AND job.status = 'queued'
-        AND job.created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+        job.status = 'queued'
         AND LENGTH(job.steps) = 0
-        AND workflow.status != 'completed'
         --- Exclude ARC runners from this path
         AND NOT arrayExists(x -> x LIKE '%l-%', job.labels)
 ),
@@ -60,15 +99,11 @@ arc_queued_jobs AS (
         job.html_url,
         IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ]) AS machine_type
     FROM
-        default.workflow_job job final
-        JOIN default.workflow_run workflow final ON workflow.id = job.run_id
+        latest_jobs job
+        JOIN latest_workflows workflow ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
         --- ARC runner detection: labels contain l- pattern
-        AND arrayExists(x -> x LIKE '%l-%', job.labels)
-        AND workflow.status != 'completed'
+        arrayExists(x -> x LIKE '%l-%', job.labels)
         AND job.conclusion = ''
         AND (
             --- Phase 1: still in queued status
