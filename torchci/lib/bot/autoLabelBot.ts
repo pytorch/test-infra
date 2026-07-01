@@ -1,6 +1,6 @@
-import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
 import { addLabelErrComment, hasRequiredLabels } from "./checkLabelsUtils";
+import { getLabelsFromLabelerConfig } from "./labelerConfigUtils";
 import {
   addLabels,
   CachedIssueTracker,
@@ -12,6 +12,8 @@ import {
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
 } from "./utils";
+
+export { getLabelsFromLabelerConfig };
 
 // List of regex patterns for assigning labels to both Pull Requests and Issues
 const IssueAndPRRegexToLabel: [RegExp, string][] = [
@@ -139,27 +141,6 @@ const notUserFacingPatterns: RegExp[] = [
 ];
 
 const notUserFacingPatternExceptions: RegExp[] = [/tools\/autograd/g];
-
-export async function getLabelsFromLabelerConfig(
-  context: Context,
-  labelerConfigTracker: CachedLabelerConfigTracker,
-  changed_files: string[]
-): Promise<string[]> {
-  const config = await labelerConfigTracker.loadLabelsConfig(context);
-
-  const labels = [];
-
-  for (const [label, globs] of Object.entries(config)) {
-    if (
-      globs.some((glob: string) =>
-        changed_files.some((file: string) => minimatch(file, glob))
-      )
-    ) {
-      labels.push(label);
-    }
-  }
-  return labels;
-}
 
 export async function getLabelsFromLabelToLabelConfig(
   context: Context,
@@ -469,7 +450,12 @@ function myBot(app: Probot): void {
   });
 
   app.on(
-    ["pull_request.opened", "pull_request.edited", "pull_request.synchronize"],
+    [
+      "pull_request.opened",
+      "pull_request.edited",
+      "pull_request.synchronize",
+      "pull_request.ready_for_review",
+    ],
     async (context) => {
       const owner = context.payload.repository.owner.login;
       if (!isPyTorchbotSupportedOrg(owner)) {
@@ -512,10 +498,13 @@ function myBot(app: Probot): void {
         }
       }
 
+      const isDraft = context.payload.pull_request.draft;
+
       var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
         context,
         labelerConfigTracker,
-        filesChanged
+        filesChanged,
+        isDraft
       );
       labelsToAdd.push(...labelsFromLabelerConfig);
 
