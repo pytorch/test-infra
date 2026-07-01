@@ -25,7 +25,7 @@ import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import useSWR from "swr";
 
 interface CrcrJobRow {
@@ -143,27 +143,89 @@ function HealthSummary({ data }: { data: CrcrJobRow[] }) {
         color={rate >= 0.95 ? "success" : rate >= 0.8 ? "warning" : "error"}
       />
       <Typography variant="body2" color="text.secondary">
-        {success}/{total} jobs passed
+        {success}/{total} jobs passed (this page)
       </Typography>
     </Stack>
+  );
+}
+
+const PER_PAGE = 50;
+
+function CrcrPagination({
+  page,
+  hasNextPage,
+  onPageChange,
+}: {
+  page: number;
+  hasNextPage: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div>
+      Page {page}:{" "}
+      {page > 1 ? (
+        <Link
+          component="button"
+          underline="hover"
+          onClick={() => onPageChange(page - 1)}
+        >
+          Prev
+        </Link>
+      ) : (
+        <span>Prev</span>
+      )}{" "}
+      |{" "}
+      {hasNextPage ? (
+        <Link
+          component="button"
+          underline="hover"
+          onClick={() => onPageChange(page + 1)}
+        >
+          Next
+        </Link>
+      ) : (
+        <span>Next</span>
+      )}
+    </div>
   );
 }
 
 function CrcrMatrix({
   repoFullName,
   days,
+  page,
+  onPageChange,
 }: {
   repoFullName: string;
   days: number;
+  page: number;
+  onPageChange: (page: number) => void;
 }) {
+  const offset = (page - 1) * PER_PAGE;
   const url = `/api/clickhouse/crcr_backend_dashboard?parameters=${encodeURIComponent(
-    JSON.stringify({ repo: repoFullName, days: String(days) })
+    JSON.stringify({
+      repo: repoFullName,
+      days: String(days),
+      per_page: String(PER_PAGE + 1),
+      offset: String(offset),
+    })
   )}`;
   const { data, error } = useSWR<CrcrJobRow[]>(url, fetcher, {
     refreshInterval: 60_000,
   });
 
-  const matrix = useMemo(() => (data ? buildMatrix(data) : null), [data]);
+  const { matrix, hasNextPage } = useMemo(() => {
+    if (!data) return { matrix: null, hasNextPage: false };
+    const full = buildMatrix(data);
+    const hasMore = full.rows.length > PER_PAGE;
+    return {
+      matrix: {
+        jobNames: full.jobNames,
+        rows: full.rows.slice(0, PER_PAGE),
+      },
+      hasNextPage: hasMore,
+    };
+  }, [data]);
 
   if (error) {
     return (
@@ -177,9 +239,18 @@ function CrcrMatrix({
   }
   if (data.length === 0) {
     return (
-      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-        No results for {repoFullName} in the last {days} days.
-      </Typography>
+      <>
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          No results for {repoFullName} in the last {days} days.
+        </Typography>
+        {page > 1 && (
+          <CrcrPagination
+            page={page}
+            hasNextPage={false}
+            onPageChange={onPageChange}
+          />
+        )}
+      </>
     );
   }
 
@@ -237,6 +308,13 @@ function CrcrMatrix({
           </TableBody>
         </Table>
       </TableContainer>
+      <Box sx={{ mt: 2 }}>
+        <CrcrPagination
+          page={page}
+          hasNextPage={hasNextPage}
+          onPageChange={onPageChange}
+        />
+      </Box>
     </>
   );
 }
@@ -244,11 +322,21 @@ function CrcrMatrix({
 export default function CrcrBackendPage() {
   const router = useRouter();
   const { org, repo } = router.query;
-  const [days, setDays] = useState(7);
+
+  const page = parseInt(router.query.page as string) || 1;
+  const days = parseInt(router.query.days as string) || 7;
 
   if (!org || !repo) return null;
 
   const repoFullName = `${org}/${repo}`;
+
+  function updateQuery(updates: Record<string, string | number>) {
+    router.push(
+      { pathname: router.pathname, query: { ...router.query, ...updates } },
+      undefined,
+      { shallow: true }
+    );
+  }
 
   return (
     <>
@@ -271,7 +359,7 @@ export default function CrcrBackendPage() {
               value={days}
               label="Time Range"
               onChange={(e: SelectChangeEvent<number>) =>
-                setDays(Number(e.target.value))
+                updateQuery({ days: Number(e.target.value), page: 1 })
               }
             >
               <MenuItem value={1}>Last 24h</MenuItem>
@@ -282,11 +370,16 @@ export default function CrcrBackendPage() {
         </Box>
 
         <Typography variant="body2" color="text.secondary">
-          Rows = PyTorch PRs, columns = downstream CI jobs. Click a chip to open
-          the workflow run.
+          Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click
+          a chip to open the workflow run.
         </Typography>
 
-        <CrcrMatrix repoFullName={repoFullName} days={days} />
+        <CrcrMatrix
+          repoFullName={repoFullName}
+          days={days}
+          page={page}
+          onPageChange={(p) => updateQuery({ page: p })}
+        />
       </Stack>
     </>
   );
