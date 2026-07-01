@@ -19,7 +19,7 @@ _ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
 _STATE_PREFIX = "crcr:state:"
 _RATE_LIMIT_PREFIX = "crcr:rate:"
 _IN_PROGRESS_ZSET = "crcr:in_progress"
-_DISPATCH_WORKFLOW_PREFIX = "crcr:dispatch_workflow:"
+_DISPATCH_JOB_PREFIX = "crcr:dispatch_job:"
 _CHECK_RUN_WANTED_PREFIX = "crcr:check_run_wanted:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
@@ -171,7 +171,7 @@ def check_rate_limit(
         raise HTTPException(500, f"rate limit check failed: {e}") from e
 
 
-def set_dispatch_workflow(
+def set_dispatch_job(
     config: RelayConfig,
     head_sha: str,
     downstream_repo: str,
@@ -180,13 +180,15 @@ def set_dispatch_workflow(
     job_url: str | None,
     run_id: str | None = None,
     workflow_name: str | None = None,
+    job_name: str | None = None,
     client: redis_lib.Redis | None = None,
 ) -> None:
-    """Store the latest downstream job summary keyed by (head_sha, downstream_repo)."""
+    """Store the latest summary for a single downstream job."""
     try:
         if client is None:
             client = create_client(config)
-        key = f"{_DISPATCH_WORKFLOW_PREFIX}{head_sha}:{downstream_repo}"
+        key = f"{_DISPATCH_JOB_PREFIX}{head_sha}:{downstream_repo}"
+        field = f"{workflow_name}:{job_name}"
         value = json.dumps(
             {
                 "status": status,
@@ -194,31 +196,31 @@ def set_dispatch_workflow(
                 "job_url": job_url,
                 "run_id": run_id,
                 "workflow_name": workflow_name,
+                "job_name": job_name,
             }
         )
-        client.setex(key, config.crcr_status_ttl, value)
+        client.hset(key, field, value)
+        client.expire(key, config.crcr_status_ttl)
     except RedisError:
-        logger.exception("set_dispatch_workflow: redis error")
+        logger.exception("set_dispatch_job: redis error")
 
 
-def get_dispatch_workflow(
+def get_dispatch_jobs(
     config: RelayConfig,
     head_sha: str,
     downstream_repo: str,
     client: redis_lib.Redis | None = None,
-) -> dict | None:
-    """Return the latest job summary for (head_sha, downstream_repo), or None if not found."""
+) -> list[dict]:
+    """Return the summaries of all downstream jobs for (head_sha, downstream_repo)."""
     try:
         if client is None:
             client = create_client(config)
-        key = f"{_DISPATCH_WORKFLOW_PREFIX}{head_sha}:{downstream_repo}"
-        val = client.get(key)
-        if val is None:
-            return None
-        return json.loads(val)
+        key = f"{_DISPATCH_JOB_PREFIX}{head_sha}:{downstream_repo}"
+        raw = client.hgetall(key)
+        return [json.loads(v) for v in raw.values()]
     except (RedisError, json.JSONDecodeError, TypeError):
-        logger.exception("get_dispatch_workflow: failed")
-        return None
+        logger.exception("get_dispatch_jobs: failed")
+        return []
 
 
 def mark_check_run_wanted(

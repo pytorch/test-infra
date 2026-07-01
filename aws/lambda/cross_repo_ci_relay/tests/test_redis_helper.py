@@ -297,6 +297,68 @@ class TestRateLimit(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 500)
 
 
+class TestDispatchJob(unittest.TestCase):
+    def test_set_dispatch_job_stores_per_job_hash_field(self):
+        """Each job is stored under its own hash field keyed by workflow:job."""
+        client = MagicMock()
+        redis_helper.set_dispatch_job(
+            _cfg(),
+            "sha1",
+            "org/repo",
+            "in_progress",
+            None,
+            "url",
+            run_id="111",
+            workflow_name="CI",
+            job_name="build",
+            client=client,
+        )
+        client.hset.assert_called_once()
+        key, field, value = client.hset.call_args[0]
+        self.assertEqual(key, "crcr:dispatch_job:sha1:org/repo")
+        self.assertEqual(field, "CI:build")
+        self.assertEqual(json.loads(value)["run_id"], "111")
+        client.expire.assert_called_once_with(
+            "crcr:dispatch_job:sha1:org/repo", 3600
+        )
+
+    def test_same_job_name_in_different_workflows_does_not_collide(self):
+        """A same-named job in another workflow uses a distinct field."""
+        client = MagicMock()
+        common = dict(
+            status="in_progress",
+            conclusion=None,
+            job_url="url",
+            job_name="build",
+            client=client,
+        )
+        redis_helper.set_dispatch_job(
+            _cfg(), "sha1", "org/repo", workflow_name="CI", **common
+        )
+        redis_helper.set_dispatch_job(
+            _cfg(), "sha1", "org/repo", workflow_name="Lint", **common
+        )
+        fields = {c.args[1] for c in client.hset.call_args_list}
+        self.assertEqual(fields, {"CI:build", "Lint:build"})
+
+    def test_get_dispatch_jobs_returns_all_hash_values(self):
+        client = MagicMock()
+        client.hgetall.return_value = {
+            "CI:build": json.dumps({"job_name": "build", "run_id": "1"}),
+            "CI:test": json.dumps({"job_name": "test", "run_id": "1"}),
+        }
+        jobs = redis_helper.get_dispatch_jobs(_cfg(), "sha1", "org/repo", client=client)
+        self.assertEqual({j["job_name"] for j in jobs}, {"build", "test"})
+
+    def test_get_dispatch_jobs_empty_when_no_hash(self):
+        client = MagicMock()
+        client.hgetall.return_value = {}
+        self.assertEqual(
+            redis_helper.get_dispatch_jobs(_cfg(), "sha1", "org/repo", client=client),
+            [],
+        )
+
+
 class TestInProgressTracker(unittest.TestCase):
     def setUp(self):
         redis_helper._cached_client = None

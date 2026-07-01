@@ -164,41 +164,65 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.patcher_gh.stop()
         self.patcher_load.stop()
 
+    def _job(self, job_name="ci", status="in_progress", conclusion=None, run_id="99999"):
+        return {
+            "status": status,
+            "conclusion": conclusion,
+            "job_url": "https://github.com/org/l3repo/actions/runs/99999",
+            "run_id": run_id,
+            "workflow_name": "CI",
+            "job_name": job_name,
+        }
+
     def test_scenario2_in_progress_job_creates_in_progress_check_run(self):
         """Scenario 2: label arrives while workflow is in_progress → backfill in_progress CR."""
-        self.mock_redis.get_dispatch_workflow.return_value = {
-            "status": "in_progress",
-            "check_run_id": "555",
-            "conclusion": None,
-            "job_url": "https://github.com/org/l3repo/actions/runs/99999",
-            "run_id": "99999",
-            "workflow_name": "CI",
-        }
+        self.mock_redis.get_dispatch_jobs.return_value = [self._job(status="in_progress")]
 
         result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
 
         self.assertTrue(result["ok"])
-        self.assertIn("org/l3repo", result["created_check_runs"])
+        self.assertIn("org/l3repo/ci", result["created_check_runs"])
         self.mock_gh.create_check_run.assert_called_once()
         kw = self.mock_gh.create_check_run.call_args[1]
         self.assertEqual(kw["head_sha"], "abc123")
-        self.assertNotIn("conclusion", kw)
+        self.assertEqual(kw["status"], "in_progress")
+        self.assertIsNone(kw["conclusion"])
+        self.assertEqual(kw["external_id"], "99999")  # run_id
+
+    def test_scenario2_backfills_every_job_not_just_one(self):
+        """Multi-job workflow: a mid-run label backfills a check run for EVERY
+        cached job, not only the last one that reported."""
+        self.mock_redis.get_dispatch_jobs.return_value = [
+            self._job(job_name="ci"),
+            self._job(job_name="ci-2"),
+        ]
+
+        result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
+
+        self.assertEqual(
+            set(result["created_check_runs"]), {"org/l3repo/ci", "org/l3repo/ci-2"}
+        )
+        self.assertEqual(self.mock_gh.create_check_run.call_count, 2)
+        # gh_helper.check_run_name is mocked, so assert it was asked to build a
+        # name for each job; jobs of the same run share run_id as external_id.
+        job_names = {c.args[2] for c in self.mock_gh.check_run_name.call_args_list}
+        self.assertEqual(job_names, {"ci", "ci-2"})
+        external_ids = {
+            c.kwargs["external_id"]
+            for c in self.mock_gh.create_check_run.call_args_list
+        }
+        self.assertEqual(external_ids, {"99999"})  # run_id
 
     def test_scenario3_completed_job_creates_completed_check_run(self):
         """Scenario 3: label arrives after workflow completed → create completed CR directly."""
-        self.mock_redis.get_dispatch_workflow.return_value = {
-            "status": "completed",
-            "check_run_id": "555",
-            "conclusion": "success",
-            "job_url": "https://github.com/org/l3repo/actions/runs/99999",
-            "run_id": "99999",
-            "workflow_name": "CI",
-        }
+        self.mock_redis.get_dispatch_jobs.return_value = [
+            self._job(status="completed", conclusion="success")
+        ]
 
         result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
 
         self.assertTrue(result["ok"])
-        self.assertIn("org/l3repo", result["created_check_runs"])
+        self.assertIn("org/l3repo/ci", result["created_check_runs"])
         kw = self.mock_gh.create_check_run.call_args[1]
         self.assertEqual(kw["status"], "completed")
         self.assertEqual(kw["conclusion"], "success")
@@ -209,24 +233,21 @@ class TestPrLabeledHandler(unittest.TestCase):
             ["org/repoA", "org/repoB"],
             [],
         )
-        self.mock_redis.get_dispatch_workflow.return_value = {
-            "status": "completed",
-            "check_run_id": "1",
-            "conclusion": "success",
-            "job_url": "https://github.com/org/repo/actions/runs/1",
-            "run_id": "1",
-            "workflow_name": "CI",
-        }
+        self.mock_redis.get_dispatch_jobs.return_value = [
+            self._job(status="completed", conclusion="success")
+        ]
 
         result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
 
-        self.assertEqual(set(result["created_check_runs"]), {"org/repoA", "org/repoB"})
+        self.assertEqual(
+            set(result["created_check_runs"]), {"org/repoA/ci", "org/repoB/ci"}
+        )
         self.assertEqual(self.mock_gh.get_repo_access_token.call_count, 1)
         self.assertEqual(self.mock_gh.create_check_run.call_count, 2)
 
     def test_no_job_info_marks_check_run_wanted(self):
         """No job info yet → mark check run wanted so the callback creates it when it fires."""
-        self.mock_redis.get_dispatch_workflow.return_value = None
+        self.mock_redis.get_dispatch_jobs.return_value = []
 
         result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
 
@@ -248,7 +269,7 @@ class TestPrLabeledHandler(unittest.TestCase):
 
 
 class TestCheckRunRerun(unittest.TestCase):
-    """check_run / check_suite rerequested re-trigger the downstream workflow run."""
+    """check_run rerequested re-runs the failed jobs of the run by its run_id."""
 
     def setUp(self):
         self.patcher_gh = patch("webhook.event_handler.gh_helper")
@@ -270,7 +291,7 @@ class TestCheckRunRerun(unittest.TestCase):
         self.patcher_redis.stop()
         self.patcher_load.stop()
 
-    def _check_run_payload(self, name="crcr/org/l3repo/CI", external_id="99999"):
+    def _check_run_payload(self, name="crcr/org/l3repo/CI/build", external_id="88888"):
         return {
             "action": "rerequested",
             "check_run": {
@@ -281,12 +302,21 @@ class TestCheckRunRerun(unittest.TestCase):
             "repository": {"full_name": "pytorch/pytorch"},
         }
 
-    def test_check_run_rerequested_reruns_downstream(self):
+    def test_check_run_rerequested_reruns_failed_jobs_of_run(self):
         result = handle(_cfg(), self._check_run_payload(), "check_run", "del-1")
         self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
-        self.mock_gh.rerun_workflow.assert_called_once_with(
-            token="tok", repo_full_name="org/l3repo", run_id=99999
+        self.mock_gh.rerun_failed_jobs.assert_called_once_with(
+            token="tok", repo_full_name="org/l3repo", run_id=88888
         )
+
+    def test_check_run_already_running_is_benign(self):
+        """A 403 'already running' is not surfaced as an error (no 502)."""
+        self.mock_gh.rerun_failed_jobs.side_effect = Exception(
+            "The workflow run containing this job is already running: 403"
+        )
+        result = handle(_cfg(), self._check_run_payload(), "check_run", "del-1b")
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["already_running"])
 
     def test_non_crcr_check_run_is_ignored(self):
         result = handle(
@@ -296,7 +326,18 @@ class TestCheckRunRerun(unittest.TestCase):
             "del-2",
         )
         self.assertTrue(result["ignored"])
-        self.mock_gh.rerun_workflow.assert_not_called()
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
+
+    def test_check_run_without_external_id_is_ignored(self):
+        """No run_id stored -> nothing to rerun, not an error."""
+        result = handle(
+            _cfg(),
+            self._check_run_payload(external_id=""),
+            "check_run",
+            "del-2b",
+        )
+        self.assertTrue(result["ignored"])
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
 
     def test_check_run_non_rerequested_action_ignored(self):
         payload = self._check_run_payload()
@@ -304,20 +345,75 @@ class TestCheckRunRerun(unittest.TestCase):
         self.assertEqual(
             handle(_cfg(), payload, "check_run", "del-3"), {"ignored": True}
         )
-        self.mock_gh.rerun_workflow.assert_not_called()
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
 
-    def test_check_suite_rerequested_reruns_cached_runs(self):
-        self.mock_redis.get_dispatch_workflow.return_value = {"run_id": "12345"}
+    def test_check_suite_rerequested_reruns_each_distinct_run(self):
+        """The suite-level "re-run all" button re-runs the failed jobs of every
+        distinct run; jobs sharing a run_id are deduped to one call."""
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "crcr/org/l3repo/CI/build", "external_id": "111"},
+            {"name": "crcr/org/l3repo/CI/test", "external_id": "111"},  # same run
+            {"name": "crcr/org/l3repo/Lint/lint", "external_id": "222"},
+        ]
         payload = {
             "action": "rerequested",
-            "check_suite": {"head_sha": "abc123"},
+            "check_suite": {"id": 9001, "head_sha": "abc123"},
             "repository": {"full_name": "pytorch/pytorch"},
         }
         result = handle(_cfg(), payload, "check_suite", "del-4")
+
+        self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo", "org/l3repo"]})
+        self.assertEqual(self.mock_gh.rerun_failed_jobs.call_count, 2)
+        run_ids = {
+            c.kwargs["run_id"] for c in self.mock_gh.rerun_failed_jobs.call_args_list
+        }
+        self.assertEqual(run_ids, {111, 222})
+
+    def test_check_suite_already_running_run_is_skipped(self):
+        """A run that's already running is skipped, others still re-run."""
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "crcr/org/l3repo/CI/build", "external_id": "111"},
+            {"name": "crcr/org/l3repo/Lint/lint", "external_id": "222"},
+        ]
+
+        def _side_effect(*, token, repo_full_name, run_id):
+            if run_id == 111:
+                raise Exception("workflow run ... is already running: 403")
+
+        self.mock_gh.rerun_failed_jobs.side_effect = _side_effect
+        payload = {
+            "action": "rerequested",
+            "check_suite": {"id": 9001, "head_sha": "abc123"},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        result = handle(_cfg(), payload, "check_suite", "del-4b")
         self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo"]})
-        self.mock_gh.rerun_workflow.assert_called_once_with(
-            token="tok", repo_full_name="org/l3repo", run_id=12345
+
+    def test_check_suite_skips_non_crcr_and_missing_external_id(self):
+        """Non-crcr check runs and ones without a run_id are skipped, not errored."""
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "some-other-check", "external_id": "999"},
+            {"name": "crcr/org/l3repo/CI/build", "external_id": ""},
+        ]
+        payload = {
+            "action": "rerequested",
+            "check_suite": {"id": 9002, "head_sha": "abc123"},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        result = handle(_cfg(), payload, "check_suite", "del-5")
+        self.assertEqual(result, {"ok": True, "rerun": []})
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
+
+    def test_check_suite_non_rerequested_action_ignored(self):
+        payload = {
+            "action": "completed",
+            "check_suite": {"id": 9003},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        self.assertEqual(
+            handle(_cfg(), payload, "check_suite", "del-6"), {"ignored": True}
         )
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
 
 
 if __name__ == "__main__":

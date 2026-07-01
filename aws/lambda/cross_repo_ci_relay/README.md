@@ -63,12 +63,12 @@ The callback endpoint validates incoming callbacks and forwards them to HUD for 
 - **Identity**: the `Authorization: Bearer <oidc-token>` header is verified against GitHub's JWKS.  The OIDC `repository` claim is a trusted identity for the caller and is used for the L2+ allowlist check. Relay forwards this trusted value to HUD as a top-level `verified_repo` field; HUD should prefer it over anything self-reported in `callback_payload`.
 - **Repo level**: Relay determines the downstream repository's allowlist level (L1–L4) and forwards it to HUD as `downstream_repo_level`. This authoritative level information is determined once by the relay, ensuring HUD doesn't need to recompute it and avoiding synchronization/timing issues if tiering information becomes dynamic.
 - **Schema validation**: Relay validates that required fields (`delivery_id` and `workflow.status`) are present in the callback body.  Missing fields result in a `400` error to signal contract violations to the caller.  HUD receives validated data and does not need to perform schema checks.
-- **State machine**: Relay maintains a **unified state machine** in Redis to validate callback lifecycles, compute timing metrics, and support per-workflow tracking:
-  - **Unified structure**: Single enum `CallbackState` with states `DISPATCHED` (webhook side, keyed by sentinel `run_id=0, run_attempt=0`), `IN_PROGRESS`, and `COMPLETED` (callback side, per-workflow). State records stored as JSON: `{"state": "...", "timestamp": 1234.56}`.
+- **State machine**: Relay maintains a **unified state machine** in Redis to validate callback lifecycles, compute timing metrics, and support per-job tracking:
+  - **Unified structure**: Single enum `CallbackState` with states `DISPATCHED` (webhook side, keyed by sentinel `run_id=0, run_attempt=0`), `IN_PROGRESS`, and `COMPLETED` (callback side, per-job). State records stored as JSON: `{"state": "...", "timestamp": 1234.56}`.
   - **Dispatch validation**: `DISPATCHED` state proves valid webhook origin. Callbacks without this state are rejected (no prior dispatch).
-  - **Workflow-level tracking**: Each workflow has independent state and timestamps keyed by `{run_id}:{run_attempt}` (`crcr:state:{delivery_id}:{repo}:{run_id}:{run_attempt}`). Supports multiple workflows per webhook.
+  - **Job-level tracking**: Each job has independent state and timestamps keyed by `{run_id}:{run_attempt}:{job_name}` (`crcr:state:{delivery_id}:{repo}:{run_id}:{run_attempt}:{job_name}`). Supports multiple jobs (and workflows) per webhook; the `job_name` suffix keeps concurrent jobs of one run from colliding.
   - **Timing metrics**: `queue_time = dispatch_timestamp → in_progress_timestamp`, `execution_time = in_progress_timestamp → completed_timestamp`. Timestamps extracted from state records.
-  - **State transitions**: Rejects invalid flows (`COMPLETED` without prior `IN_PROGRESS`, duplicate `IN_PROGRESS` for the same `{run_id}:{run_attempt}`, duplicate `COMPLETED`, callbacks without a prior `DISPATCHED` record).
+  - **State transitions**: Rejects invalid flows (`COMPLETED` without prior `IN_PROGRESS`, duplicate `IN_PROGRESS` for the same `{run_id}:{run_attempt}:{job_name}`, duplicate `COMPLETED`, callbacks without a prior `DISPATCHED` record).
     Note that the direction graph below is for a single check run, reruns have different `run_attempt` and are treated as separate workflows, so they won't violate the state machine since they won't have a prior `IN_PROGRESS` or `COMPLETED` record.
     ```mermaid
     stateDiagram-v2
@@ -108,7 +108,7 @@ The HUD request looks like (two top-level namespaces: `trusted` and `untrusted`)
         "url": "https://github.com/org/repo/actions/runs/123",
         "run_id": "123",        // stable across re-runs of the same run
         "run_attempt": "2",     // increments each re-run; (run_id, run_attempt) distinguishes attempts
-        "job_name": "my-ci-job",
+        "job_name": "ci (cuda)",  // job's full display name from the jobs API; distinct per matrix leg
         "check_run_id": "456",  // unique per attempt
         "started_at": "2026-05-04T20:48:28Z", // when status == in_progress, else None
         "completed_at": "2026-05-04T21:23:45Z", // when status == completed, else None
@@ -155,6 +155,8 @@ All three attacks are **scoped to the attacker's own OIDC-authenticated repo ide
 
 - The downstream repository must be listed at level **L2 or higher** in the allowlist.
 - The **calling job** must declare `permissions: id-token: write` so that the action can mint a GitHub OIDC token for authentication.
+- The calling job must also grant `permissions: actions: read`. The action looks up its own job via the jobs API to read its full display name (used to name the upstream check run); `github.job` alone is just the workflow-file key and is identical for every leg of a matrix. If the lookup fails (e.g. the permission is missing) the action **hard-fails** rather than reporting a colliding name.
+- Each downstream **job** that should surface as its own upstream check run must invoke the action itself (one `in_progress`, one `completed`), so multi-job / matrix workflows report per job with no extra configuration.
 
 ### Usage
 
@@ -170,6 +172,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # required for OIDC token minting
+      actions: read     # required to read this job's display name from the jobs API
       contents: read
     steps:
       - name: Report in-progress to relay
@@ -203,29 +206,29 @@ For L3 and L4 repositories the relay creates a **check run on the upstream PR** 
 
 ### How it works
 
-The check run is named `crcr/<downstream_repo>/<workflow_name>` and is created from the **callback**, not at dispatch time:
+Check runs are **per job**, named `crcr/<downstream_repo>/<workflow_name>/<job_name>`, and created from the **callback**, not at dispatch time. `job_name` is the job's **full display name**, which the action reads from the jobs API (not `github.job`, which is identical across matrix legs) — so a matrix leg like `ci (cuda)` gets its own check run automatically, no configuration needed. Each downstream job reports its own callbacks (one `in_progress`, one `completed`), so a multi-job or matrix workflow surfaces one check run per job on the upstream PR instead of a single collapsed one:
 
 - On an `in_progress` callback the relay creates an in-progress check run linking to the downstream run.
 - On a `completed` callback it creates a completed check run carrying the downstream `conclusion`.
 
-The relay always **creates** a new check run rather than editing an existing one. GitHub only surfaces the latest check run of a given name on a commit, so each new one naturally supersedes the previous. This keeps the logic stateless and makes reruns and reopens self-correcting.
+The relay always **creates** a new check run rather than editing an existing one. GitHub only surfaces the latest check run of a given name on a commit, so each new one naturally supersedes the previous. Scoping the name by `job_name` keeps distinct jobs from overwriting each other while an in_progress → completed pair for the *same* job still self-supersedes. This keeps the logic stateless and makes reruns and reopens self-correcting.
 
 ### L3 label timing
 
 For L3 the upstream check run is gated on the `ciflow/crcr/<device>` label, which a maintainer can add at any point relative to the workflow. The relay covers all three orderings:
 
 1. **Label present before dispatch** — the callback sees the label and creates the check run directly.
-2. **Label added while the workflow is running** — the `pull_request.labeled` handler reads the cached downstream job state (`crcr:dispatch_workflow:<head_sha>:<repo>`) and backfills an in-progress check run.
-3. **Label added after the workflow finished** — the `labeled` handler creates a completed check run directly from that cached state.
+2. **Label added while the workflow is running** — the `pull_request.labeled` handler reads the cached downstream job state (`crcr:dispatch_job:<head_sha>:<repo>`, a Redis hash whose fields are `<workflow_name>:<job_name>`) and backfills an in-progress check run for **every** job that has already reported.
+3. **Label added after the workflow finished** — the `labeled` handler creates a completed check run for each cached job directly from that state.
 
 Because the downstream echoes back the *dispatch-time* payload — whose labels can be stale, e.g. on **reopen** where no fresh `labeled` event fires — the relay records a per-commit "check run wanted" flag (`crcr:check_run_wanted:<head_sha>:<repo>`) at dispatch time (when the label is already present) and in the `labeled` handler. The callback consults this flag so it still creates the check run when the echoed labels don't reflect the PR's current state.
 
 ### Re-running checks
 
-A developer can re-run downstream CI directly from the upstream PR's checks UI. The GitHub App subscribes to the `check_run` and `check_suite` events, and the relay handles their `rerequested` action:
+A developer can re-run downstream CI directly from the upstream PR's checks UI. Re-runs happen at the **workflow-run** level via `rerun-failed-jobs`: the downstream `run_id` is stored as each check run's `external_id`, and GitHub rejects re-running individual jobs of a run that is already running, so one run-level call re-runs all failed jobs together without conflict. The GitHub App subscribes to the `check_run` and `check_suite` events, and the relay handles their `rerequested` action:
 
-- **Re-run a single check** (`check_run` `rerequested`) — the downstream `run_id` was stored as the check run's `external_id` when it was created, and the downstream repo is encoded in the check run name (`crcr/<owner>/<repo>/<workflow_name>`). The relay parses both, verifies the repo is L3+, and re-triggers that downstream workflow run.
-- **Re-run all checks** (`check_suite` `rerequested`) — the suite covers every check on the commit, so the relay re-triggers each L3+ downstream whose latest run it cached at `crcr:dispatch_workflow:<head_sha>:<repo>`.
+- **Re-run a single check** (`check_run` `rerequested`) — the downstream repo is parsed from the check run name (`crcr/<owner>/<repo>/<workflow_name>/<job_name>`) and the `run_id` from its `external_id`. The relay verifies the repo is L3+ and re-runs the failed jobs of that run (`POST /repos/<repo>/actions/runs/<run_id>/rerun-failed-jobs`). A 403 "run already running" is treated as a benign no-op.
+- **Re-run all checks** (`check_suite` `rerequested`) — the CRCR app owns a single check suite per commit, so the relay lists every check run in that suite, dedupes them by `(repo, run_id)`, and re-runs the failed jobs of each distinct L3+ run. Check runs with no `external_id` are skipped.
 
 Because the re-run carries the **original `delivery_id`** but a **new `check_run_id`** (GitHub mints fresh check runs per attempt), the two CI timing metrics behave differently:
 

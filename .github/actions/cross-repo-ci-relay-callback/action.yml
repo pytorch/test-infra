@@ -60,6 +60,49 @@ runs:
           core.setSecret(token);
           core.setOutput('token', token);
 
+    # Resolve this job's full display name so the relay can give it its own
+    # upstream check run. `github.job` is only the job's key in the workflow file
+    # and is identical for every leg of a matrix, so it would collapse all legs
+    # into one check run. The jobs API's `name` field carries the real display
+    # name (e.g. "build (cuda)"), which the relay can't derive on its own — a
+    # plain callback can't tell the relay which leg sent it, but the job itself
+    # can identify its own record by runner_name (a runner runs one job at a time).
+    #
+    # The jobs API is an async, read-only view: right after start our own record
+    # may briefly still show status=queued / no runner_name. That lag is transient,
+    # so we retry up to 6x/3s (~15s cap; stops on first match) and match on
+    # status != 'completed'. If it still fails it's a real error (missing
+    # `actions: read`, cancelled job, API outage), so we hard-fail. Requires
+    # `actions: read`.
+    - name: Resolve job display name
+      id: jobname
+      uses: actions/github-script@v7
+      env:
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+      with:
+        script: |
+          const wanted = process.env.RUNNER_NAME;
+          const attempt = Number(process.env.RUN_ATTEMPT);
+          let me = null;
+          for (let i = 0; i < 6 && !me; i++) {
+            if (i > 0) await new Promise(r => setTimeout(r, 3000));
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRunAttempt, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+                attempt_number: attempt,
+              });
+            me = jobs.find(
+              j => j.runner_name === wanted && j.status !== 'completed');
+          }
+          if (!me) {
+            throw new Error(
+              `could not resolve job display name (runner=${wanted}); ` +
+              `ensure the calling workflow grants 'actions: read'`);
+          }
+          core.setOutput('job_name', me.name);
+
     - name: Send callback to relay server
       shell: bash
       env:
@@ -73,7 +116,7 @@ runs:
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}
         ARTIFACT_URL: ${{ inputs.artifact-url }}
-        JOB_NAME: ${{ github.job }}
+        JOB_NAME: ${{ steps.jobname.outputs.job_name }}
         CHECK_RUN_ID: ${{ job.check_run_id }}
         RUN_ID: ${{ github.run_id }}
         RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -147,6 +190,8 @@ runs:
             --write-out "%{http_code}" \
             -X POST \
             --max-time ${MAX_TIME} \
+            --retry 5 \
+            --retry-connrefused \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${OIDC_TOKEN}" \
             --data "${PAYLOAD}" \
