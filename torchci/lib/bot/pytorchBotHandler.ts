@@ -5,6 +5,7 @@ import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
+import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
@@ -319,6 +320,28 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     await this.logger.log("merge", extra_data);
+
+    // Check for L4 CRCR blocking failures (L3 failures are non-blocking).
+    // Force merge (-f) bypasses this check, consistent with the existing
+    // force-merge semantics for in-repo CI failures.
+    if (!forceRequested) {
+      try {
+        const blockingRepos = await this.getCrcrBlockingFailures();
+        if (blockingRepos.length > 0) {
+          const repoList = blockingRepos.join(", ");
+          await this.addComment(
+            `The following L4 downstream CI workflows have failed and are blocking this merge:\n\n` +
+              blockingRepos.map((r) => `- \`${r}\``).join("\n") +
+              `\n\nPlease investigate or use \`@pytorchbot merge -f\` to bypass.`
+          );
+          return;
+        }
+      } catch (err) {
+        // If the blocking check itself fails, log and proceed (fail open).
+        this.ctx.log({ err }, "CRCR blocking check failed, allowing merge");
+      }
+    }
+
     if (!forceRequested && isPyTorchPyTorch(this.owner, this.repo)) {
       let labels: string[] = this.ctx.payload?.issue?.labels.map(
         (e: any) => e["name"]
@@ -634,6 +657,82 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       prNumber: this.prNum,
       headSha: this.headSha,
     });
+  }
+
+  /**
+   * Return the list of L4 downstream repos whose CRCR check runs have failed
+   * on this PR's head commit.  L3 failures are intentionally omitted — they
+   * are non-blocking.
+   */
+  async getCrcrBlockingFailures(): Promise<string[]> {
+    // Lazy-load the head SHA if not already cached
+    if (this.headSha === undefined) {
+      const pullRequest = await this.ctx.octokit.pulls.get({
+        owner: this.owner,
+        repo: this.repo,
+        pull_number: this.prNum,
+      });
+      this.headSha = pullRequest.data.head.sha;
+    }
+
+    // Query GitHub Check Runs API for all check runs on this commit
+    let checkRuns: any[] = [];
+    try {
+      const res = await this.ctx.octokit.checks.listForRef({
+        owner: this.owner,
+        repo: this.repo,
+        ref: this.headSha!,
+        filter: "latest",
+        per_page: 100,
+      });
+      checkRuns = res.data.check_runs;
+    } catch {
+      // If we can't fetch check runs, fail open (don't block merge on
+      // an infrastructure error)
+      this.ctx.log("getCrcrBlockingFailures: failed to list check runs");
+      return [];
+    }
+
+    // Filter for CRCR check runs with a blocking conclusion
+    const FAILURE_CONCLUSIONS = new Set([
+      "failure",
+      "cancelled",
+      "timed_out",
+      "action_required",
+    ]);
+
+    const crcrFailures = checkRuns.filter(
+      (cr: any) =>
+        cr.name.startsWith("crcr/") &&
+        FAILURE_CONCLUSIONS.has(cr.conclusion ?? "")
+    );
+
+    if (crcrFailures.length === 0) {
+      return [];
+    }
+
+    // Load the allowlist to classify each failed repo as L3 or L4
+    let allowlist;
+    try {
+      allowlist = await fetchCrcrAllowlist(this.ctx.octokit);
+    } catch {
+      this.ctx.log("getCrcrBlockingFailures: failed to load allowlist");
+      return [];
+    }
+
+    const blocking: string[] = [];
+    for (const cr of crcrFailures) {
+      // Parse downstream repo from check run name: crcr/<owner>/<repo>/...
+      const nameParts = cr.name.slice(5).split("/"); // remove "crcr/"
+      if (nameParts.length >= 2) {
+        const downstreamRepo = `${nameParts[0]}/${nameParts[1]}`;
+        if (allowlist.isBlocking(downstreamRepo)) {
+          blocking.push(downstreamRepo);
+        }
+      }
+    }
+
+    return blocking;
   }
 }
 

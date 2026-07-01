@@ -34,6 +34,7 @@ import fetchPR from "lib/fetchPR";
 import {
   fetchFailedJobsFromCommits,
   fetchJobNamesFromCommits,
+  fetchOotWorkflows,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
@@ -292,6 +293,33 @@ export async function updateDrciComments(
         );
       }
 
+      // Classify CRCR out-of-tree downstream CI jobs (L3 = non-blocking, L4 = blocking).
+      // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
+      // separately and classified based on their downstream_repo_level.
+      const outOfTreeJobs: RecentWorkflowsData[] = [];
+      try {
+        const ootWorkflows = await fetchOotWorkflows(`${owner}/${repo}`, [
+          pr_info.pr_number,
+        ]);
+        for (const job of ootWorkflows) {
+          // downstream_repo_level is stashed in failure_context[0] by fetchOotWorkflows
+          const level = job.failure_context?.[0] || "";
+          if (level === "L3") {
+            outOfTreeJobs.push(job);
+          } else if (level === "L4") {
+            // L4 failures are blocking — merge them into failedJobs
+            failedJobs.push(job);
+          }
+        }
+      } catch (err) {
+        // If OOT fetch fails, log and proceed — don't block the Dr.CI update
+        console.error("Failed to fetch OOT workflows:", err);
+      }
+
+      if (outOfTreeJobs.length > 0) {
+        failures[pr_info.pr_number].OUT_OF_TREE = outOfTreeJobs;
+      }
+
       const failureInfo = constructResultsComment(
         pending,
         failedJobs,
@@ -300,6 +328,7 @@ export async function updateDrciComments(
         unstableJobs,
         unknownJobs,
         awaitingApprovalJobs,
+        outOfTreeJobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -757,6 +786,7 @@ export function constructResultsComment(
   unstableJobs: RecentWorkflowsData[],
   unknownJobs: RecentWorkflowsData[],
   awaitingApprovalJobs: RecentWorkflowsData[],
+  outOfTreeJobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
   relatedInfo: Map<number, string>,
@@ -775,6 +805,7 @@ export function constructResultsComment(
   const unrelatedFailureCount = _(flakyJobs)
     .concat(brokenTrunkJobs)
     .concat(unstableJobs)
+    .concat(outOfTreeJobs)
     .filter((job) => !isPending(job))
     .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
@@ -1016,6 +1047,23 @@ export function constructResultsComment(
       "are"
     )} marked as unstable, possibly due to flakiness on trunk`,
     unstableJobs,
+    "",
+    true,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
+  );
+  output += constructResultsJobsSections(
+    hudBaseUrl,
+    owner,
+    repo,
+    prNumber,
+    "OUT OF TREE (non-blocking)",
+    `The following out-of-tree downstream CI ${pluralize(
+      "job",
+      outOfTreeJobs.length
+    )} failed but ${pluralize("is", outOfTreeJobs.length, "are")} non-blocking`,
+    outOfTreeJobs,
     "",
     true,
     relatedJobs,

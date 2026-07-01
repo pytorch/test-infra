@@ -6,6 +6,7 @@ import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import checkLabelsBot from "./checkLabelsBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import codevNoWritePerm from "./codevNoWritePermBot";
+import crcrOncallBot from "./crcrOncallBot";
 import drciBot from "./drciBot";
 import nitpickBot from "./nitpickBot";
 import pytorchBot from "./pytorchBot";
@@ -22,6 +23,7 @@ export default function bot(app: Probot) {
   checkLabelsBot(app);
   ciflowPushTrigger(app);
   codevNoWritePerm(app);
+  crcrOncallBot(app);
   drciBot(app);
   nitpickBot(app);
   pytorchBot(app);
