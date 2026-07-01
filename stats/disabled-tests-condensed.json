@@ -803,13 +803,6 @@
       "linux"
     ]
   ],
-  "test_profiler_mark_wrapper_call_cuda_dynamic_shapes_gpu_wrapper (__main__.DynamicShapesGpuWrapperGpuTests)": [
-    "176822",
-    "https://github.com/pytorch/pytorch/issues/176822",
-    [
-      "rocm"
-    ]
-  ],
   "test_range_based_static_shape_no_cond_dispatch (__main__.TestCustomOpAutoTune)": [
     "187424",
     "https://github.com/pytorch/pytorch/issues/187424",
