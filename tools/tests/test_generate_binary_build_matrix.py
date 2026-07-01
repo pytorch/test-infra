@@ -126,6 +126,87 @@ class GenerateBuildMatrixTest(TestCase):
             reference_output_file="build_matrix_linux_wheel_xpu.json",
         )
 
+    def _test_channel_python_versions(
+        self,
+        operating_system: str,
+        include_preview: str = "disable",
+        channel: str = "test",
+    ) -> set:
+        out = generate_build_matrix(
+            "wheel",
+            operating_system,
+            channel,
+            "enable",
+            "enable" if operating_system in ("linux",) else "disable",
+            "enable",
+            "enable" if operating_system in ("linux", "windows") else "disable",
+            "false",
+            "false",
+            "disable",
+            "false",
+            None,
+            include_preview,
+        )
+        return {entry["python_version"] for entry in out["include"]}
+
+    def test_preview_python_versions_opt_in_on_linux(self):
+        # 3.15 / 3.15t are validated on Linux x86 and aarch64 for the nightly and
+        # test channels when explicitly opted in.
+        for channel in ("nightly", "test"):
+            for operating_system in ("linux", "linux-aarch64"):
+                versions = self._test_channel_python_versions(
+                    operating_system, include_preview="enable", channel=channel
+                )
+                self.assertIn("3.15", versions)
+                self.assertIn("3.15t", versions)
+
+    def test_preview_python_versions_off_by_default(self):
+        # Without opt-in the shared default is unchanged (e.g. torchvision builds).
+        for operating_system in ("linux", "linux-aarch64"):
+            versions = self._test_channel_python_versions(operating_system)
+            self.assertNotIn("3.15", versions)
+            self.assertNotIn("3.15t", versions)
+
+    def test_preview_python_versions_excluded_on_non_linux(self):
+        # Windows and macOS must not pick up the preview versions even when opted in.
+        for operating_system in ("windows", "macos"):
+            versions = self._test_channel_python_versions(
+                operating_system, include_preview="enable"
+            )
+            self.assertNotIn("3.15", versions)
+            self.assertNotIn("3.15t", versions)
+
+    def test_preview_python_versions_excluded_on_release_channel(self):
+        # Preview versions are defined for the nightly and test channels only,
+        # never for the release channel.
+        versions = self._test_channel_python_versions(
+            "linux", include_preview="enable", channel="release"
+        )
+        self.assertNotIn("3.15", versions)
+        self.assertNotIn("3.15t", versions)
+
+    def test_torch_only_install_command_for_preview_arches(self):
+        out = generate_build_matrix(
+            "wheel",
+            "linux",
+            "test",
+            "enable",
+            "enable",
+            "enable",
+            "enable",
+            "false",
+            "false",
+            "disable",
+            "false",
+            None,
+            "enable",
+        )
+        for entry in out["include"]:
+            if entry["python_version"] in ("3.15", "3.15t"):
+                # torchvision is not published for these versions yet.
+                self.assertNotIn("torchvision", entry["installation"])
+                self.assertIn("torch", entry["installation"])
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Test generate build matrix")
