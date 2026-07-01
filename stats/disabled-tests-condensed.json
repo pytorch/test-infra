@@ -402,6 +402,17 @@
       "dynamo"
     ]
   ],
+  "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
+    "188676",
+    "https://github.com/pytorch/pytorch/issues/188676",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_fsdp_flat_param_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187571",
     "https://github.com/pytorch/pytorch/issues/187571",
@@ -485,6 +496,17 @@
     "https://github.com/pytorch/pytorch/issues/158443",
     [
       "linux"
+    ]
+  ],
+  "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
+    "188677",
+    "https://github.com/pytorch/pytorch/issues/188677",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
     ]
   ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
@@ -679,6 +701,17 @@
       "rocm"
     ]
   ],
+  "test_main_loop_scaling_shape2_use_fast_accum_True_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188675",
+    "https://github.com/pytorch/pytorch/issues/188675",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -772,6 +805,11 @@
     [
       "rocm"
     ]
+  ],
+  "test_redispatch_nn_functional_conv_transpose3d_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
+    "188678",
+    "https://github.com/pytorch/pytorch/issues/188678",
+    []
   ],
   "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "186259",
@@ -1132,6 +1170,17 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
+    "188674",
+    "https://github.com/pytorch/pytorch/issues/188674",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
     ]
   ]
 }
