@@ -46,6 +46,11 @@ class JobMeta:
       skip when an upstream dependency was cancelled/failed). Requires
       ALL rows skipped so a real attempt that ran alongside a skipped
       shard still drives the verdict.
+    - is_workflow_dispatch: True if the run was triggered via workflow_dispatch
+      (how autorevert fires its own restarts). Such runs are job/test-filtered
+      and therefore cannot establish a born-red baseline (a concluded dispatch
+      with no event for a test is not proof the test was absent). Does not
+      affect `status`.
     - has_failures: True if any grouped row is a failure (KG-adjusted conclusion).
       If True, overall status resolves to FAILURE.
     - all_completed_success: True if all grouped rows completed successfully. If
@@ -60,6 +65,7 @@ class JobMeta:
     is_pending: bool = False
     is_cancelled: bool = False
     is_skipped: bool = False
+    is_workflow_dispatch: bool = False
     has_failures: bool = False
     all_completed_success: bool = False
     has_non_test_failures: bool = False
@@ -186,6 +192,8 @@ class JobAggIndex(Generic[KeyT]):
             is_pending=(any(r.is_pending for r in jrows)),
             is_cancelled=(any(r.is_cancelled for r in jrows)),
             is_skipped=(all(r.is_skipped for r in jrows)),
+            # All rows here share one wf_run_id, hence one trigger.
+            is_workflow_dispatch=(any(r.is_workflow_dispatch for r in jrows)),
             has_failures=(any(r.is_failure for r in jrows)),
             all_completed_success=(all(r.is_success for r in jrows)),
             has_non_test_failures=(

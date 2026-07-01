@@ -1216,6 +1216,8 @@ class TestSignalCommitReplace(unittest.TestCase):
             timestamp=datetime(2025, 8, 19, 12, 0, 0),
             signal_key="k",
         ),
+        "job_group_concluded": True,
+        "has_dispatch_run": True,
     }
 
     def _init_params(self):
@@ -1273,13 +1275,19 @@ class TestSignalCommitReplace(unittest.TestCase):
 
 
 class TestBornRedTestSignal(unittest.TestCase):
-    """Test-track born-red detection: failing head + empty-events tail.
+    """Test-track born-red detection (order-independent set predicate).
 
-    Covers the blind spot where a test was introduced by the same commit that
-    breaks it (or by a recent ancestor): the green→red partition path returns
-    `Ineligible(NO_SUCCESSES)` and bails before dispatching the advisor. The
-    born-red path asks the advisor "did the suspect commit introduce this
-    failing test?" instead.
+    Covers the blind spot where a test is introduced — or enabled / un-skipped
+    / renamed — already broken: the green→red partition path returns
+    `Ineligible(NO_SUCCESSES)` and bails before dispatching the advisor.
+
+    The detector ignores commit ordering and pending commits. It fires when the
+    signal has no successes, ≥1 failing commit, and ≥1 *concluded baseline*
+    commit (`job_group_concluded and not events`) OLDER than the suspect (the
+    oldest failure), provided no unconcluded/pending commit sits in the
+    introduction gap. Real trunk signals always carry a pending head and empty
+    commits interleaved among the failures, both of which the earlier strict
+    `[FAIL...][EMPTY...]` shape rejected — so it never fired in practice.
     """
 
     def setUp(self) -> None:
@@ -1302,14 +1310,54 @@ class TestBornRedTestSignal(unittest.TestCase):
         )
 
     def _fail(self, sha: str, minute: int, *, job_id: int = 100) -> SignalCommit:
+        # A failing commit whose job group concluded.
         return SignalCommit(
             head_sha=sha,
             timestamp=ts(self.t0, minute),
             events=[self._ev("t", SignalStatus.FAILURE, minute, job_id=job_id)],
+            job_group_concluded=True,
         )
 
-    def _empty(self, sha: str, minute: int) -> SignalCommit:
-        return SignalCommit(head_sha=sha, timestamp=ts(self.t0, minute), events=[])
+    def _baseline(self, sha: str, minute: int) -> SignalCommit:
+        # Job group concluded, no event for this test → born-red baseline
+        # witness (the test was genuinely absent on this commit).
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[],
+            job_group_concluded=True,
+        )
+
+    def _pending(self, sha: str, minute: int) -> SignalCommit:
+        # Job group still running → carries a PENDING event, not concluded.
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[self._ev("t", SignalStatus.PENDING, minute)],
+            job_group_concluded=False,
+        )
+
+    def _unrun(self, sha: str, minute: int) -> SignalCommit:
+        # No jobs concluded for this group yet → empty AND not concluded. Not a
+        # baseline witness: we cannot tell whether the test exists here.
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[],
+            job_group_concluded=False,
+        )
+
+    def _dispatched(self, sha: str, minute: int) -> SignalCommit:
+        # Already restarted once via workflow_dispatch, concluded with no event
+        # for this test (test absent / filtered out). Not a baseline (the
+        # dispatch can't prove absence), but must NOT be restarted again.
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[],
+            job_group_concluded=False,
+            has_dispatch_run=True,
+        )
 
     def _test_signal(self, commits, key: str = "f.py::t") -> Signal:
         return Signal(
@@ -1319,65 +1367,155 @@ class TestBornRedTestSignal(unittest.TestCase):
             source=SignalSource.TEST,
         )
 
-    # ---- partition_born_red shape checks ----
+    # ---- partition_born_red predicate ----
 
     def test_partition_born_red_canonical_shape(self):
         commits = [
             self._fail("f1", 0, job_id=1),
             self._fail("f2", -10, job_id=2),
-            self._empty("e1", -20),
-            self._empty("e2", -30),
+            self._baseline("e1", -20),
+            self._baseline("e2", -30),
         ]
         part = self._test_signal(commits).partition_born_red()
         self.assertIsNotNone(part)
         assert part is not None  # narrow type for mypy
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
-        self.assertEqual([c.head_sha for c in part.successful], ["e1", "e2"])
+        # Scope stops at the most-recent baseline (e1); e2 is out of scope.
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
         self.assertEqual(part.unknown, [])
 
+    def test_partition_born_red_fires_despite_leading_pending(self):
+        # The newest commits are still running (pending head) — the common
+        # real-world case. Pending commits are ignored; the predicate still
+        # fires on the failures + concluded baseline below them.
+        commits = [
+            self._pending("p1", 10),
+            self._pending("p2", 5),
+            self._fail("f1", 0),
+            self._fail("f2", -10),
+            self._baseline("e1", -20),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
+
+    def test_partition_born_red_scoped_to_most_recent_baseline(self):
+        # A concluded baseline (g1) sits between two failures: it proves the
+        # test was absent there, i.e. the older failure (f_old) belongs to a
+        # *prior* episode that already recovered. Scope is the most-recent
+        # baseline (g1) and newer, so only the newer failures fire on it.
+        commits = [
+            self._fail("f1", 0),
+            self._fail("f2", -5),
+            self._baseline("g1", -10),  # most-recent baseline → scope boundary
+            self._fail("f_old", -15),  # pre-recovery failure, out of scope
+            self._baseline("e1", -20),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual(part.failed[-1].head_sha, "f2")  # suspect = oldest in scope
+        self.assertEqual([c.head_sha for c in part.successful], ["g1"])
+
+    def test_partition_born_red_none_when_recovered_at_head(self):
+        # A concluded baseline NEWER than the failures (the test was removed /
+        # disabled again) → recovered. Scope = [C] only, holds no failure → None.
+        commits = [
+            self._baseline("c_head", 0),  # most-recent baseline, newer than fails
+            self._fail("f1", -10),
+            self._fail("f2", -20),
+            self._baseline("e1", -30),
+        ]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_fires_with_unrun_in_introduction_gap(self):
+        # An unrun (no jobs, no events) commit sits between the suspect and the
+        # nearest older baseline. We do NOT defer the suspect decision: dispatch
+        # on the oldest OBSERVED failure (f2). The unrun commit lands in
+        # `unknown` so the caller can restart it to find the true introducer.
+        commits = [
+            self._fail("f1", 0),
+            self._fail("f2", -10),
+            self._unrun("u1", -15),  # unrun gap commit → restart candidate
+            self._baseline("e1", -20),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual(part.failed[-1].head_sha, "f2")  # suspect = oldest fail
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
+        # Introduction gap = the unrun commit between suspect and baseline.
+        self.assertEqual([c.head_sha for c in part.unknown], ["u1"])
+
+    def test_partition_born_red_fires_with_pending_head_and_gap(self):
+        # Full real-world shape (newest→oldest): a pending head, two failures,
+        # pending commits in the introduction gap, then concluded baselines
+        # with another pending interleaved among them:
+        #     P P P F F P P P C P C
+        # Born-red fires on the oldest observed failure (f4); every pending is
+        # ignored regardless of position.
+        commits = [
+            self._pending("p0", 100),
+            self._pending("p1", 90),
+            self._pending("p2", 80),
+            self._fail("f3", 70, job_id=13),
+            self._fail("f4", 60, job_id=14),
+            self._pending("p5", 50),
+            self._pending("p6", 40),
+            self._pending("p7", 30),
+            self._baseline("c8", 20),
+            self._pending("p9", 10),
+            self._baseline("c10", 0),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f3", "f4"])
+        self.assertEqual(part.failed[-1].head_sha, "f4")  # suspect = oldest fail
+        # Baseline = the most-recent concluded-empty (c8); c10 is out of scope.
+        self.assertEqual([c.head_sha for c in part.successful], ["c8"])
+        # Introduction gap = commits strictly between suspect (f4) and the
+        # baseline (c8): the pending p5/p6/p7. They are covered separators
+        # (have events), so they trigger no restart — see the process-level
+        # test below.
+        self.assertEqual([c.head_sha for c in part.unknown], ["p5", "p6", "p7"])
+
+    def test_partition_born_red_none_without_concluded_baseline(self):
+        # The only empty commits are unconcluded (jobs not finished) → no proof
+        # the test was ever absent → not born-red.
+        commits = [self._fail("f1", 0), self._fail("f2", -10), self._unrun("u1", -20)]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
     def test_partition_born_red_none_when_has_successes(self):
-        # Even one success disqualifies the born-red shape — the main partition
-        # path applies instead.
+        # Any success disqualifies born-red — the main partition path applies.
         commits = [
             self._fail("f1", 0),
             SignalCommit(
                 head_sha="s1",
                 timestamp=ts(self.t0, -10),
                 events=[self._ev("t", SignalStatus.SUCCESS, -10)],
+                job_group_concluded=True,
             ),
+            self._baseline("e1", -20),
         ]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
-    def test_partition_born_red_none_without_empty_tail(self):
-        # All commits fail — chronic infra shape, not born-red.
-        commits = [self._fail("f1", 0), self._fail("f2", -10)]
+    def test_partition_born_red_none_chronic_failure_no_baseline(self):
+        # All commits fail, no concluded-empty baseline — chronic shape.
+        commits = [self._fail("f1", 0), self._fail("f2", -10), self._fail("f3", -20)]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
     def test_partition_born_red_none_without_failures(self):
-        # Only empty commits — nothing to act on.
-        commits = [self._empty("e1", 0), self._empty("e2", -10)]
+        # Only baseline commits — nothing to act on.
+        commits = [self._baseline("e1", 0), self._baseline("e2", -10)]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
-    def test_partition_born_red_none_on_interleaved_empty_then_fail(self):
-        # newest=empty, older=fail violates the [FAIL...][EMPTY...] order.
-        commits = [self._empty("e1", 0), self._fail("f1", -10), self._empty("e2", -20)]
-        self.assertIsNone(self._test_signal(commits).partition_born_red())
-
-    def test_partition_born_red_none_on_pending_only_commit(self):
-        # Pending-only commits are neither failures nor empty — bail.
-        commits = [
-            self._fail("f1", 0),
-            SignalCommit(
-                head_sha="p1",
-                timestamp=ts(self.t0, -10),
-                events=[self._ev("t", SignalStatus.PENDING, -10)],
-            ),
-            self._empty("e1", -20),
-        ]
-        self.assertIsNone(self._test_signal(commits).partition_born_red())
-
-    def test_partition_born_red_requires_two_commits(self):
-        # Single commit can't form a partition.
+    def test_partition_born_red_none_single_failure_no_baseline(self):
+        # Single failing commit with no baseline below it.
         self.assertIsNone(self._test_signal([self._fail("f1", 0)]).partition_born_red())
 
     # ---- process_valid_autorevert_pattern wiring ----
@@ -1386,7 +1524,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0, job_id=11),
             self._fail("f2", -10, job_id=12),
-            self._empty("e1", -20),
+            self._baseline("e1", -20),
         ]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
@@ -1398,11 +1536,36 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual(res.advisor.successful_commits, ("e1",))
         self.assertTrue(res.advisor.is_born_red)
 
+    def test_process_dispatches_on_real_flip_shape(self):
+        # Regression for the real-world shape that the old strict partition
+        # never fired on: pending head + a failure + an interleaved *pending*
+        # commit (jobs not finished yet) + another failure + concluded baseline
+        # tail. (Mirrors inductor flip_zero_dim_dynamic_shapes_cuda, 2026-05-21.)
+        commits = [
+            self._pending("p1", 30),
+            self._pending("p2", 25),
+            self._fail("f1", 20, job_id=11),
+            self._pending("g1", 15),  # interleaved pending (not yet finished)
+            self._fail("f2", 10, job_id=12),
+            self._baseline("e1", 0),
+            self._baseline("e2", -10),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        self.assertTrue(res.advisor.is_born_red)
+        # Suspect = oldest failure (f2); both failures reported.
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+        self.assertEqual(res.advisor.failed_commits, ("f1", "f2"))
+        # Baseline = the most-recent concluded-empty (e1); e2 is out of scope.
+        self.assertEqual(res.advisor.successful_commits, ("e1",))
+
     def test_process_holds_advisor_below_failing_commit_threshold(self):
         # Single failing commit — wait for the next trunk advance before paying
         # advisor cost (REQUIRE_FAILED_COMMITS_BORN_RED == 2). Distinct
         # commits, not raw event counts, gate the dispatch.
-        commits = [self._fail("f1", 0), self._empty("e1", -10)]
+        commits = [self._fail("f1", 0), self._baseline("e1", -10)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
@@ -1419,12 +1582,193 @@ class TestBornRedTestSignal(unittest.TestCase):
                 self._ev("t", SignalStatus.FAILURE, 1, wf_run_id=2, job_id=12),
                 self._ev("t", SignalStatus.FAILURE, 2, wf_run_id=3, job_id=13),
             ],
+            job_group_concluded=True,
         )
-        commits = [c_multi_event, self._empty("e1", -10)]
+        commits = [c_multi_event, self._baseline("e1", -10)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
         self.assertIsNone(res.advisor)
+
+    def test_process_restarts_unrun_gap_and_dispatches_advisor_in_parallel(self):
+        # ≥2 failures + an unrun (no jobs, no events) commit in the introduction
+        # gap → restart the unrun commit to bisect AND dispatch the advisor on
+        # the oldest observed failure in the same tick (Option A).
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._unrun("u1", -15),  # ghstack stack-middle: never scheduled
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertIn("u1", res.commit_shas)
+        # Advisor fires in parallel, on the oldest observed failure.
+        self.assertIsNotNone(res.advisor)
+        assert res.advisor is not None
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+        self.assertTrue(res.advisor.is_born_red)
+
+    def test_process_ghstack_restarts_gap_below_single_failure(self):
+        # The motivating case: a ghstack of commits lands and introduces a
+        # broken test; `push` only runs jobs for the stack head, so the
+        # stack-middles are unrun. Only the head has failed so far (< 2
+        # observed failures → no advisor yet), but we still restart the unrun
+        # middles to gather the coverage needed to pinpoint the introducer.
+        commits = [
+            self._fail("head", 0, job_id=11),
+            self._unrun("mid1", -10),
+            self._unrun("mid2", -20),
+            self._baseline("base", -30),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"mid1", "mid2"})
+        # No advisor: only one observed failure so far.
+        self.assertIsNone(res.advisor)
+
+    def test_process_pending_gap_no_restart_dispatches_advisor(self):
+        # A *pending* (jobs running) commit in the gap is a covered separator,
+        # not a restart candidate — it resolves on its own. No restart; the
+        # advisor dispatches on the oldest observed failure.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._pending("p1", -15),  # jobs running — covered separator
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+
+    def test_process_restart_respects_bisection_limit(self):
+        # Three unrun commits in the gap, bisection_limit=1 → only the bisection
+        # midpoint is scheduled (the same hybrid planner the green→red path uses).
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._unrun("u1", -15),
+            self._unrun("u2", -20),
+            self._unrun("u3", -25),
+            self._baseline("e1", -30),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern(
+            bisection_limit=1
+        )
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(len(res.commit_shas), 1)
+        self.assertTrue(res.commit_shas <= {"u1", "u2", "u3"})
+
+    def test_process_mixed_pending_and_unrun_gap_restarts_only_unrun(self):
+        # Gap holds one pending (covered separator) and one unrun (candidate).
+        # Only the unrun commit is restarted; the pending resolves on its own.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._pending("p1", -13),  # jobs running — separator, no restart
+            self._unrun("u1", -16),  # no jobs — restart candidate
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+
+    def test_process_block_verdict_keeps_covering_uncovered_gap(self):
+        # A not_related verdict on the current suspect, but an unrun commit is
+        # still uncovered in the gap → keep restarting it (the real introducer
+        # may be there) rather than surfacing the block. No fresh advisor.
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.NOT_RELATED,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+            job_group_concluded=True,
+        )
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            suspect,
+            self._unrun("u1", -15),
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+        self.assertIsNone(res.advisor)  # suspect ruled out — no re-dispatch
+
+    def test_process_revert_verdict_acts_even_with_uncovered_gap(self):
+        # Option-A tradeoff, made explicit: a confident revert verdict on the
+        # oldest observed failure is acted on immediately, even though an unrun
+        # gap commit below it has not concluded. Bounded by the advisor's
+        # diff-introduction semantics + the confidence gate.
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+            job_group_concluded=True,
+        )
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            suspect,
+            self._unrun("u1", -15),
+            self._baseline("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        assert isinstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "f2")
+
+    def test_process_does_not_redispatch_already_dispatched_gap_commit(self):
+        # The whole point of has_dispatch_run: a gap commit we already restarted
+        # once (workflow_dispatch concluded, test still absent → no event) is a
+        # covered separator. Only the not-yet-probed unrun commit is restarted —
+        # no second dispatch on the same commit.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._dispatched("d1", -15),  # already restarted once → don't repeat
+            self._unrun("u1", -18),  # never probed → restart this one
+            self._baseline("e1", -25),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, RestartCommits)
+        assert isinstance(res, RestartCommits)
+        self.assertEqual(res.commit_shas, {"u1"})
+
+    def test_process_all_gap_commits_dispatched_no_restart(self):
+        # Once every gap commit has been probed once, there is nothing left to
+        # restart — the advisor still dispatches on the oldest observed failure.
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._dispatched("d1", -15),
+            self._dispatched("d2", -18),
+            self._baseline("e1", -25),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        self.assertEqual(res.advisor.suspect_commit, "f2")
 
     def test_process_no_advisor_for_job_track_born_red(self):
         # Born-red detection is test-track only. Job-track signals with the
@@ -1433,7 +1777,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0, job_id=21),
             self._fail("f2", -10, job_id=22),
-            self._empty("e1", -20),
+            self._baseline("e1", -20),
         ]
         s = Signal(
             key="job",
@@ -1446,9 +1790,9 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
         self.assertIsNone(res.advisor)
 
-    def test_process_no_advisor_when_chronic_failure_no_empty_tail(self):
-        # Chronic shape — every commit fails, no empties. Lambda continues to
-        # return the existing NO_SUCCESSES without an advisor.
+    def test_process_no_advisor_when_chronic_failure_no_baseline(self):
+        # Chronic shape — every commit fails, no concluded-empty baseline.
+        # Lambda continues to return the existing NO_SUCCESSES without advisor.
         commits = [self._fail("f1", 0), self._fail("f2", -10), self._fail("f3", -20)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
@@ -1470,14 +1814,15 @@ class TestBornRedTestSignal(unittest.TestCase):
             timestamp=ts(self.t0, -10),
             events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
             advisor_result=verdict,
+            job_group_concluded=True,
         )
-        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._baseline("e1", -20)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, AutorevertPattern)
         self.assertEqual(res.suspected_commit, "f2")
         # Newer failing commit reported alongside the suspect.
         self.assertEqual(res.newer_failing_commits, ["f1"])
-        # Older "successful" reference = newest empty-events commit (implicit
+        # Older "successful" reference = newest baseline commit (implicit
         # baseline) — used in the revert PR body.
         self.assertEqual(res.older_successful_commit, "e1")
         self.assertIsNotNone(res.advisor_verdict)
@@ -1494,8 +1839,9 @@ class TestBornRedTestSignal(unittest.TestCase):
             timestamp=ts(self.t0, -10),
             events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
             advisor_result=verdict,
+            job_group_concluded=True,
         )
-        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._baseline("e1", -20)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.ADVISOR_NOT_RELATED)
