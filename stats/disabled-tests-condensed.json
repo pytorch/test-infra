@@ -433,13 +433,6 @@
       "win"
     ]
   ],
-  "test_full_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187598",
-    "https://github.com/pytorch/pytorch/issues/187598",
-    [
-      "rocm"
-    ]
-  ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
     "https://github.com/pytorch/pytorch/issues/187176",
@@ -888,6 +881,13 @@
   "test_rank0_broadcast_meta_device_init (__main__.TestFullyShardMetaDeviceInit)": [
     "188628",
     "https://github.com/pytorch/pytorch/issues/188628",
+    [
+      "rocm"
+    ]
+  ],
+  "test_reconfigure_scale_down_up (__main__.GlooFaultToleranceTest)": [
+    "188767",
+    "https://github.com/pytorch/pytorch/issues/188767",
     [
       "rocm"
     ]
