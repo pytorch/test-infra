@@ -418,15 +418,6 @@
       "rocm"
     ]
   ],
-  "test_fake_device_property_normalization_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "176147",
-    "https://github.com/pytorch/pytorch/issues/176147",
-    [
-      "linux",
-      "rocm",
-      "xpu"
-    ]
-  ],
   "test_fake_dispatch_keys_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
     "187157",
     "https://github.com/pytorch/pytorch/issues/187157",
@@ -598,13 +589,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_complex128_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187632",
-    "https://github.com/pytorch/pytorch/issues/187632",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_complex64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -1205,21 +1189,22 @@
       "linux"
     ]
   ],
-  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
-    "182397",
-    "https://github.com/pytorch/pytorch/issues/182397",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
     [
       "asan",
       "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
       "slow"
     ]
   ],
