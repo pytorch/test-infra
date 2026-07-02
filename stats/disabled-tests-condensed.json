@@ -880,6 +880,13 @@
       "rocm"
     ]
   ],
+  "test_op_dtype_propagation_remainder_xpu_float64 (__main__.TestCaseXPU)": [
+    "188806",
+    "https://github.com/pytorch/pytorch/issues/188806",
+    [
+      "xpu"
+    ]
+  ],
   "test_op_dtype_propagation_signbit_xpu_float64 (__main__.TestCaseXPU)": [
     "188777",
     "https://github.com/pytorch/pytorch/issues/188777",
