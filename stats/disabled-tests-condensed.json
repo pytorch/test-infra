@@ -181,6 +181,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive___rmod___xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "188775",
+    "https://github.com/pytorch/pytorch/issues/188775",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_linalg_matrix_sqrth_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
     "188393",
     "https://github.com/pytorch/pytorch/issues/188393",
@@ -216,6 +223,20 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_remainder_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "188774",
+    "https://github.com/pytorch/pytorch/issues/188774",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_signbit_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "188776",
+    "https://github.com/pytorch/pytorch/issues/188776",
+    [
+      "xpu"
+    ]
+  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
@@ -247,6 +268,13 @@
     [
       "asan",
       "linux"
+    ]
+  ],
+  "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
+    "188773",
+    "https://github.com/pytorch/pytorch/issues/188773",
+    [
+      "xpu"
     ]
   ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
@@ -849,6 +877,13 @@
     "https://github.com/pytorch/pytorch/issues/186908",
     [
       "rocm"
+    ]
+  ],
+  "test_op_dtype_propagation_signbit_xpu_float64 (__main__.TestCaseXPU)": [
+    "188777",
+    "https://github.com/pytorch/pytorch/issues/188777",
+    [
+      "xpu"
     ]
   ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
