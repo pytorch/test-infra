@@ -95,7 +95,10 @@ def main():
             .replace("\n", "")
             .strip()
         )
-        run_cmd_or_die(f"docker exec -t {container_name} /exec")
+        try:
+            run_cmd_or_die(f"docker exec -t {container_name} /exec")
+        finally:
+            subprocess.run(["docker", "stop", container_name], check=False)
 
 
 if __name__ == "__main__":
