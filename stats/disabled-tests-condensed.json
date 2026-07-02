@@ -484,6 +484,14 @@
       "slow"
     ]
   ],
+  "test_grad_closure_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "187425",
+    "https://github.com/pytorch/pytorch/issues/187425",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179742",
     "https://github.com/pytorch/pytorch/issues/179742",
@@ -589,13 +597,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_complex64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187646",
-    "https://github.com/pytorch/pytorch/issues/187646",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float32_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -729,6 +730,13 @@
     "https://github.com/pytorch/pytorch/issues/188687",
     []
   ],
+  "test_linearize_jvp_fn (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "188798",
+    "https://github.com/pytorch/pytorch/issues/188798",
+    [
+      "rocm"
+    ]
+  ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
     "187156",
     "https://github.com/pytorch/pytorch/issues/187156",
@@ -817,6 +825,15 @@
     "https://github.com/pytorch/pytorch/issues/103495",
     [
       "rocm"
+    ]
+  ],
+  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
+    "179798",
+    "https://github.com/pytorch/pytorch/issues/179798",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_memory_snapshot (__main__.TestCudaAllocator)": [
