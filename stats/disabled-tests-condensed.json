@@ -371,6 +371,21 @@
       "rocm"
     ]
   ],
+  "test_dropout_parity_cudagraphs_reduce_overhead (__main__.TestDropoutAlignRandomEager)": [
+    "188837",
+    "https://github.com/pytorch/pytorch/issues/188837",
+    []
+  ],
+  "test_dropout_parity_dynamic_shapes (__main__.TestDropoutAlignRandomEager)": [
+    "188836",
+    "https://github.com/pytorch/pytorch/issues/188836",
+    []
+  ],
+  "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
+    "188840",
+    "https://github.com/pytorch/pytorch/issues/188840",
+    []
+  ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
     "180948",
     "https://github.com/pytorch/pytorch/issues/180948",
@@ -451,13 +466,7 @@
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
+    []
   ],
   "test_functional_call (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187176",
@@ -541,13 +550,7 @@
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
+    []
   ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186604",
@@ -1159,6 +1162,7 @@
     "179979",
     "https://github.com/pytorch/pytorch/issues/179979",
     [
+      "linux",
       "rocm"
     ]
   ],
