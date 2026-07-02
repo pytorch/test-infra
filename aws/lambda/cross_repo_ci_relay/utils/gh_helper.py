@@ -65,6 +65,29 @@ def rerun_failed_jobs(
     )
 
 
+def rerun_workflow_run(
+    *,
+    token: str,
+    repo_full_name: str,
+    run_id: int,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> None:
+    """Re-run all jobs of a downstream workflow run by its run_id.
+
+    Uses the run-level rerun endpoint, which re-runs every job of the run
+    (including ones that already succeeded) — unlike rerun-failed-jobs, so it
+    also works when the run has no failed jobs. PyGithub has no helper for this
+    endpoint, so the REST call is issued via the requester directly.
+    """
+    logger.info("rerun_workflow_run repo=%s run_id=%d", repo_full_name, run_id)
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    gh_client.requester.requestJsonAndCheck(
+        "POST", f"/repos/{repo_full_name}/actions/runs/{run_id}/rerun"
+    )
+
+
 def list_check_runs_in_suite(
     *,
     token: str,

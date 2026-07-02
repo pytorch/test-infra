@@ -203,9 +203,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                     ),
                     head_sha=head_sha,
                     status=job_status,
-                    conclusion=(
-                        job_conclusion if job_status == "completed" else None
-                    ),
+                    conclusion=(job_conclusion if job_status == "completed" else None),
                     details_url=details_url,
                     external_id=str(run_id),
                     output=gh_helper.build_check_run_output(
@@ -258,8 +256,10 @@ def _is_run_already_running(exc: Exception) -> bool:
 def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
     """Re-run a downstream run's failed jobs when its check run is re-requested.
 
-    The downstream run_id is stored as the check run's ``external_id``. Clicking
-    re-run on one check re-runs all failed jobs of that workflow run.
+    GitHub sends ``check_run`` ``rerequested`` for the "Re-run failed checks"
+    button (one per failed check) and for a single check's own "Re-run", so this
+    re-runs the failed jobs of that check's workflow run. The downstream run_id
+    is stored as the check run's ``external_id``.
     """
     check_run = payload.get("check_run") or {}
     name = check_run.get("name", "")
@@ -311,12 +311,17 @@ def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
 
 
 def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
-    """Re-run the failed jobs of every downstream run in the re-requested suite.
+    """Re-run every downstream run in the re-requested suite (all jobs).
+
+    GitHub sends ``check_suite`` ``rerequested`` only for the "Re-run all checks"
+    button (the "Re-run failed checks" button instead sends a ``check_run``
+    ``rerequested`` per failed check). So this reruns *all* jobs of each run via
+    the run-level rerun endpoint, including ones that already succeeded.
 
     The CRCR app owns a single suite per commit, so listing that suite yields
     every check run it created; each carries its downstream run_id in
     ``external_id``. Check runs of the same run share a run_id, so we dedupe by
-    (repo, run_id) and issue one run-level rerun-failed-jobs per distinct run.
+    (repo, run_id) and issue one run-level rerun per distinct run.
     """
     check_suite = payload.get("check_suite") or {}
     suite_id = check_suite.get("id")
@@ -359,7 +364,7 @@ def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
                     downstream_repo,
                 )
                 tokens[downstream_repo] = token
-            gh_helper.rerun_failed_jobs(
+            gh_helper.rerun_workflow_run(
                 token=token, repo_full_name=downstream_repo, run_id=int(run_id)
             )
             rerun.append(downstream_repo)

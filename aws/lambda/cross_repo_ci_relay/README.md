@@ -108,7 +108,7 @@ The HUD request looks like (two top-level namespaces: `trusted` and `untrusted`)
         "url": "https://github.com/org/repo/actions/runs/123",
         "run_id": "123",        // stable across re-runs of the same run
         "run_attempt": "2",     // increments each re-run; (run_id, run_attempt) distinguishes attempts
-        "job_name": "ci (cuda)",  // job's full display name from the jobs API; distinct per matrix leg
+        "job_name": "build-cuda",  // from the action's job-name input (defaults to github.job)
         "check_run_id": "456",  // unique per attempt
         "started_at": "2026-05-04T20:48:28Z", // when status == in_progress, else None
         "completed_at": "2026-05-04T21:23:45Z", // when status == completed, else None
@@ -155,7 +155,7 @@ All three attacks are **scoped to the attacker's own OIDC-authenticated repo ide
 
 - The downstream repository must be listed at level **L2 or higher** in the allowlist.
 - The **calling job** must declare `permissions: id-token: write` so that the action can mint a GitHub OIDC token for authentication.
-- The calling job must also grant `permissions: actions: read`. The action looks up its own job via the jobs API to read its full display name (used to name the upstream check run); `github.job` alone is just the workflow-file key and is identical for every leg of a matrix. If the lookup fails (e.g. the permission is missing) the action **hard-fails** rather than reporting a colliding name.
+- The upstream check run is named after the calling job. By default it uses `github.job` (the job's workflow-file key), which is fine for a normal single job. A **matrix** job shares one `github.job` across all legs, so pass the `job-name` input with the matrix values (e.g. `job-name: build-${{ matrix.config }}`) to give each leg its own check run; otherwise the legs collide on the same name.
 - Each downstream **job** that should surface as its own upstream check run must invoke the action itself (one `in_progress`, one `completed`), so multi-job / matrix workflows report per job with no extra configuration.
 
 ### Usage
@@ -172,7 +172,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # required for OIDC token minting
-      actions: read     # required to read this job's display name from the jobs API
       contents: read
     steps:
       - name: Report in-progress to relay
@@ -206,7 +205,7 @@ For L3 and L4 repositories the relay creates a **check run on the upstream PR** 
 
 ### How it works
 
-Check runs are **per job**, named `crcr/<downstream_repo>/<workflow_name>/<job_name>`, and created from the **callback**, not at dispatch time. `job_name` is the job's **full display name**, which the action reads from the jobs API (not `github.job`, which is identical across matrix legs) — so a matrix leg like `ci (cuda)` gets its own check run automatically, no configuration needed. Each downstream job reports its own callbacks (one `in_progress`, one `completed`), so a multi-job or matrix workflow surfaces one check run per job on the upstream PR instead of a single collapsed one:
+Check runs are **per job**, named `crcr/<downstream_repo>/<workflow_name>/<job_name>`, and created from the **callback**, not at dispatch time. `job_name` comes from the action's `job-name` input, which defaults to `github.job`. Because every leg of a matrix shares one `github.job`, a matrix workflow must pass a distinct `job-name` per leg (e.g. `build-${{ matrix.config }}`) so the legs get separate check runs instead of colliding. Each downstream job reports its own callbacks (one `in_progress`, one `completed`), so a multi-job or matrix workflow surfaces one check run per job on the upstream PR instead of a single collapsed one:
 
 - On an `in_progress` callback the relay creates an in-progress check run linking to the downstream run.
 - On a `completed` callback it creates a completed check run carrying the downstream `conclusion`.

@@ -318,9 +318,7 @@ class TestDispatchJob(unittest.TestCase):
         self.assertEqual(key, "crcr:dispatch_job:sha1:org/repo")
         self.assertEqual(field, "CI:build")
         self.assertEqual(json.loads(value)["run_id"], "111")
-        client.expire.assert_called_once_with(
-            "crcr:dispatch_job:sha1:org/repo", 3600
-        )
+        client.expire.assert_called_once_with("crcr:dispatch_job:sha1:org/repo", 3600)
 
     def test_same_job_name_in_different_workflows_does_not_collide(self):
         """A same-named job in another workflow uses a distinct field."""

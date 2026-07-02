@@ -174,71 +174,38 @@ def _update_state_and_compute_metrics(
     return ci_metrics
 
 
-def _update_upstream_check_run(
+def _create_upstream_check_run(
     *,
     config: RelayConfig,
     verified_repo: str,
     delivery_id: str,
     status: str,
-    run_id: str,
-    body: dict,
-    needs_check_run: bool = True,
+    conclusion: str | None,
+    run_id: int,
+    head_sha: str,
+    workflow_name: str,
+    job_name: str | None,
+    details_url: str,
 ) -> None:
-    """Cache the downstream job state and update the upstream check run.
+    """Create a new upstream check run mirroring the downstream job's status.
 
-    Called for L3+ repos before HUD forwarding so that a HUD error cannot
-    prevent the upstream PR check from reflecting the correct workflow status.
+    Called for L3+ repos (only when a check run is wanted and head_sha is known)
+    before HUD forwarding, so a HUD error cannot block the upstream PR check.
 
-    On the first in_progress callback the upstream check run is created with
-    the real workflow name and link.  Subsequent callbacks update the existing
-    check run.  If head_sha is absent the check run cannot be created.
+    Every callback always *creates* a new check run (never edits an existing
+    one): GitHub only surfaces the latest check run of a given name on a commit,
+    so each new one supersedes the previous, keeping the logic stateless.
+    Best-effort: a GitHub failure must not fail the callback.
     """
-    payload_field = body.get("payload") or {}
-    pr_field = payload_field.get("pull_request") or {}
-    head_sha = (pr_field.get("head") or {}).get("sha", "")
-
-    workflow = body.get("workflow") or {}
-    conclusion = workflow.get("conclusion")
-    workflow_name = workflow.get("name", "")
-    job_name = workflow.get("job_name")
-
-    details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
-
-    redis_helper.set_dispatch_job(
-        config,
-        head_sha,
-        verified_repo,
-        status,
-        conclusion,
-        details_url,
-        run_id=run_id,
-        workflow_name=workflow_name,
-        job_name=job_name,
-    )
-
-    if not needs_check_run:
-        return
-
-    if not head_sha:
-        logger.warning(
-            "no head_sha; cannot create upstream check run delivery_id=%s repo=%s",
-            delivery_id,
-            verified_repo,
-        )
-        return
-
     output = gh_helper.build_check_run_output(
         status, conclusion, details_url, verified_repo
     )
-
     try:
         upstream_token = gh_helper.get_repo_access_token(
             config.github_app_id,
             config.github_app_private_key,
             config.upstream_repo,
         )
-        # Always create a new check run. GitHub shows only the latest check run
-        # with the same name on a commit, so this naturally replaces any previous one
         cr_id = gh_helper.create_check_run(
             token=upstream_token,
             repo_full_name=config.upstream_repo,
@@ -261,7 +228,7 @@ def _update_upstream_check_run(
         )
     except Exception:
         logger.exception(
-            "failed to manage upstream check run delivery_id=%s repo=%s",
+            "failed to create upstream check run delivery_id=%s repo=%s",
             delivery_id,
             verified_repo,
         )
@@ -308,29 +275,6 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
     )
 
-    # L3+: update the upstream check run first so a HUD error cannot block it.
-    if repo_level.value >= AllowlistLevel.L3.value:
-        needs_cr = allowlist.needs_check_run(verified_repo, extract_pr_labels(body))
-        if not needs_cr and repo_level == AllowlistLevel.L3:
-            # The downstream's echoed payload labels may not reflect the PR's
-            # current state (e.g. on reopen). Fall back to the per-commit flag
-            # recorded at dispatch / label time for this (head_sha, repo).
-            pr_field = (body.get("payload") or {}).get("pull_request") or {}
-            head_sha = (pr_field.get("head") or {}).get("sha", "")
-            if head_sha:
-                needs_cr = redis_helper.is_check_run_wanted(
-                    config, head_sha, verified_repo
-                )
-        _update_upstream_check_run(
-            config=config,
-            verified_repo=verified_repo,
-            delivery_id=delivery_id,
-            status=status,
-            run_id=run_id,
-            body=body,
-            needs_check_run=needs_cr,
-        )
-
     payload = None
     if status == "in_progress":
         payload = {
@@ -358,6 +302,54 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         payload=payload,
         job_name=job_name,
     )
+
+    # L3+: cache the job and create its upstream check run. Runs after state
+    # validation (above) but before HUD forwarding, so a HUD error cannot block
+    # the PR check. Without a head_sha there is neither a check run to create nor
+    # a cache entry the label handler could ever look up.
+    if repo_level.value >= AllowlistLevel.L3.value:
+        pr_field = (body.get("payload") or {}).get("pull_request") or {}
+        head_sha = (pr_field.get("head") or {}).get("sha", "")
+        if head_sha:
+            conclusion = (body.get("workflow") or {}).get("conclusion")
+            details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
+
+            # Always cache the job so a later label event can backfill its check
+            # run, even when we are not creating one now.
+            redis_helper.set_dispatch_job(
+                config,
+                head_sha,
+                verified_repo,
+                status,
+                conclusion,
+                details_url,
+                run_id=str(run_id),
+                workflow_name=workflow_name,
+                job_name=job_name,
+            )
+
+            needs_cr = allowlist.needs_check_run(verified_repo, extract_pr_labels(body))
+            if not needs_cr and repo_level == AllowlistLevel.L3:
+                # The downstream's echoed payload labels may not reflect the PR's
+                # current state (e.g. on reopen). Fall back to the per-commit flag
+                # recorded at dispatch / label time for this (head_sha, repo).
+                needs_cr = redis_helper.is_check_run_wanted(
+                    config, head_sha, verified_repo
+                )
+
+            if needs_cr:
+                _create_upstream_check_run(
+                    config=config,
+                    verified_repo=verified_repo,
+                    delivery_id=delivery_id,
+                    status=status,
+                    conclusion=conclusion,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    workflow_name=workflow_name,
+                    job_name=job_name,
+                    details_url=details_url,
+                )
 
     if status == "in_progress":
         redis_helper.add_in_progress_tracker(

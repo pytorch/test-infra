@@ -164,7 +164,9 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.patcher_gh.stop()
         self.patcher_load.stop()
 
-    def _job(self, job_name="ci", status="in_progress", conclusion=None, run_id="99999"):
+    def _job(
+        self, job_name="ci", status="in_progress", conclusion=None, run_id="99999"
+    ):
         return {
             "status": status,
             "conclusion": conclusion,
@@ -176,7 +178,9 @@ class TestPrLabeledHandler(unittest.TestCase):
 
     def test_scenario2_in_progress_job_creates_in_progress_check_run(self):
         """Scenario 2: label arrives while workflow is in_progress → backfill in_progress CR."""
-        self.mock_redis.get_dispatch_jobs.return_value = [self._job(status="in_progress")]
+        self.mock_redis.get_dispatch_jobs.return_value = [
+            self._job(status="in_progress")
+        ]
 
         result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
 
@@ -348,8 +352,8 @@ class TestCheckRunRerun(unittest.TestCase):
         self.mock_gh.rerun_failed_jobs.assert_not_called()
 
     def test_check_suite_rerequested_reruns_each_distinct_run(self):
-        """The suite-level "re-run all" button re-runs the failed jobs of every
-        distinct run; jobs sharing a run_id are deduped to one call."""
+        """The suite-level "Re-run all checks" button re-runs *all* jobs of every
+        distinct run (rerun-all); jobs sharing a run_id are deduped to one call."""
         self.mock_gh.list_check_runs_in_suite.return_value = [
             {"name": "crcr/org/l3repo/CI/build", "external_id": "111"},
             {"name": "crcr/org/l3repo/CI/test", "external_id": "111"},  # same run
@@ -363,9 +367,10 @@ class TestCheckRunRerun(unittest.TestCase):
         result = handle(_cfg(), payload, "check_suite", "del-4")
 
         self.assertEqual(result, {"ok": True, "rerun": ["org/l3repo", "org/l3repo"]})
-        self.assertEqual(self.mock_gh.rerun_failed_jobs.call_count, 2)
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
+        self.assertEqual(self.mock_gh.rerun_workflow_run.call_count, 2)
         run_ids = {
-            c.kwargs["run_id"] for c in self.mock_gh.rerun_failed_jobs.call_args_list
+            c.kwargs["run_id"] for c in self.mock_gh.rerun_workflow_run.call_args_list
         }
         self.assertEqual(run_ids, {111, 222})
 
@@ -380,7 +385,7 @@ class TestCheckRunRerun(unittest.TestCase):
             if run_id == 111:
                 raise Exception("workflow run ... is already running: 403")
 
-        self.mock_gh.rerun_failed_jobs.side_effect = _side_effect
+        self.mock_gh.rerun_workflow_run.side_effect = _side_effect
         payload = {
             "action": "rerequested",
             "check_suite": {"id": 9001, "head_sha": "abc123"},
@@ -402,7 +407,7 @@ class TestCheckRunRerun(unittest.TestCase):
         }
         result = handle(_cfg(), payload, "check_suite", "del-5")
         self.assertEqual(result, {"ok": True, "rerun": []})
-        self.mock_gh.rerun_failed_jobs.assert_not_called()
+        self.mock_gh.rerun_workflow_run.assert_not_called()
 
     def test_check_suite_non_rerequested_action_ignored(self):
         payload = {
@@ -413,7 +418,7 @@ class TestCheckRunRerun(unittest.TestCase):
         self.assertEqual(
             handle(_cfg(), payload, "check_suite", "del-6"), {"ignored": True}
         )
-        self.mock_gh.rerun_failed_jobs.assert_not_called()
+        self.mock_gh.rerun_workflow_run.assert_not_called()
 
 
 if __name__ == "__main__":
