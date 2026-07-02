@@ -257,11 +257,6 @@
       "slow"
     ]
   ],
-  "test_cudnn_not_mutate_stride_cuda (__main__.TestConvolutionNNCUDACUDA)": [
-    "188683",
-    "https://github.com/pytorch/pytorch/issues/188683",
-    []
-  ],
   "test_cupti_monitor_collection_raw_dump_smoke (__main__.TestProfilerCUDA)": [
     "186344",
     "https://github.com/pytorch/pytorch/issues/186344",
