@@ -523,6 +523,7 @@
     "187658",
     "https://github.com/pytorch/pytorch/issues/187658",
     [
+      "linux",
       "rocm"
     ]
   ],
