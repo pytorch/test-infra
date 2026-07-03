@@ -20,6 +20,13 @@
       "rocm"
     ]
   ],
+  "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "188897",
+    "https://github.com/pytorch/pytorch/issues/188897",
+    [
+      "rocm"
+    ]
+  ],
   "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186871",
     "https://github.com/pytorch/pytorch/issues/186871",
@@ -91,6 +98,13 @@
     "https://github.com/pytorch/pytorch/issues/69179",
     [
       "mac"
+    ]
+  ],
+  "test_cache_hot_load_caching_precompile_dynamic_True_device_cuda_bfloat16 (__main__.TestFxGraphCache)": [
+    "188899",
+    "https://github.com/pytorch/pytorch/issues/188899",
+    [
+      "rocm"
     ]
   ],
   "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
@@ -245,6 +259,13 @@
       "rocm"
     ]
   ],
+  "test_conv2d_backward_parametrized_dilation_2_stride_1_padding_1_kernel_3_channels_groups4_nhwc_True_cuda (__main__.GPUTests)": [
+    "188895",
+    "https://github.com/pytorch/pytorch/issues/188895",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -340,16 +361,6 @@
       "slow"
     ]
   ],
-  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
-    "127536",
-    "https://github.com/pytorch/pytorch/issues/127536",
-    [
-      "dynamo",
-      "inductor",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
@@ -429,14 +440,6 @@
     "https://github.com/pytorch/pytorch/issues/159151",
     [
       "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_fake_dispatch_keys_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187157",
-    "https://github.com/pytorch/pytorch/issues/187157",
-    [
       "linux",
       "rocm"
     ]
@@ -716,6 +719,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_launch_elastic_worker_raise_exception (__main__.ElasticLaunchTest)": [
+    "188896",
+    "https://github.com/pytorch/pytorch/issues/188896",
+    [
+      "linux"
     ]
   ],
   "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
@@ -1344,6 +1354,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "188898",
+    "https://github.com/pytorch/pytorch/issues/188898",
+    [
+      "rocm"
     ]
   ],
   "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
