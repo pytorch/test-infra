@@ -531,6 +531,7 @@
     "187718",
     "https://github.com/pytorch/pytorch/issues/187718",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -552,6 +553,13 @@
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
     []
+  ],
+  "test_graph_two_successive (__main__.TestCuda)": [
+    "159113",
+    "https://github.com/pytorch/pytorch/issues/159113",
+    [
+      "linux"
+    ]
   ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186604",
@@ -601,13 +609,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float32_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187705",
-    "https://github.com/pytorch/pytorch/issues/187705",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -1216,6 +1217,23 @@
     "https://github.com/pytorch/pytorch/issues/182174",
     [
       "linux"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
+    "180414",
+    "https://github.com/pytorch/pytorch/issues/180414",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
+    "181629",
+    "https://github.com/pytorch/pytorch/issues/181629",
+    [
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
