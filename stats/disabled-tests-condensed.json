@@ -542,6 +542,7 @@
     "187738",
     "https://github.com/pytorch/pytorch/issues/187738",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -612,13 +613,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187725",
-    "https://github.com/pytorch/pytorch/issues/187725",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float8_e4m3fn_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
