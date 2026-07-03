@@ -156,11 +156,6 @@ function NavBar() {
             </Link>
           </li>
           <li>
-            <Link prefetch={false} href="/hud/pytorch/audio/main">
-              TorchAudio
-            </Link>
-          </li>
-          <li>
             <Link prefetch={false} href="/hud/pytorch/helion/main">
               Helion
             </Link>
