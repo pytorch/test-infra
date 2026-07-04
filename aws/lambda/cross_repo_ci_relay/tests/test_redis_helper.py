@@ -323,13 +323,13 @@ class TestDispatchJob(unittest.TestCase):
     def test_same_job_name_in_different_workflows_does_not_collide(self):
         """A same-named job in another workflow uses a distinct field."""
         client = MagicMock()
-        common = dict(
-            status="in_progress",
-            conclusion=None,
-            job_url="url",
-            job_name="build",
-            client=client,
-        )
+        common = {
+            "status": "in_progress",
+            "conclusion": None,
+            "job_url": "url",
+            "job_name": "build",
+            "client": client,
+        }
         redis_helper.set_dispatch_job(
             _cfg(), "sha1", "org/repo", workflow_name="CI", **common
         )
