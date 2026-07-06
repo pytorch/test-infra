@@ -196,10 +196,11 @@
     ]
   ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "188982",
-    "https://github.com/pytorch/pytorch/issues/188982",
+    "188983",
+    "https://github.com/pytorch/pytorch/issues/188983",
     [
-      "inductor"
+      "inductor",
+      "linux"
     ]
   ],
   "test_comprehensive_linalg_matrix_sqrth_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
@@ -669,6 +670,15 @@
       "rocm"
     ]
   ],
+  "test_jacfwd_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "189015",
+    "https://github.com/pytorch/pytorch/issues/189015",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180204",
     "https://github.com/pytorch/pytorch/issues/180204",
@@ -895,8 +905,8 @@
     ]
   ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
-    "188984",
-    "https://github.com/pytorch/pytorch/issues/188984",
+    "188985",
+    "https://github.com/pytorch/pytorch/issues/188985",
     [
       "mac",
       "macos"
