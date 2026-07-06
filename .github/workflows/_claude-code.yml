@@ -186,7 +186,7 @@ jobs:
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
         env:
-          INPUT_APPEND_SYSTEM_PROMPT: |
+          APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
               ${{ inputs.append_system_prompt }}
 
