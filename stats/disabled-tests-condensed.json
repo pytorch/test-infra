@@ -230,13 +230,6 @@
       "xpu"
     ]
   ],
-  "test_comprehensive_nn_functional_multi_margin_loss_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "178992",
-    "https://github.com/pytorch/pytorch/issues/178992",
-    [
-      "xpu"
-    ]
-  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
@@ -1179,13 +1172,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_torch_binomial_dtype_errors (__main__.TestDistributionsGPU)": [
-    "187030",
-    "https://github.com/pytorch/pytorch/issues/187030",
-    [
-      "xpu"
     ]
   ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
