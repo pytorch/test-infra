@@ -195,13 +195,6 @@
       "xpu"
     ]
   ],
-  "test_comprehensive___rmod___xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "188775",
-    "https://github.com/pytorch/pytorch/issues/188775",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188982",
     "https://github.com/pytorch/pytorch/issues/188982",
@@ -240,20 +233,6 @@
   "test_comprehensive_nn_functional_multi_margin_loss_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
     "178992",
     "https://github.com/pytorch/pytorch/issues/178992",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_remainder_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "188774",
-    "https://github.com/pytorch/pytorch/issues/188774",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_signbit_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "188776",
-    "https://github.com/pytorch/pytorch/issues/188776",
     [
       "xpu"
     ]
@@ -897,20 +876,6 @@
       "rocm"
     ]
   ],
-  "test_op_dtype_propagation_remainder_xpu_float64 (__main__.TestCaseXPU)": [
-    "188806",
-    "https://github.com/pytorch/pytorch/issues/188806",
-    [
-      "xpu"
-    ]
-  ],
-  "test_op_dtype_propagation_signbit_xpu_float64 (__main__.TestCaseXPU)": [
-    "188777",
-    "https://github.com/pytorch/pytorch/issues/188777",
-    [
-      "xpu"
-    ]
-  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
@@ -919,6 +884,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_optimizer_non_static_param (__main__.LoggingTests)": [
+    "188987",
+    "https://github.com/pytorch/pytorch/issues/188987",
+    [
+      "xpu"
     ]
   ],
   "test_out_of_memory_retry (__main__.TestCuda)": [
