@@ -1,26 +1,15 @@
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Chip,
-  Link,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Stack, styled, Tooltip, Typography } from "@mui/material";
+import styles from "components/commit/commit.module.css";
 import { durationDisplay } from "components/common/TimeUtils";
+import JobConclusion from "components/job/JobConclusion";
 import { fetcher } from "lib/GeneralUtils";
-import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
+import _ from "lodash";
+
 import useSWR from "swr";
 
 interface CrcrPrResult {
   downstream_repo: string;
+  downstream_repo_level: string;
   workflow_name: string;
   job_name: string;
   check_run_id: string;
@@ -36,6 +25,141 @@ interface CrcrPrResult {
   execution_time: number | null;
 }
 
+function crcrToConclusion(status: string, conclusion: string): string {
+  if (status === "in_progress") return "pending";
+  return conclusion || "pending";
+}
+
+function isFailedResult(r: CrcrPrResult): boolean {
+  return (
+    r.status === "completed" &&
+    r.conclusion !== "success" &&
+    r.conclusion !== "skipped"
+  );
+}
+
+const LinkButton = styled("a")({
+  fontSize: "8px",
+  padding: "0 2px",
+  color: "green",
+  margin: "2px",
+  border: "1px solid rgba(0,128,0,0.5)",
+  borderRadius: "3px",
+  textDecoration: "none",
+});
+
+function CrcrJobLine({ result }: { result: CrcrPrResult }) {
+  const conclusion = crcrToConclusion(result.status, result.conclusion);
+
+  const subInfo = [];
+  if (result.queue_time != null) {
+    subInfo.push(`Queued: ${durationDisplay(Math.max(result.queue_time, 0))}`);
+  }
+  if (result.status === "in_progress") {
+    subInfo.push("Running");
+  } else if (result.execution_time != null) {
+    subInfo.push(
+      `Duration: ${durationDisplay(Math.round(result.execution_time))}`
+    );
+  } else if (result.duration_seconds) {
+    subInfo.push(
+      `Duration: ${durationDisplay(Math.round(result.duration_seconds))}`
+    );
+  }
+
+  return (
+    <div>
+      <JobConclusion conclusion={conclusion} />
+      {result.workflow_run_url ? (
+        <a href={result.workflow_run_url} target="_blank" rel="noreferrer">
+          {" "}
+          {result.job_name}{" "}
+        </a>
+      ) : (
+        <span> {result.job_name} </span>
+      )}
+      <br />
+      <small>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        {subInfo.join(" ")}
+        {result.workflow_run_url && (
+          <>
+            {" "}
+            <LinkButton
+              href={result.workflow_run_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Run
+            </LinkButton>
+          </>
+        )}
+        {result.artifact_url && (
+          <LinkButton
+            href={result.artifact_url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Artifacts
+          </LinkButton>
+        )}
+      </small>
+    </div>
+  );
+}
+
+function CrcrBackendBox({
+  repoName,
+  level,
+  results,
+}: {
+  repoName: string;
+  level: string;
+  results: CrcrPrResult[];
+}) {
+  const hasFailed = results.some(isFailedResult);
+  const hasPending = results.some((r) => r.status === "in_progress");
+
+  const boxClass = hasFailed
+    ? styles.workflowBoxFail
+    : hasPending
+    ? styles.workflowBoxPending
+    : styles.workflowBoxSuccess;
+
+  const sorted = _.orderBy(
+    results,
+    [
+      (r) => {
+        if (isFailedResult(r)) return 0;
+        if (r.status === "in_progress") return 1;
+        return 2;
+      },
+      (r) => r.job_name,
+    ],
+    ["asc", "asc"]
+  );
+
+  return (
+    <div className={boxClass}>
+      <Typography variant="h6" fontWeight="bold" paddingTop={2}>
+        <a
+          href={`/crcr/${repoName.replace("/", "/")}`}
+          style={{ color: "inherit", textDecoration: "none" }}
+        >
+          {repoName}
+        </a>
+        <span className={styles.crcrLevelBadge}>{level}</span>
+      </Typography>
+      <Typography fontWeight="bold" paddingBottom={2}>
+        Job Status
+      </Typography>
+      {sorted.map((r, i) => (
+        <CrcrJobLine key={`${r.check_run_id}-${i}`} result={r} />
+      ))}
+    </div>
+  );
+}
+
 export default function CrcrPrSection({ prNumber }: { prNumber: number }) {
   const url = `/api/clickhouse/crcr_pr_results?parameters=${encodeURIComponent(
     JSON.stringify({ pr: String(prNumber) })
@@ -46,100 +170,50 @@ export default function CrcrPrSection({ prNumber }: { prNumber: number }) {
 
   if (error || !data || data.length === 0) return null;
 
-  const successCount = data.filter(
-    (r) => r.status === "completed" && r.conclusion === "success"
-  ).length;
-  const totalCompleted = data.filter((r) => r.status === "completed").length;
-  const inProgress = data.filter((r) => r.status === "in_progress").length;
+  const byRepo = _.groupBy(data, "downstream_repo");
+  const repoNames = Object.keys(byRepo).sort();
 
-  const summaryText = [
-    totalCompleted > 0 ? `${successCount}/${totalCompleted} passed` : null,
-    inProgress > 0 ? `${inProgress} running` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const totalBackends = repoNames.length;
 
   return (
-    <Accordion defaultExpanded={false} sx={{ mt: 2 }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="subtitle1">
-            <strong>Cross-Repo CI Backends</strong>
+    <div className={styles.crcrSection}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="h6" fontWeight="bold">
+          Cross-Repo CI Backends
+        </Typography>
+        <Tooltip title="Results from downstream CI backends via the Cross-Repository CI Relay (CRCR)">
+          <Typography
+            sx={{
+              fontSize: "0.7rem",
+              px: 1,
+              py: 0.25,
+              borderRadius: "10px",
+              bgcolor: "#0288d1",
+              color: "#fff",
+              fontWeight: 600,
+            }}
+          >
+            CRCR
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            ({summaryText})
-          </Typography>
-        </Stack>
-      </AccordionSummary>
-      <AccordionDetails>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <strong>Backend</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Job</strong>
-                </TableCell>
-                <TableCell align="center">
-                  <strong>Status</strong>
-                </TableCell>
-                <TableCell align="right">
-                  <strong>Duration</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Links</strong>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.map((row, i) => (
-                <TableRow key={i} hover>
-                  <TableCell>{row.downstream_repo}</TableCell>
-                  <TableCell>{row.job_name}</TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={conclusionLabel(row.status, row.conclusion)}
-                      color={conclusionColor(row.status, row.conclusion)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    {row.duration_seconds
-                      ? durationDisplay(Math.round(row.duration_seconds))
-                      : "–"}
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      {row.workflow_run_url && (
-                        <Link
-                          href={row.workflow_run_url}
-                          target="_blank"
-                          rel="noopener"
-                          variant="body2"
-                        >
-                          Run
-                        </Link>
-                      )}
-                      {row.artifact_url && (
-                        <Link
-                          href={row.artifact_url}
-                          target="_blank"
-                          rel="noopener"
-                          variant="body2"
-                        >
-                          Artifacts
-                        </Link>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </AccordionDetails>
-    </Accordion>
+        </Tooltip>
+        <Typography variant="body2" color="text.secondary">
+          ({totalBackends} backend{totalBackends !== 1 ? "s" : ""} dispatched)
+        </Typography>
+      </Stack>
+      <div className={styles.crcrBackendsGrid}>
+        {repoNames.map((repo) => {
+          const results = byRepo[repo];
+          const level = results[0]?.downstream_repo_level || "L2";
+          return (
+            <CrcrBackendBox
+              key={repo}
+              repoName={repo}
+              level={level}
+              results={results}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
