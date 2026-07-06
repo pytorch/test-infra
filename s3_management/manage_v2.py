@@ -443,22 +443,36 @@ PT_FOUNDATION_PACKAGES = {
 # Packages that should use R2 (download-r2.pytorch.org) for nightly builds
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is whl/nightly
-# R2 DISABLED - original packages commented out during R2 outage;
-# foundation packages fall back to download.pytorch.org (relative/S3 URLs):
-#     "torch", "torchvision", "torchaudio", "fbgemm_gpu", "fbgemm_gpu_genai",
-#     "triton", "triton_rocm", "triton_xpu",
-#     "pytorch_triton", "pytorch_triton_rocm", "pytorch_triton_xpu"
-PT_R2_PACKAGES: set[str] = set()
+PT_R2_PACKAGES = {
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+    "triton",
+    "triton_rocm",
+    "triton_xpu",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
+}
 
 # Packages that should use R2 (download-r2.pytorch.org) for prod/stable builds
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is NOT whl/test and NOT whl/nightly (i.e., prod)
-# R2 DISABLED - original packages commented out during R2 outage;
-# foundation packages fall back to download.pytorch.org (relative/S3 URLs):
-#     "torch", "torchaudio", "torchvision", "fbgemm_gpu", "fbgemm_gpu_genai",
-#     "triton", "triton_rocm", "triton_xpu",
-#     "pytorch_triton", "pytorch_triton_rocm", "pytorch_triton_xpu"
-PT_R2_PACKAGES_PROD: set[str] = set()
+PT_R2_PACKAGES_PROD = {
+    "torch",
+    "torchaudio",
+    "torchvision",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+    "triton",
+    "triton_rocm",
+    "triton_xpu",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
+}
 
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
