@@ -76,6 +76,10 @@ function NavBar() {
       href: "/mac_test_stats",
     },
     {
+      name: "ROCm test stats",
+      href: "/rocm_test_stats",
+    },
+    {
       name: "CRCR CI Summary",
       href: "/crcr",
     },
