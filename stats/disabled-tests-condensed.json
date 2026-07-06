@@ -79,6 +79,13 @@
       "linux"
     ]
   ],
+  "test_backward_prod_cuda_float32 (__main__.TestNestedTensorOpInfoCUDA)": [
+    "140556",
+    "https://github.com/pytorch/pytorch/issues/140556",
+    [
+      "linux"
+    ]
+  ],
   "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
     "188513",
     "https://github.com/pytorch/pytorch/issues/188513",
@@ -545,6 +552,14 @@
       "linux"
     ]
   ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186605",
+    "https://github.com/pytorch/pytorch/issues/186605",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -561,13 +576,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float8_e4m3fn_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187836",
-    "https://github.com/pytorch/pytorch/issues/187836",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float8_e4m3fnuz_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -644,6 +652,14 @@
     [
       "linux",
       "rocm",
+      "slow"
+    ]
+  ],
+  "test_jacrev (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "189066",
+    "https://github.com/pytorch/pytorch/issues/189066",
+    [
+      "linux",
       "slow"
     ]
   ],
@@ -887,6 +903,13 @@
       "linux"
     ]
   ],
+  "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
+    "189067",
+    "https://github.com/pytorch/pytorch/issues/189067",
+    [
+      "linux"
+    ]
+  ],
   "test_range_based_static_shape_no_cond_dispatch (__main__.TestCustomOpAutoTune)": [
     "187424",
     "https://github.com/pytorch/pytorch/issues/187424",
@@ -997,6 +1020,18 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119346",
+    "https://github.com/pytorch/pytorch/issues/119346",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
     ]
   ],
   "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
@@ -1167,6 +1202,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180337",
+    "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
