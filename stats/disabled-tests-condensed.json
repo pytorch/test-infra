@@ -202,6 +202,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "188982",
+    "https://github.com/pytorch/pytorch/issues/188982",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_linalg_matrix_sqrth_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
     "188393",
     "https://github.com/pytorch/pytorch/issues/188393",
@@ -686,6 +693,7 @@
     "188041",
     "https://github.com/pytorch/pytorch/issues/188041",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -919,6 +927,14 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
+    "188984",
+    "https://github.com/pytorch/pytorch/issues/188984",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_pre_dispatch_export_invoke_quant_packed_simple_cpu_float32 (__main__.TestHOPCPU)": [
