@@ -19,7 +19,24 @@ def _cfg():
     return cfg
 
 
-def _body(status="completed", workflow_name="default", run_id=99999, run_attempt=1):
+def _body(
+    status="completed",
+    workflow_name="default",
+    run_id=99999,
+    run_attempt=1,
+    job_name=None,
+):
+    wf = {
+        "status": status,
+        "conclusion": "success" if status == "completed" else None,
+        "name": "CI",
+        "url": "http://ci.example.com/run/1",
+        "workflow_name": workflow_name,
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+    }
+    if job_name is not None:
+        wf["job_name"] = job_name
     return {
         "event_type": "pull_request",
         "delivery_id": "del-123",
@@ -27,15 +44,7 @@ def _body(status="completed", workflow_name="default", run_id=99999, run_attempt
             "pull_request": {"number": 42, "head": {"sha": "abc123"}},
             "repository": {"full_name": "pytorch/pytorch"},
         },
-        "workflow": {
-            "status": status,
-            "conclusion": "success" if status == "completed" else None,
-            "name": "CI",
-            "url": "http://ci.example.com/run/1",
-            "workflow_name": workflow_name,
-            "run_id": run_id,
-            "run_attempt": run_attempt,
-        },
+        "workflow": wf,
     }
 
 
@@ -54,7 +63,13 @@ class TestCallbackHandler(unittest.TestCase):
 
         # Setup default: dispatch exists, workflow state is None (in_progress not yet reported)
         def default_get_state(
-            cfg, delivery_id, repo, run_id_arg, run_attempt_arg, client=None
+            cfg,
+            delivery_id,
+            repo,
+            run_id_arg,
+            run_attempt_arg,
+            client=None,
+            job_name=None,
         ):
             if run_id_arg == DISPATCH_RUN_ID:
                 return CallbackStateRecord(
@@ -233,6 +248,30 @@ class TestCallbackHandler(unittest.TestCase):
 
         _, trusted_arg, _ = self.mock_hud.call_args[0]
         self.assertIsNone(trusted_arg["ci_metrics"]["execution_time"])
+
+    def test_job_name_passed_to_redis_state_calls(self):
+        """job_name from callback body is forwarded to all Redis state calls."""
+        dispatch_record = CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
+        in_progress_record = CallbackStateRecord(CallbackState.IN_PROGRESS, 1030.0, {})
+        self.mock_redis.get_callback_state.side_effect = [
+            dispatch_record,
+            None,
+            in_progress_record,
+        ]
+
+        handle(
+            _cfg(),
+            _body(status="in_progress", job_name="build"),
+            verified_repo="org/repo",
+        )
+
+        # set_callback_state should have been called with job_name="build"
+        call_kwargs = self.mock_redis.set_callback_state.call_args
+        self.assertEqual(call_kwargs.kwargs.get("job_name"), "build")
+
+        # add_in_progress_tracker should have been called with job_name="build"
+        tracker_kwargs = self.mock_redis.add_in_progress_tracker.call_args
+        self.assertEqual(tracker_kwargs.kwargs.get("job_name"), "build")
 
 
 if __name__ == "__main__":

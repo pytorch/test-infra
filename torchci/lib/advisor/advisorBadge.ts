@@ -18,6 +18,31 @@ export function drciSignalKeyForJob(fullJobName: string): string {
   return `${DRCI_SIGNAL_KEY_PREFIX}${fullJobName}`;
 }
 
+// Each advisor <img> carries an alt of the form `AI verdict: <outcome>`. This
+// does two jobs: (1) it encodes the verdict outcome as machine-readable text in
+// the comment body (an AI agent reading the comment, or a human with images
+// off, gets the verdict without fetching the badge SVG), and (2) the
+// not-yet-concluded sentinel below is what the Dr.CI cron matches on to keep
+// re-rendering a PR until its verdict lands -- the badge image flips
+// server-side via camo, but the concluded <details> expand is comment-body text
+// that only appears on a re-render, so an unconcluded PR must stay a candidate.
+export const ADVISOR_ALT_PREFIX = "AI verdict: ";
+// Sentinel alt for the in-progress line (no concluded verdict at render time).
+// No verdict label contains "pending", so a concluded line never matches this.
+export const ADVISOR_PENDING_ALT = `${ADVISOR_ALT_PREFIX}pending`;
+// The exact attribute the in-progress line emits. The cron candidate query
+// matches THIS (the full `alt="..."` form, not the bare phrase) so a
+// model-generated summary that happens to contain the words can't false-match:
+// summaries are HTML-escaped, so a literal `"` in one becomes `&quot;` and can
+// never reproduce the real double-quoted attribute.
+export const ADVISOR_PENDING_ALT_ATTR = `alt="${ADVISOR_PENDING_ALT}"`;
+
+// The alt text for a concluded verdict line: `AI verdict: <label>`, where the
+// label is the same human-readable outcome shown on the badge pill.
+export function advisorVerdictAlt(verdict: string, confidence: number): string {
+  return `${ADVISOR_ALT_PREFIX}${verdictBadge(verdict, confidence).label}`;
+}
+
 export interface AdvisorBadge {
   label: string;
   // Hex fill, e.g. "#2da44e".
@@ -156,7 +181,10 @@ export function renderInProgressLine(
 ): string {
   const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName);
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
-  return `    AI verdict: <a href="${link}"><img src="${badge}"></a>\n`;
+  // alt = the pending sentinel: it marks this PR for re-rendering until the
+  // verdict lands (see ADVISOR_PENDING_ALT_ATTR) and reads as "AI verdict:
+  // pending". Emit the shared attr constant so the cron's match stays in lockstep.
+  return `    AI verdict: <a href="${link}"><img ${ADVISOR_PENDING_ALT_ATTR} src="${badge}"></a>\n`;
 }
 
 // Concluded line: "AI verdict:" plain text toggles the expand; the badge links
@@ -169,17 +197,24 @@ export function renderVerdictLine(
   sha: string,
   jobName: string,
   jobId: number,
+  verdict: string,
+  confidence: number,
   summary: string
 ): string {
   const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName);
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
+  // alt encodes the concluded outcome (`AI verdict: related`, etc.) so the
+  // verdict is machine-readable text in the comment AND no longer matches the
+  // pending sentinel, dropping the PR from the re-render candidate set. The
+  // label comes from our own verdictBadge map, but escape defensively anyway.
+  const altText = _.escape(advisorVerdictAlt(verdict, confidence));
   // The advisor summary is model-generated from (attacker-influenceable) PR
   // content, so HTML-escape it before embedding in the comment: collapse
   // newlines (can't break the blockquote) and neutralize markup so it can't
   // close the <details>/<blockquote> or inject tags.
   const oneLine = _.escape((summary || "").replace(/\s*\n\s*/g, " ").trim());
   return (
-    `  <details><summary>AI verdict: <a href="${link}"><img src="${badge}"></a></summary><blockquote>\n\n` +
+    `  <details><summary>AI verdict: <a href="${link}"><img alt="${altText}" src="${badge}"></a></summary><blockquote>\n\n` +
     `  ${oneLine}\n\n` +
     `  <a href="${link}">Full reasoning on HUD &rarr;</a>\n` +
     `  </blockquote></details>\n`
@@ -193,6 +228,9 @@ export interface AdvisorLineJob {
   name: string;
 }
 export interface AdvisorLineVerdict {
+  // verdict + confidence drive the badge label baked into the alt text.
+  verdict: string;
+  confidence: number;
   summary: string;
 }
 
@@ -225,6 +263,8 @@ export function selectAdvisorLines(
           headSha,
           job.name,
           job.id,
+          verdict.verdict,
+          verdict.confidence,
           verdict.summary
         )
       );

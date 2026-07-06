@@ -68,29 +68,30 @@ def _cleanup_one(
     repo = zombie["downstream_repo"]
     run_id = zombie["run_id"]
     run_attempt = zombie["run_attempt"]
+    job_name = zombie.get("job_name")
     hud_ok = True
 
-    # 1. Build and forward timeout payload to HUD
     try:
         trusted, untrusted = _build_timeout_payload(zombie, completed_at)
         forward_to_hud(config, trusted, untrusted)
         logger.info(
-            "zombie HUD forward succeeded repo=%s run_id=%s run_attempt=%s",
+            "zombie HUD forward succeeded repo=%s run_id=%s run_attempt=%s job_name=%s",
             repo,
             run_id,
             run_attempt,
+            job_name,
         )
     except Exception:
         logger.exception(
-            "zombie HUD forward failed repo=%s run_id=%s run_attempt=%s",
+            "zombie HUD forward failed repo=%s run_id=%s run_attempt=%s job_name=%s",
             repo,
             run_id,
             run_attempt,
+            job_name,
         )
         hud_ok = False
 
     if hud_ok:
-        # 2. Mark state as COMPLETED in Redis (best-effort)
         try:
             redis_helper.set_callback_state(
                 config,
@@ -100,22 +101,20 @@ def _cleanup_one(
                 run_attempt,
                 CallbackState.COMPLETED,
                 time.time(),
+                job_name=job_name,
             )
         except (AssertionError, RedisError):
-            # Race: another process already resolved this record, or Redis
-            # was unavailable.
             logger.warning(
                 "zombie state transition failed (may already be resolved) "
-                "delivery_id=%s repo=%s run_id=%s run_attempt=%s",
+                "delivery_id=%s repo=%s run_id=%s run_attempt=%s job_name=%s",
                 delivery_id,
                 repo,
                 run_id,
                 run_attempt,
+                job_name,
             )
-        # Erase the records from Redis only when HUD was successfully
-        # updated, keeping the two systems in sync.
         redis_helper.remove_in_progress_tracker(
-            config, delivery_id, repo, run_id, run_attempt
+            config, delivery_id, repo, run_id, run_attempt, job_name=job_name
         )
 
     return {"ok": hud_ok}

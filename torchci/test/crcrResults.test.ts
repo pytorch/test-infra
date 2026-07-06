@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import * as authModule from "../lib/auth/auth";
-import * as ootUtils from "../lib/oot/ootUtils";
-import handler from "../pages/api/oot/results";
+import * as crcrUtils from "../lib/crcr/crcrUtils";
+import handler from "../pages/api/crcr/results";
 
-jest.mock("../lib/oot/ootUtils", () => {
-  const actual = jest.requireActual("../lib/oot/ootUtils");
+jest.mock("../lib/crcr/crcrUtils", () => {
+  const actual = jest.requireActual("../lib/crcr/crcrUtils");
   return {
     ...actual,
     writeToDynamo: jest.fn().mockResolvedValue(undefined),
@@ -68,7 +68,7 @@ function mockRes(): NextApiResponse & { _status: number; _json: any } {
   return res;
 }
 
-describe("POST /api/oot/results", () => {
+describe("POST /api/crcr/results", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCheckAuth.mockResolvedValue({ ok: true, type: "header" });
@@ -96,7 +96,7 @@ describe("POST /api/oot/results", () => {
     expect(res._json.ok).toBe(true);
     expect(res._json.status).toBe("in_progress");
     expect(res._json.dynamoKey).toContain("Ascend/pytorch");
-    expect(ootUtils.writeToDynamo).toHaveBeenCalledTimes(1);
+    expect(crcrUtils.writeToDynamo).toHaveBeenCalledTimes(1);
   });
 
   test("returns 400 when required fields are missing", async () => {
@@ -123,7 +123,7 @@ describe("POST /api/oot/results", () => {
   });
 
   test("returns 500 when DynamoDB write fails", async () => {
-    (ootUtils.writeToDynamo as jest.Mock).mockRejectedValueOnce(
+    (crcrUtils.writeToDynamo as jest.Mock).mockRejectedValueOnce(
       new Error("DynamoDB connection failed")
     );
     const res = mockRes();

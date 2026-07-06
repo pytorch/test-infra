@@ -27,6 +27,9 @@ get_python_config() {
             PYTHON_V=3.14.0rc1
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
+        # Note: 3.15 / 3.15t are intentionally absent here. They are provisioned
+        # via uv (CPython 3.15.0b1) in the interpreter-setup branch below and
+        # never reach the conda create path that reads CONDA_EXTRA_PARAM.
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
             CONDA_EXTRA_PARAM=""
@@ -185,13 +188,20 @@ run_smoke_tests() {
         source "${SCRIPT_DIR}/validate_test_ops.sh"
     fi
 
+    # torch.compile is not supported on Python 3.15+ (torch.compile() raises
+    # RuntimeError at call time), so disable the compile smoke test there.
+    local compile_check=""
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        compile_check="--torch-compile-check disabled"
+    fi
+
     # Regular smoke test
-    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
 
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --upgrade --force-reinstall
-        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
     fi
 
     popd
@@ -219,6 +229,14 @@ cleanup_conda_env() {
 
 handle_aarch64_cuda_override
 
+# torchvision wheels are not published for Python 3.15 / 3.15t yet, so validate
+# torch only: skip the torchvision install and its smoke-test module check.
+# Guard with :- since libtorch builds run this before the libtorch exit below
+# and do not set MATRIX_PYTHON_VERSION (set -u would abort otherwise).
+if [[ ${MATRIX_PYTHON_VERSION:-} == "3.15" || ${MATRIX_PYTHON_VERSION:-} == "3.15t" ]]; then
+    export TORCH_ONLY=true
+fi
+
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
     LIBTORCH_PYTHON="python3"
     if [[ ${TARGET_OS} == 'windows' ]]; then
@@ -237,11 +255,30 @@ if [[ ${TARGET_OS} == 'windows' ]]; then
     export PYTHON_RUN="python"
 fi
 
-# Setup conda environment
-update_conda
-get_python_config
-conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
-conda activate "${ENV_NAME}"
+# Setup the Python environment.
+#
+# Python 3.15 is still pre-release. The cp315/cp315t wheels are built against
+# CPython 3.15.0b1 (see pytorch .ci/docker/common/install_cpython.sh), but
+# conda-forge only ships 3.15.0a8 -- the pre-release ABI differs, so installing
+# the wheel under the conda interpreter segfaults on "import torch". Provision
+# the matching 3.15.0b1 interpreter with uv (from python-build-standalone)
+# instead of conda. A --seed venv provides pip so the rest of the flow (pip3
+# install, smoke tests) is unchanged.
+if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+    UV_PYTHON="3.15.0b1"
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        UV_PYTHON="3.15.0b1+freethreaded"
+    fi
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source "${HOME}/.local/bin/env"
+    uv venv --seed --python "${UV_PYTHON}" "${ENV_NAME}"
+    source "${ENV_NAME}/bin/activate"
+else
+    update_conda
+    get_python_config
+    conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
+    conda activate "${ENV_NAME}"
+fi
 
 # Save original PATH for macos-arm64 workaround
 export OLD_PATH=${PATH}

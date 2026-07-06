@@ -1,4 +1,5 @@
 import {
+  ADVISOR_PENDING_ALT,
   advisorBadgeUrl,
   ANALYZING_BADGE,
   confidenceBucket,
@@ -100,7 +101,7 @@ describe("advisorBadgeUrl", () => {
 });
 
 describe("renderInProgressLine / renderVerdictLine", () => {
-  it("in-progress: badge only, no expand", () => {
+  it("in-progress: badge only, no expand, pending alt", () => {
     const line = renderInProgressLine(
       HUD,
       "pytorch",
@@ -114,6 +115,8 @@ describe("renderInProgressLine / renderVerdictLine", () => {
     expect(line).toContain("/api/drci/advisorBadge?");
     expect(line).not.toContain("<details>");
     expect(line).toContain("/pr/pytorch/pytorch/123#42");
+    // the pending sentinel alt is what the cron matches to keep re-rendering
+    expect(line).toContain(`alt="${ADVISOR_PENDING_ALT}"`);
   });
 
   it("concluded: AI verdict text toggles a details expand with reasoning", () => {
@@ -125,6 +128,8 @@ describe("renderInProgressLine / renderVerdictLine", () => {
       "abc",
       "trunk / x / test",
       42,
+      "related",
+      0.95,
       "Line one.\n  Line two."
     );
     expect(line).toContain("<details><summary>AI verdict:");
@@ -133,6 +138,25 @@ describe("renderInProgressLine / renderVerdictLine", () => {
     // multi-line summary collapsed to one line inside the blockquote
     expect(line).toContain("Line one. Line two.");
     expect(line).not.toContain("Line one.\n");
+    // alt encodes the concluded outcome and is NOT the pending sentinel
+    expect(line).toContain('alt="AI verdict: related"');
+    expect(line).not.toContain(ADVISOR_PENDING_ALT);
+  });
+
+  it("concluded alt carries the confidence-bucketed label", () => {
+    const line = renderVerdictLine(
+      HUD,
+      "pytorch",
+      "pytorch",
+      123,
+      "abc",
+      "trunk / x / test",
+      42,
+      "not_related",
+      0.8,
+      "summary"
+    );
+    expect(line).toContain('alt="AI verdict: probably not related"');
   });
 
   it("escapes HTML in the summary so it can't break out of the expand", () => {
@@ -144,6 +168,8 @@ describe("renderInProgressLine / renderVerdictLine", () => {
       "abc",
       "trunk / x / test",
       42,
+      "related",
+      0.95,
       "</blockquote></details><img src=x onerror=alert(1)>"
     );
     expect(line).not.toContain("</blockquote></details><img");
@@ -163,7 +189,10 @@ describe("selectAdvisorLines", () => {
 
   it("prefers a finalized verdict, else in-progress, else nothing", () => {
     const verdictByKey = new Map([
-      [drciSignalKeyForJob("trunk / a / test"), { summary: "done" }],
+      [
+        drciSignalKeyForJob("trunk / a / test"),
+        { verdict: "related", confidence: 0.95, summary: "done" },
+      ],
     ]);
     const inProgress = new Set([drciSignalKeyForJob("trunk / b / test")]);
 

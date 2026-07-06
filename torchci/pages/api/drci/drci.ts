@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
@@ -158,7 +159,7 @@ export async function updateDrciComments(
       ? []
       : fetchRecentWorkflows(
           `${owner}/${repo}`,
-          await getPRsWithPendingJobInComment(`${owner}/${repo}`),
+          await getPRsNeedingCommentRefresh(`${owner}/${repo}`),
           NUM_MINUTES + ""
         ),
   ]);
@@ -403,7 +404,20 @@ function removeFailureContext(failure: {
  * @param repo The repository to search for PRs in. E.g. "pytorch/pytorch"
  * @returns A list of PR numbers
  */
-async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
+// PRs whose Dr.CI comment is in a transient state that warrants a re-render
+// even with no recent (< NUM_MINUTES) workflow activity. Two cases:
+//   - `\d Pending`: the comment still shows pending jobs that may resolve.
+//   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
+//     to the AI advisor but its verdict had not landed at the last render, so
+//     the comment carries the in-progress `alt="AI verdict: pending"` line. The
+//     verdict can land seconds after a render and the PR's CI then go quiet,
+//     so without this clause the concluded <details> expand would never get
+//     written. Once the verdict renders, the alt becomes `AI verdict: <label>`
+//     (no "pending"), so the PR self-clears from this set. We match the full
+//     alt attribute (not the bare phrase) so an escaped model summary can't
+//     false-match.
+// Both branches stay gated by the open-PR + 1-month freshness guards below.
+async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
 select
     issue_comment.issue_url
@@ -412,12 +426,15 @@ from
     join default.pull_request on issue_comment.issue_url = pull_request.issue_url
 where
     body like '<!-- drci-comment-start -->%'
-    and match(body, '\\d Pending')
+    and (match(body, '\\d Pending') or position(body, {pendingAltAttr: String}) > 0)
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
     and pull_request.state = 'open'
 `;
-  const results = await queryClickhouse(query, { repo: `%${repo}%` });
+  const results = await queryClickhouse(query, {
+    repo: `%${repo}%`,
+    pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
+  });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
 

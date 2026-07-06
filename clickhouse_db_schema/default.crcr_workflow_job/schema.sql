@@ -1,4 +1,4 @@
-CREATE TABLE default.oot_workflow_job
+CREATE TABLE default.crcr_workflow_job
 (
     `dynamoKey` String,
     `status` String,

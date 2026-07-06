@@ -33,7 +33,7 @@ SUPPORTED_TABLES = {
     "vllm-buildkite-agent-events": "vllm.vllm_buildkite_agents",
     "vllm-buildkite-build-events": "vllm.vllm_buildkite_builds",
     "vllm-buildkite-job-events": "vllm.vllm_buildkite_jobs",
-    "torchci-oot-workflow-job": "default.oot_workflow_job",
+    "torchci-oot-workflow-job": "default.crcr_workflow_job",
 }
 
 
