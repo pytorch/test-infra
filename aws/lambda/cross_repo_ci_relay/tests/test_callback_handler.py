@@ -16,6 +16,7 @@ def _cfg():
     cfg.redis_login = ""
     cfg.crcr_status_ttl = 259200
     cfg.rate_limit_per_min = 20
+    cfg.upstream_repo = "pytorch/pytorch"
     return cfg
 
 
@@ -25,6 +26,7 @@ def _body(
     run_id=99999,
     run_attempt=1,
     job_name=None,
+    labels=None,
 ):
     wf = {
         "status": status,
@@ -37,11 +39,16 @@ def _body(
     }
     if job_name is not None:
         wf["job_name"] = job_name
+
     return {
         "event_type": "pull_request",
         "delivery_id": "del-123",
         "payload": {
-            "pull_request": {"number": 42, "head": {"sha": "abc123"}},
+            "pull_request": {
+                "number": 42,
+                "head": {"sha": "abc123"},
+                "labels": [{"name": n} for n in (labels or [])],
+            },
             "repository": {"full_name": "pytorch/pytorch"},
         },
         "workflow": wf,
@@ -272,6 +279,184 @@ class TestCallbackHandler(unittest.TestCase):
         # add_in_progress_tracker should have been called with job_name="build"
         tracker_kwargs = self.mock_redis.add_in_progress_tracker.call_args
         self.assertEqual(tracker_kwargs.kwargs.get("job_name"), "build")
+
+
+class TestCallbackCheckRunUpdate(unittest.TestCase):
+    """Upstream check run is updated when an L3/L4 downstream job completes."""
+
+    def setUp(self):
+        self.patcher_allowlist = patch("callback.callback_handler.load_allowlist")
+        self.mock_load = self.patcher_allowlist.start()
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L4
+        self.mock_load.return_value = mock_map
+
+        self.patcher_redis = patch("callback.callback_handler.redis_helper")
+        self.mock_redis = self.patcher_redis.start()
+
+        def _get_state(
+            cfg,
+            delivery_id,
+            repo,
+            run_id_arg,
+            run_attempt_arg,
+            client=None,
+            job_name=None,
+        ):
+            if run_id_arg == DISPATCH_RUN_ID:
+                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
+            if run_id_arg == 99999:  # default run_id in _body()
+                return CallbackStateRecord(CallbackState.IN_PROGRESS, 1030.0, {})
+            return None
+
+        self.mock_redis.get_callback_state.side_effect = _get_state
+        self.patcher_rate = patch("callback.callback_handler.check_rate_limit")
+        self.mock_rate = self.patcher_rate.start()
+        self.mock_rate.return_value = True
+
+        self.patcher_hud = patch("callback.callback_handler.forward_to_hud")
+        self.patcher_hud.start()
+
+        self.patcher_gh = patch("callback.callback_handler.gh_helper")
+        self.mock_gh = self.patcher_gh.start()
+        self.mock_gh.get_repo_access_token.return_value = "tok"
+
+    def tearDown(self):
+        self.patcher_allowlist.stop()
+        self.patcher_redis.stop()
+        self.patcher_rate.stop()
+        self.patcher_hud.stop()
+        self.patcher_gh.stop()
+
+    def test_completed_callback_creates_check_run(self):
+        self.mock_gh.create_check_run.return_value = 888
+
+        handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["status"], "completed")
+        self.assertEqual(kw["conclusion"], "success")
+
+    def test_check_run_name_is_scoped_by_job_name(self):
+        """The job_name from the callback body is threaded into the check run
+        name so multiple jobs in one workflow run get distinct check runs."""
+        self.mock_gh.create_check_run.return_value = 888
+
+        handle(
+            _cfg(),
+            _body(status="completed", job_name="ec05-multi-job-a"),
+            verified_repo="org/repo",
+        )
+
+        self.mock_gh.check_run_name.assert_called_once_with(
+            "org/repo", "CI", "ec05-multi-job-a"
+        )
+
+    def test_check_run_external_id_is_run_id(self):
+        """external_id carries the downstream run_id so a rerequest can re-run
+        the failed jobs of that run."""
+        self.mock_gh.create_check_run.return_value = 888
+
+        handle(
+            _cfg(),
+            _body(status="completed", job_name="build"),
+            verified_repo="org/repo",
+        )
+
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["external_id"], "99999")  # run_id from _body
+
+    def test_in_progress_callback_creates_check_run(self):
+        self.mock_gh.create_check_run.return_value = 999
+
+        handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["head_sha"], "abc123")
+        self.assertEqual(kw["status"], "in_progress")
+
+    def test_reopen_in_progress_creates_new_check_run(self):
+        """Reopen scenario: prior completed CR exists; in_progress always creates a new one."""
+        self.mock_gh.create_check_run.return_value = 999
+
+        handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["status"], "in_progress")
+
+    def test_l3_with_matching_label_creates_check_run(self):
+        """L3 repo: check run is created when needs_check_run returns True."""
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = True
+        self.mock_load.return_value = mock_map
+
+        handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+
+    def test_l3_passes_body_labels_to_needs_check_run(self):
+        """The PR labels from the callback body are extracted and handed to
+        needs_check_run, which gates whether the L3 check run is created."""
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = True
+        self.mock_load.return_value = mock_map
+
+        body = _body(status="in_progress", labels=["ciflow/crcr/device1", "other"])
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        mock_map.needs_check_run.assert_called_once_with(
+            "org/repo", {"ciflow/crcr/device1", "other"}
+        )
+        self.mock_gh.create_check_run.assert_called_once()
+
+    def test_l3_without_label_does_not_create_check_run(self):
+        """L3 repo: no check run when needs_check_run=False and no label trigger."""
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = False
+        self.mock_load.return_value = mock_map
+        self.mock_redis.is_check_run_wanted.return_value = False
+
+        handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_not_called()
+
+    def test_l3_check_run_wanted_flag_creates_check_run(self):
+        """L3 reopen: echoed payload has no label, but the per-commit wanted flag
+        (set at dispatch for this head_sha) makes the callback create the check run."""
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = False
+        self.mock_load.return_value = mock_map
+        self.mock_redis.is_check_run_wanted.return_value = True
+
+        handle(_cfg(), _body(status="in_progress"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+        self.mock_redis.is_check_run_wanted.assert_called_once_with(
+            unittest.mock.ANY, "abc123", "org/repo"
+        )
+
+    def test_l2_completed_does_not_create_check_run(self):
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L2
+        self.mock_load.return_value = mock_map
+
+        handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_not_called()
+
+    def test_check_run_update_failure_does_not_break_response(self):
+        self.mock_gh.get_repo_access_token.side_effect = RuntimeError("token error")
+
+        result = handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
 
 
 if __name__ == "__main__":

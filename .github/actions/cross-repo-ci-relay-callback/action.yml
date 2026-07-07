@@ -47,6 +47,17 @@ inputs:
       Maximum time in seconds to wait for the callback HTTP request to complete.
     required: false
     default: 10
+  job-name:
+    description: >
+      Identifier for this job, used to name the upstream check run
+      (crcr/<repo>/<workflow>/<job-name>). Defaults to github.job, the job's key
+      in the workflow file, which is fine for a normal single job. For a MATRIX
+      job every leg shares the same github.job, so you MUST pass a value that
+      includes the matrix values (for example a job-name of "build-cpu" /
+      "build-cuda" for a matrix over cpu/cuda) to give each leg its own check
+      run; otherwise the legs collide on the same name.
+    required: false
+    default: ${{ github.job }}
 
 runs:
   using: composite
@@ -73,7 +84,7 @@ runs:
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}
         ARTIFACT_URL: ${{ inputs.artifact-url }}
-        JOB_NAME: ${{ github.job }}
+        JOB_NAME: ${{ inputs.job-name }}
         CHECK_RUN_ID: ${{ job.check_run_id }}
         RUN_ID: ${{ github.run_id }}
         RUN_ATTEMPT: ${{ github.run_attempt }}

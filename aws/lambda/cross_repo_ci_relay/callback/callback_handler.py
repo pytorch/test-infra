@@ -5,6 +5,7 @@ import time
 
 import utils.redis_helper as redis_helper
 from redis.exceptions import RedisError
+from utils import gh_helper
 from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
@@ -13,6 +14,7 @@ from utils.misc import (
     CallbackStateRecord,
     DISPATCH_RUN_ATTEMPT,
     DISPATCH_RUN_ID,
+    extract_pr_labels,
     HTTPException,
 )
 from utils.redis_helper import check_rate_limit
@@ -107,6 +109,10 @@ def _update_state_and_compute_metrics(
 
     Both metrics default to None when the required prior state is unavailable
     (e.g. Redis cache miss or rerun without matching prior record).
+
+    For a re-run, ``queue_time`` is measured against the original dispatch (the
+    re-run reuses its delivery_id), so it is not a meaningful queue interval —
+    HUD distinguishes re-runs via ``workflow.run_attempt`` in the forwarded body.
     """
     if status not in ("in_progress", "completed"):
         raise HTTPException(400, f"unknown callback status: {status!r}")
@@ -168,6 +174,66 @@ def _update_state_and_compute_metrics(
     return ci_metrics
 
 
+def _create_upstream_check_run(
+    *,
+    config: RelayConfig,
+    verified_repo: str,
+    delivery_id: str,
+    status: str,
+    conclusion: str | None,
+    run_id: int,
+    head_sha: str,
+    workflow_name: str,
+    job_name: str | None,
+    details_url: str,
+) -> None:
+    """Create a new upstream check run mirroring the downstream job's status.
+
+    Called for L3+ repos (only when a check run is wanted and head_sha is known)
+    before HUD forwarding, so a HUD error cannot block the upstream PR check.
+
+    Every callback always *creates* a new check run (never edits an existing
+    one): GitHub only surfaces the latest check run of a given name on a commit,
+    so each new one supersedes the previous, keeping the logic stateless.
+    Best-effort: a GitHub failure must not fail the callback.
+    """
+    output = gh_helper.build_check_run_output(
+        status, conclusion, details_url, verified_repo
+    )
+    try:
+        upstream_token = gh_helper.get_repo_access_token(
+            config.github_app_id,
+            config.github_app_private_key,
+            config.upstream_repo,
+        )
+        cr_id = gh_helper.create_check_run(
+            token=upstream_token,
+            repo_full_name=config.upstream_repo,
+            name=gh_helper.check_run_name(verified_repo, workflow_name, job_name),
+            head_sha=head_sha,
+            status=status,
+            conclusion=conclusion,
+            details_url=details_url,
+            # Store the downstream run_id so a check-run rerequest can re-run
+            # the failed jobs of that workflow run.
+            external_id=str(run_id),
+            output=output,
+        )
+        logger.info(
+            "upstream check run created delivery_id=%s repo=%s status=%s cr_id=%s",
+            delivery_id,
+            verified_repo,
+            status,
+            cr_id,
+        )
+    except Exception:
+        logger.exception(
+            "failed to create upstream check run delivery_id=%s repo=%s",
+            delivery_id,
+            verified_repo,
+        )
+
+
 def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     """Forward a downstream callback to HUD.
 
@@ -188,7 +254,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     result = _verify_access(config, verified_repo)
     if result is None:
         return {"ok": True, "status": "ignored"}
-    _, repo_level = result
+    allowlist, repo_level = result
 
     delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
         _parse_callback_body(body)
@@ -236,6 +302,54 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         payload=payload,
         job_name=job_name,
     )
+
+    # L3+: cache the job and create its upstream check run. Runs after state
+    # validation (above) but before HUD forwarding, so a HUD error cannot block
+    # the PR check. Without a head_sha there is neither a check run to create nor
+    # a cache entry the label handler could ever look up.
+    if repo_level.value >= AllowlistLevel.L3.value:
+        pr_field = (body.get("payload") or {}).get("pull_request") or {}
+        head_sha = (pr_field.get("head") or {}).get("sha", "")
+        if head_sha:
+            conclusion = (body.get("workflow") or {}).get("conclusion")
+            details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
+
+            # Always cache the job so a later label event can backfill its check
+            # run, even when we are not creating one now.
+            redis_helper.set_dispatch_job(
+                config,
+                head_sha,
+                verified_repo,
+                status,
+                conclusion,
+                details_url,
+                run_id=str(run_id),
+                workflow_name=workflow_name,
+                job_name=job_name,
+            )
+
+            needs_cr = allowlist.needs_check_run(verified_repo, extract_pr_labels(body))
+            if not needs_cr and repo_level == AllowlistLevel.L3:
+                # The downstream's echoed payload labels may not reflect the PR's
+                # current state (e.g. on reopen). Fall back to the per-commit flag
+                # recorded at dispatch / label time for this (head_sha, repo).
+                needs_cr = redis_helper.is_check_run_wanted(
+                    config, head_sha, verified_repo
+                )
+
+            if needs_cr:
+                _create_upstream_check_run(
+                    config=config,
+                    verified_repo=verified_repo,
+                    delivery_id=delivery_id,
+                    status=status,
+                    conclusion=conclusion,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    workflow_name=workflow_name,
+                    job_name=job_name,
+                    details_url=details_url,
+                )
 
     if status == "in_progress":
         redis_helper.add_in_progress_tracker(
