@@ -1329,6 +1329,11 @@ def main() -> None:
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
+    parser.add_argument(
+        "--stable-only",
+        action="store_true",
+        help="Update only the stable/prod prefix (whl), skipping nightly and test",
+    )
 
     # Arguments for target creation
     parser.add_argument(
@@ -1407,9 +1412,13 @@ def main() -> None:
         return
 
     # Original behavior: update all dependencies for specified package
-    SUBFOLDERS = ["whl/nightly", "whl/test"]
-    if args.include_stable:
-        SUBFOLDERS.append("whl")
+    if args.stable_only:
+        # Prod-only update (gated behind the promote-env in CI).
+        SUBFOLDERS = ["whl"]
+    else:
+        SUBFOLDERS = ["whl/nightly", "whl/test"]
+        if args.include_stable:
+            SUBFOLDERS.append("whl")
 
     for prefix in SUBFOLDERS:
         # Process each package and its multiple configurations

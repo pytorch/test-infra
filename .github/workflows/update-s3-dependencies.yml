@@ -35,6 +35,14 @@ on:
         description: 'Target to create (e.g., rocm7.2, cu130) - only for create-target mode'
         required: false
         type: string
+      include-prod:
+        description: 'Also update prod (whl) dependencies via promote-env (update-packages mode only)'
+        required: false
+        type: choice
+        default: disabled
+        options:
+          - disabled
+          - enabled
 
 permissions:
   id-token: write
@@ -132,6 +140,53 @@ jobs:
 
           # Run update-packages for torch to ensure all dependencies are current
           ARGS="--package torch"
+
+          if [[ "${DRYRUN}" == "enabled" ]]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # shellcheck disable=SC2086
+          python3 s3_management/update_dependencies.py ${ARGS}
+
+  # Prod (whl) dependency updates are gated behind the protected promote-env,
+  # mirroring release-download-pytorch-org.yml. Opt-in via the include-prod
+  # input; runs only in update-packages mode.
+  update-prod:
+    if: ${{ github.event.inputs.mode == 'update-packages' && github.event.inputs.include-prod == 'enabled' }}
+    runs-on: ubuntu-22.04
+    environment: promote-env
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_promote_wheels
+          aws-region: us-east-1
+
+      - name: Checkout repository test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ github.ref }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r s3_management/requirements.txt
+
+      - name: Update prod (stable) packages
+        shell: bash
+        env:
+          DRYRUN: ${{ github.event.inputs.dryrun }}
+          PACKAGE: ${{ github.event.inputs.package || 'torch' }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: "pytorch-downloads"
+        run: |
+          set -ex
+
+          ARGS="--package ${PACKAGE} --stable-only"
 
           if [[ "${DRYRUN}" == "enabled" ]]; then
             ARGS="${ARGS} --dry-run"
