@@ -86,6 +86,15 @@
       "linux"
     ]
   ],
+  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
+    "106543",
+    "https://github.com/pytorch/pytorch/issues/106543",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
     "188513",
     "https://github.com/pytorch/pytorch/issues/188513",
