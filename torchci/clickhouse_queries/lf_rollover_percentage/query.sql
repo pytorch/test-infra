@@ -1,9 +1,8 @@
 WITH
     normalized_jobs AS (
         SELECT
-            l AS label,
             extract(j.name, '[^,]*') AS job_name, -- Remove shard number and label from job names
-            j.workflow_name,
+            match(l, '^lf[.-]') AS is_lf,
             DATE_TRUNC({granularity: String}, j.created_at) AS bucket
         FROM
             -- Deliberatly not adding FINAL to this workflow_job.
@@ -26,67 +25,32 @@ WITH
             AND l NOT LIKE 'lf.c.%'
             AND l NOT LIKE '%.canary'
             AND l NOT LIKE 'c.%'
+            AND l NOT LIKE 'c-%'
     ),
     lf_jobs AS (
         SELECT
-            DISTINCT j.job_name
+            DISTINCT job_name
         FROM
-            normalized_jobs AS j
+            normalized_jobs
         WHERE
-            j.label LIKE 'lf.%'
+            is_lf
     ),
     comparable_jobs AS (
         SELECT
             j.bucket,
-            j.label,
-            j.job_name,
-            j.workflow_name
+            j.is_lf
         FROM
             normalized_jobs AS j
         INNER JOIN
             lf_jobs AS lfj ON j.job_name = lfj.job_name
     ),
-    success_stats AS (
-        SELECT
-            count(*) AS group_size,
-            bucket,
-            replaceOne(label, 'lf.', '') AS label_ref,
-            if(substring(label, 1, 3) = 'lf.', True, False) AS lf_fleet
-        FROM
-            comparable_jobs
-        GROUP BY
-            bucket, label_ref, lf_fleet
-    ),
-    lf_success_stats AS (
-        SELECT
-            *
-        FROM
-            success_stats
-        WHERE
-            lf_fleet = True
-    ),
-    meta_success_stats AS (
-        SELECT
-            *
-        FROM
-            success_stats
-        WHERE
-            lf_fleet = False
-    ),
     comparison_stats AS (
         SELECT
-            -- *
-            greatest(lf.bucket, m.bucket) AS bucket,
-            CAST(SUM(lf.group_size) AS Float32) / SUM(lf.group_size + m.group_size) * 100 AS percentage,
-            -- IF(lf.lf_fleet, 'Linux Foundation', 'Meta') AS fleet
-            'Linux Fundation' AS fleet
+            bucket,
+            CAST(countIf(is_lf) AS Float32) / count(*) * 100 AS percentage,
+            'Linux Foundation' AS fleet
         FROM
-            lf_success_stats AS lf
-        FULL OUTER JOIN
-            meta_success_stats AS m
-        ON
-            lf.label_ref = m.label_ref
-            AND lf.bucket = m.bucket
+            comparable_jobs
         GROUP BY
             bucket
     )
