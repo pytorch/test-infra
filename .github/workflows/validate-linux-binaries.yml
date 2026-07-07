@@ -124,7 +124,10 @@ jobs:
       repository: "pytorch/pytorch"
       ref: release/2.13
       job-name: ${{ matrix.build_name }}
-      docker-image: ${{ ((matrix.gpu_arch_type == 'xpu' || matrix.gpu_arch_type == 'rocm') && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
+      # ROCm now validates on the regular almalinux image (like CUDA) to
+      # confirm the wheels are self-contained and no longer need the fat
+      # manylinux-rocm builder image. Only XPU still needs its own container.
+      docker-image: ${{ (matrix.gpu_arch_type == 'xpu' && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
       binary-matrix: ${{ toJSON(matrix) }}
       docker-build-dir: "skip-docker-build"
       timeout: 180
