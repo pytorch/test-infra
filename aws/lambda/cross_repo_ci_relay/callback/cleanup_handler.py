@@ -14,7 +14,7 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 import utils.redis_helper as redis_helper
 from redis.exceptions import RedisError
 from utils import gh_helper
-from utils.allowlist import AllowlistLevel, load_allowlist
+from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
 from utils.misc import CallbackState, extract_pr_labels
@@ -54,7 +54,9 @@ def _build_timeout_payload(zombie: dict, completed_at: str) -> tuple[dict, dict]
     return stored_trusted, stored_untrusted
 
 
-def _finalize_timed_out_check_run(config: RelayConfig, zombie: dict) -> None:
+def _finalize_timed_out_check_run(
+    config: RelayConfig, allowlist: AllowlistMap, zombie: dict
+) -> None:
     """Create a completed/timed_out upstream check run for an L3+ zombie.
 
     A zombie's downstream stopped reporting, so its upstream check run is left
@@ -75,7 +77,6 @@ def _finalize_timed_out_check_run(config: RelayConfig, zombie: dict) -> None:
     if trusted.get("downstream_repo_level", "") < AllowlistLevel.L3.value:
         return
 
-    allowlist = load_allowlist(config)
     level = allowlist.get_repo_level(verified_repo)
     if level is None or level.value < AllowlistLevel.L3.value:
         return
@@ -136,6 +137,7 @@ def _finalize_timed_out_check_run(config: RelayConfig, zombie: dict) -> None:
 def _cleanup_one(
     *,
     config: RelayConfig,
+    allowlist: AllowlistMap,
     zombie: dict,
     completed_at: str,
 ) -> dict:
@@ -145,7 +147,7 @@ def _cleanup_one(
     Returns a dict with ``ok`` indicating whether the zombie was cleaned
     successfully (HUD forward succeeded).
     """
-    _finalize_timed_out_check_run(config, zombie)
+    _finalize_timed_out_check_run(config, allowlist, zombie)
 
     delivery_id = zombie["delivery_id"]
     repo = zombie["downstream_repo"]
@@ -218,11 +220,14 @@ def handle(config: RelayConfig) -> dict:
     logger.info("zombie scan: found %d expired job(s)", len(zombies))
     completed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
+    allowlist = load_allowlist(config)
+
     with ThreadPoolExecutor(max_workers=config.max_cleanup_workers) as pool:
         future_to_zombie = {
             pool.submit(
                 _cleanup_one,
                 config=config,
+                allowlist=allowlist,
                 zombie=zombie,
                 completed_at=completed_at,
             ): zombie

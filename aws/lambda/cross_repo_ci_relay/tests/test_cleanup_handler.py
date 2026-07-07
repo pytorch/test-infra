@@ -160,9 +160,13 @@ class TestCleanupHandler(unittest.TestCase):
         self.patcher_hud = patch("callback.cleanup_handler.forward_to_hud")
         self.mock_hud = self.patcher_hud.start()
 
+        self.patcher_load = patch("callback.cleanup_handler.load_allowlist")
+        self.patcher_load.start()
+
     def tearDown(self):
         self.patcher_redis.stop()
         self.patcher_hud.stop()
+        self.patcher_load.stop()
 
     def test_no_expired_jobs(self):
         """Empty scan returns cleanly."""
@@ -306,13 +310,17 @@ class TestCleanupCheckRunFinalize(unittest.TestCase):
         self.assertEqual(kw["head_sha"], "abc123")
 
     def test_l2_zombie_does_not_finalize_check_run(self):
-        # Default zombie is L2 → the pre-check short-circuits, no upstream check run.
+        # Default zombie is L2 → the stored-level pre-check short-circuits, no
+        # upstream check run and no per-repo allowlist lookup.
         self.mock_redis.scan_expired_in_progress.return_value = [_zombie_entry()]
 
         handle(_cfg())
 
         self.mock_gh.create_check_run.assert_not_called()
-        self.mock_load.assert_not_called()
+        # Allowlist is loaded once for the whole sweep, then the L2 pre-check
+        # skips the per-repo get_repo_level lookup.
+        self.mock_load.assert_called_once()
+        self.mock_map.get_repo_level.assert_not_called()
 
 
 if __name__ == "__main__":
