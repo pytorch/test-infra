@@ -14,7 +14,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { IssueData, JobData, RowData } from "lib/types";
-import { useHideNonViableStrictPreference } from "lib/useGroupingPreference";
+import { useHudOption } from "lib/useGroupingPreference";
 import {
   MonsterFailuresContext,
   PinnedTooltipContext,
@@ -160,7 +160,9 @@ export default function HudGroupedCell({
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const [monsterFailures] = useContext(MonsterFailuresContext);
-  const [hideNonViableStrict] = useHideNonViableStrictPreference();
+  const { effective: hideNonViableStrict } = useHudOption(
+    "hideNonViableStrict"
+  );
 
   // When hiding non-viable-strict, restrict the group's status calculation
   // (and tooltip contents) to viable/strict-blocking jobs only — otherwise a

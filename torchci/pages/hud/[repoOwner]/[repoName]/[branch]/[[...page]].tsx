@@ -2,9 +2,9 @@ import AutorevertToggle, {
   isAutorevertActive,
 } from "components/autorevert/AutorevertToggle";
 import AutorevertView from "components/autorevert/AutorevertView";
-import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
+import OptionRow, { OptionRowHeader } from "components/common/OptionRow";
 import PageSelector from "components/common/PageSelector";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
@@ -50,14 +50,12 @@ import {
   JobData,
   packHudParams,
   RowData,
+  TriState,
 } from "lib/types";
 import {
-  useGroupingPreference,
-  useHideAlwaysSkippedPreference,
-  useHideGreenColumnsPreference,
-  useHideNonViableStrictPreference,
-  useMonsterFailuresPreference,
-  usePreference,
+  HUD_OPTIONS,
+  HUD_OPTIONS_BY_KEY,
+  useHudOption,
 } from "lib/useGroupingPreference";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
@@ -379,24 +377,51 @@ function HudTableBody({
   );
 }
 
+// Renders one option row wired to the URL (tri-state toggle) and localStorage
+// (persist switch). Toggling on/off writes the option's key into the URL;
+// toggling back to "default" removes it. Uses a shallow route push so the grid
+// re-renders without a full navigation.
+function HudOptionRow({
+  optionKey,
+  disabled,
+  title,
+}: {
+  optionKey: typeof HUD_OPTIONS[number]["key"];
+  disabled?: boolean;
+  title?: string;
+}) {
+  const router = useRouter();
+  const params = packHudParams(router.query);
+  const config = HUD_OPTIONS_BY_KEY[optionKey];
+  const { urlState, persist, setPersist } = useHudOption(optionKey);
+
+  const setUrlState = (value: TriState) => {
+    router.push(
+      formatHudUrlForRoute("hud", { ...params, [optionKey]: value }),
+      undefined,
+      { shallow: true }
+    );
+  };
+
+  return (
+    <OptionRow
+      label={config.label}
+      urlState={urlState}
+      setUrlState={setUrlState}
+      persist={persist}
+      setPersist={setPersist}
+      disabled={disabled}
+      title={title}
+    />
+  );
+}
+
 function FiltersAndSettings({}: {}) {
   const router = useRouter();
   const params = packHudParams(router.query);
   const { jobFilter, handleSubmit } = useTableFilter(params);
-  const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
-  const [mergeOSDC, setMergeOSDC] = useContext(MergeOSDCContext);
   const [autorevertView, setAutorevertView] = useContext(AutorevertViewContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
-  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
-  const [hideGreenColumns, setHideGreenColumns] =
-    useHideGreenColumnsPreference();
-  const [hideNonViableStrict, setHideNonViableStrict] =
-    useHideNonViableStrictPreference();
-  const [hideAlwaysSkipped, setHideAlwaysSkipped] =
-    useHideAlwaysSkippedPreference();
-  const [useGrouping, setUseGrouping] = useGroupingPreference(
-    params.nameFilter
-  );
 
   // Only show autorevert toggle for pytorch/pytorch main
   const isPyTorchMain =
@@ -416,71 +441,24 @@ function FiltersAndSettings({}: {}) {
           />
           <SettingsPanel
             settingGroups={{
-              // You need to specify both checkBoxName and key for each setting.
-              // `checkbox name` is used by CheckBoxSelector while `key` is
-              // used to uniquely identify the component in the settings panel.
-              // As far as I can CheckBoxSelector cannot read or write `key` but
-              // React requires us to set key since it's a list element, so we
-              // end up with some unfortunate duplication.
-              "View Options": [
-                <CheckBoxSelector
-                  value={useGrouping}
-                  setValue={(value) => setUseGrouping(value)}
-                  checkBoxName="groupView"
-                  key="groupView"
-                  labelText={"Use grouped view"}
-                />,
-                <MonsterFailuresCheckbox key="monsterFailures" />,
-              ],
-              "Filter Options": [
-                <CheckBoxSelector
-                  value={hideUnstable}
-                  setValue={(value) => setHideUnstable(value)}
-                  checkBoxName="hideUnstable"
-                  key="hideUnstable"
-                  labelText={"Hide unstable jobs"}
-                />,
-                <CheckBoxSelector
-                  value={hideGreenColumns}
-                  setValue={(value) => setHideGreenColumns(value)}
-                  checkBoxName="hideGreenColumns"
-                  key="hideGreenColumns"
-                  labelText={"Hide green columns"}
-                />,
-                <CheckBoxSelector
-                  value={hideNonViableStrict}
-                  setValue={(value) => setHideNonViableStrict(value)}
-                  checkBoxName="hideNonViableStrict"
-                  key="hideNonViableStrict"
-                  labelText={"Hide non-viable-strict jobs"}
-                  disabled={!isPyTorchRepo}
-                  title={
-                    isPyTorchRepo
-                      ? undefined
-                      : "Only applies to the pytorch/pytorch repo"
-                  }
-                />,
-                <CheckBoxSelector
-                  value={hideAlwaysSkipped}
-                  setValue={(value) => setHideAlwaysSkipped(value)}
-                  checkBoxName="hideAlwaysSkipped"
-                  key="hideAlwaysSkipped"
-                  labelText={"Hide always-skipped jobs"}
-                />,
-                <CheckBoxSelector
-                  value={mergeEphemeralLF}
-                  setValue={setMergeEphemeralLF}
-                  checkBoxName="mergeEphemeralLF"
-                  key="mergeEphemeralLF"
-                  labelText={"Condense LF, ephemeral jobs"}
-                />,
-                <CheckBoxSelector
-                  value={mergeOSDC}
-                  setValue={setMergeOSDC}
-                  checkBoxName="mergeOSDC"
-                  key="mergeOSDC"
-                  labelText={"Condense OSDC, non-OSDC jobs"}
-                />,
+              Options: [
+                <OptionRowHeader key="__header" />,
+                ...HUD_OPTIONS.map((option) => {
+                  const pytorchOnlyDisabled =
+                    option.pytorchOnly && !isPyTorchRepo;
+                  return (
+                    <HudOptionRow
+                      key={option.key}
+                      optionKey={option.key}
+                      disabled={pytorchOnlyDisabled}
+                      title={
+                        pytorchOnlyDisabled
+                          ? "Only applies to the pytorch/pytorch repo"
+                          : undefined
+                      }
+                    />
+                  );
+                }),
               ],
             }}
             isOpen={settingsPanelOpen}
@@ -527,27 +505,14 @@ export function MonsterFailuresProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [monsterFailures, setMonsterFailures] = useMonsterFailuresPreference();
+  // Read-only effective value (URL override -> persisted default -> server
+  // default). Deep grid cells consume this via context to decide whether to
+  // render the monster sprite; the toggle itself lives in the Options panel.
+  const { effective: monsterFailures } = useHudOption("monsterFailures");
   return (
-    <MonsterFailuresContext.Provider
-      value={[monsterFailures, setMonsterFailures]}
-    >
+    <MonsterFailuresContext.Provider value={[monsterFailures, undefined]}>
       {children}
     </MonsterFailuresContext.Provider>
-  );
-}
-
-export function MonsterFailuresCheckbox() {
-  const [monsterFailures, setMonsterFailures] = useContext(
-    MonsterFailuresContext
-  );
-  return (
-    <CheckBoxSelector
-      value={monsterFailures}
-      setValue={(value) => setMonsterFailures && setMonsterFailures(value)}
-      checkBoxName="monsterFailures"
-      labelText={"Monsterize failures"}
-    />
   );
 }
 
@@ -581,27 +546,12 @@ export const PinnedTooltipContext = createContext<[Highlight, any]>([
   null,
 ]);
 
-export const MergeLFContext = createContext<[boolean, (val: boolean) => void]>([
-  false,
-  (_) => {},
-]);
-
-export const MergeOSDCContext = createContext<
-  [boolean, (val: boolean) => void]
->([false, (_) => {}]);
-
 export const AutorevertViewContext = createContext<
   [boolean, (val: boolean) => void]
 >([false, (_) => {}]);
 
 export default function Hud() {
   const router = useRouter();
-  const [mergeEphemeralLF, setMergeEphemeralLF] = usePreference("mergeLF");
-  const [mergeOSDC, setMergeOSDC] = usePreference(
-    "mergeOSDC",
-    /*override*/ undefined,
-    /*default*/ false
-  );
   const [autorevertView, setAutorevertView] = useState(() =>
     isAutorevertActive(router.query)
   );
@@ -609,11 +559,7 @@ export default function Hud() {
   useEffect(() => {
     setAutorevertView(isAutorevertActive(router.query));
   }, [router.query]);
-  const params = packHudParams({
-    ...router.query,
-    mergeEphemeralLF: mergeEphemeralLF,
-    mergeOSDC: mergeOSDC,
-  });
+  const params = packHudParams(router.query);
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -657,45 +603,39 @@ export default function Hud() {
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <MonsterFailuresProvider>
-          <MergeLFContext.Provider
-            value={[mergeEphemeralLF, setMergeEphemeralLF]}
+          <AutorevertViewContext.Provider
+            value={[autorevertView, setAutorevertView]}
           >
-            <MergeOSDCContext.Provider value={[mergeOSDC, setMergeOSDC]}>
-              <AutorevertViewContext.Provider
-                value={[autorevertView, setAutorevertView]}
-              >
-                {params.branch !== undefined && (
-                  <div onClick={handleClick}>
-                    <div style={{ display: "flex", alignItems: "flex-end" }}>
-                      <HudHeader params={params} />
-                      <CopyPermanentLink
-                        params={params}
-                        style={{ marginLeft: "10px" }}
-                        autorevertView={autorevertView}
-                      />
+            {params.branch !== undefined && (
+              <div onClick={handleClick}>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <HudHeader params={params} />
+                  <CopyPermanentLink
+                    params={params}
+                    style={{ marginLeft: "10px" }}
+                    autorevertView={autorevertView}
+                  />
+                </div>
+                <div style={{ position: "relative", clear: "both" }}>
+                  <FiltersAndSettings />
+                  {autorevertView ? (
+                    <AutorevertView />
+                  ) : (
+                    <GroupedHudTable params={params} />
+                  )}
+                </div>
+                {!autorevertView && (
+                  <>
+                    <PageSelector params={params} baseUrl="hud" />
+                    <br />
+                    <div>
+                      <em>This page automatically updates.</em>
                     </div>
-                    <div style={{ position: "relative", clear: "both" }}>
-                      <FiltersAndSettings />
-                      {autorevertView ? (
-                        <AutorevertView />
-                      ) : (
-                        <GroupedHudTable params={params} />
-                      )}
-                    </div>
-                    {!autorevertView && (
-                      <>
-                        <PageSelector params={params} baseUrl="hud" />
-                        <br />
-                        <div>
-                          <em>This page automatically updates.</em>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  </>
                 )}
-              </AutorevertViewContext.Provider>
-            </MergeOSDCContext.Provider>
-          </MergeLFContext.Provider>
+              </div>
+            )}
+          </AutorevertViewContext.Provider>
         </MonsterFailuresProvider>
       </PinnedTooltipContext.Provider>
     </>
@@ -778,11 +718,20 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     return buildVerdictsBySha(deduplicateVerdicts(advisorRows));
   }, [advisorRows]);
 
-  const [hideUnstable] = usePreference("hideUnstable");
-  const [hideGreenColumns] = useHideGreenColumnsPreference();
-  const [hideNonViableStrict] = useHideNonViableStrictPreference();
-  const [hideAlwaysSkipped] = useHideAlwaysSkippedPreference();
-  const [useGrouping] = useGroupingPreference(params.nameFilter);
+  const { effective: hideUnstable } = useHudOption("hideUnstable");
+  const { effective: hideGreenColumns } = useHudOption("hideGreenColumns");
+  const { effective: hideNonViableStrict } = useHudOption(
+    "hideNonViableStrict"
+  );
+  const { effective: hideAlwaysSkipped } = useHudOption("hideAlwaysSkipped");
+  const { effective: groupingPref } = useHudOption("useGrouping");
+  // A name filter forces the ungrouped view so individual matching jobs are
+  // visible, regardless of the grouping preference/toggle.
+  const hasNameFilter =
+    params.nameFilter !== "" &&
+    params.nameFilter !== null &&
+    params.nameFilter !== undefined;
+  const useGrouping = hasNameFilter ? false : groupingPref;
 
   const {
     shaGrid,

@@ -1,4 +1,12 @@
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import {
+  HUD_OPTION_URL_KEYS,
+  HudOptionKey,
+  parseTriState,
+  resolveTriState,
+  TriState,
+} from "./types";
 
 /**
  * A hook to manage a boolean preference in local storage.
@@ -32,72 +40,99 @@ export function usePreference(
   return [state, setStatePersist, setState];
 }
 
-export function useGroupingPreference(
-  nameFilter: string | undefined | null
-): [boolean, (_grouping: boolean) => void] {
-  const hasNameFilter =
-    nameFilter !== "" && nameFilter !== null && nameFilter !== undefined;
-  const override = hasNameFilter ? false : undefined;
-  const [state, setState, setStateTemp] = usePreference(
-    "useGrouping",
-    override
-  );
-  useEffect(() => {
-    if (hasNameFilter) {
-      // Manually set grouping to be false if there is a name filter on first
-      // load.  Without this setState, if you enter a filter, check use
-      // grouping, then enter another filter, it will still be grouped
-      setStateTemp(false);
-    }
-  }, [nameFilter]);
-
-  return [state, setState];
+/**
+ * Configuration for each tri-state HUD option. `localStorageKey` is where the
+ * persisted default lives (used when the URL doesn't pin the option on/off), and
+ * `serverDefault` is the hardcoded fallback used on a brand-new browser with no
+ * saved preference. `pytorchOnly` options are no-ops outside pytorch/pytorch.
+ */
+export interface HudOptionConfig {
+  key: HudOptionKey;
+  localStorageKey: string;
+  serverDefault: boolean;
+  label: string;
+  pytorchOnly?: boolean;
 }
 
-export function useMonsterFailuresPreference(): [
-  boolean,
-  (_useMonsterFailuresValue: boolean) => void
-] {
-  const [state, setState] = usePreference(
-    "useMonsterFailures",
-    /*override*/ undefined,
-    /*default*/ false
-  );
-  return [state, setState];
-}
+// Display order of the rows in the "Options" settings panel.
+export const HUD_OPTIONS: HudOptionConfig[] = [
+  {
+    key: "hideUnstable",
+    localStorageKey: "hideUnstable",
+    serverDefault: true,
+    label: "Hide unstable jobs",
+  },
+  {
+    key: "hideGreenColumns",
+    localStorageKey: "hideGreenColumns",
+    serverDefault: false,
+    label: "Hide green columns",
+  },
+  {
+    key: "hideNonViableStrict",
+    localStorageKey: "hideNonViableStrict",
+    serverDefault: true,
+    label: "Hide non-viable-strict jobs",
+    pytorchOnly: true,
+  },
+  {
+    key: "hideAlwaysSkipped",
+    localStorageKey: "hideAlwaysSkipped",
+    serverDefault: true,
+    label: "Hide always-skipped jobs",
+  },
+  {
+    key: "useGrouping",
+    localStorageKey: "useGrouping",
+    serverDefault: true,
+    label: "Use grouped view",
+  },
+  {
+    key: "monsterFailures",
+    localStorageKey: "useMonsterFailures",
+    serverDefault: false,
+    label: "Monsterize failures",
+  },
+  {
+    key: "mergeEphemeralLF",
+    localStorageKey: "mergeLF",
+    serverDefault: false,
+    label: "Condense LF, ephemeral jobs",
+  },
+  {
+    key: "mergeOSDC",
+    localStorageKey: "mergeOSDC",
+    serverDefault: false,
+    label: "Condense OSDC, non-OSDC jobs",
+  },
+];
 
-export function useHideGreenColumnsPreference(): [
-  boolean,
-  (_hideGreenColumnsValue: boolean) => void
-] {
-  const [state, setState] = usePreference(
-    "hideGreenColumns",
-    /*override*/ undefined,
-    /*default*/ false
-  );
-  return [state, setState];
-}
+export const HUD_OPTIONS_BY_KEY: Record<HudOptionKey, HudOptionConfig> =
+  Object.fromEntries(HUD_OPTIONS.map((o) => [o.key, o])) as Record<
+    HudOptionKey,
+    HudOptionConfig
+  >;
 
-export function useHideNonViableStrictPreference(): [
-  boolean,
-  (_hideNonViableStrictValue: boolean) => void
-] {
-  const [state, setState] = usePreference(
-    "hideNonViableStrict",
+/**
+ * Resolves a single tri-state option: the URL (on/off) overrides the persisted
+ * localStorage default, which overrides the hardcoded server default. Also
+ * exposes the raw URL state (for rendering the tri-state toggle) and the
+ * persisted default (for rendering the "persist" switch).
+ */
+export function useHudOption(key: HudOptionKey): {
+  effective: boolean;
+  urlState: TriState;
+  persist: boolean;
+  setPersist: (_value: boolean) => void;
+} {
+  const router = useRouter();
+  const config = HUD_OPTIONS_BY_KEY[key];
+  const urlState = parseTriState(router.query[HUD_OPTION_URL_KEYS[key]]);
+  const [persist, setPersist] = usePreference(
+    config.localStorageKey,
     /*override*/ undefined,
-    /*default*/ true
+    config.serverDefault
   );
-  return [state, setState];
-}
-
-export function useHideAlwaysSkippedPreference(): [
-  boolean,
-  (_hideAlwaysSkippedValue: boolean) => void
-] {
-  const [state, setState] = usePreference(
-    "hideAlwaysSkipped",
-    /*override*/ undefined,
-    /*default*/ true
-  );
-  return [state, setState];
+  const effective = resolveTriState(urlState, persist, config.serverDefault);
+  return { effective, urlState, persist, setPersist };
 }

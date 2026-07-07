@@ -121,6 +121,59 @@ export interface IssueData {
   labels: string[];
 }
 
+// A HUD option is tri-state: "on"/"off" come from the URL and override
+// everything; "default" means the URL says nothing, so the value falls back to
+// localStorage (the user's persisted default) and finally the server default.
+// "default" is NEVER serialized into a URL.
+export type TriState = "on" | "off" | "default";
+
+export function parseTriState(value: any): TriState {
+  if (value === "true" || value === true) {
+    return "on";
+  }
+  if (value === "false" || value === false) {
+    return "off";
+  }
+  return "default";
+}
+
+export function resolveTriState(
+  state: TriState,
+  stored: boolean | undefined,
+  serverDefault: boolean
+): boolean {
+  if (state === "on") {
+    return true;
+  }
+  if (state === "off") {
+    return false;
+  }
+  return stored ?? serverDefault;
+}
+
+// Maps each tri-state HudParams field to its URL query key.
+export const HUD_OPTION_URL_KEYS = {
+  useGrouping: "grouped",
+  monsterFailures: "monster",
+  hideUnstable: "hide_unstable",
+  hideGreenColumns: "hide_green",
+  hideNonViableStrict: "hide_non_viable_strict",
+  hideAlwaysSkipped: "hide_always_skipped",
+  mergeEphemeralLF: "mergeEphemeralLF",
+  mergeOSDC: "mergeOSDC",
+} as const;
+
+export type HudOptionKey = keyof typeof HUD_OPTION_URL_KEYS;
+
+// Options whose value changes the server-side data fetch (job-name merging).
+// These are serialized into both the fetch URL and the shareable route URL; all
+// other options are client-only and only serialized into the route URL (so they
+// don't needlessly bust the data-fetch cache key).
+export const FETCH_RELEVANT_OPTIONS: HudOptionKey[] = [
+  "mergeEphemeralLF",
+  "mergeOSDC",
+];
+
 export interface HudParams {
   repoOwner: string;
   repoName: string;
@@ -130,9 +183,16 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
-  mergeEphemeralLF?: boolean;
-  mergeOSDC?: boolean;
   useRegexFilter?: boolean;
+  // Tri-state options (see TriState above).
+  useGrouping: TriState;
+  monsterFailures: TriState;
+  hideUnstable: TriState;
+  hideGreenColumns: TriState;
+  hideNonViableStrict: TriState;
+  hideAlwaysSkipped: TriState;
+  mergeEphemeralLF: TriState;
+  mergeOSDC: TriState;
 }
 
 export function isPyTorchPyTorchRepo(params: HudParams): boolean {
@@ -295,9 +355,23 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
-    mergeEphemeralLF: input.mergeEphemeralLF as boolean,
-    mergeOSDC: input.mergeOSDC as boolean,
     useRegexFilter: input.useRegexFilter === "true",
+    useGrouping: parseTriState(input[HUD_OPTION_URL_KEYS.useGrouping]),
+    monsterFailures: parseTriState(input[HUD_OPTION_URL_KEYS.monsterFailures]),
+    hideUnstable: parseTriState(input[HUD_OPTION_URL_KEYS.hideUnstable]),
+    hideGreenColumns: parseTriState(
+      input[HUD_OPTION_URL_KEYS.hideGreenColumns]
+    ),
+    hideNonViableStrict: parseTriState(
+      input[HUD_OPTION_URL_KEYS.hideNonViableStrict]
+    ),
+    hideAlwaysSkipped: parseTriState(
+      input[HUD_OPTION_URL_KEYS.hideAlwaysSkipped]
+    ),
+    mergeEphemeralLF: parseTriState(
+      input[HUD_OPTION_URL_KEYS.mergeEphemeralLF]
+    ),
+    mergeOSDC: parseTriState(input[HUD_OPTION_URL_KEYS.mergeOSDC]),
   };
 }
 
@@ -334,20 +408,26 @@ function formatHudURL(
     base += `&filter_unstable=true`;
   }
 
+  // Serialize tri-state options. "default" is never written to a URL; only
+  // explicit "on"/"off" appear (as true/false). The shareable route URL carries
+  // every option, while the data-fetch URL only carries options that change what
+  // the server returns (so client-only toggles don't bust the fetch cache key).
+  (Object.keys(HUD_OPTION_URL_KEYS) as HudOptionKey[]).forEach((key) => {
+    if (!keepFilter && !FETCH_RELEVANT_OPTIONS.includes(key)) {
+      return;
+    }
+    const state = params[key];
+    if (state === "on" || state === "off") {
+      base += `&${HUD_OPTION_URL_KEYS[key]}=${state === "on"}`;
+    }
+  });
+
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
 
   if (params.useRegexFilter && keepFilter) {
     base += `&useRegexFilter=true`;
-  }
-
-  if (params.mergeEphemeralLF) {
-    base += `&mergeEphemeralLF=true`;
-  }
-
-  if (params.mergeOSDC) {
-    base += `&mergeOSDC=true`;
   }
 
   // Preserve autorevert view params so router.push doesn't strip them.
