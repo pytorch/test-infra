@@ -387,6 +387,13 @@
     "https://github.com/pytorch/pytorch/issues/188836",
     []
   ],
+  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
+    "186865",
+    "https://github.com/pytorch/pytorch/issues/186865",
+    [
+      "linux"
+    ]
+  ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "188840",
     "https://github.com/pytorch/pytorch/issues/188840",
@@ -891,6 +898,13 @@
       "macos"
     ]
   ],
+  "test_pending_fusion_pro_and_epi_use_async_compile_False (__main__.TestPrologueFusion)": [
+    "189151",
+    "https://github.com/pytorch/pytorch/issues/189151",
+    [
+      "rocm"
+    ]
+  ],
   "test_pre_dispatch_export_invoke_quant_packed_simple_cpu_float32 (__main__.TestHOPCPU)": [
     "187866",
     "https://github.com/pytorch/pytorch/issues/187866",
@@ -1235,7 +1249,8 @@
     "https://github.com/pytorch/pytorch/issues/189133",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
