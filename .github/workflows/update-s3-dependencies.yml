@@ -36,7 +36,7 @@ on:
         required: false
         type: string
       include-prod:
-        description: 'Also update prod (whl) dependencies via promote-env (update-packages mode only)'
+        description: 'Update prod (whl) dependencies only, via promote-env (skips nightly/test; update-packages mode only)'
         required: false
         type: choice
         default: disabled
@@ -49,7 +49,10 @@ permissions:
   contents: read
 
 jobs:
+  # Nightly + test updates. Skipped when include-prod is enabled, so a prod
+  # run only touches prod (the update-prod job below) and never nightly/test.
   update:
+    if: ${{ github.event.inputs.include-prod != 'enabled' }}
     runs-on: ubuntu-22.04
     environment: pytorchbot-env
     container:
