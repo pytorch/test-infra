@@ -198,8 +198,14 @@ run_smoke_tests() {
 
     # torch.compile is not supported on Python 3.15+ (torch.compile() raises
     # RuntimeError at call time), so disable the compile smoke test there.
+    #
+    # ROCm validation runs on a CPU runner (no AMD GPU), so the compile check
+    # falls back to the CPU/Inductor path and fails with "Can't detect
+    # vectorized ISA for CPU" when the image lacks a C++ toolchain for ISA
+    # probing. Disable it for ROCm too.
     local compile_check=""
-    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" \
+          || ${MATRIX_GPU_ARCH_TYPE:-} == "rocm" ]]; then
         compile_check="--torch-compile-check disabled"
     fi
 
