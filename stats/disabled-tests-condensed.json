@@ -202,6 +202,14 @@
       "xpu"
     ]
   ],
+  "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
+    "152944",
+    "https://github.com/pytorch/pytorch/issues/152944",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188983",
     "https://github.com/pytorch/pytorch/issues/188983",
@@ -491,15 +499,6 @@
       "rocm"
     ]
   ],
-  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179742",
-    "https://github.com/pytorch/pytorch/issues/179742",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -584,13 +583,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float8_e5m2_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187895",
-    "https://github.com/pytorch/pytorch/issues/187895",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float8_e5m2fnuz_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -719,7 +711,8 @@
     "https://github.com/pytorch/pytorch/issues/188798",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
@@ -1049,6 +1042,19 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_close_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119364",
+    "https://github.com/pytorch/pytorch/issues/119364",
+    [
+      "asan",
+      "dynamo",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
     "179979",
     "https://github.com/pytorch/pytorch/issues/179979",
@@ -1160,6 +1166,13 @@
       "dynamo"
     ]
   ],
+  "test_trace_return_namedtuple (__main__.TestFX)": [
+    "176966",
+    "https://github.com/pytorch/pytorch/issues/176966",
+    [
+      "dynamo"
+    ]
+  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
@@ -1208,6 +1221,21 @@
     "https://github.com/pytorch/pytorch/issues/180322",
     [
       "dynamo"
+    ]
+  ],
+  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180195",
+    "https://github.com/pytorch/pytorch/issues/180195",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vmap (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "189133",
+    "https://github.com/pytorch/pytorch/issues/189133",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
