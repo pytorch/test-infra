@@ -560,6 +560,14 @@
       "macos"
     ]
   ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186867",
+    "https://github.com/pytorch/pytorch/issues/186867",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -576,13 +584,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float8_e4m3fnuz_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187867",
-    "https://github.com/pytorch/pytorch/issues/187867",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_float8_e5m2_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -717,6 +718,7 @@
     "188798",
     "https://github.com/pytorch/pytorch/issues/188798",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -907,7 +909,8 @@
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
     [
-      "linux"
+      "linux",
+      "slow"
     ]
   ],
   "test_range_based_static_shape_no_cond_dispatch (__main__.TestCustomOpAutoTune)": [
@@ -1025,6 +1028,18 @@
   "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
     "119346",
     "https://github.com/pytorch/pytorch/issues/119346",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_basic_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119357",
+    "https://github.com/pytorch/pytorch/issues/119357",
     [
       "asan",
       "linux",
