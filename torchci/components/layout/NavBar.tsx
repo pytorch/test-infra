@@ -79,10 +79,6 @@ function NavBar() {
       name: "ROCm test stats",
       href: "/rocm_test_stats",
     },
-    {
-      name: "CRCR CI Summary",
-      href: "/crcr",
-    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
@@ -162,6 +158,11 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/hud/pytorch/helion/main">
               Helion
+            </Link>
+          </li>
+          <li>
+            <Link prefetch={false} href="/crcr">
+              CRCR
             </Link>
           </li>
         </ul>
