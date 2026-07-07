@@ -515,6 +515,15 @@
       "rocm"
     ]
   ],
+  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179742",
+    "https://github.com/pytorch/pytorch/issues/179742",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179799",
     "https://github.com/pytorch/pytorch/issues/179799",
@@ -599,13 +608,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_float8_e5m2fnuz_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "187942",
-    "https://github.com/pytorch/pytorch/issues/187942",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_int16_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -914,13 +916,6 @@
       "rocm"
     ]
   ],
-  "test_pre_dispatch_export_invoke_quant_packed_simple_cpu_float32 (__main__.TestHOPCPU)": [
-    "187866",
-    "https://github.com/pytorch/pytorch/issues/187866",
-    [
-      "linux"
-    ]
-  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
@@ -1018,13 +1013,6 @@
       "rocm"
     ]
   ],
-  "test_scatter_add_to_large_input_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "187704",
-    "https://github.com/pytorch/pytorch/issues/187704",
-    [
-      "inductor"
-    ]
-  ],
   "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
     "167693",
     "https://github.com/pytorch/pytorch/issues/167693",
@@ -1071,6 +1059,18 @@
     [
       "asan",
       "dynamo",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_close_in_scope_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119514",
+    "https://github.com/pytorch/pytorch/issues/119514",
+    [
+      "asan",
       "linux",
       "mac",
       "macos",
@@ -1310,6 +1310,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180213",
+    "https://github.com/pytorch/pytorch/issues/180213",
+    [
+      "dynamo"
     ]
   ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
