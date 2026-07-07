@@ -158,8 +158,6 @@ runs:
             --write-out "%{http_code}" \
             -X POST \
             --max-time ${MAX_TIME} \
-            --retry 5 \
-            --retry-connrefused \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${OIDC_TOKEN}" \
             --data "${PAYLOAD}" \
