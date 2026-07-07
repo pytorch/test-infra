@@ -382,8 +382,12 @@ jobs:
           overwrite: true
 
       - name: Teardown Linux
-        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
+        if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false' && inputs.gpu-arch-type != 'xpu'
         uses: ./test-infra/.github/actions/teardown-linux
+
+      - name: Teardown XPU
+        uses: pytorch/pytorch/.github/actions/teardown-xpu@main
+        if: ${{ always() && inputs.gpu-arch-type == 'xpu' }}
 
       - name: Clean workspace after tear down
         if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
