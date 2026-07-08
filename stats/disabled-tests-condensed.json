@@ -86,13 +86,6 @@
       "linux"
     ]
   ],
-  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
-    "188513",
-    "https://github.com/pytorch/pytorch/issues/188513",
-    [
-      "linux"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
