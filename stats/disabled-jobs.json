@@ -39,6 +39,14 @@
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
   ],
+  "periodic-rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test": [
+    "jithunnair-amd",
+    "189261",
+    "https://github.com/pytorch/pytorch/issues/189261",
+    "periodic-rocm-mi300",
+    "linux-noble-rocm-py3.12-mi300",
+    "test"
+  ],
   "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
     "jithunnair-amd",
     "165040",
@@ -46,6 +54,14 @@
     "rocm",
     "linux-jammy-rocm-py3_10-gfx1100",
     "test (default)"
+  ],
+  "rocm-nightly / linux-noble-rocm-nightly-py3.12-gfx942 / test": [
+    "jithunnair-amd",
+    "189262",
+    "https://github.com/pytorch/pytorch/issues/189262",
+    "rocm-nightly",
+    "linux-noble-rocm-nightly-py3.12-gfx942",
+    "test"
   ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
     "pytorch-bot",
