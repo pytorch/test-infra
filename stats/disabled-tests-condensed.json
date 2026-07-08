@@ -402,6 +402,13 @@
     "https://github.com/pytorch/pytorch/issues/188836",
     []
   ],
+  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
+    "186865",
+    "https://github.com/pytorch/pytorch/issues/186865",
+    [
+      "linux"
+    ]
+  ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "188840",
     "https://github.com/pytorch/pytorch/issues/188840",
