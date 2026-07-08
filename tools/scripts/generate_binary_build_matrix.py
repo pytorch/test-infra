@@ -329,6 +329,9 @@ def get_wheel_install_command(
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
+        # Preview Python versions (e.g. 3.15 / 3.15t) have no PyPI wheels yet,
+        # so they must always install from download.pytorch.org, never PyPI.
+        and (python_version not in TORCH_ONLY_PYTHON_ARCHES)
         and (
             (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
