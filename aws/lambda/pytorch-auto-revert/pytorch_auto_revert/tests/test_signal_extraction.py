@@ -88,6 +88,7 @@ def J(
     conclusion: str = "success",
     started_at: datetime,
     rule: str = "",
+    workflow_event: str = "push",
 ):
     return JobRow(
         head_sha=Sha(sha),
@@ -101,6 +102,7 @@ def J(
         started_at=started_at,
         created_at=started_at,
         rule=rule,
+        workflow_event=workflow_event,
     )
 
 
@@ -1247,6 +1249,248 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNone(sig.test_classname)
         self.assertEqual(sig.test_file, "test_dataloader.py")
         self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
+
+    def test_job_group_concluded_flag_per_commit(self):
+        # The per-commit `job_group_concluded` flag drives born-red baseline
+        # detection. It must be True when the test's job group reached a
+        # terminal conclusion on a commit (even with no event for this test —
+        # the baseline witness) and False when the job group is still pending.
+        jobs = [
+            # C1 (newest): job concluded, the test failed here.
+            J(
+                sha="C1",
+                run=101,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2: job concluded (success), but this test has no row → baseline.
+            J(sha="C2", run=102, job=2, attempt=1, started_at=ts(self.t0, 20)),
+            # C3 (oldest): job still running → not concluded, no info yet.
+            J(
+                sha="C3",
+                run=103,
+                job=3,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                status="in_progress",
+                conclusion="",
+            ),
+        ]
+        tests = [
+            T(
+                job=1,
+                run=101,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        # Failing commit: concluded.
+        self.assertTrue(by_sha["C1"].job_group_concluded)
+        self.assertTrue(by_sha["C1"].has_failure)
+        # Concluded baseline: concluded, no events for this test.
+        self.assertTrue(by_sha["C2"].job_group_concluded)
+        self.assertEqual(by_sha["C2"].events, [])
+        # Pending job group: not concluded.
+        self.assertFalse(by_sha["C3"].job_group_concluded)
+        # End to end: this is a born-red signal (C2 is the concluded baseline).
+        part = sig.partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None
+        self.assertEqual(part.failed[-1].head_sha, "C1")
+        self.assertIn("C2", [c.head_sha for c in part.successful])
+
+    def test_job_group_concluded_excludes_skipped_group(self):
+        # A fully-skipped job group (e.g. an `if:` gate, or a required-check
+        # skip when an upstream dependency failed/cancelled) never ran the
+        # test, so it must NOT count as a concluded born-red baseline — it is
+        # "missing", same as cancelled. Otherwise a skipped commit fabricates a
+        # "test absent" baseline witness and can manufacture / mis-scope a
+        # born-red detection.
+        jobs = [
+            # C1 (newest): job concluded, the test failed here.
+            J(
+                sha="C1",
+                run=201,
+                job=11,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2 (oldest): the test's job group was SKIPPED — no run.
+            J(
+                sha="C2",
+                run=202,
+                job=12,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                status="completed",
+                conclusion="skipped",
+            ),
+        ]
+        tests = [
+            T(
+                job=11,
+                run=201,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        self.assertTrue(by_sha["C1"].job_group_concluded)
+        # Skipped group → treated as missing: not concluded, no event.
+        self.assertFalse(by_sha["C2"].job_group_concluded)
+        self.assertEqual(by_sha["C2"].events, [])
+        # No genuine concluded baseline anywhere → NOT born-red (the skipped
+        # commit must not serve as the baseline witness).
+        self.assertIsNone(sig.partition_born_red())
+
+    def test_workflow_dispatch_run_does_not_establish_baseline(self):
+        # An autorevert restart is a workflow_dispatch run. It is job/test-
+        # filtered, so a concluded dispatch with no event for this test is NOT
+        # proof the test was absent — it must not establish a born-red
+        # baseline. Only a natural (push) run can.
+        jobs = [
+            J(
+                sha="C1",
+                run=301,
+                job=21,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2: a workflow_dispatch run concluded (success), but this test had
+            # no row (it was filtered out of the dispatch / didn't run).
+            J(
+                sha="C2",
+                run=302,
+                job=22,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="success",
+                workflow_event="workflow_dispatch",
+            ),
+        ]
+        tests = [
+            T(
+                job=21,
+                run=301,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        self.assertTrue(by_sha["C1"].job_group_concluded)
+        # Dispatch-only commit: NOT a baseline (no natural run), no event.
+        self.assertFalse(by_sha["C2"].job_group_concluded)
+        self.assertEqual(by_sha["C2"].events, [])
+        # Only a dispatch "baseline" → not born-red.
+        self.assertIsNone(sig.partition_born_red())
+
+    def test_workflow_dispatch_failure_still_emits_event(self):
+        # A workflow_dispatch (gap-restart) run where the test DID run and
+        # failed must still surface a FAILURE event — that is how a gap restart
+        # moves the suspect — even though the dispatch run does not count toward
+        # job_group_concluded.
+        jobs = [
+            J(
+                sha="C1",
+                run=401,
+                job=31,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+                workflow_event="workflow_dispatch",
+            ),
+        ]
+        tests = [
+            T(
+                job=31,
+                run=401,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        c1 = next(c for c in sig.commits if c.head_sha == "C1")
+        # Dispatch failure still emits the FAILURE event (moves the suspect)…
+        self.assertTrue(c1.has_failure)
+        # …but the dispatch run does not establish the group as concluded.
+        self.assertFalse(c1.job_group_concluded)
+        # …and it records that we already dispatched a restart here.
+        self.assertTrue(c1.has_dispatch_run)
+
+    def test_has_dispatch_run_flag_tracks_workflow_dispatch(self):
+        # `has_dispatch_run` records that autorevert already restarted a commit
+        # (a workflow_dispatch run is present), so the gap bisection won't
+        # restart it twice. A natural-only commit has it False.
+        jobs = [
+            # C1: natural run only → no dispatch recorded.
+            J(
+                sha="C1",
+                run=501,
+                job=41,
+                attempt=1,
+                started_at=ts(self.t0, 30),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            # C2: a workflow_dispatch restart concluded here with no event for
+            # this test (test absent / filtered) → has_dispatch_run, not a
+            # baseline.
+            J(
+                sha="C2",
+                run=502,
+                job=42,
+                attempt=1,
+                started_at=ts(self.t0, 20),
+                conclusion="success",
+                workflow_event="workflow_dispatch",
+            ),
+        ]
+        tests = [
+            T(
+                job=41,
+                run=501,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "foo.py::test_bar")
+        self.assertIsNotNone(sig)
+        by_sha = {c.head_sha: c for c in sig.commits}
+        self.assertFalse(by_sha["C1"].has_dispatch_run)  # natural only
+        self.assertTrue(by_sha["C2"].has_dispatch_run)  # restarted once
+        self.assertFalse(by_sha["C2"].job_group_concluded)  # not a baseline
+        self.assertEqual(by_sha["C2"].events, [])
 
 
 if __name__ == "__main__":

@@ -407,6 +407,21 @@ class SignalExtractor:
             # y-axis: commits (newest → older)
             for commit_sha, _ in commits:
                 events: List[SignalEvent] = []
+                # Track whether this test's job group ran to a terminal
+                # conclusion on this commit via a NATURAL run: ≥1 non-cancelled,
+                # non-skipped, non-workflow_dispatch run, and none still pending.
+                # A naturally-concluded commit with no events is a born-red
+                # baseline witness (the test was genuinely absent), as opposed
+                # to a commit whose jobs are still running (no info yet) or were
+                # only exercised by an autorevert restart (which is job/test-
+                # filtered and so cannot prove the test absent).
+                group_runs = 0
+                group_pending = False
+                # True once autorevert has dispatched a restart on this commit's
+                # job group (a workflow_dispatch run is present, pending or
+                # concluded). Drives `SignalCommit.has_dispatch_run` so the gap
+                # bisection won't restart the same commit twice.
+                group_had_dispatch = False
 
                 # x-axis: events for the signal
                 for wf_run_id, run_attempt in run_ids_attempts.get(
@@ -416,9 +431,29 @@ class SignalExtractor:
                         (commit_sha, wf_name, job_base_name, wf_run_id, run_attempt),
                         default=JobMeta(),
                     )
-                    if meta.is_cancelled:
-                        # canceled attempts are treated as missing
+                    if meta.is_cancelled or meta.is_skipped:
+                        # Cancelled / skipped attempts are treated as missing
+                        # (same as JobMeta.status → None). A skipped job — an
+                        # `if:` gate, or a required-check skip when an upstream
+                        # dependency failed/cancelled — never ran the test, so
+                        # it is NOT proof the test was absent. Counting it would
+                        # fabricate a born-red baseline witness.
                         continue
+                    # Only NATURAL runs (push/schedule) establish the born-red
+                    # baseline. An autorevert workflow_dispatch restart is
+                    # job/test-filtered, so a concluded dispatch with no event
+                    # for this test is not proof of absence. Dispatch runs still
+                    # emit their outcome/pending events below — so a gap-restart
+                    # that the test fails still surfaces a FAILURE and moves the
+                    # suspect — they just don't count toward `job_group_concluded`.
+                    if meta.is_workflow_dispatch:
+                        # A restart we already dispatched on this commit — probed
+                        # once, so the gap bisection must not restart it again.
+                        group_had_dispatch = True
+                    else:
+                        group_runs += 1
+                        if meta.is_pending:
+                            group_pending = True
                     outcome = tests_by_group_attempt.get(
                         (
                             commit_sha,
@@ -486,6 +521,8 @@ class SignalExtractor:
                         head_sha=commit_sha,
                         timestamp=commit_timestamps[commit_sha],
                         events=events,
+                        job_group_concluded=(group_runs > 0 and not group_pending),
+                        has_dispatch_run=group_had_dispatch,
                     )
                 )
 
