@@ -123,6 +123,13 @@
       "rocm"
     ]
   ],
+  "test_cat_pointwise (__main__.NumBytesMetricTests)": [
+    "189244",
+    "https://github.com/pytorch/pytorch/issues/189244",
+    [
+      "rocm"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -151,6 +158,14 @@
     "https://github.com/pytorch/pytorch/issues/181318",
     [
       "linux"
+    ]
+  ],
+  "test_col2im_uint32_overflow (__main__.TestMPS)": [
+    "187289",
+    "https://github.com/pytorch/pytorch/issues/187289",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_combo_kernel_dynamic_scale_rblock (__main__.ComboKernelTests)": [
@@ -508,6 +523,15 @@
       "slow"
     ]
   ],
+  "test_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179799",
+    "https://github.com/pytorch/pytorch/issues/179799",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_grad_non_tensor_input (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187658",
     "https://github.com/pytorch/pytorch/issues/187658",
@@ -583,13 +607,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_int16_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "188010",
-    "https://github.com/pytorch/pytorch/issues/188010",
-    [
-      "rocm"
     ]
   ],
   "test_index_cuda_with_cpu_int32_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
@@ -1080,6 +1097,18 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_complex_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119536",
+    "https://github.com/pytorch/pytorch/issues/119536",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
     "179979",
     "https://github.com/pytorch/pytorch/issues/179979",
@@ -1277,7 +1306,8 @@
     "189223",
     "https://github.com/pytorch/pytorch/issues/189223",
     [
-      "linux"
+      "linux",
+      "slow"
     ]
   ],
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
