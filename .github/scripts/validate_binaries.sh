@@ -288,6 +288,15 @@ if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
     export PATH="${CONDA_PREFIX}/bin:${PATH}"
 fi
 
+# ROCm validation runs on the lean pytorch/almalinux-builder:cpu-main image,
+# which does not ship libatomic.so.1. torch's _C extension links it, so
+# `import torch` fails with "libatomic.so.1: cannot open shared object file".
+# conda envs mask this by pulling libatomic in via libgcc, but the uv-based
+# 3.15 env does not, so install it explicitly. Scoped to ROCm on Linux.
+if [[ ${MATRIX_GPU_ARCH_TYPE:-} == 'rocm' && ${TARGET_OS} == 'linux' ]]; then
+    (dnf install -y libatomic || yum install -y libatomic) || true
+fi
+
 # Remove previous installation if wheel package
 if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
     pip3 uninstall -y torch torchaudio torchvision || true
