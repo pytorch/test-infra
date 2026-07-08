@@ -34,7 +34,7 @@ PYTHON_ARCHES_DICT = {
 PREVIEW_PYTHON_ARCHES_DICT = {
     "nightly": [],
     "test": ["3.15", "3.15t"],
-    "release": [],
+    "release": ["3.15", "3.15t"],
 }
 
 # Python versions for which only torch is validated (no torchvision). torchvision
