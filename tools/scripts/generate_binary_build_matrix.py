@@ -382,7 +382,9 @@ def generate_libtorch_matrix(
 
     if abi_versions is None or len(abi_versions) == 0:
         if os == WINDOWS:
-            abi_versions = [RELEASE, DEBUG]
+            # Windows libtorch debug builds are no longer produced; only ship
+            # release builds for nightly and release channels.
+            abi_versions = [RELEASE]
         elif os == LINUX:
             abi_versions = [CXX11_ABI]
         elif os in [MACOS_ARM64]:
