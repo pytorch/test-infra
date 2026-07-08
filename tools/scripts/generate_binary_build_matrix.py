@@ -34,7 +34,7 @@ PYTHON_ARCHES_DICT = {
 PREVIEW_PYTHON_ARCHES_DICT = {
     "nightly": [],
     "test": ["3.15", "3.15t"],
-    "release": [],
+    "release": ["3.15", "3.15t"],
 }
 
 # Python versions for which only torch is validated (no torchvision). torchvision
@@ -106,7 +106,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.13.0"
 CURRENT_CANDIDATE_VERSION = "2.13.0"
-CURRENT_STABLE_VERSION = "2.12.0"
+CURRENT_STABLE_VERSION = "2.13.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
