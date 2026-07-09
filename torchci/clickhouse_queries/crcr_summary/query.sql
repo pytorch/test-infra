@@ -3,6 +3,7 @@ SELECT
     anyLast(downstream_repo_level) AS downstream_repo_level,
     countIf(conclusion = 'success') AS successes,
     countIf(conclusion = 'failure') AS failures,
+    countIf(conclusion = 'timed_out') AS timed_out,
     count() AS total,
     if(total > 0, successes / total, 0) AS pass_rate,
     avg(duration_seconds) AS avg_duration_s,
