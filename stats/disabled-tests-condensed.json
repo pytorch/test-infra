@@ -285,6 +285,20 @@
       "slow"
     ]
   ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "189326",
+    "https://github.com/pytorch/pytorch/issues/189326",
+    [
+      "xpu"
+    ]
+  ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "189327",
+    "https://github.com/pytorch/pytorch/issues/189327",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
     "185267",
     "https://github.com/pytorch/pytorch/issues/185267",
