@@ -596,6 +596,14 @@
       "linux"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186866",
+    "https://github.com/pytorch/pytorch/issues/186866",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
     "186605",
     "https://github.com/pytorch/pytorch/issues/186605",
@@ -889,6 +897,13 @@
       "linux"
     ]
   ],
+  "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
+    "189397",
+    "https://github.com/pytorch/pytorch/issues/189397",
+    [
+      "rocm"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
@@ -1030,15 +1045,6 @@
     "167693",
     "https://github.com/pytorch/pytorch/issues/167693",
     [
-      "rocm"
-    ]
-  ],
-  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
-    "145189",
-    "https://github.com/pytorch/pytorch/issues/145189",
-    [
-      "inductor",
-      "linux",
       "rocm"
     ]
   ],
