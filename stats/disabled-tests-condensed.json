@@ -442,6 +442,22 @@
       "xpu"
     ]
   ],
+  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180259",
+    "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_equivalent_template_code (__main__.BenchmarkMultiTemplateFusionGpuTest)": [
+    "166601",
+    "https://github.com/pytorch/pytorch/issues/166601",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
     "188668",
     "https://github.com/pytorch/pytorch/issues/188668",
@@ -612,13 +628,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_index_cuda_with_cpu_int64_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "188123",
-    "https://github.com/pytorch/pytorch/issues/188123",
-    [
-      "rocm"
     ]
   ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -871,6 +880,13 @@
     "https://github.com/pytorch/pytorch/issues/186908",
     [
       "rocm"
+    ]
+  ],
+  "test_new_group_sort_ranks_false_preserves_order_cpu (__main__.TestC10dTorchCommsBasicCPU)": [
+    "189222",
+    "https://github.com/pytorch/pytorch/issues/189222",
+    [
+      "linux"
     ]
   ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
@@ -1138,6 +1154,18 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_open_in_scope_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119668",
+    "https://github.com/pytorch/pytorch/issues/119668",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
     "179979",
     "https://github.com/pytorch/pytorch/issues/179979",
@@ -1289,13 +1317,6 @@
     "188693",
     "https://github.com/pytorch/pytorch/issues/188693",
     []
-  ],
-  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180322",
-    "https://github.com/pytorch/pytorch/issues/180322",
-    [
-      "dynamo"
-    ]
   ],
   "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
     "180195",
