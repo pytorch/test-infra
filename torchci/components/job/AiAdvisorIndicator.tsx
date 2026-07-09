@@ -67,7 +67,7 @@ function isDispatched(
 }
 
 const VERDICT_CHIP_COLORS: Record<
-  string,
+  AdvisorVerdictType,
   "error" | "warning" | "success" | "default" | "info"
 > = {
   revert: "error",
@@ -76,19 +76,16 @@ const VERDICT_CHIP_COLORS: Record<
   not_related: "success",
   infra_issue: "info",
   garbage: "default",
-} satisfies Record<
-  AdvisorVerdictType,
-  "error" | "warning" | "success" | "default" | "info"
->;
+};
 
-const VERDICT_LABELS: Record<string, string> = {
+const VERDICT_LABELS: Record<AdvisorVerdictType, string> = {
   revert: "Revert",
   related: "Related",
   unsure: "Unsure",
   not_related: "Not Related",
   infra_issue: "Infra Issue",
   garbage: "Garbage Signal",
-} satisfies Record<AdvisorVerdictType, string>;
+};
 
 export default function AiAdvisorIndicator({
   jobName,

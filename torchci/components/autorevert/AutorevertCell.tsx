@@ -29,23 +29,23 @@ const HIGHLIGHT_LABELS: Record<string, string> = {
   restart: "Targeted for CI restart",
 };
 
-const ADV_VERDICT_CLS: Record<string, string> = {
+const ADV_VERDICT_CLS: Record<AdvisorVerdictType, string> = {
   revert: styles.advRevert,
   related: styles.advRevert,
   not_related: styles.advNotRelated,
   infra_issue: styles.advInfra,
   garbage: styles.advGarbage,
   unsure: styles.advUnsure,
-} satisfies Record<AdvisorVerdictType, string>;
+};
 
-const ADV_VERDICT_SHORT: Record<string, string> = {
+const ADV_VERDICT_SHORT: Record<AdvisorVerdictType, string> = {
   revert: "REV",
   related: "REV",
   not_related: "OK",
   infra_issue: "INF",
   garbage: "JNK",
   unsure: "?",
-} satisfies Record<AdvisorVerdictType, string>;
+};
 
 interface AutorevertCellProps {
   events: CellEvent[];
