@@ -39,7 +39,7 @@ type Row = {
 };
 
 const COUNT_KEYS = ["total", "skipped", "flaky", "failure"] as const;
-type CountKey = typeof COUNT_KEYS[number];
+type CountKey = (typeof COUNT_KEYS)[number];
 
 const COUNT_LABELS: Record<CountKey, string> = {
   total: "Total",
