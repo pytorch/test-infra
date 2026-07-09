@@ -42,6 +42,13 @@
       "rocm"
     ]
   ],
+  "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "189322",
+    "https://github.com/pytorch/pytorch/issues/189322",
+    [
+      "inductor"
+    ]
+  ],
   "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "182260",
     "https://github.com/pytorch/pytorch/issues/182260",
@@ -421,21 +428,6 @@
       "xpu"
     ]
   ],
-  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180259",
-    "https://github.com/pytorch/pytorch/issues/180259",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_export_numpy_propagate_real_tensors (__main__.PropagateRealTensorsFakeTensorTest)": [
-    "186869",
-    "https://github.com/pytorch/pytorch/issues/186869",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
     "188668",
     "https://github.com/pytorch/pytorch/issues/188668",
@@ -459,6 +451,13 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_fake_export_contiguous_cpu_float32 (__main__.TestExportOpInfoCPU)": [
+    "189323",
+    "https://github.com/pytorch/pytorch/issues/189323",
+    [
+      "linux"
     ]
   ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -860,13 +859,6 @@
       "rocm"
     ]
   ],
-  "test_new_group_sort_ranks_false_preserves_order_cpu (__main__.TestC10dTorchCommsBasicCPU)": [
-    "189222",
-    "https://github.com/pytorch/pytorch/issues/189222",
-    [
-      "linux"
-    ]
-  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
@@ -1112,6 +1104,19 @@
     "https://github.com/pytorch/pytorch/issues/119576",
     [
       "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119537",
+    "https://github.com/pytorch/pytorch/issues/119537",
+    [
+      "asan",
+      "dynamo",
       "linux",
       "mac",
       "macos",
