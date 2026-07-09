@@ -499,6 +499,21 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
+  test("ciflow/crcr/* labels are ignored (handled by the relay, not push-tags)", async () => {
+    // Deep-clone to avoid mutating the cached require() result.
+    const payload = JSON.parse(
+      JSON.stringify(require("./fixtures/push-trigger/pull_request.labeled"))
+    );
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/crcr/crcr-test";
+
+    // No nock interceptors are set up: a crcr label must make no GitHub API
+    // calls (no "Unknown label" comment, no tag creation). With
+    // nock.disableNetConnect(), any request would throw, and the afterEach
+    // nock.isDone() assertion confirms nothing was called.
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
   test("CIFlow label without approval keeps label and posts pending comment", async () => {
     // Deep-clone fixture to avoid mutating the cached require() result
     const payload = JSON.parse(

@@ -11,7 +11,11 @@ import {
 const CIFLOW_PENDING_MARKER = "<!-- ciflow-pending -->";
 
 function isCIFlowLabel(label: string): boolean {
-  return label.startsWith("ciflow/");
+  // `ciflow/crcr/*` are Cross-Repo CI Relay gating labels: the relay reacts to
+  // the `pull_request.labeled` webhook directly, they do not push a git tag to
+  // trigger CI. So they must not go through this push-tag machinery (which would
+  // wrongly flag them as an "Unknown label" and create a spurious ciflow tag).
+  return label.startsWith("ciflow/") && !label.startsWith("ciflow/crcr/");
 }
 
 /**
