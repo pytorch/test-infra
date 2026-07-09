@@ -129,7 +129,14 @@ runs:
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
-          conda install -y conda=25.3.0
+          # Floor pin instead of an exact pin: the runner's active conda env
+          # dictates which conda builds are installable (e.g. the macOS M1
+          # runners' base env moved to python 3.14, and conda only ships
+          # py3.14 builds from 26.1.0 on; exact conda=25.3.0 became
+          # unsolvable and broke all macOS wheel builds on 2026-07-08).
+          # A floor keeps the original >=25.3.0 requirement while letting
+          # each runner solve a conda compatible with its base python.
+          conda install -y "conda>=25.3.0"
 
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
