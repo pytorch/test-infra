@@ -57,6 +57,7 @@ HUD_CSS = """
     .advisor-cell.adv-revert { color: #a40000; }
     .advisor-cell.adv-not_related { color: #1a73e8; }
     .advisor-cell.adv-garbage { color: #7a5a00; }
+    .advisor-cell.adv-infra_issue { color: #57606a; }
     .advisor-cell.adv-unsure { color: #555; }
     .advisor-dispatch { font-size: 10px; display: block; margin-top: 2px;
         color: #1a73e8; font-style: italic; }
