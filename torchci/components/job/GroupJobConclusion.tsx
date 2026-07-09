@@ -165,11 +165,22 @@ export default function HudGroupedCell({
   // When hiding non-viable-strict, restrict the group's status calculation
   // (and tooltip contents) to viable/strict-blocking jobs only — otherwise a
   // non-viable-strict failure would still light up a kept group column.
-  const effectiveJobs = hideNonViableStrict
-    ? jobs.filter((job) =>
-        isJobViableStrictBlocking(job.name, repoOwner, repoName)
-      )
-    : jobs;
+  //
+  // The viable/strict-blocking concept only exists for pytorch/pytorch, so this
+  // filter must be ignored for every other repo. Without this guard, on a
+  // domain repo (e.g. pytorch/vision, pytorch/executorch) the filter removes
+  // *every* job from the group, `effectiveJobs` becomes empty, and the status
+  // computation below falls into `noStatusJobs.length === effectiveJobs.length`
+  // (0 === 0) => AllNull => every grouped cell renders grey. This mirrors the
+  // column-visibility guard in the HUD page (`isPyTorchPyTorchRepo`).
+  const isPyTorchPyTorchRepo =
+    repoOwner === "pytorch" && repoName === "pytorch";
+  const effectiveJobs =
+    hideNonViableStrict && isPyTorchPyTorchRepo
+      ? jobs.filter((job) =>
+          isJobViableStrictBlocking(job.name, repoOwner, repoName)
+        )
+      : jobs;
 
   // Check if this group contains autorevert signals
   const isAutorevertSignal = rowData
