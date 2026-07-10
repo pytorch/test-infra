@@ -562,9 +562,9 @@
       "macos"
     ]
   ],
-  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179853",
-    "https://github.com/pytorch/pytorch/issues/179853",
+  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179811",
+    "https://github.com/pytorch/pytorch/issues/179811",
     [
       "linux",
       "rocm",
@@ -574,6 +574,15 @@
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179990",
+    "https://github.com/pytorch/pytorch/issues/179990",
     [
       "linux",
       "rocm",
