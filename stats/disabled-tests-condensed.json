@@ -203,20 +203,6 @@
       "xpu"
     ]
   ],
-  "test_compare_cpu_linalg_matrix_sqrth_xpu_float32 (__main__.TestCommonXPU)": [
-    "188391",
-    "https://github.com/pytorch/pytorch/issues/188391",
-    [
-      "xpu"
-    ]
-  ],
-  "test_compare_cpu_linalg_polar_xpu_float32 (__main__.TestCommonXPU)": [
-    "188135",
-    "https://github.com/pytorch/pytorch/issues/188135",
-    [
-      "xpu"
-    ]
-  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -231,34 +217,6 @@
     [
       "inductor",
       "linux"
-    ]
-  ],
-  "test_comprehensive_linalg_matrix_sqrth_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "188393",
-    "https://github.com/pytorch/pytorch/issues/188393",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_linalg_matrix_sqrth_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "188392",
-    "https://github.com/pytorch/pytorch/issues/188392",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_linalg_polar_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "188239",
-    "https://github.com/pytorch/pytorch/issues/188239",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_linalg_polar_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "188238",
-    "https://github.com/pytorch/pytorch/issues/188238",
-    [
-      "xpu"
     ]
   ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
