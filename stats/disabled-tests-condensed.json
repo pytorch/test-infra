@@ -257,22 +257,6 @@
       "xpu"
     ]
   ],
-  "test_correctness_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185267",
-    "https://github.com/pytorch/pytorch/issues/185267",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_correctness_with_reusing_ir_ne_cpu_float32 (__main__.TestLazyOpInfoCPU)": [
-    "185268",
-    "https://github.com/pytorch/pytorch/issues/185268",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
     "188773",
     "https://github.com/pytorch/pytorch/issues/188773",
@@ -281,15 +265,15 @@
     ]
   ],
   "test_create_with_external_constants_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "189510",
-    "https://github.com/pytorch/pytorch/issues/189510",
+    "189515",
+    "https://github.com/pytorch/pytorch/issues/189515",
     [
       "xpu"
     ]
   ],
   "test_create_with_external_constants_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189511",
-    "https://github.com/pytorch/pytorch/issues/189511",
+    "189514",
+    "https://github.com/pytorch/pytorch/issues/189514",
     [
       "xpu"
     ]
@@ -360,13 +344,6 @@
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
-    [
-      "linux"
-    ]
-  ],
-  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
-    "188234",
-    "https://github.com/pytorch/pytorch/issues/188234",
     [
       "linux"
     ]
@@ -619,15 +596,6 @@
       "slow"
     ]
   ],
-  "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179990",
-    "https://github.com/pytorch/pytorch/issues/179990",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_jacfwd_randomness (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "188041",
     "https://github.com/pytorch/pytorch/issues/188041",
@@ -684,13 +652,6 @@
     "https://github.com/pytorch/pytorch/issues/188896",
     [
       "linux"
-    ]
-  ],
-  "test_lazy_init_with_view (__main__.LazyFuncionalizationTest)": [
-    "179874",
-    "https://github.com/pytorch/pytorch/issues/179874",
-    [
-      "dynamo"
     ]
   ],
   "test_linear_block_compile_parity_backward (__main__.TestDropoutAlignRandomEager)": [
