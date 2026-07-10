@@ -280,6 +280,20 @@
       "xpu"
     ]
   ],
+  "test_create_with_external_constants_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "189510",
+    "https://github.com/pytorch/pytorch/issues/189510",
+    [
+      "xpu"
+    ]
+  ],
+  "test_create_with_external_constants_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "189511",
+    "https://github.com/pytorch/pytorch/issues/189511",
+    [
+      "xpu"
+    ]
+  ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
     "181224",
     "https://github.com/pytorch/pytorch/issues/181224",
