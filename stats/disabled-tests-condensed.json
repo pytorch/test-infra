@@ -189,13 +189,6 @@
       "xpu"
     ]
   ],
-  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
-    "187202",
-    "https://github.com/pytorch/pytorch/issues/187202",
-    [
-      "linux"
-    ]
-  ],
   "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
     "187019",
     "https://github.com/pytorch/pytorch/issues/187019",
@@ -567,15 +560,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179811",
-    "https://github.com/pytorch/pytorch/issues/179811",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
