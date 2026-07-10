@@ -236,20 +236,6 @@
       "slow"
     ]
   ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "189326",
-    "https://github.com/pytorch/pytorch/issues/189326",
-    [
-      "xpu"
-    ]
-  ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189327",
-    "https://github.com/pytorch/pytorch/issues/189327",
-    [
-      "xpu"
-    ]
-  ],
   "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
     "188773",
     "https://github.com/pytorch/pytorch/issues/188773",
@@ -260,13 +246,6 @@
   "test_create_with_external_constants_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
     "189515",
     "https://github.com/pytorch/pytorch/issues/189515",
-    [
-      "xpu"
-    ]
-  ],
-  "test_create_with_external_constants_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189514",
-    "https://github.com/pytorch/pytorch/issues/189514",
     [
       "xpu"
     ]
