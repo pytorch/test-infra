@@ -1048,6 +1048,15 @@
       "rocm"
     ]
   ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
     "119346",
     "https://github.com/pytorch/pytorch/issues/119346",
