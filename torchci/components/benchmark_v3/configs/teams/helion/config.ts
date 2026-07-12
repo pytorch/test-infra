@@ -23,34 +23,43 @@ const DETAIL_VIEW_METADATA_COLUMNS = [
   },
 ] as const;
 
-const RENDER_MAPPING_BOOK = {
-  helion_speedup: {
-    displayName: "Helion Speedup (Geomean)",
-    unit: {
-      unit: "x",
-    },
-  },
+// Metric definitions (single source of truth)
+const HIDDEN = { hide: true } as const;
+const SPEEDUP_UNIT = { unit: { unit: "x" } } as const;
+
+const METRIC_DEFS = {
+  helion_speedup: { displayName: "Helion Speedup (Geomean)", ...SPEEDUP_UNIT },
   torch_compile_speedup: {
     displayName: "Torch Compile Speedup (Geomean)",
-    unit: {
-      unit: "x",
-    },
+    ...SPEEDUP_UNIT,
   },
-  triton_speedup: {
-    displayName: "Triton Speedup (Geomean)",
-    unit: {
-      unit: "x",
-    },
+  triton_speedup: { displayName: "Triton Speedup (Geomean)", ...SPEEDUP_UNIT },
+  helion_compile_time_s: {
+    displayName: "Helion Compile Time (s)",
+    unit: { unit: "s" },
   },
-  helion_accuracy: {
-    hide: true,
-  },
-  triton_accuracy: {
-    hide: true,
-  },
-  torch_compile_accuracy: {
-    hide: true,
-  },
+};
+
+// Combined render book for detail views and charts (shows everything except accuracy)
+const RENDER_MAPPING_BOOK = {
+  ...METRIC_DEFS,
+  helion_accuracy: HIDDEN,
+  triton_accuracy: HIDDEN,
+  torch_compile_accuracy: HIDDEN,
+};
+
+// Speedup comparison table (hides compile time + accuracy)
+const SPEEDUP_RENDER_BOOK = {
+  ...RENDER_MAPPING_BOOK,
+  helion_compile_time_s: HIDDEN,
+};
+
+// Compile time comparison table (hides speedup + accuracy)
+const COMPILE_TIME_RENDER_BOOK = {
+  ...RENDER_MAPPING_BOOK,
+  helion_speedup: HIDDEN,
+  torch_compile_speedup: HIDDEN,
+  triton_speedup: HIDDEN,
 };
 
 export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
@@ -198,7 +207,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
       },
       {
         type: "AutoBenchmarkPairwiseTable",
-        title: "Comparison Table",
+        title: "Speedup Comparison",
         config: {
           primary: {
             fields: ["model"],
@@ -216,7 +225,39 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             },
           ],
           renderOptions: {
-            tableRenderingBook: RENDER_MAPPING_BOOK,
+            tableRenderingBook: SPEEDUP_RENDER_BOOK,
+            highlightPolicy: {
+              direction: "row",
+              regex: "_speedup$",
+              policy: "max",
+            },
+            flex: {
+              primary: 2,
+            },
+          },
+        },
+      },
+      {
+        type: "AutoBenchmarkPairwiseTable",
+        title: "Compile Time Comparison",
+        config: {
+          primary: {
+            fields: ["model"],
+            displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model", "device", "arch"],
+            },
+          },
+          extraMetadata: [
+            {
+              field: "arch",
+              displayName: "Hardware model",
+            },
+          ],
+          renderOptions: {
+            tableRenderingBook: COMPILE_TIME_RENDER_BOOK,
             flex: {
               primary: 2,
             },
