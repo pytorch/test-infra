@@ -16,6 +16,9 @@ defaults:
   run:
     working-directory: tools/stronghold/
 
+permissions:
+  contents: read
+
 jobs:
   bc-linter-tests:
     name: BC-Linter Tests

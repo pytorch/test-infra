@@ -8,6 +8,9 @@ on:
       - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-m1:
     uses: ./.github/workflows/macos_job.yml

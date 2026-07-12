@@ -8,6 +8,9 @@ on:
       - .github/workflows/lambda-runner-binaries-syncer.yml
       - "terraform-aws-github-runner/modules/runner-binaries-syncer/lambdas/runner-binaries-syncer/**"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: "Run tests for runner binaries syncer lambda"

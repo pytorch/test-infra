@@ -10,6 +10,9 @@ on:
     paths:
       - '.github/actions/upload-artifact-s3/**'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build

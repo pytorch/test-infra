@@ -9,6 +9,9 @@ on:
       - .github/scripts/run_with_env_secrets.py
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-secrets-no-filter-var:
     uses: ./.github/workflows/linux_job.yml
