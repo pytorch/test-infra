@@ -129,7 +129,16 @@ runs:
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
-          conda install -y conda=25.3.0
+          # Only pin conda on the Linux/Windows build containers. Their base env
+          # ships an older conda and relies on the implicit `defaults` channel
+          # that conda>=26 removed (upgrading them yields NoChannelsConfiguredError
+          # on the conda create below). The macOS runners' base env is on Python
+          # 3.14 -- which conda=25.3.0 has no build for (py314 starts at 26.1.0) --
+          # and already ships a newer conda with channels configured, so leave it
+          # untouched.
+          if [[ "${RUNNER_OS}" != "macOS" ]]; then
+            conda install -y conda=25.3.0
+          fi
 
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
