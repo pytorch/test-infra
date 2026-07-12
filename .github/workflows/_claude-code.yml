@@ -76,6 +76,18 @@ jobs:
       issues: write
       id-token: write
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@6c439dc8bdf86240f7f3b9d8e5c8d3e9cf7af60c # v2.12.1
+        with:
+          egress-policy: audit
+          disable-sudo: true
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+            sts.amazonaws.com:443
+            bedrock.us-east-1.amazonaws.com:443
+            bedrock-runtime.us-east-1.amazonaws.com:443
       - name: Verify write access
         uses: actions/github-script@v7
         with:
