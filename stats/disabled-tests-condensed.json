@@ -636,15 +636,6 @@
       "slow"
     ]
   ],
-  "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180324",
-    "https://github.com/pytorch/pytorch/issues/180324",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_large_strided_reduction_cuda (__main__.GPUTests)": [
     "189709",
     "https://github.com/pytorch/pytorch/issues/189709",
