@@ -219,6 +219,14 @@
       "linux"
     ]
   ],
+  "test_concurrent_compile_to_python_smoke (__main__.TestAOTCompileToPython)": [
+    "189665",
+    "https://github.com/pytorch/pytorch/issues/189665",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
@@ -571,9 +579,9 @@
       "slow"
     ]
   ],
-  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179897",
-    "https://github.com/pytorch/pytorch/issues/179897",
+  "test_hessian_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179853",
+    "https://github.com/pytorch/pytorch/issues/179853",
     [
       "linux",
       "rocm",
@@ -805,13 +813,6 @@
   "test_nested_dict_partial_load (__main__.TestCheckpointer)": [
     "189221",
     "https://github.com/pytorch/pytorch/issues/189221",
-    [
-      "rocm"
-    ]
-  ],
-  "test_nested_tensor_multiprocessing_context_forkserver_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
-    "186908",
-    "https://github.com/pytorch/pytorch/issues/186908",
     [
       "rocm"
     ]
