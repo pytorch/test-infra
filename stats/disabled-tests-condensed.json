@@ -1293,15 +1293,6 @@
       "dynamo"
     ]
   ],
-  "test_vmap (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "189133",
-    "https://github.com/pytorch/pytorch/issues/189133",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
     "189711",
     "https://github.com/pytorch/pytorch/issues/189711",
