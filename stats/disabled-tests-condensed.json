@@ -535,30 +535,6 @@
       "linux"
     ]
   ],
-  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
-    "186866",
-    "https://github.com/pytorch/pytorch/issues/186866",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186605",
-    "https://github.com/pytorch/pytorch/issues/186605",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186867",
-    "https://github.com/pytorch/pytorch/issues/186867",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
