@@ -139,7 +139,7 @@ jobs:
         env:
           DEPENDENCIES_DIR: c:\temp\dependencies\
         if: inputs.architecture == 'arm64'
-        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        uses: git-for-windows/setup-git-for-windows-sdk@f52a672567ce424cb56dabb9b8d12995f041786f # v1.12.0
         with:
           architecture: aarch64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
