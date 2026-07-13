@@ -204,6 +204,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_arange_xpu_int64 (__main__.TestInductorOpInfoXPU)": [
+    "189662",
+    "https://github.com/pytorch/pytorch/issues/189662",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188983",
     "https://github.com/pytorch/pytorch/issues/188983",
@@ -234,6 +241,20 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "189326",
+    "https://github.com/pytorch/pytorch/issues/189326",
+    [
+      "xpu"
+    ]
+  ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "189327",
+    "https://github.com/pytorch/pytorch/issues/189327",
+    [
+      "xpu"
     ]
   ],
   "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
