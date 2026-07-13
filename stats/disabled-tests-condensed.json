@@ -227,6 +227,13 @@
       "rocm"
     ]
   ],
+  "test_consecutive_split_cumsum_cuda (__main__.GPUTests)": [
+    "189708",
+    "https://github.com/pytorch/pytorch/issues/189708",
+    [
+      "rocm"
+    ]
+  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
@@ -415,24 +422,6 @@
       "rocm"
     ]
   ],
-  "test_fake_crossref_backward_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
-    "159150",
-    "https://github.com/pytorch/pytorch/issues/159150",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_fake_crossref_backward_no_amp_nn_functional_bilinear_cuda_float32 (__main__.TestFakeTensorCUDA)": [
-    "159151",
-    "https://github.com/pytorch/pytorch/issues/159151",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_fake_export_contiguous_cpu_float32 (__main__.TestExportOpInfoCPU)": [
     "189323",
     "https://github.com/pytorch/pytorch/issues/189323",
@@ -588,6 +577,13 @@
       "slow"
     ]
   ],
+  "test_invalid_block_size_cuda (__main__.TestFlexAttentionCUDA)": [
+    "189706",
+    "https://github.com/pytorch/pytorch/issues/189706",
+    [
+      "rocm"
+    ]
+  ],
   "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179897",
     "https://github.com/pytorch/pytorch/issues/179897",
@@ -631,6 +627,15 @@
       "slow"
     ]
   ],
+  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "180204",
+    "https://github.com/pytorch/pytorch/issues/180204",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jvp_two_tensors_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180324",
     "https://github.com/pytorch/pytorch/issues/180324",
@@ -638,6 +643,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_large_strided_reduction_cuda (__main__.GPUTests)": [
+    "189709",
+    "https://github.com/pytorch/pytorch/issues/189709",
+    [
+      "rocm"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
@@ -755,6 +767,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_max_min_bool_cuda (__main__.GPUTests)": [
+    "189710",
+    "https://github.com/pytorch/pytorch/issues/189710",
+    [
+      "rocm"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
@@ -1116,6 +1135,13 @@
       "rocm"
     ]
   ],
+  "test_split_cumsum_cuda (__main__.GPUTests)": [
+    "189707",
+    "https://github.com/pytorch/pytorch/issues/189707",
+    [
+      "rocm"
+    ]
+  ],
   "test_stream_invalid_device_index (__main__.TestCuda)": [
     "188691",
     "https://github.com/pytorch/pytorch/issues/188691",
@@ -1274,6 +1300,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
+    "189711",
+    "https://github.com/pytorch/pytorch/issues/189711",
+    [
+      "rocm"
     ]
   ],
   "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
