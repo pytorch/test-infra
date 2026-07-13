@@ -391,10 +391,14 @@ function WorkflowDuration({
   percentile,
   timeParams,
   workflowNames,
+  badThresholdSec = 60 * 60 * 4,
 }: {
   percentile: number;
   timeParams: { [key: string]: string };
   workflowNames: string[];
+  // TTS above this many seconds renders the value in red. Absolute, so it's
+  // tuned for p50; higher percentiles will naturally read red.
+  badThresholdSec?: number;
 }) {
   let title: string = `p${percentile * 100} ${workflowNames.join(", ")} TTS`;
   let queryName: string = "workflow_duration_percentile";
@@ -416,7 +420,7 @@ function WorkflowDuration({
         workflowNames: workflowNames,
         percentile,
       }}
-      badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
+      badThreshold={(value) => value > badThresholdSec}
     />
   );
 }
@@ -842,6 +846,12 @@ export default function Page() {
               percentile={ttsPercentile}
               timeParams={timeParams}
               workflowNames={["pull", "trunk", "docs-build"]}
+            />
+            <WorkflowDuration
+              percentile={ttsPercentile}
+              timeParams={timeParams}
+              workflowNames={["pull"]}
+              badThresholdSec={60 * 60 * 2} // 2 hours
             />
           </Stack>
         </Grid>
