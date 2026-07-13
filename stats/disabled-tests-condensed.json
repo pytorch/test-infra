@@ -588,6 +588,15 @@
       "slow"
     ]
   ],
+  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
+    "179897",
+    "https://github.com/pytorch/pytorch/issues/179897",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179990",
     "https://github.com/pytorch/pytorch/issues/179990",
@@ -619,15 +628,6 @@
     "https://github.com/pytorch/pytorch/issues/189066",
     [
       "linux",
-      "slow"
-    ]
-  ],
-  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180204",
-    "https://github.com/pytorch/pytorch/issues/180204",
-    [
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
