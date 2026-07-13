@@ -1,0 +1,10 @@
+{
+  "params": {
+    "shas": "Array(String)"
+  },
+  "tests": [
+    {
+      "shas": "[\"abc123\"]"
+    }
+  ]
+}

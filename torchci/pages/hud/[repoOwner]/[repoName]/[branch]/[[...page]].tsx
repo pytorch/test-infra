@@ -748,6 +748,66 @@ function CopyPermanentLink({
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
+interface CrcrHudRow {
+  pytorch_head_sha: string;
+  downstream_repo: string;
+  downstream_repo_level: string;
+  workflow_name: string;
+  job_name: string;
+  check_run_id: string;
+  run_id: string;
+  run_attempt: number;
+  status: string;
+  conclusion: string;
+  workflow_run_url: string;
+  duration_seconds: number;
+  failed_tests_json: string;
+}
+
+function crcrToJobData(row: CrcrHudRow): JobData {
+  let conclusion: string | undefined;
+  if (row.status === "completed") {
+    conclusion = row.conclusion || "failure";
+  } else if (row.status === "in_progress") {
+    conclusion = "pending";
+  } else {
+    conclusion = undefined;
+  }
+
+  const failureLines: string[] = [];
+  if (conclusion === "failure") {
+    if (row.failed_tests_json) {
+      try {
+        const tests = JSON.parse(row.failed_tests_json);
+        if (Array.isArray(tests) && tests.length > 0) {
+          failureLines.push(
+            tests.map((t: any) => t.name || t.classname || "").join("; ")
+          );
+        }
+      } catch {
+        // fall through to synthetic failure line
+      }
+    }
+    if (failureLines.length === 0) {
+      failureLines.push(`${row.downstream_repo}/${row.job_name}`);
+    }
+  }
+
+  const level = row.downstream_repo_level || "L2";
+  return {
+    name: `CRCR ${row.downstream_repo} / ${row.job_name} (${level})`,
+    conclusion,
+    htmlUrl: row.workflow_run_url,
+    durationS: row.duration_seconds || undefined,
+    failureLines: failureLines.length > 0 ? failureLines : undefined,
+    id: row.check_run_id,
+    sha: row.pytorch_head_sha,
+    workflowName: `CRCR ${row.downstream_repo}`,
+    jobName: `${row.job_name} (${level})`,
+    runAttempt: row.run_attempt,
+  };
+}
+
 function GroupedHudTable({ params }: { params: HudParams }) {
   const router = useRouter();
   const { data, isLoading, error } = useHudData(params);
@@ -758,9 +818,6 @@ function GroupedHudTable({ params }: { params: HudParams }) {
       dedupingInterval: 300 * 1000,
       refreshInterval: 300 * 1000, // refresh every 5 minutes
     }
-  );
-  const jobNames = new Set(
-    data?.flatMap((row) => Array.from(row.nameToJobs.keys()))
   );
 
   // Lazy-load AI advisor verdicts for commits on screen
@@ -778,6 +835,51 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     return buildVerdictsBySha(deduplicateVerdicts(advisorRows));
   }, [advisorRows]);
 
+  // Lazy-load CRCR results for commits on screen (pytorch/pytorch only)
+  const isPyTorch = isPyTorchPyTorchRepo(params);
+  const { data: crcrRows } = useClickHouseAPIImmutable<CrcrHudRow>(
+    "crcr_hud_results",
+    { shas },
+    isPyTorch && shas.length > 0
+  );
+
+  // Merge CRCR results into each row's nameToJobs so they appear as
+  // regular grid columns (with grouping, filtering, monsterization).
+  const dataWithCrcr = useMemo(() => {
+    if (!data) return data;
+    if (!crcrRows || crcrRows.length === 0) return data;
+
+    const crcrBySha = new Map<string, CrcrHudRow[]>();
+    for (const row of crcrRows) {
+      const list = crcrBySha.get(row.pytorch_head_sha) ?? [];
+      list.push(row);
+      crcrBySha.set(row.pytorch_head_sha, list);
+    }
+
+    return data.map((row) => {
+      const crcrForSha = crcrBySha.get(row.sha);
+      if (!crcrForSha) return row;
+
+      const merged = new Map(row.nameToJobs);
+      for (const cr of crcrForSha) {
+        const jobData = crcrToJobData(cr);
+        const existing = merged.get(jobData.name!);
+        if (
+          !existing ||
+          !existing.id ||
+          cr.run_attempt > (existing.runAttempt ?? 0)
+        ) {
+          merged.set(jobData.name!, jobData);
+        }
+      }
+      return { ...row, nameToJobs: merged };
+    });
+  }, [data, crcrRows]);
+
+  const jobNames = new Set(
+    dataWithCrcr?.flatMap((row) => Array.from(row.nameToJobs.keys()))
+  );
+
   const [hideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [hideNonViableStrict] = useHideNonViableStrictPreference();
@@ -794,7 +896,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     jobsViableStrictBlocking,
     groupsViableStrictBlocking,
   } = getGroupingData(
-    data ?? [],
+    dataWithCrcr ?? [],
     jobNames,
     (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
     unstableIssuesData ?? [],
