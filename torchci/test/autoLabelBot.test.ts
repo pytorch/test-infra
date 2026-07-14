@@ -91,7 +91,7 @@ describe("auto-label-bot", () => {
     emptyMockConfig(payload.repository.full_name);
 
     const recent = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const scope = nock("https://api.github.com")
+    nock("https://api.github.com")
       .get(
         "/repos/ezyang/testing-ideal-computing-machine/issues/5/events?per_page=100"
       )
@@ -111,11 +111,17 @@ describe("auto-label-bot", () => {
           label: { name: "triage review" },
           created_at: recent,
         },
-      ]);
+      ])
+      // Fail if the bot tries to re-add "triage review": it was just removed.
+      .post(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels",
+        () => {
+          throw new Error("should not re-add triage review within the hour");
+        }
+      )
+      .reply(200);
 
     await probot.receive({ name: "issues", payload, id: "2" });
-
-    scope.done();
   });
 
   test("re-add triage review if old issue resurfaces (stale removal)", async () => {
