@@ -842,13 +842,6 @@
       "macos"
     ]
   ],
-  "test_optimizer_non_static_param (__main__.LoggingTests)": [
-    "188987",
-    "https://github.com/pytorch/pytorch/issues/188987",
-    [
-      "xpu"
-    ]
-  ],
   "test_out_of_memory_retry (__main__.TestCuda)": [
     "187045",
     "https://github.com/pytorch/pytorch/issues/187045",
