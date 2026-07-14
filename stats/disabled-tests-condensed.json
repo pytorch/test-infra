@@ -472,6 +472,14 @@
       "slow"
     ]
   ],
+  "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
+    "186907",
+    "https://github.com/pytorch/pytorch/issues/186907",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_grad_capture_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187378",
     "https://github.com/pytorch/pytorch/issues/187378",
@@ -1136,15 +1144,6 @@
       "dynamo"
     ]
   ],
-  "test_tensor_with_unbacked_shape_closure (__main__.HigherOrderOpTestsWithCompiledAutograd)": [
-    "187046",
-    "https://github.com/pytorch/pytorch/issues/187046",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_thread_shutdown (__main__.TestAutogradWithCompiledAutograd)": [
     "189843",
     "https://github.com/pytorch/pytorch/issues/189843",
@@ -1318,15 +1317,6 @@
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_over_vmap_captured (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180439",
-    "https://github.com/pytorch/pytorch/issues/180439",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
