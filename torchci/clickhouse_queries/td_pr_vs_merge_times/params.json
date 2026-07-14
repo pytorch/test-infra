@@ -1,0 +1,20 @@
+{
+  "params": {
+    "repo": "String",
+    "ref": "String",
+    "owner": "String",
+    "project": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "ref": "refs/heads/main",
+      "owner": "pytorch",
+      "project": "pytorch",
+      "startTime": "2026-07-06 00:00:00.000",
+      "stopTime": "2026-07-13 00:00:00.000"
+    }
+  ]
+}
