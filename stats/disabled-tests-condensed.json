@@ -279,6 +279,13 @@
       "xpu"
     ]
   ],
+  "test_create_with_external_constants_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "189511",
+    "https://github.com/pytorch/pytorch/issues/189511",
+    [
+      "xpu"
+    ]
+  ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
     "181224",
     "https://github.com/pytorch/pytorch/issues/181224",
@@ -1210,6 +1217,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_unused_cpu_input_cudagraphs (__main__.CudaReproTests)": [
+    "189815",
+    "https://github.com/pytorch/pytorch/issues/189815",
+    [
+      "xpu"
     ]
   ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
