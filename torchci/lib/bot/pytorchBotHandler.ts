@@ -3,8 +3,10 @@ import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
+import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
+import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
@@ -319,7 +321,23 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     await this.logger.log("merge", extra_data);
+
+    // Check for L4 CRCR blocking failures (L3 failures are non-blocking).
+    // Force merge (-f) bypasses this check, consistent with the existing
+    // force-merge semantics for in-repo CI failures.
+    // Only applies to pytorch/pytorch — the CRCR allowlist and check runs
+    // are specific to that repo.
     if (!forceRequested && isPyTorchPyTorch(this.owner, this.repo)) {
+      const blockingRepos = await this.getCrcrBlockingFailures();
+      if (blockingRepos.length > 0) {
+        await this.addComment(
+          `The following L4 downstream CI workflows are blocking this merge (failed or still running):\n\n` +
+            blockingRepos.map((r) => `- \`${r}\``).join("\n") +
+            `\n\nPlease investigate or use \`@pytorchbot merge -f\` to bypass.`
+        );
+        return;
+      }
+
       let labels: string[] = this.ctx.payload?.issue?.labels.map(
         (e: any) => e["name"]
       );
@@ -401,10 +419,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
   }
 
-  async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
-    if (await _hasWP(this.ctx, username)) {
-      return true;
-    }
+  /** Lazy-load and cache the PR head SHA, then return it. */
+  private async ensureHeadSha(): Promise<string> {
     if (this.headSha === undefined) {
       const pullRequest = await this.ctx.octokit.pulls.get({
         owner: this.owner,
@@ -413,12 +429,19 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       });
       this.headSha = pullRequest.data.head.sha;
     }
+    return this.headSha!;
+  }
+
+  async hasWorkflowRunningPermissions(username: string): Promise<boolean> {
+    if (await _hasWP(this.ctx, username)) {
+      return true;
+    }
 
     return await hasApprovedPullRuns(
       this.ctx.octokit,
       this.ctx.payload.repository.owner.login,
       this.ctx.payload.repository.name,
-      this.headSha!
+      await this.ensureHeadSha()
     );
   }
 
@@ -634,6 +657,81 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       prNumber: this.prNum,
       headSha: this.headSha,
     });
+  }
+
+  /**
+   * Return the list of L4 downstream repos whose CRCR check runs are failing
+   * or still pending on this PR's head commit.  L3 workflows are intentionally
+   * omitted — they are non-blocking.
+   *
+   * A pending (not-yet-completed) L4 check run also blocks merge: a still-
+   * running check could fail, so merging before it completes would bypass
+   * the downstream gating.  Use ``@pytorchbot merge -f`` to override.
+   */
+  async getCrcrBlockingFailures(): Promise<string[]> {
+    // Only "failure" blocks merge — "cancelled" and "timed_out" are often
+    // superseded / infra-related and should not gate merge.
+    const BLOCKING_CONCLUSIONS = new Set(["failure"]);
+
+    // Query GitHub Check Runs API for all check runs on this commit.
+    // Use paginate to handle PRs with more than 100 check runs.
+    let checkRuns: any[] = [];
+    try {
+      const headSha = await this.ensureHeadSha();
+      checkRuns = await this.ctx.octokit.paginate(
+        this.ctx.octokit.checks.listForRef,
+        {
+          owner: this.owner,
+          repo: this.repo,
+          ref: headSha,
+          filter: "latest",
+          per_page: 100,
+        }
+      );
+    } catch {
+      // If we can't fetch check runs, fail open (don't block merge on
+      // an infrastructure error, including transient ensureHeadSha failure)
+      this.ctx.log("getCrcrBlockingFailures: failed to list check runs");
+      return [];
+    }
+
+    // Find all CRCR check runs (not just failures — we also need to
+    // gate on pending L4 checks so a still-running check isn't bypassed).
+    const crcrCheckRuns = checkRuns.filter((cr: any) =>
+      cr.name.startsWith("crcr/")
+    );
+
+    if (crcrCheckRuns.length === 0) {
+      return [];
+    }
+
+    // Load the allowlist to classify each repo as L3 or L4
+    let allowlist;
+    try {
+      allowlist = await fetchCrcrAllowlist(this.ctx.octokit);
+    } catch {
+      this.ctx.log("getCrcrBlockingFailures: failed to load allowlist");
+      return [];
+    }
+
+    const blocking = new Set<string>();
+    for (const cr of crcrCheckRuns) {
+      const downstreamRepo = downstreamRepoFromCheckRunName(cr.name);
+      if (!downstreamRepo || !allowlist.isBlocking(downstreamRepo)) {
+        continue; // Not L4
+      }
+
+      // Block when the L4 check has failed OR is still pending.
+      // Successful/completed L4 checks don't block.
+      const isFailure = BLOCKING_CONCLUSIONS.has(cr.conclusion ?? "");
+      const isPending = cr.status !== "completed";
+
+      if (isFailure || isPending) {
+        blocking.add(downstreamRepo);
+      }
+    }
+
+    return [...blocking];
   }
 }
 

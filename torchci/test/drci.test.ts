@@ -267,6 +267,7 @@ function constructResultsCommentHelper({
   unstableJobs = [],
   unknownJobs = [],
   awaitingApprovalJobs = [],
+  crcrL3Jobs = [],
   sha = "random sha",
   merge_base = "random_merge_base_sha",
   merge_base_date = "2023-08-08 06:03:21",
@@ -282,6 +283,7 @@ function constructResultsCommentHelper({
   unstableJobs?: RecentWorkflowsData[];
   unknownJobs?: RecentWorkflowsData[];
   awaitingApprovalJobs?: RecentWorkflowsData[];
+  crcrL3Jobs?: RecentWorkflowsData[];
   sha?: string;
   merge_base?: string;
   merge_base_date?: string;
@@ -298,6 +300,7 @@ function constructResultsCommentHelper({
     unstableJobs,
     unknownJobs,
     awaitingApprovalJobs,
+    crcrL3Jobs,
     new Map(),
     new Map(),
     new Map(),

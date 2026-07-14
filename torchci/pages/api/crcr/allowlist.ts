@@ -1,10 +1,8 @@
-import yaml from "js-yaml";
+import { CRCR_ALLOWLIST_CACHE_TTL_MS, CrcrAllowlist } from "lib/crcrAllowlist";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const ALLOWLIST_RAW_URL =
   "https://raw.githubusercontent.com/pytorch/pytorch/main/.github/allowlist.yml";
-
-const CACHE_TTL_MS = 15 * 60 * 1000;
 
 export interface AllowlistEntry {
   repo: string;
@@ -20,37 +18,14 @@ export interface AllowlistResponse {
 
 let cached: { data: AllowlistResponse; expiry: number } | null = null;
 
-function parseEntry(raw: unknown): AllowlistEntry | null {
-  if (typeof raw === "string") {
-    const repo = raw.trim().replace(/^\/|\/$/g, "");
-    return repo.includes("/") ? { repo, oncalls: [] } : null;
-  }
-  if (typeof raw === "object" && raw !== null) {
-    const [key, val] = Object.entries(raw)[0] ?? [];
-    const repo = String(key ?? "")
-      .trim()
-      .replace(/^\/|\/$/g, "");
-    if (!repo.includes("/")) return null;
-    const oncalls = val
-      ? String(val)
-          .split(",")
-          .map((s: string) => s.trim())
-          .filter(Boolean)
-      : [];
-    return { repo, oncalls };
-  }
-  return null;
-}
-
-function parseAllowlist(rawYaml: Record<string, unknown>): AllowlistResponse {
+/** Convert a CrcrAllowlist into the AllowlistResponse shape for the API. */
+function toResponse(allowlist: CrcrAllowlist): AllowlistResponse {
   const result: AllowlistResponse = { L1: [], L2: [], L3: [], L4: [] };
-  for (const level of ["L1", "L2", "L3", "L4"] as const) {
-    const entries = rawYaml[level];
-    if (!Array.isArray(entries)) continue;
-    for (const raw of entries) {
-      const entry = parseEntry(raw);
-      if (entry) result[level].push(entry);
-    }
+  for (const entry of allowlist.getEntries()) {
+    result[entry.level].push({
+      repo: entry.repo,
+      oncalls: entry.oncalls,
+    });
   }
   return result;
 }
@@ -77,10 +52,10 @@ export default async function handler(
       );
     }
     const text = await response.text();
-    const parsed = (yaml.load(text) as Record<string, unknown>) || {};
-    const data = parseAllowlist(parsed);
+    const allowlist = CrcrAllowlist.fromYaml(text);
+    const data = toResponse(allowlist);
 
-    cached = { data, expiry: now + CACHE_TTL_MS };
+    cached = { data, expiry: now + CRCR_ALLOWLIST_CACHE_TTL_MS };
     res.setHeader("X-Cache", "MISS");
     return res.status(200).json(data);
   } catch (err: unknown) {
