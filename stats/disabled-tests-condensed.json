@@ -13,6 +13,14 @@
       "rocm"
     ]
   ],
+  "test_Sparse_to_Sparse_copy__mps_bfloat16 (__main__.TestSparseMPS)": [
+    "189842",
+    "https://github.com/pytorch/pytorch/issues/189842",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "188897",
     "https://github.com/pytorch/pytorch/issues/188897",
@@ -1130,6 +1138,13 @@
       "slow"
     ]
   ],
+  "test_thread_shutdown (__main__.TestAutogradWithCompiledAutograd)": [
+    "189843",
+    "https://github.com/pytorch/pytorch/issues/189843",
+    [
+      "rocm"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
@@ -1186,6 +1201,15 @@
       "asan",
       "linux",
       "rocm",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "asan",
+      "linux",
       "slow"
     ]
   ],
@@ -1272,15 +1296,6 @@
     "https://github.com/pytorch/pytorch/issues/189711",
     [
       "rocm"
-    ]
-  ],
-  "test_vmap_free_const (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180366",
-    "https://github.com/pytorch/pytorch/issues/180366",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_vmap_free_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
