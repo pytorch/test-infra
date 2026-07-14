@@ -153,6 +153,13 @@
       "rocm"
     ]
   ],
+  "test_chunked_unrolled_slice_gather_int32_overflow (__main__.CudaReproTests)": [
+    "189861",
+    "https://github.com/pytorch/pytorch/issues/189861",
+    [
+      "xpu"
+    ]
+  ],
   "test_clip_grad_norm_2d (__main__.TestClipGradNormWorldSize4)": [
     "153236",
     "https://github.com/pytorch/pytorch/issues/153236",
