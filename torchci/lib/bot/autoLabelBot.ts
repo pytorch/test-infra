@@ -357,6 +357,28 @@ function getReleaseNotesCategoryAndTopic(
   return ["uncategorized", topic];
 }
 
+export async function wasLabelRecentlyRemoved(
+  context: Context,
+  issueNumber: number,
+  labelName: string,
+  withinMs: number
+): Promise<boolean> {
+  const events = await context.octokit.paginate(
+    context.octokit.issues.listEvents,
+    context.repo({
+      issue_number: issueNumber,
+      per_page: 100,
+    })
+  );
+  const cutoff = Date.now() - withinMs;
+  return events.some(
+    (e: any) =>
+      e.event === "unlabeled" &&
+      e.label?.name === labelName &&
+      new Date(e.created_at).getTime() >= cutoff
+  );
+}
+
 export async function addNewLabels(
   existingLabels: string[],
   labelsToAdd: string[],
@@ -412,7 +434,20 @@ function myBot(app: Probot): void {
     switch (addedLabel) {
       case "high priority":
       case "critical":
-        newLabels.push("triage review");
+        // Don't re-add triage review if a human just triaged the issue
+        // (removed triage review within the last hour). Older removals
+        // are ignored so that resurfacing an old issue with hi-pri does
+        // re-request triage.
+        if (
+          !(await wasLabelRecentlyRemoved(
+            context,
+            context.payload.issue.number,
+            "triage review",
+            60 * 60 * 1000
+          ))
+        ) {
+          newLabels.push("triage review");
+        }
         break;
     }
 
