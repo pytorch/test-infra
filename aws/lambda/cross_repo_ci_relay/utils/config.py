@@ -155,9 +155,9 @@ class RelayConfig:
         rate_limit_per_min = _check_if_positive_int("RATE_LIMIT_PER_MIN", "100")
 
         # Maximum duration an in-progress job is expected to run before being
-        # considered abandoned (zombie).  Default 24 hours (86400 s).
+        # considered abandoned (zombie).  Default 6 hours (21600 s).
         zombie_timeout_seconds = _check_if_positive_int(
-            "ZOMBIE_TIMEOUT_SECONDS", "86400"
+            "ZOMBIE_TIMEOUT_SECONDS", "21600"
         )
 
         max_cleanup_workers = _check_if_positive_int("MAX_CLEANUP_WORKERS", "16")
