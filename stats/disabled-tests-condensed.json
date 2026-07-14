@@ -773,33 +773,6 @@
       "rocm"
     ]
   ],
-  "test_memory_plots_free_segment_stack (__main__.TestCudaAllocator)": [
-    "179798",
-    "https://github.com/pytorch/pytorch/issues/179798",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_memory_snapshot (__main__.TestCudaAllocator)": [
-    "179745",
-    "https://github.com/pytorch/pytorch/issues/179745",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_mempool_ctx_multithread (__main__.TestMemPool)": [
-    "153460",
-    "https://github.com/pytorch/pytorch/issues/153460",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
