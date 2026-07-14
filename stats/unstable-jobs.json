@@ -31,14 +31,6 @@
     "Lint URLs",
     "linux-job"
   ],
-  "inductor / inductor-cpu-test / test (cpu_inductor_torchbench)": [
-    "xmfan",
-    "174929",
-    "https://github.com/pytorch/pytorch/issues/174929",
-    "inductor",
-    "inductor-cpu-test",
-    "test (cpu_inductor_torchbench)"
-  ],
   "inductor / inductor-test-cuda13 / test (inductor_torchbench)": [
     "xmfan",
     "174930",
