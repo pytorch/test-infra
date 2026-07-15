@@ -5,16 +5,17 @@ description: >
   Relay server.  The job must have `id-token: write` permission so that a
   GitHub OIDC token can be minted and used to authenticate the callback.
 
-  This action is meant to run in a workflow triggered by a `repository_dispatch`
-  event from the relay.  It reads the dispatch payload (`github.event.client_payload`)
-  and the ambient `github` context directly, so workflow authors only need to
-  supply the relay URL, the status/conclusion, and optional structured test
-  results.
+  For PR/push workflows triggered by `repository_dispatch`, the action reads
+  `github.event.client_payload` automatically.  For nightly/periodic workflows
+  triggered by `schedule` (cron), set `delivery-id` to the upstream commit SHA
+  and `event-type` to "nightly" or "periodic" — the action will construct the
+  payload from scratch (no client_payload needed).
 
 inputs:
   status:
     description: >
       Workflow status to report.  Must be either "in_progress" or "completed".
+      For nightly/periodic event types, only "completed" is accepted.
     required: true
   conclusion:
     description: >
@@ -22,6 +23,21 @@ inputs:
       (typically "job.status").  Required when status is "completed" and
       must be a value GitHub accepts (e.g. success, failure, cancelled).  Ignored
       when status is "in_progress".
+    required: false
+    default: ''
+  delivery-id:
+    description: >
+      Dispatch ID for the callback.  For PR/push workflows this is read from
+      client_payload automatically and should NOT be set.  For nightly/periodic
+      workflows (self-triggered via cron), set this to the upstream commit SHA
+      that was tested — it becomes the correlation key on the HUD.
+    required: false
+    default: ''
+  event-type:
+    description: >
+      Event type override.  For PR/push workflows this is read from
+      client_payload automatically and should NOT be set.  For nightly/periodic
+      workflows, set this to "nightly" or "periodic".
     required: false
     default: ''
   test-results:
@@ -89,6 +105,9 @@ runs:
         RUN_ID: ${{ github.run_id }}
         RUN_ATTEMPT: ${{ github.run_attempt }}
         MAX_TIME: ${{ inputs.max-time }}
+        DELIVERY_ID_OVERRIDE: ${{ inputs.delivery-id }}
+        EVENT_TYPE_OVERRIDE: ${{ inputs.event-type }}
+        REPOSITORY: ${{ github.repository }}
       run: |
         set -euo pipefail
 
@@ -97,31 +116,52 @@ runs:
         from datetime import datetime, timezone
 
         status = os.environ["STATUS"]
+        delivery_id_override = os.environ.get("DELIVERY_ID_OVERRIDE", "").strip()
+        event_type_override = os.environ.get("EVENT_TYPE_OVERRIDE", "").strip()
+        is_self_report = bool(delivery_id_override and event_type_override)
+
+        if is_self_report:
+            if event_type_override not in ("nightly", "periodic"):
+                sys.exit(
+                    f"::error::event-type must be 'nightly' or 'periodic', "
+                    f"got {event_type_override!r}"
+                )
+            if status != "completed":
+                sys.exit(
+                    f"::error::nightly/periodic callbacks require status 'completed', "
+                    f"got {status!r}"
+                )
+
         if status not in ("in_progress", "completed"):
             sys.exit(f"::error::status must be 'in_progress' or 'completed', got {status!r}")
 
-        # Pass the conclusion through as-is for completed runs; GitHub validates
-        # it when the check run is created. in_progress runs carry no conclusion.
         conclusion = os.environ.get("CONCLUSION", "").strip() or None
         if status == "in_progress":
             conclusion = None
 
-        try:
-            client_payload = json.loads(os.environ["CLIENT_PAYLOAD"])
-        except json.JSONDecodeError as exc:
-            sys.exit(f"::error::github.event.client_payload is not valid JSON: {exc}")
+        if is_self_report:
+            client_payload = {
+                "event_type": event_type_override,
+                "delivery_id": delivery_id_override,
+                "payload": {
+                    "repository": {
+                        "full_name": "pytorch/pytorch",
+                    },
+                    "head_sha": delivery_id_override,
+                },
+            }
+        else:
+            try:
+                client_payload = json.loads(os.environ["CLIENT_PAYLOAD"])
+            except json.JSONDecodeError as exc:
+                sys.exit(f"::error::github.event.client_payload is not valid JSON: {exc}")
 
         current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-        # In case check_run_id is not exist (edge case), replace it
-        # with {run_id}-{run_attempt}, which is also unique for each job run.
         check_run_id = os.environ.get("CHECK_RUN_ID", "").strip()
         if not check_run_id:
             check_run_id = f"{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}"
 
-        # Relay's original dispatch payload (event_type, delivery_id, payload) is
-        # forwarded verbatim.  Downstream-reported fields live in a sibling
-        # `workflow` dict so the two sources stay clearly separated on the wire.
         workflow: dict = {
             "schema_version": str(os.environ["SCHEMA_VERSION"]),
             "status": status,
