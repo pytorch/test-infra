@@ -50,6 +50,17 @@
       "inductor"
     ]
   ],
+  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "182260",
+    "https://github.com/pytorch/pytorch/issues/182260",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
     "187645",
     "https://github.com/pytorch/pytorch/issues/187645",
@@ -79,6 +90,13 @@
   "test_backward_prod_cuda_float32 (__main__.TestNestedTensorOpInfoCUDA)": [
     "140556",
     "https://github.com/pytorch/pytorch/issues/140556",
+    [
+      "linux"
+    ]
+  ],
+  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
+    "188513",
+    "https://github.com/pytorch/pytorch/issues/188513",
     [
       "linux"
     ]
@@ -230,12 +248,22 @@
       "linux"
     ]
   ],
+  "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "152893",
+    "https://github.com/pytorch/pytorch/issues/152893",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
   "test_concurrent_compile_to_python_smoke (__main__.TestAOTCompileToPython)": [
     "189665",
     "https://github.com/pytorch/pytorch/issues/189665",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "win",
+      "windows"
     ]
   ],
   "test_consecutive_split_cumsum_cuda (__main__.GPUTests)": [
@@ -469,6 +497,14 @@
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_generic_stream_basic (__main__.TestGenericStreamCompile)": [
+    "189988",
+    "https://github.com/pytorch/pytorch/issues/189988",
     [
       "linux",
       "rocm"
@@ -767,6 +803,31 @@
       "rocm"
     ]
   ],
+  "test_memory_snapshot (__main__.TestCudaAllocator)": [
+    "179745",
+    "https://github.com/pytorch/pytorch/issues/179745",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_mempool_ctx_multithread (__main__.TestMemPool)": [
+    "153460",
+    "https://github.com/pytorch/pytorch/issues/153460",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_mixed_mm (__main__.TestPatternMatcher)": [
+    "145192",
+    "https://github.com/pytorch/pytorch/issues/145192",
+    [
+      "rocm"
+    ]
+  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
@@ -817,6 +878,14 @@
       "macos"
     ]
   ],
+  "test_out_of_memory_retry (__main__.TestCuda)": [
+    "187045",
+    "https://github.com/pytorch/pytorch/issues/187045",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
     "188985",
     "https://github.com/pytorch/pytorch/issues/188985",
@@ -835,6 +904,13 @@
   "test_pending_fusion_pro_and_epi_use_async_compile_False (__main__.TestPrologueFusion)": [
     "189151",
     "https://github.com/pytorch/pytorch/issues/189151",
+    [
+      "rocm"
+    ]
+  ],
+  "test_pending_fusion_pro_and_epi_use_async_compile_True (__main__.TestPrologueFusion)": [
+    "189986",
+    "https://github.com/pytorch/pytorch/issues/189986",
     [
       "rocm"
     ]
@@ -1141,6 +1217,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
+    "123891",
+    "https://github.com/pytorch/pytorch/issues/123891",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
     "181629",
     "https://github.com/pytorch/pytorch/issues/181629",
@@ -1281,15 +1367,6 @@
   "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "188898",
     "https://github.com/pytorch/pytorch/issues/188898",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180490",
-    "https://github.com/pytorch/pytorch/issues/180490",
     [
       "linux",
       "rocm",
