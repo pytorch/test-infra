@@ -10,6 +10,7 @@ Example:
 
 import argparse
 import json
+import os
 import re
 import sys
 from typing import Optional
@@ -17,14 +18,43 @@ from typing import Optional
 import requests
 from binary_size_validation import get_binary_size, parse_index
 
-# Nightly index URLs to snapshot. Extend as CUDA/ROCm variants change; the
-# delta step matches wheels across days by the version-invariant key below, so
-# adding/removing a URL only changes coverage, not comparability.
-DEFAULT_URLS = [
+# Static fallback if the build-matrix config can't be imported (e.g. run
+# outside the repo). Kept minimal; the real list is derived below.
+_FALLBACK_URLS = [
     "https://download.pytorch.org/whl/nightly/cpu/torch/",
-    "https://download.pytorch.org/whl/nightly/cu128/torch/",
     "https://download.pytorch.org/whl/nightly/cu130/torch/",
 ]
+
+
+def default_index_urls() -> list[str]:
+    """Derive the nightly torch index URLs from the currently-supported build
+    matrix (tools/scripts/generate_binary_build_matrix.py), so this stays in
+    sync as CUDA/ROCm variants are added or dropped rather than hardcoding them.
+
+    Reuses that module's ``translate_desired_cuda`` mapping (12.6 -> cu126,
+    7.2 -> rocm7.2, cpu -> cpu). Falls back to a static list on import failure.
+    """
+    try:
+        sys.path.insert(
+            0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
+        )
+        import generate_binary_build_matrix as gbm  # noqa: E402
+
+        variants = ["cpu"]
+        variants += [gbm.translate_desired_cuda(gbm.CUDA, v) for v in gbm.CUDA_ARCHES]
+        variants += [gbm.translate_desired_cuda(gbm.ROCM, v) for v in gbm.ROCM_ARCHES]
+        # de-dupe, preserve order
+        variants = list(dict.fromkeys(variants))
+        return [
+            f"https://download.pytorch.org/whl/nightly/{v}/torch/" for v in variants
+        ]
+    except Exception as e:  # noqa: BLE001
+        print(
+            f"WARN: could not derive URLs from generate_binary_build_matrix ({e}); "
+            "using fallback list",
+            file=sys.stderr,
+        )
+        return _FALLBACK_URLS
 
 # torch-2.9.0.dev20260714+cu128-cp312-cp312-manylinux_2_28_x86_64.whl
 _WHEEL_RE = re.compile(
@@ -57,7 +87,8 @@ def main() -> None:
         "--url",
         action="append",
         default=None,
-        help="nightly index URL (repeatable); defaults to a standard variant set",
+        help="nightly index URL (repeatable); defaults to the variants from "
+        "generate_binary_build_matrix.py",
     )
     ap.add_argument(
         "--include",
@@ -67,7 +98,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="output JSON path")
     args = ap.parse_args()
 
-    urls = args.url or DEFAULT_URLS
+    urls = args.url or default_index_urls()
     snapshot: dict[str, dict] = {}
     for url in urls:
         try:
