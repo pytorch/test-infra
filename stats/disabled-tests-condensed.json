@@ -817,14 +817,6 @@
       "macos"
     ]
   ],
-  "test_out_of_memory_retry (__main__.TestCuda)": [
-    "187045",
-    "https://github.com/pytorch/pytorch/issues/187045",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
     "188985",
     "https://github.com/pytorch/pytorch/issues/188985",
