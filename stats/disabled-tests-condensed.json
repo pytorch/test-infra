@@ -461,13 +461,6 @@
       "slow"
     ]
   ],
-  "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
-    "188668",
-    "https://github.com/pytorch/pytorch/issues/188668",
-    [
-      "rocm"
-    ]
-  ],
   "test_fake_export_contiguous_cpu_float32 (__main__.TestExportOpInfoCPU)": [
     "189323",
     "https://github.com/pytorch/pytorch/issues/189323",
@@ -996,10 +989,18 @@
       "mac"
     ]
   ],
+  "test_scaled_mm (__main__.DistMatrixOpsTest)": [
+    "190087",
+    "https://github.com/pytorch/pytorch/issues/190087",
+    [
+      "linux"
+    ]
+  ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
     "179951",
     "https://github.com/pytorch/pytorch/issues/179951",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -1157,11 +1158,6 @@
     [
       "rocm"
     ]
-  ],
-  "test_stream_invalid_device_index (__main__.TestCuda)": [
-    "188691",
-    "https://github.com/pytorch/pytorch/issues/188691",
-    []
   ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
@@ -1321,11 +1317,6 @@
       "dynamo"
     ]
   ],
-  "test_vjp_scalar_logging_tensor (__main__.TestAutogradFunctional)": [
-    "188693",
-    "https://github.com/pytorch/pytorch/issues/188693",
-    []
-  ],
   "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
     "180195",
     "https://github.com/pytorch/pytorch/issues/180195",
@@ -1358,15 +1349,6 @@
   "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "188898",
     "https://github.com/pytorch/pytorch/issues/188898",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_vmap_two_inputs_tuple_in_dims (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180542",
-    "https://github.com/pytorch/pytorch/issues/180542",
     [
       "linux",
       "rocm",
