@@ -176,6 +176,9 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
       - name: Build clean
+        # Only relevant for setup-py builds; python-build-package projects may
+        # not have a setup.py (e.g. scikit-build-core based builds).
+        if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}
         run: |
           set -euxo pipefail
