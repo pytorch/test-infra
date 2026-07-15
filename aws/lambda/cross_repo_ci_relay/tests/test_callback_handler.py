@@ -459,5 +459,115 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         self.assertEqual(result, {"ok": True, "status": "completed"})
 
 
+class TestNightlyCallback(unittest.TestCase):
+    """Nightly/periodic callbacks bypass the state machine entirely."""
+
+    def setUp(self):
+        self.patcher_allowlist = patch("callback.callback_handler.load_allowlist")
+        self.mock_load = self.patcher_allowlist.start()
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L2
+        self.mock_load.return_value = mock_map
+
+        self.patcher_redis = patch("callback.callback_handler.redis_helper")
+        self.mock_redis = self.patcher_redis.start()
+
+        self.patcher_rate = patch("callback.callback_handler.check_rate_limit")
+        self.mock_rate = self.patcher_rate.start()
+        self.mock_rate.return_value = True
+
+        self.patcher_hud = patch("callback.callback_handler.forward_to_hud")
+        self.mock_hud = self.patcher_hud.start()
+
+    def tearDown(self):
+        self.patcher_allowlist.stop()
+        self.patcher_redis.stop()
+        self.patcher_rate.stop()
+        self.patcher_hud.stop()
+
+    def _nightly_body(
+        self, event_type="nightly", status="completed", conclusion="success"
+    ):
+        return {
+            "event_type": event_type,
+            "delivery_id": "abc123def456",
+            "payload": {},
+            "workflow": {
+                "status": status,
+                "conclusion": conclusion,
+                "name": "CRCR Nightly CI",
+                "url": "https://github.com/org/repo/actions/runs/12345",
+                "run_id": "12345",
+                "run_attempt": "1",
+                "job_name": "nightly-build",
+                "check_run_id": "67890",
+            },
+        }
+
+    def test_nightly_callback_forwards_to_hud(self):
+        body = self._nightly_body()
+        result = handle(_cfg(), body, verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
+        self.mock_hud.assert_called_once()
+        _, trusted, untrusted = self.mock_hud.call_args[0]
+        self.assertEqual(trusted["verified_repo"], "org/repo")
+        self.assertIs(untrusted["callback_payload"], body)
+
+    def test_nightly_callback_skips_redis(self):
+        handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+
+        self.mock_redis.get_callback_state.assert_not_called()
+        self.mock_redis.set_callback_state.assert_not_called()
+        self.mock_redis.add_in_progress_tracker.assert_not_called()
+        self.mock_redis.remove_in_progress_tracker.assert_not_called()
+
+    def test_nightly_callback_has_no_timing_metrics(self):
+        handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+
+        _, trusted, _ = self.mock_hud.call_args[0]
+        self.assertIsNone(trusted["ci_metrics"]["queue_time"])
+        self.assertIsNone(trusted["ci_metrics"]["execution_time"])
+
+    def test_periodic_callback_also_works(self):
+        body = self._nightly_body(event_type="periodic")
+        result = handle(_cfg(), body, verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
+        self.mock_hud.assert_called_once()
+
+    def test_nightly_rejects_in_progress_status(self):
+        body = self._nightly_body(status="in_progress")
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), body, verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("completed", str(ctx.exception.detail))
+
+    def test_nightly_not_in_allowlist_is_ignored(self):
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = None
+        self.mock_load.return_value = mock_map
+
+        result = handle(_cfg(), self._nightly_body(), verified_repo="unknown/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "ignored"})
+        self.mock_hud.assert_not_called()
+
+    def test_nightly_rate_limited(self):
+        self.mock_rate.return_value = False
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 429)
+
+    def test_nightly_missing_delivery_id_returns_400(self):
+        body = self._nightly_body()
+        del body["delivery_id"]
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), body, verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

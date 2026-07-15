@@ -22,6 +22,8 @@ from utils.redis_helper import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
+_NIGHTLY_EVENT_TYPES = frozenset({"nightly", "periodic"})
+
 
 def _safe_delta(
     start_ts: float | None, end_ts: float | None, label: str
@@ -234,6 +236,48 @@ def _create_upstream_check_run(
         )
 
 
+def _handle_nightly_callback(
+    config: RelayConfig,
+    body: dict,
+    verified_repo: str,
+    repo_level: AllowlistLevel,
+) -> dict:
+    """Handle a nightly/periodic self-report callback.
+
+    Unlike PR/push callbacks, nightly/periodic have no prior dispatch record
+    and no state machine.  The downstream repo self-triggers via cron, runs CI
+    against a pytorch/pytorch SHA (from the nightly branch or main), and
+    reports the final result in a single callback.
+
+    No Redis writes, no zombie tracking, no upstream check runs.
+    """
+    delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
+        _parse_callback_body(body)
+    )
+
+    if status != "completed":
+        raise HTTPException(
+            400,
+            f"nightly/periodic callbacks must have status 'completed', got {status!r}",
+        )
+
+    trusted = {
+        "ci_metrics": {"queue_time": None, "execution_time": None},
+        "verified_repo": verified_repo,
+        "downstream_repo_level": repo_level.value,
+    }
+    untrusted = {"callback_payload": body}
+
+    forward_to_hud(config, trusted, untrusted)
+    logger.info(
+        "nightly callback forwarded delivery_id=%s repo=%s event_type=%s",
+        delivery_id,
+        verified_repo,
+        body.get("event_type", "unknown"),
+    )
+    return {"ok": True, "status": status}
+
+
 def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     """Forward a downstream callback to HUD.
 
@@ -245,7 +289,11 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     for allowlist / timing lookups, and surfaced to HUD as ``verified_repo``
     so HUD can trust it over anything self-reported in the body.
 
-    State machine ensures:
+    For nightly/periodic event types, the state machine is bypassed entirely
+    and the result is forwarded to HUD in a single callback (no Redis, no
+    in_progress step, no zombie tracking).
+
+    For PR/push events, the state machine ensures:
     - Callbacks without prior dispatch are rejected
     - Timestamps (started_at, completed_at) are recorded once only
     - Duplicate callbacks are handled gracefully
@@ -255,6 +303,10 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     if result is None:
         return {"ok": True, "status": "ignored"}
     allowlist, repo_level = result
+
+    event_type = body.get("event_type", "")
+    if event_type in _NIGHTLY_EVENT_TYPES:
+        return _handle_nightly_callback(config, body, verified_repo, repo_level)
 
     delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
         _parse_callback_body(body)
