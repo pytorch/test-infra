@@ -218,6 +218,13 @@
       "xpu"
     ]
   ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
+    [
+      "linux"
+    ]
+  ],
   "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
     "187019",
     "https://github.com/pytorch/pytorch/issues/187019",
@@ -395,6 +402,16 @@
       "slow"
     ]
   ],
+  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
+    "127536",
+    "https://github.com/pytorch/pytorch/issues/127536",
+    [
+      "dynamo",
+      "inductor",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
@@ -402,16 +419,16 @@
       "linux"
     ]
   ],
+  "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
+    "190010",
+    "https://github.com/pytorch/pytorch/issues/190010",
+    [
+      "linux"
+    ]
+  ],
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
-    [
-      "rocm"
-    ]
-  ],
-  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
-    "187203",
-    "https://github.com/pytorch/pytorch/issues/187203",
     [
       "rocm"
     ]
@@ -508,15 +525,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_grad_capture_tensor (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187378",
-    "https://github.com/pytorch/pytorch/issues/187378",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_grad_closure_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1202,13 +1210,6 @@
       "linux"
     ]
   ],
-  "test_torchvision_models_efficientnet_b0 (__main__.TestVisionTracing)": [
-    "182174",
-    "https://github.com/pytorch/pytorch/issues/182174",
-    [
-      "linux"
-    ]
-  ],
   "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
     "180414",
     "https://github.com/pytorch/pytorch/issues/180414",
@@ -1292,6 +1293,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
+    "190009",
+    "https://github.com/pytorch/pytorch/issues/190009",
+    [
+      "rocm"
     ]
   ],
   "test_unused_cpu_input_cudagraphs (__main__.CudaReproTests)": [
