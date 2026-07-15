@@ -248,7 +248,9 @@ jobs:
           echo SSL_CERT_FILE=%CERT_PATH% >> %GITHUB_ENV%
           echo REQUESTS_CA_BUNDLE=%CERT_PATH% >> %GITHUB_ENV%
       - name: Build clean
-        if: inputs.architecture == 'x64'
+        # Only relevant for setup-py builds; python-build-package projects may
+        # not have a setup.py (e.g. scikit-build-core based builds).
+        if: inputs.build-platform == 'setup-py' && inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
         env:
           ENV_SCRIPT: ${{ inputs.env-script }}
