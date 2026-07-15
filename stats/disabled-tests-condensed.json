@@ -263,16 +263,6 @@
       "linux"
     ]
   ],
-  "test_concurrent_compile_to_python_smoke (__main__.TestAOTCompileToPython)": [
-    "189665",
-    "https://github.com/pytorch/pytorch/issues/189665",
-    [
-      "linux",
-      "rocm",
-      "win",
-      "windows"
-    ]
-  ],
   "test_consecutive_split_cumsum_cuda (__main__.GPUTests)": [
     "189708",
     "https://github.com/pytorch/pytorch/issues/189708",
