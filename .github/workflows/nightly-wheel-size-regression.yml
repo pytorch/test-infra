@@ -100,7 +100,8 @@ jobs:
             } > /tmp/issue_body.md
             gh issue create --repo pytorch/test-infra \
               --title "Nightly wheel-size increase detected (${DAY})" \
-              --body-file /tmp/issue_body.md
+              --body-file /tmp/issue_body.md \
+              --label "pytorch-alert"
           else
             echo "No significant nightly wheel-size increase detected today."
           fi
