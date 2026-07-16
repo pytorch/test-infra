@@ -103,6 +103,14 @@
     "linux-jammy-rocm-py3.10",
     "test"
   ],
+  "vLLM Benchmark / Run vLLM benchmarks (linux.dgx.b200)": [
+    "frgossen",
+    "190225",
+    "https://github.com/pytorch/pytorch/issues/190225",
+    "vLLM Benchmark",
+    "Run vLLM benchmarks (linux.dgx.b200)",
+    ""
+  ],
   "vLLM Benchmark / Run vLLM benchmarks (linux.dgx.b200.8)": [
     "frgossen",
     "190216",
