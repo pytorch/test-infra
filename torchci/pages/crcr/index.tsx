@@ -491,7 +491,11 @@ export default function CrcrSummaryPage() {
             rel="noreferrer"
           >
             HUD dashboard
-          </Link>
+          </Link>{" "}
+          or view{" "}
+          <NextLink href="/crcr/metrics" passHref legacyBehavior>
+            <Link underline="hover">success-rate trends</Link>
+          </NextLink>
           .
         </Typography>
 

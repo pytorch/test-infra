@@ -165,6 +165,11 @@ function NavBar() {
               CRCR
             </Link>
           </li>
+          <li>
+            <Link prefetch={false} href="/crcr/metrics">
+              CRCR Metrics
+            </Link>
+          </li>
         </ul>
       </div>
       <div
