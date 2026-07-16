@@ -1434,13 +1434,6 @@
       "rocm"
     ]
   ],
-  "test_unused_cpu_input_cudagraphs (__main__.CudaReproTests)": [
-    "189815",
-    "https://github.com/pytorch/pytorch/issues/189815",
-    [
-      "xpu"
-    ]
-  ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
     "187000",
     "https://github.com/pytorch/pytorch/issues/187000",
