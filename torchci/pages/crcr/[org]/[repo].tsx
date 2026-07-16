@@ -1,7 +1,9 @@
 import {
   Box,
+  Checkbox,
   Chip,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Link,
   MenuItem,
@@ -20,13 +22,22 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
+import { getFailureEl } from "components/job/JobConclusion";
+import { JobStatus } from "components/job/GroupJobConclusion";
 import { fetcher } from "lib/GeneralUtils";
-import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
+import { JobData } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import useSWR from "swr";
+
+import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
+
+// Local monsterization context for this page
+const CrcrMonsterContext = createContext<boolean>(false);
+
+// ---- Types ----
 
 interface CrcrJobRow {
   upstream_repo: string;
@@ -52,9 +63,123 @@ interface CrcrJobRow {
   execution_time: number | null;
 }
 
+interface SummaryStats {
+  successes: number;
+  failures: number;
+  timed_out: number;
+  total_jobs: number;
+  pass_rate: number;
+  total_prs: number;
+  avg_queue_time_s: number | null;
+  avg_exec_time_s: number | null;
+  flaky_jobs: number;
+}
+
+// ---- Summary Stat Cards ----
+
+function StatCard({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <Paper
+      elevation={1}
+      sx={{
+        p: 2,
+        minWidth: 140,
+        flex: 1,
+        textAlign: "center",
+        borderTop: color ? `3px solid ${color}` : undefined,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: color }}>
+        {value}
+      </Typography>
+      {sub && (
+        <Typography variant="caption" color="text.secondary">
+          {sub}
+        </Typography>
+      )}
+    </Paper>
+  );
+}
+
+function SummaryCards({ stats }: { stats: SummaryStats }) {
+  const passColor =
+    stats.pass_rate >= 0.95
+      ? "#2e7d32"
+      : stats.pass_rate >= 0.8
+        ? "#ed6c02"
+        : "#d32f2f";
+
+  return (
+    <Stack spacing={2}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <StatCard
+          label="Pass Rate"
+          value={`${(stats.pass_rate * 100).toFixed(1)}%`}
+          sub={`${stats.successes}/${stats.total_jobs} jobs`}
+          color={passColor}
+        />
+        <StatCard
+          label="Total PRs"
+          value={stats.total_prs}
+          sub="unique PRs tested"
+        />
+        <StatCard
+          label="Failures"
+          value={stats.failures}
+          sub={stats.timed_out > 0 ? `+ ${stats.timed_out} timed out` : ""}
+          color={stats.failures > 0 ? "#d32f2f" : undefined}
+        />
+      </Box>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <StatCard
+          label="Avg Queue Time"
+          value={
+            stats.avg_queue_time_s != null
+              ? durationDisplay(Math.round(stats.avg_queue_time_s))
+              : "–"
+          }
+          sub="dispatch to start"
+        />
+        <StatCard
+          label="Avg Execution Time"
+          value={
+            stats.avg_exec_time_s != null
+              ? durationDisplay(Math.round(stats.avg_exec_time_s))
+              : "–"
+          }
+          sub="start to completion"
+        />
+        <StatCard
+          label="Flaky Jobs"
+          value={stats.flaky_jobs}
+          sub="same job: pass + fail across attempts"
+          color={stats.flaky_jobs > 0 ? "#ed6c02" : undefined}
+        />
+      </Box>
+    </Stack>
+  );
+}
+
+// ---- Job Chip (with monsterization) ----
+
 function JobChip({ job }: { job: CrcrJobRow }) {
+  const monsterFailures = useContext(CrcrMonsterContext);
   const color = conclusionColor(job.status, job.conclusion);
   const label = conclusionLabel(job.status, job.conclusion);
+
   const tooltipContent = [
     `Job: ${job.job_name}`,
     job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
@@ -70,6 +195,32 @@ function JobChip({ job }: { job: CrcrJobRow }) {
   ]
     .filter(Boolean)
     .join("\n");
+
+  // Monsterization: show monster sprite for failures
+  if (monsterFailures && job.status === "completed" && job.conclusion === "failure") {
+    const syntheticJobData: JobData = {
+      failureLines: [job.job_name + (job.conclusion || "")],
+    } as JobData;
+    const monsterEl = getFailureEl(JobStatus.Failure, syntheticJobData);
+    if (monsterEl) {
+      return (
+        <Tooltip
+          title={
+            <span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>
+          }
+        >
+          <a
+            href={job.workflow_run_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block", margin: "0 2px" }}
+          >
+            {monsterEl}
+          </a>
+        </Tooltip>
+      );
+    }
+  }
 
   return (
     <Tooltip
@@ -90,10 +241,13 @@ function JobChip({ job }: { job: CrcrJobRow }) {
   );
 }
 
+// ---- Matrix Builder ----
+
 interface MatrixRow {
   prNumber: number;
   sha: string;
   upstreamRepo: string;
+  latestTime: string;
   jobs: Map<string, CrcrJobRow>;
 }
 
@@ -112,11 +266,16 @@ function buildMatrix(data: CrcrJobRow[]): {
         prNumber: job.pr_number,
         sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
+        latestTime: job.started_at,
         jobs: new Map(),
       };
       prMap.set(job.pr_number, row);
     }
-    // Keep the latest attempt per job_name (highest run_attempt wins)
+    // Track latest started_at for this PR
+    if (job.started_at > row.latestTime) {
+      row.latestTime = job.started_at;
+    }
+    // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
     if (!existing || job.run_attempt > existing.run_attempt) {
       row.jobs.set(job.job_name, job);
@@ -130,24 +289,25 @@ function buildMatrix(data: CrcrJobRow[]): {
   return { jobNames, rows };
 }
 
-function HealthSummary({ data }: { data: CrcrJobRow[] }) {
-  const completed = data.filter((j) => j.status === "completed");
-  const total = completed.length;
-  const success = completed.filter((j) => j.conclusion === "success").length;
-  const rate = total > 0 ? success / total : 0;
+// ---- Time display ----
 
-  return (
-    <Stack direction="row" spacing={2} alignItems="center">
-      <Chip
-        label={`Pass rate: ${(rate * 100).toFixed(1)}%`}
-        color={rate >= 0.95 ? "success" : rate >= 0.8 ? "warning" : "error"}
-      />
-      <Typography variant="body2" color="text.secondary">
-        {success}/{total} jobs passed (this page)
-      </Typography>
-    </Stack>
-  );
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
+
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ---- Pagination ----
 
 const PER_PAGE = 50;
 
@@ -189,6 +349,8 @@ function CrcrPagination({
     </div>
   );
 }
+
+// ---- PR Matrix Table ----
 
 function CrcrMatrix({
   repoFullName,
@@ -256,16 +418,18 @@ function CrcrMatrix({
 
   return (
     <>
-      <HealthSummary data={data} />
-      <TableContainer component={Paper} elevation={2} sx={{ mt: 2 }}>
+      <TableContainer component={Paper} elevation={2}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>
-                <strong>PR</strong>
+                <strong>Time</strong>
               </TableCell>
               <TableCell>
                 <strong>SHA</strong>
+              </TableCell>
+              <TableCell>
+                <strong>PR</strong>
               </TableCell>
               {matrix.jobNames.map((name) => (
                 <TableCell key={name} align="center">
@@ -277,23 +441,35 @@ function CrcrMatrix({
           <TableBody>
             {matrix.rows.map((row) => (
               <TableRow key={row.prNumber} hover>
-                <TableCell>
-                  <NextLink
-                    href={`https://github.com/${
-                      row.upstreamRepo ?? "pytorch/pytorch"
-                    }/pull/${row.prNumber}`}
-                    passHref
-                    legacyBehavior
-                  >
-                    <Link target="_blank" rel="noopener" underline="hover">
-                      #{row.prNumber}
-                    </Link>
-                  </NextLink>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                  <Tooltip title={new Date(row.latestTime).toLocaleString()}>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatShortDate(row.latestTime)}
+                      <br />
+                      <small>{timeAgo(row.latestTime)}</small>
+                    </Typography>
+                  </Tooltip>
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontFamily="monospace">
+                  <Link
+                    href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                    target="_blank"
+                    rel="noopener"
+                    underline="hover"
+                    sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}
+                  >
                     {row.sha.slice(0, 7)}
-                  </Typography>
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Link
+                    href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
+                    target="_blank"
+                    rel="noopener"
+                    underline="hover"
+                  >
+                    #{row.prNumber}
+                  </Link>
                 </TableCell>
                 {matrix.jobNames.map((name) => {
                   const job = row.jobs.get(name);
@@ -319,9 +495,12 @@ function CrcrMatrix({
   );
 }
 
+// ---- Main Page ----
+
 export default function CrcrBackendPage() {
   const router = useRouter();
   const { org, repo } = router.query;
+  const [monsterFailures, setMonsterFailures] = useState(false);
 
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
@@ -338,8 +517,16 @@ export default function CrcrBackendPage() {
     );
   }
 
+  const summaryUrl = `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
+    JSON.stringify({ repo: repoFullName, days: String(days) })
+  )}`;
+  const { data: summaryData } = useSWR<SummaryStats[]>(summaryUrl, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const stats = summaryData?.[0] ?? null;
+
   return (
-    <>
+    <CrcrMonsterContext.Provider value={monsterFailures}>
       <Head>
         <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
       </Head>
@@ -347,27 +534,58 @@ export default function CrcrBackendPage() {
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Stack spacing={0.5}>
             <Typography variant="h4">{repoFullName}</Typography>
-            <NextLink href="/crcr" passHref legacyBehavior>
-              <Link variant="body2" underline="hover">
-                ← Back to CRCR Summary
+            <Stack direction="row" spacing={2} alignItems="center">
+              <NextLink href="/crcr" passHref legacyBehavior>
+                <Link variant="body2" underline="hover">
+                  ← Back to CRCR Summary
+                </Link>
+              </NextLink>
+              <Link
+                href={`https://github.com/${repoFullName}`}
+                target="_blank"
+                rel="noopener"
+                variant="body2"
+                underline="hover"
+              >
+                GitHub ↗
               </Link>
-            </NextLink>
+            </Stack>
           </Stack>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Time Range</InputLabel>
-            <Select
-              value={days}
-              label="Time Range"
-              onChange={(e: SelectChangeEvent<number>) =>
-                updateQuery({ days: Number(e.target.value), page: 1 })
+          <Stack direction="row" spacing={2} alignItems="center">
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={monsterFailures}
+                  onChange={(e) => setMonsterFailures(e.target.checked)}
+                  size="small"
+                />
               }
-            >
-              <MenuItem value={1}>Last 24h</MenuItem>
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
-            </Select>
-          </FormControl>
+              label={
+                <Typography variant="body2">Monsterize failures</Typography>
+              }
+            />
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel>Time Range</InputLabel>
+              <Select
+                value={days}
+                label="Time Range"
+                onChange={(e: SelectChangeEvent<number>) =>
+                  updateQuery({ days: Number(e.target.value), page: 1 })
+                }
+              >
+                <MenuItem value={1}>Last 24h</MenuItem>
+                <MenuItem value={7}>Last 7 days</MenuItem>
+                <MenuItem value={30}>Last 30 days</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
         </Box>
+
+        {stats ? (
+          <SummaryCards stats={stats} />
+        ) : (
+          <Skeleton variant="rectangular" height={140} />
+        )}
 
         <Typography variant="body2" color="text.secondary">
           Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click
@@ -381,6 +599,6 @@ export default function CrcrBackendPage() {
           onPageChange={(p) => updateQuery({ page: p })}
         />
       </Stack>
-    </>
+    </CrcrMonsterContext.Provider>
   );
 }
