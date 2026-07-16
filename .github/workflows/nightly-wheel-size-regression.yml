@@ -1,0 +1,136 @@
+name: Nightly Wheel-Size Regression
+
+# Daily detector for significant increases in pytorch nightly wheel sizes.
+# Wraps the existing `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer),
+# which reads real per-artifact sizes from the GitHub Actions artifacts API
+# (size_in_bytes on the linux-binary-manywheel nightly runs), flags day-over-day
+# jumps, and can investigate the cause via the nightly base-SHA git log.
+#
+# Complements validate-pypi-wheel-binary-size.yml (a fixed ceiling): this catches
+# *relative* regressions -- a wheel that jumps vs. its recent size even while
+# still under the ceiling.
+
+on:
+  schedule:
+    # Daily at 16:00 UTC (after nightlies publish + artifacts are up)
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: "comma-separated manywheel variants; blank = derive from generate_binary_build_matrix.py"
+        type: string
+        default: ""
+      threshold_mb:
+        description: "flag a variant if its day-over-day size delta exceeds this many MB"
+        type: string
+        default: "50"
+      lookback_days:
+        description: "days of history to analyze (default: the past week)"
+        type: string
+        default: "7"
+      dry_run:
+        description: "run analysis but do not file an alert issue"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-wheel-size-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wheel-size:
+    if: github.repository == 'pytorch/test-infra'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: bedrock
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
+          aws-region: us-east-1
+
+      # Derive the CUDA/ROCm variant suffixes from the current build matrix
+      # (tools/scripts/generate_binary_build_matrix.py) so this stays in sync as
+      # arches are added/dropped, rather than hardcoding version numbers.
+      - name: Derive manywheel variants from build matrix
+        id: variants
+        run: |
+          LIST=$(python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "tools/scripts")
+          import generate_binary_build_matrix as gbm
+          variants = ["cpu", "xpu"]
+          variants += [f"cuda{a}".replace(".", "_") for a in gbm.CUDA_ARCHES]
+          variants += [f"rocm{a}".replace(".", "_") for a in gbm.ROCM_ARCHES]
+          print(",".join(dict.fromkeys(variants)))
+          PY
+          )
+          echo "list=${LIST}" >> "$GITHUB_OUTPUT"
+          echo "Derived variants: ${LIST}"
+
+      # Run the existing wheel-size-analyzer skill over a small recent window and
+      # only write /tmp/alert.md if a variant crosses the threshold today.
+      - name: Run wheel-size-analyzer
+        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          use_bedrock: "true"
+          claude_args: "--model global.anthropic.claude-opus-4-8 --allowedTools Read,Write,Bash(gh api:*),Bash(git log:*)"
+          prompt: |
+            Use the `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer)
+            to analyze pytorch nightly wheel sizes over the PAST WEEK (the last
+            ${{ inputs.lookback_days || '7' }} days, through today) for these
+            manywheel variants: ${{ inputs.variants || steps.variants.outputs.list }}.
+
+            Write the full report to /tmp/report.md, including the per-day size
+            table and the significant-jumps table for the week.
+
+            Then flag any variant whose MOST RECENT day's size exceeds its
+            baseline for the week — the median of the earlier days in the window —
+            by more than ${{ inputs.threshold_mb || '50' }} MB. (Using the weekly
+            baseline catches both a day-over-day jump and a slower increase across
+            the week, and is robust to a single missing day.)
+
+            If (and only if) at least one variant crosses that threshold:
+            investigate the cause using the skill's "Investigating size jumps"
+            procedure (diff the nightly base SHAs across the increase and read the
+            git log), and write /tmp/alert.md summarizing each flagged variant, its
+            MB/% delta vs. the weekly baseline, the day the jump happened, and the
+            most likely cause. Do NOT create /tmp/alert.md if nothing crosses the
+            threshold.
+
+            Read-only: do not modify code, PRs, or issues.
+
+      - name: File alert issue
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s /tmp/alert.md ]; then
+            DAY=$(date -u +%F)
+            {
+              echo "## Nightly wheel-size increase — ${DAY}"
+              echo
+              cat /tmp/alert.md
+            } > /tmp/issue_body.md
+            gh issue create --repo pytorch/test-infra \
+              --title "Nightly wheel-size increase detected (${DAY})" \
+              --body-file /tmp/issue_body.md \
+              --label "pytorch-alert"
+          else
+            echo "No significant nightly wheel-size increase detected today."
+          fi
+
+      - name: Upload usage metrics
+        if: always()
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
