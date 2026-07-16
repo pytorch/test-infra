@@ -182,13 +182,6 @@
       "rocm"
     ]
   ],
-  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
-    "181318",
-    "https://github.com/pytorch/pytorch/issues/181318",
-    [
-      "linux"
-    ]
-  ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
     "187289",
     "https://github.com/pytorch/pytorch/issues/187289",
@@ -306,13 +299,6 @@
     "https://github.com/pytorch/pytorch/issues/188773",
     [
       "xpu"
-    ]
-  ],
-  "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
-    "181224",
-    "https://github.com/pytorch/pytorch/issues/181224",
-    [
-      "linux"
     ]
   ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
@@ -1298,6 +1284,13 @@
       "rocm"
     ]
   ],
+  "test_stream_backward_sync (__main__.TestStreams)": [
+    "190190",
+    "https://github.com/pytorch/pytorch/issues/190190",
+    [
+      "linux"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1388,20 +1381,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
-    "186909",
-    "https://github.com/pytorch/pytorch/issues/186909",
-    [
-      "rocm"
-    ]
-  ],
-  "test_trace_return_dataclass_nested (__main__.TestFX)": [
-    "181322",
-    "https://github.com/pytorch/pytorch/issues/181322",
-    [
-      "dynamo"
     ]
   ],
   "test_trace_return_namedtuple (__main__.TestFX)": [
