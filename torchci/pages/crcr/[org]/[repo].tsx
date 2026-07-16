@@ -22,8 +22,8 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
-import { getFailureEl } from "components/job/JobConclusion";
 import { JobStatus } from "components/job/GroupJobConclusion";
+import { getFailureEl } from "components/job/JobConclusion";
 import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import Head from "next/head";
