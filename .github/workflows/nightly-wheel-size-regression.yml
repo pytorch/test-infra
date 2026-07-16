@@ -80,7 +80,7 @@ jobs:
       # Run the existing wheel-size-analyzer skill over a small recent window and
       # only write /tmp/alert.md if a variant crosses the threshold today.
       - name: Run wheel-size-analyzer
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -130,3 +130,7 @@ jobs:
           else
             echo "No significant nightly wheel-size increase detected today."
           fi
+
+      - name: Upload usage metrics
+        if: always()
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
