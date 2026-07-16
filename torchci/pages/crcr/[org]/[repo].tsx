@@ -505,9 +505,20 @@ export default function CrcrBackendPage() {
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
 
-  if (!org || !repo) return null;
+  const repoFullName =
+    org && repo ? `${org}/${repo}` : "";
 
-  const repoFullName = `${org}/${repo}`;
+  const summaryUrl = repoFullName
+    ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
+        JSON.stringify({ repo: repoFullName, days: String(days) })
+      )}`
+    : null;
+  const { data: summaryData } = useSWR<SummaryStats[]>(summaryUrl, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const stats = summaryData?.[0] ?? null;
+
+  if (!org || !repo) return null;
 
   function updateQuery(updates: Record<string, string | number>) {
     router.push(
@@ -516,14 +527,6 @@ export default function CrcrBackendPage() {
       { shallow: true }
     );
   }
-
-  const summaryUrl = `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
-    JSON.stringify({ repo: repoFullName, days: String(days) })
-  )}`;
-  const { data: summaryData } = useSWR<SummaryStats[]>(summaryUrl, fetcher, {
-    refreshInterval: 60_000,
-  });
-  const stats = summaryData?.[0] ?? null;
 
   return (
     <CrcrMonsterContext.Provider value={monsterFailures}>
