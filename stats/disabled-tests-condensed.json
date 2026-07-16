@@ -145,13 +145,6 @@
       "slow"
     ]
   ],
-  "test_cat (__main__.NumBytesMetricTests)": [
-    "145344",
-    "https://github.com/pytorch/pytorch/issues/145344",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_pointwise (__main__.NumBytesMetricTests)": [
     "189244",
     "https://github.com/pytorch/pytorch/issues/189244",
@@ -423,6 +416,13 @@
       "rocm"
     ]
   ],
+  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
+    "187203",
+    "https://github.com/pytorch/pytorch/issues/187203",
+    [
+      "rocm"
+    ]
+  ],
   "test_dropout_parity_cudagraphs_reduce_overhead (__main__.TestDropoutAlignRandomEager)": [
     "188837",
     "https://github.com/pytorch/pytorch/issues/188837",
@@ -432,6 +432,69 @@
     "188836",
     "https://github.com/pytorch/pytorch/issues/188836",
     []
+  ],
+  "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_eig_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_eigh_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_matrix_norm_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_norm_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_norm_subgradients_at_zero_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_svd_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_linalg_svdvals_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_op_db_svd_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
   ],
   "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
     "186865",
@@ -448,6 +511,13 @@
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
     "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_ensemble_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180299",
+    "https://github.com/pytorch/pytorch/issues/180299",
     [
       "dynamo"
     ]
@@ -773,6 +843,13 @@
       "win"
     ]
   ],
+  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190142",
+    "https://github.com/pytorch/pytorch/issues/190142",
+    [
+      "linux"
+    ]
+  ],
   "test_max_min_bool_cuda (__main__.GPUTests)": [
     "189710",
     "https://github.com/pytorch/pytorch/issues/189710",
@@ -997,11 +1074,10 @@
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTestWithLocalTensor)": [
-    "179951",
-    "https://github.com/pytorch/pytorch/issues/179951",
+    "190088",
+    "https://github.com/pytorch/pytorch/issues/190088",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
@@ -1009,6 +1085,76 @@
     "https://github.com/pytorch/pytorch/issues/167693",
     [
       "rocm"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_cond_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_eig_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_eigh_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_matrix_norm_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_matrix_power_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_norm_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_norm_subgradients_at_zero_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_svd_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_linalg_svdvals_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
+    ]
+  ],
+  "test_single_dim_strategy_svd_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
+    "190141",
+    "https://github.com/pytorch/pytorch/issues/190141",
+    [
+      "linux"
     ]
   ],
   "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
