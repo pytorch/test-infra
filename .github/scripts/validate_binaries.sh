@@ -266,7 +266,9 @@ check_wheel_size() {
         *) echo "::warning::wheel-size check: unrecognized size unit '${unit}'; skipping"; return 0 ;;
     esac
 
-    echo "torch wheel size: ${size_mb} MB (arch=${MATRIX_GPU_ARCH_TYPE:-cpu} os=${TARGET_OS} py=${MATRIX_PYTHON_VERSION:-?}); ceiling ${threshold_mb} MB"
+    # Always surface the measured size (as an annotation) whether or not the
+    # check passes, so it is visible on the run summary of a successful job too.
+    echo "::notice::torch wheel size: ${size_mb} MB (arch=${MATRIX_GPU_ARCH_TYPE:-cpu} os=${TARGET_OS} py=${MATRIX_PYTHON_VERSION:-?}); ceiling ${threshold_mb} MB"
     if awk "BEGIN{exit !(${size_mb} > ${threshold_mb})}"; then
         echo "::error::torch wheel ${size_mb} MB exceeds the ${threshold_mb} MB ceiling (arch=${MATRIX_GPU_ARCH_TYPE:-cpu}, os=${TARGET_OS}, py=${MATRIX_PYTHON_VERSION:-?})"
         return 1
