@@ -545,13 +545,6 @@
       "linux"
     ]
   ],
-  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "188131",
-    "https://github.com/pytorch/pytorch/issues/188131",
-    [
-      "xpu"
-    ]
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
