@@ -25,9 +25,9 @@ on:
         type: string
         default: "50"
       lookback_days:
-        description: "days of history to establish a baseline"
+        description: "days of history to analyze (default: the past week)"
         type: string
-        default: "3"
+        default: "7"
       dry_run:
         description: "run analysis but do not file an alert issue"
         type: boolean
@@ -69,19 +69,25 @@ jobs:
           claude_args: "--model global.anthropic.claude-opus-4-8 --allowedTools Read,Write,Bash(gh api:*),Bash(git log:*)"
           prompt: |
             Use the `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer)
-            to analyze pytorch nightly wheel sizes for the last
-            ${{ inputs.lookback_days || '3' }} days (through today) for these
+            to analyze pytorch nightly wheel sizes over the PAST WEEK (the last
+            ${{ inputs.lookback_days || '7' }} days, through today) for these
             manywheel variants: ${{ inputs.variants || 'cpu,cuda12_6,cuda13_0,cuda13_2,xpu,rocm7_1,rocm7_2' }}.
 
-            Write the full report to /tmp/report.md.
+            Write the full report to /tmp/report.md, including the per-day size
+            table and the significant-jumps table for the week.
 
-            Then, for the MOST RECENT day, flag any variant whose size increased by
-            more than ${{ inputs.threshold_mb || '50' }} MB versus the previous day.
-            If (and only if) at least one variant crossed that threshold today:
+            Then flag any variant whose MOST RECENT day's size exceeds its
+            baseline for the week — the median of the earlier days in the window —
+            by more than ${{ inputs.threshold_mb || '50' }} MB. (Using the weekly
+            baseline catches both a day-over-day jump and a slower increase across
+            the week, and is robust to a single missing day.)
+
+            If (and only if) at least one variant crosses that threshold:
             investigate the cause using the skill's "Investigating size jumps"
-            procedure (diff the nightly base SHAs and read the git log), and write
-            /tmp/alert.md summarizing each flagged variant, its MB/% delta, and the
-            most likely cause. Do NOT create /tmp/alert.md if nothing crossed the
+            procedure (diff the nightly base SHAs across the increase and read the
+            git log), and write /tmp/alert.md summarizing each flagged variant, its
+            MB/% delta vs. the weekly baseline, the day the jump happened, and the
+            most likely cause. Do NOT create /tmp/alert.md if nothing crosses the
             threshold.
 
             Read-only: do not modify code, PRs, or issues.
