@@ -102,5 +102,13 @@
     "trunk-rocm-sandbox",
     "linux-jammy-rocm-py3.10",
     "test"
+  ],
+  "vLLM Benchmark / Run vLLM benchmarks (linux.dgx.b200.8)": [
+    "frgossen",
+    "190216",
+    "https://github.com/pytorch/pytorch/issues/190216",
+    "vLLM Benchmark",
+    "Run vLLM benchmarks (linux.dgx.b200.8)",
+    ""
   ]
 }
