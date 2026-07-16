@@ -55,6 +55,14 @@
     "",
     ""
   ],
+  "test_grouped_gemm_compiled_op_2d/2d_a_row_major_False_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
+    "pytorch-bot",
+    "190140",
+    "https://github.com/pytorch/pytorch/issues/190140",
+    "test_grouped_gemm_compiled_op_2d",
+    "2d_a_row_major_False_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
+    ""
+  ],
   "test_grouped_gemm_compiled_op_2d/3d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
     "pytorch-bot",
     "189987",
