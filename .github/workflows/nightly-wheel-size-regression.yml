@@ -1,26 +1,35 @@
 name: Nightly Wheel-Size Regression
 
-# Detects significant day-over-day increases in pytorch nightly wheel sizes.
-# Complements validate-pypi-wheel-binary-size.yml (a fixed ceiling): this
-# catches *relative* regressions — a wheel that jumps vs. its recent baseline
-# even while still under the ceiling.
+# Daily detector for significant increases in pytorch nightly wheel sizes.
+# Wraps the existing `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer),
+# which reads real per-artifact sizes from the GitHub Actions artifacts API
+# (size_in_bytes on the linux-binary-manywheel nightly runs), flags day-over-day
+# jumps, and can investigate the cause via the nightly base-SHA git log.
+#
+# Complements validate-pypi-wheel-binary-size.yml (a fixed ceiling): this catches
+# *relative* regressions -- a wheel that jumps vs. its recent size even while
+# still under the ceiling.
 
 on:
   schedule:
-    # Daily at 16:00 UTC (after nightlies publish)
+    # Daily at 16:00 UTC (after nightlies publish + artifacts are up)
     - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
-      pct_threshold:
-        description: "flag if a wheel grows more than this percent vs. baseline"
+      variants:
+        description: "comma-separated manywheel variants (skill artifact suffixes)"
         type: string
-        default: "2"
-      mb_threshold:
-        description: "or grows more than this many MB vs. baseline"
+        default: "cpu,cuda12_6,cuda13_0,cuda13_2,xpu,rocm7_1,rocm7_2"
+      threshold_mb:
+        description: "flag a variant if its day-over-day size delta exceeds this many MB"
         type: string
-        default: "15"
+        default: "50"
+      lookback_days:
+        description: "days of history to establish a baseline"
+        type: string
+        default: "3"
       dry_run:
-        description: "run detection but do not file an alert issue"
+        description: "run analysis but do not file an alert issue"
         type: boolean
         default: false
 
@@ -49,88 +58,49 @@ jobs:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
           aws-region: us-east-1
 
-      - name: Install requirements
-        run: pip3 install -r tools/binary_size_validation/requirements.txt
-
-      # 1) Snapshot today's nightly wheel sizes (reuses the existing size fetcher)
-      - name: Snapshot nightly wheel sizes
-        env:
-          PYTHONPATH: tools/binary_size_validation
-        run: |
-          python tools/binary_size_validation/nightly_wheel_snapshot.py --out /tmp/today.json
-          cat /tmp/today.json
-
-      # 2) Store today's snapshot and pull the last 7 daily snapshots as baseline
-      - name: Store snapshot + fetch history
-        id: history
-        run: |
-          DAY=$(date -u +%F)
-          BUCKET=s3://ossci-raw-job-status/nightly-wheel-sizes
-          aws s3 cp /tmp/today.json "${BUCKET}/${DAY}.json"
-          mkdir -p /tmp/prev
-          for i in $(seq 1 7); do
-            D=$(date -u -d "-${i} day" +%F)
-            aws s3 cp "${BUCKET}/${D}.json" "/tmp/prev/${D}.json" 2>/dev/null || true
-          done
-          echo "have=$(ls /tmp/prev/*.json 2>/dev/null | wc -l)" >> "$GITHUB_OUTPUT"
-
-      # 3) Deterministic delta detection (no LLM)
-      - name: Detect significant increases
-        id: delta
-        if: steps.history.outputs.have != '0'
-        env:
-          PCT: ${{ inputs.pct_threshold || '2' }}
-          MB: ${{ inputs.mb_threshold || '15' }}
-        run: |
-          python tools/binary_size_validation/wheel_size_delta.py \
-            --today /tmp/today.json \
-            --previous-glob '/tmp/prev/*.json' \
-            --pct "$PCT" --mb "$MB" \
-            --out /tmp/flagged.json
-          cat /tmp/flagged.json
-          echo "count=$(python -c 'import json;print(len(json.load(open("/tmp/flagged.json"))))')" >> "$GITHUB_OUTPUT"
-
-      # 4) Root-cause only when something is flagged (Claude on Bedrock, read-only)
-      - name: Analyze regressions with Claude
-        if: steps.delta.outputs.count != '0' && !inputs.dry_run
+      # Run the existing wheel-size-analyzer skill over a small recent window and
+      # only write /tmp/alert.md if a variant crosses the threshold today.
+      - name: Run wheel-size-analyzer
         uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           use_bedrock: "true"
-          claude_args: "--model global.anthropic.claude-opus-4-8 --allowedTools Read,Bash(git log:*),Bash(gh:*),WebFetch,Write"
+          claude_args: "--model global.anthropic.claude-opus-4-8 --allowedTools Read,Write,Bash(gh api:*),Bash(git log:*)"
           prompt: |
-            /tmp/flagged.json lists pytorch nightly wheels whose size increased
-            significantly vs. their recent baseline (fields: name, today_mb,
-            baseline_mb, mb_delta, pct_increase).
+            Use the `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer)
+            to analyze pytorch nightly wheel sizes for the last
+            ${{ inputs.lookback_days || '3' }} days (through today) for these
+            manywheel variants: ${{ inputs.variants || 'cpu,cuda12_6,cuda13_0,cuda13_2,xpu,rocm7_1,rocm7_2' }}.
 
-            For each flagged wheel, correlate the increase with changes that
-            landed on the pytorch/pytorch `nightly` branch in the last ~24h
-            (merged PRs / git log), name the single most likely cause (new or
-            updated dependency, a newly bundled library, debug symbols, an added
-            arch/kernel, etc.), and note severity. Write a concise Markdown
-            report to /tmp/report.md.
+            Write the full report to /tmp/report.md.
 
-            Read-only: do NOT modify code, PRs, or issues.
+            Then, for the MOST RECENT day, flag any variant whose size increased by
+            more than ${{ inputs.threshold_mb || '50' }} MB versus the previous day.
+            If (and only if) at least one variant crossed that threshold today:
+            investigate the cause using the skill's "Investigating size jumps"
+            procedure (diff the nightly base SHAs and read the git log), and write
+            /tmp/alert.md summarizing each flagged variant, its MB/% delta, and the
+            most likely cause. Do NOT create /tmp/alert.md if nothing crossed the
+            threshold.
 
-      # 5) Alert
+            Read-only: do not modify code, PRs, or issues.
+
       - name: File alert issue
-        if: steps.delta.outputs.count != '0' && !inputs.dry_run
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          test -f /tmp/report.md || echo "Wheel-size increase detected — see raw data below." > /tmp/report.md
-          DAY=$(date -u +%F)
-          {
-            echo "## Nightly wheel-size increase — ${DAY}"
-            echo
-            cat /tmp/report.md
-            echo
-            echo "<details><summary>Flagged wheels (raw)</summary>"
-            echo
-            echo '```json'
-            cat /tmp/flagged.json
-            echo '```'
-            echo "</details>"
-          } > /tmp/issue_body.md
-          gh issue create --repo pytorch/test-infra \
-            --title "Nightly wheel-size increase detected (${DAY})" \
-            --body-file /tmp/issue_body.md
+          if [ -s /tmp/alert.md ]; then
+            DAY=$(date -u +%F)
+            {
+              echo "## Nightly wheel-size increase — ${DAY}"
+              echo
+              cat /tmp/alert.md
+            } > /tmp/issue_body.md
+            gh issue create --repo pytorch/test-infra \
+              --title "Nightly wheel-size increase detected (${DAY})" \
+              --body-file /tmp/issue_body.md
+          else
+            echo "No significant nightly wheel-size increase detected today."
+          fi
