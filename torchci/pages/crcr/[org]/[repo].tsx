@@ -119,8 +119,8 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
     stats.pass_rate >= 0.95
       ? "#2e7d32"
       : stats.pass_rate >= 0.8
-        ? "#ed6c02"
-        : "#d32f2f";
+      ? "#ed6c02"
+      : "#d32f2f";
 
   return (
     <Stack spacing={2}>
@@ -197,7 +197,11 @@ function JobChip({ job }: { job: CrcrJobRow }) {
     .join("\n");
 
   // Monsterization: show monster sprite for failures
-  if (monsterFailures && job.status === "completed" && job.conclusion === "failure") {
+  if (
+    monsterFailures &&
+    job.status === "completed" &&
+    job.conclusion === "failure"
+  ) {
     const syntheticJobData: JobData = {
       failureLines: [job.job_name + (job.conclusion || "")],
     } as JobData;
@@ -505,8 +509,7 @@ export default function CrcrBackendPage() {
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
 
-  const repoFullName =
-    org && repo ? `${org}/${repo}` : "";
+  const repoFullName = org && repo ? `${org}/${repo}` : "";
 
   const summaryUrl = repoFullName
     ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
