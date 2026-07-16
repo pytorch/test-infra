@@ -545,14 +545,6 @@
       "rocm"
     ]
   ],
-  "test_grad_closure_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187425",
-    "https://github.com/pytorch/pytorch/issues/187425",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179742",
     "https://github.com/pytorch/pytorch/issues/179742",
