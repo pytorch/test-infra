@@ -1,0 +1,22 @@
+[project]
+name = "flake-test-fail-autorevert"
+version = "0.1.0"
+description = "Export pytorch-auto-revert's published test decisions (regression reverts and flaky-flagged test signals) to CSV."
+requires-python = ">=3.9"
+dependencies = [
+    "clickhouse-connect==0.8.14",
+    "python-dotenv",
+]
+
+[project.scripts]
+flake-test-fail-autorevert = "flake_test_fail_autorevert.__main__:main"
+
+[dependency-groups]
+dev = ["pytest==7.2.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["flake_test_fail_autorevert"]
