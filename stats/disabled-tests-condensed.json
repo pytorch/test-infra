@@ -508,6 +508,13 @@
     "https://github.com/pytorch/pytorch/issues/188840",
     []
   ],
+  "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
+    "190157",
+    "https://github.com/pytorch/pytorch/issues/190157",
+    [
+      "xpu"
+    ]
+  ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
     "https://github.com/pytorch/pytorch/issues/180259",
