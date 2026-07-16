@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       variants:
-        description: "comma-separated manywheel variants (skill artifact suffixes)"
+        description: "comma-separated manywheel variants; blank = derive from generate_binary_build_matrix.py"
         type: string
-        default: "cpu,cuda12_6,cuda13_0,cuda13_2,xpu,rocm7_1,rocm7_2"
+        default: ""
       threshold_mb:
         description: "flag a variant if its day-over-day size delta exceeds this many MB"
         type: string
@@ -58,6 +58,25 @@ jobs:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
           aws-region: us-east-1
 
+      # Derive the CUDA/ROCm variant suffixes from the current build matrix
+      # (tools/scripts/generate_binary_build_matrix.py) so this stays in sync as
+      # arches are added/dropped, rather than hardcoding version numbers.
+      - name: Derive manywheel variants from build matrix
+        id: variants
+        run: |
+          LIST=$(python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "tools/scripts")
+          import generate_binary_build_matrix as gbm
+          variants = ["cpu", "xpu"]
+          variants += [f"cuda{a}".replace(".", "_") for a in gbm.CUDA_ARCHES]
+          variants += [f"rocm{a}".replace(".", "_") for a in gbm.ROCM_ARCHES]
+          print(",".join(dict.fromkeys(variants)))
+          PY
+          )
+          echo "list=${LIST}" >> "$GITHUB_OUTPUT"
+          echo "Derived variants: ${LIST}"
+
       # Run the existing wheel-size-analyzer skill over a small recent window and
       # only write /tmp/alert.md if a variant crosses the threshold today.
       - name: Run wheel-size-analyzer
@@ -71,7 +90,7 @@ jobs:
             Use the `wheel-size-analyzer` skill (.claude/skills/wheel-size-analyzer)
             to analyze pytorch nightly wheel sizes over the PAST WEEK (the last
             ${{ inputs.lookback_days || '7' }} days, through today) for these
-            manywheel variants: ${{ inputs.variants || 'cpu,cuda12_6,cuda13_0,cuda13_2,xpu,rocm7_1,rocm7_2' }}.
+            manywheel variants: ${{ inputs.variants || steps.variants.outputs.list }}.
 
             Write the full report to /tmp/report.md, including the per-day size
             table and the significant-jumps table for the week.
