@@ -1087,6 +1087,13 @@
       "linux"
     ]
   ],
+  "test_scatter_add_to_large_input_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "187704",
+    "https://github.com/pytorch/pytorch/issues/187704",
+    [
+      "inductor"
+    ]
+  ],
   "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
     "167693",
     "https://github.com/pytorch/pytorch/issues/167693",
@@ -1319,6 +1326,13 @@
       "dynamo"
     ]
   ],
+  "test_swap_allows_tensor_weakref (__main__.TestTorch)": [
+    "190165",
+    "https://github.com/pytorch/pytorch/issues/190165",
+    [
+      "dynamo"
+    ]
+  ],
   "test_thread_shutdown (__main__.TestAutogradWithCompiledAutograd)": [
     "189843",
     "https://github.com/pytorch/pytorch/issues/189843",
@@ -1416,6 +1430,13 @@
     "https://github.com/pytorch/pytorch/issues/176966",
     [
       "dynamo"
+    ]
+  ],
+  "test_transformer_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
+    "190166",
+    "https://github.com/pytorch/pytorch/issues/190166",
+    [
+      "rocm"
     ]
   ],
   "test_triggers (__main__.CallbackTests)": [
