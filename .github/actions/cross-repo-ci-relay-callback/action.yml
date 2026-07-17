@@ -107,7 +107,6 @@ runs:
         MAX_TIME: ${{ inputs.max-time }}
         DELIVERY_ID_OVERRIDE: ${{ inputs.delivery-id }}
         EVENT_TYPE_OVERRIDE: ${{ inputs.event-type }}
-        REPOSITORY: ${{ github.repository }}
       run: |
         set -euo pipefail
 
@@ -118,6 +117,14 @@ runs:
         status = os.environ["STATUS"]
         delivery_id_override = os.environ.get("DELIVERY_ID_OVERRIDE", "").strip()
         event_type_override = os.environ.get("EVENT_TYPE_OVERRIDE", "").strip()
+
+        if bool(delivery_id_override) != bool(event_type_override):
+            sys.exit(
+                "::error::Both 'delivery-id' and 'event-type' must be set together "
+                "for nightly/periodic mode. Got delivery-id="
+                f"{delivery_id_override!r}, event-type={event_type_override!r}"
+            )
+
         is_self_report = bool(delivery_id_override and event_type_override)
 
         if is_self_report:
