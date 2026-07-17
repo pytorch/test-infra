@@ -3,7 +3,7 @@ import csv
 import logging
 import sys
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 from dotenv import load_dotenv
 
@@ -73,31 +73,32 @@ def collect(args: argparse.Namespace) -> List[dict]:
     )
     regressions = fetch_regressions(client, args.repo, ev_start, ev_end)
 
-    flaky: dict = {}
+    flaky: Dict[str, Set[Tuple[str, str]]] = {}
     flaky_start = args.start - timedelta(days=FLAKY_PAD_DAYS)
     flaky_end = args.end + timedelta(days=FLAKY_PAD_DAYS)
     for chunk_start, chunk_end in iter_time_chunks(
         flaky_start, flaky_end, FLAKY_CHUNK_HOURS
     ):
-        for commit_sha, signal_key in fetch_flaky_for_day(
+        for workflow, signal_key, commit_sha in fetch_flaky_for_day(
             client, args.repo, chunk_start, chunk_end
         ):
-            flaky.setdefault(commit_sha, set()).add(signal_key)
+            flaky.setdefault(commit_sha, set()).add((workflow, signal_key))
         n_pairs = sum(len(v) for v in flaky.values())
         logging.info(
-            "flaky scan %s: %d distinct (commit, signal) pairs so far",
+            "flaky scan %s: %d distinct (workflow, signal) pairs so far",
             chunk_start.isoformat(),
             n_pairs,
         )
 
-    candidate_shas = sorted(set(regressions) | set(flaky))
+    candidate_shas = sorted(set(regressions.by_commit) | set(flaky))
     commit_times = fetch_commit_times(client, candidate_shas)
 
-    regression_shas = sorted(regressions)
+    regression_shas = sorted(regressions.by_commit)
     verdicts = fetch_advisor_verdicts(client, args.repo, regression_shas)
 
     return build_rows(
-        regressions,
+        regressions.by_commit,
+        regressions.single_workflow,
         flaky,
         commit_times,
         verdicts,
@@ -121,11 +122,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     output = args.output or default_output(args.start, args.end)
     write_csv(output, rows)
 
-    n_reg = sum(1 for r in rows if r["regressions"])
-    n_flaky = sum(1 for r in rows if r["flaky_signals"])
+    n_reg = sum(1 for r in rows if r["category"] == "regression")
+    n_flaky = sum(1 for r in rows if r["category"] == "flaky")
+    n_commits = len({r["commit_sha"] for r in rows})
     print(output)
     print(
-        f"{len(rows)} commits, {n_reg} with regressions, {n_flaky} with flaky signals"
+        f"{len(rows)} rows across {n_commits} commits: "
+        f"{n_reg} regression, {n_flaky} flaky"
     )
     return 0
 

@@ -1,7 +1,6 @@
 from datetime import date, datetime
 
 from flake_test_fail_autorevert.logic import (
-    annotate_regression,
     build_rows,
     day_bounds,
     endpoint_from_env,
@@ -17,26 +16,6 @@ def test_is_test_signal():
     assert not is_test_signal("some_job_base_name [test]")
     assert not is_test_signal("")
     assert not is_test_signal(None)  # type: ignore[arg-type]
-
-
-def test_annotate_regression_without_verdict():
-    assert annotate_regression("f.py::t", None, None) == "f.py::t"
-    assert annotate_regression("f.py::t", "", None) == "f.py::t"
-
-
-def test_annotate_regression_with_verdict_and_confidence():
-    assert (
-        annotate_regression("f.py::t", "related", 0.99) == "f.py::t (related, 0.99)"
-    )
-    assert (
-        annotate_regression("f.py::t", "not_related", 0.891)
-        == "f.py::t (not_related, 0.89)"
-    )
-    assert annotate_regression("f.py::t", "related", 1.0) == "f.py::t (related, 1.00)"
-
-
-def test_annotate_regression_verdict_without_confidence():
-    assert annotate_regression("f.py::t", "related", None) == "f.py::t (related)"
 
 
 def test_endpoint_from_env_strips_scheme_and_port():
@@ -104,11 +83,89 @@ def _time(day: int, hour: int = 12) -> datetime:
     return datetime(2026, 7, day, hour, 0, 0)
 
 
-def test_build_rows_regression_only():
+def test_build_rows_regression_uses_advisor_workflow():
+    sha = "a" * 40
     rows = build_rows(
-        regressions={"a" * 40: {"f.py::t"}},
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
-        commit_times={"a" * 40: _time(5)},
+        commit_times={sha: _time(5)},
+        verdicts={(sha, "f.py::t"): ("related", 0.99, "inductor")},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["commit_sha"] == sha
+    assert r["commit_url"] == f"https://github.com/{REPO}/commit/{sha}"
+    assert r["commit_time"] == "2026-07-05 12:00:00"
+    assert r["category"] == "regression"
+    assert r["workflow"] == "inductor"
+    assert r["signal_key"] == "f.py::t"
+    assert r["advisor_verdict"] == "related"
+    assert r["advisor_confidence"] == "0.99"
+
+
+def test_build_rows_regression_falls_back_to_single_workflow():
+    sha = "b" * 40
+    rows = build_rows(
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "pull"},
+        flaky={},
+        commit_times={sha: _time(5)},
+        verdicts={},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert len(rows) == 1
+    assert rows[0]["workflow"] == "pull"
+    assert rows[0]["advisor_verdict"] == ""
+    assert rows[0]["advisor_confidence"] == ""
+
+
+def test_build_rows_regression_empty_advisor_workflow_falls_through():
+    sha = "c" * 40
+    rows = build_rows(
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "slow"},
+        flaky={},
+        commit_times={sha: _time(5)},
+        verdicts={(sha, "f.py::t"): ("not_related", 0.72, "")},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert len(rows) == 1
+    assert rows[0]["workflow"] == "slow"
+    assert rows[0]["advisor_verdict"] == "not_related"
+    assert rows[0]["advisor_confidence"] == "0.72"
+
+
+def test_build_rows_regression_unknown_when_no_source():
+    sha = "d" * 40
+    rows = build_rows(
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): None},
+        flaky={},
+        commit_times={sha: _time(5)},
+        verdicts={},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert len(rows) == 1
+    assert rows[0]["workflow"] == "unknown"
+
+
+def test_build_rows_flaky_carries_workflow_and_blank_verdict():
+    sha = "e" * 40
+    rows = build_rows(
+        regressions={},
+        single_workflow_by_signal={},
+        flaky={sha: {("trunk", "g.py::t1")}},
+        commit_times={sha: _time(6)},
         verdicts={},
         start_date=START,
         end_date=END,
@@ -116,62 +173,98 @@ def test_build_rows_regression_only():
     )
     assert len(rows) == 1
     r = rows[0]
-    assert r["commit_sha"] == "a" * 40
-    assert r["commit_url"] == f"https://github.com/{REPO}/commit/{'a' * 40}"
-    assert r["commit_time"] == "2026-07-05 12:00:00"
-    assert r["regressions"] == "f.py::t"
-    assert r["flaky_signals"] == ""
+    assert r["category"] == "flaky"
+    assert r["workflow"] == "trunk"
+    assert r["signal_key"] == "g.py::t1"
+    assert r["advisor_verdict"] == ""
+    assert r["advisor_confidence"] == ""
 
 
-def test_build_rows_flaky_only():
+def test_build_rows_flaky_same_signal_two_workflows_two_rows():
+    sha = "f" * 40
     rows = build_rows(
         regressions={},
-        flaky={"b" * 40: {"g.py::t2", "g.py::t1"}},
-        commit_times={"b" * 40: _time(6)},
+        single_workflow_by_signal={},
+        flaky={sha: {("trunk", "g.py::t1"), ("pull", "g.py::t1")}},
+        commit_times={sha: _time(6)},
         verdicts={},
         start_date=START,
         end_date=END,
         repo=REPO,
     )
-    assert len(rows) == 1
-    assert rows[0]["regressions"] == ""
-    assert rows[0]["flaky_signals"] == "g.py::t1; g.py::t2"
+    assert len(rows) == 2
+    workflows = {r["workflow"] for r in rows}
+    assert workflows == {"trunk", "pull"}
+    assert all(r["signal_key"] == "g.py::t1" for r in rows)
+    assert all(r["category"] == "flaky" for r in rows)
 
 
-def test_build_rows_both_with_verdict():
-    sha = "c" * 40
+def test_build_rows_regression_and_flaky_same_commit_and_signal():
+    sha = "9" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
-        flaky={sha: {"h.py::flaky"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
+        flaky={sha: {("trunk", "f.py::t")}},
         commit_times={sha: _time(7)},
-        verdicts={(sha, "f.py::t"): ("related", 0.99)},
+        verdicts={(sha, "f.py::t"): ("related", 0.99, "trunk")},
         start_date=START,
         end_date=END,
         repo=REPO,
     )
-    assert len(rows) == 1
-    assert rows[0]["regressions"] == "f.py::t (related, 0.99)"
-    assert rows[0]["flaky_signals"] == "h.py::flaky"
+    assert len(rows) == 2
+    cats = [r["category"] for r in rows]
+    assert cats == ["flaky", "regression"]
+    reg = next(r for r in rows if r["category"] == "regression")
+    flk = next(r for r in rows if r["category"] == "flaky")
+    assert reg["advisor_verdict"] == "related"
+    assert reg["advisor_confidence"] == "0.99"
+    assert flk["advisor_verdict"] == ""
 
 
-def test_build_rows_multiple_regression_keys_sorted():
-    sha = "d" * 40
+def test_build_rows_multiple_regression_signals_each_a_row():
+    sha = "8" * 40
     rows = build_rows(
         regressions={sha: {"z.py::t", "a.py::t"}},
+        single_workflow_by_signal={(sha, "z.py::t"): "pull", (sha, "a.py::t"): "pull"},
         flaky={},
         commit_times={sha: _time(8)},
-        verdicts={(sha, "a.py::t"): ("related", 0.9)},
+        verdicts={(sha, "a.py::t"): ("related", 0.9, "trunk")},
         start_date=START,
         end_date=END,
         repo=REPO,
     )
-    assert rows[0]["regressions"] == "a.py::t (related, 0.90); z.py::t"
+    assert len(rows) == 2
+    by_key = {r["signal_key"]: r for r in rows}
+    assert by_key["a.py::t"]["workflow"] == "trunk"
+    assert by_key["a.py::t"]["advisor_confidence"] == "0.90"
+    assert by_key["z.py::t"]["workflow"] == "pull"
+    assert by_key["z.py::t"]["advisor_verdict"] == ""
+
+
+def test_build_rows_two_signals_distinct_sole_workflows_each_attributed():
+    sha = "8" * 40
+    rows = build_rows(
+        regressions={sha: {"A.py::t", "B.py::t"}},
+        single_workflow_by_signal={(sha, "A.py::t"): "trunk", (sha, "B.py::t"): "pull"},
+        flaky={},
+        commit_times={sha: _time(8)},
+        verdicts={},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert len(rows) == 2
+    by_key = {r["signal_key"]: r for r in rows}
+    assert by_key["A.py::t"]["workflow"] == "trunk"
+    assert by_key["B.py::t"]["workflow"] == "pull"
+    assert all(r["workflow"] != "unknown" for r in rows)
 
 
 def test_build_rows_excludes_commit_with_neither():
     sha = "e" * 40
     rows = build_rows(
         regressions={sha: set()},
+        single_workflow_by_signal={},
         flaky={sha: set()},
         commit_times={sha: _time(9)},
         verdicts={},
@@ -183,8 +276,10 @@ def test_build_rows_excludes_commit_with_neither():
 
 
 def test_build_rows_drops_unresolved_sha():
+    sha = "f" * 40
     rows = build_rows(
-        regressions={"f" * 40: {"f.py::t"}},
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={},
         verdicts={},
@@ -199,6 +294,7 @@ def test_build_rows_window_inclusive_end_day():
     sha = "1" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={sha: datetime(2026, 7, 14, 23, 59, 59)},
         verdicts={},
@@ -213,6 +309,7 @@ def test_build_rows_window_excludes_day_after_end():
     sha = "2" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={sha: datetime(2026, 7, 15, 0, 0, 0)},
         verdicts={},
@@ -227,6 +324,7 @@ def test_build_rows_window_includes_start_midnight():
     sha = "3" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={sha: datetime(2026, 7, 1, 0, 0, 0)},
         verdicts={},
@@ -241,6 +339,7 @@ def test_build_rows_window_excludes_before_start():
     sha = "4" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={sha: datetime(2026, 6, 30, 23, 59, 59)},
         verdicts={},
@@ -251,10 +350,11 @@ def test_build_rows_window_excludes_before_start():
     assert rows == []
 
 
-def test_build_rows_sorted_by_time_ascending():
+def test_build_rows_sorted_by_time_category_workflow_signal():
     shas = {"a" * 40: _time(10), "b" * 40: _time(3), "c" * 40: _time(6)}
     rows = build_rows(
         regressions={s: {"f.py::t"} for s in shas},
+        single_workflow_by_signal={(s, "f.py::t"): "trunk" for s in shas},
         flaky={},
         commit_times=shas,
         verdicts={},
@@ -262,9 +362,50 @@ def test_build_rows_sorted_by_time_ascending():
         end_date=END,
         repo=REPO,
     )
-    times = [r["commit_time"] for r in rows]
-    assert times == sorted(times)
-    assert times[0] == "2026-07-03 12:00:00"
+    keys = [
+        (r["commit_time"], r["category"], r["workflow"], r["signal_key"])
+        for r in rows
+    ]
+    assert keys == sorted(keys)
+    assert rows[0]["commit_time"] == "2026-07-03 12:00:00"
+
+
+def test_build_rows_sort_orders_category_workflow_signal_within_commit():
+    sha = "7" * 40
+    rows = build_rows(
+        regressions={sha: {"z.py::t", "a.py::t"}},
+        single_workflow_by_signal={(sha, "z.py::t"): "pull", (sha, "a.py::t"): "pull"},
+        flaky={sha: {("trunk", "b.py::t")}},
+        commit_times={sha: _time(4)},
+        verdicts={(sha, "a.py::t"): ("related", 0.9, "inductor")},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    keys = [(r["category"], r["workflow"], r["signal_key"]) for r in rows]
+    assert keys == sorted(keys)
+    assert keys[0][0] == "flaky"
+    assert keys[1][0] == "regression"
+
+
+def test_build_rows_sort_stable_tiebreak_on_commit_sha():
+    sha_hi = "b" * 40
+    sha_lo = "a" * 40
+    same_time = _time(4)
+    rows = build_rows(
+        regressions={},
+        single_workflow_by_signal={},
+        flaky={
+            sha_hi: {("periodic", "x.py::t")},
+            sha_lo: {("periodic", "x.py::t")},
+        },
+        commit_times={sha_hi: same_time, sha_lo: same_time},
+        verdicts={},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert [r["commit_sha"] for r in rows] == [sha_lo, sha_hi]
 
 
 def test_build_rows_handles_tz_aware_time():
@@ -273,6 +414,7 @@ def test_build_rows_handles_tz_aware_time():
     sha = "5" * 40
     rows = build_rows(
         regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
         flaky={},
         commit_times={sha: datetime(2026, 7, 5, 12, 0, 0, tzinfo=timezone.utc)},
         verdicts={},
@@ -282,3 +424,35 @@ def test_build_rows_handles_tz_aware_time():
     )
     assert len(rows) == 1
     assert rows[0]["commit_time"] == "2026-07-05 12:00:00"
+
+
+def test_build_rows_confidence_two_decimals():
+    sha = "6" * 40
+    rows = build_rows(
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
+        flaky={},
+        commit_times={sha: _time(5)},
+        verdicts={(sha, "f.py::t"): ("not_related", 0.891, "pull")},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert rows[0]["advisor_confidence"] == "0.89"
+    assert rows[0]["advisor_verdict"] == "not_related"
+
+
+def test_build_rows_verdict_without_confidence_blank():
+    sha = "0" * 40
+    rows = build_rows(
+        regressions={sha: {"f.py::t"}},
+        single_workflow_by_signal={(sha, "f.py::t"): "trunk"},
+        flaky={},
+        commit_times={sha: _time(5)},
+        verdicts={(sha, "f.py::t"): ("related", None, "trunk")},
+        start_date=START,
+        end_date=END,
+        repo=REPO,
+    )
+    assert rows[0]["advisor_verdict"] == "related"
+    assert rows[0]["advisor_confidence"] == ""

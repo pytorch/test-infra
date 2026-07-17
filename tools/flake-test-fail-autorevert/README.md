@@ -4,11 +4,11 @@ Standalone CLI that reads pytorch-auto-revert's **already-published** decisions
 from ClickHouse and writes a CSV. It does not re-run any analysis: it only reads
 stored decisions.
 
-One CSV row is produced per commit (landing on `main` within the requested
-range) that either:
+The CSV is **long**: one row per signal. A commit (landing on `main` within the
+requested range) contributes one row for each test signal that either:
 
-- triggered an autorevert on a **test** regression, or
-- had test signals that autorevert flagged as **flaky**.
+- triggered an autorevert on a **test** regression (`category = regression`), or
+- was flagged **flaky** by autorevert (`category = flaky`).
 
 Only test-level signals are reported (signal keys containing `::`); job-level
 signals are excluded.
@@ -18,13 +18,35 @@ signals are excluded.
 - `commit_sha` — full 40-char sha
 - `commit_url` — `https://github.com/{repo}/commit/{commit_sha}`
 - `commit_time` — landing time on `main` (`YYYY-MM-DD HH:MM:SS`, UTC)
-- `regressions` — semicolon-joined test signal keys that triggered an autorevert
-  on this commit, each annotated with the advisor verdict when one exists, e.g.
-  `test_fake_pg.py::test_split_group_rank_3 (related, 0.99)`. Empty if none.
-- `flaky_signals` — semicolon-joined test signal keys autorevert flagged flaky on
-  this commit. Empty if none.
+- `category` — `regression` (this signal triggered an autorevert) or `flaky`
+  (autorevert observed both a pass and a fail on this commit for this signal)
+- `workflow` — the CI workflow the signal belongs to (e.g. `trunk`, `pull`,
+  `inductor`, `periodic`, `slow`), or `unknown`. See attribution below.
+- `signal_key` — the test signal key, `file.py::test_name`
+- `advisor_verdict` — for `regression` rows, the auto-revert advisor's verdict
+  (`related`, `not_related`, `infra_issue`, `garbage`, `revert`, `unsure`) when
+  one exists, else empty. Always empty for `flaky` rows.
+- `advisor_confidence` — for `regression` rows with a verdict, the advisor's
+  confidence formatted to two decimals (e.g. `0.99`), else empty. Always empty
+  for `flaky` rows.
 
-Rows are sorted by `commit_time` ascending.
+Rows are sorted by `(commit_time, category, workflow, signal_key)` ascending.
+
+The same `(commit, signal_key)` can appear as both a `regression` row and a
+`flaky` row: the two categories answer independent questions (did it trigger an
+autorevert vs. did autorevert observe both a pass and a fail on that commit).
+
+### How `workflow` is attributed
+
+- **Flaky rows**: the workflow is exact, taken directly from the autorevert
+  state snapshot the flaky signal was read from. A single `(commit, signal_key)`
+  legitimately observed flaky under two workflows produces two rows.
+- **Regression rows**: the reverted event stores the triggering workflows and
+  the source signals as two independent arrays (a deduped set and an ordered
+  list) that cannot be positionally zipped, so the workflow is resolved per
+  signal with a fallback: the auto-revert advisor's workflow for that
+  `(commit, signal_key)` if present, otherwise the revert event's sole workflow
+  when it triggered on exactly one workflow, otherwise `unknown`.
 
 ## Environment
 
@@ -71,7 +93,7 @@ python -m flake_test_fail_autorevert --start 2026-07-01 --end 2026-07-14
 - `--repo` defaults to `pytorch/pytorch`.
 - `--output` defaults to
   `flake_test_fail_autorevert_<start>_<end>.csv`. The path and a one-line summary
-  (N commits, M with regressions, K with flaky) are printed on completion.
+  (`N rows across M commits: R regression, F flaky`) are printed on completion.
 
 ## Notes on the flaky scan
 
@@ -79,7 +101,7 @@ Flaky signals are read from the `misc.autorevert_state` JSON snapshots. Several
 independent autorevert configurations run concurrently, each publishing its own
 snapshot stream distinguished by its `workflows` set. The flaky query scans **all**
 autorevert state snapshots in the range (exhaustive — every snapshot, deduped in
-Python), so the `flaky_signals` column reflects every (commit, test) pair autorevert
+Python), so the `flaky` rows reflect every (workflow, commit, test) triple autorevert
 flagged flaky (both a passing and a failing run on that commit) while it was in the
 state window. Scanning every snapshot rather than only the day's latest is required
 because commits age out of autorevert's sliding state window mid-day, so a
@@ -91,10 +113,6 @@ with capped parallelism and peaks at roughly 4 GiB server-side on the busiest
 observed days, taking a few seconds per chunk. Results are exhaustive (every
 snapshot in range, deduped), and very large ranges scale linearly in the number of
 chunks.
-
-A signal can appear in **both** `regressions` and `flaky_signals` for the same commit;
-the two columns answer independent questions (did it trigger an autorevert vs. did
-autorevert observe both a pass and a fail on that commit).
 
 DNS to the ClickHouse cloud host flaps intermittently, so each query is retried
 with exponential backoff on connection/name-resolution errors; SQL errors fail

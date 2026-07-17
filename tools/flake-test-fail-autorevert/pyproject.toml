@@ -10,6 +10,7 @@ dependencies = [
 
 [project.scripts]
 flake-test-fail-autorevert = "flake_test_fail_autorevert.__main__:main"
+flake-report = "flake_test_fail_autorevert.report.__main__:main"
 
 [dependency-groups]
 dev = ["pytest==7.2.0"]
@@ -19,4 +20,4 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["flake_test_fail_autorevert"]
+packages = ["flake_test_fail_autorevert", "flake_test_fail_autorevert.report"]

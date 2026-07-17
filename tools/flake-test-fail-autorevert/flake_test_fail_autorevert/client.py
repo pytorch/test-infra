@@ -29,6 +29,16 @@ def _require_env(name: str) -> str:
     return val
 
 
+def _port_from_env() -> int:
+    raw = os.environ.get("CLICKHOUSE_PORT") or "8443"
+    try:
+        return int(raw)
+    except ValueError:
+        raise SystemExit(
+            f"Invalid CLICKHOUSE_PORT '{raw}': must be an integer (default 8443)."
+        ) from None
+
+
 def get_clickhouse_client() -> Client:
     host = endpoint_from_env(_require_env("CLICKHOUSE_HOST"))
     return clickhouse_connect.get_client(
@@ -37,7 +47,7 @@ def get_clickhouse_client() -> Client:
         password=_require_env("CLICKHOUSE_PASSWORD"),
         secure=True,
         interface="https",
-        port=int(os.environ.get("CLICKHOUSE_PORT") or "8443"),
+        port=_port_from_env(),
     )
 
 

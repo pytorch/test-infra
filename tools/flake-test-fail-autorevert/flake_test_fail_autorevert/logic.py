@@ -1,7 +1,16 @@
 from datetime import date, datetime as dt, timedelta, timezone
 from typing import Dict, Iterator, List, Optional, Set, Tuple
 
-COLUMNS = ["commit_sha", "commit_url", "commit_time", "regressions", "flaky_signals"]
+COLUMNS = [
+    "commit_sha",
+    "commit_url",
+    "commit_time",
+    "category",
+    "workflow",
+    "signal_key",
+    "advisor_verdict",
+    "advisor_confidence",
+]
 
 TIME_FMT = "%Y-%m-%d %H:%M:%S"
 
@@ -17,16 +26,6 @@ def endpoint_from_env(raw: str) -> str:
 
 def is_test_signal(key: str) -> bool:
     return bool(key) and "::" in key
-
-
-def annotate_regression(
-    key: str, verdict: Optional[str], confidence: Optional[float]
-) -> str:
-    if not verdict:
-        return key
-    if confidence is None:
-        return f"{key} ({verdict})"
-    return f"{key} ({verdict}, {confidence:.2f})"
 
 
 def day_bounds(day: date) -> Tuple[dt, dt]:
@@ -56,9 +55,10 @@ def _naive_utc(value: dt) -> dt:
 
 def build_rows(
     regressions: Dict[str, Set[str]],
-    flaky: Dict[str, Set[str]],
+    single_workflow_by_signal: Dict[Tuple[str, str], Optional[str]],
+    flaky: Dict[str, Set[Tuple[str, str]]],
     commit_times: Dict[str, dt],
-    verdicts: Dict[Tuple[str, str], Tuple[Optional[str], Optional[float]]],
+    verdicts: Dict[Tuple[str, str], Tuple[Optional[str], Optional[float], Optional[str]]],
     start_date: date,
     end_date: date,
     repo: str,
@@ -74,25 +74,56 @@ def build_rows(
         landed = _naive_utc(landed)
         if not (window_start <= landed < window_end):
             continue
+        commit_time = landed.strftime(TIME_FMT)
+        commit_url = f"https://github.com/{repo}/commit/{sha}"
 
-        reg_keys = sorted(regressions.get(sha, set()))
-        flaky_keys = sorted(flaky.get(sha, set()))
-        if not reg_keys and not flaky_keys:
-            continue
+        for signal_key in regressions.get(sha, set()):
+            verdict, confidence, adv_workflow = verdicts.get(
+                (sha, signal_key), (None, None, None)
+            )
+            workflow = (
+                adv_workflow
+                or single_workflow_by_signal.get((sha, signal_key))
+                or "unknown"
+            )
+            rows.append(
+                {
+                    "commit_sha": sha,
+                    "commit_url": commit_url,
+                    "commit_time": commit_time,
+                    "category": "regression",
+                    "workflow": workflow,
+                    "signal_key": signal_key,
+                    "advisor_verdict": verdict or "",
+                    "advisor_confidence": (
+                        f"{confidence:.2f}"
+                        if verdict and confidence is not None
+                        else ""
+                    ),
+                }
+            )
 
-        reg_cell = "; ".join(
-            annotate_regression(k, *verdicts.get((sha, k), (None, None)))
-            for k in reg_keys
+        for workflow, signal_key in flaky.get(sha, set()):
+            rows.append(
+                {
+                    "commit_sha": sha,
+                    "commit_url": commit_url,
+                    "commit_time": commit_time,
+                    "category": "flaky",
+                    "workflow": workflow,
+                    "signal_key": signal_key,
+                    "advisor_verdict": "",
+                    "advisor_confidence": "",
+                }
+            )
+
+    rows.sort(
+        key=lambda r: (
+            r["commit_time"],
+            r["category"],
+            r["workflow"],
+            r["signal_key"],
+            r["commit_sha"],
         )
-        rows.append(
-            {
-                "commit_sha": sha,
-                "commit_url": f"https://github.com/{repo}/commit/{sha}",
-                "commit_time": landed.strftime(TIME_FMT),
-                "regressions": reg_cell,
-                "flaky_signals": "; ".join(flaky_keys),
-            }
-        )
-
-    rows.sort(key=lambda r: (r["commit_time"], r["commit_sha"]))
+    )
     return rows
