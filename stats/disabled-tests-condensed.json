@@ -532,6 +532,13 @@
       "slow"
     ]
   ],
+  "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
+    "188668",
+    "https://github.com/pytorch/pytorch/issues/188668",
+    [
+      "rocm"
+    ]
+  ],
   "test_fake_export_contiguous_cpu_float32 (__main__.TestExportOpInfoCPU)": [
     "189323",
     "https://github.com/pytorch/pytorch/issues/189323",
@@ -846,6 +853,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_maml_omniglot_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180539",
+    "https://github.com/pytorch/pytorch/issues/180539",
+    [
+      "dynamo"
     ]
   ],
   "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
@@ -1375,15 +1389,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b5 (__main__.TestVisionTracing)": [
-    "181629",
-    "https://github.com/pytorch/pytorch/issues/181629",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
