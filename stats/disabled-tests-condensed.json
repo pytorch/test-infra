@@ -301,6 +301,14 @@
       "xpu"
     ]
   ],
+  "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
+    "181224",
+    "https://github.com/pytorch/pytorch/issues/181224",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -481,8 +489,8 @@
     []
   ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
-    "180948",
-    "https://github.com/pytorch/pytorch/issues/180948",
+    "190157",
+    "https://github.com/pytorch/pytorch/issues/190157",
     [
       "xpu"
     ]
@@ -542,6 +550,13 @@
     "https://github.com/pytorch/pytorch/issues/189988",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_get_remote_tensor (__main__.NVSHMEMSymmetricMemoryTest)": [
+    "190294",
+    "https://github.com/pytorch/pytorch/issues/190294",
+    [
       "rocm"
     ]
   ],
@@ -1373,6 +1388,13 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
+    "186909",
+    "https://github.com/pytorch/pytorch/issues/186909",
+    [
+      "rocm"
     ]
   ],
   "test_trace_return_namedtuple (__main__.TestFX)": [
