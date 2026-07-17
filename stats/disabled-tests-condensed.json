@@ -585,14 +585,6 @@
       "slow"
     ]
   ],
-  "test_grad_non_tensor_input (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187658",
-    "https://github.com/pytorch/pytorch/issues/187658",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_grad_two_tensor_all_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "187718",
     "https://github.com/pytorch/pytorch/issues/187718",
@@ -725,6 +717,13 @@
     "https://github.com/pytorch/pytorch/issues/188896",
     [
       "linux"
+    ]
+  ],
+  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180438",
+    "https://github.com/pytorch/pytorch/issues/180438",
+    [
+      "dynamo"
     ]
   ],
   "test_linear_block_compile_parity_backward (__main__.TestDropoutAlignRandomEager)": [
