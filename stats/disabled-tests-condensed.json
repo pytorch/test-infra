@@ -68,6 +68,13 @@
       "rocm"
     ]
   ],
+  "test_async_sequential_saves_wait (__main__.TestAsyncCheckpointerSpecific)": [
+    "190332",
+    "https://github.com/pytorch/pytorch/issues/190332",
+    [
+      "rocm"
+    ]
+  ],
   "test_backend_simple (__main__.PrivateUse1BackendTest)": [
     "188688",
     "https://github.com/pytorch/pytorch/issues/188688",
@@ -180,6 +187,13 @@
     [
       "inductor",
       "rocm"
+    ]
+  ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
     ]
   ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
@@ -560,6 +574,13 @@
       "rocm"
     ]
   ],
+  "test_generic_stream_multiple (__main__.TestGenericStreamCompile)": [
+    "190330",
+    "https://github.com/pytorch/pytorch/issues/190330",
+    [
+      "linux"
+    ]
+  ],
   "test_get_remote_tensor (__main__.NVSHMEMSymmetricMemoryTest)": [
     "190294",
     "https://github.com/pytorch/pytorch/issues/190294",
@@ -583,14 +604,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_grad_two_tensor_all_grad_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187718",
-    "https://github.com/pytorch/pytorch/issues/187718",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_grad_two_tensor_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -722,6 +735,13 @@
   "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180438",
     "https://github.com/pytorch/pytorch/issues/180438",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180520",
+    "https://github.com/pytorch/pytorch/issues/180520",
     [
       "dynamo"
     ]
@@ -922,6 +942,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_ordering_barrier_is_nop (__main__.TestControlDeps)": [
+    "190331",
+    "https://github.com/pytorch/pytorch/issues/190331",
+    [
+      "linux"
     ]
   ],
   "test_out_of_memory_retry (__main__.TestCuda)": [
@@ -1339,14 +1366,6 @@
     "https://github.com/pytorch/pytorch/issues/185452",
     [
       "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b2 (__main__.TestVisionTracing)": [
-    "180414",
-    "https://github.com/pytorch/pytorch/issues/180414",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
