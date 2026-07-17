@@ -367,6 +367,41 @@ function CrcrPagination({
   );
 }
 
+// ---- Commit Info Hook ----
+
+interface CommitInfo {
+  sha: string;
+  title: string;
+  author: string;
+}
+
+function useCommitInfo(
+  upstreamRepo: string,
+  shas: string[]
+): Map<string, CommitInfo> {
+  const dedupedShas = useMemo(
+    () => Array.from(new Set(shas)).slice(0, 50),
+    [shas]
+  );
+  const url =
+    upstreamRepo && dedupedShas.length > 0
+      ? `/api/crcr/commit-info?repo=${encodeURIComponent(upstreamRepo)}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+      : null;
+  const { data } = useSWR<CommitInfo[]>(url, fetcher, {
+    revalidateOnFocus: false,
+  });
+
+  return useMemo(() => {
+    const map = new Map<string, CommitInfo>();
+    if (data) {
+      for (const ci of data) {
+        map.set(ci.sha, ci);
+      }
+    }
+    return map;
+  }, [data]);
+}
+
 // ---- PR Matrix Table ----
 
 function CrcrMatrix({
@@ -406,6 +441,13 @@ function CrcrMatrix({
     };
   }, [data]);
 
+  const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
+  const shas = useMemo(
+    () => (matrix?.rows ?? []).map((r) => r.sha),
+    [matrix]
+  );
+  const commitInfoMap = useCommitInfo(upstreamRepo, shas);
+
   if (error) {
     return (
       <Typography color="error">
@@ -443,7 +485,10 @@ function CrcrMatrix({
                 <strong>Time</strong>
               </TableCell>
               <TableCell>
-                <strong>SHA</strong>
+                <strong>Commit</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Author</strong>
               </TableCell>
               <TableCell>
                 <strong>PR</strong>
@@ -456,48 +501,76 @@ function CrcrMatrix({
             </TableRow>
           </TableHead>
           <TableBody>
-            {matrix.rows.map((row) => (
-              <TableRow key={row.prNumber} hover>
-                <TableCell sx={{ whiteSpace: "nowrap" }}>
-                  <Tooltip title={new Date(row.latestTime).toLocaleString()}>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatShortDate(row.latestTime)}
-                      <br />
-                      <small>{timeAgo(row.latestTime)}</small>
-                    </Typography>
-                  </Tooltip>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                    target="_blank"
-                    rel="noopener"
-                    underline="hover"
-                    sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}
-                  >
-                    {row.sha.slice(0, 7)}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
-                    target="_blank"
-                    rel="noopener"
-                    underline="hover"
-                  >
-                    #{row.prNumber}
-                  </Link>
-                </TableCell>
-                {matrix.jobNames.map((name) => {
-                  const job = row.jobs.get(name);
-                  return (
-                    <TableCell key={name} align="center">
-                      {job ? <JobCell job={job} /> : "–"}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
+            {matrix.rows.map((row) => {
+              const ci = commitInfoMap.get(row.sha);
+              return (
+                <TableRow key={row.prNumber} hover>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    <Tooltip title={new Date(row.latestTime).toLocaleString()}>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatShortDate(row.latestTime)}
+                        <br />
+                        <small>{timeAgo(row.latestTime)}</small>
+                      </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 300 }}>
+                    <Link
+                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                      target="_blank"
+                      rel="noopener"
+                      underline="hover"
+                      sx={{ fontSize: "0.85rem" }}
+                    >
+                      {ci?.title
+                        ? ci.title.length > 60
+                          ? ci.title.slice(0, 57) + "..."
+                          : ci.title
+                        : row.sha.slice(0, 7)}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {ci?.author ? (
+                      <Link
+                        href={`https://github.com/${ci.author}`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                        sx={{ fontSize: "0.85rem" }}
+                      >
+                        {ci.author}
+                      </Link>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontSize: "0.85rem" }}
+                      >
+                        –
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
+                      target="_blank"
+                      rel="noopener"
+                      underline="hover"
+                    >
+                      #{row.prNumber}
+                    </Link>
+                  </TableCell>
+                  {matrix.jobNames.map((name) => {
+                    const job = row.jobs.get(name);
+                    return (
+                      <TableCell key={name} align="center">
+                        {job ? <JobCell job={job} /> : "–"}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
