@@ -385,7 +385,9 @@ function useCommitInfo(
   );
   const url =
     upstreamRepo && dedupedShas.length > 0
-      ? `/api/crcr/commit-info?repo=${encodeURIComponent(upstreamRepo)}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+      ? `/api/crcr/commit-info?repo=${encodeURIComponent(
+          upstreamRepo
+        )}&shas=${encodeURIComponent(dedupedShas.join(","))}`
       : null;
   const { data } = useSWR<CommitInfo[]>(url, fetcher, {
     revalidateOnFocus: false,
@@ -442,10 +444,7 @@ function CrcrMatrix({
   }, [data]);
 
   const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
-  const shas = useMemo(
-    () => (matrix?.rows ?? []).map((r) => r.sha),
-    [matrix]
-  );
+  const shas = useMemo(() => (matrix?.rows ?? []).map((r) => r.sha), [matrix]);
   const commitInfoMap = useCommitInfo(upstreamRepo, shas);
 
   if (error) {
