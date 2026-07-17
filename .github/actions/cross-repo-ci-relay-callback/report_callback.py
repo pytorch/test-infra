@@ -52,9 +52,13 @@ def build_payload() -> str:
 
     if is_self_report:
         if event_type not in ("nightly", "periodic"):
-            sys.exit(f"Error: event-type must be 'nightly' or 'periodic', got {event_type!r}")
+            sys.exit(
+                f"Error: event-type must be 'nightly' or 'periodic', got {event_type!r}"
+            )
         if status != "completed":
-            sys.exit(f"Error: nightly/periodic callbacks require status 'completed', got {status!r}")
+            sys.exit(
+                f"Error: nightly/periodic callbacks require status 'completed', got {status!r}"
+            )
 
     if status not in ("in_progress", "completed"):
         sys.exit(f"Error: status must be 'in_progress' or 'completed', got {status!r}")
