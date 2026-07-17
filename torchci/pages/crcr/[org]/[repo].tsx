@@ -1,6 +1,5 @@
 import {
   Box,
-  Chip,
   FormControl,
   InputLabel,
   Link,
@@ -20,13 +19,16 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
-import { fetcher } from "lib/GeneralUtils";
-import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
+import { getConclusionChar } from "lib/JobClassifierUtil";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
 import useSWR from "swr";
+
+import { fetcher } from "lib/GeneralUtils";
+
+// ---- Types ----
 
 interface CrcrJobRow {
   upstream_repo: string;
@@ -52,11 +54,136 @@ interface CrcrJobRow {
   execution_time: number | null;
 }
 
-function JobChip({ job }: { job: CrcrJobRow }) {
-  const color = conclusionColor(job.status, job.conclusion);
-  const label = conclusionLabel(job.status, job.conclusion);
+interface SummaryStats {
+  successes: number;
+  failures: number;
+  timed_out: number;
+  total_jobs: number;
+  pass_rate: number;
+  total_prs: number;
+  avg_queue_time_s: number | null;
+  avg_exec_time_s: number | null;
+  flaky_jobs: number;
+}
+
+// ---- Summary Stat Cards ----
+
+function StatCard({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <Paper
+      elevation={1}
+      sx={{
+        p: 2,
+        minWidth: 140,
+        flex: 1,
+        textAlign: "center",
+        borderTop: color ? `3px solid ${color}` : undefined,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: color }}>
+        {value}
+      </Typography>
+      {sub && (
+        <Typography variant="caption" color="text.secondary">
+          {sub}
+        </Typography>
+      )}
+    </Paper>
+  );
+}
+
+function SummaryCards({ stats }: { stats: SummaryStats }) {
+  const passColor =
+    stats.pass_rate >= 0.95
+      ? "#2e7d32"
+      : stats.pass_rate >= 0.8
+      ? "#ed6c02"
+      : "#d32f2f";
+
+  return (
+    <Stack spacing={2}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <StatCard
+          label="Pass Rate"
+          value={`${(stats.pass_rate * 100).toFixed(1)}%`}
+          sub={`${stats.successes}/${stats.total_jobs} jobs`}
+          color={passColor}
+        />
+        <StatCard
+          label="Total PRs"
+          value={stats.total_prs}
+          sub="unique PRs tested"
+        />
+        <StatCard
+          label="Failures"
+          value={stats.failures}
+          sub={stats.timed_out > 0 ? `+ ${stats.timed_out} timed out` : ""}
+          color={stats.failures > 0 ? "#d32f2f" : undefined}
+        />
+      </Box>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <StatCard
+          label="Avg Queue Time"
+          value={
+            stats.avg_queue_time_s != null
+              ? durationDisplay(Math.round(stats.avg_queue_time_s))
+              : "–"
+          }
+          sub="dispatch to start"
+        />
+        <StatCard
+          label="Avg Execution Time"
+          value={
+            stats.avg_exec_time_s != null
+              ? durationDisplay(Math.round(stats.avg_exec_time_s))
+              : "–"
+          }
+          sub="start to completion"
+        />
+        <StatCard
+          label="Flaky Jobs"
+          value={stats.flaky_jobs}
+          sub="same job: pass + fail across attempts"
+          color={stats.flaky_jobs > 0 ? "#ed6c02" : undefined}
+        />
+      </Box>
+    </Stack>
+  );
+}
+
+// ---- Job Cell (colored character, matching main HUD style) ----
+
+const conclusionCssColor: Record<string, string> = {
+  success: "var(--color-success, #3fb950)",
+  failure: "var(--color-failure, #f85149)",
+  cancelled: "var(--color-failure, #f85149)",
+  timed_out: "var(--color-failure, #f85149)",
+  pending: "var(--color-pending, #d29922)",
+  skipped: "var(--color-grey, #8b949e)",
+  neutral: "var(--color-grey, #8b949e)",
+};
+
+function JobCell({ job }: { job: CrcrJobRow }) {
+  const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const char = getConclusionChar(conclusion);
+  const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
+
   const tooltipContent = [
     `Job: ${job.job_name}`,
+    `Status: ${conclusion}`,
     job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
     `Duration: ${
       job.duration_seconds
@@ -75,25 +202,34 @@ function JobChip({ job }: { job: CrcrJobRow }) {
     <Tooltip
       title={<span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>}
     >
-      <Chip
-        label={label}
-        color={color}
-        size="small"
-        component="a"
+      <a
         href={job.workflow_run_url}
         target="_blank"
-        rel="noopener"
-        clickable
-        sx={{ mx: 0.25 }}
-      />
+        rel="noopener noreferrer"
+        style={{
+          fontFamily: "monospace",
+          fontWeight: "bold",
+          fontSize: "1rem",
+          display: "inline-block",
+          width: "14px",
+          textAlign: "center",
+          color,
+          textDecoration: "none",
+        }}
+      >
+        {char}
+      </a>
     </Tooltip>
   );
 }
+
+// ---- Matrix Builder ----
 
 interface MatrixRow {
   prNumber: number;
   sha: string;
   upstreamRepo: string;
+  latestTime: string;
   jobs: Map<string, CrcrJobRow>;
 }
 
@@ -112,11 +248,16 @@ function buildMatrix(data: CrcrJobRow[]): {
         prNumber: job.pr_number,
         sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
+        latestTime: job.started_at,
         jobs: new Map(),
       };
       prMap.set(job.pr_number, row);
     }
-    // Keep the latest attempt per job_name (highest run_attempt wins)
+    // Track latest started_at for this PR
+    if (job.started_at > row.latestTime) {
+      row.latestTime = job.started_at;
+    }
+    // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
     if (!existing || job.run_attempt > existing.run_attempt) {
       row.jobs.set(job.job_name, job);
@@ -130,24 +271,25 @@ function buildMatrix(data: CrcrJobRow[]): {
   return { jobNames, rows };
 }
 
-function HealthSummary({ data }: { data: CrcrJobRow[] }) {
-  const completed = data.filter((j) => j.status === "completed");
-  const total = completed.length;
-  const success = completed.filter((j) => j.conclusion === "success").length;
-  const rate = total > 0 ? success / total : 0;
+// ---- Time display ----
 
-  return (
-    <Stack direction="row" spacing={2} alignItems="center">
-      <Chip
-        label={`Pass rate: ${(rate * 100).toFixed(1)}%`}
-        color={rate >= 0.95 ? "success" : rate >= 0.8 ? "warning" : "error"}
-      />
-      <Typography variant="body2" color="text.secondary">
-        {success}/{total} jobs passed (this page)
-      </Typography>
-    </Stack>
-  );
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
+
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ---- Pagination ----
 
 const PER_PAGE = 50;
 
@@ -190,6 +332,45 @@ function CrcrPagination({
   );
 }
 
+// ---- Commit Info Hook ----
+
+interface CommitInfo {
+  sha: string;
+  title: string;
+  author: string;
+}
+
+function useCommitInfo(
+  upstreamRepo: string,
+  shas: string[]
+): Map<string, CommitInfo> {
+  const dedupedShas = useMemo(
+    () => Array.from(new Set(shas)).slice(0, 50),
+    [shas]
+  );
+  const url =
+    upstreamRepo && dedupedShas.length > 0
+      ? `/api/crcr/commit-info?repo=${encodeURIComponent(
+          upstreamRepo
+        )}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+      : null;
+  const { data } = useSWR<CommitInfo[]>(url, fetcher, {
+    revalidateOnFocus: false,
+  });
+
+  return useMemo(() => {
+    const map = new Map<string, CommitInfo>();
+    if (data) {
+      for (const ci of data) {
+        map.set(ci.sha, ci);
+      }
+    }
+    return map;
+  }, [data]);
+}
+
+// ---- PR Matrix Table ----
+
 function CrcrMatrix({
   repoFullName,
   days,
@@ -227,6 +408,10 @@ function CrcrMatrix({
     };
   }, [data]);
 
+  const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
+  const shas = useMemo(() => (matrix?.rows ?? []).map((r) => r.sha), [matrix]);
+  const commitInfoMap = useCommitInfo(upstreamRepo, shas);
+
   if (error) {
     return (
       <Typography color="error">
@@ -256,16 +441,21 @@ function CrcrMatrix({
 
   return (
     <>
-      <HealthSummary data={data} />
-      <TableContainer component={Paper} elevation={2} sx={{ mt: 2 }}>
+      <TableContainer component={Paper} elevation={2}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>
-                <strong>PR</strong>
+                <strong>Time</strong>
               </TableCell>
               <TableCell>
-                <strong>SHA</strong>
+                <strong>Commit</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Author</strong>
+              </TableCell>
+              <TableCell>
+                <strong>PR</strong>
               </TableCell>
               {matrix.jobNames.map((name) => (
                 <TableCell key={name} align="center">
@@ -275,36 +465,76 @@ function CrcrMatrix({
             </TableRow>
           </TableHead>
           <TableBody>
-            {matrix.rows.map((row) => (
-              <TableRow key={row.prNumber} hover>
-                <TableCell>
-                  <NextLink
-                    href={`https://github.com/${
-                      row.upstreamRepo ?? "pytorch/pytorch"
-                    }/pull/${row.prNumber}`}
-                    passHref
-                    legacyBehavior
-                  >
-                    <Link target="_blank" rel="noopener" underline="hover">
+            {matrix.rows.map((row) => {
+              const ci = commitInfoMap.get(row.sha);
+              return (
+                <TableRow key={row.prNumber} hover>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    <Tooltip title={new Date(row.latestTime).toLocaleString()}>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatShortDate(row.latestTime)}
+                        <br />
+                        <small>{timeAgo(row.latestTime)}</small>
+                      </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 300 }}>
+                    <Link
+                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                      target="_blank"
+                      rel="noopener"
+                      underline="hover"
+                      sx={{ fontSize: "0.85rem" }}
+                    >
+                      {ci?.title
+                        ? ci.title.length > 60
+                          ? ci.title.slice(0, 57) + "..."
+                          : ci.title
+                        : row.sha.slice(0, 7)}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {ci?.author ? (
+                      <Link
+                        href={`https://github.com/${ci.author}`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                        sx={{ fontSize: "0.85rem" }}
+                      >
+                        {ci.author}
+                      </Link>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontSize: "0.85rem" }}
+                      >
+                        –
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
+                      target="_blank"
+                      rel="noopener"
+                      underline="hover"
+                    >
                       #{row.prNumber}
                     </Link>
-                  </NextLink>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" fontFamily="monospace">
-                    {row.sha.slice(0, 7)}
-                  </Typography>
-                </TableCell>
-                {matrix.jobNames.map((name) => {
-                  const job = row.jobs.get(name);
-                  return (
-                    <TableCell key={name} align="center">
-                      {job ? <JobChip job={job} /> : "–"}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
+                  </TableCell>
+                  {matrix.jobNames.map((name) => {
+                    const job = row.jobs.get(name);
+                    return (
+                      <TableCell key={name} align="center">
+                        {job ? <JobCell job={job} /> : "–"}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -319,6 +549,8 @@ function CrcrMatrix({
   );
 }
 
+// ---- Main Page ----
+
 export default function CrcrBackendPage() {
   const router = useRouter();
   const { org, repo } = router.query;
@@ -326,9 +558,19 @@ export default function CrcrBackendPage() {
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
 
-  if (!org || !repo) return null;
+  const repoFullName = org && repo ? `${org}/${repo}` : "";
 
-  const repoFullName = `${org}/${repo}`;
+  const summaryUrl = repoFullName
+    ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
+        JSON.stringify({ repo: repoFullName, days: String(days) })
+      )}`
+    : null;
+  const { data: summaryData } = useSWR<SummaryStats[]>(summaryUrl, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const stats = summaryData?.[0] ?? null;
+
+  if (!org || !repo) return null;
 
   function updateQuery(updates: Record<string, string | number>) {
     router.push(
@@ -347,31 +589,50 @@ export default function CrcrBackendPage() {
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Stack spacing={0.5}>
             <Typography variant="h4">{repoFullName}</Typography>
-            <NextLink href="/crcr" passHref legacyBehavior>
-              <Link variant="body2" underline="hover">
-                ← Back to CRCR Summary
+            <Stack direction="row" spacing={2} alignItems="center">
+              <NextLink href="/crcr" passHref legacyBehavior>
+                <Link variant="body2" underline="hover">
+                  ← Back to CRCR Summary
+                </Link>
+              </NextLink>
+              <Link
+                href={`https://github.com/${repoFullName}`}
+                target="_blank"
+                rel="noopener"
+                variant="body2"
+                underline="hover"
+              >
+                GitHub ↗
               </Link>
-            </NextLink>
+            </Stack>
           </Stack>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Time Range</InputLabel>
-            <Select
-              value={days}
-              label="Time Range"
-              onChange={(e: SelectChangeEvent<number>) =>
-                updateQuery({ days: Number(e.target.value), page: 1 })
-              }
-            >
-              <MenuItem value={1}>Last 24h</MenuItem>
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
-            </Select>
-          </FormControl>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel>Time Range</InputLabel>
+              <Select
+                value={days}
+                label="Time Range"
+                onChange={(e: SelectChangeEvent<number>) =>
+                  updateQuery({ days: Number(e.target.value), page: 1 })
+                }
+              >
+                <MenuItem value={1}>Last 24h</MenuItem>
+                <MenuItem value={7}>Last 7 days</MenuItem>
+                <MenuItem value={30}>Last 30 days</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
         </Box>
+
+        {stats ? (
+          <SummaryCards stats={stats} />
+        ) : (
+          <Skeleton variant="rectangular" height={140} />
+        )}
 
         <Typography variant="body2" color="text.secondary">
           Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click
-          a chip to open the workflow run.
+          a cell to open the workflow run.
         </Typography>
 
         <CrcrMatrix
