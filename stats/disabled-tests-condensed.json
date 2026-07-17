@@ -28,13 +28,6 @@
       "rocm"
     ]
   ],
-  "test_addmm_relu_tunableop_rocm_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186871",
-    "https://github.com/pytorch/pytorch/issues/186871",
-    [
-      "rocm"
-    ]
-  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "149080",
     "https://github.com/pytorch/pytorch/issues/149080",
@@ -113,20 +106,6 @@
     "https://github.com/pytorch/pytorch/issues/186999",
     [
       "inductor"
-    ]
-  ],
-  "test_buffer_mutation_and_force_mmap_weights_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "170007",
-    "https://github.com/pytorch/pytorch/issues/170007",
-    [
-      "xpu"
-    ]
-  ],
-  "test_buffer_mutation_and_force_mmap_weights_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189963",
-    "https://github.com/pytorch/pytorch/issues/189963",
-    [
-      "xpu"
     ]
   ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
@@ -240,13 +219,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_arange_xpu_int64 (__main__.TestInductorOpInfoXPU)": [
-    "189662",
-    "https://github.com/pytorch/pytorch/issues/189662",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188983",
     "https://github.com/pytorch/pytorch/issues/188983",
@@ -294,20 +266,6 @@
       "slow"
     ]
   ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "189326",
-    "https://github.com/pytorch/pytorch/issues/189326",
-    [
-      "xpu"
-    ]
-  ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189327",
-    "https://github.com/pytorch/pytorch/issues/189327",
-    [
-      "xpu"
-    ]
-  ],
   "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
     "188773",
     "https://github.com/pytorch/pytorch/issues/188773",
@@ -326,54 +284,6 @@
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_collection_raw_dump_smoke (__main__.TestProfilerCUDA)": [
-    "186344",
-    "https://github.com/pytorch/pytorch/issues/186344",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_collection_repeated_lifecycle (__main__.TestProfilerCUDA)": [
-    "186400",
-    "https://github.com/pytorch/pytorch/issues/186400",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_matches_stock_op_and_kernel_names (__main__.TestProfilerCUDA)": [
-    "186587",
-    "https://github.com/pytorch/pytorch/issues/186587",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_multithread_runtime_thread_assignment (__main__.TestProfilerCUDA)": [
-    "186637",
-    "https://github.com/pytorch/pytorch/issues/186637",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_record_shapes (__main__.TestProfilerCUDA)": [
-    "186773",
-    "https://github.com/pytorch/pytorch/issues/186773",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cupti_monitor_trace_has_expected_events (__main__.TestProfilerCUDA)": [
-    "186823",
-    "https://github.com/pytorch/pytorch/issues/186823",
     [
       "linux",
       "slow"
@@ -544,13 +454,6 @@
     "https://github.com/pytorch/pytorch/issues/189323",
     [
       "linux"
-    ]
-  ],
-  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "190295",
-    "https://github.com/pytorch/pytorch/issues/190295",
-    [
-      "xpu"
     ]
   ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
