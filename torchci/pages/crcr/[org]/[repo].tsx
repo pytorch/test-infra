@@ -1,8 +1,6 @@
 import {
   Box,
-  Checkbox,
   FormControl,
-  FormControlLabel,
   InputLabel,
   Link,
   MenuItem,
@@ -21,20 +19,14 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
-import { JobStatus } from "components/job/GroupJobConclusion";
-import { getFailureEl } from "components/job/JobConclusion";
 import { getConclusionChar } from "lib/JobClassifierUtil";
-import { JobData } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { createContext, useContext, useMemo, useState } from "react";
+import { useMemo } from "react";
 import useSWR from "swr";
 
 import { fetcher } from "lib/GeneralUtils";
-
-// Local monsterization context for this page
-const CrcrMonsterContext = createContext<boolean>(false);
 
 // ---- Types ----
 
@@ -185,7 +177,6 @@ const conclusionCssColor: Record<string, string> = {
 };
 
 function JobCell({ job }: { job: CrcrJobRow }) {
-  const monsterFailures = useContext(CrcrMonsterContext);
   const conclusion = job.status === "completed" ? job.conclusion : job.status;
   const char = getConclusionChar(conclusion);
   const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
@@ -206,32 +197,6 @@ function JobCell({ job }: { job: CrcrJobRow }) {
   ]
     .filter(Boolean)
     .join("\n");
-
-  // Monsterization: show monster sprite for failures
-  if (monsterFailures && conclusion === "failure") {
-    const syntheticJobData: JobData = {
-      failureLines: [job.job_name + (job.conclusion || "")],
-    } as JobData;
-    const monsterEl = getFailureEl(JobStatus.Failure, syntheticJobData);
-    if (monsterEl) {
-      return (
-        <Tooltip
-          title={
-            <span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>
-          }
-        >
-          <a
-            href={job.workflow_run_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block" }}
-          >
-            {monsterEl}
-          </a>
-        </Tooltip>
-      );
-    }
-  }
 
   return (
     <Tooltip
@@ -589,7 +554,6 @@ function CrcrMatrix({
 export default function CrcrBackendPage() {
   const router = useRouter();
   const { org, repo } = router.query;
-  const [monsterFailures, setMonsterFailures] = useState(false);
 
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
@@ -617,7 +581,7 @@ export default function CrcrBackendPage() {
   }
 
   return (
-    <CrcrMonsterContext.Provider value={monsterFailures}>
+    <>
       <Head>
         <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
       </Head>
@@ -643,18 +607,6 @@ export default function CrcrBackendPage() {
             </Stack>
           </Stack>
           <Stack direction="row" spacing={2} alignItems="center">
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={monsterFailures}
-                  onChange={(e) => setMonsterFailures(e.target.checked)}
-                  size="small"
-                />
-              }
-              label={
-                <Typography variant="body2">Monsterize failures</Typography>
-              }
-            />
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Time Range</InputLabel>
               <Select
@@ -680,7 +632,7 @@ export default function CrcrBackendPage() {
 
         <Typography variant="body2" color="text.secondary">
           Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click
-          a chip to open the workflow run.
+          a cell to open the workflow run.
         </Typography>
 
         <CrcrMatrix
@@ -690,6 +642,6 @@ export default function CrcrBackendPage() {
           onPageChange={(p) => updateQuery({ page: p })}
         />
       </Stack>
-    </CrcrMonsterContext.Provider>
+    </>
   );
 }
