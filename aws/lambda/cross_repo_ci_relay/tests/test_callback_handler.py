@@ -568,6 +568,18 @@ class TestNightlyCallback(unittest.TestCase):
             handle(_cfg(), body, verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 400)
 
+    def test_nightly_failure_conclusion_forwards(self):
+        body = self._nightly_body()
+        body["workflow"]["conclusion"] = "failure"
+        result = handle(_cfg(), body, verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
+        self.mock_hud.assert_called_once()
+        _, trusted, untrusted = self.mock_hud.call_args[0]
+        self.assertEqual(
+            untrusted["callback_payload"]["workflow"]["conclusion"], "failure"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

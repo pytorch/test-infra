@@ -25,6 +25,21 @@ logger = logging.getLogger(__name__)
 _NIGHTLY_EVENT_TYPES = frozenset({"nightly", "periodic"})
 
 
+def _build_trusted(
+    verified_repo: str,
+    repo_level: AllowlistLevel,
+    ci_metrics: dict | None = None,
+) -> dict:
+    """Build the trusted payload block forwarded to HUD."""
+    if ci_metrics is None:
+        ci_metrics = {"queue_time": None, "execution_time": None}
+    return {
+        "ci_metrics": ci_metrics,
+        "verified_repo": verified_repo,
+        "downstream_repo_level": repo_level.value,
+    }
+
+
 def _safe_delta(
     start_ts: float | None, end_ts: float | None, label: str
 ) -> float | None:
@@ -251,9 +266,7 @@ def _handle_nightly_callback(
 
     No Redis writes, no zombie tracking, no upstream check runs.
     """
-    delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
-        _parse_callback_body(body)
-    )
+    delivery_id, status, *_ = _parse_callback_body(body)
 
     if status != "completed":
         raise HTTPException(
@@ -261,11 +274,7 @@ def _handle_nightly_callback(
             f"nightly/periodic callbacks must have status 'completed', got {status!r}",
         )
 
-    trusted = {
-        "ci_metrics": {"queue_time": None, "execution_time": None},
-        "verified_repo": verified_repo,
-        "downstream_repo_level": repo_level.value,
-    }
+    trusted = _build_trusted(verified_repo, repo_level)
     untrusted = {"callback_payload": body}
 
     forward_to_hud(config, trusted, untrusted)
@@ -304,6 +313,11 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         return {"ok": True, "status": "ignored"}
     allowlist, repo_level = result
 
+    # NOTE: event_type is untrusted (comes from the callback body, not from the
+    # OIDC token). It only selects among safe code paths — the nightly path
+    # never grants additional capability (no check runs, no Redis writes, no
+    # state machine bypass for PR events).  HUD treats nightly rows as
+    # informational, attributed to the OIDC-verified repo.
     event_type = body.get("event_type", "")
     if event_type in _NIGHTLY_EVENT_TYPES:
         return _handle_nightly_callback(config, body, verified_repo, repo_level)
@@ -330,14 +344,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     payload = None
     if status == "in_progress":
         payload = {
-            "trusted": {
-                "ci_metrics": {
-                    "queue_time": None,
-                    "execution_time": None,
-                },
-                "verified_repo": verified_repo,
-                "downstream_repo_level": repo_level.value,
-            },
+            "trusted": _build_trusted(verified_repo, repo_level),
             "untrusted": {"callback_payload": body},
         }
 
@@ -412,11 +419,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
             config, delivery_id, verified_repo, run_id, run_attempt, job_name=job_name
         )
 
-    trusted = {
-        "ci_metrics": ci_metrics,
-        "verified_repo": verified_repo,
-        "downstream_repo_level": repo_level.value,
-    }
+    trusted = _build_trusted(verified_repo, repo_level, ci_metrics)
     # downstream's payload is untrusted — provide it under the "callback_payload"
     # key so HUD receives it under the expected untrusted namespace.
     untrusted = {"callback_payload": body}
