@@ -1,4 +1,5 @@
 SELECT
+    pr_number,
     pytorch_head_sha,
     downstream_repo,
     downstream_repo_level,
@@ -15,6 +16,7 @@ SELECT
 FROM
     default.crcr_workflow_job FINAL
 WHERE
-    pytorch_head_sha IN {shas: Array(String)}
+    pr_number IN {prNums: Array(Int64)}
+    AND pr_number > 0
 ORDER BY
-    pytorch_head_sha, downstream_repo, job_name
+    pr_number, downstream_repo, job_name

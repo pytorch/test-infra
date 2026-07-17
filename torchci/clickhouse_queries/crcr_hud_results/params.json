@@ -1,10 +1,10 @@
 {
   "params": {
-    "shas": "Array(String)"
+    "prNums": "Array(Int64)"
   },
   "tests": [
     {
-      "shas": "[\"abc123\"]"
+      "prNums": "[12345]"
     }
   ]
 }

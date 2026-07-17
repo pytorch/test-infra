@@ -749,6 +749,7 @@ function CopyPermanentLink({
 }
 
 interface CrcrHudRow {
+  pr_number: number;
   pytorch_head_sha: string;
   downstream_repo: string;
   downstream_repo_level: string;
@@ -837,10 +838,14 @@ function GroupedHudTable({ params }: { params: HudParams }) {
 
   // Lazy-load CRCR results for commits on screen (pytorch/pytorch only)
   const isPyTorch = isPyTorchPyTorchRepo(params);
+  const prNums = useMemo(
+    () => data?.map((row) => row.prNum).filter((n): n is number => n != null && n > 0) ?? [],
+    [data]
+  );
   const { data: crcrRows } = useClickHouseAPIImmutable<CrcrHudRow>(
     "crcr_hud_results",
-    { shas },
-    isPyTorch && shas.length > 0
+    { prNums },
+    isPyTorch && prNums.length > 0
   );
 
   // Merge CRCR results into each row's nameToJobs so they appear as
@@ -849,19 +854,20 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     if (!data) return data;
     if (!crcrRows || crcrRows.length === 0) return data;
 
-    const crcrBySha = new Map<string, CrcrHudRow[]>();
+    const crcrByPr = new Map<number, CrcrHudRow[]>();
     for (const row of crcrRows) {
-      const list = crcrBySha.get(row.pytorch_head_sha) ?? [];
+      const list = crcrByPr.get(row.pr_number) ?? [];
       list.push(row);
-      crcrBySha.set(row.pytorch_head_sha, list);
+      crcrByPr.set(row.pr_number, list);
     }
 
     return data.map((row) => {
-      const crcrForSha = crcrBySha.get(row.sha);
-      if (!crcrForSha) return row;
+      if (!row.prNum) return row;
+      const crcrForPr = crcrByPr.get(row.prNum);
+      if (!crcrForPr) return row;
 
       const merged = new Map(row.nameToJobs);
-      for (const cr of crcrForSha) {
+      for (const cr of crcrForPr) {
         const jobData = crcrToJobData(cr);
         const existing = merged.get(jobData.name!);
         if (
