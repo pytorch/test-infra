@@ -3,12 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import github
-from utils.sha_validator import (
-    _CacheEntry,
-    _REPO_CACHE,
-    _SHA_CACHE,
-    validate_sha,
-)
+from utils.sha_validator import _CacheEntry, _REPO_CACHE, _SHA_CACHE, validate_sha
 
 
 class TestShaValidator(unittest.TestCase):
