@@ -125,6 +125,10 @@ function NavBar() {
       name: "Claude Billing",
       href: "/claude_billing",
     },
+    {
+      name: "CRCR Metrics",
+      href: "/crcr/metrics",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
