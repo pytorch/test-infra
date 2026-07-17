@@ -1,7 +1,6 @@
 import {
   Box,
   Checkbox,
-  Chip,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -24,7 +23,7 @@ import {
 import { durationDisplay } from "components/common/TimeUtils";
 import { JobStatus } from "components/job/GroupJobConclusion";
 import { getFailureEl } from "components/job/JobConclusion";
-import { fetcher } from "lib/GeneralUtils";
+import { getConclusionChar } from "lib/JobClassifierUtil";
 import { JobData } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -32,7 +31,7 @@ import { useRouter } from "next/router";
 import { createContext, useContext, useMemo, useState } from "react";
 import useSWR from "swr";
 
-import { conclusionColor, conclusionLabel } from "lib/crcr/crcrUtils";
+import { fetcher } from "lib/GeneralUtils";
 
 // Local monsterization context for this page
 const CrcrMonsterContext = createContext<boolean>(false);
@@ -173,15 +172,27 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
   );
 }
 
-// ---- Job Chip (with monsterization) ----
+// ---- Job Cell (colored character, matching main HUD style) ----
 
-function JobChip({ job }: { job: CrcrJobRow }) {
+const conclusionCssColor: Record<string, string> = {
+  success: "var(--color-success, #3fb950)",
+  failure: "var(--color-failure, #f85149)",
+  cancelled: "var(--color-failure, #f85149)",
+  timed_out: "var(--color-failure, #f85149)",
+  pending: "var(--color-pending, #d29922)",
+  skipped: "var(--color-grey, #8b949e)",
+  neutral: "var(--color-grey, #8b949e)",
+};
+
+function JobCell({ job }: { job: CrcrJobRow }) {
   const monsterFailures = useContext(CrcrMonsterContext);
-  const color = conclusionColor(job.status, job.conclusion);
-  const label = conclusionLabel(job.status, job.conclusion);
+  const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const char = getConclusionChar(conclusion);
+  const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
 
   const tooltipContent = [
     `Job: ${job.job_name}`,
+    `Status: ${conclusion}`,
     job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
     `Duration: ${
       job.duration_seconds
@@ -197,11 +208,7 @@ function JobChip({ job }: { job: CrcrJobRow }) {
     .join("\n");
 
   // Monsterization: show monster sprite for failures
-  if (
-    monsterFailures &&
-    job.status === "completed" &&
-    job.conclusion === "failure"
-  ) {
+  if (monsterFailures && conclusion === "failure") {
     const syntheticJobData: JobData = {
       failureLines: [job.job_name + (job.conclusion || "")],
     } as JobData;
@@ -217,7 +224,7 @@ function JobChip({ job }: { job: CrcrJobRow }) {
             href={job.workflow_run_url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ display: "inline-block", margin: "0 2px" }}
+            style={{ display: "inline-block" }}
           >
             {monsterEl}
           </a>
@@ -230,17 +237,23 @@ function JobChip({ job }: { job: CrcrJobRow }) {
     <Tooltip
       title={<span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>}
     >
-      <Chip
-        label={label}
-        color={color}
-        size="small"
-        component="a"
+      <a
         href={job.workflow_run_url}
         target="_blank"
-        rel="noopener"
-        clickable
-        sx={{ mx: 0.25 }}
-      />
+        rel="noopener noreferrer"
+        style={{
+          fontFamily: "monospace",
+          fontWeight: "bold",
+          fontSize: "1rem",
+          display: "inline-block",
+          width: "14px",
+          textAlign: "center",
+          color,
+          textDecoration: "none",
+        }}
+      >
+        {char}
+      </a>
     </Tooltip>
   );
 }
@@ -479,7 +492,7 @@ function CrcrMatrix({
                   const job = row.jobs.get(name);
                   return (
                     <TableCell key={name} align="center">
-                      {job ? <JobChip job={job} /> : "–"}
+                      {job ? <JobCell job={job} /> : "–"}
                     </TableCell>
                   );
                 })}
