@@ -839,7 +839,10 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   // Lazy-load CRCR results for commits on screen (pytorch/pytorch only)
   const isPyTorch = isPyTorchPyTorchRepo(params);
   const prNums = useMemo(
-    () => data?.map((row) => row.prNum).filter((n): n is number => n != null && n > 0) ?? [],
+    () =>
+      data
+        ?.map((row) => row.prNum)
+        .filter((n): n is number => n != null && n > 0) ?? [],
     [data]
   );
   const { data: crcrRows } = useClickHouseAPIImmutable<CrcrHudRow>(
