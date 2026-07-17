@@ -125,6 +125,10 @@ function NavBar() {
       name: "Claude Billing",
       href: "/claude_billing",
     },
+    {
+      name: "CRCR Metrics",
+      href: "/crcr/metrics",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
@@ -163,11 +167,6 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/crcr">
               CRCR
-            </Link>
-          </li>
-          <li>
-            <Link prefetch={false} href="/crcr/metrics">
-              CRCR Metrics
             </Link>
           </li>
         </ul>
