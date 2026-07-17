@@ -481,8 +481,8 @@
     []
   ],
   "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
-    "190157",
-    "https://github.com/pytorch/pytorch/issues/190157",
+    "180948",
+    "https://github.com/pytorch/pytorch/issues/180948",
     [
       "xpu"
     ]
