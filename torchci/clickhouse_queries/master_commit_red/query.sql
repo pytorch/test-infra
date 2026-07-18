@@ -23,6 +23,7 @@ all_runs AS (
         workflow_run.id AS id,
         workflow_run.head_commit.'id' AS sha,
         workflow_run.name AS name,
+        workflow_run.status AS run_status,
         commit.time AS time
     FROM
         workflow_run FINAL
@@ -47,9 +48,12 @@ all_jobs AS (
     SELECT
         all_runs.time AS time,
         all_runs.sha AS sha,
+        all_runs.run_status AS run_status,
         job.run_attempt AS run_attempt,
         job.conclusion AS raw_conclusion,
         job.run_id AS run_id,
+        job.created_at AS created_at,
+        job.name AS exact_name,
         -- Normalize job name to group shards together (same as auto-revert logic)
         trim(
             replaceRegexpAll(
@@ -74,6 +78,41 @@ all_jobs AS (
         )
 ),
 
+-- Collapse duplicate GitHub job ids that share the same identity
+-- (run_id, run_attempt, exact job name) and classify the result into a single
+-- state. GitHub Actions sometimes creates a placeholder job id at dispatch that
+-- is never assigned a runner and never finalized (status='queued',
+-- conclusion=''), then creates a second id for the same job that actually runs
+-- to completion. Without collapsing, the dead placeholder's empty conclusion
+-- makes the commit look pending forever.
+--   failed   - any id reached a failing conclusion, OR the job is unresolved and
+--              older than the staleness timeout (GitHub abandoned it)
+--   resolved - a terminal (non-failing) id exists, or the parent workflow_run
+--              already completed (nothing under it can still be pending)
+--   pending  - genuinely still in flight and within the staleness timeout
+job_identity AS (
+    SELECT
+        time,
+        sha,
+        base_name,
+        run_attempt,
+        run_id,
+        exact_name,
+        multiIf(
+            MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled')),
+            'failed',
+            MAX(raw_conclusion != ''),
+            'resolved',
+            any(run_status) = 'completed',
+            'resolved',
+            dateDiff('hour', MAX(created_at), now()) > 36,
+            'failed',
+            'pending'
+        ) AS identity_state
+    FROM all_jobs
+    GROUP BY time, sha, base_name, run_attempt, run_id, exact_name
+),
+
 -- Step 1: For each (sha, base_name, run_attempt), determine if this attempt
 -- has any failures or is all green across all shards
 attempt_status AS (
@@ -83,12 +122,11 @@ attempt_status AS (
         base_name,
         run_attempt,
         run_id,
-        -- Does this attempt have ANY shard with failure?
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
-            AS attempt_has_failure,
-        -- Does this attempt have any pending jobs?
-        MAX(raw_conclusion = '') AS attempt_has_pending
-    FROM all_jobs
+        -- Does this attempt have ANY shard that failed (or timed out)?
+        MAX(identity_state = 'failed') AS attempt_has_failure,
+        -- Does this attempt have a job still genuinely pending?
+        MAX(identity_state = 'pending') AS attempt_has_pending
+    FROM job_identity
     GROUP BY time, sha, base_name, run_attempt, run_id
 ),
 
