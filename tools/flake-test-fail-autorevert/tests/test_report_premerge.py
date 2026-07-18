@@ -119,11 +119,15 @@ def test_breakdown_counts_desc_with_name_tiebreak():
     breakdown = aggregate(records, source="x.csv").premerge.breakdown
     # RUN_SUCCEEDED and ERROR both count 2; tie broken by name asc.
     assert breakdown[0].name == "ERROR"
-    assert breakdown[0].count == 2
+    assert breakdown[0].signals == 2
     assert breakdown[1].name == "RUN_SUCCEEDED"
-    assert breakdown[1].count == 2
+    assert breakdown[1].signals == 2
     assert breakdown[2].name == "RUN_FAILED"
-    assert breakdown[2].count == 1
+    assert breakdown[2].signals == 1
+    # Each sha is distinct, so commit counts mirror signal counts here.
+    assert breakdown[0].commits == 2
+    assert breakdown[1].commits == 2
+    assert breakdown[2].commits == 1
 
 
 def test_every_status_has_a_tooltip():
@@ -154,7 +158,7 @@ def test_skipped_is_reported_as_not_in_matrix():
         rec(sha="b", signal="b.py::t", premerge="NOT_RUN:not_in_matrix"),
     ]
     pm = aggregate(records, source="x.csv").premerge
-    counts = {r.name: r.count for r in pm.breakdown}
+    counts = {r.name: r.signals for r in pm.breakdown}
     assert counts.get("NOT_RUN:not_in_matrix") == 2
     assert "NOT_RUN:skipped" not in counts
     html = render_premerge_section(pm)
@@ -191,6 +195,56 @@ def test_funnel_shows_stage_counts_and_drops():
     # no bar markup remains.
     assert "fn-bar" not in html
     assert "style=\"width:" not in html
+
+
+def test_commit_funnel_td_is_sticky_over_runner():
+    records = [
+        rec(sha="c1", signal="a.py::t", premerge="NOT_RUN:td_deselected"),
+        rec(sha="c1", signal="b.py::t", premerge="RUN_SUCCEEDED"),
+        rec(sha="c2", signal="c.py::t", premerge="RUN_SUCCEEDED"),
+    ]
+    pm = aggregate(records, source="x.csv").premerge
+    assert pm.total_eligible == 3
+    assert pm.total_eligible_commits == 2
+    sig = {r.name: r.signals for r in pm.breakdown}
+    com = {r.name: r.commits for r in pm.breakdown}
+    assert sig["RUN_SUCCEEDED"] == 2 and sig["NOT_RUN:td_deselected"] == 1
+    assert com["NOT_RUN:td_deselected"] == 1
+    assert com["RUN_SUCCEEDED"] == 1
+    assert sum(r.commits for r in pm.breakdown) == 2
+
+
+def test_commit_funnel_furthest_down_without_td():
+    records = [
+        rec(sha="c1", signal="a.py::t", premerge="NOT_RUN:not_in_matrix"),
+        rec(sha="c1", signal="b.py::t", premerge="RUN_SUCCEEDED"),
+    ]
+    pm = aggregate(records, source="x.csv").premerge
+    com = {r.name: r.commits for r in pm.breakdown}
+    assert pm.total_eligible_commits == 1
+    assert com.get("RUN_SUCCEEDED") == 1
+    assert com.get("NOT_RUN:not_in_matrix", 0) == 0
+
+
+def test_commit_funnel_failed_beats_passed():
+    records = [
+        rec(sha="c1", signal="a.py::t", premerge="RUN_SUCCEEDED"),
+        rec(sha="c1", signal="b.py::t", premerge="RUN_FAILED"),
+    ]
+    pm = aggregate(records, source="x.csv").premerge
+    com = {r.name: r.commits for r in pm.breakdown}
+    assert pm.total_eligible_commits == 1
+    assert com.get("RUN_FAILED") == 1
+    assert com.get("RUN_SUCCEEDED", 0) == 0
+
+
+def test_render_shows_both_funnels_and_commit_column():
+    pm = aggregate(_one_per_status(), source="x.csv").premerge
+    html = render_premerge_section(pm)
+    assert "By failing test" in html
+    assert "By commit" in html
+    assert ">Signals<" in html
+    assert ">Commits<" in html
 
 
 def test_table_headings_have_titles():

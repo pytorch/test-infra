@@ -9,6 +9,8 @@ CATEGORY_FLAKY = "flaky"
 
 PREMERGE_STATUS_TD_DESELECTED = "NOT_RUN:td_deselected"
 PREMERGE_STATUS_RUN_SUCCEEDED = "RUN_SUCCEEDED"
+PREMERGE_STATUS_RUN_FAILED = "RUN_FAILED"
+PREMERGE_STATUS_FORCE_MERGE = "NOT_RUN:force_merge"
 PREMERGE_STATUS_NO_MERGE_RECORD = "NOT_RUN:no_merge_record"
 PREMERGE_STATUS_ERROR = "ERROR"
 PREMERGE_STATUS_SKIPPED = "NOT_RUN:skipped"
@@ -88,6 +90,13 @@ class RankRow:
 
 
 @dataclass(frozen=True)
+class PremergeStatusCount:
+    name: str
+    signals: int
+    commits: int
+
+
+@dataclass(frozen=True)
 class PremergeBuckets:
     td_deselected: int
     run_succeeded: int
@@ -116,8 +125,9 @@ class PremergeRow:
 @dataclass(frozen=True)
 class PremergeData:
     total_eligible: int
+    total_eligible_commits: int
     buckets: PremergeBuckets
-    breakdown: List[RankRow]
+    breakdown: List[PremergeStatusCount]
     run_succeeded_rows: List[PremergeRow]
     td_deselected_rows: List[PremergeRow]
 
@@ -262,10 +272,45 @@ def _premerge_buckets(eligible: List[Record]) -> PremergeBuckets:
     return buckets
 
 
-def _premerge_breakdown(eligible: List[Record]) -> List[RankRow]:
-    counts: Counter = Counter(r.premerge_status for r in eligible)
-    ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [RankRow(name=name, count=count) for name, count in ordered]
+_COMMIT_STATUS_PRIORITY = {
+    PREMERGE_STATUS_TD_DESELECTED: 6,
+    PREMERGE_STATUS_RUN_FAILED: 5,
+    PREMERGE_STATUS_RUN_SUCCEEDED: 4,
+    PREMERGE_STATUS_NOT_IN_MATRIX: 3,
+    PREMERGE_STATUS_FORCE_MERGE: 2,
+    PREMERGE_STATUS_NO_MERGE_RECORD: 1,
+    PREMERGE_STATUS_ERROR: 0,
+}
+
+
+def _commit_winning_status(eligible: List[Record]) -> Dict[str, str]:
+    winner: Dict[str, str] = {}
+    best: Dict[str, int] = {}
+    for r in eligible:
+        rank = _COMMIT_STATUS_PRIORITY.get(r.premerge_status, -1)
+        if r.commit_sha not in best or rank > best[r.commit_sha]:
+            best[r.commit_sha] = rank
+            winner[r.commit_sha] = r.premerge_status
+    return winner
+
+
+def _premerge_breakdown(
+    eligible: List[Record], winner: Dict[str, str]
+) -> List[PremergeStatusCount]:
+    signal_counts: Counter = Counter(r.premerge_status for r in eligible)
+    commit_counts: Counter = Counter(winner.values())
+    names = set(signal_counts) | set(commit_counts)
+    ordered = sorted(
+        names, key=lambda name: (-signal_counts.get(name, 0), name)
+    )
+    return [
+        PremergeStatusCount(
+            name=name,
+            signals=signal_counts.get(name, 0),
+            commits=commit_counts.get(name, 0),
+        )
+        for name in ordered
+    ]
 
 
 def _premerge_rows(eligible: List[Record], status: str) -> List[PremergeRow]:
@@ -287,10 +332,18 @@ def _premerge_rows(eligible: List[Record], status: str) -> List[PremergeRow]:
 
 def _build_premerge(records: List[Record]) -> PremergeData:
     eligible = _premerge_eligible(records)
+    winner = _commit_winning_status(eligible)
+    total_eligible_commits = len({r.commit_sha for r in eligible})
+    breakdown = _premerge_breakdown(eligible, winner)
+    assert sum(row.commits for row in breakdown) == total_eligible_commits, (
+        "premerge breakdown commits must partition the eligible commits: "
+        f"{sum(row.commits for row in breakdown)} != {total_eligible_commits}"
+    )
     return PremergeData(
         total_eligible=len(eligible),
+        total_eligible_commits=total_eligible_commits,
         buckets=_premerge_buckets(eligible),
-        breakdown=_premerge_breakdown(eligible),
+        breakdown=breakdown,
         run_succeeded_rows=_premerge_rows(eligible, PREMERGE_STATUS_RUN_SUCCEEDED),
         td_deselected_rows=_premerge_rows(eligible, PREMERGE_STATUS_TD_DESELECTED),
     )

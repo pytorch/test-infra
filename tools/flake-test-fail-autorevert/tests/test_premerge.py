@@ -77,23 +77,29 @@ class _Result:
 
 class ScriptedClient:
     """Returns canned result_rows keyed by which premerge SQL is executing.
-    responses: dict with keys 'head','ts','jobs','test','file' -> list of tuples.
-    The 'head' rows are (last_commit_sha, skip_mandatory_checks) tuples; a bare
-    (sha,) tuple is treated as a non-force merge. Missing key defaults to []."""
+    responses: dict with keys 'head','head_by_pr','msg','ts','jobs','test','file' ->
+    list of tuples. The 'head'/'head_by_pr' rows are (last_commit_sha,
+    skip_mandatory_checks) tuples; a bare (sha,) tuple is treated as a non-force merge.
+    'msg' rows are (commit_message,) tuples. Missing key defaults to []."""
 
     def __init__(self, responses: Dict[str, List[Tuple[Any, ...]]]) -> None:
         self.responses = dict(responses)
-        head = self.responses.get("head")
-        if head:
-            self.responses["head"] = [
-                row if len(row) >= 2 else (row[0], False) for row in head
-            ]
+        for head_key in ("head", "head_by_pr"):
+            head = self.responses.get(head_key)
+            if head:
+                self.responses[head_key] = [
+                    row if len(row) >= 2 else (row[0], False) for row in head
+                ]
         self.queries: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 
     def query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> _Result:
         self.queries.append((query, parameters))
-        if "default.merges" in query:
+        if "default.merges" in query and "pr_num" in query:
+            key = "head_by_pr"
+        elif "default.merges" in query:
             key = "head"
+        elif "arrayFilter" in query:
+            key = "msg"
         elif "ARRAY JOIN commits" in query:
             key = "ts"
         elif "default.workflow_job" in query:
@@ -393,3 +399,195 @@ def test_bound_datetime_params_are_tz_aware_utc():
     for k, v in dt_params:
         assert v.tzinfo is not None, f"param {k} is tz-naive"
         assert v.utcoffset() == timezone.utc.utcoffset(v), f"param {k} not UTC"
+
+
+# --- Part G: by-sha MISS pr_num fallback (merge_commit_sha != landed sha) ---
+
+
+def test_bysha_hit_skips_pr_fallback():
+    # Regression guard: when the by-sha lookup returns a head, the pr_num fallback (msg /
+    # head_by_pr) is never consulted, even if scripted with a conflicting head.
+    client = ScriptedClient(
+        {
+            "head": [("bysha_head", False)],
+            "head_by_pr": [("pr_head", False)],
+            "msg": [("Title (#42)",)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [(0, 2, 0, 2)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.head_sha == "bysha_head"
+    assert not any("pr_num" in q for q, _ in client.queries)
+    assert not any("arrayFilter" in q for q, _ in client.queries)
+    assert _classify(client) == "RUN_SUCCEEDED"
+
+
+def test_bysha_miss_single_pr_head_resolves_and_proceeds():
+    # By-sha miss + non-revert title + exactly one distinct pr_num head => recover that
+    # head and run the normal downstream flow (here a scripted success).
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Support out-of-order ranks (#189090)",)],
+            "head_by_pr": [("d73ded44", False)],
+            "ts": [(TS,)],
+            "jobs": [(111,)],
+            "test": [(0, 3, 0, 3)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason is None
+    assert ctx.head_sha == "d73ded44"
+    assert _classify(client) == "RUN_SUCCEEDED"
+
+
+def test_bysha_miss_pr_head_carries_force_flag():
+    # The recovered head's skip_mandatory_checks must flow into force_merge so a real
+    # force merge with no gate jobs still attributes to force_merge (not not_in_matrix).
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Title (#500)",)],
+            "head_by_pr": [("fh", True)],
+            "ts": [(TS,)],
+            "jobs": [],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.head_sha == "fh"
+    assert ctx.force_merge is True
+    assert _classify(client) == "NOT_RUN:force_merge"
+
+
+def test_bysha_miss_revert_title_stays_no_merge_record():
+    # MOST IMPORTANT new guard: a revert title's (#N) is the ORIGINAL reverted PR, so the
+    # pr_num fallback MUST NOT fire even though head_by_pr is scripted with a head. Using
+    # it would fetch the wrong PR's head and check the wrong test.
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [('Revert "Something bad (#175017)"',)],
+            "head_by_pr": [("wrong_head", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [(0, 5, 0, 5)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+    assert ctx.head_sha is None
+    assert not any("pr_num" in q for q, _ in client.queries)
+    assert _classify(client) == "NOT_RUN:no_merge_record"
+
+
+def test_bysha_miss_backout_title_stays_no_merge_record():
+    # 'Back out ' is the internal-import revert variant; it is a revert too, so the same
+    # (#N)-is-the-original-PR reasoning excludes it from the pr_num fallback.
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [('Back out "D123 broke stuff (#180000)"',)],
+            "head_by_pr": [("wrong_head", False)],
+            "ts": [(TS,)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+    assert not any("pr_num" in q for q, _ in client.queries)
+
+
+def test_bysha_miss_zero_pr_heads_stays_no_merge_record():
+    # By-sha miss + non-revert + no head_by_pr rows (truly none, e.g. pr 176543) => stay
+    # undetermined rather than guess.
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Some inductor change (#176543)",)],
+            "head_by_pr": [],
+            "ts": [(TS,)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+    assert ctx.head_sha is None
+
+
+def test_bysha_miss_ambiguous_two_pr_heads_stays_no_merge_record():
+    # Two DISTINCT last_commit_sha for the pr => ambiguous multi-merge; do not guess a
+    # head, stay no_merge_record (safer to under-attribute than pick a wrong head).
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Title (#600)",)],
+            "head_by_pr": [("head_a", False), ("head_b", False)],
+            "ts": [(TS,)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+    assert ctx.head_sha is None
+
+
+def test_bysha_miss_duplicate_same_pr_head_is_unambiguous():
+    # Multiple rows collapsing to ONE distinct last_commit_sha (a re-merge of the same
+    # head) is unambiguous and must resolve, not be treated as multi-merge.
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Title (#700)",)],
+            "head_by_pr": [("same_head", False), ("same_head", False)],
+            "ts": [(TS,)],
+            "jobs": [(9,)],
+            "test": [(1, 0, 0, 1)],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.head_sha == "same_head"
+    assert _classify(client) == "RUN_FAILED"
+
+
+def test_bysha_miss_no_message_stays_no_merge_record():
+    # By-sha miss + no push message row at all => cannot parse a PR, stay no_merge_record.
+    client = ScriptedClient({"head": [], "msg": []})
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+
+
+def test_bysha_miss_unparseable_message_stays_no_merge_record():
+    # By-sha miss + message with no (#N) => no PR to resolve by, stay no_merge_record.
+    client = ScriptedClient({"head": [], "msg": [("No pr number here",)]})
+    ctx = resolve_premerge_context(client, "M" * 40)
+    assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
+    assert not any("pr_num" in q for q, _ in client.queries)
+
+
+def test_bysha_miss_fallback_merge_ts_keyed_to_on_main_commit():
+    # merge_ts is derived from MERGE_TS_SQL bound to the ON-MAIN commit ({commit}), NOT
+    # the recovered fallback head: the landed commit's timestamp is the pre/post boundary.
+    client = ScriptedClient(
+        {
+            "head": [],
+            "msg": [("Title (#42)",)],
+            "head_by_pr": [("fallback_head", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [(0, 1, 0, 1)],
+        }
+    )
+    resolve_premerge_context(client, "ONMAIN" + "0" * 34)
+    ts_params = [
+        p for q, p in client.queries if "arrayFilter" not in q and "ARRAY JOIN commits" in q
+    ]
+    assert ts_params, "expected MERGE_TS_SQL to run"
+    for p in ts_params:
+        assert p["merge_commit"] == "ONMAIN" + "0" * 34
+
+
+def test_parse_pr_from_revert_title_returns_original_pr():
+    # Documents WHY the revert guard is needed (not the parser): the parser correctly
+    # returns the ORIGINAL PR embedded in a revert title, which is the WRONG PR to resolve
+    # a pre-merge head by. The guard, not the parser, prevents the misresolution.
+    title = 'Revert "[nonstrict trace] use _LeafCallable (#175017)"'
+    assert parse_pr_from_message(title) == 175017

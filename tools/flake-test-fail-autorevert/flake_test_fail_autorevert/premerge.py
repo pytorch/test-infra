@@ -24,7 +24,7 @@ test did not run at all.
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
 from clickhouse_connect.driver import Client
 
@@ -97,6 +97,27 @@ ORDER BY comment_id DESC
 LIMIT 1
 """
 
+# By-sha miss fallback: default.merges.merge_commit_sha often differs from the sha that
+# lands on main (final rebase at merge time), so the squashed title's (#PR) resolves the
+# pre-merge head when the by-sha lookup finds nothing. Title carries (#NNNNN).
+COMMIT_MSG_ONE_SQL = """
+SELECT arrayFilter(x -> x.'id' = {commit:String}, commits)[1].'message'
+FROM default.push ARRAY JOIN commits AS commit
+WHERE ref = 'refs/heads/main' AND commit.id = {commit:String}
+LIMIT 1
+"""
+
+MERGE_HEAD_BY_PR_SQL = """
+SELECT DISTINCT last_commit_sha, skip_mandatory_checks
+FROM default.merges
+WHERE pr_num = {pr:Int64}
+  AND owner = {owner:String}
+  AND project = {project:String}
+  AND last_commit_sha != ''
+  AND dry_run = 0
+  AND is_failed = 0
+"""
+
 MERGE_TS_SQL = """
 SELECT min(commit.timestamp) AS ts
 FROM default.push ARRAY JOIN commits AS commit
@@ -155,6 +176,43 @@ class PremergeContext(NamedTuple):
     terminal_reason: Optional[str]
 
 
+def _resolve_head_by_pr(
+    client: Client,
+    commit_sha: str,
+    owner: str,
+    project: str,
+) -> Optional[Tuple[str, bool]]:
+    """By-sha miss fallback: resolve the pre-merge head via the squashed title's (#PR).
+    Returns (head_sha, force_merge) only when a SINGLE unambiguous head is found; None
+    otherwise (no message, unparseable PR, a revert, or 0/>1 distinct heads).
+    Reverts are excluded because a revert title's (#N) is the ORIGINAL reverted PR, so
+    resolving by it would fetch the wrong PR's head and check the wrong test."""
+    msg_rows = run_query(client, COMMIT_MSG_ONE_SQL, {"commit": commit_sha})
+    message = msg_rows[0][0] if msg_rows and msg_rows[0][0] else ""
+    if not message:
+        return None
+    first_line = message.splitlines()[0]
+    if first_line.startswith("Revert ") or first_line.startswith("Back out "):
+        return None
+    pr = parse_pr_from_message(message)
+    if pr is None:
+        return None
+
+    pr_rows = run_query(
+        client,
+        MERGE_HEAD_BY_PR_SQL,
+        {"pr": pr, "owner": owner, "project": project},
+    )
+    heads = sorted({row[0] for row in pr_rows if row[0]})
+    # Only recover a head when it is unambiguous: 0 or >1 distinct heads stay
+    # no_merge_record — safer to under-attribute than to pick a wrong head.
+    if len(heads) != 1:
+        return None
+    head_sha = heads[0]
+    force_merge = any(_is_force(row[1]) for row in pr_rows if row[0] == head_sha)
+    return head_sha, force_merge
+
+
 def resolve_premerge_context(
     client: Client,
     commit_sha: str,
@@ -164,7 +222,7 @@ def resolve_premerge_context(
     All IO goes through run_query (retry wrapper). On any query exception after retries,
     returns a context with terminal_reason 'ERROR' — NEVER guesses RUN_SUCCEEDED.
     terminal_reason is set when classification can be decided from the commit alone:
-      no_merge_record  no merges row resolved a head
+      no_merge_record  neither the by-sha nor the by-pr fallback resolved a head
       ERROR            merge timestamp missing/epoch
       not_in_matrix    no gate jobs on the head (normal merge)
       force_merge      no gate jobs on the head AND this was a force merge"""
@@ -177,11 +235,24 @@ def resolve_premerge_context(
             MERGE_HEAD_SQL,
             {"merge_commit": commit_sha, "project": project_name, "owner": owner_name},
         )
-        if not head_rows:
-            return PremergeContext(None, None, None, [], False, "NOT_RUN:no_merge_record")
-        head_sha = head_rows[0][0]
-        force_merge = _is_force(head_rows[0][1])
+        if head_rows:
+            head_sha = head_rows[0][0]
+            force_merge = _is_force(head_rows[0][1])
+        else:
+            # By-sha is the most precise key and is tried first; only on a miss do we fall
+            # back to the squashed title's (#PR), which stays robust to the merge-time
+            # rebase that leaves merge_commit_sha != the sha landed on main.
+            fallback = _resolve_head_by_pr(
+                client, commit_sha, owner_name, project_name
+            )
+            if fallback is None:
+                return PremergeContext(
+                    None, None, None, [], False, "NOT_RUN:no_merge_record"
+                )
+            head_sha, force_merge = fallback
 
+        # merge_ts stays keyed to the on-main commit (its landed timestamp is the pre/post
+        # boundary), NOT the fallback head, in both the by-sha and by-pr paths.
         ts_rows = run_query(client, MERGE_TS_SQL, {"merge_commit": commit_sha})
         ts = ts_rows[0][0] if ts_rows else None
         if ts is None or ts.year <= 1970:

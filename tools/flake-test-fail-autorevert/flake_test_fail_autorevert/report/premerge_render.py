@@ -1,7 +1,13 @@
 from typing import List
 
 from .aggregate import (
+    PREMERGE_STATUS_ERROR,
+    PREMERGE_STATUS_FORCE_MERGE,
+    PREMERGE_STATUS_NOT_IN_MATRIX,
+    PREMERGE_STATUS_NO_MERGE_RECORD,
+    PREMERGE_STATUS_RUN_FAILED,
     PREMERGE_STATUS_RUN_SUCCEEDED,
+    PREMERGE_STATUS_SKIPPED,
     PREMERGE_STATUS_TD_DESELECTED,
     PREMERGE_STATUS_TOOLTIPS,
     PREMERGE_TOOLTIP_UNDETERMINED,
@@ -38,6 +44,7 @@ _PREMERGE_CSS = """
 .fn-drop .fn-n { min-width: 3em; text-align: right; font-weight: 400;
   color: #a33; font-size: 12px; font-variant-numeric: tabular-nums; }
 .fn-caption { color: #555; font-size: 12px; margin: 0 0 8px; }
+.fn-block h3 { font-size: 13px; margin: 0 0 4px; color: #444; }
 .explain { margin-top: 28px; }
 .explain h3 { font-size: 15px; }
 .explain table { border-collapse: collapse; font-size: 13px; width: 100%;
@@ -56,8 +63,12 @@ def _safe_href(url: str) -> str:
     return url if url.startswith(_SAFE_URL_SCHEMES) else ""
 
 
-def _status_counts(premerge: PremergeData) -> dict:
-    return {row.name: row.count for row in premerge.breakdown}
+def _status_signal_counts(premerge: PremergeData) -> dict:
+    return {row.name: row.signals for row in premerge.breakdown}
+
+
+def _status_commit_counts(premerge: PremergeData) -> dict:
+    return {row.name: row.commits for row in premerge.breakdown}
 
 
 def _fn_row(n: int, label: str, cls: str = "") -> str:
@@ -77,16 +88,18 @@ def _fn_drop(n: int, label: str, tooltip: str) -> str:
     )
 
 
-def _render_funnel(premerge: PremergeData) -> str:
-    c = _status_counts(premerge)
-    total = premerge.total_eligible
-    undetermined = premerge.buckets.undetermined
-    force_merge = c.get("NOT_RUN:force_merge", 0)
-    not_in_matrix = c.get("NOT_RUN:not_in_matrix", 0)
-    td = c.get(PREMERGE_STATUS_TD_DESELECTED, 0)
-    skipped = c.get("NOT_RUN:skipped", 0)
-    run_ok = c.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
-    run_fail = c.get("RUN_FAILED", 0)
+def _funnel_block(
+    title: str, first_row_noun: str, counts: dict, total: int
+) -> str:
+    undetermined = counts.get(PREMERGE_STATUS_NO_MERGE_RECORD, 0) + counts.get(
+        PREMERGE_STATUS_ERROR, 0
+    )
+    force_merge = counts.get(PREMERGE_STATUS_FORCE_MERGE, 0)
+    not_in_matrix = counts.get(PREMERGE_STATUS_NOT_IN_MATRIX, 0)
+    td = counts.get(PREMERGE_STATUS_TD_DESELECTED, 0)
+    skipped = counts.get(PREMERGE_STATUS_SKIPPED, 0)
+    run_ok = counts.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
+    run_fail = counts.get(PREMERGE_STATUS_RUN_FAILED, 0)
 
     r1 = total - undetermined
     r2 = r1 - force_merge
@@ -94,23 +107,26 @@ def _render_funnel(premerge: PremergeData) -> str:
     r4 = r3 - td
     tips = PREMERGE_STATUS_TOOLTIPS
     parts = [
-        '<p class="fn-caption">How the pre-merge checks filtered these '
-        "failing tests. Each step drops the tests that never produced a "
-        "pass/fail; hover a drop for why.</p>",
+        '<div class="fn-block">',
+        f"<h3>{escape(title)}</h3>",
         '<div class="funnel">',
-        _fn_row(total, "eligible (trunk/pull regressions)"),
+        _fn_row(total, f"eligible {first_row_noun} (trunk/pull regressions)"),
         _fn_drop(
             undetermined,
             "couldn't determine pre-merge status",
             PREMERGE_TOOLTIP_UNDETERMINED,
         ),
         _fn_row(r1, "pre-merge version identified"),
-        _fn_drop(force_merge, "force-merged, gate bypassed", tips["NOT_RUN:force_merge"]),
+        _fn_drop(
+            force_merge,
+            "force-merged, gate bypassed",
+            tips[PREMERGE_STATUS_FORCE_MERGE],
+        ),
         _fn_row(r2, "merge gate ran"),
         _fn_drop(
             not_in_matrix,
             "file/config not in the pre-merge matrix",
-            tips["NOT_RUN:not_in_matrix"],
+            tips[PREMERGE_STATUS_NOT_IN_MATRIX],
         ),
         _fn_row(r3, "test's file was in the matrix"),
         _fn_drop(
@@ -119,12 +135,41 @@ def _render_funnel(premerge: PremergeData) -> str:
             tips[PREMERGE_STATUS_TD_DESELECTED],
         ),
         _fn_row(r4, "test was selected to run"),
-        _fn_drop(skipped, "skipped", tips["NOT_RUN:skipped"]),
+        _fn_drop(skipped, "skipped", tips[PREMERGE_STATUS_SKIPPED]),
         _fn_row(run_ok, "ran and PASSED pre-merge (landrace)", "fn-pass"),
         _fn_row(run_fail, "ran and FAILED pre-merge (merged red)", "fn-fail"),
         "</div>",
+        "</div>",
     ]
     return "".join(parts)
+
+
+def _render_funnels(premerge: PremergeData) -> str:
+    caption = (
+        '<p class="fn-caption">How the pre-merge checks filtered these '
+        "regressions, shown two ways - by failing test and by commit. Each "
+        "step drops the ones that never produced a pass/fail; hover a drop "
+        "for why.</p>"
+    )
+    signal_block = _funnel_block(
+        "By failing test",
+        "failing tests",
+        _status_signal_counts(premerge),
+        premerge.total_eligible,
+    )
+    commit_block = _funnel_block(
+        "By commit",
+        "commits",
+        _status_commit_counts(premerge),
+        premerge.total_eligible_commits,
+    )
+    return (
+        caption
+        + '<div class="grid">'
+        + signal_block
+        + commit_block
+        + "</div>"
+    )
 
 
 def _breakdown_table(breakdown: List) -> str:
@@ -135,18 +180,20 @@ def _breakdown_table(breakdown: List) -> str:
             f"<tr>"
             f'<td class="rank">{i}</td>'
             f'<td class="name"><span{tip_attr(tooltip)}>{escape(row.name)}</span></td>'
-            f'<td class="num">{row.count}</td>'
+            f'<td class="num">{row.signals}</td>'
+            f'<td class="num">{row.commits}</td>'
             f"</tr>"
         )
     if not body_rows:
-        body_rows.append('<tr><td colspan="3" class="empty">No data</td></tr>')
+        body_rows.append('<tr><td colspan="4" class="empty">No data</td></tr>')
     return (
         '<div class="card">'
         "<h3>Breakdown by status</h3>"
         '<table class="rank-table"><thead><tr>'
         '<th class="rank" data-type="num">#<span class="ind"></span></th>'
         '<th>Status<span class="ind"></span></th>'
-        '<th class="num" data-type="num">Count<span class="ind"></span></th>'
+        '<th class="num" data-type="num">Signals<span class="ind"></span></th>'
+        '<th class="num" data-type="num">Commits<span class="ind"></span></th>'
         "</tr></thead><tbody>"
         + "".join(body_rows)
         + "</tbody></table></div>"
@@ -262,7 +309,7 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
 
     td_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED]
     rs_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_RUN_SUCCEEDED]
-    funnel = _render_funnel(premerge)
+    funnels = _render_funnels(premerge)
     tables = (
         '<div class="grid">'
         + _breakdown_table(premerge.breakdown)
@@ -286,7 +333,7 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
         _PREMERGE_CSS
         + heading
         + _TIP_LEGEND
-        + funnel
+        + funnels
         + tables
         + _explanation()
     )
