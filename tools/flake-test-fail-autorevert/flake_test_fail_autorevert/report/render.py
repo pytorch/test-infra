@@ -1,8 +1,9 @@
-import html
 import json
 from typing import List, NamedTuple, Optional
 
 from .aggregate import Datasets, Meta, RankRow, top_n
+from .htmlutil import escape, stat_card
+from .premerge_render import render_premerge_section
 
 _CSS = """
 :root { color-scheme: light dark; }
@@ -49,6 +50,20 @@ table.rank-table td.rank, table.rank-table th.rank { width: 44px;
 .more { color: #666; font-size: 12px; margin-top: 8px; }
 .empty { background: #fff; border: 1px solid #d7dade; border-radius: 10px;
   padding: 24px; text-align: center; color: #666; }
+.tip-legend { color: #555; font-size: 12px; margin: 8px 0 0; font-style: italic; }
+.tip { position: relative; cursor: help; }
+span.tip, h3.tip { text-decoration: underline dotted; text-underline-offset: 3px;
+  text-decoration-thickness: 1px; }
+.stat.tip .l { text-decoration: underline dotted; text-underline-offset: 3px; }
+.tip::after {
+  content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 4px);
+  z-index: 20; width: max-content; max-width: 340px; white-space: normal;
+  background: #1c1e21; color: #fff; padding: 8px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 400; line-height: 1.45; text-transform: none;
+  letter-spacing: normal; box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  opacity: 0; visibility: hidden; transition: opacity .1s ease; pointer-events: none;
+}
+.tip:hover::after { opacity: 1; visibility: visible; }
 """.strip()
 
 _SORT_JS = """
@@ -127,10 +142,6 @@ _CHARTS_UNAVAILABLE = (
 )
 
 
-def escape(value: str) -> str:
-    return html.escape(str(value))
-
-
 def _json_for_script(obj: object) -> str:
     return (
         json.dumps(obj, ensure_ascii=False)
@@ -196,13 +207,6 @@ def _chart_payload(datasets: Datasets) -> dict:
     }
 
 
-def _stat(n: int, label: str) -> str:
-    return (
-        f'<div class="stat"><div class="n">{n}</div>'
-        f'<div class="l">{escape(label)}</div></div>'
-    )
-
-
 def _render_header(title: str, meta: Meta) -> str:
     date_range = (
         f"{escape(meta.min_day)} to {escape(meta.max_day)}"
@@ -214,10 +218,10 @@ def _render_header(title: str, meta: Meta) -> str:
         f'<div class="meta">Source: <code>{escape(meta.source)}</code></div>'
         f'<div class="meta">Date range: {date_range}</div>'
         '<div class="totals">'
-        + _stat(meta.total_rows, "signal rows")
-        + _stat(meta.distinct_commits, "distinct commits")
-        + _stat(meta.regression_rows, "regression rows")
-        + _stat(meta.flaky_rows, "flaky rows")
+        + stat_card(meta.total_rows, "signal rows")
+        + stat_card(meta.distinct_commits, "distinct commits")
+        + stat_card(meta.regression_rows, "regression rows")
+        + stat_card(meta.flaky_rows, "flaky rows")
         + "</div>"
     )
 
@@ -357,7 +361,8 @@ def render(
     )
 
     data_json = _json_for_script(_chart_payload(datasets))
-    body = header + banner + flaky + regressions
+    premerge = render_premerge_section(datasets.premerge)
+    body = header + banner + flaky + regressions + premerge
     return _document(title, body, data_json, has_data=True, chartjs=chartjs)
 
 

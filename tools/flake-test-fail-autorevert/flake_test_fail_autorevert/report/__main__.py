@@ -29,7 +29,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--title", default="Autorevert flakiness & regressions", help="report title"
     )
     parser.add_argument(
-        "--top", type=int, default=50, help="rows per ranking table (default 50)"
+        "--top", type=int, default=15, help="rows per ranking table (default 15)"
     )
     parser.add_argument(
         "--no-charts",

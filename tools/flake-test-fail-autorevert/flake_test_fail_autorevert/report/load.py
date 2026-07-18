@@ -32,6 +32,7 @@ class Record:
     signal_key: str
     advisor_verdict: str
     advisor_confidence: str
+    premerge_status: str = ""
 
     @property
     def day(self) -> str:

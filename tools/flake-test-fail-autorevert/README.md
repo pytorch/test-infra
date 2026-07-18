@@ -29,6 +29,28 @@ signals are excluded.
 - `advisor_confidence` — for `regression` rows with a verdict, the advisor's
   confidence formatted to two decimals (e.g. `0.99`), else empty. Always empty
   for `flaky` rows.
+- `premerge_status` — for `regression` rows on the `trunk` or `pull` workflow, the
+  pre-merge trunk-gate status of the test on the merged commit's validated head;
+  empty for all other rows. One of:
+  - `RUN_SUCCEEDED` — the test ran on the pre-merge head and passed. Only ever
+    emitted from a POSITIVE success-row observation, never from an empty read.
+  - `RUN_FAILED` — the test ran and at least one shard failed ("merged despite
+    red"). Checked before success, so a mixed pass/fail set reports as failed.
+  - `NOT_RUN:force_merge` — a REAL force merge (`skip_mandatory_checks` set on the
+    merge, i.e. `-f`) that bypassed the gate AND the test did not run at all. A
+    force merge that still ran the test reports the test's real verdict instead —
+    force_merge never masks a real outcome.
+  - `NOT_RUN:skipped` — the test ran but every run was skipped.
+  - `NOT_RUN:td_deselected` — the test's file ran but the test was deselected
+    (test dependency / target determination).
+  - `NOT_RUN:not_in_matrix` — the test's file never ran on the head (job not in
+    the matrix, or no gate jobs at all on a non-force merge).
+  - `NOT_RUN:no_merge_record` — no `default.merges` row resolved a pre-merge head
+    for this commit, so we cannot classify it. This is the honest label for a
+    ghstack **non-tip** commit (only the stack's tip PR gets a merges row keyed by
+    its squashed commit), a revert, a direct push, or data predating the merges
+    table. It is NOT an inference of force merge. See the coverage note below.
+  - `ERROR` — a query failed after retries, or the merge timestamp was missing.
 
 Rows are sorted by `(commit_time, category, workflow, signal_key)` ascending.
 
@@ -95,6 +117,23 @@ python -m flake_test_fail_autorevert --start 2026-07-01 --end 2026-07-14
   `flake_test_fail_autorevert_<start>_<end>.csv`. The path and a one-line summary
   (`N rows across M commits: R regression, F flaky`) are printed on completion.
 
+## Notes on `premerge_status` coverage
+
+The pre-merge head is resolved from `default.merges`, which is keyed by the
+**merge command's** commit — for a ghstack stack that is only the **tip** PR's
+squashed commit. A ghstack **non-tip** commit lands its own squashed commit on
+`main` but has no `default.merges` row keyed by that commit, so its pre-merge head
+cannot be resolved and it is reported as `NOT_RUN:no_merge_record`. Autorevert
+frequently bisects a regression to a non-tip culprit, so this is a real coverage
+gap, not an edge case. There is currently no clean, reliable way to recover the
+non-tip pre-merge head from ClickHouse, so `no_merge_record` is the honest label
+rather than guessing. Reverts and direct pushes (no merges row) also land here.
+
+A real `-f` force merge, by contrast, DOES write a `default.merges` row (with
+`skip_mandatory_checks` set), so it resolves a head and its test status is queried
+normally; `NOT_RUN:force_merge` is reported only when the gate was bypassed AND the
+test genuinely did not run.
+
 ## Notes on the flaky scan
 
 Flaky signals are read from the `misc.autorevert_state` JSON snapshots. Several
@@ -114,6 +153,11 @@ observed days, taking a few seconds per chunk. Results are exhaustive (every
 snapshot in range, deduped), and very large ranges scale linearly in the number of
 chunks.
 
-DNS to the ClickHouse cloud host flaps intermittently, so each query is retried
-with exponential backoff on connection/name-resolution errors; SQL errors fail
-fast.
+DNS to the ClickHouse cloud host flaps intermittently and the shared cluster can
+return transient server errors (e.g. `MEMORY_LIMIT_EXCEEDED`), so each query is
+retried with exponential backoff on connection, name-resolution, and transient
+database errors. Genuine query bugs fail fast on the first attempt: the driver
+raises a bare `DatabaseError` for server errors with the ClickHouse numeric code in
+the message, so a deterministic code (syntax error, unknown table/column/function,
+type mismatch, bad arguments, access denied, etc.) is detected and not retried;
+unknown or transient codes default to being retried.

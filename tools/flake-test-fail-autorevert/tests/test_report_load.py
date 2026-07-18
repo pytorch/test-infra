@@ -20,11 +20,12 @@ def _row(
     signal="f.py::t",
     verdict="",
     confidence="",
+    premerge="",
 ):
     url = f"https://github.com/pytorch/pytorch/commit/{sha}"
     buf = io.StringIO()
     csv.writer(buf).writerow(
-        [sha, url, time, category, workflow, signal, verdict, confidence]
+        [sha, url, time, category, workflow, signal, verdict, confidence, premerge]
     )
     return buf.getvalue().rstrip("\r\n")
 

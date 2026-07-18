@@ -50,6 +50,14 @@ WHERE ref = 'refs/heads/main'
 GROUP BY sha
 """
 
+COMMIT_MSG_SQL = """
+SELECT commit.id AS sha, any(commit.message) AS message
+FROM default.push ARRAY JOIN commits AS commit
+WHERE ref = 'refs/heads/main'
+  AND commit.id IN {shas:Array(String)}
+GROUP BY sha
+"""
+
 ADVISOR_SQL = """
 SELECT toString(suspect_commit) AS commit_sha, signal_key,
        argMax(tuple(verdict, confidence, workflow_name), timestamp) AS vcw
@@ -117,6 +125,18 @@ def fetch_commit_times(client: Client, shas: List[str]) -> Dict[str, datetime]:
                 continue
             commit_times[sha] = ts
     return commit_times
+
+
+def fetch_commit_messages(client: Client, shas: List[str]) -> Dict[str, str]:
+    messages: Dict[str, str] = {}
+    for i in range(0, len(shas), PUSH_CHUNK_SIZE):
+        chunk = shas[i : i + PUSH_CHUNK_SIZE]
+        rows = run_query(client, COMMIT_MSG_SQL, {"shas": chunk})
+        for sha, message in rows:
+            if not sha:
+                continue
+            messages[sha] = message or ""
+    return messages
 
 
 def fetch_advisor_verdicts(

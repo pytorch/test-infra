@@ -10,6 +10,7 @@ COLUMNS = [
     "signal_key",
     "advisor_verdict",
     "advisor_confidence",
+    "premerge_status",
 ]
 
 TIME_FMT = "%Y-%m-%d %H:%M:%S"
