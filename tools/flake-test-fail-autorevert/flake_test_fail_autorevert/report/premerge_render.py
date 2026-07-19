@@ -45,6 +45,11 @@ _PREMERGE_CSS = """
   color: #a33; font-size: 12px; font-variant-numeric: tabular-nums; }
 .fn-caption { color: #555; font-size: 12px; margin: 0 0 8px; }
 .fn-block h3 { font-size: 13px; margin: 0 0 4px; color: #444; }
+.headline { display: flex; gap: 40px; margin: 10px 0 18px; flex-wrap: wrap; }
+.headline .hl { min-width: 220px; }
+.headline .hl-n { font-size: 30px; font-weight: 700; color: #b3261e;
+  font-variant-numeric: tabular-nums; }
+.headline .hl-lbl { font-size: 13px; color: #333; max-width: 320px; }
 .explain { margin-top: 28px; }
 .explain h3 { font-size: 15px; }
 .explain table { border-collapse: collapse; font-size: 13px; width: 100%;
@@ -142,6 +147,35 @@ def _funnel_block(
         "</div>",
     ]
     return "".join(parts)
+
+
+def _hl(n: int, label: str, tooltip: str) -> str:
+    return (
+        '<div class="hl">'
+        f'<div class="hl-n">{n}</div>'
+        f'<div class="hl-lbl"><span{tip_attr(tooltip)}>{escape(label)}</span></div>'
+        "</div>"
+    )
+
+
+def _render_headline(premerge: PremergeData) -> str:
+    return (
+        '<div class="headline">'
+        + _hl(
+            premerge.green_would_be_red_commits,
+            "commits with otherwise-green signals that would be red if TD had "
+            "run the deselected test",
+            "Commits that had a target-determination-deselected test which "
+            "failed on main, and no other test that failed pre-merge - i.e. "
+            "the PR looked green but would have gone red had TD run that test.",
+        )
+        + _hl(
+            premerge.td_deselected_commits,
+            "commits with TD-skipped signals that failed on main",
+            PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED],
+        )
+        + "</div>"
+    )
 
 
 def _render_funnels(premerge: PremergeData) -> str:
@@ -309,6 +343,7 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
 
     td_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED]
     rs_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_RUN_SUCCEEDED]
+    headline = _render_headline(premerge)
     funnels = _render_funnels(premerge)
     tables = (
         '<div class="grid">'
@@ -333,6 +368,7 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
         _PREMERGE_CSS
         + heading
         + _TIP_LEGEND
+        + headline
         + funnels
         + tables
         + _explanation()

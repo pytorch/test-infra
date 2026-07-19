@@ -130,6 +130,8 @@ class PremergeData:
     breakdown: List[PremergeStatusCount]
     run_succeeded_rows: List[PremergeRow]
     td_deselected_rows: List[PremergeRow]
+    green_would_be_red_commits: int
+    td_deselected_commits: int
 
 
 @dataclass(frozen=True)
@@ -330,6 +332,21 @@ def _premerge_rows(eligible: List[Record], status: str) -> List[PremergeRow]:
     ]
 
 
+def _premerge_td_commit_counts(eligible: List[Record]) -> Tuple[int, int]:
+    by_commit: Dict[str, Set[str]] = {}
+    for r in eligible:
+        by_commit.setdefault(r.commit_sha, set()).add(r.premerge_status)
+    td_commits = 0
+    green_would_be_red = 0
+    for statuses in by_commit.values():
+        if PREMERGE_STATUS_TD_DESELECTED not in statuses:
+            continue
+        td_commits += 1
+        if PREMERGE_STATUS_RUN_FAILED not in statuses:
+            green_would_be_red += 1
+    return green_would_be_red, td_commits
+
+
 def _build_premerge(records: List[Record]) -> PremergeData:
     eligible = _premerge_eligible(records)
     winner = _commit_winning_status(eligible)
@@ -339,6 +356,7 @@ def _build_premerge(records: List[Record]) -> PremergeData:
         "premerge breakdown commits must partition the eligible commits: "
         f"{sum(row.commits for row in breakdown)} != {total_eligible_commits}"
     )
+    green_would_be_red, td_deselected_commits = _premerge_td_commit_counts(eligible)
     return PremergeData(
         total_eligible=len(eligible),
         total_eligible_commits=total_eligible_commits,
@@ -346,6 +364,8 @@ def _build_premerge(records: List[Record]) -> PremergeData:
         breakdown=breakdown,
         run_succeeded_rows=_premerge_rows(eligible, PREMERGE_STATUS_RUN_SUCCEEDED),
         td_deselected_rows=_premerge_rows(eligible, PREMERGE_STATUS_TD_DESELECTED),
+        green_would_be_red_commits=green_would_be_red,
+        td_deselected_commits=td_deselected_commits,
     )
 
 
