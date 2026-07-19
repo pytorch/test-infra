@@ -169,6 +169,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
   const data = useMemo(() => processJobs(jobs), [jobs]);
   const [colorMode, setColorMode] = useState<"group" | "status">("status");
   const [locked, setLocked] = useState(false);
+  const [filter, setFilter] = useState("");
   const [containerRef, containerWidth] = useContainerWidth();
   const theme = useTheme();
   // Chrome/neutral colors must work on light and dark backgrounds (torchci
@@ -192,8 +193,17 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
   }
 
   const { rows, maxEnd, skipped } = data;
-  const nFail = rows.filter((r) => r.status === "failure").length;
+  // Built from ALL jobs so a job keeps its color when the list is filtered.
   const colorMap = buildColorMap(rows.map((r) => r.groupKey));
+  // Row-visibility mask only: the time axis stays derived from all jobs (below),
+  // so filtering never reorients the timeline. Plain substring, not regex.
+  // Match the displayed row label (the prefix-less job name). full (=name) only
+  // adds the constant "<workflow> / " prefix, so it can't narrow within a box.
+  const query = filter.trim().toLowerCase();
+  const visibleRows = query
+    ? rows.filter((r) => r.label.toLowerCase().includes(query))
+    : rows;
+  const nFail = visibleRows.filter((r) => r.status === "failure").length;
 
   // px/minute: fit the (measured) bars pane by default, fixed when locked. The
   // plot keeps a readable minimum and scrolls horizontally instead of squishing.
@@ -203,7 +213,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
 
   const plotW = maxEnd * pxmin;
   const W = PAD_L + plotW + RIGHT;
-  const H = AXIS + rows.length * ROW + 8;
+  const H = AXIS + visibleRows.length * ROW + 8;
   const xat = (m: number) => PAD_L + m * pxmin;
 
   const targetTicks = Math.max(2, Math.round(plotW / 100));
@@ -219,7 +229,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
   // legend entries for current mode
   const legend =
     colorMode === "group"
-      ? Array.from(new Set(rows.map((r) => r.groupKey)))
+      ? Array.from(new Set(visibleRows.map((r) => r.groupKey)))
           .sort((a, b) =>
             a === "build" ? -1 : b === "build" ? 1 : a.localeCompare(b)
           )
@@ -227,7 +237,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
             color: colorMap[k],
             label: k === "build" ? "build" : shortName(k),
           }))
-      : Array.from(new Set(rows.map((r) => r.status))).map((s) => ({
+      : Array.from(new Set(visibleRows.map((r) => r.status))).map((s) => ({
           color: statusColor(s, neutralColor),
           label: s,
         }));
@@ -252,7 +262,10 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
         }}
       >
         <span style={{ color: muted }}>
-          {rows.length} jobs · {Math.round(maxEnd)} min
+          {query
+            ? `${visibleRows.length} of ${rows.length} jobs`
+            : `${rows.length} jobs`}{" "}
+          · {Math.round(maxEnd)} min
           {nFail > 0 && (
             <span style={{ color: "#e03b3b" }}> · {nFail} failing</span>
           )}
@@ -285,7 +298,33 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
           />{" "}
           Lock scale
         </label>
+        <span
+          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+          title="Show only jobs whose name contains this text (case-insensitive substring). The timeline scale is unchanged — matched bars keep their positions."
+        >
+          <span style={{ color: muted }}>Filter:</span>
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="filter by job name"
+            aria-label="Filter jobs by name"
+            style={{
+              fontSize: 12,
+              padding: "2px 6px",
+              width: 200,
+              border: `1px solid ${borderColor}`,
+              borderRadius: 4,
+            }}
+          />
+        </span>
       </div>
+
+      {query && visibleRows.length === 0 && (
+        <div style={{ padding: "4px 10px", fontSize: 12, color: muted }}>
+          No jobs match “{filter.trim()}”.
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "flex-start" }}>
         {/* Label column: fixed width. Scrolls horizontally ONLY when a job name
@@ -299,7 +338,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
           }}
         >
           <div style={{ height: AXIS }} />
-          {rows.map((j, i) => (
+          {visibleRows.map((j, i) => (
             <div
               key={i}
               title={j.full}
@@ -353,7 +392,7 @@ export default function WorkflowGantt({ jobs }: { jobs: JobData[] }) {
                 </text>
               </g>
             ))}
-            {rows.map((j, i) => {
+            {visibleRows.map((j, i) => {
               const y = AXIS + i * ROW;
               const bh = ROW - 4;
               const qw = Math.max((j.so - j.co) * pxmin, 0);
