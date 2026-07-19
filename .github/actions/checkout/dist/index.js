@@ -1100,6 +1100,14 @@ class GitCommandManager {
                 .filter(key => key.trim());
         });
     }
+    setupAlternates(objectsPath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const alternatesDir = path.join(this.workingDirectory, '.git', 'objects', 'info');
+            yield fs.promises.mkdir(alternatesDir, { recursive: true });
+            const alternatesFile = path.join(alternatesDir, 'alternates');
+            yield fs.promises.writeFile(alternatesFile, objectsPath + '\n');
+        });
+    }
     tryReset() {
         return __awaiter(this, void 0, void 0, function* () {
             const output = yield this.execGit(['reset', '--hard', 'HEAD'], true);
@@ -1484,6 +1492,20 @@ function getSource(settings) {
                 yield git.init();
                 yield git.remoteAdd('origin', repositoryUrl);
                 core.endGroup();
+            }
+            // Set up git alternates from mirror if available
+            if (settings.gitMirrorsPath) {
+                const mirrorName = `${settings.repositoryOwner}--${settings.repositoryName}.git`;
+                const mirrorObjectsPath = path.join(settings.gitMirrorsPath, mirrorName, 'objects');
+                if (fsHelper.directoryExistsSync(mirrorObjectsPath)) {
+                    core.startGroup('Configuring git alternates from mirror');
+                    core.info(`Using git mirror at ${settings.gitMirrorsPath}/${mirrorName}`);
+                    yield git.setupAlternates(mirrorObjectsPath);
+                    core.endGroup();
+                }
+                else {
+                    core.info(`Git mirror not found at ${mirrorObjectsPath}, proceeding without mirror`);
+                }
             }
             // Disable automatic garbage collection
             core.startGroup('Disabling automatic garbage collection');
@@ -2090,6 +2112,9 @@ function getInputs() {
         // Determine the GitHub URL that the repository is being hosted from
         result.githubServerUrl = core.getInput('github-server-url');
         core.debug(`GitHub Host URL = ${result.githubServerUrl}`);
+        // Git mirrors path
+        result.gitMirrorsPath = core.getInput('git-mirrors-path') || '';
+        core.debug(`git mirrors path = ${result.gitMirrorsPath}`);
         return result;
     });
 }

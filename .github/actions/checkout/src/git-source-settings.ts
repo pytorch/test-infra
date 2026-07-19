@@ -133,4 +133,9 @@ export interface IGitSourceSettings {
    * User override on the GitHub Server/Host URL that hosts the repository to be cloned
    */
   githubServerUrl: string | undefined
+
+  /**
+   * Path to a directory containing bare git mirrors for use as alternates
+   */
+  gitMirrorsPath: string
 }
