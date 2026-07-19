@@ -125,10 +125,10 @@ export default async function fetchHud(
       jobsBySha[job.sha!] = {};
     }
     let key = job.name!;
-    if (params.mergeEphemeralLF) {
+    if (params.mergeEphemeralLF === "on") {
       key = getNameWithoutLF(key);
     }
-    if (params.mergeOSDC) {
+    if (params.mergeOSDC === "on") {
       key = getNameWithoutOSDC(key);
     }
 
