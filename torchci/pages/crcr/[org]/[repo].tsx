@@ -233,6 +233,108 @@ interface MatrixRow {
   jobs: Map<string, CrcrJobRow>;
 }
 
+interface ColumnDef {
+  type: "single" | "group";
+  name: string;
+  members?: string[];
+}
+
+function detectGroups(jobNames: string[]): ColumnDef[] {
+  const prefixMap = new Map<string, string[]>();
+  for (const name of jobNames) {
+    const match = name.match(/^(.+[-_])(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const group = prefixMap.get(prefix) ?? [];
+      group.push(name);
+      prefixMap.set(prefix, group);
+    }
+  }
+
+  const grouped = new Set<string>();
+  const columns: ColumnDef[] = [];
+
+  for (const name of jobNames) {
+    if (grouped.has(name)) continue;
+    const match = name.match(/^(.+[-_])(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const members = prefixMap.get(prefix);
+      if (members && members.length >= 3) {
+        columns.push({
+          type: "group",
+          name: prefix.replace(/[-_]$/, ""),
+          members: members.sort(),
+        });
+        for (const m of members) grouped.add(m);
+        continue;
+      }
+    }
+    columns.push({ type: "single", name });
+  }
+  return columns;
+}
+
+function GroupedJobCell({
+  jobs,
+  groupName,
+}: {
+  jobs: CrcrJobRow[];
+  groupName: string;
+}) {
+  const worst = jobs.reduce(
+    (w, j) => {
+      const c = j.status === "completed" ? j.conclusion : j.status;
+      const severity =
+        c === "failure" || c === "timed_out"
+          ? 3
+          : c === "cancelled"
+          ? 2
+          : c === "pending" || c === "in_progress"
+          ? 1
+          : 0;
+      return severity > w.severity ? { severity, conclusion: c } : w;
+    },
+    { severity: -1, conclusion: "success" }
+  );
+
+  const char = getConclusionChar(
+    worst.conclusion === "in_progress" ? "pending" : worst.conclusion
+  );
+  const color =
+    conclusionCssColor[worst.conclusion] ?? "var(--color-grey, #8b949e)";
+
+  const tooltipLines = jobs.map((j) => {
+    const c = j.status === "completed" ? j.conclusion : j.status;
+    return `${j.job_name}: ${c}`;
+  });
+
+  return (
+    <Tooltip
+      title={
+        <span style={{ whiteSpace: "pre-line" }}>
+          {`${groupName} (${jobs.length} jobs)\n` + tooltipLines.join("\n")}
+        </span>
+      }
+    >
+      <span
+        style={{
+          fontFamily: "monospace",
+          fontWeight: "bold",
+          fontSize: "1rem",
+          display: "inline-block",
+          width: "14px",
+          textAlign: "center",
+          color,
+          cursor: "default",
+        }}
+      >
+        {char}
+      </span>
+    </Tooltip>
+  );
+}
+
 function buildMatrix(data: CrcrJobRow[]): {
   jobNames: string[];
   rows: MatrixRow[];
@@ -445,8 +547,8 @@ function CrcrMatrix({
     refreshInterval: 60_000,
   });
 
-  const { matrix, hasNextPage } = useMemo(() => {
-    if (!data) return { matrix: null, hasNextPage: false };
+  const { matrix, hasNextPage, columns } = useMemo(() => {
+    if (!data) return { matrix: null, hasNextPage: false, columns: [] };
     const full = buildMatrix(data);
     const hasMore = full.rows.length > PER_PAGE;
     return {
@@ -455,6 +557,7 @@ function CrcrMatrix({
         rows: full.rows.slice(0, PER_PAGE),
       },
       hasNextPage: hasMore,
+      columns: detectGroups(full.jobNames),
     };
   }, [data]);
 
@@ -508,8 +611,8 @@ function CrcrMatrix({
             <col style={{ width: 280 }} />
             <col style={{ width: 60 }} />
             <col style={{ width: 100 }} />
-            {matrix.jobNames.map((name) => (
-              <col key={name} style={{ width: 18 }} />
+            {columns.map((col) => (
+              <col key={col.name} style={{ width: 18 }} />
             ))}
           </colgroup>
           <thead>
@@ -519,9 +622,16 @@ function CrcrMatrix({
               <th style={headerBaseStyle}>Commit</th>
               <th style={headerBaseStyle}>PR</th>
               <th style={headerBaseStyle}>Author</th>
-              {matrix.jobNames.map((name) => (
-                <th key={name} style={jobHeaderStyle}>
-                  <div style={jobHeaderNameStyle}>{name}</div>
+              {columns.map((col) => (
+                <th key={col.name} style={jobHeaderStyle}>
+                  <div
+                    style={{
+                      ...jobHeaderNameStyle,
+                      fontWeight: col.type === "group" ? 700 : 400,
+                    }}
+                  >
+                    {col.name}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -595,11 +705,31 @@ function CrcrMatrix({
                       "–"
                     )}
                   </td>
-                  {matrix.jobNames.map((name) => {
-                    const job = row.jobs.get(name);
+                  {columns.map((col) => {
+                    if (col.type === "group" && col.members) {
+                      const groupJobs = col.members
+                        .map((m) => row.jobs.get(m))
+                        .filter((j): j is CrcrJobRow => j != null);
+                      return (
+                        <td
+                          key={col.name}
+                          style={{ ...cellStyle, textAlign: "center" }}
+                        >
+                          {groupJobs.length > 0 ? (
+                            <GroupedJobCell
+                              jobs={groupJobs}
+                              groupName={col.name}
+                            />
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                      );
+                    }
+                    const job = row.jobs.get(col.name);
                     return (
                       <td
-                        key={name}
+                        key={col.name}
                         style={{ ...cellStyle, textAlign: "center" }}
                       >
                         {job ? <JobCell job={job} /> : "–"}
