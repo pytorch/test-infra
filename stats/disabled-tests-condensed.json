@@ -565,13 +565,6 @@
     "https://github.com/pytorch/pytorch/issues/188677",
     []
   ],
-  "test_graph_two_successive (__main__.TestCuda)": [
-    "159113",
-    "https://github.com/pytorch/pytorch/issues/159113",
-    [
-      "linux"
-    ]
-  ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
     "https://github.com/pytorch/pytorch/issues/179811",
@@ -609,15 +602,6 @@
   "test_jacfwd_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179990",
     "https://github.com/pytorch/pytorch/issues/179990",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_jacfwd_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "189015",
-    "https://github.com/pytorch/pytorch/issues/189015",
     [
       "linux",
       "rocm",
@@ -1337,15 +1321,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
-    "152632",
-    "https://github.com/pytorch/pytorch/issues/152632",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
