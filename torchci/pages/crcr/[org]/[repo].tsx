@@ -9,12 +9,6 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -23,7 +17,8 @@ import { getConclusionChar } from "lib/JobClassifierUtil";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { useMemo } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import { fetcher } from "lib/GeneralUtils";
@@ -177,7 +172,12 @@ const conclusionCssColor: Record<string, string> = {
 };
 
 function JobCell({ job }: { job: CrcrJobRow }) {
-  const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const conclusion =
+    job.status === "completed"
+      ? job.conclusion
+      : job.status === "in_progress"
+      ? "pending"
+      : job.status;
   const char = getConclusionChar(conclusion);
   const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
 
@@ -227,6 +227,7 @@ function JobCell({ job }: { job: CrcrJobRow }) {
 
 interface MatrixRow {
   prNumber: number;
+  sha: string;
   upstreamRepo: string;
   latestTime: string;
   jobs: Map<string, CrcrJobRow>;
@@ -245,6 +246,7 @@ function buildMatrix(data: CrcrJobRow[]): {
     if (!row) {
       row = {
         prNumber: job.pr_number,
+        sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         latestTime: job.started_at,
         jobs: new Map(),
@@ -254,6 +256,7 @@ function buildMatrix(data: CrcrJobRow[]): {
     // Track latest started_at for this PR
     if (job.started_at > row.latestTime) {
       row.latestTime = job.started_at;
+      row.sha = job.pytorch_head_sha;
     }
     // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
@@ -269,22 +272,35 @@ function buildMatrix(data: CrcrJobRow[]): {
   return { jobNames, rows };
 }
 
-// ---- Time display ----
+// ---- Time display (matching main HUD: "h:mm a" style) ----
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function LocalTimeDisplay({ timestamp }: { timestamp: string }) {
+  const [display, setDisplay] = useState<string | null>(null);
+  useEffect(() => {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const diffDays = Math.floor(
+      (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const timeStr = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    if (diffDays === 0) {
+      setDisplay(timeStr);
+    } else if (diffDays < 7) {
+      const day = d.toLocaleDateString("en-US", { weekday: "short" });
+      setDisplay(`${day} ${timeStr}`);
+    } else {
+      const dateStr = d.toLocaleDateString("en-US", {
+        month: "numeric",
+        day: "numeric",
+      });
+      setDisplay(`${dateStr} ${timeStr}`);
+    }
+  }, [timestamp]);
+  return <>{display ?? ""}</>;
 }
 
 // ---- Pagination ----
@@ -367,6 +383,42 @@ function usePrInfo(
   }, [data]);
 }
 
+// ---- Table Styles (matching main HUD) ----
+
+const headerBaseStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  padding: "4px 6px",
+  whiteSpace: "nowrap",
+  textAlign: "left",
+  borderBottom: "1px solid #30363d",
+};
+
+const jobHeaderStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  height: 120,
+  whiteSpace: "nowrap",
+  padding: 0,
+  borderBottom: "1px solid #30363d",
+  position: "relative",
+};
+
+const jobHeaderNameStyle: CSSProperties = {
+  transform: "translate(5px, 45px) rotate(315deg)",
+  transformOrigin: "left bottom",
+  width: 12,
+  fontWeight: 400,
+  fontSize: "0.75em",
+};
+
+const cellStyle: CSSProperties = {
+  padding: "3px 6px",
+  whiteSpace: "nowrap",
+  fontSize: "0.8rem",
+  verticalAlign: "middle",
+};
+
 // ---- PR Matrix Table ----
 
 function CrcrMatrix({
@@ -442,103 +494,124 @@ function CrcrMatrix({
 
   return (
     <>
-      <TableContainer component={Paper} elevation={2}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <strong>Time</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Commit</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Author</strong>
-              </TableCell>
-              <TableCell>
-                <strong>PR</strong>
-              </TableCell>
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            borderCollapse: "collapse",
+            fontSize: "0.85rem",
+            width: "100%",
+          }}
+        >
+          <colgroup>
+            <col style={{ width: 80 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 280 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 100 }} />
+            {matrix.jobNames.map((name) => (
+              <col key={name} style={{ width: 18 }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={headerBaseStyle}>Time</th>
+              <th style={headerBaseStyle}>SHA</th>
+              <th style={headerBaseStyle}>Commit</th>
+              <th style={headerBaseStyle}>PR</th>
+              <th style={headerBaseStyle}>Author</th>
               {matrix.jobNames.map((name) => (
-                <TableCell key={name} align="center">
-                  <strong>{name}</strong>
-                </TableCell>
+                <th key={name} style={jobHeaderStyle}>
+                  <div style={jobHeaderNameStyle}>{name}</div>
+                </th>
               ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
+            </tr>
+          </thead>
+          <tbody>
             {matrix.rows.map((row) => {
               const pr = prInfoMap.get(row.prNumber);
+              const commitTitle = pr?.title ?? `PR #${row.prNumber}`;
+              const truncatedTitle =
+                commitTitle.length > 50
+                  ? commitTitle.slice(0, 47) + "..."
+                  : commitTitle;
               return (
-                <TableRow key={row.prNumber} hover>
-                  <TableCell sx={{ whiteSpace: "nowrap" }}>
-                    <Tooltip title={new Date(row.latestTime).toLocaleString()}>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatShortDate(row.latestTime)}
-                        <br />
-                        <small>{timeAgo(row.latestTime)}</small>
-                      </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 300 }}>
-                    <Link
-                      href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
+                <tr
+                  key={row.prNumber}
+                  style={{ borderBottom: "1px solid #30363d" }}
+                >
+                  <td style={cellStyle}>
+                    <LocalTimeDisplay timestamp={row.latestTime} />
+                  </td>
+                  <td style={cellStyle}>
+                    <a
+                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                       target="_blank"
-                      rel="noopener"
-                      underline="hover"
-                      sx={{ fontSize: "0.85rem" }}
+                      rel="noopener noreferrer"
+                      style={{ color: "#58a6ff", textDecoration: "none" }}
                     >
-                      {pr?.title
-                        ? pr.title.length > 60
-                          ? pr.title.slice(0, 57) + "..."
-                          : pr.title
-                        : `PR #${row.prNumber}`}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {pr?.author ? (
-                      <Link
-                        href={`https://github.com/${pr.author}`}
+                      {row.sha ? row.sha.substring(0, 7) : "–"}
+                    </a>
+                  </td>
+                  <td style={{ ...cellStyle, maxWidth: 280 }}>
+                    <Tooltip title={commitTitle}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                         target="_blank"
-                        rel="noopener"
-                        underline="hover"
-                        sx={{ fontSize: "0.85rem" }}
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#58a6ff",
+                          textDecoration: "none",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
                       >
-                        {pr.author}
-                      </Link>
-                    ) : (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontSize: "0.85rem" }}
-                      >
-                        –
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Link
+                        {truncatedTitle}
+                      </a>
+                    </Tooltip>
+                  </td>
+                  <td style={cellStyle}>
+                    <a
                       href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                       target="_blank"
-                      rel="noopener"
-                      underline="hover"
+                      rel="noopener noreferrer"
+                      style={{ color: "#2f81f7", textDecoration: "none" }}
                     >
                       #{row.prNumber}
-                    </Link>
-                  </TableCell>
+                    </a>
+                  </td>
+                  <td style={cellStyle}>
+                    {pr?.author ? (
+                      <a
+                        href={`https://github.com/${pr.author}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#8b949e", textDecoration: "none" }}
+                      >
+                        {pr.author}
+                      </a>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
                   {matrix.jobNames.map((name) => {
                     const job = row.jobs.get(name);
                     return (
-                      <TableCell key={name} align="center">
+                      <td
+                        key={name}
+                        style={{ ...cellStyle, textAlign: "center" }}
+                      >
                         {job ? <JobCell job={job} /> : "–"}
-                      </TableCell>
+                      </td>
                     );
                   })}
-                </TableRow>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
       <Box sx={{ mt: 2 }}>
         <CrcrPagination
           page={page}
