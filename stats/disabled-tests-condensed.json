@@ -567,14 +567,6 @@
       "slow"
     ]
   ],
-  "test_grad_two_tensor_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "187738",
-    "https://github.com/pytorch/pytorch/issues/187738",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -635,14 +627,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_jacfwd_randomness (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "188041",
-    "https://github.com/pytorch/pytorch/issues/188041",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_jacfwd_two_tensors_argnums (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
@@ -1384,16 +1368,6 @@
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
-    "124152",
-    "https://github.com/pytorch/pytorch/issues/124152",
-    [
-      "asan",
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
