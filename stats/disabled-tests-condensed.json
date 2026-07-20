@@ -211,12 +211,42 @@
       "xpu"
     ]
   ],
+  "test_compiled_autograd_attribution (__main__.StructuredTraceTest)": [
+    "156921",
+    "https://github.com/pytorch/pytorch/issues/156921",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_compiled_autograd_id (__main__.StructuredTraceTest)": [
+    "190498",
+    "https://github.com/pytorch/pytorch/issues/190498",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
     [
       "inductor",
       "rocm"
+    ]
+  ],
+  "test_comprehensive_arange_xpu_int64 (__main__.TestInductorOpInfoXPU)": [
+    "189662",
+    "https://github.com/pytorch/pytorch/issues/189662",
+    [
+      "xpu"
     ]
   ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -264,6 +294,20 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "189326",
+    "https://github.com/pytorch/pytorch/issues/189326",
+    [
+      "xpu"
+    ]
+  ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "189327",
+    "https://github.com/pytorch/pytorch/issues/189327",
+    [
+      "xpu"
     ]
   ],
   "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
@@ -454,6 +498,13 @@
     "https://github.com/pytorch/pytorch/issues/189323",
     [
       "linux"
+    ]
+  ],
+  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "190295",
+    "https://github.com/pytorch/pytorch/issues/190295",
+    [
+      "xpu"
     ]
   ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
@@ -804,6 +855,13 @@
       "slow"
     ]
   ],
+  "test_mempool_tensor_factory (__main__.NVSHMEMSymmetricMemoryTest)": [
+    "190497",
+    "https://github.com/pytorch/pytorch/issues/190497",
+    [
+      "rocm"
+    ]
+  ],
   "test_mixed_mm (__main__.TestPatternMatcher)": [
     "145192",
     "https://github.com/pytorch/pytorch/issues/145192",
@@ -834,6 +892,17 @@
     "189221",
     "https://github.com/pytorch/pytorch/issues/189221",
     [
+      "rocm"
+    ]
+  ],
+  "test_nested_graph_break_in_loop (__main__.NestedGraphBreakTests)": [
+    "179687",
+    "https://github.com/pytorch/pytorch/issues/179687",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
       "rocm"
     ]
   ],
@@ -993,6 +1062,13 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_saved_tensor_hooks_extra_enter_during_bw_no_leak (__main__.TestAutograd)": [
+    "190499",
+    "https://github.com/pytorch/pytorch/issues/190499",
+    [
+      "dynamo"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
@@ -1267,6 +1343,13 @@
     "https://github.com/pytorch/pytorch/issues/189843",
     [
       "rocm"
+    ]
+  ],
+  "test_to_r_to_c_cpu (__main__.TestAutogradDeviceTypeCPU)": [
+    "190500",
+    "https://github.com/pytorch/pytorch/issues/190500",
+    [
+      "dynamo"
     ]
   ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
