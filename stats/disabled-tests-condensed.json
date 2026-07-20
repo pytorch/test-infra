@@ -204,13 +204,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_no_bench_persistent_reduction (__main__.ComboKernelTests)": [
-    "187019",
-    "https://github.com/pytorch/pytorch/issues/187019",
-    [
-      "xpu"
-    ]
-  ],
   "test_compiled_autograd_attribution (__main__.StructuredTraceTest)": [
     "156921",
     "https://github.com/pytorch/pytorch/issues/156921",
@@ -306,13 +299,6 @@
   "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
     "189327",
     "https://github.com/pytorch/pytorch/issues/189327",
-    [
-      "xpu"
-    ]
-  ],
-  "test_cow_inputs_accepted_by_override (__main__.TestBmmOuterProduct)": [
-    "188773",
-    "https://github.com/pytorch/pytorch/issues/188773",
     [
       "xpu"
     ]
