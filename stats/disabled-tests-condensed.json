@@ -608,14 +608,6 @@
       "slow"
     ]
   ],
-  "test_jacrev (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "189066",
-    "https://github.com/pytorch/pytorch/issues/189066",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180204",
     "https://github.com/pytorch/pytorch/issues/180204",
@@ -1124,18 +1116,6 @@
       "rocm"
     ]
   ],
-  "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
-    "119346",
-    "https://github.com/pytorch/pytorch/issues/119346",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_source_multithreaded_basic_work_in_main_thread_True (__main__.TestProfiler)": [
     "119357",
     "https://github.com/pytorch/pytorch/issues/119357",
@@ -1419,13 +1399,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180337",
-    "https://github.com/pytorch/pytorch/issues/180337",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
