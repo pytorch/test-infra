@@ -227,7 +227,6 @@ function JobCell({ job }: { job: CrcrJobRow }) {
 
 interface MatrixRow {
   prNumber: number;
-  sha: string;
   upstreamRepo: string;
   latestTime: string;
   jobs: Map<string, CrcrJobRow>;
@@ -246,7 +245,6 @@ function buildMatrix(data: CrcrJobRow[]): {
     if (!row) {
       row = {
         prNumber: job.pr_number,
-        sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         latestTime: job.started_at,
         jobs: new Map(),
@@ -332,37 +330,37 @@ function CrcrPagination({
   );
 }
 
-// ---- Commit Info Hook ----
+// ---- PR Info Hook ----
 
-interface CommitInfo {
-  sha: string;
+interface PrInfo {
+  prNumber: number;
   title: string;
   author: string;
 }
 
-function useCommitInfo(
+function usePrInfo(
   upstreamRepo: string,
-  shas: string[]
-): Map<string, CommitInfo> {
-  const dedupedShas = useMemo(
-    () => Array.from(new Set(shas)).slice(0, 50),
-    [shas]
+  prNumbers: number[]
+): Map<number, PrInfo> {
+  const dedupedPrs = useMemo(
+    () => Array.from(new Set(prNumbers.filter((n) => n > 0))).slice(0, 50),
+    [prNumbers]
   );
   const url =
-    upstreamRepo && dedupedShas.length > 0
-      ? `/api/crcr/commit-info?repo=${encodeURIComponent(
+    upstreamRepo && dedupedPrs.length > 0
+      ? `/api/crcr/pr-info?repo=${encodeURIComponent(
           upstreamRepo
-        )}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+        )}&prs=${encodeURIComponent(dedupedPrs.join(","))}`
       : null;
-  const { data } = useSWR<CommitInfo[]>(url, fetcher, {
+  const { data } = useSWR<PrInfo[]>(url, fetcher, {
     revalidateOnFocus: false,
   });
 
   return useMemo(() => {
-    const map = new Map<string, CommitInfo>();
+    const map = new Map<number, PrInfo>();
     if (data) {
-      for (const ci of data) {
-        map.set(ci.sha, ci);
+      for (const pr of data) {
+        map.set(pr.prNumber, pr);
       }
     }
     return map;
@@ -409,8 +407,11 @@ function CrcrMatrix({
   }, [data]);
 
   const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
-  const shas = useMemo(() => (matrix?.rows ?? []).map((r) => r.sha), [matrix]);
-  const commitInfoMap = useCommitInfo(upstreamRepo, shas);
+  const prNumbers = useMemo(
+    () => (matrix?.rows ?? []).map((r) => r.prNumber),
+    [matrix]
+  );
+  const prInfoMap = usePrInfo(upstreamRepo, prNumbers);
 
   if (error) {
     return (
@@ -466,7 +467,7 @@ function CrcrMatrix({
           </TableHead>
           <TableBody>
             {matrix.rows.map((row) => {
-              const ci = commitInfoMap.get(row.sha);
+              const pr = prInfoMap.get(row.prNumber);
               return (
                 <TableRow key={row.prNumber} hover>
                   <TableCell sx={{ whiteSpace: "nowrap" }}>
@@ -480,29 +481,29 @@ function CrcrMatrix({
                   </TableCell>
                   <TableCell sx={{ maxWidth: 300 }}>
                     <Link
-                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                      href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                       target="_blank"
                       rel="noopener"
                       underline="hover"
                       sx={{ fontSize: "0.85rem" }}
                     >
-                      {ci?.title
-                        ? ci.title.length > 60
-                          ? ci.title.slice(0, 57) + "..."
-                          : ci.title
-                        : row.sha.slice(0, 7)}
+                      {pr?.title
+                        ? pr.title.length > 60
+                          ? pr.title.slice(0, 57) + "..."
+                          : pr.title
+                        : `PR #${row.prNumber}`}
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {ci?.author ? (
+                    {pr?.author ? (
                       <Link
-                        href={`https://github.com/${ci.author}`}
+                        href={`https://github.com/${pr.author}`}
                         target="_blank"
                         rel="noopener"
                         underline="hover"
                         sx={{ fontSize: "0.85rem" }}
                       >
-                        {ci.author}
+                        {pr.author}
                       </Link>
                     ) : (
                       <Typography
