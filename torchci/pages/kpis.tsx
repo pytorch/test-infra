@@ -85,30 +85,61 @@ export default function Kpis() {
 
       <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"pull workflow duration per trunk commit (Weekly, p50/p90)"}
+          title={"pull workflow duration per trunk commit (Weekly, hrs)"}
           queryName={"pull_workflow_duration_per_commit"}
           queryParams={{
             ...timeParams,
           }}
           granularity={"week"}
           timeFieldName={"bucket"}
-          yAxisFieldName={"duration_mins"}
-          yAxisRenderer={(duration) => duration}
-          groupByFieldName="percentile"
-          yAxisLabel={"Minutes"}
+          yAxisFieldName={"value_hours"}
+          yAxisLabel={"Hours"}
+          yAxisRenderer={(value) => Number(value).toFixed(2)}
+          groupByFieldName="series"
           dataReader={(data) => {
-            const percentiles = ["p50", "p90"];
+            const series = [
+              { key: "wallclock_p50", name: "wall-clock p50" },
+              { key: "wallclock_p90", name: "wall-clock p90" },
+              { key: "longest_job_p50", name: "longest job p50" },
+              { key: "longest_job_p90", name: "longest job p90" },
+              { key: "build_test_p50", name: "build+test p50" },
+              { key: "build_test_p90", name: "build+test p90" },
+            ];
             return data
               .map((d) =>
-                percentiles.map((p) => {
-                  return {
-                    ...d,
-                    percentile: p,
-                    duration_mins: d[p],
-                  };
-                })
+                series.map((s) => ({
+                  bucket: d.bucket,
+                  series: s.name,
+                  value_hours: d[s.key],
+                }))
               )
               .flat();
+          }}
+          additionalOptions={{
+            tooltip: {
+              trigger: "item",
+              formatter: (params: any) => {
+                const DESCRIPTIONS: { [key: string]: string } = {
+                  "wall-clock":
+                    "Total workflow wall-clock (workflow_run updated_at − created_at). Includes per-job queue/runner-wait time.",
+                  "longest job":
+                    "Longest single job's run time: max(completed_at − started_at). Queue excluded.",
+                  "build+test":
+                    "max(build-job run) + max(test-job run) across the run. Queue excluded; the two maxes may come from different configs, so this can exceed wall-clock.",
+                };
+                const name: string = params.seriesName ?? "";
+                const metric = name.replace(/ p(?:50|90)$/, "");
+                const hrs = Number(params.value[1]).toFixed(2);
+                return (
+                  `<b>${name}</b><br/>` +
+                  `${params.value[0]}<br/>` +
+                  `${hrs} h<br/>` +
+                  `<span style="font-size:11px;opacity:0.8;">${
+                    DESCRIPTIONS[metric] ?? ""
+                  }</span>`
+                );
+              },
+            },
           }}
         />
       </Grid>
