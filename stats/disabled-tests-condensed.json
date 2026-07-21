@@ -546,6 +546,13 @@
       "linux"
     ]
   ],
+  "test_graph_capture_error_releases_reserved_segments (__main__.TestCuda)": [
+    "190647",
+    "https://github.com/pytorch/pytorch/issues/190647",
+    [
+      "linux"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
@@ -744,6 +751,13 @@
   "test_maml_omniglot_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180539",
     "https://github.com/pytorch/pytorch/issues/180539",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "108994",
+    "https://github.com/pytorch/pytorch/issues/108994",
     [
       "dynamo"
     ]
@@ -1110,18 +1124,6 @@
       "slow"
     ]
   ],
-  "test_source_multithreaded_basic_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119357",
-    "https://github.com/pytorch/pytorch/issues/119357",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_source_multithreaded_close_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
     "119364",
     "https://github.com/pytorch/pytorch/issues/119364",
@@ -1298,6 +1300,15 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
+    "182418",
+    "https://github.com/pytorch/pytorch/issues/182418",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
     "182095",
     "https://github.com/pytorch/pytorch/issues/182095",
@@ -1317,6 +1328,13 @@
   "test_trace_return_dataclass (__main__.TestFX)": [
     "190612",
     "https://github.com/pytorch/pytorch/issues/190612",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_trace_return_dataclass_nested (__main__.TestFX)": [
+    "181322",
+    "https://github.com/pytorch/pytorch/issues/181322",
     [
       "dynamo"
     ]
