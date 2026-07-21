@@ -431,13 +431,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
-    "186865",
-    "https://github.com/pytorch/pytorch/issues/186865",
-    [
-      "linux"
-    ]
-  ],
   "test_dynamic_shape_backend_inductor_device_cpu (__main__.TestPackage)": [
     "190664",
     "https://github.com/pytorch/pytorch/issues/190664",
@@ -579,6 +572,13 @@
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
     []
+  ],
+  "test_graph_two_successive (__main__.TestCuda)": [
+    "159113",
+    "https://github.com/pytorch/pytorch/issues/159113",
+    [
+      "linux"
+    ]
   ],
   "test_hessian (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "179811",
