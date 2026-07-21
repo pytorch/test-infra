@@ -1,6 +1,8 @@
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+const ALLOWED_UPSTREAM_REPOS = new Set(["pytorch/pytorch"]);
+
 interface CommitInfo {
   sha: string;
   title: string;
@@ -19,6 +21,11 @@ export default async function handler(
   }
 
   const repoStr = Array.isArray(repo) ? repo[0] : repo;
+
+  if (!ALLOWED_UPSTREAM_REPOS.has(repoStr)) {
+    return res.status(403).json({ error: "Repository not allowed" });
+  }
+
   const shaList = (Array.isArray(shas) ? shas[0] : shas)
     .split(",")
     .filter(Boolean)
@@ -29,42 +36,44 @@ export default async function handler(
   }
 
   const [owner, name] = repoStr.split("/");
-  if (!owner || !name) {
-    return res.status(400).json({ error: "repo must be owner/name format" });
-  }
 
   try {
     const octokit = await getOctokit(owner, name);
-    const results: CommitInfo[] = [];
 
-    // Fetch commits in parallel (bounded to 50 max)
-    const promises = shaList.map(async (sha) => {
-      try {
-        const { data } = await octokit.rest.repos.getCommit({
-          owner,
-          repo: name,
-          ref: sha,
-        });
-        const message = data.commit.message.split("\n")[0];
-        return {
-          sha,
-          title: message,
-          author: data.author?.login ?? data.commit.author?.name ?? "unknown",
-        };
-      } catch {
-        return { sha, title: "", author: "" };
+    // Single GraphQL query instead of N REST calls
+    const commitFragments = shaList.map(
+      (sha, i) => `c${i}: object(oid: "${sha}") {
+        ... on Commit {
+          oid
+          messageHeadline
+          author { user { login } name }
+        }
+      }`
+    );
+    const query = `query {
+      repository(owner: "${owner}", name: "${name}") {
+        ${commitFragments.join("\n")}
       }
+    }`;
+
+    const gqlResult: any = await octokit.graphql(query);
+    const repoData = gqlResult?.repository ?? {};
+
+    const results: CommitInfo[] = shaList.map((sha, i) => {
+      const commit = repoData[`c${i}`];
+      return {
+        sha,
+        title: commit?.messageHeadline ?? "",
+        author: commit?.author?.user?.login ?? commit?.author?.name ?? "",
+      };
     });
 
-    const settled = await Promise.all(promises);
-    results.push(...settled);
-
-    // Commits are immutable — cache aggressively
     res
       .setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600")
       .status(200)
       .json(results);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("commit-info error:", error);
+    res.status(500).json({ error: "Failed to fetch commit info" });
   }
 }

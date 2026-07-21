@@ -1,6 +1,8 @@
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+const ALLOWED_UPSTREAM_REPOS = new Set(["pytorch/pytorch"]);
+
 interface PrInfo {
   prNumber: number;
   title: string;
@@ -19,6 +21,11 @@ export default async function handler(
   }
 
   const repoStr = Array.isArray(repo) ? repo[0] : repo;
+
+  if (!ALLOWED_UPSTREAM_REPOS.has(repoStr)) {
+    return res.status(403).json({ error: "Repository not allowed" });
+  }
+
   const prList = (Array.isArray(prs) ? prs[0] : prs)
     .split(",")
     .map(Number)
@@ -30,37 +37,42 @@ export default async function handler(
   }
 
   const [owner, name] = repoStr.split("/");
-  if (!owner || !name) {
-    return res.status(400).json({ error: "repo must be owner/name format" });
-  }
 
   try {
     const octokit = await getOctokit(owner, name);
 
-    const promises = prList.map(async (prNumber): Promise<PrInfo> => {
-      try {
-        const { data } = await octokit.rest.pulls.get({
-          owner,
-          repo: name,
-          pull_number: prNumber,
-        });
-        return {
-          prNumber,
-          title: data.title,
-          author: data.user?.login ?? "unknown",
-        };
-      } catch {
-        return { prNumber, title: "", author: "" };
+    // Single GraphQL query instead of N REST calls
+    const prFragments = prList.map(
+      (pr, i) => `pr${i}: pullRequest(number: ${pr}) {
+        number
+        title
+        author { login }
+      }`
+    );
+    const query = `query {
+      repository(owner: "${owner}", name: "${name}") {
+        ${prFragments.join("\n")}
       }
-    });
+    }`;
 
-    const results = await Promise.all(promises);
+    const gqlResult: any = await octokit.graphql(query);
+    const repoData = gqlResult?.repository ?? {};
+
+    const results: PrInfo[] = prList.map((prNumber, i) => {
+      const pr = repoData[`pr${i}`];
+      return {
+        prNumber,
+        title: pr?.title ?? "",
+        author: pr?.author?.login ?? "",
+      };
+    });
 
     res
       .setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600")
       .status(200)
       .json(results);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("pr-info error:", error);
+    res.status(500).json({ error: "Failed to fetch PR info" });
   }
 }
