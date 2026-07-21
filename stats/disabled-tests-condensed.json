@@ -228,6 +228,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_arange_xpu_int64 (__main__.TestInductorOpInfoXPU)": [
+    "189662",
+    "https://github.com/pytorch/pytorch/issues/189662",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188983",
     "https://github.com/pytorch/pytorch/issues/188983",
@@ -427,13 +434,6 @@
     "188840",
     "https://github.com/pytorch/pytorch/issues/188840",
     []
-  ],
-  "test_emulate_precision_casts_preserves_explicit_precision_cast_float16 (__main__.CudaReproTests)": [
-    "190157",
-    "https://github.com/pytorch/pytorch/issues/190157",
-    [
-      "xpu"
-    ]
   ],
   "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180259",
