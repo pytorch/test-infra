@@ -1,0 +1,55 @@
+name: Test Build Linux Wheels V2 (uv) - torchvision
+
+# Exercises build_wheels_linux_v2.yml (uv-based, no conda) by building
+# torchvision (pytorch/vision) — a compiled C++/CUDA extension, so it stress-
+# tests the uv-provisioned interpreter, the cmake/ninja toolchain, the torch
+# dependency install, wheel repair, and the smoke test end-to-end.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build_wheels_linux_v2.yml
+      - .github/workflows/test_build_wheels_linux_v2.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - .github/workflows/_binary_upload.yml
+      - tools/scripts/generate_binary_build_matrix.py
+      - tools/pkg-helpers/pytorch_pkg_helpers/version.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-xpu: enable
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/vision
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
+    uses: ./.github/workflows/build_wheels_linux_v2.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"
