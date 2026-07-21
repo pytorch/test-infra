@@ -9,12 +9,6 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -23,7 +17,8 @@ import { getConclusionChar } from "lib/JobClassifierUtil";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import { useMemo } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import { fetcher } from "lib/GeneralUtils";
@@ -177,7 +172,12 @@ const conclusionCssColor: Record<string, string> = {
 };
 
 function JobCell({ job }: { job: CrcrJobRow }) {
-  const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const conclusion =
+    job.status === "completed"
+      ? job.conclusion
+      : job.status === "in_progress"
+      ? "pending"
+      : job.status;
   const char = getConclusionChar(conclusion);
   const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
 
@@ -233,6 +233,108 @@ interface MatrixRow {
   jobs: Map<string, CrcrJobRow>;
 }
 
+interface ColumnDef {
+  type: "single" | "group";
+  name: string;
+  members?: string[];
+}
+
+function detectGroups(jobNames: string[]): ColumnDef[] {
+  const prefixMap = new Map<string, string[]>();
+  for (const name of jobNames) {
+    const match = name.match(/^(.+[-_])(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const group = prefixMap.get(prefix) ?? [];
+      group.push(name);
+      prefixMap.set(prefix, group);
+    }
+  }
+
+  const grouped = new Set<string>();
+  const columns: ColumnDef[] = [];
+
+  for (const name of jobNames) {
+    if (grouped.has(name)) continue;
+    const match = name.match(/^(.+[-_])(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const members = prefixMap.get(prefix);
+      if (members && members.length >= 3) {
+        columns.push({
+          type: "group",
+          name: prefix.replace(/[-_]$/, ""),
+          members: members.sort(),
+        });
+        for (const m of members) grouped.add(m);
+        continue;
+      }
+    }
+    columns.push({ type: "single", name });
+  }
+  return columns;
+}
+
+function GroupedJobCell({
+  jobs,
+  groupName,
+}: {
+  jobs: CrcrJobRow[];
+  groupName: string;
+}) {
+  const worst = jobs.reduce(
+    (w, j) => {
+      const c = j.status === "completed" ? j.conclusion : j.status;
+      const severity =
+        c === "failure" || c === "timed_out"
+          ? 3
+          : c === "cancelled"
+          ? 2
+          : c === "pending" || c === "in_progress"
+          ? 1
+          : 0;
+      return severity > w.severity ? { severity, conclusion: c } : w;
+    },
+    { severity: -1, conclusion: "success" }
+  );
+
+  const char = getConclusionChar(
+    worst.conclusion === "in_progress" ? "pending" : worst.conclusion
+  );
+  const color =
+    conclusionCssColor[worst.conclusion] ?? "var(--color-grey, #8b949e)";
+
+  const tooltipLines = jobs.map((j) => {
+    const c = j.status === "completed" ? j.conclusion : j.status;
+    return `${j.job_name}: ${c}`;
+  });
+
+  return (
+    <Tooltip
+      title={
+        <span style={{ whiteSpace: "pre-line" }}>
+          {`${groupName} (${jobs.length} jobs)\n` + tooltipLines.join("\n")}
+        </span>
+      }
+    >
+      <span
+        style={{
+          fontFamily: "monospace",
+          fontWeight: "bold",
+          fontSize: "1rem",
+          display: "inline-block",
+          width: "14px",
+          textAlign: "center",
+          color,
+          cursor: "default",
+        }}
+      >
+        {char}
+      </span>
+    </Tooltip>
+  );
+}
+
 function buildMatrix(data: CrcrJobRow[]): {
   jobNames: string[];
   rows: MatrixRow[];
@@ -256,6 +358,7 @@ function buildMatrix(data: CrcrJobRow[]): {
     // Track latest started_at for this PR
     if (job.started_at > row.latestTime) {
       row.latestTime = job.started_at;
+      row.sha = job.pytorch_head_sha;
     }
     // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
@@ -271,22 +374,35 @@ function buildMatrix(data: CrcrJobRow[]): {
   return { jobNames, rows };
 }
 
-// ---- Time display ----
+// ---- Time display (matching main HUD: "h:mm a" style) ----
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function LocalTimeDisplay({ timestamp }: { timestamp: string }) {
+  const [display, setDisplay] = useState<string | null>(null);
+  useEffect(() => {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const diffDays = Math.floor(
+      (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const timeStr = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    if (diffDays === 0) {
+      setDisplay(timeStr);
+    } else if (diffDays < 7) {
+      const day = d.toLocaleDateString("en-US", { weekday: "short" });
+      setDisplay(`${day} ${timeStr}`);
+    } else {
+      const dateStr = d.toLocaleDateString("en-US", {
+        month: "numeric",
+        day: "numeric",
+      });
+      setDisplay(`${dateStr} ${timeStr}`);
+    }
+  }, [timestamp]);
+  return <>{display ?? ""}</>;
 }
 
 // ---- Pagination ----
@@ -332,42 +448,78 @@ function CrcrPagination({
   );
 }
 
-// ---- Commit Info Hook ----
+// ---- PR Info Hook ----
 
-interface CommitInfo {
-  sha: string;
+interface PrInfo {
+  prNumber: number;
   title: string;
   author: string;
 }
 
-function useCommitInfo(
+function usePrInfo(
   upstreamRepo: string,
-  shas: string[]
-): Map<string, CommitInfo> {
-  const dedupedShas = useMemo(
-    () => Array.from(new Set(shas)).slice(0, 50),
-    [shas]
+  prNumbers: number[]
+): Map<number, PrInfo> {
+  const dedupedPrs = useMemo(
+    () => Array.from(new Set(prNumbers.filter((n) => n > 0))).slice(0, 50),
+    [prNumbers]
   );
   const url =
-    upstreamRepo && dedupedShas.length > 0
-      ? `/api/crcr/commit-info?repo=${encodeURIComponent(
+    upstreamRepo && dedupedPrs.length > 0
+      ? `/api/crcr/pr-info?repo=${encodeURIComponent(
           upstreamRepo
-        )}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+        )}&prs=${encodeURIComponent(dedupedPrs.join(","))}`
       : null;
-  const { data } = useSWR<CommitInfo[]>(url, fetcher, {
+  const { data } = useSWR<PrInfo[]>(url, fetcher, {
     revalidateOnFocus: false,
   });
 
   return useMemo(() => {
-    const map = new Map<string, CommitInfo>();
+    const map = new Map<number, PrInfo>();
     if (data) {
-      for (const ci of data) {
-        map.set(ci.sha, ci);
+      for (const pr of data) {
+        map.set(pr.prNumber, pr);
       }
     }
     return map;
   }, [data]);
 }
+
+// ---- Table Styles (matching main HUD) ----
+
+const headerBaseStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  padding: "4px 6px",
+  whiteSpace: "nowrap",
+  textAlign: "left",
+  borderBottom: "1px solid #30363d",
+};
+
+const jobHeaderStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  height: 120,
+  whiteSpace: "nowrap",
+  padding: 0,
+  borderBottom: "1px solid #30363d",
+  position: "relative",
+};
+
+const jobHeaderNameStyle: CSSProperties = {
+  transform: "translate(5px, 45px) rotate(315deg)",
+  transformOrigin: "left bottom",
+  width: 12,
+  fontWeight: 400,
+  fontSize: "0.75em",
+};
+
+const cellStyle: CSSProperties = {
+  padding: "3px 6px",
+  whiteSpace: "nowrap",
+  fontSize: "0.8rem",
+  verticalAlign: "middle",
+};
 
 // ---- PR Matrix Table ----
 
@@ -395,8 +547,8 @@ function CrcrMatrix({
     refreshInterval: 60_000,
   });
 
-  const { matrix, hasNextPage } = useMemo(() => {
-    if (!data) return { matrix: null, hasNextPage: false };
+  const { matrix, hasNextPage, columns } = useMemo(() => {
+    if (!data) return { matrix: null, hasNextPage: false, columns: [] };
     const full = buildMatrix(data);
     const hasMore = full.rows.length > PER_PAGE;
     return {
@@ -405,12 +557,16 @@ function CrcrMatrix({
         rows: full.rows.slice(0, PER_PAGE),
       },
       hasNextPage: hasMore,
+      columns: detectGroups(full.jobNames),
     };
   }, [data]);
 
   const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
-  const shas = useMemo(() => (matrix?.rows ?? []).map((r) => r.sha), [matrix]);
-  const commitInfoMap = useCommitInfo(upstreamRepo, shas);
+  const prNumbers = useMemo(
+    () => (matrix?.rows ?? []).map((r) => r.prNumber),
+    [matrix]
+  );
+  const prInfoMap = usePrInfo(upstreamRepo, prNumbers);
 
   if (error) {
     return (
@@ -441,103 +597,151 @@ function CrcrMatrix({
 
   return (
     <>
-      <TableContainer component={Paper} elevation={2}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <strong>Time</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Commit</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Author</strong>
-              </TableCell>
-              <TableCell>
-                <strong>PR</strong>
-              </TableCell>
-              {matrix.jobNames.map((name) => (
-                <TableCell key={name} align="center">
-                  <strong>{name}</strong>
-                </TableCell>
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            borderCollapse: "collapse",
+            fontSize: "0.85rem",
+            width: "100%",
+          }}
+        >
+          <colgroup>
+            <col style={{ width: 80 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 280 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 100 }} />
+            {columns.map((col) => (
+              <col key={col.name} style={{ width: 18 }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={headerBaseStyle}>Time</th>
+              <th style={headerBaseStyle}>SHA</th>
+              <th style={headerBaseStyle}>Commit</th>
+              <th style={headerBaseStyle}>PR</th>
+              <th style={headerBaseStyle}>Author</th>
+              {columns.map((col) => (
+                <th key={col.name} style={jobHeaderStyle}>
+                  <div
+                    style={{
+                      ...jobHeaderNameStyle,
+                      fontWeight: col.type === "group" ? 700 : 400,
+                    }}
+                  >
+                    {col.name}
+                  </div>
+                </th>
               ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
+            </tr>
+          </thead>
+          <tbody>
             {matrix.rows.map((row) => {
-              const ci = commitInfoMap.get(row.sha);
+              const pr = prInfoMap.get(row.prNumber);
+              const commitTitle = pr?.title ?? `PR #${row.prNumber}`;
+              const truncatedTitle =
+                commitTitle.length > 50
+                  ? commitTitle.slice(0, 47) + "..."
+                  : commitTitle;
               return (
-                <TableRow key={row.prNumber} hover>
-                  <TableCell sx={{ whiteSpace: "nowrap" }}>
-                    <Tooltip title={new Date(row.latestTime).toLocaleString()}>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatShortDate(row.latestTime)}
-                        <br />
-                        <small>{timeAgo(row.latestTime)}</small>
-                      </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 300 }}>
-                    <Link
+                <tr
+                  key={row.prNumber}
+                  style={{ borderBottom: "1px solid #30363d" }}
+                >
+                  <td style={cellStyle}>
+                    <LocalTimeDisplay timestamp={row.latestTime} />
+                  </td>
+                  <td style={cellStyle}>
+                    <a
                       href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                       target="_blank"
-                      rel="noopener"
-                      underline="hover"
-                      sx={{ fontSize: "0.85rem" }}
+                      rel="noopener noreferrer"
+                      style={{ color: "#58a6ff", textDecoration: "none" }}
                     >
-                      {ci?.title
-                        ? ci.title.length > 60
-                          ? ci.title.slice(0, 57) + "..."
-                          : ci.title
-                        : row.sha.slice(0, 7)}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {ci?.author ? (
-                      <Link
-                        href={`https://github.com/${ci.author}`}
+                      {row.sha ? row.sha.substring(0, 7) : "–"}
+                    </a>
+                  </td>
+                  <td style={{ ...cellStyle, maxWidth: 280 }}>
+                    <Tooltip title={commitTitle}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                         target="_blank"
-                        rel="noopener"
-                        underline="hover"
-                        sx={{ fontSize: "0.85rem" }}
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#58a6ff",
+                          textDecoration: "none",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
                       >
-                        {ci.author}
-                      </Link>
-                    ) : (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontSize: "0.85rem" }}
-                      >
-                        –
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Link
+                        {truncatedTitle}
+                      </a>
+                    </Tooltip>
+                  </td>
+                  <td style={cellStyle}>
+                    <a
                       href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                       target="_blank"
-                      rel="noopener"
-                      underline="hover"
+                      rel="noopener noreferrer"
+                      style={{ color: "#2f81f7", textDecoration: "none" }}
                     >
                       #{row.prNumber}
-                    </Link>
-                  </TableCell>
-                  {matrix.jobNames.map((name) => {
-                    const job = row.jobs.get(name);
+                    </a>
+                  </td>
+                  <td style={cellStyle}>
+                    {pr?.author ? (
+                      <a
+                        href={`https://github.com/${pr.author}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#8b949e", textDecoration: "none" }}
+                      >
+                        {pr.author}
+                      </a>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
+                  {columns.map((col) => {
+                    if (col.type === "group" && col.members) {
+                      const groupJobs = col.members
+                        .map((m) => row.jobs.get(m))
+                        .filter((j): j is CrcrJobRow => j != null);
+                      return (
+                        <td
+                          key={col.name}
+                          style={{ ...cellStyle, textAlign: "center" }}
+                        >
+                          {groupJobs.length > 0 ? (
+                            <GroupedJobCell
+                              jobs={groupJobs}
+                              groupName={col.name}
+                            />
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                      );
+                    }
+                    const job = row.jobs.get(col.name);
                     return (
-                      <TableCell key={name} align="center">
+                      <td
+                        key={col.name}
+                        style={{ ...cellStyle, textAlign: "center" }}
+                      >
                         {job ? <JobCell job={job} /> : "–"}
-                      </TableCell>
+                      </td>
                     );
                   })}
-                </TableRow>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
       <Box sx={{ mt: 2 }}>
         <CrcrPagination
           page={page}
