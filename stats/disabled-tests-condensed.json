@@ -783,15 +783,6 @@
       "rocm"
     ]
   ],
-  "test_memory_snapshot (__main__.TestCudaAllocator)": [
-    "179745",
-    "https://github.com/pytorch/pytorch/issues/179745",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
     "153460",
     "https://github.com/pytorch/pytorch/issues/153460",
@@ -1002,6 +993,13 @@
       "mac"
     ]
   ],
+  "test_save_with_kwargs (__main__.TestCheckpointer)": [
+    "190613",
+    "https://github.com/pytorch/pytorch/issues/190613",
+    [
+      "rocm"
+    ]
+  ],
   "test_saved_tensor_hooks_extra_enter_during_bw_no_leak (__main__.TestAutograd)": [
     "190499",
     "https://github.com/pytorch/pytorch/issues/190499",
@@ -1114,6 +1112,18 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119346",
+    "https://github.com/pytorch/pytorch/issues/119346",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
     ]
   ],
   "test_source_multithreaded_basic_work_in_main_thread_True (__main__.TestProfiler)": [
@@ -1320,6 +1330,13 @@
       "rocm"
     ]
   ],
+  "test_trace_return_dataclass (__main__.TestFX)": [
+    "190612",
+    "https://github.com/pytorch/pytorch/issues/190612",
+    [
+      "dynamo"
+    ]
+  ],
   "test_trace_return_namedtuple (__main__.TestFX)": [
     "176966",
     "https://github.com/pytorch/pytorch/issues/176966",
@@ -1399,6 +1416,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
+    "180337",
+    "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
