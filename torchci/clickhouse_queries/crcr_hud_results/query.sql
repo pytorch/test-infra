@@ -18,5 +18,6 @@ FROM
 WHERE
     pr_number IN {prNums: Array(Int64)}
     AND pr_number > 0
+    AND downstream_repo != 'pytorch/crcr-test'
 ORDER BY
     pr_number, downstream_repo, job_name
