@@ -223,6 +223,58 @@ cleanup_conda_env() {
     fi
 }
 
+# Fail the build if the installed torch wheel exceeds a hard size ceiling.
+#
+# Scope: Linux x86_64 + aarch64 wheels only, excluding ROCm (whose wheels are
+# legitimately multi-GB). The measured value is the compressed .whl DOWNLOAD
+# size as reported by pip on its "Downloading"/"Using cached" line -- i.e. the
+# same size published to download.pytorch.org / PyPI, not the (much larger)
+# unpacked install footprint. Reads the captured pip-install log ($1).
+#
+# Ceiling is ${WHEEL_SIZE_THRESHOLD_MB} MB (default 850).
+check_wheel_size() {
+    local log_file="$1"
+    local threshold_mb="${WHEEL_SIZE_THRESHOLD_MB:-850}"
+
+    # Only linux / linux-aarch64 wheels; skip libtorch and ROCm.
+    if [[ ${TARGET_OS} != 'linux' && ${TARGET_OS} != 'linux-aarch64' ]]; then
+        return 0
+    fi
+    if [[ ${MATRIX_PACKAGE_TYPE} != 'wheel' || ${MATRIX_GPU_ARCH_TYPE:-} == 'rocm' ]]; then
+        echo "Wheel-size check skipped for package=${MATRIX_PACKAGE_TYPE} arch=${MATRIX_GPU_ARCH_TYPE:-cpu}"
+        return 0
+    fi
+
+    # Pull the torch wheel's size off pip's Downloading/Using-cached line, e.g.
+    #   Downloading torch-2.10.0.dev...-linux_x86_64.whl (812.4 MB)
+    # torch-[0-9] isolates the torch wheel from torchvision-/torchaudio-.
+    local frag
+    frag=$(grep -oiE "torch-[0-9][^ /]*\.whl \([0-9.]+ ?[kKmMgG]i?B\)" "${log_file}" | tail -1 || true)
+    if [[ -z ${frag} ]]; then
+        echo "::warning::wheel-size check: could not find the torch wheel size in the pip output; skipping"
+        return 0
+    fi
+
+    local size unit size_mb
+    size=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\1/')
+    unit=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\2/')
+    case ${unit} in
+        B)             size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024/1024}") ;;
+        kB|KB|kiB|KiB) size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024}") ;;
+        MB|MiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}}") ;;
+        GB|GiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}*1024}") ;;
+        *) echo "::warning::wheel-size check: unrecognized size unit '${unit}'; skipping"; return 0 ;;
+    esac
+
+    # Always surface the measured size (as an annotation) whether or not the
+    # check passes, so it is visible on the run summary of a successful job too.
+    echo "::notice::torch wheel size: ${size_mb} MB (arch=${MATRIX_GPU_ARCH_TYPE:-cpu} os=${TARGET_OS} py=${MATRIX_PYTHON_VERSION:-?}); ceiling ${threshold_mb} MB"
+    if awk "BEGIN{exit !(${size_mb} > ${threshold_mb})}"; then
+        echo "::error::torch wheel ${size_mb} MB exceeds the ${threshold_mb} MB ceiling (arch=${MATRIX_GPU_ARCH_TYPE:-cpu}, os=${TARGET_OS}, py=${MATRIX_PYTHON_VERSION:-?})"
+        return 1
+    fi
+}
+
 #######################################
 # Main Script
 #######################################
@@ -306,7 +358,13 @@ if [[ ${USE_WHEEL_VARIANTS:-} == 'true' ]]; then
 else
     INSTALLATION=$(build_installation_command)
     TEST_SUFFIX=$(get_test_suffix)
-    eval "${INSTALLATION}"
+    # Tee the install output so we can read the torch wheel's download size off
+    # pip's "Downloading"/"Using cached" line (set -o pipefail keeps eval's exit
+    # status, so a failed install still aborts).
+    WHEEL_INSTALL_LOG="$(mktemp)"
+    eval "${INSTALLATION}" 2>&1 | tee "${WHEEL_INSTALL_LOG}"
+    check_wheel_size "${WHEEL_INSTALL_LOG}"
+    rm -f "${WHEEL_INSTALL_LOG}"
 fi
 
 # Install numpy 1.x after torch install
