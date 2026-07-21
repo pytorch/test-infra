@@ -228,13 +228,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_arange_xpu_int64 (__main__.TestInductorOpInfoXPU)": [
-    "189662",
-    "https://github.com/pytorch/pytorch/issues/189662",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "188983",
     "https://github.com/pytorch/pytorch/issues/188983",
@@ -1096,6 +1089,13 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_slow_conv_transpose3d_kernel_size_mismatch_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
+    "190640",
+    "https://github.com/pytorch/pytorch/issues/190640",
+    [
+      "xpu"
     ]
   ],
   "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
