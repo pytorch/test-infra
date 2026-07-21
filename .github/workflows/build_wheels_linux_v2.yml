@@ -179,8 +179,6 @@ jobs:
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
       BUILD_TARGET: ${{ inputs.build-target }}
-      # Where the uv-managed build venv lives; activated in every build/test step.
-      BUILD_VENV: ${{ runner.temp }}/build_venv
     name: build-${{ matrix.build_name }}
     runs-on: ${{ (inputs.runner != '' && inputs.runner) || matrix.validation_runner }}
     environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
@@ -198,9 +196,16 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}"
 
           if [[ "${{ inputs.architecture }}" = "aarch64" ]]; then
-            rm -rf "${RUNNER_TEMP}/*"
+            rm -rf "${RUNNER_TEMP:?}/"*
           fi
           echo "::endgroup::"
+
+      # Where the uv-managed build venv lives; activated in every build/test
+      # step. Set here (not in job-level env:) because it needs $RUNNER_TEMP --
+      # the `runner` context is not available in a job-level env: block.
+      - name: Set build venv path
+        shell: bash
+        run: echo "BUILD_VENV=${RUNNER_TEMP}/build_venv" >> "${GITHUB_ENV}"
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -333,8 +338,10 @@ jobs:
         shell: bash -l {0}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           export PATH="${BUILD_VENV}/bin:${PATH}"
+          # shellcheck disable=SC2155
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
           echo "Successfully installed Python build package"
           ${CONDA_RUN} ${{ inputs.build-command }}
@@ -345,8 +352,10 @@ jobs:
         shell: bash -l {0}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           export PATH="${BUILD_VENV}/bin:${PATH}"
+          # shellcheck disable=SC2155
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran python setup.py clean"
@@ -359,6 +368,7 @@ jobs:
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           export PATH="${BUILD_VENV}/bin:${PATH}"
           for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
@@ -366,8 +376,8 @@ jobs:
             if [[ ! -e $pkg ]]; then
                 continue
             fi
-            abs_pkg=$(realpath $pkg)
-            ./test-infra/.github/scripts/repair_manylinux_2_28.sh $abs_pkg
+            abs_pkg=$(realpath "$pkg")
+            ./test-infra/.github/scripts/repair_manylinux_2_28.sh "$abs_pkg"
           done
 
       - name: Run Post-Script
@@ -385,6 +395,7 @@ jobs:
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           set -euxo pipefail
+          # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           export PATH="${BUILD_VENV}/bin:${PATH}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
