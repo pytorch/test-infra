@@ -121,7 +121,7 @@ export default function Kpis() {
               formatter: (params: any) => {
                 const DESCRIPTIONS: { [key: string]: string } = {
                   "wall-clock":
-                    "Total workflow wall-clock (workflow_run updated_at − created_at). Includes per-job queue/runner-wait time.",
+                    "Total workflow wall-clock: first job start → last job completion (≈ workflow_run created→updated). Includes per-job queue/runner-wait time.",
                   "longest job":
                     "Longest single job's run time: max(completed_at − started_at). Queue excluded.",
                   "build+test":
