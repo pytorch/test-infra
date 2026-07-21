@@ -85,6 +85,36 @@ export default function Kpis() {
 
       <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
         <TimeSeriesPanel
+          title={"pull workflow duration per trunk commit (Weekly, p50/p90)"}
+          queryName={"pull_workflow_duration_per_commit"}
+          queryParams={{
+            ...timeParams,
+          }}
+          granularity={"week"}
+          timeFieldName={"bucket"}
+          yAxisFieldName={"duration_mins"}
+          yAxisRenderer={(duration) => duration}
+          groupByFieldName="percentile"
+          yAxisLabel={"Minutes"}
+          dataReader={(data) => {
+            const percentiles = ["p50", "p90"];
+            return data
+              .map((d) =>
+                percentiles.map((p) => {
+                  return {
+                    ...d,
+                    percentile: p,
+                    duration_mins: d[p],
+                  };
+                })
+              )
+              .flat();
+          }}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
           title={"% of force merges (Weekly, 2 week rolling avg)"}
           queryName={"weekly_force_merge_stats"}
           queryParams={{
