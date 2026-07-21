@@ -2,12 +2,12 @@ import csv
 import io
 
 import pytest
-
 from flake_test_fail_autorevert.report.load import (
     EXPECTED_COLUMNS,
-    ReportInputError,
     load_records,
+    ReportInputError,
 )
+
 
 HEADER = ",".join(EXPECTED_COLUMNS)
 
@@ -93,7 +93,7 @@ def test_quoted_field_with_comma_parses_as_one_column():
 
 
 def test_multiline_quoted_field_preserved_via_stream():
-    signal = 'f.py::t[line1\nline2]'
+    signal = "f.py::t[line1\nline2]"
     csv_text = HEADER + "\n" + _row(signal=signal) + "\n"
     records = load_records(io.StringIO(csv_text))
     assert len(records) == 1

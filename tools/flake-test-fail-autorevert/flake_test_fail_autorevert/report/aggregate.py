@@ -4,6 +4,7 @@ from typing import Dict, List, Set, Tuple
 
 from .load import Record
 
+
 CATEGORY_REGRESSION = "regression"
 CATEGORY_FLAKY = "flaky"
 
@@ -105,12 +106,7 @@ class PremergeBuckets:
 
     @property
     def total(self) -> int:
-        return (
-            self.td_deselected
-            + self.run_succeeded
-            + self.undetermined
-            + self.other
-        )
+        return self.td_deselected + self.run_succeeded + self.undetermined + self.other
 
 
 @dataclass(frozen=True)
@@ -302,9 +298,7 @@ def _premerge_breakdown(
     signal_counts: Counter = Counter(r.premerge_status for r in eligible)
     commit_counts: Counter = Counter(winner.values())
     names = set(signal_counts) | set(commit_counts)
-    ordered = sorted(
-        names, key=lambda name: (-signal_counts.get(name, 0), name)
-    )
+    ordered = sorted(names, key=lambda name: (-signal_counts.get(name, 0), name))
     return [
         PremergeStatusCount(
             name=name,

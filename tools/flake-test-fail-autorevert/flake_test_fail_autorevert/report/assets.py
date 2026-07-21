@@ -4,6 +4,7 @@ import tempfile
 import urllib.request
 from typing import Optional
 
+
 logger = logging.getLogger(__name__)
 
 CHARTJS_VERSION = "4.5.1"
@@ -50,9 +51,7 @@ def _read_cache() -> Optional[str]:
         )
         return None
     if not _looks_like_chartjs(source):
-        _warn(
-            f"cached Chart.js at {CACHE_PATH} does not look valid; ignoring cache."
-        )
+        _warn(f"cached Chart.js at {CACHE_PATH} does not look valid; ignoring cache.")
         return None
     if not _is_complete(source):
         _warn(

@@ -9,6 +9,7 @@ from flake_test_fail_autorevert.premerge import (
     resolve_premerge_context,
 )
 
+
 TS = datetime(2026, 6, 18, 16, 43, 39, tzinfo=timezone.utc)
 
 
@@ -378,7 +379,7 @@ def test_to_utc_makes_naive_tz_aware():
     assert out.utcoffset() == datetime(2026, 1, 1, tzinfo=timezone.utc).utcoffset()
 
 
-def test_bound_datetime_params_are_tz_aware_utc():
+def test_bound_datetime_params_are_tz_aware_utc() -> None:
     # FIX E: the datetimes bound into run_query (lower/merge_ts/tlow) must be tz-aware
     # UTC, so clickhouse_connect does not localize a naive value and shift the query.
     client = ParamSpyClient(
@@ -578,7 +579,9 @@ def test_bysha_miss_fallback_merge_ts_keyed_to_on_main_commit():
     )
     resolve_premerge_context(client, "ONMAIN" + "0" * 34)
     ts_params = [
-        p for q, p in client.queries if "arrayFilter" not in q and "ARRAY JOIN commits" in q
+        p
+        for q, p in client.queries
+        if "arrayFilter" not in q and "ARRAY JOIN commits" in q
     ]
     assert ts_params, "expected MERGE_TS_SQL to run"
     for p in ts_params:

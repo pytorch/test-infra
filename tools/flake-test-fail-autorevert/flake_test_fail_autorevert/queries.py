@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
-from clickhouse_connect.driver import Client
+from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
 
 from .client import run_query
 from .logic import is_test_signal
+
 
 REVERTS_SQL = """
 SELECT

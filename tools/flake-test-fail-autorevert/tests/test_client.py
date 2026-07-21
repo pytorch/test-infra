@@ -1,21 +1,21 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
-from clickhouse_connect.driver.exceptions import (
+from clickhouse_connect.driver.exceptions import (  # type: ignore[import-not-found]
     DatabaseError,
     DataError,
     ProgrammingError,
 )
-
 from flake_test_fail_autorevert.client import (
+    _clickhouse_error_code,
+    _should_fast_fail,
     MAX_ATTEMPTS,
     NON_RETRYABLE,
     NON_RETRYABLE_CH_ERROR_CODES,
     RETRYABLE,
-    _clickhouse_error_code,
-    _should_fast_fail,
     run_query,
 )
+
 
 # The HTTP driver embeds the ClickHouse numeric code in the message; these mirror the
 # real driver strings so the tests exercise the actual classification path.

@@ -1,8 +1,4 @@
-from flake_test_fail_autorevert.report.aggregate import (
-    RankRow,
-    aggregate,
-    top_n,
-)
+from flake_test_fail_autorevert.report.aggregate import aggregate, RankRow, top_n
 from flake_test_fail_autorevert.report.load import Record
 
 

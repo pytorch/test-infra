@@ -363,8 +363,7 @@ def test_build_rows_sorted_by_time_category_workflow_signal():
         repo=REPO,
     )
     keys = [
-        (r["commit_time"], r["category"], r["workflow"], r["signal_key"])
-        for r in rows
+        (r["commit_time"], r["category"], r["workflow"], r["signal_key"]) for r in rows
     ]
     assert keys == sorted(keys)
     assert rows[0]["commit_time"] == "2026-07-03 12:00:00"

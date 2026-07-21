@@ -5,9 +5,9 @@ import socket
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-import clickhouse_connect
-from clickhouse_connect.driver import Client
-from clickhouse_connect.driver.exceptions import (
+import clickhouse_connect  # type: ignore[import-not-found]
+from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
+from clickhouse_connect.driver.exceptions import (  # type: ignore[import-not-found]
     DatabaseError,
     DataError,
     InterfaceError,
@@ -15,6 +15,7 @@ from clickhouse_connect.driver.exceptions import (
 )
 
 from .logic import endpoint_from_env
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +39,24 @@ NON_RETRYABLE = (ProgrammingError, DataError)
 # ClickHouse src/Common/ErrorCodes.cpp.
 NON_RETRYABLE_CH_ERROR_CODES = frozenset(
     {
-        1,    # UNSUPPORTED_METHOD
-        8,    # THERE_IS_NO_COLUMN
-        10,   # NOT_FOUND_COLUMN_IN_BLOCK
-        16,   # NO_SUCH_COLUMN_IN_TABLE
-        36,   # BAD_ARGUMENTS
-        42,   # NUMBER_OF_ARGUMENTS_DOESNT_MATCH
-        43,   # ILLEGAL_TYPE_OF_ARGUMENT
-        44,   # ILLEGAL_COLUMN
-        46,   # UNKNOWN_FUNCTION
-        47,   # UNKNOWN_IDENTIFIER
-        50,   # UNKNOWN_TYPE
-        53,   # TYPE_MISMATCH
-        59,   # ILLEGAL_TYPE_OF_COLUMN_FOR_FILTER
-        60,   # UNKNOWN_TABLE
-        62,   # SYNTAX_ERROR
-        63,   # UNKNOWN_AGGREGATE_FUNCTION
-        70,   # CANNOT_CONVERT_TYPE
-        81,   # UNKNOWN_DATABASE
+        1,  # UNSUPPORTED_METHOD
+        8,  # THERE_IS_NO_COLUMN
+        10,  # NOT_FOUND_COLUMN_IN_BLOCK
+        16,  # NO_SUCH_COLUMN_IN_TABLE
+        36,  # BAD_ARGUMENTS
+        42,  # NUMBER_OF_ARGUMENTS_DOESNT_MATCH
+        43,  # ILLEGAL_TYPE_OF_ARGUMENT
+        44,  # ILLEGAL_COLUMN
+        46,  # UNKNOWN_FUNCTION
+        47,  # UNKNOWN_IDENTIFIER
+        50,  # UNKNOWN_TYPE
+        53,  # TYPE_MISMATCH
+        59,  # ILLEGAL_TYPE_OF_COLUMN_FOR_FILTER
+        60,  # UNKNOWN_TABLE
+        62,  # SYNTAX_ERROR
+        63,  # UNKNOWN_AGGREGATE_FUNCTION
+        70,  # CANNOT_CONVERT_TYPE
+        81,  # UNKNOWN_DATABASE
         115,  # UNKNOWN_SETTING
         162,  # TOO_DEEP_SUBQUERIES
         184,  # ILLEGAL_AGGREGATION

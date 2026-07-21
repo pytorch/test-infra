@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from .aggregate import aggregate
 from .assets import get_chartjs
-from .load import ReportInputError, load_records
+from .load import load_records, ReportInputError
 from .render import render
 
 

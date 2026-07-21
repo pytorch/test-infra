@@ -5,14 +5,14 @@ import sys
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # type: ignore[import-not-found]
 
 from .client import get_clickhouse_client
-from .logic import COLUMNS, build_rows, iter_time_chunks
+from .logic import build_rows, COLUMNS, iter_time_chunks
 from .premerge import (
-    PremergeContext,
     classify_with_context,
     parse_pr_from_message,
+    PremergeContext,
     resolve_premerge_context,
 )
 from .queries import (
@@ -22,6 +22,7 @@ from .queries import (
     fetch_flaky_for_day,
     fetch_regressions,
 )
+
 
 EVENT_PAD_DAYS = 2
 FLAKY_PAD_DAYS = 1

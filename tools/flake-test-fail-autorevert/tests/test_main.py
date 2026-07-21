@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple
 import flake_test_fail_autorevert.__main__ as m
 from flake_test_fail_autorevert.premerge import PremergeContext
 
+
 TS = datetime(2026, 6, 18, 16, 43, 39, tzinfo=timezone.utc)
 
 
@@ -13,7 +14,7 @@ class _StubReg:
     single_workflow: Dict[Any, Any] = {}
 
 
-def test_context_resolved_once_per_commit_via_collect(monkeypatch):
+def test_context_resolved_once_per_commit_via_collect(monkeypatch) -> None:
     # FIX C: N signals on one commit must resolve head/ts/jobs ONCE, not N times.
     resolves: List[str] = []
 
@@ -62,7 +63,7 @@ def test_context_resolved_once_per_commit_via_collect(monkeypatch):
     assert all(r["premerge_status"] == "RUN_FAILED" for r in result)
 
 
-def test_flaky_only_commit_gets_empty_premerge_status(monkeypatch):
+def test_flaky_only_commit_gets_empty_premerge_status(monkeypatch) -> None:
     # A flaky-category row (not trunk/pull regression) never gets a premerge lookup and
     # keeps premerge_status "" — the collect loop must not resolve context for it.
     resolves: List[str] = []

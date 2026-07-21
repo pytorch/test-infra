@@ -1,11 +1,11 @@
 import re
 
 from flake_test_fail_autorevert.report.aggregate import (
+    aggregate,
     PREMERGE_STATUS_RUN_SUCCEEDED,
     PREMERGE_STATUS_TD_DESELECTED,
     PREMERGE_STATUS_TOOLTIPS,
     PREMERGE_TOOLTIP_UNDETERMINED,
-    aggregate,
 )
 from flake_test_fail_autorevert.report.load import Record
 from flake_test_fail_autorevert.report.premerge_render import (
@@ -13,6 +13,7 @@ from flake_test_fail_autorevert.report.premerge_render import (
     render_premerge_section,
 )
 from flake_test_fail_autorevert.report.render import escape, render
+
 
 ALL_STATUSES = [
     "RUN_SUCCEEDED",
@@ -137,7 +138,9 @@ def test_every_status_has_a_tooltip():
 
 
 def test_breakdown_renders_correct_tooltip_titles():
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     for status, tooltip in PREMERGE_STATUS_TOOLTIPS.items():
         # skipped is folded into not_in_matrix for the report, so its tooltip
         # is intentionally absent from rendered output.
@@ -163,14 +166,16 @@ def test_skipped_is_reported_as_not_in_matrix():
     assert "NOT_RUN:skipped" not in counts
     html = render_premerge_section(pm)
     # skipped must not appear as a breakdown status cell / tooltip data value.
-    assert 'data-tip' in html
+    assert "data-tip" in html
     skipped_tip = PREMERGE_STATUS_TOOLTIPS["NOT_RUN:skipped"]
     assert f'data-tip="{escape(skipped_tip)}"' not in html
     assert '<span class="tip" data-tip="' + escape(skipped_tip) not in html
 
 
 def test_breakdown_rows_wrap_status_in_titled_span():
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     # RUN_FAILED only appears in the breakdown table, so a tip span proves
     # the per-status hover is on the breakdown row itself, not just a card.
     tip = PREMERGE_STATUS_TOOLTIPS["RUN_FAILED"]
@@ -181,12 +186,14 @@ def test_breakdown_rows_wrap_status_in_titled_span():
 def test_funnel_shows_stage_counts_and_drops():
     # The funnel replaces the 4 stat cards: it renders a count per pipeline
     # stage and hoverable drop rows for the tests that fell out at each stage.
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     # eligible total (8) as the first stage number, and the two terminal
     # outcomes as pass/fail rows.
     assert '<div class="fn-n">8</div>' in html
-    assert 'fn-row fn-pass' in html and 'ran and PASSED pre-merge (landrace)' in html
-    assert 'fn-row fn-fail' in html and 'ran and FAILED pre-merge (merged red)' in html
+    assert "fn-row fn-pass" in html and "ran and PASSED pre-merge (landrace)" in html
+    assert "fn-row fn-fail" in html and "ran and FAILED pre-merge (merged red)" in html
     # each drop carries the plain-language tooltip via data-tip, and a -N count.
     fm_tip = PREMERGE_STATUS_TOOLTIPS["NOT_RUN:force_merge"]
     assert f'data-tip="{escape(fm_tip)}"' in html
@@ -194,7 +201,7 @@ def test_funnel_shows_stage_counts_and_drops():
     assert "couldn&#x27;t determine pre-merge status" in html
     # no bar markup remains.
     assert "fn-bar" not in html
-    assert "style=\"width:" not in html
+    assert 'style="width:' not in html
 
 
 def test_commit_funnel_td_is_sticky_over_runner():
@@ -248,7 +255,9 @@ def test_render_shows_both_funnels_and_commit_column():
 
 
 def test_table_headings_have_titles():
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge, top=50)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge, top=50
+    )
     rs_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_RUN_SUCCEEDED]
     td_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED]
     assert (
@@ -263,7 +272,9 @@ def test_table_headings_have_titles():
 
 def test_default_top_is_15():
     # The two row tables default to Top 15 (not 50).
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     assert "Top 15 RUN_SUCCEEDED (landraces)" in html
     assert "Top 15 NOT_RUN:td_deselected" in html
     assert "Top 50" not in html
@@ -271,7 +282,9 @@ def test_default_top_is_15():
 
 def test_explanation_block_present():
     # The NOT_RUN funnel explanation renders at the bottom with all five reasons.
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     assert "What the NOT_RUN reasons mean" in html
     for key in (
         "no_merge_record",
@@ -287,13 +300,14 @@ def test_explanation_block_present():
 
 
 def test_no_unexplained_jargon_in_hovers():
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     # These terms must not appear as bare, unexplained hover text. "pre-merge
     # gate CI" and "ghstack" are gone entirely; "target-determination" now
     # appears only in the explanation table where it is defined in context.
     for jargon in ("pre-merge gate CI", "ghstack"):
         assert jargon not in html
-
 
 
 def test_top_50_run_succeeded_cap_and_sort():
@@ -375,12 +389,16 @@ def test_section_introduces_no_external_http_refs():
     ds = aggregate(_one_per_status(), source="x.csv")
     section = render_premerge_section(ds.premerge)
     assert 'src="http' not in section
-    assert not re.search(r'href="https?://(?!github\.com/pytorch/pytorch/commit/)', section)
+    assert not re.search(
+        r'href="https?://(?!github\.com/pytorch/pytorch/commit/)', section
+    )
     assert "cdn.jsdelivr.net" not in section
 
 
 def test_tooltip_html_is_escaped():
-    html = render_premerge_section(aggregate(_one_per_status(), source="x.csv").premerge)
+    html = render_premerge_section(
+        aggregate(_one_per_status(), source="x.csv").premerge
+    )
     for status, tooltip in PREMERGE_STATUS_TOOLTIPS.items():
         # Tooltips carry no raw markup, but several contain apostrophes that
         # must be entity-escaped inside the title attribute.

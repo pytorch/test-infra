@@ -26,14 +26,15 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, NamedTuple, Optional, Tuple
 
-from clickhouse_connect.driver import Client
+from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
 
 from .client import run_query
 
+
 logger = logging.getLogger(__name__)
 
-LOOKBACK_DAYS = 30          # job created_at lower bound around merge window
-PARTITION_MARGIN_DAYS = 2   # extra skew buffer below the job window floor for tests.all_test_runs partition prune
+LOOKBACK_DAYS = 30  # job created_at lower bound around merge window
+PARTITION_MARGIN_DAYS = 2  # extra skew buffer below the job window floor for tests.all_test_runs partition prune
 
 _PR_RE = re.compile(r"\(#(\d+)\)")
 
@@ -242,9 +243,7 @@ def resolve_premerge_context(
             # By-sha is the most precise key and is tried first; only on a miss do we fall
             # back to the squashed title's (#PR), which stays robust to the merge-time
             # rebase that leaves merge_commit_sha != the sha landed on main.
-            fallback = _resolve_head_by_pr(
-                client, commit_sha, owner_name, project_name
-            )
+            fallback = _resolve_head_by_pr(client, commit_sha, owner_name, project_name)
             if fallback is None:
                 return PremergeContext(
                     None, None, None, [], False, "NOT_RUN:no_merge_record"

@@ -1,5 +1,6 @@
 from datetime import date, datetime as dt, timedelta, timezone
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Mapping, Optional, Set, Tuple
+
 
 COLUMNS = [
     "commit_sha",
@@ -59,7 +60,9 @@ def build_rows(
     single_workflow_by_signal: Dict[Tuple[str, str], Optional[str]],
     flaky: Dict[str, Set[Tuple[str, str]]],
     commit_times: Dict[str, dt],
-    verdicts: Dict[Tuple[str, str], Tuple[Optional[str], Optional[float], Optional[str]]],
+    verdicts: Mapping[
+        Tuple[str, str], Tuple[Optional[str], Optional[float], Optional[str]]
+    ],
     start_date: date,
     end_date: date,
     repo: str,

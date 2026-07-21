@@ -18,6 +18,6 @@ def tip_attr(tooltip: str, base_class: str = "") -> str:
 
 def stat_card(n: int, label: str, title: str = "") -> str:
     return (
-        f"<div{tip_attr(title, 'stat')}><div class=\"n\">{n}</div>"
+        f'<div{tip_attr(title, "stat")}><div class="n">{n}</div>'
         f'<div class="l">{escape(label)}</div></div>'
     )

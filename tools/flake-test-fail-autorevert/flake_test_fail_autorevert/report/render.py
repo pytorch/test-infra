@@ -5,6 +5,7 @@ from .aggregate import Datasets, Meta, RankRow, top_n
 from .htmlutil import escape, stat_card
 from .premerge_render import render_premerge_section
 
+
 _CSS = """
 :root { color-scheme: light dark; }
 * { box-sizing: border-box; }
@@ -170,20 +171,31 @@ class ChartSpec(NamedTuple):
 
 CHART_SPECS = [
     ChartSpec(
-        "flaky_commits", "chart-flaky-commits",
-        "Flaky commits / day", "#8a63d2", "flaky_commits_by_day",
+        "flaky_commits",
+        "chart-flaky-commits",
+        "Flaky commits / day",
+        "#8a63d2",
+        "flaky_commits_by_day",
     ),
     ChartSpec(
-        "flaky_signals", "chart-flaky-signals",
-        "Flaky signal occurrences / day", "#c86dd7", "flaky_signals_by_day",
+        "flaky_signals",
+        "chart-flaky-signals",
+        "Flaky signal occurrences / day",
+        "#c86dd7",
+        "flaky_signals_by_day",
     ),
     ChartSpec(
-        "regression_commits", "chart-regression-commits",
-        "Regression commits / day", "#d9534f", "regression_commits_by_day",
+        "regression_commits",
+        "chart-regression-commits",
+        "Regression commits / day",
+        "#d9534f",
+        "regression_commits_by_day",
     ),
     ChartSpec(
-        "regression_signals", "chart-regression-signals",
-        "Regression signal occurrences / day", "#e8833a",
+        "regression_signals",
+        "chart-regression-signals",
+        "Regression signal occurrences / day",
+        "#e8833a",
         "regression_signals_by_day",
     ),
 ]
@@ -249,9 +261,7 @@ def _render_rank_table(
         body_rows.append(f"<tr>{cells}</tr>")
     if not head:
         span = 4 if with_verdict else 3
-        body_rows.append(
-            f'<tr><td colspan="{span}" class="empty">No data</td></tr>'
-        )
+        body_rows.append(f'<tr><td colspan="{span}" class="empty">No data</td></tr>')
     more = ""
     if leftover > 0:
         more = (
@@ -282,7 +292,7 @@ def _header_cells(with_verdict: bool) -> str:
             attrs += f' class="{cls}"'
         if typ:
             attrs += f' data-type="{typ}"'
-        out.append(f"<th{attrs}>{escape(label)}<span class=\"ind\"></span></th>")
+        out.append(f'<th{attrs}>{escape(label)}<span class="ind"></span></th>')
     return "".join(out)
 
 
@@ -384,13 +394,10 @@ def _document(
     if has_data:
         scripts += f"<script>{_SORT_JS}</script>"
     return (
-        "<!doctype html><html lang=\"en\"><head>"
+        '<!doctype html><html lang="en"><head>'
         '<meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>{escape(title)}</title>"
         f"<style>{_CSS}</style>"
-        "</head><body>"
-        + body
-        + scripts
-        + "</body></html>"
+        "</head><body>" + body + scripts + "</body></html>"
     )

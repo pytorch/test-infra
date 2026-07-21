@@ -4,6 +4,7 @@ from flake_test_fail_autorevert.report.aggregate import aggregate
 from flake_test_fail_autorevert.report.load import Record
 from flake_test_fail_autorevert.report.render import escape, render
 
+
 FAKE_CHARTJS = "/*! Chart.js v4 */ window.Chart=function(){};"
 
 
@@ -134,8 +135,6 @@ def test_empty_datasets_with_chartjs_has_no_canvas():
 
 
 def test_top_n_more_caption():
-    records = [
-        rec(category="flaky", signal=f"f{i}.py::t") for i in range(5)
-    ]
+    records = [rec(category="flaky", signal=f"f{i}.py::t") for i in range(5)]
     html = render(aggregate(records, source="s.csv"), title="T", chartjs=None, top=2)
     assert "and 3 more" in html

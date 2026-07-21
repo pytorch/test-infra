@@ -3,8 +3,8 @@ from typing import List
 from .aggregate import (
     PREMERGE_STATUS_ERROR,
     PREMERGE_STATUS_FORCE_MERGE,
-    PREMERGE_STATUS_NOT_IN_MATRIX,
     PREMERGE_STATUS_NO_MERGE_RECORD,
+    PREMERGE_STATUS_NOT_IN_MATRIX,
     PREMERGE_STATUS_RUN_FAILED,
     PREMERGE_STATUS_RUN_SUCCEEDED,
     PREMERGE_STATUS_SKIPPED,
@@ -15,6 +15,7 @@ from .aggregate import (
     PremergeRow,
 )
 from .htmlutil import escape, tip_attr
+
 
 PREMERGE_HEADING = "Pre-merge status (trunk/pull regressions)"
 _NO_DATA = "No pre-merge status data."
@@ -89,13 +90,11 @@ def _fn_drop(n: int, label: str, tooltip: str) -> str:
         return ""
     return (
         f'<div class="fn-drop"><div class="fn-n">-{n}</div>'
-        f'<div><span{tip_attr(tooltip)}>{escape(label)}</span></div></div>'
+        f"<div><span{tip_attr(tooltip)}>{escape(label)}</span></div></div>"
     )
 
 
-def _funnel_block(
-    title: str, first_row_noun: str, counts: dict, total: int
-) -> str:
+def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> str:
     undetermined = counts.get(PREMERGE_STATUS_NO_MERGE_RECORD, 0) + counts.get(
         PREMERGE_STATUS_ERROR, 0
     )
@@ -197,13 +196,7 @@ def _render_funnels(premerge: PremergeData) -> str:
         _status_commit_counts(premerge),
         premerge.total_eligible_commits,
     )
-    return (
-        caption
-        + '<div class="grid">'
-        + signal_block
-        + commit_block
-        + "</div>"
-    )
+    return caption + '<div class="grid">' + signal_block + commit_block + "</div>"
 
 
 def _breakdown_table(breakdown: List) -> str:
@@ -228,9 +221,7 @@ def _breakdown_table(breakdown: List) -> str:
         '<th>Status<span class="ind"></span></th>'
         '<th class="num" data-type="num">Signals<span class="ind"></span></th>'
         '<th class="num" data-type="num">Commits<span class="ind"></span></th>'
-        "</tr></thead><tbody>"
-        + "".join(body_rows)
-        + "</tbody></table></div>"
+        "</tr></thead><tbody>" + "".join(body_rows) + "</tbody></table></div>"
     )
 
 
@@ -323,10 +314,8 @@ def _explanation() -> str:
         "before merge - they differ by <em>where in the pipeline it dropped "
         "out</em>. The funnel above is that pipeline: each stage must pass to "
         "reach the next.</p>"
-        '<table><thead><tr><th>Reason</th><th>In one phrase</th>'
-        "<th>What happened</th></tr></thead><tbody>"
-        + body
-        + "</tbody></table>"
+        "<table><thead><tr><th>Reason</th><th>In one phrase</th>"
+        "<th>What happened</th></tr></thead><tbody>" + body + "</tbody></table>"
         '<p class="model">Only <code>not_in_matrix</code> and '
         "<code>td_deselected</code> are true test-coverage gaps worth chasing. "
         "<code>force_merge</code> is a process signal, <code>skipped</code> is "

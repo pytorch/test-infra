@@ -6,6 +6,7 @@ from flake_test_fail_autorevert.queries import (
     fetch_regressions,
 )
 
+
 REPO = "pytorch/pytorch"
 
 
