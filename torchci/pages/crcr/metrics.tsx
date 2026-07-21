@@ -16,7 +16,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -159,7 +159,7 @@ export default function CrcrMetricsPage() {
   const url = `/api/clickhouse/crcr_success_rate?parameters=${encodeURIComponent(
     JSON.stringify({ days: String(days) })
   )}`;
-  const { data, error } = useSWR<SuccessRateRow[]>(url, fetcher, {
+  const { data, error } = useSWR<SuccessRateRow[]>(url, fetcherHandleError, {
     refreshInterval: 5 * 60_000,
   });
 

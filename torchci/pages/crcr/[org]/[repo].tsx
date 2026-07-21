@@ -21,7 +21,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
-import { fetcher } from "lib/GeneralUtils";
+import { fetcherHandleError } from "lib/GeneralUtils";
 
 // ---- Types ----
 
@@ -470,7 +470,7 @@ function usePrInfo(
           upstreamRepo
         )}&prs=${encodeURIComponent(dedupedPrs.join(","))}`
       : null;
-  const { data } = useSWR<PrInfo[]>(url, fetcher, {
+  const { data } = useSWR<PrInfo[]>(url, fetcherHandleError, {
     revalidateOnFocus: false,
   });
 
@@ -543,7 +543,7 @@ function CrcrMatrix({
       offset: String(offset),
     })
   )}`;
-  const { data, error } = useSWR<CrcrJobRow[]>(url, fetcher, {
+  const { data, error } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
 
@@ -769,9 +769,11 @@ export default function CrcrBackendPage() {
         JSON.stringify({ repo: repoFullName, days: String(days) })
       )}`
     : null;
-  const { data: summaryData } = useSWR<SummaryStats[]>(summaryUrl, fetcher, {
-    refreshInterval: 60_000,
-  });
+  const { data: summaryData } = useSWR<SummaryStats[]>(
+    summaryUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
   const stats = summaryData?.[0] ?? null;
 
   if (!org || !repo) return null;

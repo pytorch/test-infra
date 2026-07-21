@@ -20,7 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -352,12 +352,12 @@ export default function CrcrSummaryPage() {
   )}`;
   const { data: ciData, error: ciError } = useSWR<CiMetricsRow[]>(
     ciUrl,
-    fetcher,
+    fetcherHandleError,
     { refreshInterval: 60_000 }
   );
   const { data: allowlist, error: alError } = useSWR<AllowlistResponse>(
     "/api/crcr/allowlist",
-    fetcher,
+    fetcherHandleError,
     { refreshInterval: 5 * 60_000 }
   );
 
