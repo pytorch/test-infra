@@ -1,9 +1,11 @@
 -- Powers the "pull workflow duration per trunk commit" KPI on https://hud.pytorch.org/kpis
 -- Per trunk (main) commit of pytorch/pytorch, three duration treatments of the `pull`
 -- workflow, each reported as weekly p50/p90 percentiles in HOURS:
---   wall-clock : workflow_run updated_at - created_at            (queue + run time)
---   longest_job: max(job completed_at - started_at)              (queue excluded)
---   build_test : max(build-job run) + max(test-job run)          (queue excluded)
+--   wall-clock : workflow_run updated_at - created_at                       (queue + run time)
+--   longest_job: max(job completed_at - started_at)                         (queue excluded)
+--   build_test : per-config critical path = build run + that config's       (queue excluded)
+--                longest test run, maxed across configs. Build and its
+--                tests are chained by the job-name prefix before ' / '.
 WITH pull_runs AS (
     SELECT
         w.id AS run_id,
@@ -27,13 +29,10 @@ WITH pull_runs AS (
 ),
 per_run AS (
     SELECT
+        r.run_id AS run_id,
         any(r.created_at) AS created_at,
         any(r.wallclock_sec) / 3600.0 AS wallclock_hours,
-        MAX(DATE_DIFF('second', j.started_at, j.completed_at)) / 3600.0 AS longest_job_hours,
-        (
-            MAX(IF(j.name LIKE '% / build%', DATE_DIFF('second', j.started_at, j.completed_at), 0))
-            + MAX(IF(j.name LIKE '% / test%', DATE_DIFF('second', j.started_at, j.completed_at), 0))
-        ) / 3600.0 AS build_test_hours
+        MAX(DATE_DIFF('second', j.started_at, j.completed_at)) / 3600.0 AS longest_job_hours
     FROM
         pull_runs r
         INNER JOIN default.workflow_job j final ON j.run_id = r.run_id
@@ -41,6 +40,44 @@ per_run AS (
         toUnixTimestamp(j.completed_at) != 0
     GROUP BY
         r.run_id
+),
+per_config AS (
+    -- Chain build -> its tests by the job-name prefix before ' / '.
+    -- maxIf returns 0 when a config has no build (or no test), so build-only
+    -- and test-only configs degrade gracefully to whichever side exists.
+    SELECT
+        r.run_id AS run_id,
+        splitByString(' / ', j.name)[1] AS config,
+        maxIf(DATE_DIFF('second', j.started_at, j.completed_at), j.name LIKE '% / build%')
+        + maxIf(DATE_DIFF('second', j.started_at, j.completed_at), j.name LIKE '% / test%') AS chain_sec
+    FROM
+        pull_runs r
+        INNER JOIN default.workflow_job j final ON j.run_id = r.run_id
+    WHERE
+        toUnixTimestamp(j.completed_at) != 0
+        AND (j.name LIKE '% / build%' OR j.name LIKE '% / test%')
+    GROUP BY
+        r.run_id,
+        config
+),
+critical_path AS (
+    SELECT
+        run_id,
+        MAX(chain_sec) / 3600.0 AS build_test_hours
+    FROM
+        per_config
+    GROUP BY
+        run_id
+),
+combined AS (
+    SELECT
+        pr.created_at AS created_at,
+        pr.wallclock_hours AS wallclock_hours,
+        pr.longest_job_hours AS longest_job_hours,
+        cp.build_test_hours AS build_test_hours
+    FROM
+        per_run pr
+        LEFT JOIN critical_path cp ON pr.run_id = cp.run_id
 ),
 weekly AS (
     SELECT
@@ -52,7 +89,7 @@ weekly AS (
         quantileExact(0.5)(build_test_hours) AS build_test_p50,
         quantileExact(0.9)(build_test_hours) AS build_test_p90
     FROM
-        per_run
+        combined
     GROUP BY
         bucket
 )

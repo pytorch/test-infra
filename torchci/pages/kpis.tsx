@@ -125,7 +125,7 @@ export default function Kpis() {
                   "longest job":
                     "Longest single job's run time: max(completed_at − started_at). Queue excluded.",
                   "build+test":
-                    "max(build-job run) + max(test-job run) across the run. Queue excluded; the two maxes may come from different configs, so this can exceed wall-clock.",
+                    "Per-config critical path: for each build-config, build run + that config's longest test run, then max across configs (build→test chained by job-name prefix). Queue excluded.",
                 };
                 const name: string = params.seriesName ?? "";
                 const metric = name.replace(/ p(?:50|90)$/, "");
