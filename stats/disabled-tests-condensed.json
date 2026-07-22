@@ -529,15 +529,6 @@
       "rocm"
     ]
   ],
-  "test_grad_freevar_python_scalar (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179742",
-    "https://github.com/pytorch/pytorch/issues/179742",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_grad_grad_cpu (__main__.TestComposabilityCPU)": [
     "180655",
     "https://github.com/pytorch/pytorch/issues/180655",
@@ -775,9 +766,23 @@
       "dynamo"
     ]
   ],
+  "test_maml_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180555",
+    "https://github.com/pytorch/pytorch/issues/180555",
+    [
+      "dynamo"
+    ]
+  ],
   "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
     "190142",
     "https://github.com/pytorch/pytorch/issues/190142",
+    [
+      "linux"
+    ]
+  ],
+  "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190748",
+    "https://github.com/pytorch/pytorch/issues/190748",
     [
       "linux"
     ]
@@ -1143,8 +1148,8 @@
     ]
   ],
   "test_slow_conv_transpose3d_kernel_size_mismatch_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
-    "190646",
-    "https://github.com/pytorch/pytorch/issues/190646",
+    "190640",
+    "https://github.com/pytorch/pytorch/issues/190640",
     [
       "xpu"
     ]
@@ -1173,11 +1178,12 @@
       "slow"
     ]
   ],
-  "test_source_multithreaded_close_in_scope_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119514",
-    "https://github.com/pytorch/pytorch/issues/119514",
+  "test_source_multithreaded_close_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119364",
+    "https://github.com/pytorch/pytorch/issues/119364",
     [
       "asan",
+      "dynamo",
       "linux",
       "mac",
       "macos",
@@ -1463,13 +1469,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180213",
-    "https://github.com/pytorch/pytorch/issues/180213",
-    [
-      "dynamo"
     ]
   ],
   "test_vmap_vmap_cpu (__main__.TestComposabilityCPU)": [
