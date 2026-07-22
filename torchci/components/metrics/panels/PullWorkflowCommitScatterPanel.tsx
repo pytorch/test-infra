@@ -11,7 +11,7 @@ import {
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type CommitRow = {
   ts: string;
@@ -56,24 +56,116 @@ export default function PullWorkflowCommitScatterPanel({
       : null
   );
 
+  const flaggedRows = useMemo(
+    () => (data ? data.filter((r) => Number(r.flagged) === 1) : []),
+    [data]
+  );
+
+  // Bounds of the full dataset, used to convert dataZoom percentages -> time.
+  const [tMin, tMax] = useMemo(() => {
+    const rows = data ?? [];
+    return rows.length
+      ? [Date.parse(rows[0].ts), Date.parse(rows[rows.length - 1].ts)]
+      : [0, 0];
+  }, [data]);
+
+  // Keep the option reference stable across zoom-driven re-renders
+  // (visibleRange is deliberately NOT a dependency) so the chart stays
+  // uncontrolled after mount and user zoom is preserved.
+  const option = useMemo(() => {
+    const rows = data ?? [];
+
+    const toPoint = (r: CommitRow) => ({
+      value: [r.ts, r.build_test_hours],
+      sha: r.sha,
+      wallclock_hours: r.wallclock_hours,
+      longest_job_hours: r.longest_job_hours,
+      build_test_hours: r.build_test_hours,
+      baseline_median: r.baseline_median,
+    });
+
+    return {
+      title: { text: "pull workflow build+test per trunk commit" },
+      grid: { top: 72, right: 8, bottom: 72, left: 48 },
+      legend: {
+        top: 28,
+        data: [
+          "build+test (per commit)",
+          "flagged (>10% over baseline & > p90)",
+          "build+test baseline (rolling median)",
+        ],
+      },
+      xAxis: { type: "time" },
+      yAxis: { type: "value", name: "Hours" },
+      dataZoom: [
+        {
+          type: "inside",
+          ...(focusStart && focusStop
+            ? { startValue: focusStart, endValue: focusStop }
+            : {}),
+        },
+        {
+          type: "slider",
+          ...(focusStart && focusStop
+            ? { startValue: focusStart, endValue: focusStop }
+            : {}),
+        },
+      ],
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          const d = params?.data;
+          if (d === undefined || d.sha === undefined) {
+            return "";
+          }
+          return (
+            `<b>${d.sha.substring(0, 7)}</b><br/>` +
+            `build+test: ${Number(d.build_test_hours).toFixed(2)} h<br/>` +
+            `longest job: ${Number(d.longest_job_hours).toFixed(2)} h<br/>` +
+            `wall-clock: ${Number(d.wallclock_hours).toFixed(2)} h<br/>` +
+            `baseline: ${Number(d.baseline_median).toFixed(2)} h<br/>` +
+            `<span style="color:${LINK_COLOR};font-weight:bold;">▸ click to open this commit on HUD</span>`
+          );
+        },
+      },
+      series: [
+        {
+          name: "build+test (per commit)",
+          type: "scatter",
+          large: true,
+          largeThreshold: 2000,
+          progressive: 4000,
+          symbolSize: 4,
+          itemStyle: { color: "#8891a0", opacity: 0.35 },
+          cursor: "pointer",
+          z: 2,
+          data: rows.map(toPoint),
+        },
+        {
+          name: "build+test baseline (rolling median)",
+          type: "line",
+          showSymbol: false,
+          lineStyle: { width: 1, opacity: 0.6 },
+          z: 3,
+          data: rows.map((r) => [r.ts, r.baseline_median]),
+        },
+        {
+          name: "flagged (>10% over baseline & > p90)",
+          type: "scatter",
+          symbol: "triangle",
+          symbolSize: 10,
+          itemStyle: { color: "#e4572e" },
+          cursor: "pointer",
+          z: 5,
+          data: flaggedRows.map(toPoint),
+        },
+      ],
+    };
+  }, [data, flaggedRows, darkMode, focusStart, focusStop]);
+
   if (data === undefined) {
     return <Skeleton variant="rectangular" height={chartHeight} />;
   }
-
-  const toPoint = (r: CommitRow) => ({
-    value: [r.ts, r.build_test_hours],
-    sha: r.sha,
-    wallclock_hours: r.wallclock_hours,
-    longest_job_hours: r.longest_job_hours,
-    build_test_hours: r.build_test_hours,
-    baseline_median: r.baseline_median,
-  });
-
-  const flaggedRows = data.filter((r) => Number(r.flagged) === 1);
-
-  // Bounds of the full dataset, used to convert dataZoom percentages -> time.
-  const tMin = data.length ? Date.parse(data[0].ts) : 0;
-  const tMax = data.length ? Date.parse(data[data.length - 1].ts) : 0;
 
   const onDataZoom = (evt: any) => {
     const z = evt?.batch?.[0] ?? evt;
@@ -97,84 +189,6 @@ export default function PullWorkflowCommitScatterPanel({
     return t >= visibleRange[0] && t <= visibleRange[1];
   };
 
-  const option = {
-    title: { text: "pull workflow build+test per trunk commit" },
-    grid: { top: 72, right: 8, bottom: 72, left: 48 },
-    legend: {
-      top: 28,
-      data: [
-        "build+test (per commit)",
-        "flagged (>10% over baseline & > p90)",
-        "build+test baseline (rolling median)",
-      ],
-    },
-    xAxis: { type: "time" },
-    yAxis: { type: "value", name: "Hours" },
-    dataZoom: [
-      {
-        type: "inside",
-        ...(focusStart && focusStop
-          ? { startValue: focusStart, endValue: focusStop }
-          : {}),
-      },
-      {
-        type: "slider",
-        ...(focusStart && focusStop
-          ? { startValue: focusStart, endValue: focusStop }
-          : {}),
-      },
-    ],
-    tooltip: {
-      trigger: "item",
-      formatter: (params: any) => {
-        const d = params?.data;
-        if (d === undefined || d.sha === undefined) {
-          return "";
-        }
-        return (
-          `<b>${d.sha.substring(0, 7)}</b><br/>` +
-          `build+test: ${Number(d.build_test_hours).toFixed(2)} h<br/>` +
-          `longest job: ${Number(d.longest_job_hours).toFixed(2)} h<br/>` +
-          `wall-clock: ${Number(d.wallclock_hours).toFixed(2)} h<br/>` +
-          `baseline: ${Number(d.baseline_median).toFixed(2)} h<br/>` +
-          `<span style="color:${LINK_COLOR};font-weight:bold;">▸ click to open this commit on HUD</span>`
-        );
-      },
-    },
-    series: [
-      {
-        name: "build+test (per commit)",
-        type: "scatter",
-        large: true,
-        largeThreshold: 2000,
-        progressive: 4000,
-        symbolSize: 4,
-        itemStyle: { color: "#8891a0", opacity: 0.35 },
-        cursor: "pointer",
-        z: 2,
-        data: data.map(toPoint),
-      },
-      {
-        name: "build+test baseline (rolling median)",
-        type: "line",
-        showSymbol: false,
-        lineStyle: { width: 1, opacity: 0.6 },
-        z: 3,
-        data: data.map((r) => [r.ts, r.baseline_median]),
-      },
-      {
-        name: "flagged (>10% over baseline & > p90)",
-        type: "scatter",
-        symbol: "triangle",
-        symbolSize: 10,
-        itemStyle: { color: "#e4572e" },
-        cursor: "pointer",
-        z: 5,
-        data: flaggedRows.map(toPoint),
-      },
-    ],
-  };
-
   // Table follows the zoomed section (newest first).
   const visibleFlagged = flaggedRows.filter(inVisibleRange);
   const flaggedNewestFirst = [...visibleFlagged].reverse();
@@ -188,6 +202,7 @@ export default function PullWorkflowCommitScatterPanel({
         option={option}
         style={{ height: chartHeight, width: "100%" }}
         notMerge={false}
+        shouldSetOption={(prev: any, cur: any) => prev.option !== cur.option}
         onEvents={{
           click: (p: any) => {
             const sha = p?.data?.sha;
