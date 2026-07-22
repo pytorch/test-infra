@@ -11,7 +11,7 @@ import {
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type CommitRow = {
   ts: string;
@@ -63,6 +63,15 @@ export default function PullWorkflowCommitScatterPanel({
       ? [Date.parse(focusStart), Date.parse(focusStop)]
       : null
   );
+  // router.query.focus is undefined until Next hydrates, so the useState seed
+  // above can miss it; re-sync the table window when the focus props arrive or
+  // change. Fires only on focus-prop changes, not on user zoom (which updates
+  // visibleRange directly), so it doesn't fight manual zooming.
+  useEffect(() => {
+    if (focusStart && focusStop) {
+      setVisibleRange([Date.parse(focusStart), Date.parse(focusStop)]);
+    }
+  }, [focusStart, focusStop]);
 
   const flaggedRows = useMemo(
     () => (data ? data.filter((r) => Number(r.flagged) === 1) : []),
@@ -273,7 +282,7 @@ export default function PullWorkflowCommitScatterPanel({
             </TableHead>
             <TableBody>
               {shownFlagged.map((r) => (
-                <TableRow key={r.sha}>
+                <TableRow key={`${r.sha}-${r.ts}`}>
                   <TableCell>{r.ts.substring(0, 10)}</TableCell>
                   <TableCell>
                     <a

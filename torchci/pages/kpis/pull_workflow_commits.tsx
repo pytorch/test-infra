@@ -13,13 +13,14 @@ export default function PullWorkflowCommitsPage() {
   const startTime = dayjs().subtract(6, "month").utc().format(FMT);
   const stopTime = dayjs().utc().format(FMT);
 
-  // Optional pre-zoom: ?focus=<ISO ts> -> window of focus +/- 5 days.
+  // Optional pre-zoom: ?focus=<ISO ts>. The focus is a weekly bucket START, so
+  // frame that week (7 days) plus a day of context on each side.
   const focus =
     typeof router.query.focus === "string" ? router.query.focus : undefined;
   const focusStart = focus
-    ? dayjs(focus).subtract(5, "day").format(FMT)
+    ? dayjs(focus).subtract(1, "day").format(FMT)
     : undefined;
-  const focusStop = focus ? dayjs(focus).add(5, "day").format(FMT) : undefined;
+  const focusStop = focus ? dayjs(focus).add(8, "day").format(FMT) : undefined;
 
   return (
     <Grid container spacing={2} sx={{ p: 2 }}>

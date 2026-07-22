@@ -74,13 +74,20 @@ scored AS (
         longest_job_hours,
         build_test_hours,
         -- Worst conclusion among the critical config's longest build/test jobs.
+        -- Failure-equivalents (failure/timed_out/startup_failure) collapse to 'failure';
+        -- everything not explicitly cancelled/failed (incl. success and the empty
+        -- conclusion of a config missing a build or test side) is 'success'.
         multiIf(
-            crit_build_concl = 'failure' OR crit_test_concl = 'failure', 'failure',
+            crit_build_concl IN ('failure', 'timed_out', 'startup_failure')
+            OR crit_test_concl IN ('failure', 'timed_out', 'startup_failure'), 'failure',
             crit_build_concl = 'cancelled' OR crit_test_concl = 'cancelled', 'cancelled',
             'success'
         ) AS crit_conclusion,
         quantileExact(0.5)(build_test_hours) OVER w AS baseline_median,
-        quantileExact(0.9)(build_test_hours) OVER w AS baseline_p90
+        quantileExact(0.9)(build_test_hours) OVER w AS baseline_p90,
+        -- How many commits are in the trailing window; used to suppress flags on
+        -- the first rows of the range where the baseline is not yet meaningful.
+        count() OVER w AS baseline_n
     FROM
         per_run
     WINDOW
@@ -95,7 +102,8 @@ SELECT
     round(baseline_median, 3) AS baseline_median,
     crit_conclusion,
     (
-        baseline_median > 0
+        baseline_n >= 50
+        AND baseline_median > 0
         AND build_test_hours > 1.10 * baseline_median
         AND build_test_hours > baseline_p90
     ) AS flagged
