@@ -21,10 +21,18 @@ type CommitRow = {
   build_test_hours: number;
   baseline_median: number;
   flagged: number;
+  crit_conclusion: "success" | "failure" | "cancelled";
 };
 
 const MAX_FLAGGED_TABLE_ROWS = 50;
 const LINK_COLOR = "#4493f8";
+// A cancelled/failed metric-driving job inflates the build+test height, so
+// color those points differently from genuinely-slow successful commits.
+const CONCLUSION_COLOR: Record<string, string> = {
+  success: "#8891a0",
+  failure: "#d32f2f",
+  cancelled: "#f5a623",
+};
 
 function commitUrl(sha: string): string {
   return `https://hud.pytorch.org/pytorch/pytorch/commit/${sha}`;
@@ -82,6 +90,7 @@ export default function PullWorkflowCommitScatterPanel({
       longest_job_hours: r.longest_job_hours,
       build_test_hours: r.build_test_hours,
       baseline_median: r.baseline_median,
+      crit_conclusion: r.crit_conclusion,
     });
 
     return {
@@ -90,8 +99,10 @@ export default function PullWorkflowCommitScatterPanel({
       legend: {
         top: 28,
         data: [
-          "build+test (per commit)",
-          "flagged (>10% over baseline & > p90)",
+          "success",
+          "failure",
+          "cancelled",
+          "flagged (anomaly)",
           "build+test baseline (rolling median)",
         ],
       },
@@ -118,29 +129,49 @@ export default function PullWorkflowCommitScatterPanel({
           if (d === undefined || d.sha === undefined) {
             return "";
           }
+          const conclusion = d.crit_conclusion;
+          const conclusionHtml =
+            conclusion === "success"
+              ? `<span style="opacity:0.7;">${conclusion}</span>`
+              : `<span style="color:${
+                  CONCLUSION_COLOR[conclusion] ?? "#8891a0"
+                };font-weight:bold;">${conclusion}</span>`;
           return (
             `<b>${d.sha.substring(0, 7)}</b><br/>` +
             `build+test: ${Number(d.build_test_hours).toFixed(2)} h<br/>` +
             `longest job: ${Number(d.longest_job_hours).toFixed(2)} h<br/>` +
             `wall-clock: ${Number(d.wallclock_hours).toFixed(2)} h<br/>` +
             `baseline: ${Number(d.baseline_median).toFixed(2)} h<br/>` +
+            `conclusion: ${conclusionHtml}<br/>` +
             `<span style="color:${LINK_COLOR};font-weight:bold;">▸ click to open this commit on HUD</span>`
           );
         },
       },
       series: [
-        {
-          name: "build+test (per commit)",
+        // One large-mode series per conclusion for the non-flagged points:
+        // large mode ignores per-point colors, so color must be series-level.
+        ...(
+          [
+            { name: "success", opacity: 0.35 },
+            { name: "failure", opacity: 0.55 },
+            { name: "cancelled", opacity: 0.75 },
+          ] as const
+        ).map(({ name, opacity }) => ({
+          name,
           type: "scatter",
           large: true,
           largeThreshold: 2000,
           progressive: 4000,
           symbolSize: 4,
-          itemStyle: { color: "#8891a0", opacity: 0.35 },
+          itemStyle: { color: CONCLUSION_COLOR[name], opacity },
           cursor: "pointer",
           z: 2,
-          data: rows.map(toPoint),
-        },
+          data: rows
+            .filter(
+              (r) => Number(r.flagged) !== 1 && r.crit_conclusion === name
+            )
+            .map(toPoint),
+        })),
         {
           name: "build+test baseline (rolling median)",
           type: "line",
@@ -150,14 +181,21 @@ export default function PullWorkflowCommitScatterPanel({
           data: rows.map((r) => [r.ts, r.baseline_median]),
         },
         {
-          name: "flagged (>10% over baseline & > p90)",
+          // Small series, so per-point itemStyle works; no large mode here.
+          name: "flagged (anomaly)",
           type: "scatter",
           symbol: "triangle",
-          symbolSize: 10,
-          itemStyle: { color: "#e4572e" },
+          symbolSize: 11,
           cursor: "pointer",
           z: 5,
-          data: flaggedRows.map(toPoint),
+          data: flaggedRows.map((r) => ({
+            ...toPoint(r),
+            itemStyle: {
+              color: CONCLUSION_COLOR[r.crit_conclusion] ?? "#8891a0",
+              borderColor: darkMode ? "#eee" : "#333",
+              borderWidth: 1,
+            },
+          })),
         },
       ],
     };
