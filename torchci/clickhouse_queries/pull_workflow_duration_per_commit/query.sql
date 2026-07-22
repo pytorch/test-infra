@@ -64,6 +64,11 @@ weekly AS (
         per_run
     GROUP BY
         bucket
+    -- Drop the latest partial week. Filter here (on the Date `bucket`) rather than
+    -- in the outer query, where `bucket` is re-aliased to a formatDateTime String and
+    -- `String < DateTime` throws NO_COMMON_TYPE (Code 386).
+    HAVING
+        bucket < CURRENT_TIMESTAMP() - INTERVAL 1 WEEK
 )
 SELECT
     formatDateTime(bucket, '%Y-%m-%d') AS bucket,
@@ -75,7 +80,5 @@ SELECT
     build_test_p90
 FROM
     weekly
-WHERE
-    bucket < CURRENT_TIMESTAMP() - INTERVAL 1 WEEK
 ORDER BY
     bucket DESC
