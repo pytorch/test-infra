@@ -36,14 +36,6 @@
       "rocm"
     ]
   ],
-  "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "149080",
-    "https://github.com/pytorch/pytorch/issues/149080",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
