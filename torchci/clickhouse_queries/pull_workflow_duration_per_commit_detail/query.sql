@@ -18,7 +18,20 @@ WITH per_config AS (
         + maxIf(DATE_DIFF('second', j.started_at, j.completed_at), j.name LIKE '% / test%') AS chain_sec,
         MAX(DATE_DIFF('second', j.started_at, j.completed_at)) AS max_job_sec,
         MIN(j.started_at) AS min_started,
-        MAX(j.completed_at) AS max_completed
+        MAX(j.completed_at) AS max_completed,
+        -- Conclusion of the longest build job and longest test job in this config,
+        -- so we can surface whether a high build+test point was driven by a
+        -- cancelled/failed job rather than a clean-but-slow run.
+        argMaxIf(
+            j.conclusion,
+            DATE_DIFF('second', j.started_at, j.completed_at),
+            j.name LIKE '% / build%'
+        ) AS build_concl,
+        argMaxIf(
+            j.conclusion,
+            DATE_DIFF('second', j.started_at, j.completed_at),
+            j.name LIKE '% / test%'
+        ) AS test_concl
     FROM
         default.workflow_job j
     WHERE
@@ -43,7 +56,10 @@ per_run AS (
         any(wf_created) AS ts,
         DATE_DIFF('second', MIN(min_started), MAX(max_completed)) / 3600.0 AS wallclock_hours,
         MAX(max_job_sec) / 3600.0 AS longest_job_hours,
-        MAX(chain_sec) / 3600.0 AS build_test_hours
+        MAX(chain_sec) / 3600.0 AS build_test_hours,
+        -- Conclusions of the config on the critical path (the one setting build_test_hours).
+        argMax(build_concl, chain_sec) AS crit_build_concl,
+        argMax(test_concl, chain_sec) AS crit_test_concl
     FROM
         per_config
     GROUP BY
@@ -57,6 +73,12 @@ scored AS (
         wallclock_hours,
         longest_job_hours,
         build_test_hours,
+        -- Worst conclusion among the critical config's longest build/test jobs.
+        multiIf(
+            crit_build_concl = 'failure' OR crit_test_concl = 'failure', 'failure',
+            crit_build_concl = 'cancelled' OR crit_test_concl = 'cancelled', 'cancelled',
+            'success'
+        ) AS crit_conclusion,
         quantileExact(0.5)(build_test_hours) OVER w AS baseline_median,
         quantileExact(0.9)(build_test_hours) OVER w AS baseline_p90
     FROM
@@ -71,6 +93,7 @@ SELECT
     round(longest_job_hours, 3) AS longest_job_hours,
     round(build_test_hours, 3) AS build_test_hours,
     round(baseline_median, 3) AS baseline_median,
+    crit_conclusion,
     (
         baseline_median > 0
         AND build_test_hours > 1.10 * baseline_median
