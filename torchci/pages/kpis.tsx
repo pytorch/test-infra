@@ -1,4 +1,5 @@
 import { Grid } from "@mui/material";
+import PullWorkflowCommitScatterPanel from "components/metrics/panels/PullWorkflowCommitScatterPanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -141,6 +142,13 @@ export default function Kpis() {
               },
             },
           }}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12 }} height={520}>
+        <PullWorkflowCommitScatterPanel
+          startTime={timeParams.startTime}
+          stopTime={timeParams.stopTime}
         />
       </Grid>
 
