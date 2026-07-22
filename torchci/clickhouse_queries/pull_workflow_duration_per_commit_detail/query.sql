@@ -87,7 +87,7 @@ scored AS (
         quantileExact(0.9)(build_test_hours) OVER w AS baseline_p90,
         -- How many commits are in the trailing window; used to suppress flags on
         -- the first rows of the range where the baseline is not yet meaningful.
-        count() OVER w AS baseline_n
+        count(build_test_hours) OVER w AS baseline_n
     FROM
         per_run
     WINDOW

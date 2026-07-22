@@ -210,23 +210,38 @@ export default function PullWorkflowCommitScatterPanel({
     };
   }, [data, flaggedRows, darkMode, focusStart, focusStop]);
 
+  // Stable onEvents identity: echarts-for-react disposes + reinits the chart when
+  // the onEvents prop changes by reference, so an inline object (fresh each render)
+  // would tear the chart down — and drop the zoom. Memoize it; only tMin/tMax are
+  // captured (setVisibleRange is stable).
+  const onEvents = useMemo(
+    () => ({
+      click: (p: any) => {
+        const sha = p?.data?.sha;
+        if (sha) {
+          window.open(commitUrl(sha), "_blank");
+        }
+      },
+      datazoom: (evt: any) => {
+        const z = evt?.batch?.[0] ?? evt;
+        let s = z?.startValue;
+        let e = z?.endValue;
+        if (s === undefined || e === undefined) {
+          // Slider/inside zoom reports percentages; map them onto the data range.
+          const startPct = z?.start ?? 0;
+          const endPct = z?.end ?? 100;
+          s = tMin + ((tMax - tMin) * startPct) / 100;
+          e = tMin + ((tMax - tMin) * endPct) / 100;
+        }
+        setVisibleRange([Number(new Date(s)), Number(new Date(e))]);
+      },
+    }),
+    [tMin, tMax]
+  );
+
   if (data === undefined) {
     return <Skeleton variant="rectangular" height={chartHeight} />;
   }
-
-  const onDataZoom = (evt: any) => {
-    const z = evt?.batch?.[0] ?? evt;
-    let s = z?.startValue;
-    let e = z?.endValue;
-    if (s === undefined || e === undefined) {
-      // Slider/inside zoom reports percentages; map them onto the data range.
-      const startPct = z?.start ?? 0;
-      const endPct = z?.end ?? 100;
-      s = tMin + ((tMax - tMin) * startPct) / 100;
-      e = tMin + ((tMax - tMin) * endPct) / 100;
-    }
-    setVisibleRange([Number(new Date(s)), Number(new Date(e))]);
-  };
 
   const inVisibleRange = (r: CommitRow) => {
     if (visibleRange === null) {
@@ -250,15 +265,7 @@ export default function PullWorkflowCommitScatterPanel({
         style={{ height: chartHeight, width: "100%" }}
         notMerge={false}
         shouldSetOption={(prev: any, cur: any) => prev.option !== cur.option}
-        onEvents={{
-          click: (p: any) => {
-            const sha = p?.data?.sha;
-            if (sha) {
-              window.open(commitUrl(sha), "_blank");
-            }
-          },
-          datazoom: onDataZoom,
-        }}
+        onEvents={onEvents}
       />
       <Typography variant="subtitle2" sx={{ mt: 2 }}>
         Flagged commits{visibleRange !== null ? " (current zoom window)" : ""}:{" "}
