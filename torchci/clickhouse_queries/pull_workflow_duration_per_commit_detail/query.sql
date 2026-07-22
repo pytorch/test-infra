@@ -29,6 +29,9 @@ WITH per_config AS (
         AND j.workflow_created_at >= {startTime: DateTime64(3)}
         AND j.workflow_created_at < {stopTime: DateTime64(3)}
         AND toUnixTimestamp(j.completed_at) != 0
+        -- Drop data-quality artifacts: GitHub marks stuck jobs "completed" up to
+        -- 30 days later (~720h), which otherwise dominates the max/span aggregates.
+        AND DATE_DIFF('second', j.started_at, j.completed_at) < 86400
     GROUP BY
         j.run_id,
         wf_created,
