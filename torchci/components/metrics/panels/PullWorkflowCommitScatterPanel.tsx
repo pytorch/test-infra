@@ -31,9 +31,13 @@ function commitUrl(sha: string): string {
 export default function PullWorkflowCommitScatterPanel({
   startTime,
   stopTime,
+  focusStart,
+  focusStop,
 }: {
   startTime: string;
   stopTime: string;
+  focusStart?: string;
+  focusStop?: string;
 }) {
   const { darkMode } = useDarkMode();
   const { data } = useClickHouseAPIImmutable<CommitRow>(
@@ -69,7 +73,20 @@ export default function PullWorkflowCommitScatterPanel({
     },
     xAxis: { type: "time" },
     yAxis: { type: "value", name: "Hours" },
-    dataZoom: [{ type: "inside" }, { type: "slider" }],
+    dataZoom: [
+      {
+        type: "inside",
+        ...(focusStart && focusStop
+          ? { startValue: focusStart, endValue: focusStop }
+          : {}),
+      },
+      {
+        type: "slider",
+        ...(focusStart && focusStop
+          ? { startValue: focusStart, endValue: focusStop }
+          : {}),
+      },
+    ],
     tooltip: {
       trigger: "item",
       formatter: (params: any) => {

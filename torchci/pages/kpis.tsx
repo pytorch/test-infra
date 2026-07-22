@@ -1,12 +1,13 @@
 import { Grid } from "@mui/material";
-import PullWorkflowCommitScatterPanel from "components/metrics/panels/PullWorkflowCommitScatterPanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { useRouter } from "next/router";
 import { useState } from "react";
 
 const ROW_HEIGHT = 240;
 
 export default function Kpis() {
+  const router = useRouter();
   // Looking at data from the past six months
   const [startTime, _setStartTime] = useState(dayjs().subtract(6, "month"));
   const [stopTime, _setStopTime] = useState(dayjs());
@@ -117,6 +118,7 @@ export default function Kpis() {
               .flat();
           }}
           additionalOptions={{
+            title: { link: "/kpis/pull_workflow_commits", target: "self" },
             tooltip: {
               trigger: "item",
               formatter: (params: any) => {
@@ -142,13 +144,18 @@ export default function Kpis() {
               },
             },
           }}
-        />
-      </Grid>
-
-      <Grid size={{ xs: 12 }} height={520}>
-        <PullWorkflowCommitScatterPanel
-          startTime={timeParams.startTime}
-          stopTime={timeParams.stopTime}
+          onEvents={{
+            click: (params: any) => {
+              const ts = params?.value?.[0];
+              if (ts) {
+                router.push(
+                  `/kpis/pull_workflow_commits?focus=${encodeURIComponent(
+                    String(ts)
+                  )}`
+                );
+              }
+            },
+          }}
         />
       </Grid>
 
