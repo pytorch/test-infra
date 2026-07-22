@@ -557,6 +557,13 @@
       "slow"
     ]
   ],
+  "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
+    "78068",
+    "https://github.com/pytorch/pytorch/issues/78068",
+    [
+      "linux"
+    ]
+  ],
   "test_invalid_block_size_cuda (__main__.TestFlexAttentionCUDA)": [
     "189706",
     "https://github.com/pytorch/pytorch/issues/189706",
@@ -1172,24 +1179,12 @@
       "slow"
     ]
   ],
-  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_False (__main__.TestProfiler)": [
-    "119526",
-    "https://github.com/pytorch/pytorch/issues/119526",
+  "test_source_multithreaded_complex_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119490",
+    "https://github.com/pytorch/pytorch/issues/119490",
     [
       "asan",
       "dynamo",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119576",
-    "https://github.com/pytorch/pytorch/issues/119576",
-    [
-      "asan",
       "linux",
       "mac",
       "macos",
@@ -1389,13 +1384,6 @@
       "rocm"
     ]
   ],
-  "test_vjp_grad_cpu (__main__.TestComposabilityCPU)": [
-    "180194",
-    "https://github.com/pytorch/pytorch/issues/180194",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
     "189711",
     "https://github.com/pytorch/pytorch/issues/189711",
@@ -1408,15 +1396,6 @@
     "https://github.com/pytorch/pytorch/issues/180337",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_over_vmap_two_inputs (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "188898",
-    "https://github.com/pytorch/pytorch/issues/188898",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
