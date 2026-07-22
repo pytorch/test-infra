@@ -11,6 +11,7 @@ import {
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
+import { useState } from "react";
 
 type CommitRow = {
   ts: string;
@@ -23,6 +24,7 @@ type CommitRow = {
 };
 
 const MAX_FLAGGED_TABLE_ROWS = 50;
+const LINK_COLOR = "#4493f8";
 
 function commitUrl(sha: string): string {
   return `https://hud.pytorch.org/pytorch/pytorch/commit/${sha}`;
@@ -33,20 +35,29 @@ export default function PullWorkflowCommitScatterPanel({
   stopTime,
   focusStart,
   focusStop,
+  chartHeight = 320,
 }: {
   startTime: string;
   stopTime: string;
   focusStart?: string;
   focusStop?: string;
+  chartHeight?: number;
 }) {
   const { darkMode } = useDarkMode();
   const { data } = useClickHouseAPIImmutable<CommitRow>(
     "pull_workflow_duration_per_commit_detail",
     { startTime, stopTime }
   );
+  // Time window currently visible on the x-axis (ms epoch). null = full range.
+  // Seed it from the pre-zoom focus so the table matches the initial view.
+  const [visibleRange, setVisibleRange] = useState<[number, number] | null>(
+    focusStart && focusStop
+      ? [Date.parse(focusStart), Date.parse(focusStop)]
+      : null
+  );
 
   if (data === undefined) {
-    return <Skeleton variant="rectangular" height="100%" />;
+    return <Skeleton variant="rectangular" height={chartHeight} />;
   }
 
   const toPoint = (r: CommitRow) => ({
@@ -59,6 +70,32 @@ export default function PullWorkflowCommitScatterPanel({
   });
 
   const flaggedRows = data.filter((r) => Number(r.flagged) === 1);
+
+  // Bounds of the full dataset, used to convert dataZoom percentages -> time.
+  const tMin = data.length ? Date.parse(data[0].ts) : 0;
+  const tMax = data.length ? Date.parse(data[data.length - 1].ts) : 0;
+
+  const onDataZoom = (evt: any) => {
+    const z = evt?.batch?.[0] ?? evt;
+    let s = z?.startValue;
+    let e = z?.endValue;
+    if (s === undefined || e === undefined) {
+      // Slider/inside zoom reports percentages; map them onto the data range.
+      const startPct = z?.start ?? 0;
+      const endPct = z?.end ?? 100;
+      s = tMin + ((tMax - tMin) * startPct) / 100;
+      e = tMin + ((tMax - tMin) * endPct) / 100;
+    }
+    setVisibleRange([Number(new Date(s)), Number(new Date(e))]);
+  };
+
+  const inVisibleRange = (r: CommitRow) => {
+    if (visibleRange === null) {
+      return true;
+    }
+    const t = Date.parse(r.ts);
+    return t >= visibleRange[0] && t <= visibleRange[1];
+  };
 
   const option = {
     title: { text: "pull workflow build+test per trunk commit" },
@@ -100,7 +137,7 @@ export default function PullWorkflowCommitScatterPanel({
           `longest job: ${Number(d.longest_job_hours).toFixed(2)} h<br/>` +
           `wall-clock: ${Number(d.wallclock_hours).toFixed(2)} h<br/>` +
           `baseline: ${Number(d.baseline_median).toFixed(2)} h<br/>` +
-          `<span style="font-size:11px;opacity:0.8;">click to open commit</span>`
+          `<span style="color:${LINK_COLOR};font-weight:bold;">▸ click to open this commit on HUD</span>`
         );
       },
     },
@@ -138,16 +175,19 @@ export default function PullWorkflowCommitScatterPanel({
     ],
   };
 
-  const flaggedNewestFirst = [...flaggedRows].reverse();
+  // Table follows the zoomed section (newest first).
+  const visibleFlagged = flaggedRows.filter(inVisibleRange);
+  const flaggedNewestFirst = [...visibleFlagged].reverse();
   const shownFlagged = flaggedNewestFirst.slice(0, MAX_FLAGGED_TABLE_ROWS);
   const hiddenFlaggedCount = flaggedNewestFirst.length - shownFlagged.length;
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+    <Paper sx={{ p: 2 }} elevation={3}>
       <ReactECharts
         theme={darkMode ? "dark-hud" : undefined}
         option={option}
-        style={{ height: 320, width: "100%" }}
+        style={{ height: chartHeight, width: "100%" }}
+        notMerge={false}
         onEvents={{
           click: (p: any) => {
             const sha = p?.data?.sha;
@@ -155,11 +195,16 @@ export default function PullWorkflowCommitScatterPanel({
               window.open(commitUrl(sha), "_blank");
             }
           },
+          datazoom: onDataZoom,
         }}
       />
+      <Typography variant="subtitle2" sx={{ mt: 2 }}>
+        Flagged commits{visibleRange !== null ? " (current zoom window)" : ""}:{" "}
+        {flaggedNewestFirst.length}
+      </Typography>
       {flaggedNewestFirst.length === 0 ? (
         <Typography variant="body2" sx={{ mt: 1 }}>
-          No flagged commits in range.
+          No flagged commits in this range.
         </Typography>
       ) : (
         <>
@@ -178,7 +223,12 @@ export default function PullWorkflowCommitScatterPanel({
                 <TableRow key={r.sha}>
                   <TableCell>{r.ts.substring(0, 10)}</TableCell>
                   <TableCell>
-                    <a href={commitUrl(r.sha)} target="_blank" rel="noreferrer">
+                    <a
+                      href={commitUrl(r.sha)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: LINK_COLOR }}
+                    >
                       {r.sha.substring(0, 7)}
                     </a>
                   </TableCell>

@@ -31,12 +31,13 @@ export default function PullWorkflowCommitsPage() {
           <MuiLink>← back to KPIs</MuiLink>
         </NextLink>
       </Grid>
-      <Grid size={{ xs: 12 }} height={680}>
+      <Grid size={{ xs: 12 }}>
         <PullWorkflowCommitScatterPanel
           startTime={startTime}
           stopTime={stopTime}
           focusStart={focusStart}
           focusStop={focusStop}
+          chartHeight={640}
         />
       </Grid>
     </Grid>

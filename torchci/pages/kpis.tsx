@@ -118,7 +118,19 @@ export default function Kpis() {
               .flat();
           }}
           additionalOptions={{
-            title: { link: "/kpis/pull_workflow_commits", target: "self" },
+            // Render the drill-down link as a distinct, link-styled subtitle
+            // (a plain linked title doesn't read as clickable).
+            title: {
+              subtext: "▸ open detailed per-commit chart",
+              sublink: "/kpis/pull_workflow_commits",
+              subtarget: "self",
+              subtextStyle: {
+                color: "#4493f8",
+                fontSize: 13,
+                fontWeight: "bold",
+              },
+            },
+            grid: { top: 82 },
             tooltip: {
               trigger: "item",
               formatter: (params: any) => {
@@ -139,7 +151,8 @@ export default function Kpis() {
                   `${hrs} h<br/>` +
                   `<span style="font-size:11px;opacity:0.8;">${
                     DESCRIPTIONS[metric] ?? ""
-                  }</span>`
+                  }</span>` +
+                  `<br/><span style="color:#4493f8;font-weight:bold;">▸ click to drill into this week's commits</span>`
                 );
               },
             },
