@@ -1147,13 +1147,6 @@
       "rocm"
     ]
   ],
-  "test_slow_conv_transpose3d_kernel_size_mismatch_xpu (__main__.TestConvolutionNNDeviceTypeXPU)": [
-    "190640",
-    "https://github.com/pytorch/pytorch/issues/190640",
-    [
-      "xpu"
-    ]
-  ],
   "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
     "119346",
     "https://github.com/pytorch/pytorch/issues/119346",
