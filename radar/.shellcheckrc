@@ -1,0 +1,5 @@
+# ShellCheck configuration — https://www.shellcheck.net/wiki/
+shell=bash
+enable=all
+disable=SC2250,SC2312
+source-path=SCRIPTDIR
