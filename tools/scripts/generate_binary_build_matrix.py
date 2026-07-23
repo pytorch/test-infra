@@ -454,14 +454,14 @@ def generate_wheels_matrix(
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
 
-        # Opt-in preview versions (e.g. 3.15/3.15t) are torch-only and validated
-        # on Linux x86/aarch64 and macOS arm64. Append them to the default list
-        # so the shared default (used by domain libraries and Windows) is
+        # on Linux x86/aarch64, macOS arm64 and Windows. Append them to the
+        # default list so the shared default (used by domain libraries) is
         # unaffected.
         if include_preview_python_versions and os in (
             LINUX,
             LINUX_AARCH64,
             MACOS_ARM64,
+            WINDOWS,
         ):
             python_versions += PREVIEW_PYTHON_ARCHES_DICT.get(channel, [])
 
