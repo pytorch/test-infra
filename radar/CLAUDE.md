@@ -4,11 +4,12 @@ This file is the canonical project guidance for any coding agent operating in `r
 
 ## What This Is
 
-radar is a Python 3.14 service invoked from the CLI to run a single periodic
-iteration (cron-like): `just run` does one iteration and exits. It is designed to
-also run as a long-lived daemon with `just run --loop`, which repeats the same
-iteration on an interval. Both paths share one unit of work, so radar can move
-between cron-driven and daemon deployment with no change to the core logic.
+radar is a Python 3.14 service invoked from the CLI. It exposes two phases —
+`plan` and `act` — each of which runs a single iteration and
+exits (cron-like), e.g. `just run plan`. Either phase can also run as a long-lived
+daemon with `--loop`, e.g. `just run plan --loop`, which repeats that phase on an
+interval. Both phases share the same one-shot and daemon execution paths, so radar
+can move between cron-driven and daemon deployment with no change to phase logic.
 
 ## Tooling
 
@@ -41,22 +42,29 @@ defer; they block CI.
 
 ## The Service Seam
 
-The unit of work lives in `core.perform_iteration()` — the placeholder seam where
-new logic goes. `core.run_once()` wraps it with logging and **must keep propagating
-failures** (it does not catch). Keep this seam intact:
+radar has two units of work, one per phase — the placeholder seams where new logic
+goes:
 
-- One-shot / cron mode lets the exception propagate to a non-zero exit, so cron
-  alerts on failure.
-- Daemon mode (`run_forever`) catches the exception, logs it, backs off, and
-  continues the loop.
+- `plan.run()` — select, gate, and score open PRs and decide which need a code review.
+- `act.run()` — turn review decisions into PR approvals or revocations.
 
-Add new logic inside `perform_iteration()`; keep `run_once()` propagating failures.
-Do not swallow failures on the one-shot path, and do not let the daemon die on a
-single failed iteration.
+Add new logic inside the relevant phase's `run()`, which **must keep raising on
+failure** (it does not catch). The CLI selects a phase (`radar plan` / `radar act`)
+and runs it through one of two execution paths, so a phase can move between
+cron-driven and daemon deployment with no change to its logic:
 
-In `--loop` mode, SIGTERM/SIGINT stop the daemon only between iterations, so a
-long-running or hung iteration is bounded only by `RADAR_MAX_RUNTIME_SECONDS` (the
-per-iteration timeout, disabled by default).
+- One-shot / cron mode (`execute_once`) lets the exception propagate to a non-zero
+  exit, so cron alerts on failure.
+- Daemon mode (`run_forever`, via `--loop`) catches the exception, logs it, backs
+  off, and continues the loop.
+
+Keep each phase's `run()` propagating failures: do not swallow failures on the
+one-shot path, and do not let the daemon die on a single failed iteration.
+
+Both paths run under the single-instance lock (`RADAR_LOCK_PATH`). In `--loop` mode,
+SIGTERM/SIGINT stop the daemon only between iterations, so a long-running or hung
+iteration is bounded only by `RADAR_MAX_RUNTIME_SECONDS` (the per-iteration timeout,
+disabled by default).
 
 ## Comments
 

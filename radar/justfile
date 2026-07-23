@@ -15,6 +15,14 @@ setup:
 run *args:
     uv run radar {{args}}
 
+# Select, gate, and score PRs; decide which need review
+plan *args:
+    uv run radar plan {{args}}
+
+# Turn review decisions into PR approvals/revocations
+act *args:
+    uv run radar act {{args}}
+
 # Type-check source and tests
 typecheck:
     uv run mypy

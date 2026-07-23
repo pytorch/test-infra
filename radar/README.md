@@ -20,10 +20,17 @@ just setup      # uv sync -> create .venv with deps
 
 ## Usage
 
+radar has two entry points: `plan` selects, gates, and scores open PRs and
+decides which need a code review; `act` turns review decisions into PR approvals
+or revocations.
+
 ```bash
-just run                          # one iteration, then exit
-just run --loop                   # run forever as a daemon
-just run --loop --interval 30     # daemon, 30s between iterations
+just run plan                     # run the plan phase once, then exit
+just run act                      # run the act phase once, then exit
+just plan                         # convenience alias for `just run plan`
+just act                          # convenience alias for `just run act`
+just run plan --loop              # run the plan phase forever as a daemon
+just run act --loop --interval 30 # daemon, 30s between iterations
 ```
 
 Configuration is read from the environment via `RADAR_*` variables:
@@ -56,9 +63,10 @@ All gates must pass before a change is complete.
 
 ```text
 src/radar/
-  cli.py       # CLI parsing, entry point, and one-shot vs --loop dispatch
-  runner.py    # run_forever(): resilient daemon loop, backoff + signal handling
-  core.py      # run_once()/perform_iteration(): the unit of work; raises on failure
+  cli.py       # CLI parsing (plan/act subcommands) + one-shot vs --loop dispatch
+  runner.py    # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
+  plan.py      # select, gate, and score PRs, decide which need review; raises on failure
+  act.py       # turn review decisions into PR approvals or revocations; raises on failure
   config.py    # RADAR_* environment configuration
   log.py       # logging setup
   guards.py    # single-instance lock file + per-iteration runtime cap
