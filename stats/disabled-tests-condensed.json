@@ -194,17 +194,6 @@
       "slow"
     ]
   ],
-  "test_compiled_autograd_id (__main__.StructuredTraceTest)": [
-    "190498",
-    "https://github.com/pytorch/pytorch/issues/190498",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
