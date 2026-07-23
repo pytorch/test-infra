@@ -378,6 +378,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_shape_backend_eager_device_cpu (__main__.TestPackage)": [
+    "186865",
+    "https://github.com/pytorch/pytorch/issues/186865",
+    [
+      "linux"
+    ]
+  ],
   "test_dynamic_shape_backend_inductor_device_cpu (__main__.TestPackage)": [
     "190664",
     "https://github.com/pytorch/pytorch/issues/190664",
@@ -1397,6 +1404,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180322",
+    "https://github.com/pytorch/pytorch/issues/180322",
+    [
+      "dynamo"
     ]
   ],
   "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
