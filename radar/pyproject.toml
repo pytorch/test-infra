@@ -1,0 +1,90 @@
+[project]
+name = "radar"
+version = "0.0.0"
+description = "CLI-invoked periodic iteration service, daemon-capable."
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[project.scripts]
+radar = "radar.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radar"]
+
+[dependency-groups]
+dev = ["ruff", "mypy", "pytest", "pytest-cov", "pytest-xdist", "yamllint"]
+
+[tool.uv]
+python-preference = "only-system"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "RUF",
+  "S",
+  "T20",
+  "PIE",
+  "C4",
+  "PT",
+  "RSE",
+  "RET",
+  "TCH",
+  "ARG",
+  "ERA",
+]
+ignore = ["RET504"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ARG", "PT011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["radar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short -q"
+markers = ["slow: slow tests"]
+
+[tool.coverage.run]
+source = ["radar"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests"]
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

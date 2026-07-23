@@ -11,6 +11,7 @@ exclude_patterns = [
     'aws/lambda/whl_metadata_upload_pep658/**',
     's3_management/**',
     'tools/**',
+    'radar/**',
 ]
 command = [
     'python3',
@@ -94,6 +95,7 @@ exclude_patterns = [
     # Putting these exclusions just to get the linter running.
     "tools/stronghold/src/api/types.py",
     "tools/stronghold/tests/api/test_ast_param_types.py",
+    "radar/**",
 ]
 command = [
     'python3',
@@ -112,6 +114,7 @@ command = [
 [[linter]]
 code = 'NOQA'
 include_patterns = ['**/*.py', '**/*.pyi']
+exclude_patterns = ['radar/**']
 command = [
     'python3',
     'tools/linter/adapters/grep_linter.py',
@@ -141,6 +144,7 @@ exclude_patterns=[
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
     '.github/actions/checkout/dist/index.js',
     'tools/clang-tidy-checks/*-patches/**',
+    'radar/**',
 ]
 command = [
     'python3',
@@ -164,6 +168,7 @@ exclude_patterns = [
     '.github/actions/upload-artifact-s3/.licenses/**/*.yml',
     '.github/actions/checkout/dist/index.js',
     '.github/actions/checkout/.licenses/**/*.yml',
+    'radar/**',
 ]
 command = [
     'python3',
@@ -195,6 +200,7 @@ exclude_patterns = [
     '.github/actions/checkout/dist/index.js',
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
+    'radar/**',
 ]
 command = [
     'python3',
@@ -263,6 +269,7 @@ exclude_patterns = [
     # Putting this exclusion just to get the linter running.
     "tools/stronghold/bin/build-check-api-compatibility",
     "tools/hud-cli/hud",
+    'radar/**',
 ]
 command = [
     'python3',
@@ -303,6 +310,9 @@ code = 'PYFMT'
 include_patterns = [
     '**/*.py',
 ]
+exclude_patterns = [
+    'radar/**',
+]
 command = [
     'python3',
     'tools/linter/adapters/pyfmt_linter.py',
@@ -322,7 +332,7 @@ is_formatter = true
 [[linter]]
 code = 'COPYRIGHT'
 include_patterns = ['**']
-exclude_patterns = ['.lintrunner.toml', '**/fixtures/**']
+exclude_patterns = ['.lintrunner.toml', '**/fixtures/**', 'radar/**']
 command = [
     'python3',
     'tools/linter/adapters/grep_linter.py',
@@ -354,6 +364,7 @@ exclude_patterns = [
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
     'tools/**',
+    'radar/**',
 ]
 command = [
     'python3',

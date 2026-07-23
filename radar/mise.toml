@@ -1,0 +1,17 @@
+[tools]
+python = "3.14"
+uv = "latest"
+"aqua:casey/just" = "latest"
+"aqua:koalaman/shellcheck" = "latest"
+"aqua:mvdan/sh" = "latest"
+"aqua:tamasfe/taplo" = "latest"
+"npm:markdownlint-cli2" = "latest"
+node = "latest"
+
+[env]
+PROJECT_NAME = "radar"
+VIRTUAL_ENV = "{{config_root}}/.venv"
+_.path = ["{{config_root}}/.venv/bin"]
+
+[settings]
+auto_install = true
