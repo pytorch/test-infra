@@ -27,12 +27,6 @@ Shell state does NOT persist between Bash tool calls — always read tokens per-
 
 `gh` CLI may not be installed (it wasn't in this env). Use raw `curl` against the REST API.
 
-**Proxy:** if curl returns `Recv failure: Connection reset by peer` or `Received HTTP code 0 from proxy after CONNECT` for `api.buildkite.com` / `api.github.com`, the fwdproxy needs to be set explicitly per-invocation:
-```bash
-export https_proxy=http://fwdproxy:8080
-```
-Don't try to retry without it — sleeping/looping won't help. Set the env, then refetch.
-
 ---
 
 ## Inputs the user usually provides
@@ -143,10 +137,51 @@ Useful signal patterns to scan cleaned logs for:
 The goal is ONE issue per root cause, not per failing job. From the 2026-04-20 triage, 22 failing non-CPU jobs grouped into 10 distinct root causes. Several causes produced >4 failing jobs each (e.g. Inductor MetaProxy → 4 Fusion E2E variants).
 
 Separate out:
-- Infra/resource contention → recommend restart, don't file.
+- Infra/resource contention → **auto-restart** the affected jobs (see Step 6.5), don't file.
 - Test-case assertions that look like real regressions (e.g. `accuracy 0.48 < 0.54` threshold).
 - Torch/triton framework regressions → **pytorch/pytorch**.
 - vLLM-side application bugs (response APIs, multimodal) → **vllm-project/vllm**.
+
+### Step 6.5 — Auto-restart transient-infra failures (do this automatically; do NOT file)
+
+Transient-infra jobs get **automatically retried** on the same build — this is a job-rerun,
+the one Buildkite write action the triage is allowed to take on its own (it never posts
+issues/comments automatically). Retry a blocking-failed job **iff** its log matches a
+*transient* infra signature AND does not match a hard-skip signature:
+
+**Retry (transient — a rerun can recover it):**
+- `CUDA driver initialization failed` (`torch._C._cuda_init()`; incl. the "Engine core init
+  failed" wrapper and the NVML `CUDACachingAllocator.cpp` variant)
+- `nvidia-container-cli: initialization error` / driver rpc timeout
+- `exit_status == 125` (container/agent init)
+- docker setup-hook failure (`docker command hook exited with status 1` before any test ran)
+- ECR `toomanyrequests` / `Data limit exceeded` (registry rate-limit)
+
+**Never retry (a rerun cannot fix it — leave for a human / different action):**
+- `manifest unknown` / `not found: manifest` — a required image was never built/pushed; needs
+  an image rebuild, not a retry. **Report it, don't retry.**
+- `undefined symbol` / real test assertions / accuracy floors — real signal.
+- `ModuleNotFoundError: No module named 'torch'` build-isolation — benign/known.
+- Anything whose signature you can't positively classify → do NOT retry (retry only on a
+  *confirmed* transient-infra match, so unknowns are surfaced, not silently rerun).
+
+Retry via the REST API (needs `write_builds` scope on the token):
+```bash
+curl -s -X PUT -H "Authorization: Bearer $(cat ~/.buildkite_token)" \
+  "https://api.buildkite.com/v2/organizations/vllm/pipelines/ci/builds/<N>/jobs/<JOB_ID>/retry"
+```
+Rate-limit discipline (REST API is **400/min**): fetch logs serially and space the retry PUTs
+(~0.5–1s apart, with exponential backoff on HTTP 429). A burst will get `429` and silently
+no-op. See the standalone example at the end of this section.
+
+**Within-build retry is infra-recovery, not a reproducibility test** (Step 12.4): retrying an
+infra job to get it onto a healthy agent is correct; but a retry that fails again does NOT
+prove a real regression (same image/agents). Only a *fresh build* proves reproducibility.
+
+**Log what you restarted.** Emit a per-run list of `{job, signature, retry_status}` and the
+skipped set with reasons — silent restarts hide a persistently-broken fleet. If the SAME
+transient-infra signature dominates two consecutive runs, escalate: recommend a full rebuild
+on a healthy fleet rather than another round of same-build retries.
 
 ### Step 7 — Draft and confirm before posting
 
@@ -213,11 +248,17 @@ new_body  = old_body.replace('pytorch-triton', 'triton')
 Once the umbrella exists, subsequent test-PR builds are *not* "open new issues per failing job" — they're **delta analysis**. For each new build:
 
 1. Re-fetch the umbrella body and the JSON of every linked issue. Cache issue states (open/closed) keyed by number.
-2. Match each hard-failed job in the new build against tracked-issue signatures (build a regex map from issue titles/bodies). Three buckets:
+2. **Auto-restart transient-infra failures first (Step 6.5).** Before classifying real signal,
+   retry every blocking-failed job that positively matches a transient-infra signature
+   (CUDA-driver-init storm, nvidia-container-cli, exit 125, docker setup-hook, ECR rate-limit),
+   skipping missing-image (`manifest unknown`), real regressions, and benign modes. This both
+   recovers the run and prevents infra noise from polluting the delta. Record the restarted vs
+   skipped lists in the run report/state.
+3. Match each hard-failed job in the new build against tracked-issue signatures (build a regex map from issue titles/bodies). Three buckets:
    - **Still reproducing**: tracked issue still hits → no new issue. If the user wants, PATCH the existing issue body to append the new build link to a Reproducibility section.
    - **Newly silent**: previously-failing job/test now passes. Don't immediately close — wait for ≥2 consecutive runs of "silent" before suggesting close.
    - **Unmatched**: failing job whose signature isn't in any tracked issue. Cross-check against ≥3 main builds (per Step 3). If new on the torch-bump branch, draft + post a fresh issue and append to umbrella.
-3. Maintain umbrella checklist hygiene: mark `[x]` on items that are closed upstream OR confirmed silent for ≥2 runs. Numbering continues — never reuse numbers.
+4. Maintain umbrella checklist hygiene: mark `[x]` on items that are closed upstream OR confirmed silent for ≥2 runs. Numbering continues — never reuse numbers.
 
 **Updating an existing issue's reproducibility list** (PATCH pattern):
 ```python
@@ -251,6 +292,29 @@ build.created_at
 ```
 
 If `build.created_at > closing_commit.created_at` but the failure persists, the wheel predates the fix. Recommendation: cherry-pick the fix to the release branch and rebuild the RC wheel. Don't reopen the issue — it really is fixed in main.
+
+### Step 12.4 — A within-build retry is NOT a reproducibility test
+
+**Critical lesson, do not skip.** When Buildkite shows a job failed and someone clicks "retry" on the same build, the retry runs on the **same Docker image, same wheels, same agent state, often the same agent machine**. It does not rebuild the image, does not re-pull torch wheels, does not refetch HF caches — it just re-executes the test script.
+
+This means:
+
+- **Two failures on the same build are NOT independent samples.** If a flake is rooted in image-build artifacts, agent contamination, or a one-time HF download corruption, every retry will hit the same bug. Calling that "reproducible" is wrong.
+- **A retry pass within the same build does prove flake** (the test ran twice in identical conditions and got two outcomes). That direction is fine.
+- **A retry fail within the same build proves NOTHING about reproducibility.** It only proves the failure is deterministic given the artifacts.
+
+The only valid reproducibility test is a **fresh build**:
+
+1. The same vLLM commit re-built into a new test image, OR
+2. A different vLLM commit that contains the suspect change.
+
+Real example (2026-05-06 → 2026-05-07): `test_cascade_attention[FLASH_ATTN]` failed on 64577 (run 1) and 64577 (retry). I called it "reproducible" and filed pytorch/pytorch#182700 + bisected to vllm-project/vllm#41181 via a revert build (64803). That conclusion was **wrong** — when the test PR rebased onto a newer main and put #41181 back in (64854), the test passed, and #41181 has been on main builds 64792 + 64859 the whole time without breaking them. The 64577 failure was something specific to 64577's image/wheels — likely a transient artifact issue that got smoothed over by a fresh image build.
+
+How to apply:
+
+- Before drafting any "new regression" upstream issue, require **at least one PASS on a fresh build** (different image SHA) as the failing baseline, AND the failure to recur on a second fresh build with the suspect change.
+- Treat retry-within-build as **necessary but not sufficient** for "reproducible".
+- If you've already filed an issue on a within-build-retry conclusion and a fresh build then passes, retract honestly and update the umbrella.
 
 ### Step 12.5 — Reopen vs file new
 
