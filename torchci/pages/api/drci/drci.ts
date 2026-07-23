@@ -32,6 +32,7 @@ import { fetchCommitTimestamp } from "lib/fetchCommit";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import fetchPR from "lib/fetchPR";
 import {
+  fetchCrcrWorkflows,
   fetchFailedJobsFromCommits,
   fetchJobNamesFromCommits,
   fetchRecentWorkflows,
@@ -292,6 +293,32 @@ export async function updateDrciComments(
         );
       }
 
+      // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
+      // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
+      // separately and classified based on their downstream_repo_level.
+      const crcrL3Jobs: RecentWorkflowsData[] = [];
+      try {
+        const crcrWorkflows = await fetchCrcrWorkflows(`${owner}/${repo}`, [
+          pr_info.pr_number,
+        ]);
+        for (const job of crcrWorkflows) {
+          const level = job.downstreamLevel || "";
+          if (level === "L3") {
+            crcrL3Jobs.push(job);
+          } else if (level === "L4") {
+            // L4 failures are blocking — merge them into failedJobs
+            failedJobs.push(job);
+          }
+        }
+      } catch (err) {
+        // If CRCR fetch fails, log and proceed — don't block the Dr.CI update
+        console.error("Failed to fetch CRCR workflows:", err);
+      }
+
+      if (crcrL3Jobs.length > 0) {
+        failures[pr_info.pr_number].CRCR_L3 = crcrL3Jobs;
+      }
+
       const failureInfo = constructResultsComment(
         pending,
         failedJobs,
@@ -300,6 +327,7 @@ export async function updateDrciComments(
         unstableJobs,
         unknownJobs,
         awaitingApprovalJobs,
+        crcrL3Jobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -757,6 +785,7 @@ export function constructResultsComment(
   unstableJobs: RecentWorkflowsData[],
   unknownJobs: RecentWorkflowsData[],
   awaitingApprovalJobs: RecentWorkflowsData[],
+  crcrL3Jobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
   relatedInfo: Map<number, string>,
@@ -775,6 +804,7 @@ export function constructResultsComment(
   const unrelatedFailureCount = _(flakyJobs)
     .concat(brokenTrunkJobs)
     .concat(unstableJobs)
+    .concat(crcrL3Jobs)
     .filter((job) => !isPending(job))
     .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
@@ -1016,6 +1046,23 @@ export function constructResultsComment(
       "are"
     )} marked as unstable, possibly due to flakiness on trunk`,
     unstableJobs,
+    "",
+    true,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
+  );
+  output += constructResultsJobsSections(
+    hudBaseUrl,
+    owner,
+    repo,
+    prNumber,
+    "CRCR (non-blocking)",
+    `The following CRCR downstream CI ${pluralize(
+      "job",
+      crcrL3Jobs.length
+    )} failed but ${pluralize("is", crcrL3Jobs.length, "are")} non-blocking`,
+    crcrL3Jobs,
     "",
     true,
     relatedJobs,
