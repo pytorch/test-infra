@@ -310,11 +310,6 @@
       "rocm"
     ]
   ],
-  "test_dropout_parity_cudagraphs_reduce_overhead (__main__.TestDropoutAlignRandomEager)": [
-    "188837",
-    "https://github.com/pytorch/pytorch/issues/188837",
-    []
-  ],
   "test_dropout_parity_dynamic_shapes (__main__.TestDropoutAlignRandomEager)": [
     "188836",
     "https://github.com/pytorch/pytorch/issues/188836",
@@ -394,13 +389,6 @@
     "188840",
     "https://github.com/pytorch/pytorch/issues/188840",
     []
-  ],
-  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180259",
-    "https://github.com/pytorch/pytorch/issues/180259",
-    [
-      "dynamo"
-    ]
   ],
   "test_ensemble_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180299",
@@ -491,6 +479,13 @@
   "test_graph_capture_error_releases_reserved_segments (__main__.TestCuda)": [
     "190647",
     "https://github.com/pytorch/pytorch/issues/190647",
+    [
+      "linux"
+    ]
+  ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
+    "190883",
+    "https://github.com/pytorch/pytorch/issues/190883",
     [
       "linux"
     ]
@@ -602,16 +597,6 @@
       "dynamo"
     ]
   ],
-  "test_linear_block_compile_parity_backward (__main__.TestDropoutAlignRandomEager)": [
-    "188740",
-    "https://github.com/pytorch/pytorch/issues/188740",
-    []
-  ],
-  "test_linear_block_compile_parity_forward (__main__.TestDropoutAlignRandomEager)": [
-    "188687",
-    "https://github.com/pytorch/pytorch/issues/188687",
-    []
-  ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
     "187156",
     "https://github.com/pytorch/pytorch/issues/187156",
@@ -716,6 +701,13 @@
       "dynamo"
     ]
   ],
+  "test_maml_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "181156",
+    "https://github.com/pytorch/pytorch/issues/181156",
+    [
+      "dynamo"
+    ]
+  ],
   "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
     "190142",
     "https://github.com/pytorch/pytorch/issues/190142",
@@ -810,6 +802,22 @@
     "https://github.com/pytorch/pytorch/issues/189222",
     [
       "linux"
+    ]
+  ],
+  "test_nonzero_above_uint32 (__main__.TestMPS)": [
+    "190880",
+    "https://github.com/pytorch/pytorch/issues/190880",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_nonzero_multichunk_above_int32 (__main__.TestMPS)": [
+    "190881",
+    "https://github.com/pytorch/pytorch/issues/190881",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
@@ -1185,9 +1193,9 @@
       "slow"
     ]
   ],
-  "test_source_multithreaded_open_in_scope_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119668",
-    "https://github.com/pytorch/pytorch/issues/119668",
+  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119576",
+    "https://github.com/pytorch/pytorch/issues/119576",
     [
       "asan",
       "linux",
@@ -1357,6 +1365,15 @@
     "190009",
     "https://github.com/pytorch/pytorch/issues/190009",
     [
+      "rocm"
+    ]
+  ],
+  "test_unbacked_bindings_for_divisible_u_symint_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
+    "190882",
+    "https://github.com/pytorch/pytorch/issues/190882",
+    [
+      "mac",
+      "macos",
       "rocm"
     ]
   ],
