@@ -1,0 +1,111 @@
+name: Build numpy for preview Python
+
+# Builds numpy wheels for preview CPython versions (e.g. 3.15 / 3.15t) that do
+# not yet have wheels on PyPI, and uploads them to download.pytorch.org so that
+# torch preview-Python wheel builds and smoke tests can resolve numpy.
+#
+# Run via workflow_dispatch. Defaults to a dry run (build only, no upload);
+# set dry_run=false to actually publish.
+#
+# Pull requests that touch this workflow or its build script run the build in
+# dry-run mode (build only, no AWS credentials, no upload) so the numpy build
+# itself can be validated in CI.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-numpy-preview.yml
+      - .github/scripts/build_numpy_preview.sh
+  workflow_dispatch:
+    inputs:
+      numpy_version:
+        description: "numpy version to build from sdist"
+        type: string
+        default: "2.5.1"
+        required: false
+      python_versions:
+        description: "Space-separated preview Python versions"
+        type: string
+        default: "3.15 3.15t"
+        required: false
+      channel:
+        description: "download.pytorch.org channel to upload to"
+        type: choice
+        options:
+          - nightly
+          - test
+        default: nightly
+        required: false
+      manywheel_version:
+        description: "Manylinux platform tag version (e.g. '2_28')"
+        type: string
+        default: "2_28"
+        required: false
+      dry_run:
+        description: "Build only, do not upload to S3"
+        type: boolean
+        default: true
+        required: false
+
+concurrency:
+  group: build-numpy-preview-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: linux.2xlarge
+            image: pytorch/manylinux2_28-builder:cpu
+          - arch: aarch64
+            runner: linux.arm64.m8g.4xlarge
+            image: pytorch/manylinux2_28_aarch64-builder:cpu-aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install AWS CLI
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        run: |
+          /opt/python/cp312-cp312/bin/pip install awscli==1.38.23
+          echo "/opt/python/cp312-cp312/bin" >> "${GITHUB_PATH}"
+
+      - name: Configure AWS credentials
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          # Same roles the binary upload workflow uses to write to s3://pytorch/whl/<channel>.
+          # nightly and test channels are guarded by separate IAM roles.
+          role-to-assume: arn:aws:iam::749337293305:role/${{ inputs.channel == 'test' && 'gha_workflow_test_build_wheels' || 'gha_workflow_nightly_build_wheels' }}
+          aws-region: us-east-1
+          role-duration-seconds: 7200
+
+      - name: Build and upload numpy
+        env:
+          ARCH: ${{ matrix.arch }}
+          NUMPY_VERSION: ${{ inputs.numpy_version || '2.5.1' }}
+          PYTHON_VERSIONS: ${{ inputs.python_versions || '3.15 3.15t' }}
+          CHANNELS: ${{ inputs.channel || 'nightly' }}
+          MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
+          # pull_request always runs dry (inputs are null on non-dispatch events)
+          DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+        run: bash .github/scripts/build_numpy_preview.sh
+
+      - name: Upload wheels as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: numpy-preview-${{ matrix.arch }}
+          path: /tmp/numpy-preview-build/wheelhouse/*.whl
+          if-no-files-found: warn
