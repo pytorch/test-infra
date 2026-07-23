@@ -138,6 +138,13 @@ runs:
           # untouched.
           if [[ "${RUNNER_OS}" != "macOS" ]]; then
             conda install -y conda=25.3.0
+          elif [[ "${PYTHON_VERSION}" == 3.15* ]]; then
+            # Newer macOS base conda 400s on the 3.15 label download; pin an older one.
+            conda install -y python=3.11
+            if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
+              conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
+            fi
+            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
           fi
 
           # Pin openssl=3.5.6 by default: openssl 3.5.7 regressed ASN.1 parsing
