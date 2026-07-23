@@ -149,11 +149,11 @@ class GenerateBuildMatrixTest(TestCase):
         )
         return {entry["python_version"] for entry in out["include"]}
 
-    def test_preview_python_versions_opt_in_on_linux(self):
-        # 3.15 / 3.15t are validated on Linux x86 and aarch64 for the nightly and
-        # test channels when explicitly opted in.
+    def test_preview_python_versions_opt_in(self):
+        # 3.15 / 3.15t are validated on Linux x86/aarch64 and macOS arm64 for the
+        # nightly and test channels when explicitly opted in.
         for channel in ("nightly", "test"):
-            for operating_system in ("linux", "linux-aarch64"):
+            for operating_system in ("linux", "linux-aarch64", "macos-arm64"):
                 versions = self._test_channel_python_versions(
                     operating_system, include_preview="enable", channel=channel
                 )
@@ -167,14 +167,13 @@ class GenerateBuildMatrixTest(TestCase):
             self.assertNotIn("3.15", versions)
             self.assertNotIn("3.15t", versions)
 
-    def test_preview_python_versions_excluded_on_non_linux(self):
-        # Windows and macOS must not pick up the preview versions even when opted in.
-        for operating_system in ("windows", "macos"):
-            versions = self._test_channel_python_versions(
-                operating_system, include_preview="enable"
-            )
-            self.assertNotIn("3.15", versions)
-            self.assertNotIn("3.15t", versions)
+    def test_preview_python_versions_excluded_on_windows(self):
+        # Windows must not pick up the preview versions even when opted in.
+        versions = self._test_channel_python_versions(
+            "windows", include_preview="enable"
+        )
+        self.assertNotIn("3.15", versions)
+        self.assertNotIn("3.15t", versions)
 
     def test_preview_python_versions_excluded_on_release_channel(self):
         # Preview versions are defined for the nightly and test channels only,
