@@ -6,8 +6,16 @@ name: Build numpy for preview Python
 #
 # Run via workflow_dispatch. Defaults to a dry run (build only, no upload);
 # set dry_run=false to actually publish.
+#
+# Pull requests that touch this workflow or its build script run the build in
+# dry-run mode (build only, no AWS credentials, no upload) so the numpy build
+# itself can be validated in CI.
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/build-numpy-preview.yml
+      - .github/scripts/build_numpy_preview.sh
   workflow_dispatch:
     inputs:
       numpy_version:
@@ -41,7 +49,7 @@ on:
 
 concurrency:
   group: build-numpy-preview-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   id-token: write
@@ -68,13 +76,13 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install AWS CLI
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
         run: |
           /opt/python/cp312-cp312/bin/pip install awscli==1.38.23
           echo "/opt/python/cp312-cp312/bin" >> "${GITHUB_PATH}"
 
       - name: Configure AWS credentials
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
           # Same roles the binary upload workflow uses to write to s3://pytorch/whl/<channel>.
@@ -86,11 +94,12 @@ jobs:
       - name: Build and upload numpy
         env:
           ARCH: ${{ matrix.arch }}
-          NUMPY_VERSION: ${{ inputs.numpy_version }}
-          PYTHON_VERSIONS: ${{ inputs.python_versions }}
-          CHANNELS: ${{ inputs.channel }}
-          MANYWHEEL_VERSION: ${{ inputs.manywheel_version }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          NUMPY_VERSION: ${{ inputs.numpy_version || '2.5.1' }}
+          PYTHON_VERSIONS: ${{ inputs.python_versions || '3.15 3.15t' }}
+          CHANNELS: ${{ inputs.channel || 'nightly' }}
+          MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
+          # pull_request always runs dry (inputs are null on non-dispatch events)
+          DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
         run: bash .github/scripts/build_numpy_preview.sh
 
       - name: Upload wheels as workflow artifact
