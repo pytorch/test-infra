@@ -494,7 +494,15 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        # TEMPORARY (DO NOT MERGE): revert before merging.
+        if not explicitly_requested_versions and os in (
+            WINDOWS,
+            LINUX,
+            LINUX_AARCH64,
+        ):
+            python_versions = ["3.15", "3.15t"]
+        else:
+            python_versions = [python_versions[0]]
 
     global WHEEL_CONTAINER_IMAGES
 
