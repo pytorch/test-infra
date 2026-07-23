@@ -161,20 +161,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_dynamic_scale_rblock (__main__.ComboKernelTests)": [
-    "187811",
-    "https://github.com/pytorch/pytorch/issues/187811",
-    [
-      "xpu"
-    ]
-  ],
-  "test_combo_kernel_dynamic_scale_rblock (__main__.ComboKernelTestsPerSubkernelBlocks)": [
-    "187810",
-    "https://github.com/pytorch/pytorch/issues/187810",
-    [
-      "xpu"
-    ]
-  ],
   "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
     "187202",
     "https://github.com/pytorch/pytorch/issues/187202",
