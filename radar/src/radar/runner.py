@@ -9,7 +9,6 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from radar.core import run_once
 from radar.guards import iteration_timeout
 
 if TYPE_CHECKING:
@@ -37,10 +36,15 @@ def _install_stop_signals(stop: threading.Event) -> None:
             logger.warning("cannot install handler for signal %s off the main thread", sig)
 
 
+def execute_once(config: Config, run: Callable[[Config], None]) -> None:
+    with iteration_timeout(config.max_runtime_seconds):
+        run(config)
+
+
 def run_forever(
     config: Config,
     *,
-    run: Callable[[Config], None] = run_once,
+    run: Callable[[Config], None],
     stop_event: threading.Event | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: WaitFn | None = None,

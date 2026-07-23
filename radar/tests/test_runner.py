@@ -4,6 +4,8 @@ import threading
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import pytest
+
 from radar import runner
 
 if TYPE_CHECKING:
@@ -226,3 +228,25 @@ def test_signal_registration_failure_is_tolerated(make_config, monkeypatch, capl
         )
     assert run.call_count == 1
     assert any(record.levelno == logging.WARNING for record in caplog.records)
+
+
+def test_execute_once_runs_the_phase(make_config):
+    run = Mock()
+    cfg = make_config(max_runtime_seconds=0.0)
+    runner.execute_once(cfg, run)
+    run.assert_called_once_with(cfg)
+
+
+def test_execute_once_propagates_phase_exception(make_config):
+    def boom(config):
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        runner.execute_once(make_config(max_runtime_seconds=0.0), boom)
+
+
+def test_execute_once_timeout_disabled_when_zero(make_config, monkeypatch):
+    armed: list[object] = []
+    monkeypatch.setattr(signal, "setitimer", lambda *args: armed.append(args))
+    runner.execute_once(make_config(max_runtime_seconds=0.0), Mock())
+    assert armed == []
