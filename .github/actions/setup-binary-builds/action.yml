@@ -140,18 +140,37 @@ runs:
             conda install -y conda=25.3.0
           fi
 
+          # Pin openssl=3.5.6 by default: openssl 3.5.7 regressed ASN.1 parsing
+          # and rejects a malformed cert in the Windows machine cert store,
+          # breaking ssl.create_default_context() with "[ASN1: NOT_ENOUGH_DATA]"
+          # at smoke-test time. See https://github.com/pytorch/pytorch/pull/186846
+          # The 3.15 cases below clear this: the 3.15 beta requires openssl>=3.5.7,
+          # and 3.15 is Linux-only with its smoke test skipped, so the Windows
+          # regression does not apply.
+          export OPENSSL_PIN="openssl=3.5.6"
+
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
+            3.15t)
+              # 3.15 is a pre-release. conda-forge ships the beta interpreter
+              # under its python_dev label, but that build depends on a
+              # _python_rc marker package that only exists under the python_rc
+              # label, so both labels are required to solve.
+              export PYTHON_VERSION=3.15.0b4
+              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+              export OPENSSL_PIN=""
+              ;;
+            3.15)
+              export PYTHON_VERSION=3.15.0b4
+              export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+              export OPENSSL_PIN=""
+              ;;
             3.14t)
               export PYTHON_VERSION=3.14
               export CONDA_EXTRA_PARAM=" python-freethreading"
               ;;
           esac
 
-          # Pin openssl=3.5.6: openssl 3.5.7 regressed ASN.1 parsing and rejects a
-          # malformed cert in the Windows machine cert store, breaking
-          # ssl.create_default_context() with "[ASN1: NOT_ENOUGH_DATA]" at smoke-test
-          # time. See https://github.com/pytorch/pytorch/pull/186846
           conda create \
               --yes --quiet \
               --prefix "${CONDA_ENV}" \
@@ -162,7 +181,7 @@ runs:
               libpng \
               pkg-config=0.29 \
               wheel=0.37  \
-              "openssl=3.5.6" \
+              ${OPENSSL_PIN} \
               ${CONDA_EXTRA_PARAM}
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
