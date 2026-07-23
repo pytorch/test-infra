@@ -301,12 +301,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
-        # Skip the smoke test for Python 3.15 / 3.15t: the wheel builds fine, but
-        # the smoke test installs the wheel which pulls required runtime deps
-        # (e.g. pillow, a hard torchvision dependency) that have no cp315 wheels
-        # yet and fail to build from sdist. Re-enable once the ecosystem ships
-        # cp315 wheels.
-        if: ${{ inputs.run-smoke-test && ! startsWith(matrix.python_version, '3.15') }}
+        if: ${{ inputs.run-smoke-test }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
