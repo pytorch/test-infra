@@ -425,13 +425,6 @@
       "rocm"
     ]
   ],
-  "test_fake_export_contiguous_cpu_float32 (__main__.TestExportOpInfoCPU)": [
-    "189323",
-    "https://github.com/pytorch/pytorch/issues/189323",
-    [
-      "linux"
-    ]
-  ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
     "190295",
     "https://github.com/pytorch/pytorch/issues/190295",
@@ -1179,9 +1172,9 @@
       "slow"
     ]
   ],
-  "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
-    "119537",
-    "https://github.com/pytorch/pytorch/issues/119537",
+  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_False (__main__.TestProfiler)": [
+    "119526",
+    "https://github.com/pytorch/pytorch/issues/119526",
     [
       "asan",
       "dynamo",
@@ -1283,6 +1276,24 @@
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
+    "182397",
+    "https://github.com/pytorch/pytorch/issues/182397",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
+    "152632",
+    "https://github.com/pytorch/pytorch/issues/152632",
     [
       "asan",
       "linux",
