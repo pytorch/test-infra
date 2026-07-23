@@ -22,6 +22,8 @@ type CommitRow = {
   baseline_median: number;
   flagged: number;
   crit_conclusion: "success" | "failure" | "cancelled";
+  commit_title: string;
+  land_time: string;
 };
 
 const MAX_FLAGGED_TABLE_ROWS = 50;
@@ -36,6 +38,21 @@ const CONCLUSION_COLOR: Record<string, string> = {
 
 function commitUrl(sha: string): string {
   return `https://hud.pytorch.org/pytorch/pytorch/commit/${sha}`;
+}
+
+// Commit titles go into tooltip HTML verbatim and routinely contain <, >, & and
+// quotes (e.g. template args in C++ op names), so they must be escaped.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function truncateTitle(title: string, maxLen: number = 80): string {
+  return title.length > maxLen ? `${title.substring(0, maxLen)}…` : title;
 }
 
 export default function PullWorkflowCommitScatterPanel({
@@ -100,6 +117,8 @@ export default function PullWorkflowCommitScatterPanel({
       build_test_hours: r.build_test_hours,
       baseline_median: r.baseline_median,
       crit_conclusion: r.crit_conclusion,
+      commit_title: r.commit_title,
+      land_time: r.land_time,
     });
 
     return {
@@ -145,13 +164,19 @@ export default function PullWorkflowCommitScatterPanel({
               : `<span style="color:${
                   CONCLUSION_COLOR[conclusion] ?? "#8891a0"
                 };font-weight:bold;">${conclusion}</span>`;
+          const titleHtml = d.commit_title
+            ? `${escapeHtml(truncateTitle(d.commit_title))}<br/>`
+            : "";
+          const landedHtml = d.land_time ? `landed: ${d.land_time}<br/>` : "";
           return (
             `<b>${d.sha.substring(0, 7)}</b><br/>` +
+            titleHtml +
             `build+test: ${Number(d.build_test_hours).toFixed(2)} h<br/>` +
             `longest job: ${Number(d.longest_job_hours).toFixed(2)} h<br/>` +
             `wall-clock: ${Number(d.wallclock_hours).toFixed(2)} h<br/>` +
             `baseline: ${Number(d.baseline_median).toFixed(2)} h<br/>` +
             `conclusion: ${conclusionHtml}<br/>` +
+            landedHtml +
             `<span style="color:${LINK_COLOR};font-weight:bold;">▸ click to open this commit on HUD</span>`
           );
         },
@@ -282,6 +307,7 @@ export default function PullWorkflowCommitScatterPanel({
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Commit</TableCell>
+                <TableCell>Title</TableCell>
                 <TableCell align="right">build+test (h)</TableCell>
                 <TableCell align="right">baseline (h)</TableCell>
                 <TableCell align="right">Δ% over baseline</TableCell>
@@ -300,6 +326,17 @@ export default function PullWorkflowCommitScatterPanel({
                     >
                       {r.sha.substring(0, 7)}
                     </a>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      maxWidth: 360,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={r.commit_title}
+                  >
+                    {r.commit_title}
                   </TableCell>
                   <TableCell align="right">
                     {Number(r.build_test_hours).toFixed(2)}

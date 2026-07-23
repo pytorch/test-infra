@@ -92,22 +92,46 @@ scored AS (
         per_run
     WINDOW
         w AS (ORDER BY ts ASC ROWS BETWEEN 200 PRECEDING AND 1 PRECEDING)
+),
+-- Commit title + trunk land time from default.push (bloom-filter indexed on
+-- head_commit.'id'), for cross-referencing flagged commits against what landed.
+commit_meta AS (
+    SELECT
+        p.head_commit.'id' AS sha,
+        splitByChar('\n', p.head_commit.'message')[1] AS commit_title,
+        p.head_commit.'timestamp' AS land_time
+    FROM default.push p
+    WHERE
+        p.repository.'full_name' = 'pytorch/pytorch'
+        AND p.ref IN ('refs/heads/main', 'refs/heads/master')
+        AND p.head_commit.'timestamp' >= {startTime: DateTime64(3)}
+        AND p.head_commit.'timestamp' < {stopTime: DateTime64(3)}
+    -- default.push is a ReplacingMergeTree read without FINAL, so a sha can have
+    -- un-merged duplicate rows; keep one per sha so the join can't fan out points.
+    LIMIT 1 BY sha
 )
 SELECT
-    formatDateTime(ts, '%Y-%m-%dT%H:%i:%S') AS ts,
-    sha,
-    round(wallclock_hours, 3) AS wallclock_hours,
-    round(longest_job_hours, 3) AS longest_job_hours,
-    round(build_test_hours, 3) AS build_test_hours,
-    round(baseline_median, 3) AS baseline_median,
-    crit_conclusion,
+    formatDateTime(s.ts, '%Y-%m-%dT%H:%i:%S') AS ts,
+    s.sha AS sha,
+    round(s.wallclock_hours, 3) AS wallclock_hours,
+    round(s.longest_job_hours, 3) AS longest_job_hours,
+    round(s.build_test_hours, 3) AS build_test_hours,
+    round(s.baseline_median, 3) AS baseline_median,
+    s.crit_conclusion AS crit_conclusion,
     (
-        baseline_n >= 50
-        AND baseline_median > 0
-        AND build_test_hours > 1.10 * baseline_median
-        AND build_test_hours > baseline_p90
-    ) AS flagged
+        s.baseline_n >= 50
+        AND s.baseline_median > 0
+        AND s.build_test_hours > 1.10 * s.baseline_median
+        AND s.build_test_hours > s.baseline_p90
+    ) AS flagged,
+    coalesce(m.commit_title, '') AS commit_title,
+    if(
+        toUnixTimestamp(m.land_time) = 0,
+        '',
+        formatDateTime(m.land_time, '%Y-%m-%dT%H:%i:%S')
+    ) AS land_time
 FROM
-    scored
+    scored s
+LEFT JOIN commit_meta m ON m.sha = s.sha
 ORDER BY
-    ts ASC
+    s.ts ASC
