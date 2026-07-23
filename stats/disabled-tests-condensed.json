@@ -1192,6 +1192,18 @@
       "slow"
     ]
   ],
+  "test_source_multithreaded_complex_work_in_main_thread_True (__main__.TestProfiler)": [
+    "119536",
+    "https://github.com/pytorch/pytorch/issues/119536",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
     "119537",
     "https://github.com/pytorch/pytorch/issues/119537",
@@ -1394,6 +1406,13 @@
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
     "180337",
     "https://github.com/pytorch/pytorch/issues/180337",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
+    "180213",
+    "https://github.com/pytorch/pytorch/issues/180213",
     [
       "dynamo"
     ]
