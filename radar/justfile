@@ -1,0 +1,85 @@
+# justfile — front-end for the radar service
+# https://just.systems/
+
+set shell := ["mise", "exec", "--", "bash", "-euo", "pipefail", "-c"]
+
+# Show available recipes
+default:
+    @just --list
+
+# Install dependencies into the project venv
+setup:
+    uv sync
+
+# Run the radar CLI
+run *args:
+    uv run radar {{args}}
+
+# Select, gate, and score PRs; decide which need review
+plan *args:
+    uv run radar plan {{args}}
+
+# Turn review decisions into PR approvals/revocations
+act *args:
+    uv run radar act {{args}}
+
+# Type-check source and tests
+typecheck:
+    uv run mypy
+
+# Run the test suite with coverage
+test:
+    uv run pytest -n auto --cov=radar --cov-report=term-missing:skip-covered --cov-report=json
+
+# Run all linters in check mode, aggregating every failure before exiting
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source scripts/mise-activate.sh
+
+    FAILED=()
+    _run() {
+        local name="$1"
+        shift
+        echo "━━━ ${name} ━━━"
+        if "$@"; then
+            echo "  ok"
+        else
+            echo "  FAILED"
+            FAILED+=("${name}")
+        fi
+    }
+
+    _run "ruff check" ruff check .
+    _run "ruff format" ruff format --check .
+    _run "yamllint" uv run yamllint .
+    _run "taplo check" taplo check
+    _run "shellcheck" shellcheck scripts/*.sh
+    _run "shfmt" shfmt -d -i 2 -ci scripts
+    _run "markdownlint" markdownlint-cli2 "**/*.md" "#.venv"
+
+    echo ""
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo "FAILED: ${FAILED[*]}"
+        exit 1
+    fi
+    echo "All lint checks passed."
+
+# Auto-fix lint issues where possible
+lint-fix:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source scripts/mise-activate.sh
+
+    ruff check --fix .
+    ruff format .
+    shfmt -w -i 2 -ci scripts
+    taplo fmt
+    markdownlint-cli2 --fix "**/*.md" "#.venv" || true
+
+# Remove caches, build artifacts, and the venv
+clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf .venv .pytest_cache .ruff_cache .mypy_cache .coverage coverage.json htmlcov dist build src/*.egg-info
+    find . -name __pycache__ -type d -prune -exec rm -rf {} +
