@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build numpy wheels for preview CPython versions (e.g. 3.15 / 3.15t) inside a
-# manylinux builder image and upload them to download.pytorch.org.
+# manylinux builder image.  The resulting wheels are left in a wheelhouse for
+# the workflow to upload to download.pytorch.org (S3 + R2).
 #
 # Why this exists:
 #   numpy does not yet publish cp315 wheels on PyPI.  When torch preview-Python
@@ -17,17 +18,13 @@
 # Optional env:
 #   NUMPY_VERSION      numpy version to build            (default: 2.5.1)
 #   PYTHON_VERSIONS    space separated                   (default: "3.15 3.15t")
-#   CHANNELS           download.pytorch.org channels     (default: "nightly test")
 #   MANYWHEEL_VERSION  manylinux platform tag version    (default: 2_28)
-#   DRY_RUN            "true" builds but does not upload  (default: true)
 
 set -euo pipefail
 
 NUMPY_VERSION="${NUMPY_VERSION:-2.5.1}"
 PYTHON_VERSIONS="${PYTHON_VERSIONS:-3.15 3.15t}"
-CHANNELS="${CHANNELS:-nightly test}"
 MANYWHEEL_VERSION="${MANYWHEEL_VERSION:-2_28}"
-DRY_RUN="${DRY_RUN:-true}"
 ARCH="${ARCH:?ARCH must be set (x86_64|aarch64)}"
 
 PLAT="manylinux_${MANYWHEEL_VERSION}_${ARCH}"
@@ -62,7 +59,6 @@ py_bin() {
 
 echo "==> numpy==${NUMPY_VERSION}  arch=${ARCH}  plat=${PLAT}"
 echo "==> python versions: ${PYTHON_VERSIONS}"
-echo "==> channels: ${CHANNELS}   dry_run=${DRY_RUN}"
 
 for pyver in ${PYTHON_VERSIONS}; do
   tag="$(cp_tag "${pyver}")"
@@ -99,23 +95,5 @@ done
 echo "==> Built wheels:"
 ls -la "${WHEELHOUSE}"
 
-if [[ "${DRY_RUN}" == "true" ]]; then
-  echo "==> DRY RUN: skipping upload to download.pytorch.org"
-  exit 0
-fi
-
-# Upload to s3://pytorch/whl/<channel>/ with the same public-read ACL and
-# checksum metadata the binary upload workflow uses for torch wheels.
-for channel in ${CHANNELS}; do
-  dest="s3://pytorch/whl/${channel}/"
-  echo "==> Uploading to ${dest}"
-  for pkg in "${WHEELHOUSE}"/numpy-*.whl; do
-    shm_id="$(sha256sum "${pkg}" | awk '{print $1}')"
-    aws s3 cp "${pkg}" "${dest}" \
-      --acl public-read \
-      --metadata "checksum-sha256=${shm_id}"
-  done
-done
-
-echo "==> Done. Run the 'Update S3 HTML indices' workflow (or wait for the"
-echo "    hourly cron) to publish numpy in the whl/<channel> package indices."
+# Uploading to S3 (s3://pytorch) and R2 (s3://pytorch-downloads) is handled by
+# the workflow, which manages the two distinct credential contexts.

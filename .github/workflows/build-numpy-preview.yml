@@ -2,7 +2,9 @@ name: Build numpy for preview Python
 
 # Builds numpy wheels for preview CPython versions (e.g. 3.15 / 3.15t) that do
 # not yet have wheels on PyPI, and uploads them to download.pytorch.org so that
-# torch preview-Python wheel builds and smoke tests can resolve numpy.
+# torch preview-Python wheel builds and smoke tests can resolve numpy. Wheels
+# are uploaded to both S3 (s3://pytorch) and R2 (s3://pytorch-downloads) since
+# download.pytorch.org is R2-backed.
 #
 # Run via workflow_dispatch. Defaults to a dry run (build only, no upload);
 # set dry_run=false to actually publish.
@@ -91,16 +93,61 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 7200
 
-      - name: Build and upload numpy
+      - name: Build numpy
         env:
           ARCH: ${{ matrix.arch }}
           NUMPY_VERSION: ${{ inputs.numpy_version || '2.5.1' }}
           PYTHON_VERSIONS: ${{ inputs.python_versions || '3.15 3.15t' }}
-          CHANNELS: ${{ inputs.channel || 'nightly' }}
           MANYWHEEL_VERSION: ${{ inputs.manywheel_version || '2_28' }}
-          # pull_request always runs dry (inputs are null on non-dispatch events)
-          DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
         run: bash .github/scripts/build_numpy_preview.sh
+
+      # Upload to S3 (s3://pytorch) using the OIDC-assumed role, then to R2
+      # (s3://pytorch-downloads) using the R2 access keys. download.pytorch.org
+      # is R2-backed, so wheels must land in both. Only on workflow_dispatch with
+      # dry_run disabled — never on pull_request.
+      - name: Upload numpy to S3 (download.pytorch.org)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -ex
+          dest="s3://pytorch/whl/${CHANNEL}/"
+          for pkg in /tmp/numpy-preview-build/wheelhouse/numpy-*.whl; do
+            shm_id="$(sha256sum "${pkg}" | awk '{print $1}')"
+            aws s3 cp "${pkg}" "${dest}" \
+              --acl public-read \
+              --metadata "checksum-sha256=${shm_id}"
+          done
+
+      - name: Configure R2 credentials
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # Overwrite the OIDC S3 credentials from the previous step with R2 keys.
+          {
+            echo "AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}"
+            echo "AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}"
+            echo "AWS_SESSION_TOKEN="
+            echo "AWS_DEFAULT_REGION=auto"
+            echo "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Upload numpy to R2 (download.pytorch.org)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -ex
+          dest="s3://pytorch-downloads/whl/${CHANNEL}/"
+          for pkg in /tmp/numpy-preview-build/wheelhouse/numpy-*.whl; do
+            shm_id="$(sha256sum "${pkg}" | awk '{print $1}')"
+            aws s3 cp "${pkg}" "${dest}" \
+              --metadata "checksum-sha256=${shm_id}" \
+              --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          done
 
       - name: Upload wheels as workflow artifact
         if: always()
