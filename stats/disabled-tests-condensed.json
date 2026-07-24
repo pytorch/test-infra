@@ -528,6 +528,13 @@
       "slow"
     ]
   ],
+  "test_index_propagation_to_dtype_inf_cpu_halide (__main__.HalideCpuTests)": [
+    "191009",
+    "https://github.com/pytorch/pytorch/issues/191009",
+    [
+      "inductor"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
