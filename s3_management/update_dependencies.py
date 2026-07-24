@@ -944,7 +944,9 @@ def append_local_preview_wheels(html: str, pkg_name: str, prefix: str) -> str:
         filename = key.rsplit("/", 1)[-1]
         if filename in html:
             continue
-        additions.append(f'    <a href="{DOWNLOAD_PYTORCH_URL}/{key}">{filename}</a><br/>')
+        additions.append(
+            f'    <a href="{DOWNLOAD_PYTORCH_URL}/{key}">{filename}</a><br/>'
+        )
 
     if not additions:
         return html
