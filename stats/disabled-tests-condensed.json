@@ -993,6 +993,13 @@
       "dynamo"
     ]
   ],
+  "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsPersistentTest)": [
+    "191000",
+    "https://github.com/pytorch/pytorch/issues/191000",
+    [
+      "xpu"
+    ]
+  ],
   "test_save_with_kwargs (__main__.TestCheckpointer)": [
     "190613",
     "https://github.com/pytorch/pytorch/issues/190613",
