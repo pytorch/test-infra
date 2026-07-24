@@ -440,6 +440,13 @@
     "https://github.com/pytorch/pytorch/issues/188676",
     []
   ],
+  "test_forward_ad_linalg_householder_product_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "191056",
+    "https://github.com/pytorch/pytorch/issues/191056",
+    [
+      "inductor"
+    ]
+  ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
