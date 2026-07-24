@@ -758,11 +758,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "pycparser": [{"project": "vllm"}],
 }
 
-# Preview CPython ABI tags whose wheels are not yet published on PyPI. For these
-# we build the wheels ourselves and host them on download.pytorch.org, so their
-# links must be injected into the otherwise PyPI-mirrored dependency index.
-# e.g. numpy has no cp315 wheel on PyPI, so pip on Python 3.15 would fall back to
-# a source build and fail.
+# Preview CPython ABI tags whose wheels are not yet published on PyPI. e.g.
+# numpy has no cp315 wheel on PyPI, so pip on Python 3.15 would fall back to a
+# source build and fail. The scientific-python nightly wheelhouse does publish
+# them, so we merge those links into our (otherwise PyPI-mirrored) numpy index.
 PREVIEW_PYTHON_TAGS = ("cp315",)
 
 # Restrict the preview-wheel injection to numpy on the nightly and test channels
@@ -770,8 +769,12 @@ PREVIEW_PYTHON_TAGS = ("cp315",)
 PREVIEW_WHEEL_INJECT_PACKAGES = {"numpy"}
 PREVIEW_WHEEL_INJECT_PREFIXES = {"whl/nightly", "whl/test"}
 
-# Base URL wheels hosted on download.pytorch.org are served from.
-DOWNLOAD_PYTORCH_URL = "https://download.pytorch.org"
+# Upstream source of preview numpy wheels (scientific-python nightly wheelhouse).
+PREVIEW_NUMPY_INDEX_URL = (
+    "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/numpy/"
+)
+# Host used to absolutize the relative hrefs served by that index.
+PREVIEW_NUMPY_INDEX_BASE = "https://pypi.anaconda.org"
 
 
 def is_nvidia_package(pkg_name: str) -> bool:
@@ -897,39 +900,45 @@ def normalize_pkg_name(name: str) -> str:
     return re.sub(r"[-_.]+", "_", name).lower()
 
 
-def find_local_preview_wheels(pkg_name: str, prefix: str) -> List[str]:
-    """Return S3 keys for locally-hosted preview-CPython wheels of *pkg_name*.
+def fetch_preview_numpy_anchors() -> List[tuple[str, str]]:
+    """Fetch preview-CPython numpy wheel links from the upstream nightly index.
 
-    Only wheels sitting directly under *prefix* (e.g.
-    ``whl/nightly/numpy-2.5.1-cp315-...whl``) and tagged with a
-    :data:`PREVIEW_PYTHON_TAGS` ABI are returned.
+    PyPI does not publish cp315 numpy wheels, but the scientific-python nightly
+    wheelhouse does. Returns ``(filename, anchor_html)`` pairs for each wheel
+    whose ABI tag is in :data:`PREVIEW_PYTHON_TAGS`, with the href absolutized
+    so it stays valid when the index is copied into subdirectories. Returns an
+    empty list if the index cannot be fetched or has no preview wheels.
     """
-    norm = normalize_pkg_name(pkg_name)
-    base = f"{prefix}/"
-    # Narrow the listing to keys that begin with the normalized project name so
-    # we do not scan every wheel under the prefix.
-    keys: List[str] = []
-    for obj in BUCKET.objects.filter(Prefix=f"{base}{norm}"):
-        rel = obj.key[len(base) :]
-        # Only wheels directly in this prefix, not nested subdirectories.
-        if "/" in rel or not rel.endswith(".whl"):
+    try:
+        html = download(PREVIEW_NUMPY_INDEX_URL).decode("utf-8", errors="ignore")
+    except Exception as e:
+        print(f"WARNING: could not fetch {PREVIEW_NUMPY_INDEX_URL}: {e}")
+        return []
+
+    anchors: List[tuple[str, str]] = []
+    for href, name in re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', html):
+        filename = name.strip()
+        if not filename.endswith(".whl"):
             continue
-        # First "-"-delimited component of a wheel name is the project name.
-        project = rel.split("-", 1)[0]
-        if normalize_pkg_name(project) != norm:
+        if not any(f"-{tag}-" in filename for tag in PREVIEW_PYTHON_TAGS):
             continue
-        if not any(f"-{tag}-" in rel for tag in PREVIEW_PYTHON_TAGS):
-            continue
-        keys.append(obj.key)
-    return sorted(keys)
+        # Absolutize the href against the upstream host.
+        if href.startswith("//"):
+            url = f"https:{href}"
+        elif href.startswith(("http://", "https://")):
+            url = href
+        else:
+            url = f"{PREVIEW_NUMPY_INDEX_BASE}/{href.lstrip('/')}"
+        anchors.append((filename, f'    <a href="{url}">{filename}</a><br/>'))
+    return anchors
 
 
-def append_local_preview_wheels(html: str, pkg_name: str, prefix: str) -> str:
-    """Append download.pytorch.org links for preview wheels missing from *html*.
+def append_preview_numpy_wheels(html: str, pkg_name: str, prefix: str) -> str:
+    """Merge upstream preview-CPython numpy wheel links into *html*.
 
-    The PyPI simple index does not list preview-CPython (e.g. cp315) wheels
-    because they are not published there. We host those ourselves, so inject
-    absolute download.pytorch.org links for any that are not already present.
+    The PyPI simple index does not list preview-CPython (e.g. cp315) wheels, so
+    we merge the links published on the scientific-python nightly wheelhouse for
+    any that are not already present.
 
     Limited to numpy on the nightly and test channels; a no-op otherwise.
     """
@@ -939,20 +948,17 @@ def append_local_preview_wheels(html: str, pkg_name: str, prefix: str) -> str:
     ):
         return html
 
-    additions: List[str] = []
-    for key in find_local_preview_wheels(pkg_name, prefix):
-        filename = key.rsplit("/", 1)[-1]
-        if filename in html:
-            continue
-        additions.append(
-            f'    <a href="{DOWNLOAD_PYTORCH_URL}/{key}">{filename}</a><br/>'
-        )
+    additions = [
+        anchor
+        for filename, anchor in fetch_preview_numpy_anchors()
+        if filename not in html
+    ]
 
     if not additions:
         return html
 
     print(
-        f"INFO: Injecting {len(additions)} locally-hosted preview wheel link(s) "
+        f"INFO: Merging {len(additions)} preview numpy wheel link(s) "
         f"for {pkg_name} under {prefix}"
     )
     block = "\n".join(additions)
@@ -986,9 +992,9 @@ def upload_package_using_simple_index(
         print(f"Error fetching package {pkg_name}: {e}")
         return
 
-    # PyPI does not host preview-CPython (e.g. cp315) wheels; add links to the
-    # ones we build and host on download.pytorch.org so pip can resolve them.
-    raw_html = append_local_preview_wheels(raw_html, pkg_name, prefix)
+    # PyPI does not host preview-CPython (e.g. cp315) wheels; merge in the links
+    # published on the scientific-python nightly wheelhouse so pip can resolve them.
+    raw_html = append_preview_numpy_wheels(raw_html, pkg_name, prefix)
 
     # Upload modified index.html with absolute links
     upload_index_html(pkg_name, prefix, raw_html, source_url, dry_run=dry_run)
