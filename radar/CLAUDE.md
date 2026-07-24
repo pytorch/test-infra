@@ -26,8 +26,12 @@ Always go through mise / uv / just. Never call `pip`, `poetry`, or `conda` direc
 ```bash
 just lint        # ruff, markdownlint, shellcheck, shfmt, yamllint, taplo
 just typecheck   # mypy (strict)
-just test        # pytest + coverage (>=90%)
+just test        # pytest + coverage (>=97%)
 ```
+
+Test coverage must stay at or above **97%** — `just test` enforces it
+(`fail_under` in `pyproject.toml`) and fails below that. Raise coverage by adding
+tests; never lower the threshold to make a change pass.
 
 All three must pass with zero errors. If any fail, fix before finishing — do not
 defer; they block CI.

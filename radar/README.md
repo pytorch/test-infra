@@ -54,7 +54,7 @@ per-iteration timeout is what interrupts a hung run.
 just lint        # ruff, markdownlint, shellcheck, shfmt, yamllint, taplo
 just lint-fix    # auto-fix what the linters can
 just typecheck   # mypy (strict)
-just test        # pytest + coverage (>=90%)
+just test        # pytest + coverage (>=97%)
 ```
 
 All gates must pass before a change is complete.
