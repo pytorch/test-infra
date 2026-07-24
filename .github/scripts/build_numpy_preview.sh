@@ -47,11 +47,17 @@ cp_tag() {
   echo "cp${ver//./}${suffix}"
 }
 
-# cp315 -> /opt/python/cp315-cp315/bin/python
+# 3.15  -> /opt/python/cp315-cp315/bin/python
+# 3.15t -> /opt/python/cp315-cp315t/bin/python
+# Free-threaded builds only carry the 't' on the ABI tag, not the interpreter tag.
 py_bin() {
-  local tag
-  tag="$(cp_tag "$1")"
-  echo "/opt/python/${tag}-${tag}/bin/python"
+  local ver="$1" suffix=""
+  if [[ "${ver}" == *t ]]; then
+    suffix="t"
+    ver="${ver%t}"
+  fi
+  local digits="${ver//./}"
+  echo "/opt/python/cp${digits}-cp${digits}${suffix}/bin/python"
 }
 
 echo "==> numpy==${NUMPY_VERSION}  arch=${ARCH}  plat=${PLAT}"
