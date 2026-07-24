@@ -536,8 +536,16 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, owner, repo, [prNum]);
   }
 
-  async handleLint() {
+  async handleLint(login: string) {
     await this.logger.log("lint");
+    if (!(await this.hasWritePermissions(login))) {
+      await this.addComment(
+        "You don't have permissions to trigger lint fixes on this PR since it " +
+          "requires write access to the repository. If you think this is a " +
+          "mistake, please contact PyTorch Dev Infra."
+      );
+      return;
+    }
     await this.dispatchEvent("apply-lint", {});
     await this.ackComment();
   }
@@ -616,7 +624,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         case "lint":
         case "fix-lint":
         case "apply-lint": {
-          return await this.handleLint();
+          return await this.handleLint(this.ctx.payload?.comment?.user?.login);
         }
       }
     }
