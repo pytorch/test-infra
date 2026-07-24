@@ -11,6 +11,7 @@ FROM
 WHERE
     started_at > now() - INTERVAL {days: UInt64} DAY
     AND status = 'completed'
+    AND pr_number > 0
 GROUP BY
     day, repo
 ORDER BY

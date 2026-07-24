@@ -17,6 +17,7 @@ FROM
     default.crcr_workflow_job FINAL
 WHERE
     pr_number = {pr: UInt64}
+    AND pr_number > 0
 ORDER BY
     downstream_repo, started_at DESC
 LIMIT 100

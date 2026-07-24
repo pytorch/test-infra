@@ -18,6 +18,7 @@ SELECT
                 downstream_repo = {repo: String}
                 AND started_at > now() - INTERVAL {days: UInt64} DAY
                 AND status = 'completed'
+                AND pr_number > 0
             GROUP BY pr_number, job_name
             HAVING
                 countIf(conclusion = 'success') > 0
@@ -30,3 +31,4 @@ WHERE
     downstream_repo = {repo: String}
     AND started_at > now() - INTERVAL {days: UInt64} DAY
     AND status = 'completed'
+    AND pr_number > 0

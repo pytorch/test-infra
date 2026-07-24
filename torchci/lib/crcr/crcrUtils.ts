@@ -79,6 +79,7 @@ export interface CrcrWorkflowJobRecord {
   failed_tests?: number;
   skipped_tests?: number;
   downstream_repo_level?: string;
+  event_type?: string;
   artifact_url?: string;
   environment?: string;
 }
@@ -131,6 +132,10 @@ export function extractDynamoRecord(
 
   if (trusted.downstream_repo_level) {
     record.downstream_repo_level = trusted.downstream_repo_level;
+  }
+
+  if (cb.event_type) {
+    record.event_type = cb.event_type;
   }
 
   // Only set timing metrics when the relay provides a non-null value.
