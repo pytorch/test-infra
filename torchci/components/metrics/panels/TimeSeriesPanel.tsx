@@ -321,6 +321,7 @@ export default function TimeSeriesPanel({
   useUTC = false,
   // Whether to fill in missing data points with 0s
   fillMissingData = true,
+  onEvents,
 }: {
   title: string;
   queryName: string;
@@ -344,6 +345,7 @@ export default function TimeSeriesPanel({
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
   useUTC?: boolean;
   fillMissingData?: boolean;
+  onEvents?: { [key: string]: any };
 }) {
   // - Granularity
   // - Group by
@@ -447,6 +449,7 @@ export default function TimeSeriesPanel({
       additionalOptions={additionalOptions}
       legendPadding={legendPadding}
       useUTC={useUTC}
+      onEvents={onEvents}
     />
   );
 }

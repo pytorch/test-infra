@@ -1,11 +1,13 @@
 import { Grid } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { useRouter } from "next/router";
 import { useState } from "react";
 
 const ROW_HEIGHT = 240;
 
 export default function Kpis() {
+  const router = useRouter();
   // Looking at data from the past six months
   const [startTime, _setStartTime] = useState(dayjs().subtract(6, "month"));
   const [stopTime, _setStopTime] = useState(dayjs());
@@ -79,6 +81,93 @@ export default function Kpis() {
                 })
               )
               .flat();
+          }}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, lg: 6 }} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"pull workflow duration per trunk commit (Weekly, hrs)"}
+          queryName={"pull_workflow_duration_per_commit"}
+          queryParams={{
+            ...timeParams,
+          }}
+          granularity={"week"}
+          timeFieldName={"bucket"}
+          yAxisFieldName={"value_hours"}
+          yAxisLabel={"Hours"}
+          yAxisRenderer={(value) => Number(value).toFixed(2)}
+          groupByFieldName="series"
+          dataReader={(data) => {
+            const series = [
+              { key: "wallclock_p50", name: "wall-clock p50" },
+              { key: "wallclock_p90", name: "wall-clock p90" },
+              { key: "longest_job_p50", name: "longest job p50" },
+              { key: "longest_job_p90", name: "longest job p90" },
+              { key: "build_test_p50", name: "build+test p50" },
+              { key: "build_test_p90", name: "build+test p90" },
+            ];
+            return data
+              .map((d) =>
+                series.map((s) => ({
+                  bucket: d.bucket,
+                  series: s.name,
+                  value_hours: d[s.key],
+                }))
+              )
+              .flat();
+          }}
+          additionalOptions={{
+            // Render the drill-down link as a distinct, link-styled subtitle
+            // (a plain linked title doesn't read as clickable).
+            title: {
+              subtext: "▸ open detailed per-commit chart",
+              sublink: "/kpis/pull_workflow_commits",
+              subtarget: "self",
+              subtextStyle: {
+                color: "#4493f8",
+                fontSize: 13,
+                fontWeight: "bold",
+              },
+            },
+            grid: { top: 82 },
+            tooltip: {
+              trigger: "item",
+              formatter: (params: any) => {
+                const DESCRIPTIONS: { [key: string]: string } = {
+                  "wall-clock":
+                    "Total workflow wall-clock: first job start → last job completion (≈ workflow_run created→updated). Includes per-job queue/runner-wait time.",
+                  "longest job":
+                    "Longest single job's run time: max(completed_at − started_at). Queue excluded.",
+                  "build+test":
+                    "Per-config critical path: for each build-config, build run + that config's longest test run, then max across configs (build→test chained by job-name prefix). Queue excluded.",
+                };
+                const name: string = params.seriesName ?? "";
+                const metric = name.replace(/ p(?:50|90)$/, "");
+                const hrs = Number(params.value[1]).toFixed(2);
+                return (
+                  `<b>${name}</b><br/>` +
+                  `${params.value[0]}<br/>` +
+                  `${hrs} h<br/>` +
+                  `<span style="font-size:11px;opacity:0.8;">${
+                    DESCRIPTIONS[metric] ?? ""
+                  }</span>` +
+                  `<br/><span style="color:#4493f8;font-weight:bold;">▸ click to drill into this week's commits</span>`
+                );
+              },
+            },
+          }}
+          onEvents={{
+            click: (params: any) => {
+              const ts = params?.value?.[0];
+              if (ts) {
+                router.push(
+                  `/kpis/pull_workflow_commits?focus=${encodeURIComponent(
+                    String(ts)
+                  )}`
+                );
+              }
+            },
           }}
         />
       </Grid>
