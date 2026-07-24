@@ -1439,6 +1439,13 @@
       "dynamo"
     ]
   ],
+  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
+    "180195",
+    "https://github.com/pytorch/pytorch/issues/180195",
+    [
+      "dynamo"
+    ]
+  ],
   "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
     "189711",
     "https://github.com/pytorch/pytorch/issues/189711",
