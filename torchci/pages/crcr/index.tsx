@@ -309,9 +309,10 @@ function CrcrTestHealthCard({
   metrics: CiMetricsRow | undefined;
 }) {
   if (!metrics) return null;
-  const rate = (metrics.pass_rate * 100).toFixed(1) + "%";
-  const isHealthy = metrics.pass_rate >= 0.95;
-  const borderColor = isHealthy ? "#2e7d32" : "#d32f2f";
+  const pct = (metrics.pass_rate * 100).toFixed(1) + "%";
+  const isHealthy = metrics.pass_rate >= 1.0;
+  const borderColor = isHealthy ? "#2e7d32" : "#ed6c02";
+  const label = isHealthy ? "Healthy" : "Degraded";
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -330,13 +331,13 @@ function CrcrTestHealthCard({
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          CRCR-test Pass Rate
+          CRCR Relay Health
         </Typography>
         <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {rate}
+          {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {metrics.successes}/{metrics.total} jobs passed &middot;
+          {pct} · {metrics.successes}/{metrics.total} jobs passed ·
           pytorch/crcr-test
         </Typography>
       </Paper>
