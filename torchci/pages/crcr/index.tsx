@@ -74,11 +74,11 @@ const LEVEL_META: Record<
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
 const CRCR_HEALTH_REPO = "pytorch/crcr-test";
 
-function PassRateChip({ rate }: { rate: number }) {
-  const pct = (rate * 100).toFixed(1) + "%";
-  if (rate >= 0.95) return <Chip label={pct} color="success" size="small" />;
-  if (rate >= 0.8) return <Chip label={pct} color="warning" size="small" />;
-  return <Chip label={pct} color="error" size="small" />;
+function HealthChip({ rate }: { rate: number }) {
+  if (rate >= 1.0) {
+    return <Chip label="Healthy" color="success" size="small" />;
+  }
+  return <Chip label="Degraded" color="warning" size="small" />;
 }
 
 function LevelChip({ level }: { level: Level }) {
@@ -124,6 +124,9 @@ function CiHealthTable({
             </TableCell>
             <TableCell align="center">
               <strong>Level</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>Health</strong>
             </TableCell>
             <TableCell align="right">
               <strong>Pass Rate</strong>
@@ -194,12 +197,17 @@ function CiHealthTable({
                 </TableCell>
                 <TableCell align="right">
                   {metrics ? (
-                    <PassRateChip rate={metrics.pass_rate} />
+                    <HealthChip rate={metrics.pass_rate} />
                   ) : (
                     <Typography variant="body2" color="text.disabled">
                       –
                     </Typography>
                   )}
+                </TableCell>
+                <TableCell align="right">
+                  {metrics
+                    ? (metrics.pass_rate * 100).toFixed(1) + "%"
+                    : "–"}
                 </TableCell>
                 <TableCell align="right">{metrics?.successes ?? "–"}</TableCell>
                 <TableCell align="right">
@@ -309,9 +317,10 @@ function CrcrTestHealthCard({
   metrics: CiMetricsRow | undefined;
 }) {
   if (!metrics) return null;
-  const rate = (metrics.pass_rate * 100).toFixed(1) + "%";
-  const isHealthy = metrics.pass_rate >= 0.95;
-  const borderColor = isHealthy ? "#2e7d32" : "#d32f2f";
+  const pct = (metrics.pass_rate * 100).toFixed(1) + "%";
+  const isHealthy = metrics.pass_rate >= 1.0;
+  const borderColor = isHealthy ? "#2e7d32" : "#ed6c02";
+  const label = isHealthy ? "Healthy" : "Degraded";
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -330,13 +339,16 @@ function CrcrTestHealthCard({
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          CRCR-test Pass Rate
+          CRCR Relay Health
         </Typography>
         <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {rate}
+          {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {metrics.successes}/{metrics.total} jobs passed &middot;
+          {pct} &mdash; {metrics.successes}/{metrics.total} jobs passed
+        </Typography>
+        <br />
+        <Typography variant="caption" color="text.secondary">
           pytorch/crcr-test
         </Typography>
       </Paper>
