@@ -775,6 +775,10 @@ PREVIEW_NUMPY_INDEX_URL = (
 )
 # Host used to absolutize the relative hrefs served by that index.
 PREVIEW_NUMPY_INDEX_BASE = "https://pypi.anaconda.org"
+# Only merge wheels from this numpy release line. Matches the final release and
+# its pre-releases (e.g. 2.6.0, 2.6.0.dev0, 2.6.0rc1) but not other lines such
+# as 2.7.0.dev0.
+PREVIEW_NUMPY_VERSION = "2.6.0"
 
 
 def is_nvidia_package(pkg_name: str) -> bool:
@@ -915,12 +919,18 @@ def fetch_preview_numpy_anchors() -> List[tuple[str, str]]:
         print(f"WARNING: could not fetch {PREVIEW_NUMPY_INDEX_URL}: {e}")
         return []
 
+    # numpy-<version>-<pytag>-<abitag>-<plat>.whl -> version is the 2nd field.
+    version_re = re.compile(rf"^{re.escape(PREVIEW_NUMPY_VERSION)}(\D|$)")
+
     anchors: List[tuple[str, str]] = []
     for href, name in re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', html):
         filename = name.strip()
         if not filename.endswith(".whl"):
             continue
         if not any(f"-{tag}-" in filename for tag in PREVIEW_PYTHON_TAGS):
+            continue
+        parts = filename.split("-")
+        if len(parts) < 2 or not version_re.match(parts[1]):
             continue
         # Absolutize the href against the upstream host.
         if href.startswith("//"):
