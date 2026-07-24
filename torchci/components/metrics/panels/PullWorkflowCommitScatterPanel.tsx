@@ -1,5 +1,9 @@
 import {
+  FormControl,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Skeleton,
   Table,
   TableBody,
@@ -19,14 +23,17 @@ type CommitRow = {
   wallclock_hours: number;
   longest_job_hours: number;
   build_test_hours: number;
-  baseline_median: number;
-  flagged: number;
   crit_conclusion: "success" | "failure" | "cancelled";
   commit_title: string;
   land_time: string;
 };
 
+// Rolling baseline + anomaly flag, computed client-side over a user-selectable
+// trailing window (the query returns raw per-commit durations only).
+type EnrichedRow = CommitRow & { baseline_median: number; flagged: boolean };
+
 const MAX_FLAGGED_TABLE_ROWS = 50;
+const MEDIAN_WINDOW_OPTIONS = [10, 25, 50, 100, 200];
 const LINK_COLOR = "#4493f8";
 // A cancelled/failed metric-driving job inflates the build+test height, so
 // color those points differently from genuinely-slow successful commits.
@@ -55,6 +62,18 @@ function truncateTitle(title: string, maxLen: number = 80): string {
   return title.length > maxLen ? `${title.substring(0, maxLen)}…` : title;
 }
 
+// Exact quantile of an ascending-sorted array: the median (q=0.5) averages the
+// two middle elements on even counts; other q interpolate between neighbors.
+function quantileSorted(sorted: number[], q: number): number {
+  if (sorted.length === 0) {
+    return 0;
+  }
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
 export default function PullWorkflowCommitScatterPanel({
   startTime,
   stopTime,
@@ -73,6 +92,9 @@ export default function PullWorkflowCommitScatterPanel({
     "pull_workflow_duration_per_commit_detail",
     { startTime, stopTime }
   );
+  // Trailing-window size (commits) for the rolling-median baseline; also drives
+  // which commits get flagged as anomalies.
+  const [medianWindow, setMedianWindow] = useState(200);
   // Time window currently visible on the x-axis (ms epoch). null = full range.
   // Seed it from the pre-zoom focus so the table matches the initial view.
   const [visibleRange, setVisibleRange] = useState<[number, number] | null>(
@@ -90,26 +112,59 @@ export default function PullWorkflowCommitScatterPanel({
     }
   }, [focusStart, focusStop]);
 
+  // Sole source of the baseline + anomaly flag (moved off ClickHouse so the
+  // window is configurable without a re-query). For each commit, the baseline
+  // is the exact median of the trailing `medianWindow` commits (excluding the
+  // commit itself); a commit is flagged when it is BOTH >10% over that median
+  // AND above the trailing p90 (a spread gate, so single-commit noise near the
+  // median is not flagged). The warm-up gate suppresses flags until the
+  // trailing window is meaningful: min(medianWindow, 50) commits, matching the
+  // old fixed gate of 50 at the 200 default. Naive O(n·window·log window) is
+  // fine at this data size, and the result is memoized.
+  const enriched: EnrichedRow[] = useMemo(() => {
+    const rows = data ?? [];
+    return rows.map((r, i) => {
+      const trailing = rows
+        .slice(Math.max(0, i - medianWindow), i)
+        .map((p) => p.build_test_hours)
+        .sort((a, b) => a - b);
+      const baseline_median = quantileSorted(trailing, 0.5);
+      const baseline_p90 = quantileSorted(trailing, 0.9);
+      const flagged =
+        trailing.length >= Math.min(medianWindow, 50) &&
+        baseline_median > 0 &&
+        r.build_test_hours > 1.1 * baseline_median &&
+        r.build_test_hours > baseline_p90;
+      return { ...r, baseline_median, flagged };
+    });
+  }, [data, medianWindow]);
+
   const flaggedRows = useMemo(
-    () => (data ? data.filter((r) => Number(r.flagged) === 1) : []),
-    [data]
+    () => enriched.filter((r) => r.flagged),
+    [enriched]
   );
 
   // Bounds of the full dataset, used to convert dataZoom percentages -> time.
   const [tMin, tMax] = useMemo(() => {
-    const rows = data ?? [];
-    return rows.length
-      ? [Date.parse(rows[0].ts), Date.parse(rows[rows.length - 1].ts)]
+    return enriched.length
+      ? [
+          Date.parse(enriched[0].ts),
+          Date.parse(enriched[enriched.length - 1].ts),
+        ]
       : [0, 0];
-  }, [data]);
+  }, [enriched]);
 
   // Keep the option reference stable across zoom-driven re-renders
   // (visibleRange is deliberately NOT a dependency) so the chart stays
   // uncontrolled after mount and user zoom is preserved.
   const option = useMemo(() => {
-    const rows = data ?? [];
+    const rows = enriched;
+    // Series name and legend entry must stay byte-identical or the legend toggle
+    // breaks. Keep it static (the active window shows in the dropdown) so
+    // changing the window doesn't reset the user's legend show/hide state.
+    const baselineName = "build+test baseline (rolling median)";
 
-    const toPoint = (r: CommitRow) => ({
+    const toPoint = (r: EnrichedRow) => ({
       value: [r.ts, r.build_test_hours],
       sha: r.sha,
       wallclock_hours: r.wallclock_hours,
@@ -131,7 +186,7 @@ export default function PullWorkflowCommitScatterPanel({
           "failure",
           "cancelled",
           "flagged (anomaly)",
-          "build+test baseline (rolling median)",
+          baselineName,
         ],
       },
       xAxis: { type: "time" },
@@ -201,13 +256,11 @@ export default function PullWorkflowCommitScatterPanel({
           cursor: "pointer",
           z: 2,
           data: rows
-            .filter(
-              (r) => Number(r.flagged) !== 1 && r.crit_conclusion === name
-            )
+            .filter((r) => !r.flagged && r.crit_conclusion === name)
             .map(toPoint),
         })),
         {
-          name: "build+test baseline (rolling median)",
+          name: baselineName,
           type: "line",
           showSymbol: false,
           lineStyle: { width: 1, opacity: 0.6 },
@@ -233,7 +286,7 @@ export default function PullWorkflowCommitScatterPanel({
         },
       ],
     };
-  }, [data, flaggedRows, darkMode, focusStart, focusStop]);
+  }, [enriched, medianWindow, flaggedRows, darkMode, focusStart, focusStop]);
 
   // Stable onEvents identity: echarts-for-react disposes + reinits the chart when
   // the onEvents prop changes by reference, so an inline object (fresh each render)
@@ -284,6 +337,23 @@ export default function PullWorkflowCommitScatterPanel({
 
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
+      <FormControl size="small" sx={{ mb: 1, minWidth: 220 }}>
+        <InputLabel id="median-window-label">
+          Rolling median window (commits)
+        </InputLabel>
+        <Select
+          labelId="median-window-label"
+          value={medianWindow}
+          label="Rolling median window (commits)"
+          onChange={(e) => setMedianWindow(Number(e.target.value))}
+        >
+          {MEDIAN_WINDOW_OPTIONS.map((w) => (
+            <MenuItem key={w} value={w}>
+              {w}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <ReactECharts
         theme={darkMode ? "dark-hud" : undefined}
         option={option}
