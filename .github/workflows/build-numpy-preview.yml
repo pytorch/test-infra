@@ -71,6 +71,10 @@ jobs:
             image: pytorch/manylinux2_28_aarch64-builder:cpu-aarch64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
+    # The S3/R2 upload roles and R2 secrets are only assumable from the
+    # pytorchbot-env environment. Only enter it for a real upload run; dry runs
+    # and pull_request builds stay outside it so they are not gated on approval.
+    environment: ${{ (github.event_name == 'workflow_dispatch' && !inputs.dry_run) && 'pytorchbot-env' || '' }}
     container:
       image: ${{ matrix.image }}
     steps:
