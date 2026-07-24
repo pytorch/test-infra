@@ -758,6 +758,16 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "pycparser": [{"project": "vllm"}],
 }
 
+# Preview CPython ABI tags whose wheels are not yet published on PyPI. For these
+# we build the wheels ourselves and host them on download.pytorch.org, so their
+# links must be injected into the otherwise PyPI-mirrored dependency index.
+# e.g. numpy has no cp315 wheel on PyPI, so pip on Python 3.15 would fall back to
+# a source build and fail.
+PREVIEW_PYTHON_TAGS = ("cp315",)
+
+# Base URL wheels hosted on download.pytorch.org are served from.
+DOWNLOAD_PYTORCH_URL = "https://download.pytorch.org"
+
 
 def is_nvidia_package(pkg_name: str) -> bool:
     """Check if a package is from NVIDIA and should use pypi.nvidia.com"""
@@ -877,6 +887,65 @@ def upload_index_html(
         )
 
 
+def normalize_pkg_name(name: str) -> str:
+    """PEP 503 normalisation: lowercase, collapse ``[-_.]+`` to ``_``."""
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def find_local_preview_wheels(pkg_name: str, prefix: str) -> List[str]:
+    """Return S3 keys for locally-hosted preview-CPython wheels of *pkg_name*.
+
+    Only wheels sitting directly under *prefix* (e.g.
+    ``whl/nightly/numpy-2.5.1-cp315-...whl``) and tagged with a
+    :data:`PREVIEW_PYTHON_TAGS` ABI are returned.
+    """
+    norm = normalize_pkg_name(pkg_name)
+    base = f"{prefix}/"
+    # Narrow the listing to keys that begin with the normalized project name so
+    # we do not scan every wheel under the prefix.
+    keys: List[str] = []
+    for obj in BUCKET.objects.filter(Prefix=f"{base}{norm}"):
+        rel = obj.key[len(base) :]
+        # Only wheels directly in this prefix, not nested subdirectories.
+        if "/" in rel or not rel.endswith(".whl"):
+            continue
+        # First "-"-delimited component of a wheel name is the project name.
+        project = rel.split("-", 1)[0]
+        if normalize_pkg_name(project) != norm:
+            continue
+        if not any(f"-{tag}-" in rel for tag in PREVIEW_PYTHON_TAGS):
+            continue
+        keys.append(obj.key)
+    return sorted(keys)
+
+
+def append_local_preview_wheels(html: str, pkg_name: str, prefix: str) -> str:
+    """Append download.pytorch.org links for preview wheels missing from *html*.
+
+    The PyPI simple index does not list preview-CPython (e.g. cp315) wheels
+    because they are not published there. We host those ourselves, so inject
+    absolute download.pytorch.org links for any that are not already present.
+    """
+    additions: List[str] = []
+    for key in find_local_preview_wheels(pkg_name, prefix):
+        filename = key.rsplit("/", 1)[-1]
+        if filename in html:
+            continue
+        additions.append(f'    <a href="{DOWNLOAD_PYTORCH_URL}/{key}">{filename}</a><br/>')
+
+    if not additions:
+        return html
+
+    print(
+        f"INFO: Injecting {len(additions)} locally-hosted preview wheel link(s) "
+        f"for {pkg_name} under {prefix}"
+    )
+    block = "\n".join(additions)
+    if "</body>" in html:
+        return html.replace("</body>", f"{block}\n  </body>", 1)
+    return f"{html}\n{block}\n"
+
+
 def upload_package_using_simple_index(
     pkg_name: str,
     prefix: str,
@@ -901,6 +970,10 @@ def upload_package_using_simple_index(
     except Exception as e:
         print(f"Error fetching package {pkg_name}: {e}")
         return
+
+    # PyPI does not host preview-CPython (e.g. cp315) wheels; add links to the
+    # ones we build and host on download.pytorch.org so pip can resolve them.
+    raw_html = append_local_preview_wheels(raw_html, pkg_name, prefix)
 
     # Upload modified index.html with absolute links
     upload_index_html(pkg_name, prefix, raw_html, source_url, dry_run=dry_run)
