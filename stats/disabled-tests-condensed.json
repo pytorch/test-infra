@@ -243,20 +243,6 @@
       "slow"
     ]
   ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "189326",
-    "https://github.com/pytorch/pytorch/issues/189326",
-    [
-      "xpu"
-    ]
-  ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189327",
-    "https://github.com/pytorch/pytorch/issues/189327",
-    [
-      "xpu"
-    ]
-  ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
     "181224",
     "https://github.com/pytorch/pytorch/issues/181224",
@@ -419,13 +405,6 @@
     "https://github.com/pytorch/pytorch/issues/188668",
     [
       "rocm"
-    ]
-  ],
-  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "190295",
-    "https://github.com/pytorch/pytorch/issues/190295",
-    [
-      "xpu"
     ]
   ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
