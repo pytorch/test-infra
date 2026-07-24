@@ -765,6 +765,11 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
 # a source build and fail.
 PREVIEW_PYTHON_TAGS = ("cp315",)
 
+# Restrict the preview-wheel injection to numpy on the nightly and test channels
+# only. Nothing else is touched.
+PREVIEW_WHEEL_INJECT_PACKAGES = {"numpy"}
+PREVIEW_WHEEL_INJECT_PREFIXES = {"whl/nightly", "whl/test"}
+
 # Base URL wheels hosted on download.pytorch.org are served from.
 DOWNLOAD_PYTORCH_URL = "https://download.pytorch.org"
 
@@ -925,7 +930,15 @@ def append_local_preview_wheels(html: str, pkg_name: str, prefix: str) -> str:
     The PyPI simple index does not list preview-CPython (e.g. cp315) wheels
     because they are not published there. We host those ourselves, so inject
     absolute download.pytorch.org links for any that are not already present.
+
+    Limited to numpy on the nightly and test channels; a no-op otherwise.
     """
+    if (
+        normalize_pkg_name(pkg_name) not in PREVIEW_WHEEL_INJECT_PACKAGES
+        or prefix not in PREVIEW_WHEEL_INJECT_PREFIXES
+    ):
+        return html
+
     additions: List[str] = []
     for key in find_local_preview_wheels(pkg_name, prefix):
         filename = key.rsplit("/", 1)[-1]
