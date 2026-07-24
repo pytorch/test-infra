@@ -40,7 +40,7 @@ export async function fetchCrcrWorkflows(
   );
 
   return rows.map((row: any) => ({
-    name: `crcr/${row.downstream_repo}/${row.name}`,
+    name: `crcr/${row.downstream_repo}/${row.name}/${row.jobName || row.name}`,
     jobName: row.jobName || row.name,
     workflowId: 0,
     workflowUniqueId: 0,
