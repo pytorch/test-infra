@@ -337,10 +337,7 @@ function CrcrTestHealthCard({
           {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {pct} &mdash; {metrics.successes}/{metrics.total} jobs passed
-        </Typography>
-        <br />
-        <Typography variant="caption" color="text.secondary">
+          {pct} · {metrics.successes}/{metrics.total} jobs passed ·
           pytorch/crcr-test
         </Typography>
       </Paper>
