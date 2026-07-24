@@ -74,11 +74,11 @@ const LEVEL_META: Record<
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
 const CRCR_HEALTH_REPO = "pytorch/crcr-test";
 
-function HealthChip({ rate }: { rate: number }) {
-  if (rate >= 1.0) {
-    return <Chip label="Healthy" color="success" size="small" />;
-  }
-  return <Chip label="Degraded" color="warning" size="small" />;
+function PassRateChip({ rate }: { rate: number }) {
+  const pct = (rate * 100).toFixed(1) + "%";
+  if (rate >= 0.95) return <Chip label={pct} color="success" size="small" />;
+  if (rate >= 0.8) return <Chip label={pct} color="warning" size="small" />;
+  return <Chip label={pct} color="error" size="small" />;
 }
 
 function LevelChip({ level }: { level: Level }) {
@@ -124,9 +124,6 @@ function CiHealthTable({
             </TableCell>
             <TableCell align="center">
               <strong>Level</strong>
-            </TableCell>
-            <TableCell align="right">
-              <strong>Health</strong>
             </TableCell>
             <TableCell align="right">
               <strong>Pass Rate</strong>
@@ -197,17 +194,12 @@ function CiHealthTable({
                 </TableCell>
                 <TableCell align="right">
                   {metrics ? (
-                    <HealthChip rate={metrics.pass_rate} />
+                    <PassRateChip rate={metrics.pass_rate} />
                   ) : (
                     <Typography variant="body2" color="text.disabled">
                       –
                     </Typography>
                   )}
-                </TableCell>
-                <TableCell align="right">
-                  {metrics
-                    ? (metrics.pass_rate * 100).toFixed(1) + "%"
-                    : "–"}
                 </TableCell>
                 <TableCell align="right">{metrics?.successes ?? "–"}</TableCell>
                 <TableCell align="right">
