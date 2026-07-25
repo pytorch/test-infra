@@ -243,6 +243,13 @@
       "slow"
     ]
   ],
+  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "189326",
+    "https://github.com/pytorch/pytorch/issues/189326",
+    [
+      "xpu"
+    ]
+  ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
     "181224",
     "https://github.com/pytorch/pytorch/issues/181224",
