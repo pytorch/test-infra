@@ -13,7 +13,11 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { approximateFailureByTypePercent } from "lib/metricUtils";
+import {
+  approximateFailureByTypePercent,
+  computeSoleBlockers,
+  soleBlockerCommitRange,
+} from "lib/metricUtils";
 import { JobAnnotation } from "lib/types";
 import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
@@ -125,6 +129,134 @@ function GroupReliabilityPanel({
           flex: 5,
           // valueFormatter only treat the return value as string, so we need
           // to use renderCell here to get the JSX
+          renderCell: (params: GridRenderCellParams<any, string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return `Invalid job name ${jobName}`;
+            }
+
+            const encodedJobName = encodeURIComponent(jobName);
+            return <a href={URL_PREFIX + encodedJobName}>{jobName}</a>;
+          },
+          cellClassName: (params: GridCellParams<any, string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return "";
+            }
+
+            return filter.has(jobName) ? styles.selectedRow : "";
+          },
+        },
+      ]}
+      dataGridProps={{ getRowId: (el: any) => el.name }}
+    />
+  );
+}
+
+// Table of jobs that solely block viable/strict. Unlike the failure-rate panels
+// this metric is defined at the commit gate, so it needs its own query
+// (viable/strict gating semantics) and client-side aggregation.
+function SoleBlockerPanel({
+  queryParams,
+  filter,
+}: {
+  queryParams: { [key: string]: any };
+  filter: any;
+}) {
+  const url = `/api/clickhouse/viable_strict_sole_blocker?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000,
+  });
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  const rows = computeSoleBlockers(data);
+  const range = soleBlockerCommitRange(data);
+
+  // Show the actual commit span the percentages were computed over, so the
+  // numbers are debuggable ("Last 1 day = commit A .. commit B").
+  const commitRef = (c: { sha: string; title: string; time: string }) => (
+    <a href={`/pytorch/pytorch/commit/${c.sha}`} title={`${c.sha}\n${c.title}`}>
+      {c.sha.substring(0, 7)}
+    </a>
+  );
+  const shortTitle = (t: string) =>
+    t.length > 44 ? t.substring(0, 43) + "…" : t;
+  const fmt = (t: string) => dayjs(t).format("MM/DD HH:mm");
+
+  const title = (
+    <>
+      Sole viable/strict blockers
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontSize: "12px",
+          color: "text.secondary",
+        }}
+      >
+        {range.count === 0 || !range.oldest || !range.newest ? (
+          "no fully-evaluated commits in range"
+        ) : (
+          <>
+            {range.count} commits · {commitRef(range.oldest)}{" "}
+            {shortTitle(range.oldest.title)} ({fmt(range.oldest.time)}) →{" "}
+            {commitRef(range.newest)} {shortTitle(range.newest.title)} (
+            {fmt(range.newest.time)})
+          </>
+        )}
+      </Typography>
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontStyle: "italic",
+          fontSize: "11px",
+          color: "text.secondary",
+        }}
+      >
+        Job-type % folds all configs of a job together; it is shared across the
+        job type&apos;s rows and is not additive.
+      </Typography>
+    </>
+  );
+
+  return (
+    <TablePanelWithData
+      title={title}
+      data={rows}
+      columns={[
+        {
+          field: "sole",
+          headerName: "Sole blocking %",
+          description:
+            "% of evaluated commits where this exact config is the only job blocking viable/strict.",
+          flex: 1,
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
+          },
+        },
+        {
+          field: "soleJobType",
+          headerName: "Sole blocking % (job type)",
+          description:
+            "% of evaluated commits where only this job type blocks (via any of its configs). Shared across the job type's rows — not additive.",
+          flex: 1,
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
+          },
+        },
+        {
+          field: "name",
+          headerName: "Name",
+          flex: 5,
           renderCell: (params: GridRenderCellParams<any, string>) => {
             const jobName = params.value;
             if (jobName === undefined) {
@@ -335,7 +467,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          Failures
+          Reliability
         </Typography>
         <TimeRangePicker
           startTime={startTime}
@@ -391,6 +523,10 @@ export default function Page() {
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
+        </Grid>
+
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          <SoleBlockerPanel queryParams={queryParams} filter={filter} />
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>

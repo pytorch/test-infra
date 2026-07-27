@@ -153,6 +153,137 @@ export function approximateFailureByType(
   return failuresByTypes;
 }
 
+// A commit's viable/strict gating state: the list of gating jobs (folded to
+// config granularity, shards collapsed) that are blocking it. Produced by the
+// viable_strict_sole_blocker ClickHouse query.
+export interface SoleBlockerCommit {
+  time: string;
+  sha: string;
+  // first line of the commit message (for the commit-range caption)
+  title?: string;
+  blocking: string[];
+}
+
+// The span of commits the sole-blocker table was computed over, for
+// debuggability ("Last 1 day = commit A .. commit B").
+export interface SoleBlockerRange {
+  count: number;
+  oldest?: { sha: string; title: string; time: string };
+  newest?: { sha: string; title: string; time: string };
+}
+
+export function soleBlockerCommitRange(
+  data?: SoleBlockerCommit[]
+): SoleBlockerRange {
+  if (!data || data.length === 0) {
+    return { count: 0 };
+  }
+
+  // ISO timestamps sort lexicographically, so scan for min/max without
+  // assuming the input is ordered.
+  let oldest = data[0];
+  let newest = data[0];
+  data.forEach((commit) => {
+    if (commit.time < oldest.time) oldest = commit;
+    if (commit.time > newest.time) newest = commit;
+  });
+
+  const pick = (c: SoleBlockerCommit) => ({
+    sha: c.sha,
+    title: c.title ?? "",
+    time: c.time,
+  });
+  return { count: data.length, oldest: pick(oldest), newest: pick(newest) };
+}
+
+export interface SoleBlockerRow {
+  name: string;
+  // % of evaluated commits where this exact job (config) is the only blocker
+  sole: number;
+  // % of evaluated commits where only this job's job type is blocking (possibly
+  // via several of its configs at once)
+  soleJobType: number;
+}
+
+// The job type is the workflow + base job name, dropping the test config, e.g.
+// "trunk / linux-jammy-rocm-py3.10-mi350 / test (default)" ->
+// "trunk / linux-jammy-rocm-py3.10-mi350".
+export function jobTypeOf(name: string): string {
+  return name.split(" / ").slice(0, 2).join(" / ");
+}
+
+// For each gating job, compute how often it is the *only* thing blocking
+// viable/strict, both at config granularity and folded up to the job type.
+// The denominator is every fully-evaluated commit in the range, so the value
+// reads as "this job alone blocks X% of all main commits".
+//
+// Rows are pruned to the ones that carry signal: a config is shown if it was
+// ever individually the sole blocker (sole > 0). Configs that are never
+// individually sole but belong to a sole-blocking job type are suppressed as
+// redundant, UNLESS no sibling config of that job type is individually sole --
+// i.e. the job type only ever blocks via several of its configs failing
+// together. In that combo-only case the 0-config rows are kept so the job-type
+// signal is never hidden.
+export function computeSoleBlockers(
+  data?: SoleBlockerCommit[]
+): SoleBlockerRow[] {
+  if (!data) {
+    return [];
+  }
+
+  const total = data.length;
+  const soleConfigCount: { [name: string]: number } = {};
+  const soleJobTypeCount: { [jobType: string]: number } = {};
+  const seenConfigs = new Set<string>();
+
+  data.forEach((commit) => {
+    const blocking = (commit.blocking ?? []).filter((n) => n && n.length > 0);
+    blocking.forEach((n) => seenConfigs.add(n));
+
+    // Sole at config granularity: exactly one folded job is blocking
+    const configs = new Set(blocking);
+    if (configs.size === 1) {
+      const only = configs.values().next().value as string;
+      soleConfigCount[only] = (soleConfigCount[only] ?? 0) + 1;
+    }
+
+    // Sole at job-type granularity: all blocking jobs belong to one job type
+    // (there may be several configs of the same job type)
+    const jobTypes = new Set(blocking.map(jobTypeOf));
+    if (blocking.length >= 1 && jobTypes.size === 1) {
+      const only = jobTypes.values().next().value as string;
+      soleJobTypeCount[only] = (soleJobTypeCount[only] ?? 0) + 1;
+    }
+  });
+
+  const candidates = Array.from(seenConfigs)
+    .map((name) => ({
+      name,
+      sole: total ? ((soleConfigCount[name] ?? 0) / total) * 100 : 0,
+      soleJobType: total
+        ? ((soleJobTypeCount[jobTypeOf(name)] ?? 0) / total) * 100
+        : 0,
+    }))
+    .filter((row) => row.sole > 0 || row.soleJobType > 0);
+
+  // Job types that already have an individually-sole config, i.e. an actionable
+  // row. Their non-sole sibling configs are redundant and get dropped.
+  const jobTypesWithSoleConfig = new Set(
+    candidates.filter((row) => row.sole > 0).map((row) => jobTypeOf(row.name))
+  );
+
+  return candidates
+    .filter(
+      (row) => row.sole > 0 || !jobTypesWithSoleConfig.has(jobTypeOf(row.name))
+    )
+    .sort(
+      (a, b) =>
+        b.soleJobType - a.soleJobType ||
+        b.sole - a.sole ||
+        a.name.localeCompare(b.name)
+    );
+}
+
 export function approximateFailureByTypePercent(
   // The data is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[],
