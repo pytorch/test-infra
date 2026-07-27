@@ -28,6 +28,10 @@ on:
         description: 'Claude settings JSON'
         type: string
         default: '{"alwaysThinkingEnabled": true}'
+      enable_request_telemetry:
+        description: 'Emit sanitized Claude API request telemetry to the job log'
+        type: boolean
+        default: false
       setup_script:
         description: 'Shell commands to run before Claude (e.g. install lintrunner)'
         type: string
@@ -189,6 +193,13 @@ jobs:
           APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
               ${{ inputs.append_system_prompt }}
+          CLAUDE_CODE_ENABLE_TELEMETRY: ${{ inputs.enable_request_telemetry && '1' || '0' }}
+          OTEL_LOGS_EXPORTER: ${{ inputs.enable_request_telemetry && 'console' || '' }}
+          OTEL_METRICS_EXPORTER: ${{ inputs.enable_request_telemetry && 'console' || '' }}
+          OTEL_LOGS_EXPORT_INTERVAL: '1000'
+          OTEL_METRIC_EXPORT_INTERVAL: '10000'
+          OTEL_LOG_USER_PROMPTS: '0'
+          OTEL_LOG_TOOL_DETAILS: '0'
 
       - name: Upload usage metrics
         if: always()
