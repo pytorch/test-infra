@@ -538,15 +538,6 @@
       "rocm"
     ]
   ],
-  "test_jacfwd (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "179897",
-    "https://github.com/pytorch/pytorch/issues/179897",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
     "180204",
     "https://github.com/pytorch/pytorch/issues/180204",
