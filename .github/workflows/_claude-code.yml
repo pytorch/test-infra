@@ -183,7 +183,7 @@ jobs:
             console.log(`Set commit author to: ${name} <${email}>`);
 
       - name: Run Claude Code
-        uses: drisspg/claude-code-action-progress@92db82fd676eff339a6f35fa3680c8dbbf5488b4
+        uses: drisspg/claude-code-action-progress@8c6c7fee3659895ff32ff3f81096480ec7355c18
         with:
           allowed_bots: "*"
           use_bedrock: "true"
