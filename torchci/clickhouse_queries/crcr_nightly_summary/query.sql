@@ -7,13 +7,14 @@ SELECT
     count() AS total,
     if(total > 0, successes / total, 0) AS pass_rate,
     avg(duration_seconds) AS avg_duration_s,
-    max(started_at) AS last_run
+    max(started_at) AS last_run,
+    argMax(pytorch_head_sha, started_at) AS latest_sha
 FROM
     default.crcr_workflow_job FINAL
 WHERE
     started_at > now() - INTERVAL {days: UInt64} DAY
     AND status = 'completed'
-    AND pr_number > 0
+    AND event_type = 'nightly'
 GROUP BY
     repo
 ORDER BY
