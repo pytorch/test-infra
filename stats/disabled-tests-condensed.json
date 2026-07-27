@@ -204,13 +204,6 @@
       "linux"
     ]
   ],
-  "test_consecutive_split_cumsum_cuda (__main__.GPUTests)": [
-    "189708",
-    "https://github.com/pytorch/pytorch/issues/189708",
-    [
-      "rocm"
-    ]
-  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
@@ -383,6 +376,13 @@
     "https://github.com/pytorch/pytorch/issues/188840",
     []
   ],
+  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
+    "180259",
+    "https://github.com/pytorch/pytorch/issues/180259",
+    [
+      "dynamo"
+    ]
+  ],
   "test_ensemble_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180299",
     "https://github.com/pytorch/pytorch/issues/180299",
@@ -521,29 +521,6 @@
     "https://github.com/pytorch/pytorch/issues/78068",
     [
       "linux"
-    ]
-  ],
-  "test_invalid_block_size_cuda (__main__.TestFlexAttentionCUDA)": [
-    "189706",
-    "https://github.com/pytorch/pytorch/issues/189706",
-    [
-      "rocm"
-    ]
-  ],
-  "test_jacrev_has_aux (__main__.FuncTorchHigherOrderOpTestsWithCompiledAutograd)": [
-    "180204",
-    "https://github.com/pytorch/pytorch/issues/180204",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_large_strided_reduction_cuda (__main__.GPUTests)": [
-    "189709",
-    "https://github.com/pytorch/pytorch/issues/189709",
-    [
-      "rocm"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
@@ -699,13 +676,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_max_min_bool_cuda (__main__.GPUTests)": [
-    "189710",
-    "https://github.com/pytorch/pytorch/issues/189710",
-    [
-      "rocm"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
@@ -1199,13 +1169,6 @@
       "macos",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_split_cumsum_cuda (__main__.GPUTests)": [
-    "189707",
-    "https://github.com/pytorch/pytorch/issues/189707",
-    [
-      "rocm"
     ]
   ],
   "test_stream_backward_sync (__main__.TestStreams)": [
