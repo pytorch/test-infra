@@ -28,6 +28,10 @@ on:
         description: 'Claude settings JSON'
         type: string
         default: '{"alwaysThinkingEnabled": true}'
+      enable_safe_progress:
+        description: 'Log sanitized model, retry, and tool progress without message contents'
+        type: boolean
+        default: false
       setup_script:
         description: 'Shell commands to run before Claude (e.g. install lintrunner)'
         type: string
@@ -179,13 +183,14 @@ jobs:
             console.log(`Set commit author to: ${name} <${email}>`);
 
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
+        uses: drisspg/claude-code-action-progress@92db82fd676eff339a6f35fa3680c8dbbf5488b4
         with:
           allowed_bots: "*"
           use_bedrock: "true"
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
         env:
+          CLAUDE_CODE_ACTION_PROGRESS: ${{ inputs.enable_safe_progress && '1' || '0' }}
           APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
               ${{ inputs.append_system_prompt }}
