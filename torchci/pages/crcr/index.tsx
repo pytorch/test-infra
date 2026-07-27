@@ -291,11 +291,7 @@ function L1Section({ repos }: { repos: AllowlistEntry[] }) {
   );
 }
 
-function NightlyTable({
-  nightlyData,
-}: {
-  nightlyData: NightlyMetricsRow[];
-}) {
+function NightlyTable({ nightlyData }: { nightlyData: NightlyMetricsRow[] }) {
   return (
     <TableContainer component={Paper} elevation={1}>
       <Table size="small">
@@ -346,8 +342,8 @@ function NightlyTable({
                         row.pass_rate >= 0.95
                           ? "success.main"
                           : row.pass_rate >= 0.8
-                            ? "warning.main"
-                            : "error.main",
+                          ? "warning.main"
+                          : "error.main",
                       display: "inline-block",
                     }}
                   />
@@ -373,8 +369,7 @@ function NightlyTable({
                     variant="body2"
                     component="span"
                     sx={{
-                      color:
-                        row.failures > 0 ? "error.main" : "text.primary",
+                      color: row.failures > 0 ? "error.main" : "text.primary",
                       fontWeight: row.failures > 0 ? 500 : 400,
                     }}
                   >
@@ -758,9 +753,7 @@ export default function CrcrSummaryPage() {
             })}
 
             {!isLoading &&
-              LEVELS_ORDERED.every(
-                (l) => reposByLevel[l].length === 0
-              ) && (
+              LEVELS_ORDERED.every((l) => reposByLevel[l].length === 0) && (
                 <Typography
                   color="text.secondary"
                   sx={{ py: 4, textAlign: "center" }}
