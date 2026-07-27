@@ -196,14 +196,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_combinations_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "188983",
-    "https://github.com/pytorch/pytorch/issues/188983",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
@@ -1207,14 +1199,6 @@
       "macos",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_sparse_tensor_multiprocessing_context_spawn_cuda (__main__.TestDataLoaderDeviceTypeCUDA)": [
-    "179979",
-    "https://github.com/pytorch/pytorch/issues/179979",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_split_cumsum_cuda (__main__.GPUTests)": [
