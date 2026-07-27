@@ -11,12 +11,14 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -39,6 +41,21 @@ interface CiMetricsRow {
   avg_duration_s: number;
   last_run: string;
 }
+
+interface NightlyMetricsRow {
+  repo: string;
+  downstream_repo_level: string;
+  successes: number;
+  failures: number;
+  timed_out: number;
+  total: number;
+  pass_rate: number;
+  avg_duration_s: number;
+  last_run: string;
+  latest_sha: string;
+}
+
+type EventTab = "pr" | "nightly";
 
 type Level = "L1" | "L2" | "L3" | "L4";
 
@@ -274,6 +291,125 @@ function L1Section({ repos }: { repos: AllowlistEntry[] }) {
   );
 }
 
+function NightlyTable({
+  nightlyData,
+}: {
+  nightlyData: NightlyMetricsRow[];
+}) {
+  return (
+    <TableContainer component={Paper} elevation={1}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ width: 28 }} />
+            <TableCell>
+              <strong>Repository</strong>
+            </TableCell>
+            <TableCell align="center">
+              <strong>Level</strong>
+            </TableCell>
+            <TableCell align="center">
+              <strong>Pass Rate</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>Success</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>Failures</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>Total</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>SHA</strong>
+            </TableCell>
+            <TableCell align="right">
+              <strong>Last Run</strong>
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {nightlyData.map((row) => {
+            const parts = row.repo.split("/");
+            if (parts.length !== 2) return null;
+            const [org, repo] = parts;
+            const level = (row.downstream_repo_level || "L2") as Level;
+            return (
+              <TableRow key={row.repo} hover>
+                <TableCell align="center">
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      bgcolor:
+                        row.pass_rate >= 0.95
+                          ? "success.main"
+                          : row.pass_rate >= 0.8
+                            ? "warning.main"
+                            : "error.main",
+                      display: "inline-block",
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <NextLink
+                    href={`/crcr/${org}/${repo}`}
+                    passHref
+                    legacyBehavior
+                  >
+                    <Link underline="hover">{row.repo}</Link>
+                  </NextLink>
+                </TableCell>
+                <TableCell align="center">
+                  <LevelChip level={level} />
+                </TableCell>
+                <TableCell align="center">
+                  <PassRateChip rate={row.pass_rate} />
+                </TableCell>
+                <TableCell align="right">{row.successes}</TableCell>
+                <TableCell align="right">
+                  <Typography
+                    variant="body2"
+                    component="span"
+                    sx={{
+                      color:
+                        row.failures > 0 ? "error.main" : "text.primary",
+                      fontWeight: row.failures > 0 ? 500 : 400,
+                    }}
+                  >
+                    {row.failures}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{row.total}</TableCell>
+                <TableCell align="right">
+                  {row.latest_sha ? (
+                    <Link
+                      href={`https://github.com/pytorch/pytorch/commit/${row.latest_sha}`}
+                      target="_blank"
+                      rel="noopener"
+                      sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}
+                    >
+                      {row.latest_sha.slice(0, 7)}
+                    </Link>
+                  ) : (
+                    "–"
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="body2" color="text.secondary">
+                    {timeAgo(row.last_run)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -347,6 +483,7 @@ function CrcrTestHealthCard({
 
 export default function CrcrSummaryPage() {
   const [days, setDays] = useState(7);
+  const [activeTab, setActiveTab] = useState<EventTab>("pr");
 
   const ciUrl = `/api/clickhouse/crcr_summary?parameters=${encodeURIComponent(
     JSON.stringify({ days: String(days) })
@@ -361,6 +498,15 @@ export default function CrcrSummaryPage() {
     fetcherHandleError,
     { refreshInterval: 5 * 60_000 }
   );
+
+  const nightlyUrl =
+    `/api/clickhouse/crcr_nightly_summary?parameters=` +
+    encodeURIComponent(JSON.stringify({ days: String(days) }));
+  const { data: nightlyData, error: nightlyError } = useSWR<
+    NightlyMetricsRow[]
+  >(nightlyUrl, fetcherHandleError, { refreshInterval: 60_000 });
+
+  const nightlyRepoCount = nightlyData?.length ?? 0;
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -450,7 +596,7 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !ciData && !ciError && !allowlist && !alError;
-  const hasError = ciError || alError;
+  const hasError = ciError || alError || nightlyError;
 
   return (
     <>
@@ -502,7 +648,10 @@ export default function CrcrSummaryPage() {
 
         {hasError && (
           <Typography color="error">
-            {ciError?.message || alError?.message || "Failed to load data"}
+            {ciError?.message ||
+              alError?.message ||
+              nightlyError?.message ||
+              "Failed to load data"}
           </Typography>
         )}
 
@@ -538,50 +687,143 @@ export default function CrcrSummaryPage() {
           </Stack>
         )}
 
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Registered downstream repos sorted by pass rate (worst first). Click a
-          row to see the per-downstream repo dashboard.
-        </Typography>
-
-        {LEVELS_ORDERED.map((level) => {
-          const repos = reposByLevel[level];
-          if (repos.length === 0) return null;
-          const meta = LEVEL_META[level];
-
-          return (
-            <Box key={level}>
-              <Divider sx={{ mb: 2 }}>
-                <Typography variant="h6">{meta.label}</Typography>
-              </Divider>
-              {level === "L1" ? (
-                <L1Section repos={repos} />
-              ) : (
-                <CiHealthTable
-                  level={level}
-                  repos={repos}
-                  metricsMap={metricsMap}
+        <Tabs
+          value={activeTab}
+          onChange={(_, v: EventTab) => setActiveTab(v)}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab
+            label={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                Pull Requests
+                <Chip
+                  label={
+                    LEVELS_ORDERED.reduce(
+                      (n, l) => n + reposByLevel[l].length,
+                      0
+                    ) || "–"
+                  }
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: "0.75rem" }}
                 />
-              )}
-            </Box>
-          );
-        })}
+              </Box>
+            }
+            value="pr"
+          />
+          <Tab
+            label={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                Nightly
+                <Chip
+                  label={nightlyRepoCount || "–"}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: "0.75rem" }}
+                />
+              </Box>
+            }
+            value="nightly"
+          />
+        </Tabs>
 
-        {!isLoading &&
-          LEVELS_ORDERED.every((l) => reposByLevel[l].length === 0) && (
-            <Typography
-              color="text.secondary"
-              sx={{ py: 4, textAlign: "center" }}
-            >
-              No CRCR backends registered. Add repos to{" "}
-              <Link
-                href="https://github.com/pytorch/pytorch/blob/main/.github/allowlist.yml"
-                target="_blank"
-              >
-                pytorch/pytorch/.github/allowlist.yml
-              </Link>{" "}
-              to get started.
+        {activeTab === "pr" && (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Registered downstream repos sorted by pass rate (worst first).
+              Click a row to see the per-downstream repo dashboard.
             </Typography>
-          )}
+
+            {LEVELS_ORDERED.map((level) => {
+              const repos = reposByLevel[level];
+              if (repos.length === 0) return null;
+              const meta = LEVEL_META[level];
+
+              return (
+                <Box key={level}>
+                  <Divider sx={{ mb: 2 }}>
+                    <Typography variant="h6">{meta.label}</Typography>
+                  </Divider>
+                  {level === "L1" ? (
+                    <L1Section repos={repos} />
+                  ) : (
+                    <CiHealthTable
+                      level={level}
+                      repos={repos}
+                      metricsMap={metricsMap}
+                    />
+                  )}
+                </Box>
+              );
+            })}
+
+            {!isLoading &&
+              LEVELS_ORDERED.every(
+                (l) => reposByLevel[l].length === 0
+              ) && (
+                <Typography
+                  color="text.secondary"
+                  sx={{ py: 4, textAlign: "center" }}
+                >
+                  No CRCR backends registered. Add repos to{" "}
+                  <Link
+                    href="https://github.com/pytorch/pytorch/blob/main/.github/allowlist.yml"
+                    target="_blank"
+                  >
+                    pytorch/pytorch/.github/allowlist.yml
+                  </Link>{" "}
+                  to get started.
+                </Typography>
+              )}
+          </>
+        )}
+
+        {activeTab === "nightly" && (
+          <>
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 1,
+                p: 2,
+                bgcolor: "action.hover",
+                borderLeft: "3px solid",
+                borderColor: "info.main",
+              }}
+            >
+              <Typography variant="body2">
+                Nightly CI runs triggered daily from the{" "}
+                <code>pytorch/pytorch</code> nightly branch HEAD. Results are
+                reported via the CRCR callback pipeline.
+              </Typography>
+            </Paper>
+
+            {nightlyData && nightlyData.length > 0 ? (
+              <>
+                <Typography variant="h6" sx={{ mt: 2 }}>
+                  Nightly CI Runs — Last {days} Days
+                </Typography>
+                <NightlyTable nightlyData={nightlyData} />
+              </>
+            ) : (
+              <Paper
+                elevation={0}
+                sx={{
+                  mt: 2,
+                  p: 3,
+                  textAlign: "center",
+                  border: "1px dashed",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  No nightly CI results reported yet. Repos will appear here
+                  once their nightly workflows are set up and report back via
+                  the callback action.
+                </Typography>
+              </Paper>
+            )}
+          </>
+        )}
       </Stack>
     </>
   );
