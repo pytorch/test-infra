@@ -331,7 +331,7 @@
     "profiler/test_execution_trace": 0.14285714285714285,
     "profiler/test_profiler": 0.14285714285714285,
     "profiler/test_python_tracer": 0.22527472527472528,
-    "test_jit_fuser_te": 0.07692307692307693,
+    "test_jit_fuser_te": 0.05128205128205128,
     "test_tensorboard": 0.1111111111111111,
     "test_torch": 0.22527472527472528,
     "test_tsan": 0.22527472527472528,
@@ -368,7 +368,7 @@
   },
   ".ci/pytorch/macos-test.sh": {
     "export/test_export": 0.44843085724064585,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   ".ci/pytorch/multigpu-test.sh": {
     "distributed/test_aten_comm_compute_reordering": 0.125,
@@ -517,7 +517,7 @@
     "test_fx": 0.07692307692307693,
     "test_jit": 0.07142857142857142,
     "test_jit_autocast": 0.07142857142857142,
-    "test_jit_fuser_te": 0.07692307692307693,
+    "test_jit_fuser_te": 0.05128205128205128,
     "test_linalg": 0.54,
     "test_logging": 0.25,
     "test_namedtuple_return_api": 0.04,
@@ -4878,7 +4878,7 @@
     "test_namedtensor": 0.023342751575744405,
     "test_namedtuple_return_api": 0.14344827586206896,
     "test_nestedtensor": 0.08333333333333333,
-    "test_nn": 0.9451431733761663,
+    "test_nn": 0.9451431733761662,
     "test_ops": 0.6667910274378133,
     "test_overrides": 0.023342751575744405,
     "test_public_bindings": 0.10250000000000001,
@@ -5567,7 +5567,7 @@
     "test_fx": 0.07692307692307693
   },
   "aten/src/ATen/test/thread_init_test.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "aten/src/ATen/test/vec_test_all_types.cpp": {
     "test_nn": 0.21666666666666667
@@ -8157,7 +8157,7 @@
   "c10/metal/reduction_utils.h": {
     "inductor/test_mps_basic": 0.7,
     "inductor/test_torchinductor_dynamic_shapes": 0.25,
-    "test_mps": 0.8583333333333334,
+    "test_mps": 1.3583333333333332,
     "test_reductions": 0.16666666666666666
   },
   "c10/metal/special_math.h": {
@@ -8262,7 +8262,7 @@
     "inductor/test_aot_inductor": 0.2,
     "profiler/test_profiler": 0.07692307692307693,
     "test_cuda": 0.27692307692307694,
-    "test_jit_fuser_te": 0.07692307692307693,
+    "test_jit_fuser_te": 0.05128205128205128,
     "test_linalg": 0.2,
     "test_matmul_cuda": 0.2936507936507936,
     "test_numa_binding": 0.13538461538461538,
@@ -11929,103 +11929,103 @@
     "profiler/test_profiler": 0.07692307692307693
   },
   "test/cpp/tensorexpr/CMakeLists.txt": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/README.md": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/gtest_assert_float_eq.h": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/padded_buffer.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/padded_buffer.h": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_approx.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_aten.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_base.h": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_boundsinference.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_conv.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_cpp_codegen.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_cuda.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_dynamic_shapes.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_expr.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_external_calls.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_graph_opt.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_ir_printer.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_ir_verifier.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_kernel.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_llvm.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_loopnest.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_memdependency.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_memplanning.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_ops.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_quantization.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_reductions.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_registerizer.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_simplify.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_te_fuser_pass.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_type.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_type_specializations.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/test_utils.h": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp/tensorexpr/tutorial.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "test/cpp_api_parity/functional_impl_check.py": {
     "benchmark_utils/test_benchmark_utils": 0.029411764705882353,
@@ -14232,7 +14232,7 @@
     "test_utils_config_module": 0.008403361344537815
   },
   "test/custom_operator/test_inplace_tag.py": {
-    "custom_operator/test_inplace_tag": 1.2415140415140413,
+    "custom_operator/test_inplace_tag": 1.2415140415140415,
     "custom_operator/test_out_variant": 0.04151404151404151,
     "distributed/_composable/test_replicate_with_compiler": 0.015873015873015872,
     "distributed/checkpoint/test_pg_transport": 0.015873015873015872,
@@ -35633,7 +35633,7 @@
   },
   "test/distributed/tensor/test_fake.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "test/distributed/tensor/test_init.py": {
     "distributed/tensor/test_api": 0.09090909090909091,
@@ -37749,7 +37749,7 @@
     "distributed/tensor/test_pointwise_ops": 1.0063291139240504,
     "distributed/tensor/test_random_ops": 0.06502129893202512,
     "distributed/tensor/test_redistribute": 0.012389719984656693,
-    "distributed/tensor/test_single_dim_strategy": 11.501132410043137,
+    "distributed/tensor/test_single_dim_strategy": 11.50113241004314,
     "distributed/tensor/test_strategy_validation": 0.012389719984656693,
     "distributed/tensor/test_tensor_ops": 0.5511324100431362,
     "distributed/tensor/test_utils": 0.39835463226535844,
@@ -39393,12 +39393,12 @@
     "inductor/test_cpu_select_algorithm": 0.008403361344537815,
     "inductor/test_cuda_repro": 0.006060606060606061,
     "inductor/test_cudagraph_trees": 0.006060606060606061,
-    "inductor/test_custom_op_autotune": 0.2175179251128618,
+    "inductor/test_custom_op_autotune": 0.21751792511286183,
     "inductor/test_cutedsl_template": 0.006060606060606061,
     "inductor/test_cutlass_backend": 0.259592172533349,
     "inductor/test_deterministic": 0.006060606060606061,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
-    "inductor/test_flex_attention": 0.22592128645739962,
+    "inductor/test_flex_attention": 0.22592128645739964,
     "inductor/test_flex_decoding": 0.21353156647274293,
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.006060606060606061,
@@ -39412,17 +39412,17 @@
     "inductor/test_kernel_benchmark": 0.20512820512820512,
     "inductor/test_lookup_table": 0.02079308132919451,
     "inductor/test_loop_ordering": 0.012389719984656693,
-    "inductor/test_max_autotune": 0.22592128645739962,
+    "inductor/test_max_autotune": 0.22592128645739964,
     "inductor/test_max_autotune_blackwell": 0.20512820512820512,
     "inductor/test_mem_estimation": 0.008403361344537815,
     "inductor/test_memory": 0.006329113924050633,
-    "inductor/test_mix_order_reduction": 0.21118881118881117,
+    "inductor/test_mix_order_reduction": 0.2111888111888112,
     "inductor/test_mkldnn_pattern_matcher": 0.06305418719211822,
     "inductor/test_mmdecomp": 0.008403361344537815,
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_padding": 0.012389719984656693,
     "inductor/test_pattern_matcher": 0.02079308132919451,
@@ -39434,7 +39434,7 @@
     "inductor/test_split_cat_fx_aten_passes": 0.006329113924050633,
     "inductor/test_split_cat_fx_passes": 0.006329113924050633,
     "inductor/test_static_triton_launcher": 0.008403361344537815,
-    "inductor/test_torchinductor": 0.2175179251128618,
+    "inductor/test_torchinductor": 0.21751792511286183,
     "inductor/test_torchinductor_codegen_config_overrides": 0.008403361344537815,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.006329113924050633,
@@ -39467,7 +39467,7 @@
     "test_bundled_inputs": 0.008403361344537815,
     "test_compile_benchmark_util": 0.038461538461538464,
     "test_complex": 0.012389719984656693,
-    "test_cuda": 0.24608935368429039,
+    "test_cuda": 0.2460893536842904,
     "test_cuda_graph_utils": 0.006329113924050633,
     "test_cuda_multigpu": 0.008403361344537815,
     "test_cuda_sanitizer": 0.008403361344537815,
@@ -39487,7 +39487,7 @@
     "test_jit": 0.034900542495479206,
     "test_jit_autocast": 0.008403361344537815,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.22592128645739962,
+    "test_linalg": 0.22592128645739964,
     "test_logging": 0.006329113924050633,
     "test_matmul_cuda": 0.20512820512820512,
     "test_mobile_optimizer": 0.006060606060606061,
@@ -39659,7 +39659,7 @@
     "distributed/test_fake_pg": 0.0967741935483871,
     "distributed/test_functional_api": 0.3547741935483871,
     "distributed/test_functional_differentials": 0.34677419354838707,
-    "distributed/test_inductor_collectives": 1.7682448797249553,
+    "distributed/test_inductor_collectives": 1.768244879724955,
     "distributed/test_nccl": 0.00980392156862745,
     "distributed/test_overlap_bucketing_unit": 0.015864527629233512,
     "distributed/test_pg_wrapper": 0.006060606060606061,
@@ -43381,7 +43381,7 @@
     "dynamo/test_install_free_tensors": 0.047619047619047616,
     "dynamo/test_list": 0.006060606060606061,
     "dynamo/test_logging": 0.09185606060606061,
-    "dynamo/test_misc": 0.34899891774891767,
+    "dynamo/test_misc": 0.3489989177489178,
     "dynamo/test_modes": 0.09185606060606061,
     "dynamo/test_modules": 0.11428571428571428,
     "dynamo/test_nested_graph_breaks": 0.34185606060606055,
@@ -43400,7 +43400,7 @@
     "dynamo/test_tp_slots": 0.006060606060606061,
     "dynamo/test_trace_rules": 0.014060606060606062,
     "dynamo/test_unittest": 0.09185606060606061,
-    "dynamo/test_utils": 0.15353571428571428,
+    "dynamo/test_utils": 0.1535357142857143,
     "export/test_dynamic_spec_export": 0.006060606060606061,
     "export/test_export": 0.04452214452214452,
     "export/test_hop": 0.008,
@@ -43423,7 +43423,7 @@
     "inductor/test_combo_kernels": 0.014060606060606062,
     "inductor/test_compile_subprocess": 0.008,
     "inductor/test_compile_worker": 0.008,
-    "inductor/test_compiled_autograd": 0.15353571428571428,
+    "inductor/test_compiled_autograd": 0.1535357142857143,
     "inductor/test_control_deps": 0.014060606060606062,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
     "inductor/test_cpu_repro": 0.014060606060606062,
@@ -44221,7 +44221,7 @@
     "distributed/tensor/test_utils": 0.006329113924050633,
     "distributed/test_aten_comm_compute_reordering": 0.3302248387637382,
     "distributed/test_c10d_common": 0.46927792981404304,
-    "distributed/test_c10d_functional_native": 1.7682448797249553,
+    "distributed/test_c10d_functional_native": 1.768244879724955,
     "distributed/test_c10d_gloo": 0.044790652385589096,
     "distributed/test_c10d_nccl": 0.054594573954216546,
     "distributed/test_c10d_object_collectives": 0.006329113924050633,
@@ -54528,7 +54528,7 @@
     "dynamo/test_dynamo_ops": 0.006329113924050633,
     "dynamo/test_einops": 0.07692307692307693,
     "dynamo/test_enum": 0.07692307692307693,
-    "dynamo/test_error_messages": 0.28728149487643156,
+    "dynamo/test_error_messages": 0.2872814948764316,
     "dynamo/test_exceptions": 0.047619047619047616,
     "dynamo/test_export": 0.22394483153976824,
     "dynamo/test_fwd_loss_bwd": 0.08325219084712757,
@@ -54544,7 +54544,7 @@
     "dynamo/test_modules": 0.11428571428571428,
     "dynamo/test_profiler": 0.006329113924050633,
     "dynamo/test_recompiles": 0.11428571428571428,
-    "dynamo/test_repros": 0.19753790513284183,
+    "dynamo/test_repros": 0.19753790513284186,
     "dynamo/test_streams": 0.75,
     "dynamo/test_structured_trace": 0.047619047619047616,
     "dynamo/test_subclasses": 0.047619047619047616,
@@ -55628,7 +55628,7 @@
     "dynamo/test_global": 0.08672699849170437,
     "dynamo/test_graph_deduplication": 0.00980392156862745,
     "dynamo/test_guard_manager": 0.09185606060606061,
-    "dynamo/test_guard_serialization": 1.1565227272727272,
+    "dynamo/test_guard_serialization": 1.1565227272727274,
     "dynamo/test_higher_order_ops": 0.66621173545819,
     "dynamo/test_hooks": 0.1988703376087277,
     "dynamo/test_inline_and_install": 0.0625,
@@ -55665,7 +55665,7 @@
     "dynamo/test_unittest": 0.09185606060606061,
     "dynamo/test_unspec": 0.18812850986025859,
     "dynamo/test_user_defined_object": 0.07894736842105263,
-    "dynamo/test_utils": 0.7946679566563467,
+    "dynamo/test_utils": 0.7946679566563468,
     "dynamo/test_wrap_inductor_compiled_regions": 0.17370543293718166,
     "export/test_converter": 0.00980392156862745,
     "export/test_export": 1.005521978021978,
@@ -56759,7 +56759,7 @@
     "dynamo/test_base_hop": 0.03225806451612903,
     "dynamo/test_bytecode_utils": 0.2,
     "dynamo/test_call_protocol": 0.125,
-    "dynamo/test_compile": 0.28728149487643156,
+    "dynamo/test_compile": 0.2872814948764316,
     "dynamo/test_compiler_bisector": 0.03225806451612903,
     "dynamo/test_comprehensions": 0.09185606060606061,
     "dynamo/test_contains_protocol": 0.006329113924050633,
@@ -58400,7 +58400,7 @@
     "dynamo/test_fake_distributed": 0.09185606060606061,
     "dynamo/test_functions": 0.09185606060606061,
     "dynamo/test_fx_graph_runnable": 0.09185606060606061,
-    "dynamo/test_generator": 9.421960077124153,
+    "dynamo/test_generator": 9.421960077124151,
     "dynamo/test_guard_manager": 0.09185606060606061,
     "dynamo/test_guard_serialization": 0.09185606060606061,
     "dynamo/test_higher_order_ops": 0.12411412512218964,
@@ -59194,7 +59194,7 @@
     "dynamo/test_config": 0.1,
     "dynamo/test_ctx_manager": 0.1918560606060606,
     "dynamo/test_debug_utils": 0.006060606060606061,
-    "dynamo/test_decorators": 1.1565227272727272,
+    "dynamo/test_decorators": 1.1565227272727274,
     "dynamo/test_dicts": 0.03463203463203463,
     "dynamo/test_dynamic_shapes": 0.047619047619047616,
     "dynamo/test_dynamic_spec": 0.006060606060606061,
@@ -59262,7 +59262,7 @@
     "inductor/test_combo_kernels": 0.014060606060606062,
     "inductor/test_compile_subprocess": 0.008,
     "inductor/test_compile_worker": 0.008,
-    "inductor/test_compiled_autograd": 0.21603571428571428,
+    "inductor/test_compiled_autograd": 0.2160357142857143,
     "inductor/test_control_deps": 0.014060606060606062,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
     "inductor/test_cpu_repro": 0.014060606060606062,
@@ -60538,7 +60538,7 @@
     "distributed/test_c10d_object_collectives": 0.006329113924050633,
     "distributed/test_composability": 0.006329113924050633,
     "distributed/test_distributed_spawn": 0.20512820512820512,
-    "distributed/test_dynamo_distributed": 0.34899891774891767,
+    "distributed/test_dynamo_distributed": 0.3489989177489178,
     "distributed/test_fake_backend_new_group": 0.006329113924050633,
     "distributed/test_functional_api": 0.006329113924050633,
     "distributed/test_inductor_collectives": 0.29204339963833637,
@@ -60605,7 +60605,7 @@
     "dynamo/test_lazy_constant": 0.8333333333333335,
     "dynamo/test_list": 0.09090909090909091,
     "dynamo/test_logging": 0.3199896858083067,
-    "dynamo/test_misc": 64.41904055647173,
+    "dynamo/test_misc": 63.41904055647173,
     "dynamo/test_modes": 0.4271325429511639,
     "dynamo/test_modules": 0.6832792207792208,
     "dynamo/test_nb_multiply": 0.3333333333333333,
@@ -60656,7 +60656,7 @@
     "inductor/test_codegen_triton": 0.006329113924050633,
     "inductor/test_combo_kernels": 0.006329113924050633,
     "inductor/test_compile_worker": 0.006329113924050633,
-    "inductor/test_compiled_autograd": 0.36601050049349326,
+    "inductor/test_compiled_autograd": 0.3660105004934934,
     "inductor/test_compiled_optimizers": 0.006329113924050633,
     "inductor/test_config": 0.2909090909090909,
     "inductor/test_control_flow": 0.07692307692307693,
@@ -62766,7 +62766,7 @@
     "dynamo/test_buffers_override": 0.07692307692307693,
     "dynamo/test_bytecode_utils": 0.07692307692307693,
     "dynamo/test_callback": 0.08875128998968007,
-    "dynamo/test_compile": 0.19753790513284183,
+    "dynamo/test_compile": 0.19753790513284186,
     "dynamo/test_compiler_bisector": 0.1368464585782073,
     "dynamo/test_complex": 0.07894736842105263,
     "dynamo/test_comprehensions": 0.09185606060606061,
@@ -65330,7 +65330,7 @@
     "distributed/test_data_parallel": 0.006060606060606061,
     "distributed/test_device_mesh": 0.006060606060606061,
     "distributed/test_dist2": 0.008,
-    "distributed/test_dynamo_distributed": 0.15353571428571428,
+    "distributed/test_dynamo_distributed": 0.1535357142857143,
     "distributed/test_fake_backend_new_group": 0.006060606060606061,
     "distributed/test_fake_pg": 0.034482758620689655,
     "distributed/test_functional_api": 0.008,
@@ -65361,7 +65361,7 @@
     "dynamo/test_comptime": 0.18714382304645996,
     "dynamo/test_ctx_manager": 0.10165998217468805,
     "dynamo/test_debug_utils": 0.20592300716139725,
-    "dynamo/test_decorators": 0.7946679566563467,
+    "dynamo/test_decorators": 0.7946679566563468,
     "dynamo/test_dicts": 0.050347286249923164,
     "dynamo/test_dynamic_shapes": 0.3203463203463204,
     "dynamo/test_dynamic_spec": 0.08500797448165869,
@@ -65446,7 +65446,7 @@
     "inductor/test_combo_kernels": 0.014060606060606062,
     "inductor/test_compile_subprocess": 0.008,
     "inductor/test_compile_worker": 0.008,
-    "inductor/test_compiled_autograd": 0.15353571428571428,
+    "inductor/test_compiled_autograd": 0.1535357142857143,
     "inductor/test_control_deps": 0.014060606060606062,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
     "inductor/test_cpu_repro": 0.014060606060606062,
@@ -94619,7 +94619,7 @@
     "inductor/test_ck_backend": 0.05298913043478261,
     "inductor/test_codecache": 0.06354061512532166,
     "inductor/test_codegen_triton": 0.006329113924050633,
-    "inductor/test_combo_kernels": 38.341102303437005,
+    "inductor/test_combo_kernels": 38.841102303437,
     "inductor/test_compile_subprocess": 0.008,
     "inductor/test_compile_worker": 0.014329113924050632,
     "inductor/test_compiled_autograd": 0.42524937998914975,
@@ -95293,7 +95293,7 @@
     "distributed/test_data_parallel": 0.006060606060606061,
     "distributed/test_device_mesh": 0.038908193256019345,
     "distributed/test_dist2": 0.008,
-    "distributed/test_dynamo_distributed": 0.15353571428571428,
+    "distributed/test_dynamo_distributed": 0.1535357142857143,
     "distributed/test_fake_backend_new_group": 0.006060606060606061,
     "distributed/test_functional_api": 0.008,
     "distributed/test_overlap_bucketing_unit": 0.006060606060606061,
@@ -95331,14 +95331,14 @@
     "dynamo/test_generator": 0.09185606060606061,
     "dynamo/test_getitem": 0.006060606060606061,
     "dynamo/test_guard_manager": 0.09791666666666667,
-    "dynamo/test_guard_serialization": 0.21603571428571428,
+    "dynamo/test_guard_serialization": 0.2160357142857143,
     "dynamo/test_higher_order_ops": 1.3832650202628547,
     "dynamo/test_hooks": 0.14237711213517665,
     "dynamo/test_inline_and_install": 0.0625,
     "dynamo/test_install_free_tensors": 0.11011904761904762,
     "dynamo/test_list": 0.006060606060606061,
     "dynamo/test_logging": 0.14300695574672556,
-    "dynamo/test_misc": 0.36601050049349326,
+    "dynamo/test_misc": 0.3660105004934934,
     "dynamo/test_modes": 0.09185606060606061,
     "dynamo/test_modules": 0.20546663481446087,
     "dynamo/test_nested_graph_breaks": 0.09185606060606061,
@@ -95358,7 +95358,7 @@
     "dynamo/test_tree_map": 0.1406926406926407,
     "dynamo/test_unittest": 0.09185606060606061,
     "dynamo/test_unspec": 0.03225806451612903,
-    "dynamo/test_utils": 0.15353571428571428,
+    "dynamo/test_utils": 0.1535357142857143,
     "dynamo/test_wrap_inductor_compiled_regions": 0.0625,
     "export/test_dynamic_spec_export": 0.006060606060606061,
     "export/test_export": 0.4461866564807741,
@@ -95426,7 +95426,7 @@
     "inductor/test_dropout_align_random_eager": 0.006060606060606061,
     "inductor/test_extension_backend": 0.07458075904677847,
     "inductor/test_external_callables": 0.03333333333333333,
-    "inductor/test_flex_attention": 0.4653459105619299,
+    "inductor/test_flex_attention": 0.46534591056193,
     "inductor/test_flex_decoding": 0.029126213592233007,
     "inductor/test_flex_flash": 0.051515151515151514,
     "inductor/test_flex_gemm": 0.006060606060606061,
@@ -95451,7 +95451,7 @@
     "inductor/test_kernel_optimization": 0.045454545454545456,
     "inductor/test_lookup_table": 0.014060606060606062,
     "inductor/test_loop_ordering": 0.08276515151515151,
-    "inductor/test_max_autotune": 0.399254955306498,
+    "inductor/test_max_autotune": 0.39925495530649807,
     "inductor/test_mem_estimation": 0.045454545454545456,
     "inductor/test_memory": 0.5710838220918867,
     "inductor/test_memory_planning": 0.07045954692556633,
@@ -95484,7 +95484,7 @@
     "inductor/test_split_cat_fx_passes": 0.029126213592233007,
     "inductor/test_static_triton_launcher": 0.08258075904677846,
     "inductor/test_subgraph_choice": 0.045454545454545456,
-    "inductor/test_torchinductor": 0.828341497359699,
+    "inductor/test_torchinductor": 0.8283414973596991,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.051515151515151514,
     "inductor/test_torchinductor_dynamic_shapes": 0.06719367588932806,
     "inductor/test_torchinductor_opinfo": 0.6078387970445862,
@@ -97266,7 +97266,7 @@
     "inductor/test_cooperative_reductions": 0.021739130434782608,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
     "inductor/test_cpu_repro": 0.7240984848484848,
-    "inductor/test_cuda_repro": 36.85808769425745,
+    "inductor/test_cuda_repro": 36.85808769425744,
     "inductor/test_cudacodecache": 0.021739130434782608,
     "inductor/test_cudagraph_trees": 0.33320931616303284,
     "inductor/test_cudagraph_trees_expandable_segments": 0.021739130434782608,
@@ -97275,7 +97275,7 @@
     "inductor/test_cutlass_backend": 0.3277997364953886,
     "inductor/test_cutlass_evt": 0.05086534402701562,
     "inductor/test_decompose_mem_bound_mm": 0.029739130434782608,
-    "inductor/test_deterministic": 0.31406060606060604,
+    "inductor/test_deterministic": 0.3140606060606061,
     "inductor/test_device_assert": 0.1,
     "inductor/test_dropout_align_random_eager": 0.006060606060606061,
     "inductor/test_extension_backend": 0.029126213592233007,
@@ -97328,7 +97328,7 @@
     "inductor/test_split_cat_fx_passes": 0.029126213592233007,
     "inductor/test_static_triton_launcher": 0.037126213592233004,
     "inductor/test_subgraph_choice": 0.24285714285714285,
-    "inductor/test_torchinductor": 1.8655963993204832,
+    "inductor/test_torchinductor": 1.8655963993204834,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.20606060606060606,
     "inductor/test_torchinductor_dynamic_shapes": 0.2217391304347826,
     "inductor/test_torchinductor_opinfo": 0.7329724868841586,
@@ -98043,7 +98043,7 @@
     "distributed/tensor/test_strategy_validation": 0.15524686284179953,
     "distributed/tensor/test_tensor_ops": 0.020389719984656694,
     "distributed/tensor/test_utils": 0.012389719984656693,
-    "distributed/test_c10d_common": 0.2175179251128618,
+    "distributed/test_c10d_common": 0.21751792511286183,
     "distributed/test_c10d_functional_native": 0.014060606060606062,
     "distributed/test_c10d_gloo": 0.020389719984656694,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -98143,7 +98143,7 @@
     "inductor/test_cudagraph_trees": 0.26060438486244936,
     "inductor/test_custom_op_autotune": 4.556585513438514,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21118881118881117,
+    "inductor/test_cutlass_backend": 0.2111888111888112,
     "inductor/test_decompose_mem_bound_mm": 0.008,
     "inductor/test_deterministic": 0.26406060606060605,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
@@ -98167,7 +98167,7 @@
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.03858717844017966,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_padding": 0.012389719984656693,
     "inductor/test_pattern_matcher": 0.012389719984656693,
@@ -98231,7 +98231,7 @@
     "test_jit": 0.014329113924050632,
     "test_jit_fuser_te": 0.008,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.2255179251128618,
+    "test_linalg": 0.22551792511286184,
     "test_logging": 0.006329113924050633,
     "test_matmul_cuda": 0.20512820512820512,
     "test_meta": 0.008,
@@ -98241,7 +98241,7 @@
     "test_mps": 0.020389719984656694,
     "test_multiprocessing": 0.014329113924050632,
     "test_nestedtensor": 0.22834632034632033,
-    "test_nn": 0.2255179251128618,
+    "test_nn": 0.22551792511286184,
     "test_numpy_interop": 0.006329113924050633,
     "test_opaque_obj_v2": 0.014060606060606062,
     "test_openmp": 0.006060606060606061,
@@ -98753,9 +98753,9 @@
     "inductor/test_cudacodecache": 0.05115089514066496,
     "inductor/test_cudagraph_trees": 0.057211501201271026,
     "inductor/test_cudagraph_trees_expandable_segments": 0.021739130434782608,
-    "inductor/test_custom_op_autotune": 0.21118881118881117,
+    "inductor/test_custom_op_autotune": 0.2111888111888112,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 29.4164407225096,
+    "inductor/test_cutlass_backend": 29.74977405584293,
     "inductor/test_cutlass_evt": 1.965745698579282,
     "inductor/test_decompose_mem_bound_mm": 0.021739130434782608,
     "inductor/test_deterministic": 0.006060606060606061,
@@ -98779,13 +98779,13 @@
     "inductor/test_max_autotune": 0.2413313029681316,
     "inductor/test_max_autotune_blackwell": 0.20512820512820512,
     "inductor/test_mem_estimation": 0.008403361344537815,
-    "inductor/test_mix_order_reduction": 0.21118881118881117,
+    "inductor/test_mix_order_reduction": 0.2111888111888112,
     "inductor/test_mmdecomp": 0.008403361344537815,
     "inductor/test_needs_exact_strides": 0.021739130434782608,
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_online_softmax": 0.021739130434782608,
     "inductor/test_op_completeness": 0.006060606060606061,
-    "inductor/test_origami": 0.21118881118881117,
+    "inductor/test_origami": 0.2111888111888112,
     "inductor/test_pad_mm": 0.021739130434782608,
     "inductor/test_padding": 0.006060606060606061,
     "inductor/test_pattern_matcher": 0.014463967405143874,
@@ -98797,7 +98797,7 @@
     "inductor/test_select_algorithm": 0.014463967405143874,
     "inductor/test_split_cat_fx_aten_passes": 0.029411764705882353,
     "inductor/test_static_triton_launcher": 0.008403361344537815,
-    "inductor/test_torchinductor": 0.5790621143562318,
+    "inductor/test_torchinductor": 0.5790621143562319,
     "inductor/test_torchinductor_codegen_config_overrides": 0.008403361344537815,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.021739130434782608,
@@ -98827,7 +98827,7 @@
     "test_bundled_inputs": 0.008403361344537815,
     "test_compile_benchmark_util": 0.038461538461538464,
     "test_complex": 0.006060606060606061,
-    "test_cuda": 0.21118881118881117,
+    "test_cuda": 0.2111888111888112,
     "test_cuda_multigpu": 0.008403361344537815,
     "test_cuda_sanitizer": 0.008403361344537815,
     "test_custom_ops": 0.008403361344537815,
@@ -98844,7 +98844,7 @@
     "test_jit": 0.038461538461538464,
     "test_jit_autocast": 0.008403361344537815,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.21959217253334898,
+    "test_linalg": 0.219592172533349,
     "test_matmul_cuda": 0.20512820512820512,
     "test_mobile_optimizer": 0.006060606060606061,
     "test_modules": 0.006060606060606061,
@@ -98852,7 +98852,7 @@
     "test_multiprocessing": 0.038461538461538464,
     "test_native_functions": 0.008403361344537815,
     "test_nestedtensor": 0.014463967405143874,
-    "test_nn": 0.21118881118881117,
+    "test_nn": 0.2111888111888112,
     "test_numa_binding": 0.008403361344537815,
     "test_numpy_interop": 0.038461538461538464,
     "test_opaque_obj_v2": 0.014463967405143874,
@@ -99379,7 +99379,7 @@
     "inductor/test_control_flow": 0.25,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
     "inductor/test_cpu_repro": 0.014060606060606062,
-    "inductor/test_cuda_repro": 0.31406060606060604,
+    "inductor/test_cuda_repro": 0.3140606060606061,
     "inductor/test_cudagraph_trees": 0.014060606060606062,
     "inductor/test_custom_lowering": 0.03333333333333333,
     "inductor/test_custom_op_autotune": 0.26406060606060605,
@@ -99391,7 +99391,7 @@
     "inductor/test_distributed_patterns": 0.03333333333333333,
     "inductor/test_dropout_align_random_eager": 0.006060606060606061,
     "inductor/test_external_callables": 0.03333333333333333,
-    "inductor/test_flex_attention": 0.31406060606060604,
+    "inductor/test_flex_attention": 0.3140606060606061,
     "inductor/test_flex_flash": 0.006060606060606061,
     "inductor/test_flex_gemm": 0.006060606060606061,
     "inductor/test_fp8": 0.55,
@@ -99418,7 +99418,7 @@
     "inductor/test_select_algorithm": 0.04739393939393939,
     "inductor/test_split_cat_fx_aten_passes": 0.03333333333333333,
     "inductor/test_static_triton_launcher": 0.008,
-    "inductor/test_torchinductor": 0.34739393939393937,
+    "inductor/test_torchinductor": 0.3473939393939394,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_opinfo": 0.30800000000000005,
     "inductor/test_torchinductor_opinfo_properties": 0.008,
@@ -100192,7 +100192,7 @@
     "distributed/tensor/test_utils": 0.012389719984656693,
     "distributed/tensor/test_xla_integration": 0.024390243902439025,
     "distributed/test_aten_comm_compute_reordering": 0.05698005698005698,
-    "distributed/test_c10d_common": 0.22592128645739962,
+    "distributed/test_c10d_common": 0.22592128645739964,
     "distributed/test_c10d_functional_native": 0.06092550586668234,
     "distributed/test_c10d_gloo": 0.020389719984656694,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -100306,7 +100306,7 @@
     "inductor/test_combo_kernels": 0.09709426543920215,
     "inductor/test_compile_subprocess": 0.35345454545454547,
     "inductor/test_compile_worker": 0.014329113924050632,
-    "inductor/test_compiled_autograd": 0.4653459105619299,
+    "inductor/test_compiled_autograd": 0.46534591056193,
     "inductor/test_compiled_optimizers": 0.07459240273583309,
     "inductor/test_control_deps": 0.05951515151515152,
     "inductor/test_control_flow": 0.15656565656565657,
@@ -100326,7 +100326,7 @@
     "inductor/test_cutlass_evt": 0.029126213592233007,
     "inductor/test_debug_trace": 0.045454545454545456,
     "inductor/test_decompose_mem_bound_mm": 0.053454545454545456,
-    "inductor/test_deterministic": 0.31406060606060604,
+    "inductor/test_deterministic": 0.3140606060606061,
     "inductor/test_device_assert": 0.045454545454545456,
     "inductor/test_distributed_patterns": 0.045454545454545456,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
@@ -100335,7 +100335,7 @@
     "inductor/test_flex_decoding": 1.7145047488859249,
     "inductor/test_flex_flash": 1.3776855352804722,
     "inductor/test_flex_gemm": 0.006060606060606061,
-    "inductor/test_fp8": 0.594441439443572,
+    "inductor/test_fp8": 0.5944414394435721,
     "inductor/test_fused_attention": 0.006060606060606061,
     "inductor/test_fuzzer": 0.029126213592233007,
     "inductor/test_fxir_backend": 0.13738713568583705,
@@ -100369,7 +100369,7 @@
     "inductor/test_nv_universal_gemm": 0.051515151515151514,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_pad_mm": 0.045454545454545456,
     "inductor/test_padding": 0.012389719984656693,
@@ -100465,7 +100465,7 @@
     "test_jit_legacy": 0.029126213592233007,
     "test_jiterator": 0.029126213592233007,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.3221200847855083,
+    "test_linalg": 0.32212008478550835,
     "test_logging": 0.006329113924050633,
     "test_matmul_cuda": 0.2818327505827506,
     "test_meta": 0.008,
@@ -100477,7 +100477,7 @@
     "test_multiprocessing": 0.04345532751628364,
     "test_native_functions": 0.008403361344537815,
     "test_nestedtensor": 0.34786079280196924,
-    "test_nn": 0.4190063960631173,
+    "test_nn": 0.4190063960631174,
     "test_numa_binding": 0.008403361344537815,
     "test_numpy_interop": 0.04546618914360007,
     "test_opaque_obj_v2": 0.26111399052118645,
@@ -101476,7 +101476,7 @@
     "inductor/test_distributed_patterns": 0.045454545454545456,
     "inductor/test_dropout_align_random_eager": 0.006329113924050633,
     "inductor/test_extension_backend": 0.07458075904677847,
-    "inductor/test_flex_attention": 0.594441439443572,
+    "inductor/test_flex_attention": 0.5944414394435721,
     "inductor/test_flex_decoding": 0.24265778006497593,
     "inductor/test_flex_flash": 0.05178365937859609,
     "inductor/test_foreach": 0.021739130434782608,
@@ -101533,7 +101533,7 @@
     "inductor/test_split_cat_fx_passes": 0.035455327516283636,
     "inductor/test_static_triton_launcher": 0.08298412039131628,
     "inductor/test_subgraph_choice": 0.18831168831168826,
-    "inductor/test_torchinductor": 0.6655835326444888,
+    "inductor/test_torchinductor": 0.6655835326444889,
     "inductor/test_torchinductor_codegen_config_overrides": 0.008403361344537815,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.17045454545454547,
     "inductor/test_torchinductor_dynamic_shapes": 0.19852278981337868,
@@ -104514,7 +104514,7 @@
     "distributed/tensor/test_utils": 0.012389719984656693,
     "distributed/tensor/test_xla_integration": 0.024390243902439025,
     "distributed/test_aten_comm_compute_reordering": 0.038461538461538464,
-    "distributed/test_c10d_common": 0.22592128645739962,
+    "distributed/test_c10d_common": 0.22592128645739964,
     "distributed/test_c10d_functional_native": 0.06092550586668234,
     "distributed/test_c10d_gloo": 0.020389719984656694,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -104636,7 +104636,7 @@
     "inductor/test_combo_kernels": 0.1521667292073181,
     "inductor/test_compile_subprocess": 0.25237927663734117,
     "inductor/test_compile_worker": 0.34766244725738393,
-    "inductor/test_compiled_autograd": 0.399254955306498,
+    "inductor/test_compiled_autograd": 0.39925495530649807,
     "inductor/test_compiled_optimizers": 0.18251959011452681,
     "inductor/test_control_deps": 0.05951515151515152,
     "inductor/test_control_flow": 0.045454545454545456,
@@ -104695,7 +104695,7 @@
     "inductor/test_metrics": 0.045454545454545456,
     "inductor/test_minifier": 0.0787878787878788,
     "inductor/test_minifier_isolate": 0.14285714285714285,
-    "inductor/test_mix_order_reduction": 0.2646433566433566,
+    "inductor/test_mix_order_reduction": 0.26464335664335664,
     "inductor/test_mkldnn_pattern_matcher": 0.045454545454545456,
     "inductor/test_mmdecomp": 0.15126050420168066,
     "inductor/test_move_constructors_to_gpu": 0.045454545454545456,
@@ -104729,7 +104729,7 @@
     "inductor/test_torchinductor_codegen_config_overrides": 0.03279360524697684,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.051515151515151514,
     "inductor/test_torchinductor_dynamic_shapes": 0.1504458667364556,
-    "inductor/test_torchinductor_opinfo": 0.8088246282702803,
+    "inductor/test_torchinductor_opinfo": 0.8088246282702805,
     "inductor/test_torchinductor_opinfo_properties": 0.008,
     "inductor/test_torchinductor_strided_blocks": 1.1019266750756989,
     "inductor/test_triton_extension_backend": 0.05385790679908327,
@@ -104770,7 +104770,7 @@
     "test_bundled_inputs": 0.008403361344537815,
     "test_compile_benchmark_util": 0.038461538461538464,
     "test_complex": 0.012389719984656693,
-    "test_cuda": 0.30222247056740725,
+    "test_cuda": 0.3022224705674073,
     "test_cuda_graph_utils": 0.006329113924050633,
     "test_cuda_multigpu": 0.016403361344537813,
     "test_cuda_sanitizer": 0.008403361344537815,
@@ -105702,7 +105702,7 @@
     "distributed/tensor/test_strategy_validation": 0.006060606060606061,
     "distributed/tensor/test_tensor_ops": 0.014060606060606062,
     "distributed/tensor/test_utils": 0.006060606060606061,
-    "distributed/test_c10d_common": 0.21118881118881117,
+    "distributed/test_c10d_common": 0.2111888111888112,
     "distributed/test_c10d_functional_native": 0.014060606060606062,
     "distributed/test_c10d_gloo": 0.014060606060606062,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -105790,7 +105790,7 @@
     "inductor/test_custom_post_grad_passes": 0.045454545454545456,
     "inductor/test_cutedsl_grouped_mm": 0.045454545454545456,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21118881118881117,
+    "inductor/test_cutlass_backend": 0.2111888111888112,
     "inductor/test_debug_trace": 0.045454545454545456,
     "inductor/test_decompose_mem_bound_mm": 0.053454545454545456,
     "inductor/test_deterministic": 0.014060606060606062,
@@ -105816,7 +105816,7 @@
     "inductor/test_kernel_optimization": 0.045454545454545456,
     "inductor/test_lookup_table": 0.014060606060606062,
     "inductor/test_loop_ordering": 0.051515151515151514,
-    "inductor/test_max_autotune": 0.2646433566433566,
+    "inductor/test_max_autotune": 0.26464335664335664,
     "inductor/test_max_autotune_blackwell": 0.20512820512820512,
     "inductor/test_mem_estimation": 0.045454545454545456,
     "inductor/test_memory": 0.24545454545454548,
@@ -105830,7 +105830,7 @@
     "inductor/test_needs_exact_strides": 0.045454545454545456,
     "inductor/test_nv_universal_gemm": 0.051515151515151514,
     "inductor/test_op_completeness": 0.006060606060606061,
-    "inductor/test_origami": 0.21118881118881117,
+    "inductor/test_origami": 0.2111888111888112,
     "inductor/test_pad_mm": 0.045454545454545456,
     "inductor/test_padding": 0.006060606060606061,
     "inductor/test_pattern_matcher": 0.3015151515151515,
@@ -105844,7 +105844,7 @@
     "inductor/test_split_cat_fx_aten_passes": 0.045454545454545456,
     "inductor/test_static_triton_launcher": 0.053454545454545456,
     "inductor/test_subgraph_choice": 0.045454545454545456,
-    "inductor/test_torchinductor": 2.345379287379287,
+    "inductor/test_torchinductor": 2.3453792873792874,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.051515151515151514,
     "inductor/test_torchinductor_dynamic_shapes": 0.045454545454545456,
     "inductor/test_torchinductor_opinfo": 0.053454545454545456,
@@ -105876,7 +105876,7 @@
     "test_bmm_outer_product": 0.008,
     "test_compile_benchmark_util": 0.038461538461538464,
     "test_complex": 0.006060606060606061,
-    "test_cuda": 0.4191888111888112,
+    "test_cuda": 0.41918881118881124,
     "test_cuda_multigpu": 0.008,
     "test_custom_ops": 0.008,
     "test_dataloader": 0.008,
@@ -105891,7 +105891,7 @@
     "test_jit": 0.008,
     "test_jit_fuser_te": 0.008,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.4191888111888112,
+    "test_linalg": 0.41918881118881124,
     "test_matmul_cuda": 0.20512820512820512,
     "test_meta": 0.008,
     "test_mobile_optimizer": 0.014060606060606062,
@@ -105900,7 +105900,7 @@
     "test_mps": 0.014060606060606062,
     "test_multiprocessing": 0.008,
     "test_nestedtensor": 0.014060606060606062,
-    "test_nn": 0.21918881118881117,
+    "test_nn": 0.2191888111888112,
     "test_opaque_obj_v2": 0.014060606060606062,
     "test_openmp": 0.006060606060606061,
     "test_ops": 0.014060606060606062,
@@ -107322,7 +107322,7 @@
     "distributed/tensor/test_strategy_validation": 0.012389719984656693,
     "distributed/tensor/test_tensor_ops": 0.012389719984656693,
     "distributed/tensor/test_utils": 0.012389719984656693,
-    "distributed/test_c10d_common": 0.2175179251128618,
+    "distributed/test_c10d_common": 0.21751792511286183,
     "distributed/test_c10d_functional_native": 0.006060606060606061,
     "distributed/test_c10d_gloo": 0.012389719984656693,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -107402,12 +107402,12 @@
     "inductor/test_cpu_repro": 0.012389719984656693,
     "inductor/test_cuda_repro": 0.006060606060606061,
     "inductor/test_cudagraph_trees": 0.006060606060606061,
-    "inductor/test_custom_op_autotune": 0.2175179251128618,
+    "inductor/test_custom_op_autotune": 0.21751792511286183,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21118881118881117,
+    "inductor/test_cutlass_backend": 0.2111888111888112,
     "inductor/test_deterministic": 0.006060606060606061,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
-    "inductor/test_flex_attention": 0.2175179251128618,
+    "inductor/test_flex_attention": 0.21751792511286183,
     "inductor/test_flex_decoding": 0.20512820512820512,
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.03731060606060606,
@@ -107422,7 +107422,7 @@
     "inductor/test_max_autotune": 0.32019649654143323,
     "inductor/test_max_autotune_blackwell": 0.3078067765567765,
     "inductor/test_memory": 0.006329113924050633,
-    "inductor/test_mix_order_reduction": 0.21118881118881117,
+    "inductor/test_mix_order_reduction": 0.2111888111888112,
     "inductor/test_nv_universal_gemm": 0.10873917748917748,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
@@ -107437,7 +107437,7 @@
     "inductor/test_split_cat_fx_aten_passes": 0.006329113924050633,
     "inductor/test_split_cat_fx_passes": 0.006329113924050633,
     "inductor/test_template_heuristics_registry": 0.10267857142857142,
-    "inductor/test_torchinductor": 0.2175179251128618,
+    "inductor/test_torchinductor": 0.21751792511286183,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.006329113924050633,
     "inductor/test_torchinductor_strided_blocks": 0.006060606060606061,
@@ -107463,7 +107463,7 @@
     "test_binary_ufuncs": 0.012389719984656693,
     "test_compile_benchmark_util": 0.038461538461538464,
     "test_complex": 0.012389719984656693,
-    "test_cuda": 0.2175179251128618,
+    "test_cuda": 0.21751792511286183,
     "test_cuda_graph_utils": 0.006329113924050633,
     "test_custom_ops": 0.006329113924050633,
     "test_dispatch": 0.012389719984656693,
@@ -107476,7 +107476,7 @@
     "test_hop_infra": 0.006060606060606061,
     "test_jit": 0.006329113924050633,
     "test_license": 0.006060606060606061,
-    "test_linalg": 0.2175179251128618,
+    "test_linalg": 0.21751792511286183,
     "test_logging": 0.006329113924050633,
     "test_matmul_cuda": 0.20512820512820512,
     "test_mobile_optimizer": 0.006060606060606061,
@@ -107484,7 +107484,7 @@
     "test_mps": 0.012389719984656693,
     "test_multiprocessing": 0.006329113924050633,
     "test_nestedtensor": 0.006060606060606061,
-    "test_nn": 0.2175179251128618,
+    "test_nn": 0.21751792511286183,
     "test_numpy_interop": 0.006329113924050633,
     "test_opaque_obj_v2": 0.006060606060606061,
     "test_openmp": 0.006060606060606061,
@@ -110982,7 +110982,7 @@
     "distributed/tensor/test_utils": 0.012389719984656693,
     "distributed/tensor/test_xla_integration": 0.024390243902439025,
     "distributed/test_aten_comm_compute_reordering": 0.038461538461538464,
-    "distributed/test_c10d_common": 0.2175179251128618,
+    "distributed/test_c10d_common": 0.21751792511286183,
     "distributed/test_c10d_functional_native": 0.12944522144522147,
     "distributed/test_c10d_gloo": 0.020389719984656694,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -111102,7 +111102,7 @@
     "inductor/test_combo_kernels": 0.08313481802387238,
     "inductor/test_compile_subprocess": 1.4013691756272402,
     "inductor/test_compile_worker": 0.014329113924050632,
-    "inductor/test_compiled_autograd": 0.828341497359699,
+    "inductor/test_compiled_autograd": 0.8283414973596991,
     "inductor/test_compiled_optimizers": 1.3873375007750488,
     "inductor/test_config": 0.2909090909090909,
     "inductor/test_control_deps": 0.014060606060606062,
@@ -111112,7 +111112,7 @@
     "inductor/test_cpu_cpp_wrapper": 0.25,
     "inductor/test_cpu_repro": 4.2303217168201535,
     "inductor/test_cpu_select_algorithm": 1.3214285714285714,
-    "inductor/test_cuda_repro": 1.8655963993204832,
+    "inductor/test_cuda_repro": 1.8655963993204834,
     "inductor/test_cudacodecache": 0.029411764705882353,
     "inductor/test_cudagraph_trees": 1.5070195165716984,
     "inductor/test_custom_lowering": 0.18397435897435896,
@@ -111120,11 +111120,11 @@
     "inductor/test_custom_op_out_lowering": 0.9017857142857142,
     "inductor/test_cutedsl_grouped_mm": 0.1111111111111111,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.5790621143562318,
+    "inductor/test_cutlass_backend": 0.5790621143562319,
     "inductor/test_cutlass_evt": 0.029126213592233007,
     "inductor/test_decompose_mem_bound_mm": 0.008,
     "inductor/test_dependencies": 0.045454545454545456,
-    "inductor/test_deterministic": 0.34739393939393937,
+    "inductor/test_deterministic": 0.3473939393939394,
     "inductor/test_device_assert": 0.13333333333333333,
     "inductor/test_distributed_patterns": 0.03333333333333333,
     "inductor/test_dropout_align_random_eager": 0.0748897199846567,
@@ -111136,7 +111136,7 @@
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.006060606060606061,
     "inductor/test_foreach": 3.827030812324929,
-    "inductor/test_fp8": 0.6655835326444888,
+    "inductor/test_fp8": 0.6655835326444889,
     "inductor/test_fused_attention": 0.07748917748917748,
     "inductor/test_fuzzer": 0.029126213592233007,
     "inductor/test_fxir_backend": 0.22018312416133867,
@@ -111157,7 +111157,7 @@
     "inductor/test_memory": 0.6552538451068464,
     "inductor/test_memory_planning": 0.07045954692556633,
     "inductor/test_minifier": 0.03333333333333333,
-    "inductor/test_mix_order_reduction": 2.345379287379287,
+    "inductor/test_mix_order_reduction": 2.3453792873792874,
     "inductor/test_mkldnn_pattern_matcher": 0.8766370752195493,
     "inductor/test_mps_basic": 0.14285714285714285,
     "inductor/test_multi_kernel": 0.15833333333333333,
@@ -111168,7 +111168,7 @@
     "inductor/test_op_dtype_prop": 0.25,
     "inductor/test_optimize_indexing": 0.045454545454545456,
     "inductor/test_ordered_set": 0.03858717844017966,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_pad_mm": 2.4095238095238094,
     "inductor/test_padding": 0.5123897199846568,
@@ -112048,7 +112048,7 @@
     "inductor/test_kernel_optimization": 0.045454545454545456,
     "inductor/test_lookup_table": 0.008,
     "inductor/test_loop_ordering": 0.07670454545454546,
-    "inductor/test_max_autotune": 0.8088246282702803,
+    "inductor/test_max_autotune": 0.8088246282702805,
     "inductor/test_mem_estimation": 0.3787878787878788,
     "inductor/test_memory": 0.37670454545454546,
     "inductor/test_memory_planning": 0.037126213592233004,
@@ -112141,7 +112141,7 @@
     "test_nn": 0.479676757759232,
     "test_numpy_interop": 0.03913707521954944,
     "test_opaque_obj_v2": 0.037126213592233004,
-    "test_ops": 0.7438576503944244,
+    "test_ops": 0.7438576503944245,
     "test_ops_fwd_gradients": 0.08492307692307693,
     "test_ops_gradients": 0.11617307692307693,
     "test_ops_jit": 0.08492307692307693,
@@ -113257,7 +113257,7 @@
     "inductor/test_torchinductor_strided_blocks": 0.4380724637681159,
     "inductor/test_triton_extension_backend": 0.045454545454545456,
     "inductor/test_triton_heuristics": 0.17619047619047618,
-    "inductor/test_triton_kernels": 24.93885098019664,
+    "inductor/test_triton_kernels": 25.43885098019664,
     "inductor/test_triton_syntax": 0.045454545454545456,
     "inductor/test_unbacked_symints": 0.17619047619047618,
     "nn/test_convolution": 0.03284758719541328,
@@ -121171,7 +121171,7 @@
   },
   "test/profiler/test_cupti_monitor.py": {
     "profiler/test_cupti_decoder": 0.14285714285714285,
-    "profiler/test_cupti_monitor": 3.060714285714286,
+    "profiler/test_cupti_monitor": 3.5607142857142855,
     "profiler/test_cupti_node_timer": 0.14285714285714285,
     "profiler/test_cupti_pm_sampling": 0.14285714285714285,
     "profiler/test_cupti_python": 0.14285714285714285
@@ -121694,7 +121694,7 @@
     "nn/test_pruning": 0.029411764705882353,
     "profiler/test_cpp_thread": 0.029411764705882353,
     "profiler/test_execution_trace": 0.037126213592233004,
-    "profiler/test_memory_profiler": 2.520474455140043,
+    "profiler/test_memory_profiler": 2.3538077884733766,
     "profiler/test_profiler": 0.05820484603507686,
     "profiler/test_profiler_tree": 0.058537978298115356,
     "profiler/test_torch_tidy": 0.014329113924050632,
@@ -128548,7 +128548,7 @@
     "distributed/tensor/test_strategy_validation": 0.15524686284179953,
     "distributed/tensor/test_tensor_ops": 0.020389719984656694,
     "distributed/tensor/test_utils": 0.012389719984656693,
-    "distributed/test_c10d_common": 0.24608935368429039,
+    "distributed/test_c10d_common": 0.2460893536842904,
     "distributed/test_c10d_functional_native": 0.014060606060606062,
     "distributed/test_c10d_gloo": 0.048961148556085264,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -128668,7 +128668,7 @@
     "inductor/test_cudagraph_trees": 0.4377739297739297,
     "inductor/test_custom_op_autotune": 0.9159941155890521,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21118881118881117,
+    "inductor/test_cutlass_backend": 0.2111888111888112,
     "inductor/test_cutlass_evt": 0.029126213592233007,
     "inductor/test_decompose_mem_bound_mm": 0.008,
     "inductor/test_deterministic": 0.014060606060606062,
@@ -128692,16 +128692,16 @@
     "inductor/test_kernel_benchmark": 0.23425441872043812,
     "inductor/test_lookup_table": 0.020389719984656694,
     "inductor/test_loop_ordering": 0.1636397199846567,
-    "inductor/test_max_autotune": 0.30222247056740725,
+    "inductor/test_max_autotune": 0.3022224705674073,
     "inductor/test_max_autotune_blackwell": 0.20512820512820512,
     "inductor/test_memory": 0.08303365937859608,
     "inductor/test_memory_planning": 0.037126213592233004,
-    "inductor/test_mix_order_reduction": 0.4191888111888112,
+    "inductor/test_mix_order_reduction": 0.41918881118881124,
     "inductor/test_mkldnn_pattern_matcher": 0.06770850379097801,
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_padding": 0.3123897199846567,
     "inductor/test_pallas": 0.029126213592233007,
@@ -134271,7 +134271,7 @@
     "test_jit_autocast": 0.42719780219780223,
     "test_jit_disabled": 0.07142857142857142,
     "test_jit_fuser_legacy": 0.42719780219780223,
-    "test_jit_fuser_te": 1.8275510488988744,
+    "test_jit_fuser_te": 1.8019100232578489,
     "test_jit_legacy": 0.42719780219780223,
     "test_jit_llga_fuser": 0.09845559845559845,
     "test_legacy_vmap": 0.02702702702702703,
@@ -134863,7 +134863,7 @@
     "distributed/tensor/test_strategy_validation": 0.012389719984656693,
     "distributed/tensor/test_tensor_ops": 0.020389719984656694,
     "distributed/tensor/test_utils": 0.012389719984656693,
-    "distributed/test_c10d_common": 0.22592128645739962,
+    "distributed/test_c10d_common": 0.22592128645739964,
     "distributed/test_c10d_functional_native": 0.022463967405143878,
     "distributed/test_c10d_gloo": 0.020389719984656694,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -134976,13 +134976,13 @@
     "inductor/test_cpu_select_algorithm": 0.008403361344537815,
     "inductor/test_cuda_repro": 0.42409848484848484,
     "inductor/test_cudagraph_trees": 0.014060606060606062,
-    "inductor/test_custom_op_autotune": 0.2255179251128618,
+    "inductor/test_custom_op_autotune": 0.22551792511286184,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21959217253334898,
+    "inductor/test_cutlass_backend": 0.219592172533349,
     "inductor/test_decompose_mem_bound_mm": 0.008,
     "inductor/test_deterministic": 0.014060606060606062,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
-    "inductor/test_flex_attention": 0.3221200847855083,
+    "inductor/test_flex_attention": 0.32212008478550835,
     "inductor/test_flex_decoding": 0.5250258193463061,
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.006060606060606061,
@@ -135001,12 +135001,12 @@
     "inductor/test_mem_estimation": 0.008403361344537815,
     "inductor/test_memory": 0.08303365937859608,
     "inductor/test_memory_planning": 0.008,
-    "inductor/test_mix_order_reduction": 0.4191888111888112,
+    "inductor/test_mix_order_reduction": 0.41918881118881124,
     "inductor/test_mmdecomp": 0.008403361344537815,
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_padding": 0.3123897199846567,
     "inductor/test_pattern_matcher": 0.02079308132919451,
@@ -135487,7 +135487,7 @@
     "test_legacy_vmap": 0.02702702702702703,
     "test_linalg": 1.267193110943111,
     "test_maskedtensor": 0.02702702702702703,
-    "test_matmul_cuda": 37.12056622366404,
+    "test_matmul_cuda": 37.12056622366405,
     "test_mps": 0.03284758719541328,
     "test_namedtensor": 0.02702702702702703,
     "test_nn": 0.3301282051282051,
@@ -136685,7 +136685,7 @@
     "test_mobile_optimizer": 0.014060606060606062,
     "test_model_exports_to_core_aten": 0.008,
     "test_modules": 0.02388397285821991,
-    "test_mps": 79.22408169202767,
+    "test_mps": 79.72408169202767,
     "test_multiprocessing": 0.07202675608771221,
     "test_nestedtensor": 0.014060606060606062,
     "test_nn": 2.129899845874093,
@@ -137680,13 +137680,13 @@
     "inductor/test_cpu_select_algorithm": 0.07142857142857142,
     "inductor/test_cuda_repro": 0.014060606060606062,
     "inductor/test_cudagraph_trees": 0.03257912457912458,
-    "inductor/test_custom_op_autotune": 0.2255179251128618,
+    "inductor/test_custom_op_autotune": 0.22551792511286184,
     "inductor/test_cutedsl_template": 0.006060606060606061,
-    "inductor/test_cutlass_backend": 0.21118881118881117,
+    "inductor/test_cutlass_backend": 0.2111888111888112,
     "inductor/test_decompose_mem_bound_mm": 0.008,
     "inductor/test_deterministic": 0.014060606060606062,
     "inductor/test_dropout_align_random_eager": 0.012389719984656693,
-    "inductor/test_flex_attention": 0.4190063960631173,
+    "inductor/test_flex_attention": 0.4190063960631174,
     "inductor/test_flex_decoding": 0.2557595332213178,
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.006060606060606061,
@@ -137706,12 +137706,12 @@
     "inductor/test_max_autotune_blackwell": 0.20512820512820512,
     "inductor/test_memory": 0.006329113924050633,
     "inductor/test_memory_planning": 0.008,
-    "inductor/test_mix_order_reduction": 0.21918881118881117,
+    "inductor/test_mix_order_reduction": 0.2191888111888112,
     "inductor/test_mkldnn_pattern_matcher": 0.10219126241166768,
     "inductor/test_nv_universal_gemm": 0.006060606060606061,
     "inductor/test_op_completeness": 0.006060606060606061,
     "inductor/test_ordered_set": 0.006329113924050633,
-    "inductor/test_origami": 0.2175179251128618,
+    "inductor/test_origami": 0.21751792511286183,
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_padding": 0.012389719984656693,
     "inductor/test_pattern_matcher": 0.012389719984656693,
@@ -137808,7 +137808,7 @@
     "test_multiprocessing": 0.08136208095701766,
     "test_namedtensor": 0.023342751575744405,
     "test_nestedtensor": 0.014060606060606062,
-    "test_nn": 48.97410171180522,
+    "test_nn": 49.97410171180522,
     "test_numa_binding": 0.06896551724137931,
     "test_numpy_interop": 0.18850578045905345,
     "test_opaque_obj_v2": 0.014060606060606062,
@@ -139024,7 +139024,7 @@
     "inductor/test_torchinductor": 0.38284926691022303,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.2790563866513234,
-    "inductor/test_torchinductor_opinfo": 0.7438576503944244,
+    "inductor/test_torchinductor_opinfo": 0.7438576503944245,
     "inductor/test_torchinductor_opinfo_properties": 0.08492307692307693,
     "inductor/test_torchinductor_strided_blocks": 0.04318681965283906,
     "inductor/test_triton_extension_backend": 0.029126213592233007,
@@ -140100,10 +140100,10 @@
     "test_matmul_cuda": 0.5158730158730158,
     "test_namedtuple_return_api": 0.04,
     "test_ops": 0.04,
-    "test_public_bindings": 3.9076762162176464,
+    "test_public_bindings": 3.907676216217647,
     "test_scatter_gather_ops": 0.3333333333333333,
     "test_sympy_utils": 0.024390243902439025,
-    "test_testing": 1.9973887067922063,
+    "test_testing": 1.9973887067922065,
     "test_torch": 0.26515151515151514,
     "torch_np/test_basic": 0.125
   },
@@ -144268,7 +144268,7 @@
     "test_optim": 0.04,
     "test_overrides": 0.06387301587301587,
     "test_proxy_tensor": 0.029126213592233007,
-    "test_public_bindings": 1.9973887067922063,
+    "test_public_bindings": 1.9973887067922065,
     "test_python_dispatch": 0.04,
     "test_pytree": 0.023873015873015872,
     "test_reductions": 0.11670454545454545,
@@ -144645,7 +144645,7 @@
     "test_tensorboard": 0.03284758719541328,
     "test_tensorexpr": 0.1869092118452732,
     "test_testing": 0.014060606060606062,
-    "test_torch": 23.722508120078018,
+    "test_torch": 25.72250812007801,
     "test_torch_config_hash_determinism": 0.006060606060606061,
     "test_torchfuzz_repros": 0.008,
     "test_transformers": 0.5438252647615043,
@@ -146930,7 +146930,7 @@
     "test_unary_ufuncs": 0.1340649629806544,
     "test_utils": 0.02857142857142857,
     "test_utils_config_module": 0.006329113924050633,
-    "test_view_ops": 4.137150645414163,
+    "test_view_ops": 4.137150645414162,
     "test_xnnpack_integration": 0.03284758719541328,
     "torch_np/test_indexing": 0.006329113924050633
   },
@@ -147770,7 +147770,7 @@
     "torch_np/numpy_tests/core/test_einsum": 0.06227083590821077,
     "torch_np/numpy_tests/core/test_getlimits": 0.05857385398981324,
     "torch_np/numpy_tests/core/test_indexing": 0.06227083590821077,
-    "torch_np/numpy_tests/core/test_multiarray": 0.5536049404002099,
+    "torch_np/numpy_tests/core/test_multiarray": 0.55360494040021,
     "torch_np/numpy_tests/core/test_numeric": 0.05857385398981324,
     "torch_np/numpy_tests/core/test_numerictypes": 0.011494252873563218,
     "torch_np/numpy_tests/core/test_scalar_ctors": 0.05857385398981324,
@@ -151228,7 +151228,7 @@
     "dynamo/test_python_autograd": 0.375,
     "export/test_export": 0.13538461538461538,
     "test_custom_ops": 0.09090909090909091,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/_C/_distributed_rpc.pyi": {
     "distributed/algorithms/test_join": 0.08333333333333333,
@@ -151878,7 +151878,7 @@
     "inductor/test_inductor_freezing": 0.047619047619047616,
     "inductor/test_mkldnn_pattern_matcher": 0.06823760432007854,
     "inductor/test_profiler": 0.2727272727272727,
-    "inductor/test_torchinductor": 0.09754163362410787,
+    "inductor/test_torchinductor": 0.09754163362410785,
     "inductor/test_torchinductor_dynamic_shapes": 0.07692307692307693,
     "inductor/test_torchinductor_opinfo": 0.020618556701030927,
     "inductor/test_torchinductor_strided_blocks": 0.07692307692307693,
@@ -152427,7 +152427,7 @@
     "dynamo/test_fake_distributed": 0.1625,
     "dynamo/test_flat_apply": 0.04,
     "dynamo/test_functions": 1.5873015873015872,
-    "dynamo/test_fwd_loss_bwd": 2.8773809523809524,
+    "dynamo/test_fwd_loss_bwd": 2.877380952380952,
     "dynamo/test_fx_annotate": 0.3333333333333333,
     "dynamo/test_generator": 0.5635385926946029,
     "dynamo/test_getitem": 0.6988235294117646,
@@ -152732,7 +152732,7 @@
     "dynamo/test_resume": 0.14285714285714285,
     "dynamo/test_streams": 0.28703703703703703,
     "dynamo/test_structured_trace": 0.2571428571428571,
-    "dynamo/test_subclasses": 0.4706209969367864,
+    "dynamo/test_subclasses": 0.47062099693678644,
     "dynamo/test_tp_hash": 0.07142857142857142,
     "dynamo/test_tp_richcompare": 0.07142857142857142,
     "dynamo/test_utils": 0.5666666666666667,
@@ -154125,7 +154125,7 @@
     "dynamo/test_exceptions": 0.5178571428571428,
     "dynamo/test_fake_distributed": 0.3958333333333333,
     "dynamo/test_functions": 3.4288220551378448,
-    "dynamo/test_generator": 3.6311792853352953,
+    "dynamo/test_generator": 3.631179285335295,
     "dynamo/test_getitem": 0.5588235294117647,
     "dynamo/test_guard_manager": 0.19548872180451127,
     "dynamo/test_higher_order_ops": 0.4444444444444444,
@@ -156413,7 +156413,6 @@
     "functorch/test_control_flow": 4.125,
     "higher_order_ops/test_invoke_subgraph": 0.047619047619047616,
     "inductor/test_control_flow": 0.2,
-    "profiler/test_memory_profiler": 0.16666666666666666,
     "test_nn": 0.125
   },
   "torch/_higher_order_ops/schema.py": {
@@ -156465,7 +156464,7 @@
     "inductor/test_memory": 0.03125,
     "inductor/test_torchinductor": 0.25,
     "inductor/test_torchinductor_opinfo": 0.03125,
-    "inductor/test_triton_kernels": 5.177714646464647,
+    "inductor/test_triton_kernels": 5.677714646464647,
     "test_cuda": 0.03125,
     "test_fake_tensor": 0.08448275862068966,
     "test_flop_counter": 0.3333333333333333,
@@ -156710,7 +156709,7 @@
     "distributed/tensor/test_dtensor_compile": 0.25,
     "distributed/test_aten_comm_compute_reordering": 0.2,
     "distributed/test_c10d_functional_native": 0.024390243902439025,
-    "dynamo/test_aot_autograd_cache": 2.083333333333333,
+    "dynamo/test_aot_autograd_cache": 2.0833333333333335,
     "dynamo/test_aot_compile": 0.25,
     "dynamo/test_debug_utils": 0.08695652173913043,
     "dynamo/test_fx_graph_runnable": 0.2,
@@ -156868,7 +156867,7 @@
     "inductor/test_online_softmax": 0.1111111111111111,
     "inductor/test_optimize_indexing": 0.045454545454545456,
     "inductor/test_provenance_tracing": 0.6428571428571429,
-    "inductor/test_torchinductor": 2.589398540056434,
+    "inductor/test_torchinductor": 2.5893985400564343,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.29545454545454547,
     "inductor/test_triton_helpers": 0.16666666666666666,
     "inductor/test_triton_kernels": 0.1,
@@ -157249,7 +157248,7 @@
     "test_public_bindings": 0.07142857142857142
   },
   "torch/_inductor/codegen/cutlass/gemm_template.py": {
-    "inductor/test_cutlass_backend": 2.836507936507936,
+    "inductor/test_cutlass_backend": 3.1698412698412697,
     "inductor/test_cutlass_evt": 0.4714285714285714,
     "test_public_bindings": 0.07142857142857142
   },
@@ -157313,7 +157312,7 @@
     "test_public_bindings": 0.07142857142857142
   },
   "torch/_inductor/codegen/cutlass/scheduling.py": {
-    "inductor/test_cutlass_backend": 0.5845238095238094
+    "inductor/test_cutlass_backend": 0.9178571428571427
   },
   "torch/_inductor/codegen/cutlass/serialization.py": {
     "inductor/test_cutlass_backend": 0.07142857142857142,
@@ -159802,7 +159801,7 @@
   "torch/_inductor/lowering.py": {
     "distributed/tensor/test_dtensor_compile": 0.125,
     "distributed/tensor/test_dtensor_export": 1.1666666666666665,
-    "distributed/tensor/test_dtensor_ops": 0.46558441558441555,
+    "distributed/tensor/test_dtensor_ops": 0.4655844155844156,
     "distributed/tensor/test_random_ops": 0.6111111111111112,
     "distributed/test_aten_comm_compute_reordering": 0.16666666666666666,
     "distributed/test_c10d_functional_native": 0.024390243902439025,
@@ -160344,7 +160343,7 @@
     "inductor/test_aot_inductor": 0.12179487179487179,
     "inductor/test_auto_functionalize": 0.3333333333333333,
     "inductor/test_codecache": 0.08695652173913043,
-    "inductor/test_combo_kernels": 1.5833333333333333,
+    "inductor/test_combo_kernels": 2.083333333333333,
     "inductor/test_compile": 0.08695652173913043,
     "inductor/test_compiled_autograd": 0.6401515151515152,
     "inductor/test_compiled_optimizers": 0.3333333333333333,
@@ -164392,9 +164391,6 @@
     "test_tensor_creation_ops": 0.023342751575744405,
     "test_torch": 0.023342751575744405
   },
-  "torch/csrc/api/src/optim/sgd.cpp": {
-    "profiler/test_memory_profiler": 0.16666666666666666
-  },
   "torch/csrc/autograd/FunctionsManual.cpp": {
     "distributed/tensor/test_dtensor_ops": 0.05,
     "dynamo/test_aot_autograd": 0.5,
@@ -165924,9 +165920,6 @@
     "distributed/tensor/test_op_strategy": 0.09307359307359307,
     "distributed/tensor/test_tensor_ops": 0.09307359307359307
   },
-  "torch/csrc/jit/mobile/train/optim/sgd.cpp": {
-    "profiler/test_memory_profiler": 0.16666666666666666
-  },
   "torch/csrc/jit/mobile/upgrader_mobile.cpp": {
     "dynamo/test_misc": 0.023342751575744405,
     "dynamo/test_trace_rules": 0.023342751575744405,
@@ -166063,7 +166056,7 @@
     "test_proxy_tensor": 0.2
   },
   "torch/csrc/jit/runtime/static/ops.cpp": {
-    "test_jit_fuser_te": 0.07692307692307693
+    "test_jit_fuser_te": 0.05128205128205128
   },
   "torch/csrc/jit/runtime/symbolic_shape_registry.cpp": {
     "distributed/tensor/test_op_strategy": 0.09307359307359307,
@@ -166273,7 +166266,7 @@
     "cpp_extensions/test_libtorch_agnostic": 0.15555555555555556
   },
   "torch/csrc/stable/c/shim.h": {
-    "cpp_extensions/test_libtorch_agnostic": 2.0539926576691285
+    "cpp_extensions/test_libtorch_agnostic": 2.053992657669128
   },
   "torch/csrc/stable/c/shim_function_versions.txt": {
     "cpp_extensions/test_libtorch_agnostic": 1.276611705288176
@@ -166596,7 +166589,7 @@
   },
   "torch/distributed/_C_stubs.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/__init__.py": {
     "distributed/launcher/test_run": 0.09090909090909091,
@@ -166607,7 +166600,7 @@
     "distributed/test_control_collectives": 0.125,
     "dynamo/test_after_aot": 0.3333333333333333,
     "export/test_export": 0.44843085724064585,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_composable/checkpoint_activation.py": {
     "test_autograd": 0.3333333333333333
@@ -166693,11 +166686,11 @@
   "torch/distributed/_dist2.py": {
     "distributed/test_dist2": 0.2,
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_distributed_c10d.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_functional_collectives.py": {
     "distributed/_composable/fsdp/test_fully_shard_mixed_precision": 0.13523573200992556,
@@ -166738,7 +166731,7 @@
     "inductor/test_torchinductor_strided_blocks": 0.07692307692307693,
     "inductor/test_unbacked_symints": 0.07692307692307693,
     "test_custom_ops": 0.13636363636363635,
-    "test_numa_binding": 0.5596270396270395,
+    "test_numa_binding": 0.5596270396270397,
     "test_opaque_obj_v2": 0.058823529411764705,
     "test_sparse_csr": 0.045454545454545456,
     "test_view_ops": 0.16666666666666666
@@ -167013,7 +167006,7 @@
   },
   "torch/distributed/_shard/sharded_tensor/reshard.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_shard/sharding_spec/_internals.py": {
     "distributed/_shard/sharding_spec/test_sharding_spec": 0.5
@@ -167034,7 +167027,7 @@
   },
   "torch/distributed/_shard/sharding_spec/chunk_sharding_spec_ops/embedding_bag.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_state_dict_utils.py": {
     "distributed/_composable/fsdp/test_fully_shard_frozen": 0.043478260869565216,
@@ -167159,7 +167152,7 @@
     "test_jit_fuser_te": 0.03284758719541328,
     "test_matmul_cuda": 0.03284758719541328,
     "test_mps": 0.05916337666909749,
-    "test_numa_binding": 0.5924746268224528,
+    "test_numa_binding": 0.592474626822453,
     "test_opaque_obj_v2": 0.02564102564102564,
     "test_proxy_tensor": 0.02564102564102564,
     "test_python_dispatch": 0.02564102564102564,
@@ -167180,7 +167173,7 @@
   "torch/distributed/_symmetric_memory/_nvshmem_triton.py": {
     "export/test_export": 0.13538461538461538,
     "test_cuda": 0.14285714285714285,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/_symmetric_memory/_rocshmem_triton.py": {
     "distributed/test_shmem_triton": 0.16666666666666666
@@ -167218,7 +167211,7 @@
     "dynamo/test_fake_distributed": 0.0625,
     "export/test_export": 0.13538461538461538,
     "test_custom_ops": 0.045454545454545456,
-    "test_numa_binding": 0.5596270396270395,
+    "test_numa_binding": 0.5596270396270397,
     "test_sparse_csr": 0.045454545454545456
   },
   "torch/distributed/_tools/fsdp2_mem_tracker.py": {
@@ -167390,7 +167383,6 @@
   "torch/distributed/algorithms/ddp_comm_hooks/powerSGD_hook.py": {
     "dynamo/test_misc": 0.10344827586206896,
     "functorch/test_vmap_registrations": 0.10344827586206896,
-    "profiler/test_memory_profiler": 0.16666666666666666,
     "test_linalg": 0.10344827586206896,
     "test_namedtuple_return_api": 0.10344827586206896,
     "test_ops": 0.10344827586206896
@@ -167611,7 +167603,7 @@
   },
   "torch/distributed/constants.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/debug/__init__.py": {
     "distributed/_composable/test_replicate_with_compiler": 0.25,
@@ -167692,7 +167684,7 @@
     "test_jit": 0.020618556701030927,
     "test_jit_autocast": 0.020618556701030927,
     "test_nn": 0.020618556701030927,
-    "test_numa_binding": 0.5596270396270395,
+    "test_numa_binding": 0.5596270396270397,
     "test_numpy_interop": 0.020618556701030927,
     "test_opaque_obj_v2": 0.2680085110967464,
     "test_pruning_op": 0.020618556701030927,
@@ -167774,7 +167766,7 @@
     "test_jit": 0.020618556701030927,
     "test_jit_autocast": 0.020618556701030927,
     "test_nn": 0.020618556701030927,
-    "test_numa_binding": 0.5596270396270395,
+    "test_numa_binding": 0.5596270396270397,
     "test_numpy_interop": 0.020618556701030927,
     "test_opaque_obj_v2": 0.14131332082551595,
     "test_pruning_op": 0.020618556701030927,
@@ -167798,7 +167790,7 @@
   },
   "torch/distributed/elastic/control_plane.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/elastic/metrics/api.py": {
     "distributed/_shard/sharded_tensor/test_sharded_tensor": 0.020618556701030927,
@@ -168656,7 +168648,7 @@
   },
   "torch/distributed/rpc/__init__.py": {
     "export/test_export": 0.13538461538461538,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/distributed/run.py": {
     "distributed/elastic/multiprocessing/api_test": 0.09090909090909091,
@@ -168734,7 +168726,7 @@
     "inductor/test_decompose_shard_dim_alltoall": 0.25,
     "test_custom_ops": 0.045454545454545456,
     "test_nestedtensor": 0.0625,
-    "test_numa_binding": 0.5596270396270395,
+    "test_numa_binding": 0.5596270396270397,
     "test_sparse_csr": 0.045454545454545456
   },
   "torch/distributed/tensor/_decompositions.py": {
@@ -169640,7 +169632,7 @@
     "export/test_export": 0.3333333333333333,
     "export/test_nativert": 0.5,
     "export/test_package": 0.25,
-    "export/test_serialize": 2.5595238095238093,
+    "export/test_serialize": 2.5595238095238098,
     "inductor/test_aot_inductor": 0.5833333333333334,
     "inductor/test_aot_inductor_package": 0.3333333333333333,
     "inductor/test_codecache": 0.024390243902439025,
@@ -172159,7 +172151,6 @@
     "torch_np/numpy_tests/core/test_dtype": 0.020618556701030927
   },
   "torch/optim/sgd.py": {
-    "profiler/test_memory_profiler": 0.16666666666666666,
     "test_bundled_inputs": 0.008130081300813009,
     "test_complex": 0.008130081300813009,
     "test_type_hints": 0.008130081300813009,
@@ -172282,7 +172273,7 @@
     "test_testing": 0.2
   },
   "torch/profiler/_cupti/monitor_trace.py": {
-    "profiler/test_cupti_monitor": 0.525,
+    "profiler/test_cupti_monitor": 1.025,
     "test_public_bindings": 0.2,
     "test_testing": 0.2
   },
@@ -172832,7 +172823,7 @@
     "functorch/test_aotdispatch": 1.1047619047619046,
     "functorch/test_control_flow": 0.020618556701030927,
     "functorch/test_ops": 1.7291491596638655,
-    "functorch/test_vmap": 0.665018315018315,
+    "functorch/test_vmap": 0.6650183150183149,
     "functorch/test_vmap_registrations": 0.12679102743781337,
     "inductor/test_aot_inductor": 1.213095238095238,
     "inductor/test_b2b_gemm": 0.020618556701030927,
@@ -172856,7 +172847,7 @@
     "inductor/test_mkldnn_pattern_matcher": 0.020618556701030927,
     "inductor/test_torchinductor": 1.9551784412609154,
     "inductor/test_torchinductor_dynamic_shapes": 0.3727272727272727,
-    "inductor/test_torchinductor_opinfo": 2.6598896760429054,
+    "inductor/test_torchinductor_opinfo": 2.659889676042906,
     "inductor/test_torchinductor_opinfo_properties": 0.07692307692307693,
     "inductor/test_torchinductor_strided_blocks": 0.7833333333333333,
     "inductor/test_triton_kernels": 0.03284758719541328,
@@ -172894,7 +172885,7 @@
     "test_nn": 2.8554692447847123,
     "test_numa_binding": 0.03284758719541328,
     "test_numpy_interop": 0.020618556701030927,
-    "test_ops": 3.928462940430482,
+    "test_ops": 3.9284629404304825,
     "test_ops_fwd_gradients": 0.27692307692307694,
     "test_ops_gradients": 0.27692307692307694,
     "test_ops_jit": 0.07692307692307693,
@@ -173649,7 +173640,7 @@
     "distributions/test_distributions": 0.4545454545454546,
     "export/test_export": 0.13538461538461538,
     "inductor/test_snode_runtime": 0.4545454545454546,
-    "test_numa_binding": 0.5596270396270395
+    "test_numa_binding": 0.5596270396270397
   },
   "torch/testing/_internal/distributed/multi_threaded_pg.py": {
     "distributed/_composable/fsdp/test_fully_shard_extensions": 0.4,
