@@ -51,7 +51,7 @@ async fn handle(
             // check if match has the lowest priority in the ruleset
             if best_match.rule.name == ruleset.rules.last().unwrap().name {
                 // kick off the llm to get the rule
-                match make_query(&log, &best_match.line_number, 100).await {
+                match make_query(&log, &best_match.line_number, 500).await {
                     Some(llm_match_json) => {
                         body = serde_json::to_string_pretty(&llm_match_json)?;
                         match_json = llm_match_json;
