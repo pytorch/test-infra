@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from radar.guards import (
+from greenlight.guards import (
     IterationTimeout,
     SingleInstanceError,
     iteration_timeout,
@@ -46,7 +46,7 @@ def test_lock_released_then_reacquired(tmp_lock_path):
 
 
 def test_lock_nonexistent_directory_propagates_oserror(tmp_path):
-    missing = str(tmp_path / "nope" / "radar.lock")
+    missing = str(tmp_path / "nope" / "greenlight.lock")
     with pytest.raises(OSError) as excinfo, single_instance_lock(missing):
         pass  # pragma: no cover - lock acquisition fails first
     assert not isinstance(excinfo.value, SingleInstanceError)

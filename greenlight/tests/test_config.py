@@ -2,13 +2,13 @@ import dataclasses
 
 import pytest
 
-from radar.config import Config
+from greenlight.config import Config
 
 NUMERIC_VARS = [
-    ("RADAR_INTERVAL_SECONDS", "interval_seconds"),
-    ("RADAR_MAX_RUNTIME_SECONDS", "max_runtime_seconds"),
-    ("RADAR_BACKOFF_BASE_SECONDS", "backoff_base_seconds"),
-    ("RADAR_BACKOFF_MAX_SECONDS", "backoff_max_seconds"),
+    ("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "interval_seconds"),
+    ("PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS", "max_runtime_seconds"),
+    ("PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS", "backoff_base_seconds"),
+    ("PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", "backoff_max_seconds"),
 ]
 
 
@@ -35,34 +35,34 @@ def test_direct_construction_defaults():
 
 def test_from_env_parses_all_vars():
     env = {
-        "RADAR_INTERVAL_SECONDS": "30.5",
-        "RADAR_LOG_LEVEL": "debug",
-        "RADAR_LOCK_PATH": "/var/run/radar.lock",
-        "RADAR_MAX_RUNTIME_SECONDS": "120",
-        "RADAR_BACKOFF_BASE_SECONDS": "2",
-        "RADAR_BACKOFF_MAX_SECONDS": "45",
+        "PYTORCH_GREENLIGHT_INTERVAL_SECONDS": "30.5",
+        "PYTORCH_GREENLIGHT_LOG_LEVEL": "debug",
+        "PYTORCH_GREENLIGHT_LOCK_PATH": "/var/run/greenlight.lock",
+        "PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS": "120",
+        "PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS": "2",
+        "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS": "45",
     }
     cfg = Config.from_env(env)
     assert cfg.interval_seconds == 30.5
     assert cfg.log_level == "DEBUG"
-    assert cfg.lock_path == "/var/run/radar.lock"
+    assert cfg.lock_path == "/var/run/greenlight.lock"
     assert cfg.max_runtime_seconds == 120.0
     assert cfg.backoff_base_seconds == 2.0
     assert cfg.backoff_max_seconds == 45.0
 
 
 def test_empty_lock_path_becomes_none():
-    cfg = Config.from_env({"RADAR_LOCK_PATH": ""})
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_LOCK_PATH": ""})
     assert cfg.lock_path is None
 
 
 def test_lock_path_preserved():
-    cfg = Config.from_env({"RADAR_LOCK_PATH": "/run/radar.lock"})
-    assert cfg.lock_path == "/run/radar.lock"
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_LOCK_PATH": "/run/greenlight.lock"})
+    assert cfg.lock_path == "/run/greenlight.lock"
 
 
 def test_log_level_uppercased():
-    cfg = Config.from_env({"RADAR_LOG_LEVEL": "warning"})
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_LOG_LEVEL": "warning"})
     assert cfg.log_level == "WARNING"
 
 
@@ -89,17 +89,17 @@ def test_zero_is_accepted(var, field):
 @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
 def test_non_finite_raises(value):
     with pytest.raises(ValueError) as excinfo:
-        Config.from_env({"RADAR_INTERVAL_SECONDS": value})
-    assert "RADAR_INTERVAL_SECONDS" in str(excinfo.value)
+        Config.from_env({"PYTORCH_GREENLIGHT_INTERVAL_SECONDS": value})
+    assert "PYTORCH_GREENLIGHT_INTERVAL_SECONDS" in str(excinfo.value)
 
 
 def test_finite_value_still_parses():
-    cfg = Config.from_env({"RADAR_INTERVAL_SECONDS": "12.5"})
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_INTERVAL_SECONDS": "12.5"})
     assert cfg.interval_seconds == 12.5
 
 
 def test_from_env_no_arg_reads_os_environ(monkeypatch):
-    monkeypatch.setenv("RADAR_INTERVAL_SECONDS", "17")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "17")
     cfg = Config.from_env()
     assert cfg.interval_seconds == 17.0
     assert cfg.log_level == "INFO"

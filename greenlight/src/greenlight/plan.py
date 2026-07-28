@@ -6,11 +6,11 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from radar.config import Config
+    from greenlight.config import Config
 
 logger = logging.getLogger(__name__)
 
 
 def run(config: Config) -> None:
     logger.info("planning investigations")
-    logger.debug("radar config: %r", config)
+    logger.debug("greenlight config: %r", config)

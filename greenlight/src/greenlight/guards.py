@@ -1,4 +1,4 @@
-"""Single-instance and per-iteration timeout guards for radar."""
+"""Single-instance and per-iteration timeout guards for greenlight."""
 
 from __future__ import annotations
 

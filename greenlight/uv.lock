@@ -290,7 +290,7 @@ wheels = [
 ]
 
 [[package]]
-name = "radar"
+name = "greenlight"
 version = "0.0.0"
 source = { editable = "." }
 

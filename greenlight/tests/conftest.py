@@ -4,26 +4,26 @@ import os
 
 import pytest
 
-from radar.config import Config
+from greenlight.config import Config
 
 
 @pytest.fixture(autouse=True)
-def _clean_radar_env(monkeypatch):
-    """Remove any RADAR_* env vars so tests are isolated from the real environment."""
+def _clean_greenlight_env(monkeypatch):
+    """Remove any PYTORCH_GREENLIGHT_* env vars so tests are isolated from the real environment."""
     for key in list(os.environ):
-        if key.startswith("RADAR_"):
+        if key.startswith("PYTORCH_GREENLIGHT_"):
             monkeypatch.delenv(key, raising=False)
 
 
 @pytest.fixture(autouse=True)
-def reset_radar_logger():
-    """Give each test a clean 'radar' logger and restore the original state afterwards.
+def reset_greenlight_logger():
+    """Give each test a clean 'greenlight' logger and restore the original state afterwards.
 
     Handlers are cleared and propagate is forced on so that ``caplog`` (which
-    listens on the root logger) can observe records from the ``radar`` tree in
+    listens on the root logger) can observe records from the ``greenlight`` tree in
     tests that do not call ``configure_logging`` themselves.
     """
-    logger = logging.getLogger("radar")
+    logger = logging.getLogger("greenlight")
     saved_handlers = logger.handlers[:]
     saved_level = logger.level
     saved_propagate = logger.propagate
@@ -62,4 +62,4 @@ def make_config():
 
 @pytest.fixture
 def tmp_lock_path(tmp_path):
-    return str(tmp_path / "radar.lock")
+    return str(tmp_path / "greenlight.lock")

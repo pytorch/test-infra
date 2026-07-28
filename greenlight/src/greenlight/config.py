@@ -1,4 +1,4 @@
-"""Immutable runtime configuration for the radar service."""
+"""Immutable runtime configuration for the greenlight service."""
 
 from __future__ import annotations
 
@@ -45,10 +45,16 @@ class Config:
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
         source = os.environ if env is None else env
         return cls(
-            interval_seconds=_read_float(source, "RADAR_INTERVAL_SECONDS", _DEFAULT_INTERVAL_SECONDS),
-            log_level=source.get("RADAR_LOG_LEVEL", _DEFAULT_LOG_LEVEL).upper(),
-            lock_path=source.get("RADAR_LOCK_PATH") or None,
-            max_runtime_seconds=_read_float(source, "RADAR_MAX_RUNTIME_SECONDS", _DEFAULT_MAX_RUNTIME_SECONDS),
-            backoff_base_seconds=_read_float(source, "RADAR_BACKOFF_BASE_SECONDS", _DEFAULT_BACKOFF_BASE_SECONDS),
-            backoff_max_seconds=_read_float(source, "RADAR_BACKOFF_MAX_SECONDS", _DEFAULT_BACKOFF_MAX_SECONDS),
+            interval_seconds=_read_float(source, "PYTORCH_GREENLIGHT_INTERVAL_SECONDS", _DEFAULT_INTERVAL_SECONDS),
+            log_level=source.get("PYTORCH_GREENLIGHT_LOG_LEVEL", _DEFAULT_LOG_LEVEL).upper(),
+            lock_path=source.get("PYTORCH_GREENLIGHT_LOCK_PATH") or None,
+            max_runtime_seconds=_read_float(
+                source, "PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS", _DEFAULT_MAX_RUNTIME_SECONDS
+            ),
+            backoff_base_seconds=_read_float(
+                source, "PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS", _DEFAULT_BACKOFF_BASE_SECONDS
+            ),
+            backoff_max_seconds=_read_float(
+                source, "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", _DEFAULT_BACKOFF_MAX_SECONDS
+            ),
         )

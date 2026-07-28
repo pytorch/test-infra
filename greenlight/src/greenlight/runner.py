@@ -1,4 +1,4 @@
-"""Resilient daemon loop around the radar unit of work."""
+"""Resilient daemon loop around the greenlight unit of work."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from radar.guards import iteration_timeout
+from greenlight.guards import iteration_timeout
 
 if TYPE_CHECKING:
-    from radar.config import Config
+    from greenlight.config import Config
 
 logger = logging.getLogger(__name__)
 

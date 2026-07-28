@@ -1,16 +1,16 @@
-name: radar
+name: greenlight
 
 on:
   pull_request:
     paths:
-      - .github/workflows/radar-tests.yml
-      - radar/**
+      - .github/workflows/greenlight-tests.yml
+      - greenlight/**
   push:
     branches:
       - main
     paths:
-      - .github/workflows/radar-tests.yml
-      - radar/**
+      - .github/workflows/greenlight-tests.yml
+      - greenlight/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -21,7 +21,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: radar
+    working-directory: greenlight
 
 jobs:
   gates:
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
-          working_directory: radar
+          working_directory: greenlight
       - name: Sync dependencies
         run: just setup
       - name: Lint

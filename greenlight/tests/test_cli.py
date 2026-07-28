@@ -4,9 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from radar import cli, plan
-from radar.config import Config
-from radar.guards import SingleInstanceError
+from greenlight import cli, plan
+from greenlight.config import Config
+from greenlight.guards import SingleInstanceError
 
 
 @contextmanager
@@ -17,13 +17,13 @@ def _noop_lock(path):
 def test_build_parser_parses_common_flags_per_subcommand():
     parser = cli.build_parser()
     args = parser.parse_args(
-        ["plan", "--loop", "--interval", "5.5", "--log-level", "DEBUG", "--lock-path", "/run/radar.lock"]
+        ["plan", "--loop", "--interval", "5.5", "--log-level", "DEBUG", "--lock-path", "/run/greenlight.lock"]
     )
     assert args.command == "plan"
     assert args.loop is True
     assert args.interval == 5.5
     assert args.log_level == "DEBUG"
-    assert args.lock_path == "/run/radar.lock"
+    assert args.lock_path == "/run/greenlight.lock"
 
 
 def test_build_parser_defaults_per_subcommand():
@@ -138,10 +138,10 @@ def test_main_loop_already_running_returns_exit_already_running(monkeypatch):
 
 
 def test_cli_args_override_env(monkeypatch):
-    monkeypatch.setenv("RADAR_INTERVAL_SECONDS", "30")
-    monkeypatch.setenv("RADAR_LOG_LEVEL", "warning")
-    monkeypatch.setenv("RADAR_LOCK_PATH", "/env/lock")
-    monkeypatch.setenv("RADAR_MAX_RUNTIME_SECONDS", "7")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "30")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOG_LEVEL", "warning")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", "/env/lock")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS", "7")
 
     captured: dict[str, object] = {}
 
@@ -181,7 +181,7 @@ def test_cli_log_level_override(monkeypatch):
 
 
 def test_main_argv_none_uses_sys_argv(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["radar", "plan"])
+    monkeypatch.setattr(sys, "argv", ["greenlight", "plan"])
     plan_mock = Mock()
     monkeypatch.setattr(cli, "PHASES", {"plan": plan_mock, "act": Mock()})
     monkeypatch.setattr(cli, "configure_logging", Mock())
@@ -199,6 +199,6 @@ def test_exit_code_constants():
 
 
 def test_module_entry_point_wires_to_cli_main():
-    import radar.__main__ as entry
+    import greenlight.__main__ as entry
 
     assert entry.main is cli.main

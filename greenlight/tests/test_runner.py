@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from radar import runner
+from greenlight import runner
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -101,7 +101,7 @@ def test_backoff_after_failure_then_cadence(make_config, caplog):
     )
     run = Mock(side_effect=[ValueError("boom"), None])
     wait = FakeWait(stop_after=2)
-    with caplog.at_level(logging.ERROR, logger="radar"):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
         runner.run_forever(
             cfg,
             run=run,
@@ -139,7 +139,7 @@ def test_backoff_is_capped(make_config):
 
 
 def test_backoff_survives_many_failures(make_config, caplog):
-    caplog.set_level(logging.CRITICAL, logger="radar")
+    caplog.set_level(logging.CRITICAL, logger="greenlight")
     cfg = make_config(
         interval_seconds=0.0,
         backoff_base_seconds=1.0,
@@ -162,7 +162,7 @@ def test_backoff_survives_many_failures(make_config, caplog):
 
 
 def test_backoff_base_zero_does_not_crash(make_config, caplog):
-    caplog.set_level(logging.CRITICAL, logger="radar")
+    caplog.set_level(logging.CRITICAL, logger="greenlight")
     cfg = make_config(
         interval_seconds=0.0,
         backoff_base_seconds=0.0,
@@ -219,7 +219,7 @@ def test_signal_registration_failure_is_tolerated(make_config, monkeypatch, capl
 
     monkeypatch.setattr(signal, "signal", boom)
     run = Mock()
-    with caplog.at_level(logging.WARNING, logger="radar"):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
         runner.run_forever(
             make_config(),
             run=run,

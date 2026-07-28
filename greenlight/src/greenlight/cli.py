@@ -1,4 +1,4 @@
-"""Command-line entry point for the radar service."""
+"""Command-line entry point for the greenlight service."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import logging
 import sys
 from typing import TYPE_CHECKING
 
-from radar import act, plan
-from radar.config import Config
-from radar.guards import SingleInstanceError, single_instance_lock
-from radar.log import configure_logging
-from radar.runner import execute_once, run_forever
+from greenlight import act, plan
+from greenlight.config import Config
+from greenlight.guards import SingleInstanceError, single_instance_lock
+from greenlight.log import configure_logging
+from greenlight.runner import execute_once, run_forever
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -35,8 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--lock-path", default=None, help="single-instance lock file path")
 
     parser = argparse.ArgumentParser(
-        prog="radar",
-        description="Run a radar phase once (default) or as a resilient daemon with --loop.",
+        prog="greenlight",
+        description="Run a greenlight phase once (default) or as a resilient daemon with --loop.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser(
@@ -73,10 +73,10 @@ def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool) -> i
             else:
                 execute_once(config, run)
     except SingleInstanceError:
-        logger.error("another radar instance is running; skipping")
+        logger.error("another greenlight instance is running; skipping")
         return EXIT_ALREADY_RUNNING
     except Exception:
-        logger.exception("radar phase failed")
+        logger.exception("greenlight phase failed")
         return EXIT_FAILURE
     return EXIT_OK
 

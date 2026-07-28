@@ -1,4 +1,4 @@
-# justfile — front-end for the radar service
+# justfile — front-end for the greenlight service
 # https://just.systems/
 
 set shell := ["mise", "exec", "--", "bash", "-euo", "pipefail", "-c"]
@@ -11,17 +11,17 @@ default:
 setup:
     uv sync
 
-# Run the radar CLI
+# Run the greenlight CLI
 run *args:
-    uv run radar {{args}}
+    uv run greenlight {{args}}
 
 # Select, gate, and score PRs; decide which need review
 plan *args:
-    uv run radar plan {{args}}
+    uv run greenlight plan {{args}}
 
 # Turn review decisions into PR approvals/revocations
 act *args:
-    uv run radar act {{args}}
+    uv run greenlight act {{args}}
 
 # Type-check source and tests
 typecheck:
@@ -29,7 +29,7 @@ typecheck:
 
 # Run the test suite with coverage
 test:
-    uv run pytest -n auto --cov=radar --cov-report=term-missing:skip-covered --cov-report=json
+    uv run pytest -n auto --cov=greenlight --cov-report=term-missing:skip-covered --cov-report=json
 
 # Run all linters in check mode, aggregating every failure before exiting
 lint:

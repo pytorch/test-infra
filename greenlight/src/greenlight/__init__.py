@@ -1,8 +1,8 @@
-"""The radar service package."""
+"""The greenlight service package."""
 
 from __future__ import annotations
 
-from radar.config import Config
+from greenlight.config import Config
 
 __version__ = "0.0.0"
 

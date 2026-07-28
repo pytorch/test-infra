@@ -1,8 +1,8 @@
-"""Module execution entry point for ``python -m radar``."""
+"""Module execution entry point for ``python -m greenlight``."""
 
 from __future__ import annotations
 
-from radar.cli import main
+from greenlight.cli import main
 
 __all__ = ["main"]
 

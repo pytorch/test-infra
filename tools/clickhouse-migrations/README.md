@@ -14,7 +14,7 @@ clickhouse_db_schema/migrations/
 ```
 
 Files are named `NNNN_description.sql` — a four-digit zero-padded prefix, e.g.
-`0001_create_misc_radar_pr_state.sql` — and are applied in ascending order of the
+`0001_create_misc_greenlight_pr_state.sql` — and are applied in ascending order of the
 prefix. Override the directory with `--migrations-dir <path>` or `CH_MIGRATIONS_DIR`.
 
 ## Authoring a migration
@@ -65,7 +65,7 @@ there is no cross-runner lock.
 
 ## Services must never run `apply`
 
-Application services (radar and friends) connect with least-privilege credentials
+Application services (PyTorch Green Light and friends) connect with least-privilege credentials
 that read and write table *data* only — never DDL. They must **never** run `apply`.
 Schema changes are a deliberate, human-run, admin-credentialed step, decoupled from
 service deploys.

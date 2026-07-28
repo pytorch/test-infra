@@ -1,4 +1,4 @@
-"""Logging configuration for the radar service."""
+"""Logging configuration for the greenlight service."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def configure_logging(level: str = "INFO") -> None:
     resolved = getattr(logging, level.upper(), None)
     if not isinstance(resolved, int):
         raise ValueError(f"invalid log level: {level!r}")
-    logger = logging.getLogger("radar")
+    logger = logging.getLogger("greenlight")
     logger.setLevel(resolved)
     logger.handlers.clear()
     handler = logging.StreamHandler(sys.stdout)

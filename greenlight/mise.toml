@@ -9,7 +9,7 @@ uv = "latest"
 node = "latest"
 
 [env]
-PROJECT_NAME = "radar"
+PROJECT_NAME = "greenlight"
 VIRTUAL_ENV = "{{config_root}}/.venv"
 _.path = ["{{config_root}}/.venv/bin"]
 

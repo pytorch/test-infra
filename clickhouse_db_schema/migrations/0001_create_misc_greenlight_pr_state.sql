@@ -1,4 +1,4 @@
--- radar per-PR evaluation state, collapsed to one latest row per PR.
+-- greenlight per-PR evaluation state, collapsed to one latest row per PR.
 --
 -- SharedReplacingMergeTree keyed on ORDER BY (repo, pr_number) keeps a single row
 -- per PR. `version` is a monotonic write timestamp and is deliberately NOT part of
@@ -11,8 +11,8 @@
 --
 -- `eval_hash` is the land-guard hash: pytorchbot recomputes the hash of the inputs
 -- it is about to act on and compares it against the stored value, refusing to land
--- when they diverge (the PR moved since radar evaluated it).
-CREATE TABLE IF NOT EXISTS misc.radar_pr_state
+-- when they diverge (the PR moved since greenlight evaluated it).
+CREATE TABLE IF NOT EXISTS misc.greenlight_pr_state
 (
     `repo` LowCardinality(String),
     `pr_number` Int64,

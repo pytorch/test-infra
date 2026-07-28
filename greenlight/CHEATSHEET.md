@@ -1,10 +1,10 @@
-# radar cheatsheet
+# PyTorch Green Light cheatsheet
 
-Command reference for the `radar` service. Run every command from the `radar/`
+Command reference for the `greenlight` service. Run every command from the `greenlight/`
 directory. `just` is the front-end for every workflow — run `just` or
 `just --list` to see all recipes.
 
-radar runs one iteration of a phase and exits (cron-like), or loops as a daemon
+PyTorch Green Light runs one iteration of a phase and exits (cron-like), or loops as a daemon
 with `--loop`. It has two phases:
 
 - `plan` — select, gate, and score open PRs and decide which need a code review.
@@ -16,7 +16,7 @@ The only manual prerequisite is [mise](https://mise.jdx.dev); it provisions
 everything else.
 
 ```bash
-mise trust     # trust radar/mise.toml (first use only)
+mise trust     # trust greenlight/mise.toml (first use only)
 mise install   # install python 3.14, uv, just, and the non-Python linters
 just setup     # uv sync -> create .venv with the Python deps
 ```
@@ -30,11 +30,11 @@ pytest, yamllint) into `.venv`.
 ```bash
 just plan            # one plan iteration, then exit
 just act             # one act iteration, then exit
-just run <args>      # pass arbitrary args to the radar CLI (plan/act are shortcuts)
+just run <args>      # pass arbitrary args to the greenlight CLI (plan/act are shortcuts)
 ```
 
-`just plan` logs `INFO radar.plan planning investigations`; `just act` logs
-`INFO radar.act applying approval decisions`. Log lines are
+`just plan` logs `INFO greenlight.plan planning investigations`; `just act` logs
+`INFO greenlight.act applying approval decisions`. Log lines are
 `TIMESTAMP LEVEL logger message`. Exit codes: `0` ok, `1` the phase raised, `3`
 another instance holds the lock (`2` is an argparse usage error).
 
@@ -49,24 +49,24 @@ just plan --loop --interval 30   # loop every 30s
 just act --loop                  # same for act
 ```
 
-The daemon logs `INFO radar.runner daemon starting with interval N seconds`,
+The daemon logs `INFO greenlight.runner daemon starting with interval N seconds`,
 runs each iteration, and on SIGTERM/SIGINT stops cleanly after the current
-iteration (`INFO radar.runner daemon stopped`, exit `0`). Signals are observed
+iteration (`INFO greenlight.runner daemon stopped`, exit `0`). Signals are observed
 only between iterations.
 
-Config comes from `RADAR_*` env vars; CLI flags `--interval`, `--log-level`, and
+Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--log-level`, and
 `--lock-path` override them.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `RADAR_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
-| `RADAR_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
-| `RADAR_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
-| `RADAR_MAX_RUNTIME_SECONDS` | `0` | Per-iteration hard timeout (`0` = disabled) |
-| `RADAR_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
-| `RADAR_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
+| `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
+| `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
+| `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
+| `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `0` | Per-iteration hard timeout (`0` = disabled) |
+| `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
+| `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
 
-Raise verbosity with `--log-level DEBUG` (or `RADAR_LOG_LEVEL=DEBUG`); DEBUG also
+Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
 
 ## Simulate a run

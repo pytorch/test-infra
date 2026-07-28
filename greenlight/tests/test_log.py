@@ -3,12 +3,12 @@ import sys
 
 import pytest
 
-from radar.log import configure_logging
+from greenlight.log import configure_logging
 
 
 def test_configure_sets_level_and_single_stdout_handler():
     configure_logging("DEBUG")
-    logger = logging.getLogger("radar")
+    logger = logging.getLogger("greenlight")
 
     assert logger.level == logging.DEBUG
     assert len(logger.handlers) == 1
@@ -21,14 +21,14 @@ def test_configure_sets_level_and_single_stdout_handler():
 
 def test_default_level_is_info():
     configure_logging()
-    logger = logging.getLogger("radar")
+    logger = logging.getLogger("greenlight")
     assert logger.level == logging.INFO
 
 
 def test_idempotent_keeps_single_handler():
     configure_logging("INFO")
     configure_logging("INFO")
-    logger = logging.getLogger("radar")
+    logger = logging.getLogger("greenlight")
     assert len(logger.handlers) == 1
 
 

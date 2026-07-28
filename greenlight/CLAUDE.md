@@ -1,14 +1,14 @@
-# CLAUDE.md — radar
+# CLAUDE.md — PyTorch Green Light
 
-This file is the canonical project guidance for any coding agent operating in `radar/`.
+This file is the canonical project guidance for any coding agent operating in `greenlight/`.
 
 ## What This Is
 
-radar is a Python 3.14 service invoked from the CLI. It exposes two phases —
+PyTorch Green Light is a Python 3.14 service invoked from the CLI. It exposes two phases —
 `plan` and `act` — each of which runs a single iteration and
 exits (cron-like), e.g. `just run plan`. Either phase can also run as a long-lived
 daemon with `--loop`, e.g. `just run plan --loop`, which repeats that phase on an
-interval. Both phases share the same one-shot and daemon execution paths, so radar
+interval. Both phases share the same one-shot and daemon execution paths, so PyTorch Green Light
 can move between cron-driven and daemon deployment with no change to phase logic.
 
 ## Tooling
@@ -38,7 +38,7 @@ defer; they block CI.
 
 ## Code Organization
 
-- src-layout: runtime code in `src/radar/`; tests mirror the modules under `tests/`.
+- src-layout: runtime code in `src/greenlight/`; tests mirror the modules under `tests/`.
 - No file over 400 lines. Split by responsibility before it grows past the limit.
 - One clear responsibility per module.
 - Single source of truth: define each value and type exactly once, import elsewhere.
@@ -46,14 +46,14 @@ defer; they block CI.
 
 ## The Service Seam
 
-radar has two units of work, one per phase — the placeholder seams where new logic
+PyTorch Green Light has two units of work, one per phase — the placeholder seams where new logic
 goes:
 
 - `plan.run()` — select, gate, and score open PRs and decide which need a code review.
 - `act.run()` — turn review decisions into PR approvals or revocations.
 
 Add new logic inside the relevant phase's `run()`, which **must keep raising on
-failure** (it does not catch). The CLI selects a phase (`radar plan` / `radar act`)
+failure** (it does not catch). The CLI selects a phase (`greenlight plan` / `greenlight act`)
 and runs it through one of two execution paths, so a phase can move between
 cron-driven and daemon deployment with no change to its logic:
 
@@ -65,9 +65,9 @@ cron-driven and daemon deployment with no change to its logic:
 Keep each phase's `run()` propagating failures: do not swallow failures on the
 one-shot path, and do not let the daemon die on a single failed iteration.
 
-Both paths run under the single-instance lock (`RADAR_LOCK_PATH`). In `--loop` mode,
+Both paths run under the single-instance lock (`PYTORCH_GREENLIGHT_LOCK_PATH`). In `--loop` mode,
 SIGTERM/SIGINT stop the daemon only between iterations, so a long-running or hung
-iteration is bounded only by `RADAR_MAX_RUNTIME_SECONDS` (the per-iteration timeout,
+iteration is bounded only by `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (the per-iteration timeout,
 disabled by default).
 
 ## Comments
