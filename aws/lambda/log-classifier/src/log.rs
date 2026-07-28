@@ -22,6 +22,19 @@ static ESCAPE_CODE_REGEX: Lazy<Regex> = Lazy::new(|| {
 static TIMESTAMP_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z ").unwrap());
 
+/// Lines that are pure CI-wrapper boilerplate: they are always emitted when a
+/// step fails but never describe the underlying failure. We drop them during
+/// preprocessing so that matching falls through to the real error line.
+static IGNORE_LINE_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| {
+    vec![
+        Regex::new(r"^##\[error\]Process completed with exit code \d+\.?$").unwrap(),
+        Regex::new(r"\[OSDC\] Step script exited").unwrap(),
+        Regex::new(r"^##\[error\]Executing the custom container implementation failed").unwrap(),
+        Regex::new(r"^##\[error\]TypeError: Cannot read properties of null \(reading 'jobPod'\)")
+            .unwrap(),
+    ]
+});
+
 impl Log {
     /// Create a log from a string, applying some preprocessing to make it
     /// easier to match against.
@@ -36,6 +49,11 @@ impl Log {
 
             // Strip ANSI escape codes that interfere with matching.
             let line = ESCAPE_CODE_REGEX.replace_all(&line, "");
+
+            // Drop lines that match a known-boilerplate pattern before matching.
+            if IGNORE_LINE_REGEXES.iter().any(|re| re.is_match(&line)) {
+                continue;
+            }
 
             // If this line should be ignored, don't add it to the Log.
             if ignore_state.should_ignore(&line) {
@@ -89,5 +107,78 @@ impl IgnoreStateMachine {
                 false
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const FAKE_TIMESTAMP: &str = "2024-07-08T16:59:08.1747875Z ";
+
+    fn retained_lines(raw: &str) -> Vec<String> {
+        Log::new(raw.to_string())
+            .lines
+            .into_values()
+            .collect::<Vec<_>>()
+    }
+
+    #[test]
+    fn ignore_regexes_match_their_targets() {
+        // Exit code, with and without the trailing period.
+        assert!(IGNORE_LINE_REGEXES[0].is_match("##[error]Process completed with exit code 1."));
+        assert!(IGNORE_LINE_REGEXES[0].is_match("##[error]Process completed with exit code 128"));
+        // OSDC wrapper (intentionally unanchored).
+        assert!(IGNORE_LINE_REGEXES[1].is_match("[OSDC] Step script exited with code 1"));
+        // Custom container implementation failure.
+        assert!(IGNORE_LINE_REGEXES[2].is_match(
+            "##[error]Executing the custom container implementation failed with exit code 1."
+        ));
+        // jobPod null-read TypeError.
+        assert!(IGNORE_LINE_REGEXES[3]
+            .is_match("##[error]TypeError: Cannot read properties of null (reading 'jobPod')"));
+    }
+
+    #[test]
+    fn log_new_drops_ignored_boilerplate_lines() {
+        let raw = format!(
+            "{ts}##[error]Process completed with exit code 1.\n\
+             {ts}[OSDC] Step script exited with code 1\n\
+             {ts}##[error]Executing the custom container implementation failed with exit code 1.\n\
+             {ts}##[error]TypeError: Cannot read properties of null (reading 'jobPod')\n\
+             {ts}##[error]RuntimeError: real failure\n\
+             {ts}OSError: boom\n",
+            ts = FAKE_TIMESTAMP
+        );
+        assert_eq!(
+            retained_lines(&raw),
+            vec![
+                "##[error]RuntimeError: real failure".to_string(),
+                "OSError: boom".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn log_new_keeps_lines_that_only_resemble_boilerplate() {
+        let raw = format!(
+            "{ts}##[error]TypeError: something real\n\
+             {ts}some [OSDC] unrelated info line\n",
+            ts = FAKE_TIMESTAMP
+        );
+        assert_eq!(
+            retained_lines(&raw),
+            vec![
+                "##[error]TypeError: something real".to_string(),
+                "some [OSDC] unrelated info line".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn ignore_line_regexes_compile() {
+        // Forcing the Lazy to evaluate runs every Regex::new().unwrap(), which
+        // would panic here if any pattern were malformed.
+        assert_eq!(IGNORE_LINE_REGEXES.len(), 4);
     }
 }

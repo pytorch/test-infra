@@ -91,7 +91,7 @@ pub fn evaluate_ruleset_all_lines(ruleset: &RuleSet, log: &Log) -> Vec<usize> {
 ///
 /// This function will panic if:
 /// * `min_context_padding` is greater than or equal to `max_chunk_size`.
-/// * Any line number is less than 1 or greater than the number of lines in the log.
+/// * Any line number is less than 1 or greater than the highest line number present in the log.
 fn get_line_number_chunks(
     log: &Log,
     line_numbers: Vec<usize>,
@@ -112,8 +112,10 @@ fn get_line_number_chunks(
     let mut line_numbers = line_numbers;
     line_numbers.sort();
 
-    // assert length of log is at least last line number and no negative line numbers
-    if *line_numbers.first().unwrap() < 1 || *line_numbers.last().unwrap() > log.lines.len() {
+    // Keys are original 1-indexed line positions; dropped lines leave gaps, so the
+    // highest key can exceed log.lines.len(). Bound against the max key, not the count.
+    let max_line_number = *log.lines.keys().next_back().unwrap_or(&0);
+    if *line_numbers.first().unwrap() < 1 || *line_numbers.last().unwrap() > max_line_number {
         panic!("line numbers must be within the range of the log");
     }
 
@@ -131,7 +133,7 @@ fn get_line_number_chunks(
             chunk_end = line_number;
         } else {
             chunk_start = chunk_start.saturating_sub(min_context_padding).max(1);
-            chunk_end = min(chunk_end + min_context_padding, log.lines.len());
+            chunk_end = min(chunk_end + min_context_padding, max_line_number);
 
             merged_line_numbers.push((chunk_start, chunk_end));
             chunk_start = line_number;
@@ -141,7 +143,7 @@ fn get_line_number_chunks(
     // add remaining chunk
     merged_line_numbers.push((
         chunk_start.saturating_sub(min_context_padding).max(1),
-        min(chunk_end + min_context_padding, log.lines.len()),
+        min(chunk_end + min_context_padding, max_line_number),
     ));
 
     // if there are chunks with the same start point keep the largest chunk and remove the rest
@@ -391,7 +393,7 @@ mod test {
         let log_content = fs::read_to_string("fixtures/error_log1.txt");
         let log = Log::new(log_content.unwrap());
         // Define the error line and number of lines for the snippet
-        let error_line = Vec::from([4047]);
+        let error_line = Vec::from([4037]);
         let num_lines = 10;
 
         // Call the function
@@ -421,5 +423,23 @@ mod test {
         let result_string = result.join("\n");
         // Assert against the snapshot
         assert_snapshot!(result_string);
+    }
+
+    #[test]
+    fn test_get_snippets_sparse_map_key_exceeds_retained_len() {
+        use std::collections::BTreeMap;
+        // A retained line at original position 2 with position 1 dropped during
+        // preprocessing: keys = [2] but len = 1, so the match key exceeds the
+        // retained count. Bounding against len() instead of the max key panics here.
+        let mut lines = BTreeMap::new();
+        lines.insert(2, "the real error line".to_string());
+        let log = Log { lines };
+
+        // Mirrors the Bedrock make_query call shape: get_snippets(log, [key], num/2, num+1).
+        let chunks = get_line_number_chunks(&log, vec![2], 50, 101);
+        assert_eq!(chunks, vec![(1, 2)]);
+
+        let snippets = get_snippets(&log, vec![2], 50, 101);
+        assert_eq!(snippets, vec!["the real error line\n".to_string()]);
     }
 }
