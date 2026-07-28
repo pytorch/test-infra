@@ -143,7 +143,7 @@ def build_check_run_output(
     conclusion: str,
     details_url: str,
     downstream_repo: str,
-    pr_number: str
+    pr_number: str = "",
 ) -> dict:
     """Return a GitHub Check Run output dict shown in the detail panel."""
     if status != "completed":
@@ -152,9 +152,10 @@ def build_check_run_output(
         title = conclusion.capitalize()
     else:
         title = "Completed"
+    pr_part = f" for PR {pr_number}" if pr_number else ""
     return {
         "title": title,
-        "summary": f"{downstream_repo} workflow for PR {pr_number}: {details_url}",
+        "summary": f"{downstream_repo} workflow{pr_part}: {details_url}",
     }
 
 

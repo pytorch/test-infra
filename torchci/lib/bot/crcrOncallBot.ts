@@ -81,14 +81,18 @@ export default function crcrOncallBot(app: Probot): void {
 
     // Get the PRs this check run belongs to.
     let prNumbers: number[] = [];
-    if (checkRun.pull_requests && checkRun.pull_requests.length > 0) {
-      prNumbers = checkRun.pull_requests.map((pr) => pr.number);
-    } else if (checkRun.output?.summary) {
+    if (checkRun.output?.summary) {
       const match = checkRun.output.summary.match(/for PR (\d+)/);
       if (match) {
         prNumbers = [parseInt(match[1], 10)];
       }
-    } else if (checkRun.head_sha) {
+    } else if (checkRun.pull_requests && checkRun.pull_requests.length > 0) {
+      prNumbers = checkRun.pull_requests.map((pr) => pr.number);
+    }
+
+    // Fall back to Search API if still no PR found (e.g., pr_number was empty
+    // on the Lambda side).
+    if (prNumbers.length === 0 && checkRun.head_sha) {
       try {
         const result = await ctx.octokit.rest.search.issuesAndPullRequests({
           q: `${checkRun.head_sha} type:pr repo:${owner}/${repo}`,
