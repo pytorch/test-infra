@@ -203,6 +203,7 @@ def _create_upstream_check_run(
     workflow_name: str,
     job_name: str | None,
     details_url: str,
+    pr_number: str = "",
 ) -> None:
     """Create a new upstream check run mirroring the downstream job's status.
 
@@ -215,7 +216,7 @@ def _create_upstream_check_run(
     Best-effort: a GitHub failure must not fail the callback.
     """
     output = gh_helper.build_check_run_output(
-        status, conclusion, details_url, verified_repo
+        status, conclusion, details_url, verified_repo, pr_number
     )
     try:
         upstream_token = gh_helper.get_repo_access_token(
@@ -369,6 +370,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     if repo_level.value >= AllowlistLevel.L3.value:
         pr_field = (body.get("payload") or {}).get("pull_request") or {}
         head_sha = (pr_field.get("head") or {}).get("sha", "")
+        pr_number = str(pr_field.get("number", ""))
         if head_sha:
             conclusion = (body.get("workflow") or {}).get("conclusion")
             details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
@@ -408,6 +410,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
                     workflow_name=workflow_name,
                     job_name=job_name,
                     details_url=details_url,
+                    pr_number=pr_number,
                 )
 
     if status == "in_progress":

@@ -207,7 +207,11 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                     details_url=details_url,
                     external_id=str(run_id),
                     output=gh_helper.build_check_run_output(
-                        job_status, job_conclusion, details_url, downstream_repo
+                        job_status,
+                        job_conclusion,
+                        details_url,
+                        downstream_repo,
+                        pr_number,
                     ),
                 )
                 created.append(f"{downstream_repo}/{job_name}")

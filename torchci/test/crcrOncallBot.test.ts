@@ -176,30 +176,22 @@ L3:
     });
   });
 
-  test("does not comment when Search API returns no PRs", async () => {
-    const scope = nock("https://api.github.com")
-      .get("/search/issues")
-      .query(true)
-      .reply(200, { total_count: 0, items: [] });
-
+  test("does not comment when output has no PR number", async () => {
     await probot.receive({
       name: "check_run" as any,
       payload: checkRunPayload({
         pull_requests: [],
+        output: {
+          title: "In progress",
+          summary: "intel/torch-xpu-ops workflow for PR : https://example.com",
+        },
       }) as any,
       id: "8",
     });
-    handleScope(scope);
   });
 
-  test("posts comment when fallback Search API finds cross-fork PR", async () => {
+  test("posts comment when output contains PR number for cross-fork PR", async () => {
     const scope = nock("https://api.github.com")
-      .get("/search/issues")
-      .query(true)
-      .reply(200, {
-        total_count: 1,
-        items: [{ number: PR_NUMBER }],
-      })
       .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
       .reply(200, [])
       .post(
@@ -218,6 +210,10 @@ L3:
       name: "check_run" as any,
       payload: checkRunPayload({
         pull_requests: [], // empty — simulates cross-fork PR
+        output: {
+          title: "Failure",
+          summary: `intel/torch-xpu-ops workflow for PR ${PR_NUMBER}: https://example.com`,
+        },
       }) as any,
       id: "10",
     });
