@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,6 +40,7 @@ class Config:
     max_runtime_seconds: float = _DEFAULT_MAX_RUNTIME_SECONDS
     backoff_base_seconds: float = _DEFAULT_BACKOFF_BASE_SECONDS
     backoff_max_seconds: float = _DEFAULT_BACKOFF_MAX_SECONDS
+    github_token: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -57,4 +58,5 @@ class Config:
             backoff_max_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", _DEFAULT_BACKOFF_MAX_SECONDS
             ),
+            github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN") or None,
         )

@@ -20,6 +20,7 @@ def test_defaults_when_env_empty():
     assert cfg.max_runtime_seconds == 0.0
     assert cfg.backoff_base_seconds == 1.0
     assert cfg.backoff_max_seconds == 60.0
+    assert cfg.github_token is None
     assert cfg == Config()
 
 
@@ -31,6 +32,7 @@ def test_direct_construction_defaults():
     assert cfg.max_runtime_seconds == 0.0
     assert cfg.backoff_base_seconds == 1.0
     assert cfg.backoff_max_seconds == 60.0
+    assert cfg.github_token is None
 
 
 def test_from_env_parses_all_vars():
@@ -41,6 +43,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS": "120",
         "PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS": "2",
         "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS": "45",
+        "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
     }
     cfg = Config.from_env(env)
     assert cfg.interval_seconds == 30.5
@@ -49,11 +52,22 @@ def test_from_env_parses_all_vars():
     assert cfg.max_runtime_seconds == 120.0
     assert cfg.backoff_base_seconds == 2.0
     assert cfg.backoff_max_seconds == 45.0
+    assert cfg.github_token == "ghp_abc123"
 
 
 def test_empty_lock_path_becomes_none():
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_LOCK_PATH": ""})
     assert cfg.lock_path is None
+
+
+def test_empty_github_token_becomes_none():
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_GITHUB_TOKEN": ""})
+    assert cfg.github_token is None
+
+
+def test_github_token_excluded_from_repr():
+    cfg = Config(github_token="secret-xyz")
+    assert "secret-xyz" not in repr(cfg)
 
 
 def test_lock_path_preserved():

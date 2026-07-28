@@ -3,7 +3,7 @@ name = "greenlight"
 version = "0.0.0"
 description = "CLI-invoked periodic iteration service, daemon-capable."
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = ["pygithub>=2.6.1"]
 
 [project.scripts]
 greenlight = "greenlight.cli:main"
@@ -50,7 +50,7 @@ select = [
 ignore = ["RET504"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ARG", "PT011"]
+"tests/**" = ["S101", "S105", "S106", "ARG", "PT011"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["greenlight"]
