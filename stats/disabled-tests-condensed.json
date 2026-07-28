@@ -108,6 +108,76 @@
       "inductor"
     ]
   ],
+  "test_broadcast_fn_atan2_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_eq_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_fmod_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_ge_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_gt_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_le_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_lt_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_ne_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_pow_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_broadcast_fn_remainder_cpu (__main__.TestTorchDeviceTypeCPU)": [
+    "191283",
+    "https://github.com/pytorch/pytorch/issues/191283",
+    [
+      "dynamo"
+    ]
+  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -1330,6 +1400,8 @@
     "190882",
     "https://github.com/pytorch/pytorch/issues/190882",
     [
+      "asan",
+      "linux",
       "mac",
       "macos",
       "rocm"
