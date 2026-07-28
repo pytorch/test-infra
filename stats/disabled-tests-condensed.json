@@ -352,6 +352,13 @@
       "linux"
     ]
   ],
+  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
+    "188234",
+    "https://github.com/pytorch/pytorch/issues/188234",
+    [
+      "linux"
+    ]
+  ],
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
@@ -1127,6 +1134,15 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
     ]
   ],
   "test_source_multithreaded_basic_work_in_main_thread_False (__main__.TestProfiler)": [
