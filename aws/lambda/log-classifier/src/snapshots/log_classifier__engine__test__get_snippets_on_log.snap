@@ -2,12 +2,12 @@
 source: src/engine.rs
 expression: result_string
 ---
-    sudo: setrlimit(RLIMIT_STACK): Operation not permitted
-+ echo 'For more details refer to https://github.com/sudo-project/sudo/issues/42'
-For more details refer to https://github.com/sudo-project/sudo/issues/42
-+ sudo chown -R 1000 /var/lib/jenkins/workspace
-##[error]Process completed with exit code 1.
-Prepare all required actions
-Getting action download info
-##[group]Run ./.github/actions/pytest-cache-upload
-with:
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/configuration_utils.py", line 689, in _get_config_dict
+    resolved_config_file = cached_file(
+  File "/opt/conda/envs/py_3.10/lib/python3.10/site-packages/transformers/utils/hub.py", line 442, in cached_file
+    raise EnvironmentError(
+OSError: We couldn't connect to 'https://huggingface.co' to load this file, couldn't find it in the cached files and it looks like t5-small is not the path to a directory containing a file named config.json.
+Checkout your internet connection or see how to run the library in offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'.
++ cleanup_workspace
++ echo 'sudo may print the following warning message that can be ignored. The chown command will still run.'
+sudo may print the following warning message that can be ignored. The chown command will still run.

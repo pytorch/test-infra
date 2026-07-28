@@ -288,6 +288,38 @@ mod test {
         );
     }
 
+    #[test]
+    fn evaluate_ruleset_matches_real_error_after_dropping_boilerplate() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            >>> Lint for test/foo.py:\n\
+            ##[error]Process completed with exit code 1.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).expect("should match the real error line");
+        assert_eq!(match_.line_number, 1);
+        assert_eq!(match_.rule.name, "Lintrunner failure");
+        assert_eq!(log.lines.get(&1).unwrap(), ">>> Lint for test/foo.py:");
+    }
+
+    #[test]
+    fn evaluate_ruleset_returns_none_for_only_boilerplate() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            ##[error]Process completed with exit code 1.\n\
+            [OSDC] Step script exited with code 1\n\
+            "
+            .into(),
+        );
+        // Every line is boilerplate and dropped, so the log is empty; the classify
+        // path yields "No match found" (None) rather than panicking.
+        assert!(log.lines.is_empty());
+        assert!(evaluate_ruleset(&ruleset, &log).is_none());
+    }
+
     // Actually download some id.
     // #[tokio::test]
     // async fn test_real() {
