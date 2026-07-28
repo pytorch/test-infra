@@ -118,3 +118,46 @@ just clean   # remove build/test artifacts and the venv
 Removes `.venv`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`, `.coverage`,
 `coverage.json`, `htmlcov`, `dist`, `build`, `*.egg-info`, and all `__pycache__`
 directories. Re-run `just setup` afterwards to recreate `.venv`.
+
+## Database migrations
+
+The `misc.greenlight_pr_state` schema is managed by the ClickHouse migration
+runner in `tools/clickhouse-migrations/`. Unlike every other command here, run
+these from the **repository root**, not `greenlight/`.
+
+`migrate.py` reads credentials from the environment and does not load `.env`
+itself, so pass one with uv (a `.env` is git-ignored, so it is safe to create):
+
+```bash
+cp tools/clickhouse-migrations/.env.example .env   # then fill in host + credentials
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CLICKHOUSE_HOST` | — | Bare host or full URL (`https://` and `:8443` are stripped); `CLICKHOUSE_ENDPOINT` is an accepted alias |
+| `CLICKHOUSE_USERNAME` | — | Required |
+| `CLICKHOUSE_PASSWORD` | — | Required |
+| `CLICKHOUSE_PORT` | `8443` | Connection port |
+
+```bash
+uv run --env-file .env tools/clickhouse-migrations/migrate.py status   # list applied vs pending (a read-only cred is enough)
+uv run --env-file .env tools/clickhouse-migrations/migrate.py apply    # apply pending migrations (needs an admin/DDL cred)
+uv run tools/clickhouse-migrations/migrate.py apply --dry-run          # print the SQL only; makes no DB connection
+```
+
+- **Credentials precedence:** `uv run --env-file` does *not* override `CLICKHOUSE_*`
+  variables already set in your shell — ambient values win silently. If your
+  environment already exports them (e.g. for pytorch-hud / clickhouse-mcp), unset
+  them first so your `.env` is used, e.g. `env -u CLICKHOUSE_HOST -u CLICKHOUSE_USERNAME
+  -u CLICKHOUSE_PASSWORD -u CLICKHOUSE_PORT uv run --env-file .env
+  tools/clickhouse-migrations/migrate.py apply`. This matters most for `apply` (it
+  writes DDL) — confirm the target before running it.
+- Migrations are forward-only and applied in filename order (e.g.
+  `0001_create_misc_greenlight_pr_state.sql`); each is recorded in the
+  `misc.schema_migrations` ledger only after it succeeds. There are no down migrations.
+- `apply` is a deliberate, human-run step using admin/DDL credentials. The
+  greenlight service connects with data-only credentials and never runs `apply`.
+- The runner excludes `.clickhouse.cloud` from the proxy on its own, so no manual
+  proxy bypass is needed here.
+
+See `tools/clickhouse-migrations/README.md` for authoring new migrations.
