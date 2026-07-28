@@ -176,7 +176,12 @@ L3:
     });
   });
 
-  test("does not comment when no PR is associated", async () => {
+  test("does not comment when Search API returns no PRs", async () => {
+    const scope = nock("https://api.github.com")
+      .get("/search/issues")
+      .query(true)
+      .reply(200, { total_count: 0, items: [] });
+
     await probot.receive({
       name: "check_run" as any,
       payload: checkRunPayload({
@@ -184,6 +189,39 @@ L3:
       }) as any,
       id: "8",
     });
+    handleScope(scope);
+  });
+
+  test("posts comment when fallback Search API finds cross-fork PR", async () => {
+    const scope = nock("https://api.github.com")
+      .get("/search/issues")
+      .query(true)
+      .reply(200, {
+        total_count: 1,
+        items: [{ number: PR_NUMBER }],
+      })
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .reply(200, [])
+      .post(
+        `/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`,
+        (body: any) => {
+          expect(body.body).toContain(
+            "<!-- crcr-oncall:intel/torch-xpu-ops -->"
+          );
+          expect(body.body).toContain("@oncall_xpu");
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({
+      name: "check_run" as any,
+      payload: checkRunPayload({
+        pull_requests: [], // empty — simulates cross-fork PR
+      }) as any,
+      id: "10",
+    });
+    handleScope(scope);
   });
 
   test("does nothing for unsupported org", async () => {
