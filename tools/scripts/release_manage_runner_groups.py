@@ -81,7 +81,14 @@ class GitHubClient:
                 time.sleep(delay)
                 continue
             break
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError as error:
+            # Surface the API response body; GitHub explains which field was
+            # rejected there, and raise_for_status() would otherwise drop it.
+            raise requests.HTTPError(
+                f"{error} - body: {resp.text}", response=resp
+            ) from error
         return resp
 
     def paginate(
@@ -154,6 +161,24 @@ def uses_release_label(text: str) -> bool:
     return RELEASE_LABEL_RE.search(text) is not None
 
 
+def local_uses(job: Any) -> Optional[str]:
+    """The local (``./``) reusable-workflow path a job invokes, if any."""
+    if not isinstance(job, dict):
+        return None
+    uses = job.get("uses")
+    if isinstance(uses, str) and uses.startswith("./"):
+        return uses.split("@", 1)[0].removeprefix("./")
+    return None
+
+
+def local_uses_paths(wf: "WorkflowFile") -> Set[str]:
+    """The local reusable-workflow paths invoked by any of a workflow's jobs."""
+    jobs = wf.doc.get("jobs")
+    if not isinstance(jobs, dict):
+        return set()
+    return {local for local in map(local_uses, jobs.values()) if local is not None}
+
+
 @dataclass
 class WorkflowFile:
     doc: Dict[str, Any]
@@ -181,10 +206,13 @@ query($owner: String!, $name: String!, $expression: String!) {
 """
 
 
-def fetch_workflow_files(client: GitHubClient) -> Dict[str, WorkflowFile]:
-    # Fetch every workflow file's content in a single GraphQL request. Fetching
-    # each file over its raw.githubusercontent.com download_url instead gets
-    # rate-limited (HTTP 429) on repos with many workflows like pytorch/pytorch.
+def fetch_workflow_files(
+    client: GitHubClient, rev: str = "main"
+) -> Dict[str, WorkflowFile]:
+    # Fetch every workflow file's content at ``rev`` in a single GraphQL request.
+    # Fetching each file over its raw.githubusercontent.com download_url instead
+    # gets rate-limited (HTTP 429) on repos with many workflows like
+    # pytorch/pytorch.
     owner, name = TARGET_REPO.split("/")
     resp = client.request(
         "POST",
@@ -194,7 +222,7 @@ def fetch_workflow_files(client: GitHubClient) -> Dict[str, WorkflowFile]:
             "variables": {
                 "owner": owner,
                 "name": name,
-                "expression": f"main:{WORKFLOWS_DIR}",
+                "expression": f"{rev}:{WORKFLOWS_DIR}",
             },
         },
     ).json()
@@ -222,12 +250,21 @@ def fetch_workflow_files(client: GitHubClient) -> Dict[str, WorkflowFile]:
 def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
     """Discover the workflows that run on the release runner labels.
 
-    Entry workflows reference a release label directly. From each, follow local
-    ``uses:`` references, but only for jobs that themselves run on a release
-    label, so the build reusable is included while sibling test/upload jobs
-    (which run on other runners) are not.
+    An entry workflow either references a release label directly, or invokes a
+    local reusable that does (pytorch/pytorch#190619 centralized the labels into
+    ``_select-release-runner.yml``, whose callers get their runner from its
+    outputs and so carry no label of their own) -- the release-label signal is
+    propagated up the ``uses:`` graph rather than matching a hardcoded filename.
+    From each entry, follow local ``uses:`` references, but only for jobs that
+    themselves run on a release label, so the build reusable is included while
+    sibling test/upload jobs (which run on other runners) are not.
     """
-    entry_paths = {path for path, wf in files.items() if uses_release_label(wf.raw)}
+    label_files = {path for path, wf in files.items() if uses_release_label(wf.raw)}
+    entry_paths = {
+        path
+        for path, wf in files.items()
+        if path in label_files or local_uses_paths(wf) & label_files
+    }
     seen: Set[str] = set()
     queue = list(entry_paths)
     while queue:
@@ -242,31 +279,43 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
         if not isinstance(jobs, dict):
             continue
         for job in jobs.values():
-            if not isinstance(job, dict):
-                continue
-            uses = job.get("uses")
-            if not (isinstance(uses, str) and uses.startswith("./")):
+            local = local_uses(job)
+            if local is None:
                 continue
             if not uses_release_label(str(job)):
                 continue
-            local = uses.split("@", 1)[0][len("./") :]
-            if local not in seen:
-                queue.append(local)
+            queue.append(local)
     return seen
 
 
-def discover_release_workflows(client: GitHubClient) -> Set[str]:
-    files = fetch_workflow_files(client)
-    paths = collect_release_workflow_paths(files)
-    log(f"Discovered {len(paths)} release workflow(s) on {TARGET_REPO}@main:")
-    for path in sorted(paths):
-        log(f"  {path}")
-    return paths
+def discover_release_workflows(
+    client: GitHubClient, refs: Iterable[str]
+) -> Dict[str, Set[str]]:
+    """Discover release workflows independently at each target ref.
+
+    Refs diverge: a workflow present on ``main`` (e.g. the newly added
+    ``_select-release-runner.yml``) may be absent on an older release branch, and
+    GitHub rejects the whole allow-list PATCH if any ``selected_workflows`` entry
+    does not exist at its ref. So discovery is per-ref rather than a main-only
+    scan cross-producted onto every ref.
+    """
+    paths_by_ref: Dict[str, Set[str]] = {}
+    for ref in refs:
+        rev = ref.removeprefix("refs/heads/")
+        paths = collect_release_workflow_paths(fetch_workflow_files(client, rev))
+        log(f"Discovered {len(paths)} release workflow(s) on {TARGET_REPO}@{rev}:")
+        for path in sorted(paths):
+            log(f"  {path}")
+        paths_by_ref[ref] = paths
+    return paths_by_ref
 
 
-def build_desired_workflows(paths: Iterable[str], refs: Iterable[str]) -> Set[str]:
-    refs = list(refs)
-    return {f"{TARGET_REPO}/{path}@{ref}" for path in paths for ref in refs}
+def build_desired_workflows(paths_by_ref: Dict[str, Set[str]]) -> Set[str]:
+    return {
+        f"{TARGET_REPO}/{path}@{ref}"
+        for ref, paths in paths_by_ref.items()
+        for path in paths
+    }
 
 
 # --- Runner group reconciliation -------------------------------------------
@@ -376,8 +425,8 @@ def main() -> None:
 
     refs = get_target_refs(client)
     log(f"Target refs: {refs}")
-    paths = discover_release_workflows(client)
-    desired = build_desired_workflows(paths, refs)
+    paths_by_ref = discover_release_workflows(client, refs)
+    desired = build_desired_workflows(paths_by_ref)
     log(f"Desired allow-list ({len(desired)} references):")
     for entry in sorted(desired):
         log(f"  {entry}")
