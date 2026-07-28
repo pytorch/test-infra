@@ -266,6 +266,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "185367",
+    "https://github.com/pytorch/pytorch/issues/185367",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
