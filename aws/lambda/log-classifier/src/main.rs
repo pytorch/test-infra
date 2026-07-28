@@ -265,6 +265,75 @@ mod test {
         }
     }
 
+    // Regression test: a red backwards_compat job must be blamed on the real
+    // cause (check_forward_backward_compatibility.py's "backward incompatible
+    // changes" warning), not on the FAIL lines from the deliberate
+    // failure-injection self-checks (check_public_api_test_fails) that appear
+    // in EVERY backwards_compat log, green or red.
+    #[test]
+    fn backwards_compat_not_blamed_on_public_api_self_check() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            ++ python test/test_public_bindings.py -k test_modules_can_be_imported\n\
+            + test_output='FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            Generating XML reports...\n\
+            FAILED (failures=1)'\n\
+            Success! 'test_modules_can_be_imported' identified a non-importable module torch.abcd1234.\n\
+            + python check_forward_backward_compatibility.py --existing-schemas nightly_schemas.txt\n\
+            [WARNING 2026-07-28 01:23:45,678 check_forward_backward_compatibility.py:332] The PR is introducing backward incompatible changes to the operator library. Please contact PyTorch team to confirm whether this change is wanted or not. \n\
+            \n\
+            Broken ops: [\n\
+            \taten::foo(Tensor self) -> Tensor\n\
+            ]\n\
+            ##[error]Process completed with exit code 1.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Operator backwards compatibility");
+        assert_eq!(
+            match_.captures,
+            vec![
+                "The PR is introducing backward incompatible changes to the operator library."
+                    .to_string()
+            ]
+        );
+    }
+
+    // The pre-Oct-2024 checker printed the message with plain print(), i.e. no
+    // "[WARNING ...]" prefix. Make sure that format still matches too.
+    #[test]
+    fn backwards_compat_matches_unprefixed_format() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            The PR is introducing backward incompatible changes to the operator library. Please contact PyTorch team to confirm whether this change is wanted or not.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Operator backwards compatibility");
+    }
+
+    #[test]
+    fn backwards_compat_bc_fc_model_load_failure() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            BC check failed: old model cannot be load in new code\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(
+            match_.rule.name,
+            "Forward/backward compatibility check failed"
+        );
+    }
+
     #[test]
     fn gather_optional_context() {
         let mut ruleset = RuleSet::new();

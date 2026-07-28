@@ -16,9 +16,19 @@
 #     For example, for the failure 'FAIL [10.2s]: test_foo', 'test_foo' is a
 #     good capture group, as it filters out test timings which might be
 #     variable.
+# NB: check_forward_backward_compatibility.py emits this through a logging
+# formatter that prepends '[WARNING <timestamp> <file>:<line>] ', so the
+# message no longer starts at column 0. Keep the capture group to just the
+# stable sentence so captures stay groupable (no timestamps).
 [[rule]]
 name = 'Operator backwards compatibility'
-pattern = '^The PR is introducing backward incompatible changes to the operator library.'
+pattern = '^(?:\[WARNING [^\]]+\] )?(The PR is introducing backward incompatible changes to the operator library\.)'
+
+# Emitted by test_forward_backward_compatibility() in pytorch's .ci/pytorch/test.sh
+# when the torchscript model load checks fail.
+[[rule]]
+name = 'Forward/backward compatibility check failed'
+pattern = '^(?:FC|BC) check failed: .*'
 
 [[rule]]
 name = 'Failed graph_break_registry check'
