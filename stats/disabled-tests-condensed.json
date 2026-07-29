@@ -650,6 +650,13 @@
       "rocm"
     ]
   ],
+  "test_locals_traced_correctly_under_compile_dynamic_shapes (__main__.DynamicShapesReproTests)": [
+    "191424",
+    "https://github.com/pytorch/pytorch/issues/191424",
+    [
+      "xpu"
+    ]
+  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
     "188706",
     "https://github.com/pytorch/pytorch/issues/188706",
@@ -841,6 +848,13 @@
     "https://github.com/pytorch/pytorch/issues/189222",
     [
       "linux"
+    ]
+  ],
+  "test_no_guard_for_unused_input_when_locals_called_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "191423",
+    "https://github.com/pytorch/pytorch/issues/191423",
+    [
+      "xpu"
     ]
   ],
   "test_nonzero_above_uint32 (__main__.TestMPS)": [
@@ -1442,6 +1456,13 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
+    ]
+  ],
+  "test_vars_traced_correctly_under_compile (__main__.ReproTests)": [
+    "191420",
+    "https://github.com/pytorch/pytorch/issues/191420",
+    [
+      "xpu"
     ]
   ],
   "test_view_ops (__main__.TestViewOpsWithLocalTensor)": [
