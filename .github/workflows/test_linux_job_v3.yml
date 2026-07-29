@@ -207,7 +207,8 @@ jobs:
         python --version | grep "${PYTHON_VERSION}"
   # Verifies the "Resolve HF cache mode" step propagated the right env into the
   # script step. Adapts to the label: a PR labeled 'ci-refresh-hf-cache' exercises
-  # the refresh branch, any other PR exercises the default (read-only) branch.
+  # the refresh branch (HF repointed to writable RUNNER_TEMP), any other PR
+  # exercises the default (read-only) branch.
   # The actual S3 sync needs the write role + an approved repo, so it isn't covered.
   test-hf-cache-mode:
     uses: ./.github/workflows/linux_job_v3.yml
