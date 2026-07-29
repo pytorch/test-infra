@@ -177,13 +177,8 @@ L3:
   });
 
   test("does not comment when output has no PR number", async () => {
-    // output.summary exists but regex doesn't match (empty pr_number);
-    // falls through to Search API which also returns nothing
-    const scope = nock("https://api.github.com")
-      .get("/search/issues")
-      .query(true)
-      .reply(200, { total_count: 0, items: [] });
-
+    // output.summary exists but regex doesn't match (no PR number
+    // after "for PR"), so the bot returns early without any API call.
     await probot.receive({
       name: "check_run" as any,
       payload: checkRunPayload({
@@ -195,7 +190,6 @@ L3:
       }) as any,
       id: "8",
     });
-    handleScope(scope);
   });
 
   test("posts comment when output contains PR number for cross-fork PR", async () => {
