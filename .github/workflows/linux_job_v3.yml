@@ -206,13 +206,9 @@ jobs:
           binary-matrix: ${{ inputs.binary-matrix }}
           target-os: "linux"
 
-      # HF model cache. On OSDC the runner pod bind-mounts a shared, pre-seeded
-      # read-only HuggingFace cache at /mnt/hf_cache and injects HF_HOME=/mnt/hf_cache.
-      # PRs read that offline mount. A refresh run (a PR carrying the
-      # 'ci-refresh-hf-cache' label) instead points HF at writable ${RUNNER_TEMP}
-      # storage, downloads fresh models online, and the "Refresh the HF cache in S3"
-      # step below syncs them back into the shared bucket. The label requires repo
-      # write access to add, so fork PRs can never trigger a write.
+      # Refresh run (PR labeled 'ci-refresh-hf-cache'): point HF at writable
+      # ${RUNNER_TEMP} and download fresh, overriding the read-only /mnt/hf_cache
+      # mount; the sync step below pushes it back to S3. Otherwise leave the mount.
       - name: Resolve HF cache mode
         shell: bash
         run: |
@@ -226,11 +222,8 @@ jobs:
               echo "HF_DATASETS_CACHE=${RUNNER_TEMP}/hf_datasets"
             } >> "${GITHUB_ENV}"
             mkdir -p "${RUNNER_TEMP}/hf_cache" "${RUNNER_TEMP}/hf_datasets"
-            # Warm the writable dirs from the seeded read-only mount so a refresh is
-            # incremental (only new/changed models are re-downloaded), not from scratch.
-            if [[ -d /mnt/hf_cache/hub ]]; then
-              cp -a /mnt/hf_cache/hub/. "${RUNNER_TEMP}/hf_cache/hub/" 2>/dev/null || true
-            fi
+            # datasets writes lock/arrow files even for seeded datasets, so warm the
+            # writable dir from the read-only mount (matches pytorch's _linux-test.yml).
             if [[ -d /mnt/hf_cache/datasets ]]; then
               cp -a /mnt/hf_cache/datasets/. "${RUNNER_TEMP}/hf_datasets/" 2>/dev/null || true
             fi
@@ -258,9 +251,8 @@ jobs:
           # rather than the github.workspace expression, which returns the host path.
           python3 -u "${GITHUB_WORKSPACE}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
-      # Assume the write-only OIDC role that can push to the shared HF cache buckets.
-      # Only runs on refresh runs (label present); the role's trust policy additionally
-      # gates on the calling repo, so this is a no-op auth failure for unapproved repos.
+      # Assume the write role that can push to the shared HF cache buckets. Its trust
+      # policy gates on the calling repo, so unapproved repos just fail auth here.
       - name: Authenticate to refresh the HF cache in S3
         if: ${{ always() && env.HF_CACHE_REFRESH == '1' }}
         continue-on-error: true
@@ -275,8 +267,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          # HF_CACHE_S3_BUCKET / HF_CACHE_S3_REGION are injected into the runner pod by
-          # the OSDC hf-cache module. Absent means this runner has no shared cache.
+          # HF_CACHE_S3_BUCKET/REGION are injected by the OSDC hf-cache module.
           if [[ -z "${HF_CACHE_S3_BUCKET:-}" || -z "${HF_CACHE_S3_REGION:-}" ]]; then
             echo "HF_CACHE_S3_BUCKET/REGION unset (not an hf-cache runner) - skipping sync"
             exit 0
@@ -288,7 +279,6 @@ jobs:
             /tmp/awscli-venv/bin/pip install --quiet awscli==1.45.39
             AWS=/tmp/awscli-venv/bin/aws
           fi
-          # Sync model snapshots (hub/) and the datasets build cache (datasets/) to S3.
           if [[ -d "${RUNNER_TEMP}/hf_cache/hub" ]]; then
             "${AWS}" s3 sync "${RUNNER_TEMP}/hf_cache/hub" "s3://${HF_CACHE_S3_BUCKET}/hub" \
               --region "${HF_CACHE_S3_REGION}" --no-progress
