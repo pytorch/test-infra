@@ -252,8 +252,10 @@ jobs:
           python3 -u "${GITHUB_WORKSPACE}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
 
       # Assume the write role that can push to the shared HF cache buckets. Its trust
-      # policy gates on the calling repo, so unapproved repos just fail auth here.
+      # policy gates on the calling repo, so unapproved repos just fail auth here (and
+      # the sync step below is skipped rather than running with leftover creds).
       - name: Authenticate to refresh the HF cache in S3
+        id: hf-cache-auth
         if: ${{ always() && env.HF_CACHE_REFRESH == '1' }}
         continue-on-error: true
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
@@ -262,7 +264,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Refresh the HF cache in S3
-        if: ${{ always() && env.HF_CACHE_REFRESH == '1' }}
+        if: ${{ always() && env.HF_CACHE_REFRESH == '1' && steps.hf-cache-auth.outcome == 'success' }}
         continue-on-error: true
         shell: bash
         run: |
