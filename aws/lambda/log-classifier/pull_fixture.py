@@ -24,7 +24,7 @@ Input is whatever identifies the job: a bare job id, a GitHub Actions job URL
 Examples::
 
     # Default: center the window on the classifier's line, then bless.
-    ./pull_fixture.py https://github.com/pytorch/pytorch/actions/runs/30419521715/job/90479820918 --name distributed_fake
+    ./pull_fixture.py .../actions/runs/30419521715/job/90479820918 --name distributed_fake
 
     # Keep more confusers around the match.
     ./pull_fixture.py 90479820918 --name distributed_fake --context 120
@@ -208,15 +208,33 @@ def main() -> None:
     )
     p.add_argument("job", help="job id, GHA job URL, or raw-log URL")
     p.add_argument("--name", help="fixture name (default: job_<id>); .txt optional")
-    p.add_argument("--repo", default="pytorch/pytorch", help="owner/repo (default: pytorch/pytorch)")
-    win = p.add_argument_group("window (priority: --lines > --grep > --full > classifier anchor)")
-    win.add_argument("--context", type=int, default=60, metavar="N", help="lines kept on each side of the anchor (default: 60)")
-    win.add_argument("--tail", type=int, default=250, metavar="N", help="lines before the anchor in the error-line/tail fallback (default: 250)")
-    win.add_argument("--grep", metavar="REGEX", help="anchor the window on lines matching REGEX")
+    p.add_argument(
+        "--repo", default="pytorch/pytorch", help="owner/repo (default: pytorch/pytorch)"
+    )
+    win = p.add_argument_group(
+        "window (priority: --lines > --grep > --full > classifier anchor)"
+    )
+    win.add_argument(
+        "--context", type=int, default=60, metavar="N",
+        help="lines kept on each side of the anchor (default: 60)",
+    )
+    win.add_argument(
+        "--tail", type=int, default=250, metavar="N",
+        help="lines before the anchor in the error-line/tail fallback (default: 250)",
+    )
+    win.add_argument(
+        "--grep", metavar="REGEX", help="anchor the window on lines matching REGEX"
+    )
     win.add_argument("--lines", metavar="A-B", help="exact 1-based raw line range")
     win.add_argument("--full", action="store_true", help="keep the entire log")
-    p.add_argument("--stdout", action="store_true", help="print the numbered full log and exit (write nothing, don't bless)")
-    p.add_argument("--no-bless", action="store_true", help="write the fixture but skip cargo; forces the offline error-line/tail anchor")
+    p.add_argument(
+        "--stdout", action="store_true",
+        help="print the numbered full log and exit (write nothing, don't bless)",
+    )
+    p.add_argument(
+        "--no-bless", action="store_true",
+        help="write the fixture but skip cargo; forces the offline error-line/tail anchor",
+    )
     args = p.parse_args()
 
     job_id = resolve_job_id(args.job)
