@@ -1,4 +1,13 @@
-"""Deterministic, non-cryptographic PR fingerprint hashing (the eval_hash land-guard)."""
+"""Deterministic PR fingerprint hashing (the eval_hash land-guard).
+
+SHA-256 over a canonical JSON payload: a collision-resistant content fingerprint,
+not a secrecy mechanism. This module is the single source of truth for the
+fingerprint. The writer (greenlight) and the land-time verifier (pytorchbot) both
+import it and compute a byte-identical digest; a mismatch means the verifier
+refuses to land. ``scheme_version`` is part of the hashed payload, so any change to
+the payload, its canonicalization, or the hash algorithm MUST bump
+``HASH_SCHEME_VERSION`` and add a new golden test that pins the new digest.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +16,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-HASH_SCHEME_VERSION = 1
+HASH_SCHEME_VERSION = 2
 
 BOT_LOGINS: frozenset[str] = frozenset(
     {
@@ -27,9 +36,11 @@ BOT_LOGINS: frozenset[str] = frozenset(
 )
 
 
-def is_bot(login: str, user_type: str | None = None) -> bool:
+def is_bot(login: str | None, user_type: str | None = None) -> bool:
     if user_type is not None and user_type.lower() == "bot":
         return True
+    if not login:
+        return False
     normalized_login = login.lower()
     if normalized_login.endswith("[bot]"):
         return True
@@ -74,4 +85,4 @@ def compute_pr_hash(fingerprint: PRFingerprint) -> str:
         "human_events": sorted((asdict(e) for e in fingerprint.human_events), key=_canonical),
     }
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return hashlib.md5(data, usedforsecurity=False).hexdigest()
+    return hashlib.sha256(data).hexdigest()

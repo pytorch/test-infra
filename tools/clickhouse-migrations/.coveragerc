@@ -1,0 +1,11 @@
+[run]
+branch = true
+source =
+    migrate
+    migrate_lib
+
+[report]
+show_missing = true
+fail_under = 97
+exclude_also =
+    if __name__ == .__main__.:

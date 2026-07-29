@@ -227,10 +227,10 @@ def test_compute_pr_hash_changes_with_scheme_version():
     assert compute_pr_hash(fp) != compute_pr_hash(other)
 
 
-def test_compute_pr_hash_returns_32_lowercase_hex_chars():
+def test_compute_pr_hash_returns_64_lowercase_hex_chars():
     digest = compute_pr_hash(_fingerprint())
 
-    assert len(digest) == 32
+    assert len(digest) == 64
     assert all(c in "0123456789abcdef" for c in digest)
 
 
@@ -242,8 +242,63 @@ def test_compute_pr_hash_handles_lone_surrogate_in_body_without_raising():
 
     digest = compute_pr_hash(fp)
 
-    assert len(digest) == 32
+    assert len(digest) == 64
     assert compute_pr_hash(fp) == digest
+
+
+def test_compute_pr_hash_golden_scheme_v2():
+    """Golden digest pinning scheme v2 (SHA-256).
+
+    Any change to the payload, its canonicalization, or the hash algorithm breaks
+    this on purpose; regenerate the literal only alongside a HASH_SCHEME_VERSION bump.
+    """
+    fp = PRFingerprint(
+        base_sha="abc123",
+        changed_files=(
+            ChangedFile(path="b.py", status="modified", blob_sha="sha-b"),
+            ChangedFile(path="a.py", status="added", blob_sha="sha-a", previous_path="old_a.py"),
+        ),
+        human_events=(
+            HumanEvent(
+                kind="review", id=2, author="bob", body="lgtm", state="APPROVED", timestamp="2026-01-02T00:00:00"
+            ),
+            HumanEvent(
+                kind="issue_comment", id=1, author="alice", body="hi", state=None, timestamp="2026-01-01T00:00:00"
+            ),
+        ),
+        scheme_version=2,
+    )
+
+    assert compute_pr_hash(fp) == "7e93a944c2c35f564098453d381ec8a9da437e4f86853bf8e42f16c465d2959c"
+
+
+def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v2():
+    """Golden that pins the payload sort KEY (``key=_canonical``), not just the algorithm.
+
+    The fixture is crafted so canonical (sorted-dict-key) ordering diverges from a
+    naive ``key=str`` / field-order / insertion ordering: canonical weighs ``blob_sha``
+    first for changed files and ``author`` first for human events, while ``str`` weighs
+    ``path`` and ``kind`` first. Swapping ``key=_canonical`` for ``key=str`` (or dropping
+    the sort) reorders both lists and breaks this digest.
+    """
+    fp = PRFingerprint(
+        base_sha="abc123",
+        changed_files=(
+            ChangedFile(path="a", status="added", blob_sha="z"),
+            ChangedFile(path="z", status="modified", blob_sha="a"),
+        ),
+        human_events=(
+            HumanEvent(kind="issue_comment", id=1, author="zoe", body="x", state=None, timestamp="t"),
+            HumanEvent(kind="review", id=2, author="alice", body="y", state="APPROVED", timestamp="t"),
+        ),
+        scheme_version=2,
+    )
+
+    assert compute_pr_hash(fp) == "578efc99db979b057e45b6d2b75c32c03cba78aea62d2dec54dab9665260c1f9"
+
+
+def test_hash_scheme_version_is_pinned():
+    assert HASH_SCHEME_VERSION == 2
 
 
 def test_pr_fingerprint_scheme_version_defaults_to_current_scheme():
@@ -267,9 +322,13 @@ def test_pr_fingerprint_scheme_version_defaults_to_current_scheme():
         ("octocat", "User", False),
         ("octocat", None, False),
         ("octocat", "", False),
+        (None, "Bot", True),
+        ("", "Bot", True),
+        (None, None, False),
+        ("", None, False),
     ],
 )
-def test_is_bot_truth_table(login: str, user_type: str | None, expected: bool) -> None:
+def test_is_bot_truth_table(login: str | None, user_type: str | None, expected: bool) -> None:
     assert is_bot(login, user_type) == expected
 
 

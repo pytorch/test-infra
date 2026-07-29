@@ -5,7 +5,7 @@ from github import Github
 
 from greenlight import github_client
 from greenlight.github_client import OpenPR
-from greenlight.pr_hash import ChangedFile, HumanEvent
+from greenlight.pr_hash import ChangedFile, HumanEvent, compute_pr_hash
 
 
 class _FakeUser:
@@ -60,7 +60,7 @@ def _client_with_pulls(pulls: list[_FakePull]) -> _FakeRepoClient:
 
 
 class _FakeActor:
-    def __init__(self, login: str, type: str = "User") -> None:
+    def __init__(self, login: str | None, type: str = "User") -> None:
         self.login = login
         self.type = type
 
@@ -223,6 +223,14 @@ def test_build_client_returns_github_instance_with_per_page_100():
     assert client.per_page == 100
 
 
+def test_build_client_pins_request_timeout():
+    client = github_client.build_client("x")
+
+    # PyGithub exposes no public timeout accessor; read the mangled requester internals.
+    requester = client.__dict__["_Github__requester"]
+    assert requester.__dict__["_Requester__timeout"] == 15
+
+
 def test_build_pr_fingerprint_maps_files_and_filters_bots_by_type_suffix_and_denylist():
     pr = _FakePR(
         base_sha="base-sha-123",
@@ -307,4 +315,60 @@ def test_build_pr_fingerprint_with_no_activity_returns_empty_tuples():
     fingerprint = github_client.build_pr_fingerprint(pr)
 
     assert fingerprint.changed_files == ()
+    assert fingerprint.human_events == ()
+
+
+def _golden_pr() -> _FakePR:
+    """Fixture for the end-to-end golden.
+
+    Mixes a human, a BOT_LOGINS bot, the self account, a ``[bot]``-suffixed actor, a
+    None-user, and a human review; only the two humans (alice, carol) survive.
+    """
+    return _FakePR(
+        base_sha="golden-base-sha",
+        files=[_FakeFile(filename="x.py", status="modified", sha="blob-x")],
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix", datetime(2026, 1, 1, tzinfo=UTC)),
+            _FakeComment(2, _FakeActor("dependabot", "User"), "bump dep", datetime(2026, 1, 2, tzinfo=UTC)),
+            _FakeComment(3, _FakeActor("greenlight", "User"), "self note", datetime(2026, 1, 3, tzinfo=UTC)),
+            _FakeComment(4, None, "ghost comment", None),
+        ],
+        review_comments=[
+            _FakeComment(5, _FakeActor("some-app[bot]", "User"), "automated nit", datetime(2026, 1, 4, tzinfo=UTC)),
+        ],
+        reviews=[
+            _FakeReview(6, _FakeActor("carol", "User"), "lgtm", "APPROVED", datetime(2026, 1, 5, tzinfo=UTC)),
+        ],
+    )
+
+
+def test_build_pr_fingerprint_golden_hash_scheme_v2():
+    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v2 digest.
+
+    Guards against drift in is_bot / BOT_LOGINS / self_login exclusion and the
+    PR-field mapping. Uses the default scheme_version (2); a future
+    HASH_SCHEME_VERSION bump regenerates this literal.
+    """
+    fingerprint = github_client.build_pr_fingerprint(_golden_pr(), self_login="greenlight")
+
+    assert fingerprint.human_events == (
+        HumanEvent("issue_comment", 1, "alice", "please fix", None, "2026-01-01T00:00:00+00:00"),
+        HumanEvent("review", 6, "carol", "lgtm", "APPROVED", "2026-01-05T00:00:00+00:00"),
+    )
+    assert compute_pr_hash(fingerprint) == "d856345ee246471315379f43926be55954f23f0af76df81475f0809ece4db9fb"
+
+
+@pytest.mark.parametrize("null_login", [None, ""])
+@pytest.mark.parametrize("self_login", [None, "greenlight"])
+def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str | None, self_login: str | None) -> None:
+    pr = _FakePR(
+        base_sha="sha",
+        files=[],
+        issue_comments=[_FakeComment(1, _FakeActor(null_login, "User"), "ghost note", None)],
+        review_comments=[],
+        reviews=[_FakeReview(2, _FakeActor(null_login, "User"), "ghost review", "APPROVED", None)],
+    )
+
+    fingerprint = github_client.build_pr_fingerprint(pr, self_login=self_login)
+
     assert fingerprint.human_events == ()

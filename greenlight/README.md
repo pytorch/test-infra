@@ -69,6 +69,12 @@ land-guard into `plan`/`act` and persisting to `misc.greenlight_pr_state`. The
 hash and fingerprint code (`pr_hash`, `github_client`) and the ClickHouse table both
 exist, but they are not connected to the service.
 
+When wired, the land-time verifier must look up stored state by `(repo, pr_number)`
+— the ledger's `ORDER BY` key — never by `eval_hash` alone: the fingerprint omits
+repo and PR number, so a hash-only lookup would let one PR's approval replay onto a
+different PR. The writer (greenlight) and the verifier (pytorchbot) run the identical
+`pr_hash` / `build_pr_fingerprint` code and upgrade hash schemes together.
+
 ## Development
 
 ```bash

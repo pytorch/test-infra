@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     class _PRUser(Protocol):
         @property
-        def login(self) -> str: ...
+        def login(self) -> str | None: ...
 
     class _PullRequest(Protocol):
         @property
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
     class _PRActor(Protocol):
         @property
-        def login(self) -> str: ...
+        def login(self) -> str | None: ...
         @property
         def type(self) -> str: ...
 
@@ -94,10 +94,15 @@ class OpenPR:
     url: str
 
 
+# Pin the request timeout so a future PyGithub default change can't let
+# worst-case pagination outlast the per-iteration runtime watchdog.
+_GITHUB_TIMEOUT_SECONDS: int = 15
+
+
 def build_client(token: str) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
-    return Github(auth=Auth.Token(token), per_page=100)
+    return Github(auth=Auth.Token(token), per_page=100, timeout=_GITHUB_TIMEOUT_SECONDS)
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
@@ -126,13 +131,37 @@ def _iso(value: datetime | None) -> str:
     return "" if value is None else value.isoformat()
 
 
-def _should_exclude_actor(user: _PRActor, self_login: str | None) -> bool:
-    if is_bot(user.login, user.type):
-        return True
-    return self_login is not None and user.login.lower() == self_login.lower()
+def _actor_login(user: _PRActor | None, self_login: str | None) -> str | None:
+    """Return the login to attribute an event to, or None if the actor is excluded.
+
+    Excludes ghost/deleted actors (``user`` or its login missing), bots, and the
+    greenlight account itself (``self_login``). The falsy-login guard runs before the
+    ``self_login`` comparison so a null login never reaches ``.lower()``.
+    """
+    if user is None:
+        return None
+    login = user.login
+    if is_bot(login, user.type):
+        return None
+    if not login:
+        return None
+    if self_login is not None and login.lower() == self_login.lower():
+        return None
+    return login
 
 
 def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -> PRFingerprint:
+    """Build the deterministic fingerprint for a PR.
+
+    ``self_login`` MUST be exactly the greenlight bot account and identical on the
+    writer and the verifier: the login passed here has its own events dropped, so a
+    human login would exclude that human's reviews and open an approval-bypass.
+
+    Coverage (a product decision, to finalize at wiring time): the fingerprint covers
+    ``base_sha``, the changed files (with content-derived ``blob_sha``), and non-bot,
+    non-self human events. It deliberately EXCLUDES ``head.sha``, file mode,
+    base-branch drift, and the PR title/body.
+    """
     changed_files = tuple(
         ChangedFile(path=f.filename, status=f.status, blob_sha=f.sha, previous_path=f.previous_filename)
         for f in pr.get_files()
@@ -140,22 +169,22 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
 
     human_events: list[HumanEvent] = []
     for comment in pr.get_issue_comments():
-        user = comment.user
-        if user is None or _should_exclude_actor(user, self_login):
+        login = _actor_login(comment.user, self_login)
+        if login is None:
             continue
         human_events.append(
-            HumanEvent("issue_comment", comment.id, user.login, comment.body, None, _iso(comment.updated_at))
+            HumanEvent("issue_comment", comment.id, login, comment.body, None, _iso(comment.updated_at))
         )
 
     for review_comment in pr.get_review_comments():
-        user = review_comment.user
-        if user is None or _should_exclude_actor(user, self_login):
+        login = _actor_login(review_comment.user, self_login)
+        if login is None:
             continue
         human_events.append(
             HumanEvent(
                 "review_comment",
                 review_comment.id,
-                user.login,
+                login,
                 review_comment.body,
                 None,
                 _iso(review_comment.updated_at),
@@ -163,11 +192,11 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
         )
 
     for review in pr.get_reviews():
-        user = review.user
-        if user is None or _should_exclude_actor(user, self_login):
+        login = _actor_login(review.user, self_login)
+        if login is None:
             continue
         human_events.append(
-            HumanEvent("review", review.id, user.login, review.body, review.state, _iso(review.submitted_at))
+            HumanEvent("review", review.id, login, review.body, review.state, _iso(review.submitted_at))
         )
 
     return PRFingerprint(
