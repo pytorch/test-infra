@@ -1,0 +1,287 @@
+2026-07-29T00:08:20.3826325Z $ uvx --python 3.10 lintrunner@0.12.7 list
+2026-07-29T00:08:20.5850094Z $ uvx --python 3.10 lintrunner@0.12.7 --tee-json /tmp/spinlint_pc3k4g9x.json --take ATEN_CPU_GPU_AGNOSTIC,PYPIDEP,CUBINCLUDE,COPYRIGHT,PYPROJECT,IMPORT_LINTER,MERGE_CONFLICTLESS_CSV,TESTOWNERS,C10_UNUSED,ROOT_LOGGING,SHELLCHECK,WORKFLOWSYNC,SPACES,CALL_ONCE,NEWLINE,CMAKE,NATIVEFUNCTIONS,INCLUDE,SET_LINTER,HEADER_ONLY_LINTER,UNSPECIFIED_BACKEND,TYPENOSKIP,PYBIND11_SPECIALIZATION,PYBIND11_INCLUDE,TABS,ONCE_FLAG,SYMPY_MINMAX,EXEC,ERROR_PRONE_ISINSTANCE,NO_WORKFLOWS_ON_FORK,DOCSTRING_LINTER,RAWTHROW,NOQA,C10_NODISCARD,RAWCUDADEVICE,RAWCUDA,GHA,META_NO_CREATE_UNBACKED,CONTEXT_DECORATOR,TYPEIGNORE,LINTRUNNER_VERSION,RUFF,ISINSTANCE_FAKE_TENSOR,DEPLOY_DETECTION,CMAKE_MINIMUM_REQUIRED --force-color benchmarks/distributed/bench_symmetric_memory_all_gather.py
+2026-07-29T00:08:21.3933049Z 
+2026-07-29T00:08:21.3933060Z 
+2026-07-29T00:08:21.3933921Z [1m>>>[0m Lint for [4mbenchmarks/distributed/bench_symmetric_memory_all_gather.py[0m:
+2026-07-29T00:08:21.3934415Z 
+2026-07-29T00:08:21.3934621Z   [43m[1mWarning[0m (RUFF) [4mTC003[0m
+2026-07-29T00:08:21.3935030Z     Move standard library import `collections.abc.Sequence` into a type-
+2026-07-29T00:08:21.3935424Z     checking block.
+2026-07-29T00:08:21.3935662Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3935920Z     
+2026-07-29T00:08:21.3936098Z     To disable, use `  # noqa: TC003`
+2026-07-29T00:08:21.3936277Z 
+2026-07-29T00:08:21.3936404Z         [2m 11[0m  |
+2026-07-29T00:08:21.3936665Z         [2m 12[0m  |import argparse
+2026-07-29T00:08:21.3936956Z         [2m 13[0m  |import os
+2026-07-29T00:08:21.3937314Z     >>> [2m 14[0m  |[33mfrom collections.abc import Sequence
+2026-07-29T00:08:21.3937670Z [0m        [2m 15[0m  |
+2026-07-29T00:08:21.3937933Z         [2m 16[0m  |import torch
+2026-07-29T00:08:21.3938271Z         [2m 17[0m  |import torch.distributed as dist
+2026-07-29T00:08:21.3938491Z 
+2026-07-29T00:08:21.3938638Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3938908Z     Use of `assert` detected.
+2026-07-29T00:08:21.3939166Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3939423Z     
+2026-07-29T00:08:21.3939600Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3939780Z 
+2026-07-29T00:08:21.3939916Z         [2m 48[0m  |    rank: int,
+2026-07-29T00:08:21.3940216Z         [2m 49[0m  |    world_size: int,
+2026-07-29T00:08:21.3940522Z         [2m 50[0m  |) -> None:
+2026-07-29T00:08:21.3942987Z     >>> [2m 51[0m  |[33m    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3943572Z [0m        [2m 52[0m  |    assert len(dst_buffer_ptrs) == world_size
+2026-07-29T00:08:21.3943945Z         [2m 53[0m  |
+2026-07-29T00:08:21.3944363Z         [2m 54[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3944687Z 
+2026-07-29T00:08:21.3944835Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3945108Z     Use of `assert` detected.
+2026-07-29T00:08:21.3945363Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3945620Z     
+2026-07-29T00:08:21.3945807Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3945980Z 
+2026-07-29T00:08:21.3946134Z         [2m 49[0m  |    world_size: int,
+2026-07-29T00:08:21.3946436Z         [2m 50[0m  |) -> None:
+2026-07-29T00:08:21.3946777Z         [2m 51[0m  |    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3947224Z     >>> [2m 52[0m  |[33m    assert len(dst_buffer_ptrs) == world_size
+2026-07-29T00:08:21.3947593Z [0m        [2m 53[0m  |
+2026-07-29T00:08:21.3948023Z         [2m 54[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3948515Z         [2m 55[0m  |    src = input_tensor.data_ptr()
+2026-07-29T00:08:21.3948728Z 
+2026-07-29T00:08:21.3948874Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3949145Z     Use of `assert` detected.
+2026-07-29T00:08:21.3949397Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3949655Z     
+2026-07-29T00:08:21.3949828Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3950358Z 
+2026-07-29T00:08:21.3950546Z         [2m 72[0m  |    rank: int,
+2026-07-29T00:08:21.3951042Z         [2m 73[0m  |    world_size: int,
+2026-07-29T00:08:21.3951344Z         [2m 74[0m  |) -> None:
+2026-07-29T00:08:21.3951701Z     >>> [2m 75[0m  |[33m    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3952127Z [0m        [2m 76[0m  |    assert dst_handle.rank == rank
+2026-07-29T00:08:21.3952954Z         [2m 77[0m  |    assert dst_handle.world_size == world_size
+2026-07-29T00:08:21.3953502Z         [2m 78[0m  |    assert len(dst_handle.buffer_ptrs) == world_size
+2026-07-29T00:08:21.3953771Z 
+2026-07-29T00:08:21.3953913Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3954183Z     Use of `assert` detected.
+2026-07-29T00:08:21.3954440Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3954695Z     
+2026-07-29T00:08:21.3954867Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3955042Z 
+2026-07-29T00:08:21.3955184Z         [2m 73[0m  |    world_size: int,
+2026-07-29T00:08:21.3955484Z         [2m 74[0m  |) -> None:
+2026-07-29T00:08:21.3955828Z         [2m 75[0m  |    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3956247Z     >>> [2m 76[0m  |[33m    assert dst_handle.rank == rank
+2026-07-29T00:08:21.3956689Z [0m        [2m 77[0m  |    assert dst_handle.world_size == world_size
+2026-07-29T00:08:21.3957167Z         [2m 78[0m  |    assert len(dst_handle.buffer_ptrs) == world_size
+2026-07-29T00:08:21.3957531Z         [2m 79[0m  |
+2026-07-29T00:08:21.3957661Z 
+2026-07-29T00:08:21.3957802Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3958073Z     Use of `assert` detected.
+2026-07-29T00:08:21.3958324Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3958578Z     
+2026-07-29T00:08:21.3958750Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3958927Z 
+2026-07-29T00:08:21.3959053Z         [2m 74[0m  |) -> None:
+2026-07-29T00:08:21.3959396Z         [2m 75[0m  |    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3959803Z         [2m 76[0m  |    assert dst_handle.rank == rank
+2026-07-29T00:08:21.3960241Z     >>> [2m 77[0m  |[33m    assert dst_handle.world_size == world_size
+2026-07-29T00:08:21.3960737Z [0m        [2m 78[0m  |    assert len(dst_handle.buffer_ptrs) == world_size
+2026-07-29T00:08:21.3961117Z         [2m 79[0m  |
+2026-07-29T00:08:21.3961531Z         [2m 80[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3961857Z 
+2026-07-29T00:08:21.3961999Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3962266Z     Use of `assert` detected.
+2026-07-29T00:08:21.3962518Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3962773Z     
+2026-07-29T00:08:21.3962945Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3963126Z 
+2026-07-29T00:08:21.3963320Z         [2m 75[0m  |    assert input_tensor.is_contiguous()
+2026-07-29T00:08:21.3963728Z         [2m 76[0m  |    assert dst_handle.rank == rank
+2026-07-29T00:08:21.3964152Z         [2m 77[0m  |    assert dst_handle.world_size == world_size
+2026-07-29T00:08:21.3964648Z     >>> [2m 78[0m  |[33m    assert len(dst_handle.buffer_ptrs) == world_size
+2026-07-29T00:08:21.3965040Z [0m        [2m 79[0m  |
+2026-07-29T00:08:21.3965469Z         [2m 80[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3966046Z         [2m 81[0m  |    assert dst_handle.buffer_size >= shard_bytes * world_size
+2026-07-29T00:08:21.3966339Z 
+2026-07-29T00:08:21.3966484Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3966755Z     Use of `assert` detected.
+2026-07-29T00:08:21.3967010Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3967263Z     
+2026-07-29T00:08:21.3967436Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3967610Z 
+2026-07-29T00:08:21.3967840Z         [2m 78[0m  |    assert len(dst_handle.buffer_ptrs) == world_size
+2026-07-29T00:08:21.3968208Z         [2m 79[0m  |
+2026-07-29T00:08:21.3968850Z         [2m 80[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3969643Z     >>> [2m 81[0m  |[33m    assert dst_handle.buffer_size >= shard_bytes * world_size
+2026-07-29T00:08:21.3970191Z [0m        [2m 82[0m  |    assert _SymmetricMemory.has_multicast_support(
+2026-07-29T00:08:21.3970685Z         [2m 83[0m  |        DeviceType.CUDA, input_tensor.device.index
+2026-07-29T00:08:21.3971226Z         [2m 84[0m  |    ), "symmetric-memory multicast is not supported on this device"
+2026-07-29T00:08:21.3971541Z 
+2026-07-29T00:08:21.3971686Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3971955Z     Use of `assert` detected.
+2026-07-29T00:08:21.3972206Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3972461Z     
+2026-07-29T00:08:21.3972633Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3972805Z 
+2026-07-29T00:08:21.3972916Z         [2m 79[0m  |
+2026-07-29T00:08:21.3973339Z         [2m 80[0m  |    shard_bytes = input_tensor.numel() * input_tensor.element_size()
+2026-07-29T00:08:21.3973923Z         [2m 81[0m  |    assert dst_handle.buffer_size >= shard_bytes * world_size
+2026-07-29T00:08:21.3974460Z     >>> [2m 82[0m  |[33m    assert _SymmetricMemory.has_multicast_support(
+2026-07-29T00:08:21.3974965Z [0m        [2m 83[0m  |        DeviceType.CUDA, input_tensor.device.index
+2026-07-29T00:08:21.3975510Z         [2m 84[0m  |    ), "symmetric-memory multicast is not supported on this device"
+2026-07-29T00:08:21.3976179Z         [2m 85[0m  |    assert dst_handle.multicast_ptr != 0, "destination handle has no multicast VA"
+2026-07-29T00:08:21.3976553Z 
+2026-07-29T00:08:21.3976697Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3976967Z     Use of `assert` detected.
+2026-07-29T00:08:21.3977216Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3977469Z     
+2026-07-29T00:08:21.3977642Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3977815Z 
+2026-07-29T00:08:21.3978052Z         [2m 82[0m  |    assert _SymmetricMemory.has_multicast_support(
+2026-07-29T00:08:21.3978535Z         [2m 83[0m  |        DeviceType.CUDA, input_tensor.device.index
+2026-07-29T00:08:21.3979078Z         [2m 84[0m  |    ), "symmetric-memory multicast is not supported on this device"
+2026-07-29T00:08:21.3979765Z     >>> [2m 85[0m  |[33m    assert dst_handle.multicast_ptr != 0, "destination handle has no multicast VA"
+2026-07-29T00:08:21.3980262Z [0m        [2m 86[0m  |
+2026-07-29T00:08:21.3980551Z         [2m 87[0m  |    dst_handle.barrier()
+2026-07-29T00:08:21.3980978Z         [2m 88[0m  |    dst = dst_handle.multicast_ptr + rank * shard_bytes
+2026-07-29T00:08:21.3981248Z 
+2026-07-29T00:08:21.3981390Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3981765Z     Use of `assert` detected.
+2026-07-29T00:08:21.3982020Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3982273Z     
+2026-07-29T00:08:21.3982446Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3982622Z 
+2026-07-29T00:08:21.3982989Z         [2m150[0m  |            device=input_tensor.device,
+2026-07-29T00:08:21.3983351Z         [2m151[0m  |        )
+2026-07-29T00:08:21.3983852Z         [2m152[0m  |        handle = symm_mem.rendezvous(output, group=dist.group.WORLD.group_name)
+2026-07-29T00:08:21.3984399Z     >>> [2m153[0m  |[33m        assert handle is not None
+2026-07-29T00:08:21.3984777Z [0m        [2m154[0m  |        if use_multicast:
+2026-07-29T00:08:21.3985171Z         [2m155[0m  |            all_gather_sm_free_multicast(
+2026-07-29T00:08:21.3985675Z         [2m156[0m  |                input_tensor, handle, rank=rank, world_size=world_size
+2026-07-29T00:08:21.3985983Z 
+2026-07-29T00:08:21.3986125Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3986394Z     Use of `assert` detected.
+2026-07-29T00:08:21.3986648Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3986904Z     
+2026-07-29T00:08:21.3987077Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3987427Z 
+2026-07-29T00:08:21.3987657Z         [2m247[0m  |        unicast_handle = symm_mem.rendezvous(
+2026-07-29T00:08:21.3988331Z         [2m248[0m  |            unicast_output, group=dist.group.WORLD.group_name
+2026-07-29T00:08:21.3988742Z         [2m249[0m  |        )
+2026-07-29T00:08:21.3989097Z     >>> [2m250[0m  |[33m        assert unicast_handle is not None
+2026-07-29T00:08:21.3989540Z [0m        [2m251[0m  |        unicast_us = _bench_cuda_graph(
+2026-07-29T00:08:21.3989960Z         [2m252[0m  |            lambda: all_gather_sm_free(
+2026-07-29T00:08:21.3990339Z         [2m253[0m  |                unicast_input,
+2026-07-29T00:08:21.3990549Z 
+2026-07-29T00:08:21.3990692Z   [43m[1mWarning[0m (RUFF) [4mS101[0m
+2026-07-29T00:08:21.3990961Z     Use of `assert` detected.
+2026-07-29T00:08:21.3991211Z     See https://beta.ruff.rs/docs/rules/.
+2026-07-29T00:08:21.3991467Z     
+2026-07-29T00:08:21.3991636Z     To disable, use `  # noqa: S101`
+2026-07-29T00:08:21.3991813Z 
+2026-07-29T00:08:21.3992083Z         [2m267[0m  |        multicast_handle = symm_mem.rendezvous(
+2026-07-29T00:08:21.3992602Z         [2m268[0m  |            multicast_output, group=dist.group.WORLD.group_name
+2026-07-29T00:08:21.3993014Z         [2m269[0m  |        )
+2026-07-29T00:08:21.3993375Z     >>> [2m270[0m  |[33m        assert multicast_handle is not None
+2026-07-29T00:08:21.3993831Z [0m        [2m271[0m  |        multicast_us = _bench_cuda_graph(
+2026-07-29T00:08:21.3994317Z         [2m272[0m  |            lambda: all_gather_sm_free_multicast(
+2026-07-29T00:08:21.3994739Z         [2m273[0m  |                multicast_input,
+2026-07-29T00:08:21.3994948Z 
+2026-07-29T00:08:21.3996079Z $ uvx --python 3.10 lintrunner@0.12.7 --tee-json /tmp/spinlint_yt0bgn25.json --take PYFMT,TEST_DEVICE_BIAS,TEST_HAS_MAIN,FLAKE8,CODESPELL,GENERATED_SHIMS_VERSION,STABLE_SHIM_USAGE,GB_REGISTRY,SCOPED_LIBRARY,ACTIONLINT,STABLE_SHIM_VERSION --force-color benchmarks/distributed/bench_symmetric_memory_all_gather.py
+2026-07-29T00:08:23.2151397Z + echo ''
+2026-07-29T00:08:23.2151542Z 
+2026-07-29T00:08:23.2151548Z 
+#=MATCH=# 2026-07-29T00:08:23.2152146Z [1m‹>>>[0m Lint for [4mbenchmarks/distributed/bench_symmetric_memory_all_gather.py[0m:›
+2026-07-29T00:08:23.2152645Z 
+2026-07-29T00:08:23.2152851Z   [43m[1mWarning[0m (PYFMT) [4mformat[0m
+2026-07-29T00:08:23.2153183Z     Run `lintrunner -a` to apply this patch.
+2026-07-29T00:08:23.2153393Z 
+2026-07-29T00:08:23.2153616Z     [36mYou can run `lintrunner -a` to apply this patch.[0m
+2026-07-29T00:08:23.2153872Z 
+2026-07-29T00:08:23.2154184Z     [2m 20   20[0m |[1m[2m [0m[2mfrom torch._C._distributed_c10d import _SymmetricMemory
+2026-07-29T00:08:23.2154796Z [0m    [2m 21   21[0m |[1m[2m [0m[2mfrom torch.cuda._utils import _check_cuda_bindings
+2026-07-29T00:08:23.2155244Z [0m    [2m 22   22[0m |[1m[2m [0m[2m
+2026-07-29T00:08:23.2155567Z [0m    [2m      23[0m |[32m[1m+[0m[32m
+2026-07-29T00:08:23.2155901Z [0m    [2m 23   24[0m |[1m[2m [0m[2mtry:
+2026-07-29T00:08:23.2156370Z [0m    [2m 24   25[0m |[1m[2m [0m[2m    import cuda.bindings.driver as cuda_driver
+2026-07-29T00:08:23.2156882Z [0m    [2m 25   26[0m |[1m[2m [0m[2mexcept ImportError as exc:
+2026-07-29T00:08:23.2157399Z [0m--------------------------------------------------------------------------------
+2026-07-29T00:08:23.2157905Z     [2m279  280[0m |[1m[2m [0m[2m            iters=args.iters,
+2026-07-29T00:08:23.2158322Z [0m    [2m280  281[0m |[1m[2m [0m[2m        )
+2026-07-29T00:08:23.2158665Z [0m    [2m281  282[0m |[1m[2m [0m[2m
+2026-07-29T00:08:23.2159528Z [0m    [2m281     [0m |[31m[1m-[0m[31m        [0m[31m[40m[4mrows.append((tokens,[0m[31m output_bytes, payload_bytes, nccl_us, unicast_us, [0m[31m[40m[4mmulticast_us))[0m[31m
+2026-07-29T00:08:23.2160430Z [0m    [2m     283[0m |[32m[1m+[0m[32m        [0m[32m[40m[4mrows.append([0m[32m
+2026-07-29T00:08:23.2161721Z [0m    [2m     284[0m |[32m[1m+[0m[32m[40m[4m            (tokens,[0m[32m output_bytes, payload_bytes, nccl_us, unicast_us, [0m[32m[40m[4mmulticast_us)[0m[32m
+2026-07-29T00:08:23.2162690Z [0m    [2m     285[0m |[32m[1m+[0m[32m[40m[4m        )[0m[32m
+2026-07-29T00:08:23.2163851Z + echo -e '\e[1m\e[36mYou can reproduce these results locally by using `lintrunner -m origin/main`. (If you don'\''t get the same results, run \'\''lintrunner init\'\'' to update your local linter)\e[0m'
+2026-07-29T00:08:23.2165282Z + echo -e '\e[1m\e[36mSee https://github.com/pytorch/pytorch/wiki/lintrunner for setup instructions. To apply suggested patches automatically, use the -a flag. Before pushing another commit,\e[0m'
+2026-07-29T00:08:23.2166261Z + echo -e '\e[1m\e[36mplease verify locally and ensure everything passes.\e[0m'
+2026-07-29T00:08:23.2166640Z + RC=1
+2026-07-29T00:08:23.2166896Z + find torch -name '*.pyi' -exec git restore --staged -- '{}' +
+2026-07-29T00:08:23.2167896Z + jq --raw-output '"::\(if .severity == "advice" or .severity == "disabled" then "warning" else .severity end) file=\(.path),line=\(.line),col=\(.char),title=\(.code) \(.name)::" + (.description | gsub("\\n"; "%0A"))' lint.json
+2026-07-29T00:08:23.2168764Z + exit 1
+2026-07-29T00:08:23.2169147Z [0m    [2m283  286[0m |[1m[2m [0m[2m        torch.cuda.empty_cache()
+2026-07-29T00:08:23.2169561Z [0m    [2m284  287[0m |[1m[2m [0m[2m
+2026-07-29T00:08:23.2169930Z [0m    [2m285  288[0m |[1m[2m [0m[2m    if rank == 0:
+2026-07-29T00:08:23.2170239Z [0m
+2026-07-29T00:08:23.2170399Z Lint failed!
+2026-07-29T00:08:23.2170507Z 
+2026-07-29T00:08:23.2171282Z [1m[36mYou can reproduce these results locally by using `lintrunner -m origin/main`. (If you don't get the same results, run \'lintrunner init\' to update your local linter)[0m
+2026-07-29T00:08:23.2172713Z [1m[36mSee https://github.com/pytorch/pytorch/wiki/lintrunner for setup instructions. To apply suggested patches automatically, use the -a flag. Before pushing another commit,[0m
+2026-07-29T00:08:23.2173667Z [1m[36mplease verify locally and ensure everything passes.[0m
+2026-07-29T00:08:23.2198701Z ##[warning]Move standard library import `collections.abc.Sequence` into a type-checking block.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: TC003`
+2026-07-29T00:08:23.2207808Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2209683Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2211436Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2213160Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2214885Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2216641Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2218375Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2220108Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2222000Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2223819Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2225601Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2227339Z ##[warning]Use of `assert` detected.
+See https://beta.ruff.rs/docs/rules/.
+
+To disable, use `  # noqa: S101`
+2026-07-29T00:08:23.2228751Z ##[warning]Run `lintrunner -a` to apply this patch.
+2026-07-29T00:08:23.4603174Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-29T00:08:23.4625235Z ##[error]Process completed with exit code 1.
+2026-07-29T00:08:23.4722231Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
