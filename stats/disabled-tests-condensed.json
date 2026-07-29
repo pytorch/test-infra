@@ -43,17 +43,6 @@
       "inductor"
     ]
   ],
-  "test_assert_size_stride_guarded_by_env_check_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
-    "182260",
-    "https://github.com/pytorch/pytorch/issues/182260",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
     "187645",
     "https://github.com/pytorch/pytorch/issues/187645",
@@ -540,14 +529,6 @@
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_generic_stream_basic (__main__.TestGenericStreamCompile)": [
-    "189988",
-    "https://github.com/pytorch/pytorch/issues/189988",
     [
       "linux",
       "rocm"
