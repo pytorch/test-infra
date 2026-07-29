@@ -7,11 +7,14 @@ import signal
 import threading
 import time
 from collections.abc import Callable
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from greenlight.guards import iteration_timeout
+from greenlight.guards import hard_deadline, iteration_timeout
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from greenlight.config import Config
 
 logger = logging.getLogger(__name__)
@@ -36,8 +39,14 @@ def _install_stop_signals(stop: threading.Event) -> None:
             logger.warning("cannot install handler for signal %s off the main thread", sig)
 
 
+@contextmanager
+def _bounded_iteration(config: Config) -> Iterator[None]:
+    with iteration_timeout(config.max_runtime_seconds), hard_deadline(config.max_runtime_seconds):
+        yield
+
+
 def execute_once(config: Config, run: Callable[[Config], None]) -> None:
-    with iteration_timeout(config.max_runtime_seconds):
+    with _bounded_iteration(config):
         run(config)
 
 
@@ -59,7 +68,7 @@ def run_forever(
     while not stop.is_set():
         start = monotonic()
         try:
-            with iteration_timeout(config.max_runtime_seconds):
+            with _bounded_iteration(config):
                 run(config)
             failures = 0
             delay = max(0.0, config.interval_seconds - (monotonic() - start))

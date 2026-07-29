@@ -12,24 +12,49 @@ if TYPE_CHECKING:
 
 _DEFAULT_INTERVAL_SECONDS = 60.0
 _DEFAULT_LOG_LEVEL = "INFO"
-_DEFAULT_MAX_RUNTIME_SECONDS = 0.0
+_DEFAULT_MAX_RUNTIME_SECONDS = 600.0
 _DEFAULT_BACKOFF_BASE_SECONDS = 1.0
 _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 
+# darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
+# ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
+_MAX_SECONDS = 2_592_000.0
+
+_POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds")
+_NON_NEGATIVE_FIELDS = ("max_runtime_seconds",)
+
+
+def _clean(raw: str | None) -> str | None:
+    if raw is None or raw.strip() == "":
+        return None
+    return raw
+
+
+def _normalize_log_level(raw: str) -> str:
+    stripped = raw.strip()
+    return stripped.upper() if stripped else _DEFAULT_LOG_LEVEL
+
 
 def _read_float(env: Mapping[str, str], key: str, default: float) -> float:
-    raw = env.get(key)
+    raw = _clean(env.get(key))
     if raw is None:
         return default
     try:
-        value = float(raw)
+        return float(raw)
     except ValueError as exc:
         raise ValueError(f"{key} must be a number, got {raw!r}") from exc
+
+
+def _validate_bound(name: str, value: float, *, allow_zero: bool) -> None:
     if not math.isfinite(value):
-        raise ValueError(f"{key} must be finite, got {value}")
-    if value < 0:
-        raise ValueError(f"{key} must not be negative, got {value}")
-    return value
+        raise ValueError(f"{name} must be finite, got {value}")
+    if value > _MAX_SECONDS:
+        raise ValueError(f"{name} must not exceed {_MAX_SECONDS:.0f} seconds, got {value}")
+    if allow_zero:
+        if value < 0:
+            raise ValueError(f"{name} must not be negative, got {value}")
+    elif value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,13 +67,25 @@ class Config:
     backoff_max_seconds: float = _DEFAULT_BACKOFF_MAX_SECONDS
     github_token: str | None = field(default=None, repr=False)
 
+    def __post_init__(self) -> None:
+        # Canonicalize string options here so env, CLI, and direct construction share one rule.
+        object.__setattr__(self, "log_level", _normalize_log_level(self.log_level))
+        object.__setattr__(self, "lock_path", _clean(self.lock_path))
+        object.__setattr__(self, "github_token", _clean(self.github_token))
+        for name in _POSITIVE_FIELDS:
+            value: float = getattr(self, name)
+            _validate_bound(name, value, allow_zero=False)
+        for name in _NON_NEGATIVE_FIELDS:
+            value = getattr(self, name)
+            _validate_bound(name, value, allow_zero=True)
+
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
         source = os.environ if env is None else env
         return cls(
             interval_seconds=_read_float(source, "PYTORCH_GREENLIGHT_INTERVAL_SECONDS", _DEFAULT_INTERVAL_SECONDS),
-            log_level=source.get("PYTORCH_GREENLIGHT_LOG_LEVEL", _DEFAULT_LOG_LEVEL).upper(),
-            lock_path=source.get("PYTORCH_GREENLIGHT_LOCK_PATH") or None,
+            log_level=source.get("PYTORCH_GREENLIGHT_LOG_LEVEL", _DEFAULT_LOG_LEVEL),
+            lock_path=source.get("PYTORCH_GREENLIGHT_LOCK_PATH"),
             max_runtime_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS", _DEFAULT_MAX_RUNTIME_SECONDS
             ),
@@ -58,5 +95,5 @@ class Config:
             backoff_max_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", _DEFAULT_BACKOFF_MAX_SECONDS
             ),
-            github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN") or None,
+            github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
         )

@@ -4,7 +4,14 @@ import os
 
 import pytest
 
+from greenlight import guards
 from greenlight.config import Config
+
+
+@pytest.fixture(autouse=True)
+def _no_real_watchdog_exit(monkeypatch):
+    """Neutralise the shared hard watchdog's exit action so no test can call os._exit."""
+    monkeypatch.setattr(guards._WATCHDOG, "_on_expire", lambda: None)
 
 
 @pytest.fixture(autouse=True)
@@ -48,7 +55,7 @@ def make_config():
 
     def _make(**overrides):
         base = Config(
-            interval_seconds=0.0,
+            interval_seconds=1.0,
             log_level="INFO",
             lock_path=None,
             max_runtime_seconds=0.0,
@@ -63,3 +70,26 @@ def make_config():
 @pytest.fixture
 def tmp_lock_path(tmp_path):
     return str(tmp_path / "greenlight.lock")
+
+
+class _RecordingWatchdog:
+    """Structural stand-in for the hard watchdog that records interactions instead of arming a thread."""
+
+    def __init__(self) -> None:
+        self.registered: list[float] = []
+        self.cleared = 0
+        self.started = 0
+
+    def start(self) -> None:
+        self.started += 1
+
+    def register(self, deadline_monotonic: float) -> None:
+        self.registered.append(deadline_monotonic)
+
+    def clear(self) -> None:
+        self.cleared += 1
+
+
+@pytest.fixture
+def recording_watchdog():
+    return _RecordingWatchdog()

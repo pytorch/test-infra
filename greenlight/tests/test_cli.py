@@ -1,3 +1,4 @@
+import logging
 import sys
 from contextlib import contextmanager
 from unittest.mock import Mock
@@ -6,6 +7,7 @@ import pytest
 
 from greenlight import cli, plan
 from greenlight.config import Config
+from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
 
 
@@ -57,7 +59,7 @@ def test_main_plan_dispatches_to_plan_phase(monkeypatch):
 
     rc = cli.main(["plan"])
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     plan_mock.assert_called_once()
     act_mock.assert_not_called()
     assert isinstance(plan_mock.call_args.args[0], Config)
@@ -71,7 +73,7 @@ def test_main_act_dispatches_to_act_phase(monkeypatch):
 
     rc = cli.main(["act"])
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     act_mock.assert_called_once()
     plan_mock.assert_not_called()
     assert isinstance(act_mock.call_args.args[0], Config)
@@ -89,7 +91,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
 
     rc = cli.main(["plan", "--loop"])
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     assert isinstance(captured["config"], Config)
     assert captured["run"] is plan.run
 
@@ -100,7 +102,7 @@ def test_main_oneshot_failure_returns_exit_failure(monkeypatch):
 
     rc = cli.main(["plan"])
 
-    assert rc == cli.EXIT_FAILURE
+    assert rc == EXIT_FAILURE
 
 
 def test_main_already_running_returns_exit_already_running(monkeypatch):
@@ -116,7 +118,7 @@ def test_main_already_running_returns_exit_already_running(monkeypatch):
 
     rc = cli.main(["plan"])
 
-    assert rc == cli.EXIT_ALREADY_RUNNING
+    assert rc == EXIT_ALREADY_RUNNING
     plan_mock.assert_not_called()
 
 
@@ -133,7 +135,7 @@ def test_main_loop_already_running_returns_exit_already_running(monkeypatch):
 
     rc = cli.main(["plan", "--loop"])
 
-    assert rc == cli.EXIT_ALREADY_RUNNING
+    assert rc == EXIT_ALREADY_RUNNING
     run_forever_mock.assert_not_called()
 
 
@@ -154,7 +156,7 @@ def test_cli_args_override_env(monkeypatch):
 
     rc = cli.main(["plan", "--loop", "--interval", "5", "--lock-path", "/cli/lock"])
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     cfg = captured["config"]
     assert isinstance(cfg, Config)
     assert cfg.interval_seconds == 5.0
@@ -174,7 +176,7 @@ def test_cli_log_level_override(monkeypatch):
 
     rc = cli.main(["plan", "--log-level", "debug"])
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     cfg = captured["config"]
     assert isinstance(cfg, Config)
     assert cfg.log_level == "DEBUG"
@@ -188,17 +190,137 @@ def test_main_argv_none_uses_sys_argv(monkeypatch):
 
     rc = cli.main()
 
-    assert rc == cli.EXIT_OK
+    assert rc == EXIT_OK
     plan_mock.assert_called_once()
 
 
 def test_exit_code_constants():
-    assert cli.EXIT_OK == 0
-    assert cli.EXIT_FAILURE == 1
-    assert cli.EXIT_ALREADY_RUNNING == 3
+    assert EXIT_OK == 0
+    assert EXIT_FAILURE == 1
+    assert EXIT_ALREADY_RUNNING == 3
 
 
 def test_module_entry_point_wires_to_cli_main():
     import greenlight.__main__ as entry
 
     assert entry.main is cli.main
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "nan", "1e12"])
+def test_main_bad_interval_is_usage_error(bad):
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["plan", "--interval", bad])
+    assert excinfo.value.code == 2
+
+
+def test_main_bad_log_level_is_usage_error():
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["plan", "--log-level", "bogus"])
+    assert excinfo.value.code == 2
+
+
+def test_main_bad_env_log_level_is_usage_error(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOG_LEVEL", "bogus")
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["plan"])
+    assert excinfo.value.code == 2
+
+
+def test_main_bad_env_numeric_is_usage_error(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "not-a-number")
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["plan"])
+    assert excinfo.value.code == 2
+
+
+def test_phase_lock_path_suffixes_phase():
+    assert cli._phase_lock_path("/run/gl.lock", "plan") == "/run/gl.lock.plan"
+    assert cli._phase_lock_path("/run/gl.lock", "act") == "/run/gl.lock.act"
+
+
+def test_phase_lock_path_distinct_per_phase():
+    assert cli._phase_lock_path("/run/gl.lock", "plan") != cli._phase_lock_path("/run/gl.lock", "act")
+
+
+@pytest.mark.parametrize("base", [None, ""])
+def test_phase_lock_path_blank_base_is_none(base):
+    assert cli._phase_lock_path(base, "plan") is None
+
+
+def test_main_passes_phase_suffixed_lock_path(monkeypatch):
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def capturing_lock(path):
+        captured["path"] = path
+        yield
+
+    monkeypatch.setattr(cli, "single_instance_lock", capturing_lock)
+    monkeypatch.setattr(cli, "PHASES", {"plan": Mock(), "act": Mock()})
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", "/run/gl.lock")
+
+    rc = cli.main(["plan"])
+
+    assert rc == EXIT_OK
+    assert captured["path"] == "/run/gl.lock.plan"
+
+
+def test_main_logs_effective_lock_path(monkeypatch, caplog):
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "PHASES", {"plan": Mock(), "act": Mock()})
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", "/run/gl.lock")
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        cli.main(["plan"])
+
+    assert "/run/gl.lock.plan" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("debug", "DEBUG"), ("DEBUG", "DEBUG"), (" debug ", "DEBUG"), ("", "INFO"), ("   ", "INFO")],
+)
+def test_cli_log_level_normalized_and_accepted(raw, expected, monkeypatch):
+    captured: dict[str, object] = {}
+
+    def phase(config):
+        captured["config"] = config
+
+    monkeypatch.setattr(cli, "PHASES", {"plan": phase, "act": phase})
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+
+    rc = cli.main(["plan", "--log-level", raw])
+
+    assert rc == EXIT_OK
+    cfg = captured["config"]
+    assert isinstance(cfg, Config)
+    assert cfg.log_level == expected
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_cli_blank_lock_path_runs_without_lock(blank, monkeypatch, caplog):
+    monkeypatch.setattr(cli, "PHASES", {"plan": Mock(), "act": Mock()})
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        rc = cli.main(["plan", "--lock-path", blank])
+
+    assert rc == EXIT_OK
+    # Falsy lock path -> no lock file is opened; the missing-lock warning is emitted instead.
+    assert "PYTORCH_GREENLIGHT_LOCK_PATH" in caplog.text
+
+
+def test_main_lock_open_failure_is_clear_not_phase_failure(tmp_path, monkeypatch, caplog):
+    bad = str(tmp_path / "missing-dir" / "greenlight.lock")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", bad)
+    monkeypatch.setattr(cli, "PHASES", {"plan": Mock(), "act": Mock()})
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        rc = cli.main(["plan"])
+
+    assert rc == EXIT_FAILURE
+    assert "greenlight phase failed" not in caplog.text
+    assert (bad + ".plan") in caplog.text

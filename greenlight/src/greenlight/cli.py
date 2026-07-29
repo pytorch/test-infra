@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING
 
 from greenlight import act, plan
 from greenlight.config import Config
-from greenlight.guards import SingleInstanceError, single_instance_lock
+from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
+from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
 from greenlight.runner import execute_once, run_forever
 
@@ -18,11 +19,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
-
-EXIT_OK = 0
-EXIT_FAILURE = 1
-# 2 is reserved by argparse for CLI usage errors
-EXIT_ALREADY_RUNNING = 3
 
 PHASES: dict[str, Callable[[Config], None]] = {"plan": plan.run, "act": act.run}
 
@@ -59,15 +55,21 @@ def _config_from_args(args: argparse.Namespace) -> Config:
     if args.interval is not None:
         config = dataclasses.replace(config, interval_seconds=args.interval)
     if args.log_level is not None:
-        config = dataclasses.replace(config, log_level=args.log_level.upper())
+        config = dataclasses.replace(config, log_level=args.log_level)
     if args.lock_path is not None:
         config = dataclasses.replace(config, lock_path=args.lock_path)
     return config
 
 
-def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool) -> int:
+def _phase_lock_path(base: str | None, phase: str) -> str | None:
+    if not base:
+        return None
+    return f"{base}.{phase}"
+
+
+def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
     try:
-        with single_instance_lock(config.lock_path):
+        with single_instance_lock(lock_path):
             if loop:
                 run_forever(config, run=run)
             else:
@@ -75,6 +77,9 @@ def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool) -> i
     except SingleInstanceError:
         logger.error("another greenlight instance is running; skipping")
         return EXIT_ALREADY_RUNNING
+    except LockError:
+        logger.exception("cannot acquire single-instance lock at %s", lock_path)
+        return EXIT_FAILURE
     except Exception:
         logger.exception("greenlight phase failed")
         return EXIT_FAILURE
@@ -82,8 +87,15 @@ def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool) -> i
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
-    config = _config_from_args(args)
-    configure_logging(config.log_level)
+    parser = build_parser()
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        config = _config_from_args(args)
+        configure_logging(config.log_level)
+    except ValueError as exc:
+        parser.error(str(exc))
+    lock_path = _phase_lock_path(config.lock_path, args.command)
+    if lock_path is not None:
+        logger.info("using single-instance lock path %s", lock_path)
     run = PHASES[args.command]
-    return _dispatch(config, run, loop=args.loop)
+    return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

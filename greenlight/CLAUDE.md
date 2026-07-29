@@ -65,10 +65,14 @@ cron-driven and daemon deployment with no change to its logic:
 Keep each phase's `run()` propagating failures: do not swallow failures on the
 one-shot path, and do not let the daemon die on a single failed iteration.
 
-Both paths run under the single-instance lock (`PYTORCH_GREENLIGHT_LOCK_PATH`). In `--loop` mode,
-SIGTERM/SIGINT stop the daemon only between iterations, so a long-running or hung
-iteration is bounded only by `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (the per-iteration timeout,
-disabled by default).
+Both paths run under the single-instance lock (`PYTORCH_GREENLIGHT_LOCK_PATH`); the lock
+file is phase-suffixed (`.plan`/`.act`) so the two phases hold independent locks. In
+`--loop` mode, SIGTERM/SIGINT stop the daemon only between iterations. A hung iteration is
+guarded in two layers keyed off `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default 600s): a
+best-effort SIGALRM per-iteration timeout, which fires only on the main thread and cannot
+interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchdog that
+force-exits the process a grace period later, the real backstop for hangs the soft timeout
+cannot reach.
 
 ## Comments
 

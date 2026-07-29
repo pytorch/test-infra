@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from greenlight import runner
+from greenlight.guards import hard_deadline
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -84,7 +85,7 @@ def test_default_wait_and_monotonic(make_config):
         stop.set()
 
     runner.run_forever(
-        make_config(interval_seconds=0.0),
+        make_config(interval_seconds=1.0),
         run=run,
         stop_event=stop,
         install_signal_handlers=False,
@@ -119,7 +120,7 @@ def test_backoff_after_failure_then_cadence(make_config, caplog):
 
 def test_backoff_is_capped(make_config):
     cfg = make_config(
-        interval_seconds=0.0,
+        interval_seconds=1.0,
         backoff_base_seconds=1.0,
         backoff_max_seconds=5.0,
         max_runtime_seconds=0.0,
@@ -141,7 +142,7 @@ def test_backoff_is_capped(make_config):
 def test_backoff_survives_many_failures(make_config, caplog):
     caplog.set_level(logging.CRITICAL, logger="greenlight")
     cfg = make_config(
-        interval_seconds=0.0,
+        interval_seconds=1.0,
         backoff_base_seconds=1.0,
         backoff_max_seconds=60.0,
         max_runtime_seconds=0.0,
@@ -159,27 +160,6 @@ def test_backoff_survives_many_failures(make_config, caplog):
     assert all(delay <= cfg.backoff_max_seconds for delay in wait.calls)
     # base*2**min(failures, cap) far exceeds backoff_max here, so late delays pin to the cap.
     assert wait.calls[-1] == cfg.backoff_max_seconds
-
-
-def test_backoff_base_zero_does_not_crash(make_config, caplog):
-    caplog.set_level(logging.CRITICAL, logger="greenlight")
-    cfg = make_config(
-        interval_seconds=0.0,
-        backoff_base_seconds=0.0,
-        backoff_max_seconds=60.0,
-        max_runtime_seconds=0.0,
-    )
-    run = Mock(side_effect=ValueError("boom"))
-    wait = FakeWait(stop_after=2000)
-    runner.run_forever(
-        cfg,
-        run=run,
-        wait=wait,
-        monotonic=lambda: 0.0,
-        install_signal_handlers=False,
-    )
-    assert run.call_count == 2000
-    assert all(delay == 0.0 for delay in wait.calls)
 
 
 def test_no_signal_handlers_when_disabled(make_config, monkeypatch):
@@ -250,3 +230,36 @@ def test_execute_once_timeout_disabled_when_zero(make_config, monkeypatch):
     monkeypatch.setattr(signal, "setitimer", lambda *args: armed.append(args))
     runner.execute_once(make_config(max_runtime_seconds=0.0), Mock())
     assert armed == []
+
+
+def test_execute_once_arms_watchdog(make_config, monkeypatch, recording_watchdog):
+    monkeypatch.setattr(
+        runner,
+        "hard_deadline",
+        lambda seconds, **kwargs: hard_deadline(
+            seconds, monotonic=lambda: 1000.0, watchdog=recording_watchdog, **kwargs
+        ),
+    )
+    runner.execute_once(make_config(max_runtime_seconds=5.0), Mock())
+    assert recording_watchdog.started == 1
+    assert recording_watchdog.registered == [1035.0]  # 1000 (clock) + 5 (runtime) + 30 (grace)
+    assert recording_watchdog.cleared == 1
+
+
+def test_run_forever_arms_watchdog(make_config, monkeypatch, recording_watchdog):
+    monkeypatch.setattr(
+        runner,
+        "hard_deadline",
+        lambda seconds, **kwargs: hard_deadline(
+            seconds, monotonic=lambda: 1000.0, watchdog=recording_watchdog, **kwargs
+        ),
+    )
+    runner.run_forever(
+        make_config(max_runtime_seconds=5.0, interval_seconds=1.0),
+        run=Mock(),
+        wait=FakeWait(stop_after=1),
+        install_signal_handlers=False,
+    )
+    assert recording_watchdog.started == 1
+    assert recording_watchdog.registered == [1035.0]
+    assert recording_watchdog.cleared == 1
