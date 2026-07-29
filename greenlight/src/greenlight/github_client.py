@@ -1,12 +1,15 @@
-"""Thin wrapper around the GitHub API for listing open pull requests."""
+"""Read-only GitHub pull-request access for the greenlight service."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from greenlight.pr_hash import ChangedFile, HumanEvent, PRFingerprint, is_bot
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
     from typing import Protocol
 
     from github import Github
@@ -27,6 +30,56 @@ if TYPE_CHECKING:
 
     class _PRSearchClient(Protocol):
         def search_issues(self, query: str) -> Iterable[_PRIssue]: ...
+
+    class _PRActor(Protocol):
+        @property
+        def login(self) -> str: ...
+        @property
+        def type(self) -> str: ...
+
+    class _PRFile(Protocol):
+        @property
+        def filename(self) -> str: ...
+        @property
+        def status(self) -> str: ...
+        @property
+        def sha(self) -> str: ...
+        @property
+        def previous_filename(self) -> str | None: ...
+
+    class _PRComment(Protocol):
+        @property
+        def id(self) -> int: ...
+        @property
+        def user(self) -> _PRActor | None: ...
+        @property
+        def body(self) -> str: ...
+        @property
+        def updated_at(self) -> datetime | None: ...
+
+    class _PRReview(Protocol):
+        @property
+        def id(self) -> int: ...
+        @property
+        def user(self) -> _PRActor | None: ...
+        @property
+        def body(self) -> str: ...
+        @property
+        def state(self) -> str: ...
+        @property
+        def submitted_at(self) -> datetime | None: ...
+
+    class _PRBase(Protocol):
+        @property
+        def sha(self) -> str: ...
+
+    class _FingerprintPR(Protocol):
+        @property
+        def base(self) -> _PRBase: ...
+        def get_files(self) -> Iterable[_PRFile]: ...
+        def get_issue_comments(self) -> Iterable[_PRComment]: ...
+        def get_review_comments(self) -> Iterable[_PRComment]: ...
+        def get_reviews(self) -> Iterable[_PRReview]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,3 +113,58 @@ def list_open_prs_by_authors(client: _PRSearchClient, repo: str, authors: Iterab
                 )
             )
     return prs
+
+
+def _iso(value: datetime | None) -> str:
+    return "" if value is None else value.isoformat()
+
+
+def _should_exclude_actor(user: _PRActor, self_login: str | None) -> bool:
+    if is_bot(user.login, user.type):
+        return True
+    return self_login is not None and user.login.lower() == self_login.lower()
+
+
+def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -> PRFingerprint:
+    changed_files = tuple(
+        ChangedFile(path=f.filename, status=f.status, blob_sha=f.sha, previous_path=f.previous_filename)
+        for f in pr.get_files()
+    )
+
+    human_events: list[HumanEvent] = []
+    for comment in pr.get_issue_comments():
+        user = comment.user
+        if user is None or _should_exclude_actor(user, self_login):
+            continue
+        human_events.append(
+            HumanEvent("issue_comment", comment.id, user.login, comment.body, None, _iso(comment.updated_at))
+        )
+
+    for review_comment in pr.get_review_comments():
+        user = review_comment.user
+        if user is None or _should_exclude_actor(user, self_login):
+            continue
+        human_events.append(
+            HumanEvent(
+                "review_comment",
+                review_comment.id,
+                user.login,
+                review_comment.body,
+                None,
+                _iso(review_comment.updated_at),
+            )
+        )
+
+    for review in pr.get_reviews():
+        user = review.user
+        if user is None or _should_exclude_actor(user, self_login):
+            continue
+        human_events.append(
+            HumanEvent("review", review.id, user.login, review.body, review.state, _iso(review.submitted_at))
+        )
+
+    return PRFingerprint(
+        base_sha=pr.base.sha,
+        changed_files=changed_files,
+        human_events=tuple(human_events),
+    )
