@@ -19,11 +19,16 @@
 -- gating workflows run on every push, so that case is rare; treat the numbers as
 -- descriptive triage, not the gate's true rate.
 --
--- Job names are folded to config granularity (shards collapsed) so that e.g.
+-- Job names are folded to config granularity by stripping only the trailing
+-- shard fields (", <shard>, <num_shards>[, <runner>]") from the final config
+-- group and keeping the rest of the name. So
 -- `trunk / linux-jammy-rocm-py3.10-mi350 / test (default, 1, 3)` becomes
--- `trunk / linux-jammy-rocm-py3.10-mi350 / test (default)`. One row is returned
--- per fully-evaluated commit with the list of blocking folded jobs; the client
--- computes how often each job (and each job type) is the *only* blocker.
+-- `trunk / linux-jammy-rocm-py3.10-mi350 / test (default)`, and nested jobs with
+-- more than two " / " components keep their config instead of collapsing, e.g.
+-- `... / dynamo-test (3.11) / test (dynamo_wrapped, 1, 7)` and
+-- `... / dynamo-test (3.11) / test (dynamo_core, 1, 1)` stay distinct. One row is
+-- returned per fully-evaluated commit with the list of blocking folded jobs; the
+-- client computes how often each job (and each job type) is the *only* blocker.
 WITH commits AS (
     SELECT DISTINCT
         p.head_commit. 'id' AS sha,
@@ -55,15 +60,14 @@ raw_jobs AS (
     SELECT
         w.head_sha AS sha,
         w.id AS workflow_id,
+        -- Fold shards only: strip a trailing ", <shard>, <num_shards>[, <runner>]"
+        -- from the final config group and keep the rest of the (possibly nested)
+        -- name, so jobs with more than two " / " components don't collapse distinct
+        -- configs (e.g. dynamo_core vs dynamo_wrapped).
         CONCAT(
             j.workflow_name,
             ' / ',
-            arrayElement(splitByString(' / ', j.name), 1),
-            ' / ',
-            arrayElement(
-                splitByString(', ', arrayElement(splitByString(' / ', j.name), 2)),
-                1
-            )
+            replaceRegexpOne(j.name, ', [0-9]+, [0-9]+.*\\)$', ')')
         ) AS folded_name,
         j.name AS shard,
         j.run_attempt AS run_attempt,
@@ -84,12 +88,21 @@ raw_jobs AS (
         -- pytorch/pytorch .github/workflows/update-viablestrict.yml
         -- (["pull", "trunk", "lint", "docs-build"] as of 2026-07-27).
         AND match(lower(j.workflow_name), '^(pull|trunk|lint|docs-build)')
+        -- Match the gate's job-level filtering (commit_jobs_batch_query), which
+        -- only drops ciflow_should_run and generate-test-matrix. We additionally
+        -- drop unstable and rerun_disabled_tests jobs: the gate ignores unstable
+        -- via is_unstable(), and both carry a trailing config marker
+        -- (", unstable" / ", rerun_disabled_tests", after the shard fields) that
+        -- the shard fold strips -- which would collapse them onto, and falsely
+        -- redden, the real gating job of the same config (e.g. a scheduled
+        -- rerun_disabled_tests failure landing on `test (default)`). We do NOT
+        -- filter `job-filter / compute` or slashless lint jobs: the gate gates on
+        -- those and they fold to distinct names, so excluding them would miss real
+        -- blockers or make another job look falsely sole.
         AND j.name != 'ciflow_should_run'
         AND j.name != 'generate-test-matrix'
-        AND j.name NOT LIKE '%rerun_disabled_tests%'
-        AND j.name NOT LIKE '%filter%'
         AND j.name NOT LIKE '%unstable%'
-        AND j.name LIKE '%/%'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
         AND w.event != 'workflow_run' -- these are unrelated to the SHA
         AND w.event != 'repository_dispatch'
         AND NOT (w.event = 'workflow_dispatch' AND w.head_branch LIKE 'trunk/%') -- restart jobs
@@ -102,11 +115,7 @@ raw_jobs AS (
 shard_latest AS (
     SELECT
         sha,
-        IF(
-            folded_name LIKE '%(%' AND folded_name NOT LIKE '%)%',
-            CONCAT(folded_name, ')'),
-            folded_name
-        ) AS name,
+        folded_name AS name,
         shard,
         workflow_id,
         argMax(conclusion, run_attempt) AS conclusion

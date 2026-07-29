@@ -254,6 +254,40 @@ describe("Sole viable/strict blockers", () => {
     expect(jobTypeOf("trunk / A / test (default)")).toBe("trunk / A");
     expect(jobTypeOf("trunk / A / build")).toBe("trunk / A");
     expect(jobTypeOf("lint / quick-checks")).toBe("lint / quick-checks");
+    // Nested jobs (>2 " / " components) drop only the trailing config, keeping
+    // the matrix instance (e.g. the python version) distinct.
+    expect(
+      jobTypeOf(
+        "trunk / dynamo-unittest / dynamo-test (3.11) / test (dynamo_wrapped)"
+      )
+    ).toBe("trunk / dynamo-unittest / dynamo-test (3.11)");
+    expect(
+      jobTypeOf(
+        "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_core)"
+      )
+    ).toBe("trunk / dynamo-unittest / dynamo-test (3.12)");
+  });
+
+  test("nested job types are config-consistent (no cross-matrix pruning)", () => {
+    // dynamo 3.11/wrapped is the sole blocker on one commit; 3.12 only ever
+    // blocks via a core+wrapped combo. Because 3.11 and 3.12 are DIFFERENT job
+    // types, 3.11's sole config must NOT prune the 3.12 combo rows.
+    const j311w =
+      "trunk / dynamo-unittest / dynamo-test (3.11) / test (dynamo_wrapped)";
+    const j312c =
+      "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_core)";
+    const j312w =
+      "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_wrapped)";
+    const data: SoleBlockerCommit[] = [
+      { sha: "1", time: "", blocking: [j311w] },
+      { sha: "2", time: "", blocking: [j312c, j312w] },
+      { sha: "3", time: "", blocking: [] },
+    ];
+
+    const names = computeSoleBlockers(data).map((r) => r.name);
+    expect(names).toContain(j311w); // sole
+    expect(names).toContain(j312c); // combo-only job type, kept
+    expect(names).toContain(j312w);
   });
 
   test("config-sole vs job-type-sole", () => {

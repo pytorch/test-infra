@@ -222,8 +222,8 @@ function SoleBlockerPanel({
           color: "text.secondary",
         }}
       >
-        Job-type % folds all configs of a job together; it is shared across the
-        job type&apos;s rows and is not additive.
+        The &quot;By job (all configs)&quot; column folds a job&apos;s configs
+        together; it is shared across the job&apos;s rows and is not additive.
       </Typography>
     </>
   );
@@ -235,7 +235,7 @@ function SoleBlockerPanel({
       columns={[
         {
           field: "sole",
-          headerName: "Sole blocking %",
+          headerName: "By config",
           description:
             "% of evaluated commits where this exact config is the only job blocking viable/strict.",
           flex: 1,
@@ -245,9 +245,9 @@ function SoleBlockerPanel({
         },
         {
           field: "soleJobType",
-          headerName: "Sole blocking % (job type)",
+          headerName: "By job (all configs)",
           description:
-            "% of evaluated commits where only this job type blocks (via any of its configs). Shared across the job type's rows — not additive.",
+            "% of evaluated commits where this job is the only thing blocking, via any of its configs. Shared across the job's rows — not additive.",
           flex: 1,
           valueFormatter: (value) => {
             return Number(value).toFixed(2);
@@ -276,7 +276,26 @@ function SoleBlockerPanel({
           },
         },
       ]}
-      dataGridProps={{ getRowId: (el: any) => el.name }}
+      dataGridProps={{
+        getRowId: (el: any) => el.name,
+        // Group the two percentage columns under one header so they read as
+        // "Sole viable/strict blocker %: By config | By job", rather than two
+        // near-identically named columns. Name gets its own (untitled) group so
+        // every column has a two-row header and it doesn't render with a ragged
+        // empty cell above it.
+        columnGroupingModel: [
+          {
+            groupId: "soleBlocking",
+            headerName: "Sole viable/strict blocker %",
+            children: [{ field: "sole" }, { field: "soleJobType" }],
+          },
+          {
+            groupId: "job",
+            headerName: "",
+            children: [{ field: "name" }],
+          },
+        ],
+      }}
     />
   );
 }

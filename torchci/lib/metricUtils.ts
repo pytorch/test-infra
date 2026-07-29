@@ -205,11 +205,16 @@ export interface SoleBlockerRow {
   soleJobType: number;
 }
 
-// The job type is the workflow + base job name, dropping the test config, e.g.
-// "trunk / linux-jammy-rocm-py3.10-mi350 / test (default)" ->
-// "trunk / linux-jammy-rocm-py3.10-mi350".
+// The job type is the job with its trailing test config dropped, so a job's
+// configs fold together. For the common "workflow / machine / test (config)"
+// shape this is "workflow / machine". For nested jobs (>2 " / " components, e.g.
+// "trunk / dynamo-unittest / dynamo-test (3.11) / test (dynamo_core)") it drops
+// only the config and keeps the matrix instance
+// ("trunk / dynamo-unittest / dynamo-test (3.11)"), so distinct python versions
+// aren't collapsed together. Slashless / 2-part names have no config to drop.
 export function jobTypeOf(name: string): string {
-  return name.split(" / ").slice(0, 2).join(" / ");
+  const parts = name.split(" / ");
+  return parts.length >= 3 ? parts.slice(0, -1).join(" / ") : name;
 }
 
 // For each gating job, compute how often it is the *only* thing blocking
