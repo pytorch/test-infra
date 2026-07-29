@@ -174,13 +174,6 @@
       "mac"
     ]
   ],
-  "test_cache_hot_load_caching_precompile_dynamic_True_device_cuda_bfloat16 (__main__.TestFxGraphCache)": [
-    "188899",
-    "https://github.com/pytorch/pytorch/issues/188899",
-    [
-      "rocm"
-    ]
-  ],
   "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "186872",
     "https://github.com/pytorch/pytorch/issues/186872",
@@ -327,16 +320,6 @@
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
     [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
-    "127536",
-    "https://github.com/pytorch/pytorch/issues/127536",
-    [
-      "dynamo",
-      "inductor",
       "linux",
       "slow"
     ]
@@ -980,6 +963,14 @@
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
     []
+  ],
+  "test_reductions_large_half_tensors_mps_float16 (__main__.TestReductionsMPS)": [
+    "191485",
+    "https://github.com/pytorch/pytorch/issues/191485",
+    [
+      "mac",
+      "macos"
+    ]
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
     "86735",
