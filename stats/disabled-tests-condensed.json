@@ -366,6 +366,13 @@
       "linux"
     ]
   ],
+  "test_del_multi_stream_sync_dealloc (__main__.TestStreams)": [
+    "191414",
+    "https://github.com/pytorch/pytorch/issues/191414",
+    [
+      "linux"
+    ]
+  ],
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
