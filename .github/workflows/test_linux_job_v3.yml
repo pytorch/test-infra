@@ -205,3 +205,35 @@ jobs:
         conda create --yes --quiet -n test python="${PYTHON_VERSION}"
         conda activate test
         python --version | grep "${PYTHON_VERSION}"
+  # Verifies the "Resolve HF cache mode" step propagated the right env into the
+  # script step. Adapts to the label: a PR labeled 'ci-refresh-hf-cache' exercises
+  # the refresh branch, any other PR exercises the default (read-only) branch.
+  # The actual S3 sync needs the write role + an approved repo, so it isn't covered.
+  test-hf-cache-mode:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-hf-cache-mode"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        set -x
+        echo "HF_CACHE_REFRESH=${HF_CACHE_REFRESH:-<unset>} HF_HOME=${HF_HOME:-<unset>}"
+        if [[ "${HF_CACHE_REFRESH:-}" == "1" ]]; then
+          # Refresh branch: HF must be repointed at writable RUNNER_TEMP and online.
+          [[ "${HF_HOME}" == "${RUNNER_TEMP}/hf_cache" ]] || { echo "HF_HOME not repointed"; exit 1; }
+          [[ "${HF_DATASETS_CACHE}" == "${RUNNER_TEMP}/hf_datasets" ]] || { echo "HF_DATASETS_CACHE not repointed"; exit 1; }
+          [[ "${TRANSFORMERS_OFFLINE}" == "0" && "${HF_DATASETS_OFFLINE}" == "0" ]] || { echo "not forced online"; exit 1; }
+          touch "${HF_HOME}/.writable_probe" || { echo "HF_HOME not writable"; exit 1; }
+          echo "refresh-mode env OK"
+        else
+          # Default branch: v3 must NOT hijack HF_HOME to the refresh temp dir.
+          [[ "${HF_CACHE_REFRESH:-}" == "0" ]] || { echo "expected HF_CACHE_REFRESH=0"; exit 1; }
+          [[ "${HF_HOME:-}" != "${RUNNER_TEMP}/hf_cache" ]] || { echo "HF_HOME unexpectedly repointed"; exit 1; }
+          echo "default-mode env OK"
+        fi
