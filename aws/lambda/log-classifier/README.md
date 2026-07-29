@@ -37,6 +37,27 @@ You can edit `fixtures/request.json` to test different inputs.
 **Note that this will write to S3!** You can pass a different value for
 `ShouldWriteS3` if you don't want to do that.
 
+## Classification regression fixtures
+
+`fixtures/classify/*.txt` are real CI-log fragments with the expected verdict
+recorded in-band (`#=MATCH=#` on the surfaced line, captures in `‹ ›`, or a
+`#=NO-MATCH=#` line). The harness lives in `tests/classify.rs`; see
+`fixtures/classify/FIXTURES.md` for the format.
+
+- Run them: `cargo test --test classify`
+- Re-bless after a ruleset/engine change: `UPDATE_FIXTURES=1 cargo test --test classify`
+
+To turn a failing job into a fixture, use `./pull_fixture.py` (pass a job id, a
+GitHub Actions job URL, or a raw-log URL). It downloads the log, centers a window
+on the line the classifier surfaces, writes the fixture, and blesses it:
+
+```
+./pull_fixture.py https://github.com/pytorch/pytorch/actions/runs/<run>/job/<jobId> --name my_case
+```
+
+Run `./pull_fixture.py --help` for the window overrides (`--context`, `--grep`,
+`--lines`, `--full`, `--stdout`, `--no-bless`).
+
 ## Lambda deployment
 
 The lambda is deployed from main (see:

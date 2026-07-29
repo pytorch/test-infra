@@ -34,6 +34,28 @@ Two fixtures below hinge on this behavior.
 Raw-log URLs (public, gzip-stored — pipe through `gunzip`):
 `https://ossci-raw-job-status.s3.amazonaws.com/log/<jobId>`
 
+## Adding a fixture
+
+Use `../../pull_fixture.py` (in the crate root) to turn a failing job into a
+fixture. Pass anything that carries the job id — a bare id, a GitHub Actions job
+URL, or a raw-log URL:
+
+```
+./pull_fixture.py https://github.com/pytorch/pytorch/actions/runs/<run>/job/<jobId> --name my_case
+```
+
+It downloads the raw log, runs *this crate's* classifier to find the line it
+surfaces, trims to that line ± `--context` (default 60), writes
+`fixtures/classify/my_case.txt`, and blesses the markers — then prints where the
+classifier landed. Confirm that line is the real failure; if the real cause got
+trimmed off, re-run with a larger `--context`, or pin the window with
+`--grep <regex>` / `--lines <A-B>` (1-based raw line numbers; `--stdout` prints
+the numbered log to help you pick). `--no-bless` writes the window offline
+(anchoring on the last `##[error]` / exit-code line instead of the classifier).
+
+After generating: rename to something descriptive, add a `#=WANT=#` note if it's
+a known misclassification, and add a row to the table above.
+
 ## Per-fixture notes
 
 ### 1. `unittest_failed_consistently.txt` — correct
