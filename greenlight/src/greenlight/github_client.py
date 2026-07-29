@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         @property
         def login(self) -> str: ...
 
-    class _PRIssue(Protocol):
+    class _PullRequest(Protocol):
         @property
         def number(self) -> int: ...
         @property
@@ -28,8 +28,11 @@ if TYPE_CHECKING:
         @property
         def html_url(self) -> str: ...
 
-    class _PRSearchClient(Protocol):
-        def search_issues(self, query: str) -> Iterable[_PRIssue]: ...
+    class _Repo(Protocol):
+        def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
+
+    class _RepoClient(Protocol):
+        def get_repo(self, full_name_or_id: str) -> _Repo: ...
 
     class _PRActor(Protocol):
         @property
@@ -94,25 +97,29 @@ class OpenPR:
 def build_client(token: str) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
-    return Github(auth=Auth.Token(token))
+    return Github(auth=Auth.Token(token), per_page=100)
 
 
-def list_open_prs_by_authors(client: _PRSearchClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
+def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
+    trusted = {a.lower() for a in authors}
+    repo_obj = client.get_repo(repo)
     prs: list[OpenPR] = []
-    for author in authors:
-        query = f"repo:{repo} is:open is:pr author:{author}"
-        for issue in client.search_issues(query):
-            user = issue.user
+    for pr in repo_obj.get_pulls(state="open"):
+        user = pr.user
+        if user is None:
+            continue
+        login = user.login
+        if login and login.lower() in trusted:
             prs.append(
                 OpenPR(
                     repo=repo,
-                    number=issue.number,
-                    author=user.login if user is not None else author,
-                    title=issue.title,
-                    url=issue.html_url,
+                    number=pr.number,
+                    author=login,
+                    title=pr.title,
+                    url=pr.html_url,
                 )
             )
-    return prs
+    return sorted(prs, key=lambda p: p.number)
 
 
 def _iso(value: datetime | None) -> str:

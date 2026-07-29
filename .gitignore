@@ -43,6 +43,13 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 
+# coverage
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+
 # If you choose to install tools/torchci via pip install -e
 *.egg-info/
 

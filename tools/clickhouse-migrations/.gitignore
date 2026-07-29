@@ -1,0 +1,4 @@
+.coverage
+.coveragerc
+.coverage.*
+htmlcov/

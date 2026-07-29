@@ -38,14 +38,17 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "plan",
         parents=[common],
-        help="select, gate, and score PRs; decide which need review",
-        description="Select, gate, and score open PRs and decide which need a code review.",
+        help="fetch open PRs from trusted authors in pytorch/pytorch and log them",
+        description=(
+            "Fetch the open PRs from a fixed set of trusted authors in pytorch/pytorch and log them. "
+            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN."
+        ),
     )
     subparsers.add_parser(
         "act",
         parents=[common],
-        help="turn review decisions into PR approvals/revocations",
-        description="Turn review decisions into PR approvals or revocations.",
+        help="log only (stub)",
+        description="Log-only stub. Turning review decisions into PR approvals or revocations is the seam to fill.",
     )
     return parser
 

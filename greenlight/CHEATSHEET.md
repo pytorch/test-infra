@@ -7,8 +7,9 @@ directory. `just` is the front-end for every workflow — run `just` or
 PyTorch Green Light runs one iteration of a phase and exits (cron-like), or loops as a daemon
 with `--loop`. It has two phases:
 
-- `plan` — select, gate, and score open PRs and decide which need a code review.
-- `act` — turn review decisions into PR approvals / revocations.
+- `plan` — fetch the open PRs from a fixed set of trusted authors in `pytorch/pytorch`
+  and log them (needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN`).
+- `act` — logs only (stub); planned: turn review decisions into approvals/revocations.
 
 ## Setup
 
@@ -33,13 +34,16 @@ just act             # one act iteration, then exit
 just run <args>      # pass arbitrary args to the greenlight CLI (plan/act are shortcuts)
 ```
 
-`just plan` logs `INFO greenlight.plan planning investigations`; `just act` logs
-`INFO greenlight.act applying approval decisions`. Log lines are
+`just act` logs `INFO greenlight.act applying approval decisions` and exits `0`.
+`just plan` logs `INFO greenlight.plan planning investigations`, then queries GitHub
+for the trusted authors' open PRs and logs each one; without
+`PYTORCH_GREENLIGHT_GITHUB_TOKEN` it raises and exits `1`. Log lines are
 `TIMESTAMP LEVEL logger message`. Exit codes: `0` ok, `1` the phase raised, `3`
 another instance holds the lock (`2` is an argparse usage error).
 
-Both phases are currently stubs — they only log. Real selection/scoring and
-approve/revoke logic lands later.
+`act` is a stub (logs only); `plan` fetches and logs the trusted authors' open PRs
+but does not yet gate, score, or decide reviews. Selection and scoring and
+approve/revoke are planned.
 
 Daemon mode loops the phase on an interval:
 
@@ -59,10 +63,11 @@ Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--lo
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token for read-only PR access; required by `plan` |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
-| `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `0` | Per-iteration hard timeout (`0` = disabled) |
+| `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard timeout (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
 
@@ -71,21 +76,22 @@ logs the resolved `Config`.
 
 ## Simulate a run
 
-The intended end-to-end flow is: `plan` (select, gate, and score PRs; decide
-which need review) -> the code-review agent (the review step) -> `act` (approve
-or revoke based on the review decisions).
+The intended end-to-end flow is: `plan` (select, gate, and score PRs; decide which
+need review) -> the code-review agent (the review step) -> `act` (approve or revoke
+based on the review decisions).
 
-Reality today: the code-review agent step is not implemented yet, and `plan` /
-`act` are stubs that only log. So a local simulation just exercises the two entry
-points and their wiring end to end — the real selection, review, and
-approve/revoke behavior lands later.
+Reality today: `plan` fetches and logs the trusted authors' open PRs (a live,
+read-only GitHub call needing `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) but does not yet
+gate, score, or decide reviews; the code-review agent step is not implemented; and
+`act` logs only. So a local run exercises the two entry points and their wiring, not
+the real selection, review, or approve/revoke behavior.
 
 What you can run today (DEBUG to watch the flow):
 
 ```bash
-just plan --log-level DEBUG   # select/gate/score PRs, decide reviews (stub: logs only)
+just plan --log-level DEBUG   # fetch + log trusted authors' open PRs (needs token; no gating/scoring yet)
 # code-review agent / review step — not implemented yet
-just act --log-level DEBUG    # turn review decisions into approvals/revocations (stub: logs only)
+just act --log-level DEBUG    # logs only (stub)
 ```
 
 ## Quality gates
@@ -104,10 +110,11 @@ just test        # pytest + coverage
   fail).
 - `just lint-fix` auto-fixes what it can: `ruff --fix`, `ruff format`,
   `shfmt -w`, `taplo fmt`, `markdownlint --fix`.
-- `just typecheck` prints `Success: no issues found in 17 source files`.
-- `just test` prints e.g. `74 passed` and `Required test coverage of 97.0%
-  reached. Total coverage: 99.19%`; it fails if coverage drops below 97%. Writes
-  `.coverage` and `coverage.json`.
+- `just typecheck` prints `Success: no issues found in N source files` (N = the
+  number of files checked).
+- `just test` prints the pass count and a coverage summary, and fails if coverage
+  drops below the 97% floor (`fail_under` in `pyproject.toml`). It writes `.coverage`
+  and `coverage.json` — run it for the current numbers.
 
 ## Clean
 
@@ -124,6 +131,9 @@ directories. Re-run `just setup` afterwards to recreate `.venv`.
 The `misc.greenlight_pr_state` schema is managed by the ClickHouse migration
 runner in `tools/clickhouse-migrations/`. Unlike every other command here, run
 these from the **repository root**, not `greenlight/`.
+
+The greenlight service does not yet read or write `misc.greenlight_pr_state`; the
+table and the `eval_hash` land-guard exist ahead of the wiring that will connect them.
 
 `migrate.py` reads credentials from the environment and does not load `.env`
 itself, so pass one with uv (a `.env` is git-ignored, so it is safe to create):
@@ -155,8 +165,8 @@ uv run tools/clickhouse-migrations/migrate.py apply --dry-run          # print t
 - Migrations are forward-only and applied in filename order (e.g.
   `0001_create_misc_greenlight_pr_state.sql`); each is recorded in the
   `misc.schema_migrations` ledger only after it succeeds. There are no down migrations.
-- `apply` is a deliberate, human-run step using admin/DDL credentials. The
-  greenlight service connects with data-only credentials and never runs `apply`.
+- `apply` is a deliberate, human-run step using admin/DDL credentials. When wired,
+  the greenlight service will use data-only credentials and never run `apply`.
 - The runner excludes `.clickhouse.cloud` from the proxy on its own, so no manual
   proxy bypass is needed here.
 

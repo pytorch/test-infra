@@ -4,23 +4,69 @@
 # ///
 """Minimal, forward-only ClickHouse schema-migration runner.
 
-``status`` (read-only) shows the current version and pending migrations. ``apply``
-(admin/DDL credentials only) runs each pending ``NNNN_name.sql`` file as a single
-statement, recording it in the ``misc.schema_migrations`` ledger only after it
-succeeds. Run with ``uv run tools/clickhouse-migrations/migrate.py <status|apply>``.
+``status`` (read-only) shows the current version, pending migrations, and any ordering
+or drift problems. ``apply`` (admin/DDL credentials only) validates the set, then runs
+each pending ``NNNN_name.sql`` file as a single statement, recording it in the
+``misc.schema_migrations`` ledger only after it succeeds. Run with
+``uv run tools/clickhouse-migrations/migrate.py <status|apply>``.
+
+Pure discovery/validation/ordering/checksum logic lives in the sibling ``migrate_lib``
+module; this file owns the ClickHouse connection, the ledger, and the CLI.
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import re
 import sys
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from migrate_lib import (
+    Migration,
+    MigrationError,
+    OrderingReport,
+    assert_single_statement,
+    check_ordering,
+    compute_checksum,
+    current_version,
+    detect_drift,
+    discover_migrations,
+    load_sql,
+    orphan_versions,
+    pending_migrations,
+    validate_migrations,
+)
+
+
+__all__ = [
+    "Migration",
+    "MigrationError",
+    "OrderingReport",
+    "assert_single_statement",
+    "check_ordering",
+    "compute_checksum",
+    "current_version",
+    "detect_drift",
+    "discover_migrations",
+    "load_sql",
+    "orphan_versions",
+    "pending_migrations",
+    "validate_migrations",
+    "CREATE_LEDGER_SQL",
+    "ALTER_LEDGER_ADD_CHECKSUM_SQL",
+    "read_ledger",
+    "applied_versions",
+    "run_status",
+    "run_apply",
+    "run_dry_run",
+    "connect",
+    "build_parser",
+    "main",
+]
 
 LEDGER_DB = "misc"
 LEDGER_NAME = "schema_migrations"
@@ -33,10 +79,18 @@ CREATE TABLE IF NOT EXISTS misc.schema_migrations
 (
     `version` String,
     `name` String,
-    `applied_at` DateTime DEFAULT now()
+    `applied_at` DateTime DEFAULT now(),
+    `checksum` String DEFAULT ''
 )
 ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}', applied_at)
 ORDER BY version"""
+
+# Backfills the checksum column onto ledgers created before drift detection existed;
+# ADD COLUMN IF NOT EXISTS keeps it a no-op on a fresh ledger the CREATE just made.
+ALTER_LEDGER_ADD_CHECKSUM_SQL = (
+    "ALTER TABLE misc.schema_migrations "
+    "ADD COLUMN IF NOT EXISTS checksum String DEFAULT ''"
+)
 
 ACCESS_HINT = (
     "  hint: `apply` needs a DDL/admin credential. Point CLICKHOUSE_USERNAME / "
@@ -48,20 +102,9 @@ ENV_HELP = (
     "CLICKHOUSE_PASSWORD (and optionally CLICKHOUSE_PORT, default 8443)."
 )
 
-_MIGRATION_RE = re.compile(r"^(\d{4})_(.+)\.sql$")
+logger = logging.getLogger("clickhouse_migrations")
 
 Out = Callable[[str], None]
-
-
-@dataclass(frozen=True)
-class Migration:
-    version: str  # four-digit zero-padded prefix; compared as a plain string
-    name: str
-    path: Path
-
-    @property
-    def sql(self) -> str:
-        return self.path.read_text(encoding="utf-8")
 
 
 def resolve_migrations_dir(cli_arg: str | None) -> tuple[Path, bool]:
@@ -72,34 +115,6 @@ def resolve_migrations_dir(cli_arg: str | None) -> tuple[Path, bool]:
         return Path(env), True
     root = Path(__file__).resolve().parents[2]
     return root / "clickhouse_db_schema" / "migrations", False
-
-
-def discover_migrations(
-    migrations_dir: Path, explicit: bool = False
-) -> list[Migration]:
-    # A missing explicit dir is a typo worth erroring on; a missing default is empty.
-    if not migrations_dir.is_dir():
-        if explicit:
-            raise FileNotFoundError(
-                f"Migrations directory does not exist: {migrations_dir}"
-            )
-        return []
-    found: list[Migration] = []
-    for path in sorted(migrations_dir.glob("*.sql")):
-        m = _MIGRATION_RE.match(path.name)
-        if m and path.is_file():
-            found.append(Migration(m.group(1), m.group(2), path))
-    return found
-
-
-def pending_migrations(
-    migrations: list[Migration], applied: set[str]
-) -> list[Migration]:
-    return [m for m in migrations if m.version not in applied]
-
-
-def current_version(applied: set[str]) -> str | None:
-    return max(applied) if applied else None
 
 
 def _env(name: str) -> str:
@@ -145,17 +160,39 @@ def connect() -> Any:
     )
 
 
-def applied_versions(client: Any) -> set[str]:
-    # Empty when the ledger table does not exist yet, so a fresh database never crashes.
+def _ledger_has_checksum(client: Any) -> bool:
+    # system.columns lets status detect a pre-checksum ledger without altering it.
+    rows = client.query(
+        "SELECT count() FROM system.columns "
+        "WHERE database = {db:String} AND table = {name:String} "
+        "AND name = 'checksum'",
+        parameters={"db": LEDGER_DB, "name": LEDGER_NAME},
+    ).result_rows
+    return bool(rows) and int(rows[0][0]) > 0
+
+
+def read_ledger(client: Any) -> dict[str, str]:
+    """Return ``{version: checksum}`` for applied migrations. Empty when the ledger does
+    not exist; checksum is ``''`` for every row when the checksum column is absent, so a
+    read-only caller never has to create or alter anything to read the ledger."""
     exists = client.query(
         "SELECT count() FROM system.tables "
         "WHERE database = {db:String} AND name = {name:String}",
         parameters={"db": LEDGER_DB, "name": LEDGER_NAME},
     ).result_rows
     if not exists or int(exists[0][0]) == 0:
-        return set()
+        return {}
+    if _ledger_has_checksum(client):
+        rows = client.query(
+            f"SELECT version, checksum FROM {LEDGER_TABLE} FINAL"
+        ).result_rows
+        return {str(r[0]): str(r[1]) for r in rows}
     rows = client.query(f"SELECT version FROM {LEDGER_TABLE} FINAL").result_rows
-    return {str(r[0]) for r in rows}
+    return {str(r[0]): "" for r in rows}
+
+
+def applied_versions(client: Any) -> set[str]:
+    return set(read_ledger(client).keys())
 
 
 def _is_access_error(exc: BaseException) -> bool:
@@ -169,7 +206,9 @@ def _is_access_error(exc: BaseException) -> bool:
 
 
 def run_status(client: Any, migrations: list[Migration], out: Out = print) -> int:
-    applied = applied_versions(client)
+    validate_migrations(migrations)
+    ledger = read_ledger(client)
+    applied = set(ledger.keys())
     out(f"Current version: {current_version(applied) or 'none'}")
     pending = pending_migrations(migrations, applied)
     if pending:
@@ -178,17 +217,29 @@ def run_status(client: Any, migrations: list[Migration], out: Out = print) -> in
             out(f"  {m.version}  {m.name}")
     else:
         out("Pending migrations: none")
-    return 0
+    # status is a read-only diagnostic: ordering problems are reported, never fatal.
+    report = check_ordering(migrations, applied, allow_out_of_order=True)
+    for line in [*report.errors, *report.warnings]:
+        out(f"WARNING: {line}")
+    for version in orphan_versions(migrations, ledger):
+        out(f"WARNING: ledger records {version} but no migration file is present")
+    rc = 0
+    for message in detect_drift(migrations, ledger):
+        out(f"DRIFT: {message}")
+        rc = 1
+    return rc
 
 
 def run_dry_run(migrations: list[Migration], out: Out = print) -> int:
+    validate_migrations(migrations)
     out("-- DRY RUN: no database connection is made; all discovered migrations shown.")
     out(CREATE_LEDGER_SQL + ";")
+    out(ALTER_LEDGER_ADD_CHECKSUM_SQL + ";")
     out("")
     for m in migrations:
         safe_name = m.name.replace("'", "''")
         out(f"-- {m.version} {m.name}")
-        out(m.sql.strip() + ";")
+        out(load_sql(m).strip() + ";")
         out("")
         out(
             f"INSERT INTO {LEDGER_TABLE} (version, name) VALUES ('{m.version}', '{safe_name}');"
@@ -197,27 +248,78 @@ def run_dry_run(migrations: list[Migration], out: Out = print) -> int:
     return 0
 
 
-def run_apply(client: Any, migrations: list[Migration], out: Out = print) -> int:
+def _bootstrap_ledger(client: Any) -> None:
+    client.command(CREATE_LEDGER_SQL)
+    client.command(ALTER_LEDGER_ADD_CHECKSUM_SQL)
+
+
+def run_apply(
+    client: Any,
+    migrations: list[Migration],
+    out: Out = print,
+    *,
+    allow_out_of_order: bool = False,
+) -> int:
+    validate_migrations(migrations)
     endpoint = getattr(client, "url", None) or "unknown endpoint"
     database = getattr(client, "database", None) or "unknown database"
     out(f"Applying DDL to ClickHouse {endpoint} (database: {database})")
-    client.command(CREATE_LEDGER_SQL)
-    pending = pending_migrations(migrations, applied_versions(client))
+    ledger = read_ledger(client)
+    applied = set(ledger.keys())
+
+    report = check_ordering(migrations, applied, allow_out_of_order=allow_out_of_order)
+    for warning in report.warnings:
+        out(f"WARNING: {warning}")
+    if report.errors:
+        for error in report.errors:
+            out(f"ERROR: {error}")
+        out(
+            "Refusing to apply. Fix ordering, or re-run with --allow-out-of-order "
+            "(duplicate versions are never allowed)."
+        )
+        return 1
+
+    drift = detect_drift(migrations, ledger)
+    if drift:
+        for message in drift:
+            out(f"ERROR: {message}")
+        out("Refusing to apply: an applied migration changed after it was recorded.")
+        return 1
+
+    _bootstrap_ledger(client)
+    pending = pending_migrations(migrations, applied)
     if not pending:
         out("No pending migrations. Nothing to apply.")
         return 0
     for m in pending:
         out(f"Applying {m.version} {m.name}...")
+        sql = load_sql(m)
         try:
-            client.command(m.sql)
+            client.command(sql)
         except Exception as exc:
             out(f"ERROR applying {m.version} {m.name}: {type(exc).__name__}: {exc}")
             if _is_access_error(exc):
                 out(ACCESS_HINT)
             return 1
-        client.insert(
-            LEDGER_TABLE, [[m.version, m.name]], column_names=["version", "name"]
-        )
+        try:
+            client.insert(
+                LEDGER_TABLE,
+                [[m.version, m.name, compute_checksum(sql)]],
+                column_names=["version", "name", "checksum"],
+            )
+        except Exception as exc:
+            # The DDL ran but the ledger row did not land: a re-run would re-run this
+            # statement, so surface it loudly and stop the chain here.
+            out(
+                f"CRITICAL: applied {m.version} but FAILED to record it in the ledger: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            out(
+                "Re-running is safe only if this migration is idempotent "
+                "(IF [NOT] EXISTS); otherwise insert the ledger row manually before "
+                "re-running so it is not applied twice."
+            )
+            return 1
         out(f"  recorded {m.version} in {LEDGER_TABLE}")
     out(f"Applied {len(pending)} migration(s).")
     return 0
@@ -246,24 +348,31 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the SQL that would run; makes no database connection.",
     )
+    apply_p.add_argument(
+        "--allow-out-of-order",
+        action="store_true",
+        help="Apply a pending migration numbered below the highest applied version.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = build_parser().parse_args(argv)
     migrations_dir, explicit = resolve_migrations_dir(args.migrations_dir)
     try:
         migrations = discover_migrations(migrations_dir, explicit=explicit)
+        if args.command == "apply" and args.dry_run:
+            return run_dry_run(migrations)
+        client = connect()
+        if args.command == "apply":
+            return run_apply(
+                client, migrations, allow_out_of_order=args.allow_out_of_order
+            )
+        return run_status(client, migrations)
     except FileNotFoundError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    if args.command == "apply" and args.dry_run:
-        return run_dry_run(migrations)
-    try:
-        client = connect()
-        if args.command == "apply":
-            return run_apply(client, migrations)
-        return run_status(client, migrations)
     except Exception as exc:
         print(f"ERROR: {type(exc).__name__}: {exc}", file=sys.stderr)
         if _is_access_error(exc):

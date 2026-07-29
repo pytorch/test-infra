@@ -8,8 +8,8 @@ from greenlight.github_client import OpenPR
 
 def test_run_with_prs_logs_count_and_one_line_per_pr(make_config, caplog):
     prs = [
-        OpenPR(repo="pytorch/pytorch", number=1, author="jeanschmidt", title="fix a", url="https://example.test/1"),
-        OpenPR(repo="pytorch/pytorch", number=2, author="jeanschmidt", title="fix b", url="https://example.test/2"),
+        OpenPR(repo="pytorch/pytorch", number=1, author="octocat", title="fix a", url="https://example.test/1"),
+        OpenPR(repo="pytorch/pytorch", number=2, author="octocat", title="fix b", url="https://example.test/2"),
     ]
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
@@ -17,8 +17,8 @@ def test_run_with_prs_logs_count_and_one_line_per_pr(make_config, caplog):
 
     messages = [record.getMessage() for record in caplog.records]
     assert any("found 2 open PR(s)" in message for message in messages)
-    assert any("#1" in message and "jeanschmidt" in message and "fix a" in message for message in messages)
-    assert any("#2" in message and "jeanschmidt" in message and "fix b" in message for message in messages)
+    assert any("#1" in message and "octocat" in message and "fix a" in message for message in messages)
+    assert any("#2" in message and "octocat" in message and "fix b" in message for message in messages)
 
 
 def test_run_with_no_prs_logs_zero_count(make_config, caplog):
@@ -39,7 +39,7 @@ def test_default_fetch_with_token_builds_client_and_lists_prs(make_config, monke
     built_with: dict[str, object] = {}
     listed_with: dict[str, object] = {}
     expected_prs = [
-        OpenPR(repo=plan.TARGET_REPO, number=1, author="jeanschmidt", title="fix", url="https://example.test/1")
+        OpenPR(repo=plan.TARGET_REPO, number=1, author="octocat", title="fix", url="https://example.test/1")
     ]
 
     def fake_build_client(token):
@@ -49,7 +49,7 @@ def test_default_fetch_with_token_builds_client_and_lists_prs(make_config, monke
     def fake_list_open_prs_by_authors(client, repo, authors):
         listed_with["client"] = client
         listed_with["repo"] = repo
-        listed_with["authors"] = tuple(authors)
+        listed_with["authors"] = set(authors)
         return expected_prs
 
     monkeypatch.setattr(github_client, "build_client", fake_build_client)

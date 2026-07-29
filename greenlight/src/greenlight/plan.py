@@ -1,4 +1,7 @@
-"""Select, gate, and score open PRs and decide which need a code review."""
+"""Fetch open PRs from trusted authors in pytorch/pytorch and log them.
+
+Gating, scoring, and the review decision are the seam to fill.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +19,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 TARGET_REPO = "pytorch/pytorch"
-TRUSTED_AUTHORS: tuple[str, ...] = ("jeanschmidt",)
+TRUSTED_AUTHORS: set[str] = {
+    "albanD",  # Alban Desmaison
+    "jathu",  # Jathu Satkunarajah
+    "atalman",  # Andrey Talman
+    "huydhn",  # Huy Do
+    "izaitsevfb",  # Ivan Zaitsev
+    "georgehong",  # George Hong
+    "jeanschmidt",  # Jean Schmidt
+}
 
 
 def _default_fetch(config: Config) -> list[OpenPR]:

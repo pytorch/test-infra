@@ -15,11 +15,11 @@ setup:
 run *args:
     uv run greenlight {{args}}
 
-# Select, gate, and score PRs; decide which need review
+# Fetch open PRs from trusted authors in pytorch/pytorch and log them
 plan *args:
     uv run greenlight plan {{args}}
 
-# Turn review decisions into PR approvals/revocations
+# Log only (stub)
 act *args:
     uv run greenlight act {{args}}
 

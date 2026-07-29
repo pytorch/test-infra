@@ -49,8 +49,15 @@ defer; they block CI.
 PyTorch Green Light has two units of work, one per phase — the placeholder seams where new logic
 goes:
 
-- `plan.run()` — select, gate, and score open PRs and decide which need a code review.
-- `act.run()` — turn review decisions into PR approvals or revocations.
+- `plan.run()` — fetches the open PRs from a fixed set of trusted authors in
+  `pytorch/pytorch` and logs them; the seam to fill is gating, scoring, and the
+  review decision. Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
+- `act.run()` — currently a stub (logs only); the seam to fill is turning review
+  decisions into PR approvals or revocations.
+
+The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
+`github_client.build_pr_fingerprint`) is built and tested but not yet wired into
+`plan`/`act` or any ClickHouse table.
 
 Add new logic inside the relevant phase's `run()`, which **must keep raising on
 failure** (it does not catch). The CLI selects a phase (`greenlight plan` / `greenlight act`)

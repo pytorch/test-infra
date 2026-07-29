@@ -1,4 +1,4 @@
-"""Turn review decisions into PR approvals or revocations."""
+"""Log-only stub; turning review decisions into PR approvals/revocations is the seam to fill."""
 
 from __future__ import annotations
 

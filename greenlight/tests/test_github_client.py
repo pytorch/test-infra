@@ -13,7 +13,7 @@ class _FakeUser:
         self.login = login
 
 
-class _FakeIssue:
+class _FakePull:
     def __init__(self, number: int, login: str | None, title: str, html_url: str) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
@@ -21,23 +21,42 @@ class _FakeIssue:
         self.html_url = html_url
 
 
-class _FakeClient:
-    """Records every query it is asked to search and returns a preset result list."""
+class _FakeRepo:
+    """Records the state passed to get_pulls and returns a preset list of open pulls."""
 
-    def __init__(self, results_by_query: dict[str, list[_FakeIssue]]) -> None:
-        self._results_by_query = results_by_query
-        self.queries: list[str] = []
+    def __init__(self, pulls: list[_FakePull]) -> None:
+        self._pulls = pulls
+        self.get_pulls_states: list[str] = []
 
-    def search_issues(self, query: str) -> list[_FakeIssue]:
-        self.queries.append(query)
-        return self._results_by_query.get(query, [])
+    def get_pulls(self, state: str) -> list[_FakePull]:
+        self.get_pulls_states.append(state)
+        return self._pulls
 
 
-class _RaisingClient:
-    """A client whose search call always fails, to assert errors are not swallowed."""
+class _RaisingRepo(_FakeRepo):
+    """A repo whose get_pulls always fails, to assert errors are not swallowed."""
 
-    def search_issues(self, query: str) -> list[_FakeIssue]:
+    def __init__(self) -> None:
+        super().__init__([])
+
+    def get_pulls(self, state: str) -> list[_FakePull]:
         raise RuntimeError("boom")
+
+
+class _FakeRepoClient:
+    """Records every repo name it is asked for and hands back one preset repo."""
+
+    def __init__(self, repo: _FakeRepo) -> None:
+        self._repo = repo
+        self.get_repo_names: list[str] = []
+
+    def get_repo(self, full_name_or_id: str) -> _FakeRepo:
+        self.get_repo_names.append(full_name_or_id)
+        return self._repo
+
+
+def _client_with_pulls(pulls: list[_FakePull]) -> _FakeRepoClient:
+    return _FakeRepoClient(_FakeRepo(pulls))
 
 
 class _FakeActor:
@@ -104,14 +123,10 @@ class _FakePR:
         return self._reviews
 
 
-def test_list_open_prs_by_authors_maps_issue_fields():
-    issue = _FakeIssue(
-        number=42,
-        login="jeanschmidt",
-        title="fix flaky test",
-        html_url="https://github.com/pytorch/pytorch/pull/42",
+def test_list_open_prs_by_authors_maps_pull_fields():
+    client = _client_with_pulls(
+        [_FakePull(42, "jeanschmidt", "fix flaky test", "https://github.com/pytorch/pytorch/pull/42")]
     )
-    client = _FakeClient({"repo:pytorch/pytorch is:open is:pr author:jeanschmidt": [issue]})
 
     prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["jeanschmidt"])
 
@@ -126,80 +141,86 @@ def test_list_open_prs_by_authors_maps_issue_fields():
     ]
 
 
-def test_list_open_prs_by_authors_queries_once_per_author_with_exact_query():
-    client = _FakeClient({})
+def test_list_open_prs_by_authors_returns_only_trusted_in_one_traversal():
+    repo = _FakeRepo(
+        [
+            _FakePull(1, "alice", "alice's fix", "https://example.test/1"),
+            _FakePull(2, "carol", "carol's fix", "https://example.test/2"),
+            _FakePull(3, "bob", "bob's fix", "https://example.test/3"),
+        ]
+    )
+    client = _FakeRepoClient(repo)
+    authors = ["alice", "bob"]
 
-    github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice", "bob"])
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", authors)
 
-    assert client.queries == [
-        "repo:pytorch/pytorch is:open is:pr author:alice",
-        "repo:pytorch/pytorch is:open is:pr author:bob",
-    ]
+    assert {pr.author for pr in prs} == set(authors)
+    assert client.get_repo_names == ["pytorch/pytorch"]
+    assert repo.get_pulls_states == ["open"]
 
 
-def test_list_open_prs_by_authors_aggregates_across_authors():
-    alice_issue = _FakeIssue(1, "alice", "alice's fix", "https://example.test/1")
-    bob_issue = _FakeIssue(2, "bob", "bob's fix", "https://example.test/2")
-    client = _FakeClient(
-        {
-            "repo:pytorch/pytorch is:open is:pr author:alice": [alice_issue],
-            "repo:pytorch/pytorch is:open is:pr author:bob": [bob_issue],
-        }
+def test_list_open_prs_by_authors_matches_authors_case_insensitively():
+    client = _client_with_pulls(
+        [
+            _FakePull(1, "JeanSchmidt", "mixed-case login", "https://example.test/1"),
+            _FakePull(2, "ALICE", "upper-case login", "https://example.test/2"),
+        ]
+    )
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["jeanschmidt", "Alice"])
+
+    assert [pr.number for pr in prs] == [1, 2]
+    assert [pr.author for pr in prs] == ["JeanSchmidt", "ALICE"]
+
+
+def test_list_open_prs_by_authors_skips_pulls_with_no_user():
+    client = _client_with_pulls(
+        [
+            _FakePull(1, None, "ghost author PR", "https://example.test/1"),
+            _FakePull(2, "alice", "alice's fix", "https://example.test/2"),
+        ]
+    )
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
+
+    assert [pr.number for pr in prs] == [2]
+    assert [pr.author for pr in prs] == ["alice"]
+
+
+def test_list_open_prs_by_authors_sorts_output_by_pr_number():
+    client = _client_with_pulls(
+        [
+            _FakePull(30, "alice", "third", "https://example.test/30"),
+            _FakePull(10, "bob", "first", "https://example.test/10"),
+            _FakePull(20, "alice", "second", "https://example.test/20"),
+        ]
     )
 
     prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice", "bob"])
 
-    assert [pr.number for pr in prs] == [1, 2]
-    assert [pr.author for pr in prs] == ["alice", "bob"]
+    assert [pr.number for pr in prs] == [10, 20, 30]
 
 
 def test_list_open_prs_by_authors_empty_results():
-    client = _FakeClient({})
+    client = _client_with_pulls([])
 
-    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["nobody"])
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
 
     assert prs == []
 
 
-def test_list_open_prs_by_authors_maps_multiple_issues_for_a_single_author():
-    first = _FakeIssue(1, "alice", "alice's first fix", "https://example.test/1")
-    second = _FakeIssue(2, "alice", "alice's second fix", "https://example.test/2")
-    client = _FakeClient({"repo:pytorch/pytorch is:open is:pr author:alice": [first, second]})
-
-    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
-
-    assert [pr.number for pr in prs] == [1, 2]
-    assert [pr.author for pr in prs] == ["alice", "alice"]
-
-
-def test_list_open_prs_by_authors_falls_back_to_queried_author_when_user_is_none():
-    issue = _FakeIssue(number=7, login=None, title="ghost author PR", html_url="https://example.test/7")
-    client = _FakeClient({"repo:pytorch/pytorch is:open is:pr author:ghost": [issue]})
-
-    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["ghost"])
-
-    assert prs == [
-        OpenPR(
-            repo="pytorch/pytorch",
-            number=7,
-            author="ghost",
-            title="ghost author PR",
-            url="https://example.test/7",
-        )
-    ]
-
-
-def test_list_open_prs_by_authors_propagates_search_errors():
-    client = _RaisingClient()
+def test_list_open_prs_by_authors_propagates_errors():
+    client = _FakeRepoClient(_RaisingRepo())
 
     with pytest.raises(RuntimeError, match="boom"):
         github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
 
 
-def test_build_client_returns_github_instance_without_network():
+def test_build_client_returns_github_instance_with_per_page_100():
     client = github_client.build_client("x")
 
     assert isinstance(client, Github)
+    assert client.per_page == 100
 
 
 def test_build_pr_fingerprint_maps_files_and_filters_bots_by_type_suffix_and_denylist():
