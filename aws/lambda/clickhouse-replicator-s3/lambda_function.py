@@ -713,8 +713,11 @@ def runner_fleet_count_adapter(table, bucket, key):
     # Column order must match clickhouse_db_schema/misc.runner_fleet_count/
     # schema.sql (minus `_meta`, which general_adapter appends via `SELECT *,
     # (bucket, key)`). JSONEachRow maps by field name.
+    # NB: no timezone literal here -- general_adapter wraps this schema in single
+    # quotes, so an inner 'UTC' would break the s3() SQL. Timestamps are UTC
+    # wall-clock strings; the table column carries the UTC tz.
     schema = """
-    `time_stamp` DateTime64(0, 'UTC'),
+    `time_stamp` DateTime64(0),
     `org` String,
     `label` String,
     `total_count` UInt32,
