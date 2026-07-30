@@ -30,7 +30,7 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     # Protected environment restricted to the main branch; holds the runner-list
-    # token. The S3 writer IAM role is gated to this environment's OIDC sub.
+    # token.
     environment: runner-fleet-metrics
     env:
       RUNNER_ORG: pytorch
@@ -58,9 +58,11 @@ jobs:
 
       - name: Configure AWS credentials
         if: ${{ !inputs.dry_run }}
+        # Shared ARC role: trusts repo:pytorch/test-infra:* and can write
+        # gha-artifacts (same role _linux-build.yml uses for artifact upload).
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_runner_fleet_metrics
+          role-to-assume: arn:aws:iam::308535385114:role/arc
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Upload to S3 for ClickHouse ingestion
