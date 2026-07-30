@@ -35,6 +35,47 @@ static IGNORE_LINE_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| {
     ]
 });
 
+/// Strip the GHA timestamp prefix and ANSI escape codes from a single raw log
+/// line, exactly as `Log::new` does before matching. Returns the cleaned line
+/// plus a source map: `map[i]` is the byte offset in `raw` that cleaned byte `i`
+/// came from, for `i` in `0..=cleaned.len()` (the final entry points just past
+/// the last kept byte). The map lets callers translate a match/capture offset in
+/// the cleaned line back to a position in the original raw line -- e.g. to
+/// annotate the raw line in a test fixture.
+pub fn strip_line(raw: &str) -> (String, Vec<usize>) {
+    // The timestamp is an anchored, fixed-width prefix; drop it wholesale.
+    let ts_len = TIMESTAMP_REGEX.find(raw).map(|m| m.end()).unwrap_or(0);
+    let rest = &raw[ts_len..];
+
+    // ANSI escape sequences are deleted wherever they appear (non-overlapping,
+    // in order, as find_iter yields them).
+    let deleted: Vec<(usize, usize)> = ESCAPE_CODE_REGEX
+        .find_iter(rest)
+        .map(|m| (m.start(), m.end()))
+        .collect();
+
+    let mut cleaned = String::with_capacity(rest.len());
+    let mut map = Vec::with_capacity(rest.len() + 1);
+    let mut i = 0;
+    let mut di = 0;
+    while i < rest.len() {
+        if di < deleted.len() && i == deleted[di].0 {
+            i = deleted[di].1; // skip the escape sequence
+            di += 1;
+            continue;
+        }
+        let ch = rest[i..].chars().next().unwrap();
+        let clen = ch.len_utf8();
+        for b in 0..clen {
+            map.push(ts_len + i + b);
+        }
+        cleaned.push(ch);
+        i += clen;
+    }
+    map.push(ts_len + rest.len());
+    (cleaned, map)
+}
+
 impl Log {
     /// Create a log from a string, applying some preprocessing to make it
     /// easier to match against.
@@ -44,11 +85,8 @@ impl Log {
 
         // Do some preprocessing on the log lines.
         for (idx, raw_line) in log.lines().enumerate() {
-            // GHA adds a timestamp to the front of every log. Strip it before matching.
-            let line = TIMESTAMP_REGEX.replace(raw_line, "");
-
-            // Strip ANSI escape codes that interfere with matching.
-            let line = ESCAPE_CODE_REGEX.replace_all(&line, "");
+            // Strip the GHA timestamp prefix and ANSI escape codes before matching.
+            let (line, _map) = strip_line(raw_line);
 
             // Drop lines that match a known-boilerplate pattern before matching.
             if IGNORE_LINE_REGEXES.iter().any(|re| re.is_match(&line)) {
@@ -62,7 +100,7 @@ impl Log {
 
             // Lines are 1-indexed!
             let line_number = idx + 1;
-            lines.insert(line_number, line.into_owned());
+            lines.insert(line_number, line);
         }
 
         Log { lines }
@@ -173,6 +211,26 @@ mod test {
                 "some [OSDC] unrelated info line".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn strip_line_maps_offsets_back_through_timestamp_and_ansi() {
+        // Timestamp prefix (29 chars) + ANSI around "foo".
+        let raw = "2024-07-08T16:59:08.1747875Z pre \x1b[4mfoo\x1b[0m bar";
+        let (cleaned, map) = strip_line(raw);
+        assert_eq!(cleaned, "pre foo bar");
+        // Every cleaned byte maps back to the same character in the raw line.
+        for (i, b) in cleaned.bytes().enumerate() {
+            assert_eq!(raw.as_bytes()[map[i]], b);
+        }
+        // The capture-style span for "foo" maps back across the ANSI open code.
+        // The tight raw span ends at the last kept byte (map[end-1]); map[end]
+        // would skip forward past the trailing ANSI escape.
+        let start = cleaned.find("foo").unwrap();
+        let end = start + "foo".len();
+        assert_eq!(&raw[map[start]..=map[end - 1]], "foo");
+        // End sentinel points just past the last kept byte.
+        assert_eq!(map.len(), cleaned.len() + 1);
     }
 
     #[test]
