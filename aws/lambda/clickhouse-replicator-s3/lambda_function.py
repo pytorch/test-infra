@@ -709,6 +709,21 @@ def autorevert_advisor_verdicts_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def runner_fleet_count_adapter(table, bucket, key):
+    # Column order must match clickhouse_db_schema/misc.runner_fleet_count/
+    # schema.sql (minus `_meta`, which general_adapter appends via `SELECT *,
+    # (bucket, key)`). JSONEachRow maps by field name.
+    schema = """
+    `time_stamp` DateTime64(0, 'UTC'),
+    `org` String,
+    `label` String,
+    `total_count` UInt32,
+    `online_count` UInt32,
+    `busy_count` UInt32
+    """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -734,6 +749,7 @@ SUPPORTED_PATHS = {
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
     "test_jsons_while_running": "tests.all_test_runs",
+    "runner_fleet_count": "misc.runner_fleet_count",
 }
 
 OBJECT_CONVERTER = {
@@ -760,6 +776,7 @@ OBJECT_CONVERTER = {
     "misc.claude_code_usage": claude_code_usage_adapter,
     "misc.autorevert_advisor_verdicts": autorevert_advisor_verdicts_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
+    "misc.runner_fleet_count": runner_fleet_count_adapter,
 }
 
 
