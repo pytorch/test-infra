@@ -153,6 +153,61 @@ class TestCollectReleaseWorkflowPaths(TestCase):
             {".github/workflows/build-vllm-wheel.yml"},
         )
 
+    def test_discovers_callers_of_select_release_runner(self) -> None:
+        # pytorch/pytorch#190619 moved the rel- labels into
+        # _select-release-runner.yml, which emits them as outputs. Callers carry
+        # no rel- label of their own (runs-on references needs.<job>.outputs.*),
+        # so they must be discovered via their use of the select-runner reusable.
+        files = {
+            ".github/workflows/docker-release.yml": m.WorkflowFile(
+                doc={
+                    "jobs": {
+                        "select-runner": {
+                            "uses": "./.github/workflows/_select-release-runner.yml"
+                        },
+                        "build": {"runs-on": "${{ matrix.runner }}"},
+                    }
+                },
+                raw="uses: ./.github/workflows/_select-release-runner.yml\n"
+                "runs-on: ${{ matrix.runner }}",
+            ),
+            ".github/workflows/_select-release-runner.yml": m.WorkflowFile(
+                doc={"jobs": {"select": {"runs-on": "ubuntu-24.04"}}},
+                raw="echo x86=mt-rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/unrelated.yml": m.WorkflowFile(
+                doc={"jobs": {"build": {"runs-on": "ubuntu-24.04"}}},
+                raw="runs-on: ubuntu-24.04",
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {
+                ".github/workflows/docker-release.yml",
+                ".github/workflows/_select-release-runner.yml",
+            },
+        )
+
+    def test_paths_filter_mention_is_not_a_caller(self) -> None:
+        # Even when the release-label reusable is present, a workflow that only
+        # names it in a triggers paths: filter (not an actual job `uses:`) must
+        # not be pulled in -- entry detection is by job `uses:`, not raw text.
+        files = {
+            ".github/workflows/_select-release-runner.yml": m.WorkflowFile(
+                doc={"jobs": {"select": {"runs-on": "ubuntu-24.04"}}},
+                raw="echo x86=mt-rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/lint.yml": m.WorkflowFile(
+                doc={"jobs": {"lint": {"runs-on": "ubuntu-24.04"}}},
+                raw="on:\n  pull_request:\n    paths:\n"
+                "      - .github/workflows/_select-release-runner.yml",
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {".github/workflows/_select-release-runner.yml"},
+        )
+
     def test_ignores_remote_uses(self) -> None:
         files = {
             ".github/workflows/gen.yml": m.WorkflowFile(
@@ -173,18 +228,25 @@ class TestCollectReleaseWorkflowPaths(TestCase):
 
 
 class TestBuildDesiredWorkflows(TestCase):
-    def test_is_cross_product(self) -> None:
+    def test_flattens_per_ref_paths(self) -> None:
+        # Per-ref discovery: each ref carries only the workflows that exist there,
+        # so a ref (release/2.12) can legitimately omit a workflow (b.yml) that
+        # main has. The allow-list must not fabricate the missing combination.
         desired = m.build_desired_workflows(
-            [".github/workflows/a.yml", ".github/workflows/b.yml"],
-            ["refs/heads/main", "refs/heads/nightly"],
+            {
+                "refs/heads/main": {
+                    ".github/workflows/a.yml",
+                    ".github/workflows/b.yml",
+                },
+                "refs/heads/release/2.12": {".github/workflows/a.yml"},
+            }
         )
         self.assertEqual(
             desired,
             {
                 "pytorch/pytorch/.github/workflows/a.yml@refs/heads/main",
-                "pytorch/pytorch/.github/workflows/a.yml@refs/heads/nightly",
                 "pytorch/pytorch/.github/workflows/b.yml@refs/heads/main",
-                "pytorch/pytorch/.github/workflows/b.yml@refs/heads/nightly",
+                "pytorch/pytorch/.github/workflows/a.yml@refs/heads/release/2.12",
             },
         )
 
