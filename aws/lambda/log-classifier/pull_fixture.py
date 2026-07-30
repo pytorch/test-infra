@@ -40,6 +40,7 @@ Examples::
 Window selection priority: --lines > --grep > --full > (default: classifier
 anchor). Line numbers everywhere are 1-based over the raw downloaded log.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -149,9 +150,11 @@ def find_error_anchor(lines: list[str]) -> int | None:
     return None
 
 
-def explicit_window(lines: list[str], args: argparse.Namespace) -> tuple[int, int] | None:
+def explicit_window(
+    lines: list[str], args: argparse.Namespace
+) -> tuple[int, int] | None:
     """(start, end) 0-based inclusive for an explicit mode, or None for default."""
-    n, last = len(lines), len(lines) - 1
+    last = len(lines) - 1
     if args.lines:
         m = re.fullmatch(r"(\d+)-(\d+)", args.lines)
         if not m:
@@ -173,6 +176,7 @@ def explicit_window(lines: list[str], args: argparse.Namespace) -> tuple[int, in
 
 def preview(lines: list[str], start: int, end: int, edge: int = 3) -> str:
     """First/last few window lines (1-based, width-clamped) for a sanity check."""
+
     def row(i: int) -> str:
         return f"  {i + 1:>7}| {lines[i][:120]}"
 
@@ -189,23 +193,33 @@ def write_window(fixture: Path, lines: list[str], start: int, end: int) -> None:
     fixture.write_text("\n".join(lines[start : end + 1]) + "\n")
 
 
-def report(fixture: Path, lines: list[str], start: int, end: int, blessed: bool) -> None:
-    print(f"wrote {fixture.relative_to(CRATE_DIR)}  "
-          f"(raw lines [{start + 1}..{end + 1}], {end - start + 1} lines)")
+def report(
+    fixture: Path, lines: list[str], start: int, end: int, blessed: bool
+) -> None:
+    print(
+        f"wrote {fixture.relative_to(CRATE_DIR)}  "
+        f"(raw lines [{start + 1}..{end + 1}], {end - start + 1} lines)"
+    )
     print(preview(lines, start, end))
     if blessed:
         marker = marker_of(fixture)
         if marker is None:
             print("\nclassifier matched nothing -> fixture has no #=MATCH=# line")
-            print("\nA failing job the classifier can't classify is usually a ruleset\n"
-                  "gap, not a real no-match. Confirm that's intended; if not, pin the\n"
-                  "window with --grep / --lines so the real failure is in view.")
+            print(
+                "\nA failing job the classifier can't classify is usually a ruleset\n"
+                "gap, not a real no-match. Confirm that's intended; if not, pin the\n"
+                "window with --grep / --lines so the real failure is in view."
+            )
         else:
             print(f"\nclassifier landed on:\n  {marker}")
-            print("\nConfirm this is the *real* failure. If the real cause is missing,\n"
-                  "re-run with a larger --context, or pin it with --grep / --lines.")
+            print(
+                "\nConfirm this is the *real* failure. If the real cause is missing,\n"
+                "re-run with a larger --context, or pin it with --grep / --lines."
+            )
     else:
-        print("\nnext: UPDATE_FIXTURES=1 cargo test --test classify   # bless the marker")
+        print(
+            "\nnext: UPDATE_FIXTURES=1 cargo test --test classify   # bless the marker"
+        )
 
 
 def main() -> None:
@@ -215,17 +229,25 @@ def main() -> None:
     p.add_argument("job", help="job id, GHA job URL, or raw-log URL")
     p.add_argument("--name", help="fixture name (default: job_<id>); .txt optional")
     p.add_argument(
-        "--repo", default="pytorch/pytorch", help="owner/repo (default: pytorch/pytorch)"
+        "--repo",
+        default="pytorch/pytorch",
+        help="owner/repo (default: pytorch/pytorch)",
     )
     win = p.add_argument_group(
         "window (priority: --lines > --grep > --full > classifier anchor)"
     )
     win.add_argument(
-        "--context", type=int, default=60, metavar="N",
+        "--context",
+        type=int,
+        default=60,
+        metavar="N",
         help="lines kept on each side of the anchor (default: 60)",
     )
     win.add_argument(
-        "--tail", type=int, default=250, metavar="N",
+        "--tail",
+        type=int,
+        default=250,
+        metavar="N",
         help="lines before the anchor in the error-line/tail fallback (default: 250)",
     )
     win.add_argument(
@@ -234,11 +256,13 @@ def main() -> None:
     win.add_argument("--lines", metavar="A-B", help="exact 1-based raw line range")
     win.add_argument("--full", action="store_true", help="keep the entire log")
     p.add_argument(
-        "--stdout", action="store_true",
+        "--stdout",
+        action="store_true",
         help="print the numbered full log and exit (write nothing, don't bless)",
     )
     p.add_argument(
-        "--no-bless", action="store_true",
+        "--no-bless",
+        action="store_true",
         help="write the fixture but skip cargo; forces the offline error-line/tail anchor",
     )
     args = p.parse_args()
