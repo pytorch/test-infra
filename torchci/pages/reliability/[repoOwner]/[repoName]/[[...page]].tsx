@@ -42,6 +42,7 @@ const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 // Specialized version of TablePanel for reliability metrics
 function GroupReliabilityPanel({
   title,
+  subtitle,
   queryName,
   queryParams,
   metricHeaderName,
@@ -49,6 +50,8 @@ function GroupReliabilityPanel({
   filter,
 }: {
   title: string;
+  // Optional grey line under the title, e.g. the workflows this group covers.
+  subtitle?: string;
   queryName: string;
   queryParams: { [key: string]: any };
   metricHeaderName: string;
@@ -86,9 +89,28 @@ function GroupReliabilityPanel({
     })
     .sort((a, b) => Number(b[metricName]) - Number(a[metricName]));
 
+  const titleNode = subtitle ? (
+    <>
+      {title}
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontSize: "12px",
+          color: "text.secondary",
+        }}
+      >
+        {subtitle}
+      </Typography>
+    </>
+  ) : (
+    title
+  );
+
   return (
     <TablePanelWithData
-      title={title}
+      title={titleNode}
       data={failuresByTypes}
       columns={[
         {
@@ -518,7 +540,8 @@ export default function Page() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
-            title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
+            title={"Viable/strict blocking jobs"}
+            subtitle={PRIMARY_WORKFLOWS.join(", ")}
             queryName={queryName}
             queryParams={{
               workflowNames: PRIMARY_WORKFLOWS,
@@ -532,7 +555,8 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
-            title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
+            title={"Non-blocking jobs"}
+            subtitle={SECONDARY_WORKFLOWS.join(", ")}
             queryName={queryName}
             queryParams={{
               workflowNames: SECONDARY_WORKFLOWS,
