@@ -178,9 +178,8 @@ mod test {
         assert!(IGNORE_LINE_REGEXES[3]
             .is_match("##[error]TypeError: Cannot read properties of null (reading 'jobPod')"));
         // OSDC cancellation notice.
-        assert!(IGNORE_LINE_REGEXES[4].is_match(
-            "##[error][OSDC] Step cancelled by GitHub Actions (received SIGINT). ..."
-        ));
+        assert!(IGNORE_LINE_REGEXES[4]
+            .is_match("##[error][OSDC] Step cancelled by GitHub Actions (received SIGINT). ..."));
     }
 
     #[test]

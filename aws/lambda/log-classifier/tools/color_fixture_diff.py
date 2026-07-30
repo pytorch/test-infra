@@ -14,9 +14,11 @@ Usage (pipe an UNcolored diff in):
 Or wire it as a git alias (see tools/README or `git config`):
     git showfix <rev>
 """
+
 from __future__ import annotations
 
 import sys
+
 
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -45,8 +47,18 @@ def colorize(line: str, in_fixture: bool) -> str:
     # Commit/metadata + file headers: keep them legible, git-ish.
     if line.startswith("commit "):
         return YELLOW + line + RESET
-    if line.startswith(("diff --git", "index ", "new file", "deleted file",
-                        "rename ", "similarity ", "--- ", "+++ ")):
+    if line.startswith(
+        (
+            "diff --git",
+            "index ",
+            "new file",
+            "deleted file",
+            "rename ",
+            "similarity ",
+            "--- ",
+            "+++ ",
+        )
+    ):
         return BOLD + line + RESET
     if line.startswith("@@"):
         return CYAN + line + RESET
