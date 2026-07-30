@@ -460,13 +460,6 @@
       "dynamo"
     ]
   ],
-  "test_ensemble_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180299",
-    "https://github.com/pytorch/pytorch/issues/180299",
-    [
-      "dynamo"
-    ]
-  ],
   "test_equivalent_template_code (__main__.BenchmarkMultiTemplateFusionGpuTest)": [
     "166601",
     "https://github.com/pytorch/pytorch/issues/166601",
@@ -730,13 +723,6 @@
     "https://github.com/pytorch/pytorch/issues/181156",
     [
       "dynamo"
-    ]
-  ],
-  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190142",
-    "https://github.com/pytorch/pytorch/issues/190142",
-    [
-      "linux"
     ]
   ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
