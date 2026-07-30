@@ -23,10 +23,14 @@ New fixtures are all-additions, so `git show` paints every log line green and
 buries the `#=MATCH=#` line. `tools/color_fixture_diff.py` recolors a
 `git show`/`git diff` stream: it dims the added log body, highlights only the
 match line (and its `‹ ›` captures) and the `#=SOURCE=#` link, and leaves
-non-fixture files (ruleset.toml, log.rs) in normal green. Wire it up as:
+non-fixture files (ruleset.toml, log.rs) in normal green. Wire up two aliases —
+`showfix` for a single commit, `difffix` for a range/working tree (use
+`git difffix main...HEAD` to review a whole branch; `git show` would list each
+commit separately, so a fixture touched by two commits shows up twice):
 
 ```
 git config alias.showfix '!f() { root="$(git rev-parse --show-toplevel)"; cd "${GIT_PREFIX:-.}" && git show --color=never "$@" | "$root/aws/lambda/log-classifier/tools/color_fixture_diff.py" | less -R; }; f'
+git config alias.difffix '!f() { root="$(git rev-parse --show-toplevel)"; cd "${GIT_PREFIX:-.}" && git diff --color=never "$@" | "$root/aws/lambda/log-classifier/tools/color_fixture_diff.py" | less -R; }; f'
 ```
 
 - Run: `cargo test --test classify`
