@@ -18,7 +18,7 @@
 2026-07-30T10:07:22.1632800Z Executing ['/opt/conda/envs/py_3.10/bin/python', '-bb', 'inductor/test_torchinductor_opinfo.py', '--shard-id=4', '--num-shards=10', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-30 10:07:22.140924]
 2026-07-30T10:37:27.7630534Z 
 2026-07-30T10:37:27.7633921Z PRINTING LOG FILE of inductor/test_torchinductor_opinfo 4/10 (test/test-reports/inductor.test_torchinductor_opinfo_4.10_9797f8c79fc8ca88_.log)
-2026-07-30T10:37:27.7634265Z Command took >30min, returning 124
+#=MATCH=# 2026-07-30T10:37:27.7634265Z ‹Command took >30min, returning 124›
 2026-07-30T10:37:27.7640431Z Got exit code 124
 2026-07-30T10:37:27.7640669Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
 2026-07-30T10:37:27.7640870Z 
@@ -41,7 +41,7 @@
 2026-07-30T10:37:51.8379853Z     run_tests(
 2026-07-30T10:37:51.8380024Z   File "/var/lib/jenkins/workspace/test/run_test.py", line 2183, in run_tests
 2026-07-30T10:37:51.8380255Z     raise RuntimeError(failure.message + keep_going_message)
-#=MATCH=# 2026-07-30T10:37:51.8380460Z RuntimeError: ‹inductor/test_torchinductor_opinfo› 4/10 failed!
+2026-07-30T10:37:51.8380460Z RuntimeError: inductor/test_torchinductor_opinfo 4/10 failed!
 2026-07-30T10:37:51.8380579Z 
 2026-07-30T10:37:51.8380706Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
 2026-07-30T10:37:51.8380969Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.

@@ -229,6 +229,14 @@ pattern = '^##\[error\]Response status code does not indicate success: .*$'
 name = 'Python Test timeout (KeyboardInterrupt)'
 pattern = '!+ KeyboardInterrupt !+'
 
+# run_test.py killed a test file that exceeded its wall-clock limit (exit 124).
+# Without this the job falls through to the generic "<file> N/N failed!" wrapper
+# below, which mislabels a timeout as an ordinary test failure. The file that
+# timed out is on the "Finished ..." line just below, in context.
+[[rule]]
+name = 'Test file timeout'
+pattern = '^Command took >\d+min, returning 124'
+
 # run_test.py's per-file summary ("<file> <shard>/<nshards> failed!", sometimes
 # with a RuntimeError: prefix). Capture just the file so the shard index and the
 # optional prefix don't scatter the same file across groups.
