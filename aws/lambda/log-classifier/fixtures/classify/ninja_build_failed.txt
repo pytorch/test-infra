@@ -10,7 +10,7 @@
 2026-07-30T13:29:28.1939981Z [1274/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/PeerToPeerAccess.cpp.o
 2026-07-30T13:29:28.1940481Z [1275/3874] Linking CXX static library lib/libdnnl.a
 2026-07-30T13:29:28.1940993Z [1276/3874] Scanning /__w/pytorch/pytorch/third_party/fmt/src/format.cc for CXX dependencies
-2026-07-30T13:29:28.1941597Z FAILED: [code=127] third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi 
+#=MATCH=# 2026-07-30T13:29:28.1941597Z FAILED: [‹code=127›] third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi 
 2026-07-30T13:29:28.1948526Z "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND" -format=p1689 -- /usr/bin/clang++ -DFMT_NO_UNIQUE_ADDRESS=[[no_unique_address]] -DHAVE_MALLOC_USABLE_SIZE=1 -DHAVE_MMAP=1 -DHAVE_POSIX_FALLOCATE=1 -DHAVE_SHM_OPEN=1 -DHAVE_SHM_UNLINK=1 -DIDEEP_USE_MKL -DMINIZ_DISABLE_ZIP_READER_CRC32_CHECKS -DONNXIFI_ENABLE_EXT=1 -DONNX_ML=1 -DONNX_NAMESPACE=onnx_torch -DUSE_EXTERNAL_MZCRC -D_FILE_OFFSET_BITS=64 -I/__w/pytorch/pytorch/third_party/fmt/include -isystem /__w/pytorch/pytorch/build/third_party/gloo -isystem /__w/pytorch/pytorch/cmake/../third_party/gloo -isystem /__w/pytorch/pytorch/cmake/../third_party/tensorpipe/third_party/libuv/include -isystem /__w/pytorch/pytorch/cmake/../third_party/googletest/googlemock/include -isystem /__w/pytorch/pytorch/cmake/../third_party/googletest/googletest/include -isystem /__w/pytorch/pytorch/third_party/protobuf/src -isystem /opt/python-3.10-venv/include -isystem /__w/pytorch/pytorch/third_party/ittapi/include -isystem /__w/pytorch/pytorch/cmake/../third_party/eigen -isystem /__w/pytorch/pytorch/third_party/ideep/mkl-dnn/include/oneapi/dnnl -isystem /__w/pytorch/pytorch/third_party/ideep/include -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -DNDEBUG -O3 -DNDEBUG -DNDEBUG -std=gnu++20 -fPIC -DMKL_HAS_SBGEMM -DMKL_HAS_SHGEMM -DTORCH_USE_LIBUV -DCAFFE2_USE_GLOO -x c++ /__w/pytorch/pytorch/third_party/fmt/src/format.cc -c -o third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o -resource-dir "/usr/lib/llvm-20/lib/clang/20" -MT third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi -MD -MF third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.d > third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.tmp && mv third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.tmp third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi
 2026-07-30T13:29:28.1956161Z /bin/sh: 1: CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND: not found
 2026-07-30T13:29:28.1956611Z [1277/3874] Linking CXX static library lib/libtensorpipe_cuda.a
@@ -29,7 +29,7 @@
 2026-07-30T13:29:28.8215034Z + sccache --stop-server
 2026-07-30T13:29:28.8215251Z + echo ::endgroup::
 2026-07-30T13:29:28.8215669Z [1282/3874] Building CUDA object third_party/gloo/gloo/CMakeFiles/gloo_cuda.dir/cuda_private.cu.o
-#=MATCH=# 2026-07-30T13:29:28.8216179Z ‹ninja: build stopped: subcommand failed›.
+2026-07-30T13:29:28.8216179Z ninja: build stopped: subcommand failed.
 2026-07-30T13:29:28.8216379Z 
 2026-07-30T13:29:28.8216563Z ERROR Backend subprocess exited when trying to invoke build_wheel
 2026-07-30T13:29:28.8217158Z ##[group]Sccache Compilation Log

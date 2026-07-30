@@ -335,6 +335,17 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 name = 'Docker error'
 pattern = '^docker: Error.*'
 
+# ninja's per-edge failure marker, printed immediately before the failing command
+# and its error output -- so surfacing it lands the real cause in the context
+# window regardless of error type (compile error, missing tool, linker). Match the
+# modern `[code=N]` form (ninja-specific, so no floating-string overmatch) and
+# capture just the exit code (127=command not found, 1=command failed, ...) so the
+# group key stays stable instead of the variable target path. More specific error
+# rules above still win; the "ninja: build stopped" rollup below is the last resort.
+[[rule]]
+name = 'ninja build step failed'
+pattern = '^FAILED: \[(code=\d+)\]'
+
 [[rule]]
 name = 'Build error'
 pattern = 'ninja: build stopped: subcommand failed'
