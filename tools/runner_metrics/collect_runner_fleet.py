@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 import requests
 
+
 GITHUB_API = "https://api.github.com"
 
 
