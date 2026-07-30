@@ -6,8 +6,9 @@ to a window *centered on the line this repo's classifier surfaces*, and writes i
 to ``fixtures/classify/<name>.txt`` as a plain log (timestamps + ANSI intact, no
 markers). It then re-blesses via the existing harness
 (``UPDATE_FIXTURES=1 cargo test --test classify``), which fills in the in-band
-``#=MATCH=#`` / ``‹ ›`` (or ``#=NO-MATCH=#``) expectation, and prints where the
-classifier landed so you can confirm the real failure made it into the window.
+``#=MATCH=#`` / ``‹ ›`` expectation (or leaves no marker when nothing
+classifies), and prints where the classifier landed so you can confirm the real
+failure made it into the window.
 
 How the default window is found (no HUD / network beyond the log itself): we
 write the *whole* log, bless it to see which line the local classifier picks,
@@ -54,7 +55,6 @@ CRATE_DIR = Path(__file__).resolve().parent
 FIXTURE_DIR = CRATE_DIR / "fixtures" / "classify"
 S3_HOST = "https://ossci-raw-job-status.s3.amazonaws.com"
 MATCH_PREFIX = "#=MATCH=# "
-NO_MATCH = "#=NO-MATCH=#"
 # The failure always precedes the step's exit-code line; a good fallback anchor.
 ERROR_ANCHOR = re.compile(r"##\[error\]|Process completed with exit code [1-9]")
 
@@ -125,9 +125,9 @@ def bless() -> None:
 
 
 def marker_of(fixture: Path) -> str | None:
-    """The fixture's blessed verdict line (`#=MATCH=# ...` or `#=NO-MATCH=#`)."""
+    """The fixture's blessed `#=MATCH=# ...` line, or None if nothing classifies."""
     for line in fixture.read_text().splitlines():
-        if line.startswith(MATCH_PREFIX) or line == NO_MATCH:
+        if line.startswith(MATCH_PREFIX):
             return line
     return None
 
@@ -195,9 +195,15 @@ def report(fixture: Path, lines: list[str], start: int, end: int, blessed: bool)
     print(preview(lines, start, end))
     if blessed:
         marker = marker_of(fixture)
-        print(f"\nclassifier landed on:\n  {marker}")
-        print("\nConfirm this is the *real* failure. If the real cause is missing,\n"
-              "re-run with a larger --context, or pin it with --grep / --lines.")
+        if marker is None:
+            print("\nclassifier matched nothing -> fixture has no #=MATCH=# line")
+            print("\nA failing job the classifier can't classify is usually a ruleset\n"
+                  "gap, not a real no-match. Confirm that's intended; if not, pin the\n"
+                  "window with --grep / --lines so the real failure is in view.")
+        else:
+            print(f"\nclassifier landed on:\n  {marker}")
+            print("\nConfirm this is the *real* failure. If the real cause is missing,\n"
+                  "re-run with a larger --context, or pin it with --grep / --lines.")
     else:
         print("\nnext: UPDATE_FIXTURES=1 cargo test --test classify   # bless the marker")
 
@@ -298,8 +304,7 @@ def main() -> None:
         report(fixture, lines, start, end, blessed=True)
 
     if not args.name:
-        print(f"\ntip: rename {name}.txt descriptively; add a #=WANT=# note if this is a")
-        print("     known misclassification, and record it in FIXTURES.md")
+        print(f"\ntip: rename {name}.txt descriptively and record it in FIXTURES.md")
 
 
 if __name__ == "__main__":

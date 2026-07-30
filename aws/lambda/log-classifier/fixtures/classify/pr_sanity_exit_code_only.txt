@@ -1,5 +1,3 @@
-#=NO-MATCH=#
-#=WANT=# bucket-A: ideal match is "Your PR is 3174 LOC which is more than the 2000 maximum" below; instead nothing matches (the exit-code line is dropped as boilerplate and no rule covers the PR-size message).
 2026-07-28T23:19:32.4965943Z ##[group]Run bash .github/scripts/pr-sanity-check.sh
 2026-07-28T23:19:32.4966348Z [36;1mbash .github/scripts/pr-sanity-check.sh[0m
 2026-07-28T23:19:32.5011172Z shell: /usr/bin/bash -e {0}

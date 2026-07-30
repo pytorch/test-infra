@@ -15,13 +15,11 @@
 //!     column 0, before the GHA timestamp), and each captured span within it is
 //!     wrapped in `‹ ›`. The whole line (prefix + delimiters) shows both *which*
 //!     line and *what group key* HUD would produce.
-//!   - A fixture the classifier does NOT classify carries a single
-//!     `#=NO-MATCH=#` line instead.
-//!   - `#=WANT=# <note>` lines are human annotations (e.g. the ideal answer for
-//!     a known misclassification). Never asserted -- documentation only.
+//!   - A fixture the classifier does NOT classify simply carries no `#=MATCH=#`
+//!     line -- the absence of the marker *is* the "nothing classifies" verdict.
 //!
-//! All three sentinels (and the `‹ ›` delimiters) are stripped before the log is
-//! handed to the classifier, so the engine sees a pristine log.
+//! The `#=MATCH=# ` prefix (and the `‹ ›` delimiters) are stripped before the
+//! log is handed to the classifier, so the engine sees a pristine log.
 //!
 //! The marker records CURRENT behavior, like a snapshot. When a ruleset change
 //! moves the match or changes its captures, the test fails; re-bless with:
@@ -41,34 +39,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const MATCH_PREFIX: &str = "#=MATCH=# ";
-const NO_MATCH: &str = "#=NO-MATCH=#";
-const WANT_PREFIX: &str = "#=WANT=#";
 const CAP_OPEN: char = '‹';
 const CAP_CLOSE: char = '›';
 
-/// A fixture line, once its harness markers are stripped.
-enum Item {
-    /// A real log line (pristine: no prefix, no `‹ ›`).
-    Log(String),
-    /// A `#=WANT=#` annotation, preserved verbatim.
-    Want(String),
-}
-
-/// Strip harness markers, yielding the fixture's real log lines (in order) and
-/// its `#=WANT=#` notes. `#=NO-MATCH=#` is dropped.
-fn parse_items(content: &str) -> Vec<Item> {
+/// Strip harness markers, yielding the fixture's pristine log lines in order
+/// (the `#=MATCH=# ` prefix and any `‹ ›` capture delimiters removed).
+fn parse_log_lines(content: &str) -> Vec<String> {
     content
         .lines()
-        .filter_map(|line| {
-            if let Some(rest) = line.strip_prefix(MATCH_PREFIX) {
-                Some(Item::Log(rest.replace(CAP_OPEN, "").replace(CAP_CLOSE, "")))
-            } else if line == NO_MATCH {
-                None
-            } else if line.starts_with(WANT_PREFIX) {
-                Some(Item::Want(line.to_string()))
-            } else {
-                Some(Item::Log(line.to_string()))
-            }
+        .map(|line| match line.strip_prefix(MATCH_PREFIX) {
+            Some(rest) => rest.replace(CAP_OPEN, "").replace(CAP_CLOSE, ""),
+            None => line.to_string(),
         })
         .collect()
 }
@@ -126,54 +107,37 @@ fn annotate(bare: &str, rule: &Rule) -> String {
 }
 
 /// Render a fixture into canonical form: `#=MATCH=#` (with `‹ ›` captures) on the
-/// line the live classifier lands on, or a leading `#=NO-MATCH=#`. This is the
-/// single source of truth -- assert mode checks the fixture already equals it,
-/// update mode writes it.
+/// line the live classifier lands on, or no marker at all when nothing
+/// classifies. This is the single source of truth -- assert mode checks the
+/// fixture already equals it, update mode writes it.
 fn render_canonical(content: &str) -> String {
-    let items = parse_items(content);
-    let log_text = items
-        .iter()
-        .filter_map(|i| match i {
-            Item::Log(l) => Some(l.as_str()),
-            Item::Want(_) => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n";
+    let lines = parse_log_lines(content);
+    let log_text = lines.join("\n") + "\n";
 
     let ruleset = RuleSet::new_from_config();
     let m = evaluate_ruleset(&ruleset, &Log::new(log_text));
     let target = m.as_ref().map(|m| m.line_number);
     let rule = m.map(|m| m.rule);
 
-    let mut out: Vec<String> = Vec::new();
-    if target.is_none() {
-        out.push(NO_MATCH.to_string());
-    }
-    let mut log_line = 0;
-    for item in items {
-        match item {
-            Item::Want(w) => out.push(w),
-            Item::Log(l) => {
-                log_line += 1;
-                if Some(log_line) == target {
-                    let annotated = annotate(&l, rule.as_ref().unwrap());
-                    out.push(format!("{MATCH_PREFIX}{annotated}"));
-                } else {
-                    out.push(l);
-                }
-            }
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    for (i, l) in lines.into_iter().enumerate() {
+        // `line_number` is 1-based over the log lines.
+        if Some(i + 1) == target {
+            let annotated = annotate(&l, rule.as_ref().unwrap());
+            out.push(format!("{MATCH_PREFIX}{annotated}"));
+        } else {
+            out.push(l);
         }
     }
     out.join("\n") + "\n"
 }
 
-/// Extract the marker line (`#=MATCH=#` or `#=NO-MATCH=#`) for a compact diff.
+/// Extract the `#=MATCH=#` line for a compact diff, or note its absence.
 fn marker_of(content: &str) -> String {
     content
         .lines()
-        .find(|l| l.starts_with(MATCH_PREFIX) || *l == NO_MATCH)
-        .unwrap_or("(no marker)")
+        .find(|l| l.starts_with(MATCH_PREFIX))
+        .unwrap_or("(no match)")
         .to_string()
 }
 

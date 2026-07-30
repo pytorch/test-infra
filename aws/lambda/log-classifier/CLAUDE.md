@@ -11,8 +11,7 @@ with the expected verdict recorded **in-band**:
 
 - `#=MATCH=# ` prefixes the line the classifier surfaces; each captured span is
   wrapped in `‹ ›` (so the group key is visible in context).
-- `#=NO-MATCH=#` records that nothing classifies.
-- `#=WANT=# <note>` lines are human annotations — never asserted.
+- A fixture with no `#=MATCH=#` line records that nothing classifies.
 
 The marker snapshots **current** behavior. Full format: `fixtures/classify/FIXTURES.md`.
 
@@ -40,5 +39,5 @@ trimmed off, re-run with a larger `--context`, or pin the window with
 the numbered log to help pick a range). `--no-bless` writes offline, anchoring on
 the last `##[error]` / exit-code line instead of the classifier.
 
-Finish by adding a `#=WANT=#` note if it's a known misclassification and a row in
-`fixtures/classify/FIXTURES.md`.
+Finish by adding a row in `fixtures/classify/FIXTURES.md` (note the ideal answer
+there if it's a known misclassification).

@@ -1,4 +1,3 @@
-#=WANT=# bucket-A: ideal match is "This test class should extend from ...TestCase but it doesn't." below; instead the generic run_test.py wrapper "RuntimeError: ... 1/1 failed!" wins (no rule for the real cause).
 2026-07-24T18:47:00.4262407Z Running distributed/test_c10d_torchcomms 1/1 ... [2026-07-24 18:47:00.269144][5722.385406931]
 2026-07-24T18:47:00.4262902Z SCRIBE_GRAPHQL_ACCESS_TOKEN is NOT set
 2026-07-24T18:47:00.4264023Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'distributed/test_c10d_torchcomms.py', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=0', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 18:47:00.269458]
