@@ -81,9 +81,7 @@ def main() -> None:
     for raw in sys.stdin:
         line = raw.rstrip("\n")
         # Track which file the hunk belongs to; the new-side path is authoritative.
-        if line.startswith("diff --git"):
-            in_fixture = "fixtures/classify/" in line
-        elif line.startswith("+++ "):
+        if line.startswith("diff --git") or line.startswith("+++ "):
             in_fixture = "fixtures/classify/" in line
         sys.stdout.write(colorize(line, in_fixture) + "\n")
 
