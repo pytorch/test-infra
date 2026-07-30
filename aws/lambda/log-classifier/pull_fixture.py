@@ -49,6 +49,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -207,7 +208,9 @@ def source_link(job_arg: str, job_id: int, repo: str) -> str:
     """Best link back to the job: the GitHub Actions URL if that's what was passed,
     else the raw-log S3 URL (always derivable from the job id)."""
     arg = job_arg.strip()
-    if "github.com" in arg:
+    # Check the actual URL host (not a substring, which "github.com.evil" defeats).
+    host = urllib.parse.urlparse(arg).hostname or ""
+    if host == "github.com" or host.endswith(".github.com"):
         return arg
     return log_url(job_id, repo)
 
