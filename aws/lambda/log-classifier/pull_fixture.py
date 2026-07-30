@@ -52,6 +52,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
+
 CRATE_DIR = Path(__file__).resolve().parent
 FIXTURE_DIR = CRATE_DIR / "fixtures" / "classify"
 S3_HOST = "https://ossci-raw-job-status.s3.amazonaws.com"
