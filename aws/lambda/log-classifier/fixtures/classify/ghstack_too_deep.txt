@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30522365744/job/90805518060
 2026-07-30T07:22:18.6508140Z [36;1m  --schedule "${SCHEDULE}" \[0m
 2026-07-30T07:22:18.6508426Z [36;1m  --branch "${HEAD_BRANCH}"[0m
 2026-07-30T07:22:18.6508813Z shell: bash --noprofile --norc -e -o pipefail {0}

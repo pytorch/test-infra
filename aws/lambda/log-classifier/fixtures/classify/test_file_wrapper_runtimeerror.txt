@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30529793944/job/90834107478
 2026-07-30T10:02:40.2306099Z 
 2026-07-30T10:02:40.2306231Z Finished dynamo/test_misc 1/1 ... [2026-07-30 10:02:40.212753][4098045.454532291], took 1.51min
 2026-07-30T10:02:40.2306710Z Parsing testcases for test report: /var/lib/jenkins/workspace/test/test-reports/python-pytest/distributed.checkpoint.test_compatibility/distributed.checkpoint.test_compatibility-e7e41fc497cad4bb.xml

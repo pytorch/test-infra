@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30506429055/job/90757197126
 2026-07-30T01:59:21.2801063Z [1m[36mYou can reproduce these results locally by using `lintrunner -m origin/main`. (If you don't get the same results, run \'lintrunner init\' to update your local linter)[0m
 2026-07-30T01:59:21.2802518Z [1m[36mSee https://github.com/pytorch/pytorch/wiki/lintrunner for setup instructions. To apply suggested patches automatically, use the -a flag. Before pushing another commit,[0m
 2026-07-30T01:59:21.2803479Z [1m[36mplease verify locally and ensure everything passes.[0m

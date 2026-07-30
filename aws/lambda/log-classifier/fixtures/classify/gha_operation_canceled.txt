@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30387636235/job/90370824564
 2026-07-28T22:57:41.4429190Z   Using cached 0.10.4.zip
 2026-07-28T22:57:41.4834580Z   Installing build dependencies: started
 2026-07-28T22:57:41.8563400Z   Installing build dependencies: finished with status 'done'

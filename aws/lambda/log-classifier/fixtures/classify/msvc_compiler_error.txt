@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30442391378/job/90545596543
 2026-07-29T10:43:34.9052070Z [977/3359] Building CXX object third_party\ideep\mkl-dnn\src\graph\backend\dnnl\CMakeFiles\dnnl_graph_backend_dnnl.dir\patterns\reorder_fusion.cpp.obj
 2026-07-29T10:43:34.9924373Z [978/3359] Building CXX object third_party\ideep\mkl-dnn\src\graph\utils\CMakeFiles\dnnl_graph_utils.dir\debug.cpp.obj
 2026-07-29T10:43:35.0313959Z [979/3359] Building CXX object third_party\ideep\mkl-dnn\src\graph\utils\CMakeFiles\dnnl_graph_utils.dir\id.cpp.obj

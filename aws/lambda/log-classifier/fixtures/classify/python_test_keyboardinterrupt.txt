@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30529790819/job/90834162693
 2026-07-30T11:29:42.0791550Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_silu_cuda_float32 PASSED [0.0925s] [ 89%]
 2026-07-30T11:29:42.0791718Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_softshrink_cuda_float32 PASSED [0.1487s] [ 89%]
 2026-07-30T11:29:42.0791910Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_unfold_cuda_float32 PASSED [1.8950s] [ 89%]

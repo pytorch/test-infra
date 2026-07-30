@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30545869374/job/90881794527
 2026-07-30T13:21:28.4756105Z [2549/3333] Building CXX object caffe2/CMakeFiles/torch_cpu.dir/__/torch/csrc/jit/mobile/train/export_data.cpp.o
 2026-07-30T13:21:28.6864471Z [2550/3333] Building CXX object caffe2/CMakeFiles/torch_cpu.dir/__/torch/csrc/lazy/ts_backend/ts_native_functions.cpp.o
 2026-07-30T13:21:28.9050839Z [2551/3333] Building CXX object caffe2/CMakeFiles/torch_cpu.dir/__/torch/csrc/jit/mobile/import_data.cpp.o

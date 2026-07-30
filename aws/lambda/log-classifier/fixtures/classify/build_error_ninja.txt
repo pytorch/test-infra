@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30546479854/job/90883894983
 2026-07-30T13:29:27.5549996Z [1266/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDADeviceAssertionHost.cpp.o
 2026-07-30T13:29:27.5550651Z [1267/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDACachingAllocator.cpp.o
 2026-07-30T13:29:27.7591391Z [1268/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAException.cpp.o

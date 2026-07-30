@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30540671637/job/90870335107
 2026-07-30T12:54:28.4650791Z PASS: benchmark ('aotdispatcher_partitioner_cpu', 'compile_time_instruction_count') pass, actual result 9293524465 +0.67% is within expected 9232000000 ±10.00%
 2026-07-30T12:54:28.4651428Z 
 2026-07-30T12:54:28.4652107Z PASS: benchmark ('aotdispatcher_partitioner_cpu2', 'compile_time_instruction_count') pass, actual result 2214950764 +2.83% is within expected 2154000000 ±10.00%

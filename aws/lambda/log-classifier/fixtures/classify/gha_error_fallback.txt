@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30533012812/job/90845795592
 ﻿2026-07-30T10:33:37.0347135Z Current runner version: '2.336.0'
 2026-07-30T10:33:37.0352906Z Runner name: 'gnr816793.jf.intel.com_b60_card_7'
 2026-07-30T10:33:37.0353675Z Runner group name: 'linux.idc.xpu.group'

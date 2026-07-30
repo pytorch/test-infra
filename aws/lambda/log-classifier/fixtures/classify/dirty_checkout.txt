@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30501237094/job/90746356476
 2026-07-30T02:38:33.8740364Z 
 2026-07-30T02:38:33.8740797Z Finished test_meta 2/2 ... [2026-07-30 02:38:33.871855][166951.913908531], took 0.11min
 2026-07-30T02:38:33.8767057Z Parsing testcases for test report: /var/lib/jenkins/pytorch/test/test-reports/python-pytest/dynamo.test_optimizers/dynamo.test_optimizers-c33a1fe129a81d24.xml

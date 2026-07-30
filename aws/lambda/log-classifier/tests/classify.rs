@@ -17,9 +17,14 @@
 //!     line and *what group key* HUD would produce.
 //!   - A fixture the classifier does NOT classify simply carries no `#=MATCH=#`
 //!     line -- the absence of the marker *is* the "nothing classifies" verdict.
+//!   - An optional `#=SOURCE=#` line at the top links back to the originating job
+//!     (handy for a reviewer who wants to open the live log). It is metadata, not
+//!     log content: never fed to the classifier and preserved verbatim across
+//!     re-blessing -- written once by `pull_fixture.py`, never touched again.
 //!
-//! The `#=MATCH=# ` prefix (and the `‹ ›` delimiters) are stripped before the
-//! log is handed to the classifier, so the engine sees a pristine log.
+//! The `#=MATCH=# ` prefix (and the `‹ ›` delimiters) are stripped, and any
+//! `#=SOURCE=#` line dropped, before the log is handed to the classifier, so the
+//! engine sees a pristine log.
 //!
 //! The marker records CURRENT behavior, like a snapshot. When a ruleset change
 //! moves the match or changes its captures, the test fails; re-bless with:
@@ -41,16 +46,28 @@ use std::path::{Path, PathBuf};
 const MATCH_PREFIX: &str = "#=MATCH=# ";
 const CAP_OPEN: char = '‹';
 const CAP_CLOSE: char = '›';
+/// Metadata lines (e.g. a link to the source job) kept at the top of a fixture
+/// for review convenience. They are never fed to the classifier and are preserved
+/// verbatim across re-blessing -- write once, never touched again.
+const SOURCE_PREFIX: &str = "#=SOURCE=#";
 
-/// Strip harness markers, yielding the fixture's pristine log lines in order
-/// (the `#=MATCH=# ` prefix and any `‹ ›` capture delimiters removed).
+/// Strip a single fixture line down to what the classifier sees: the
+/// `#=MATCH=# ` prefix and any `‹ ›` capture delimiters removed.
+fn strip_markers(line: &str) -> String {
+    match line.strip_prefix(MATCH_PREFIX) {
+        Some(rest) => rest.replace(CAP_OPEN, "").replace(CAP_CLOSE, ""),
+        None => line.to_string(),
+    }
+}
+
+/// The fixture's pristine log lines in order, as handed to the classifier:
+/// `#=SOURCE=#` metadata dropped entirely, and `#=MATCH=# `/`‹ ›` markers removed
+/// from the rest.
 fn parse_log_lines(content: &str) -> Vec<String> {
     content
         .lines()
-        .map(|line| match line.strip_prefix(MATCH_PREFIX) {
-            Some(rest) => rest.replace(CAP_OPEN, "").replace(CAP_CLOSE, ""),
-            None => line.to_string(),
-        })
+        .filter(|line| !line.starts_with(SOURCE_PREFIX))
+        .map(|line| strip_markers(line))
         .collect()
 }
 
@@ -111,22 +128,31 @@ fn annotate(bare: &str, rule: &Rule) -> String {
 /// classifies. This is the single source of truth -- assert mode checks the
 /// fixture already equals it, update mode writes it.
 fn render_canonical(content: &str) -> String {
-    let lines = parse_log_lines(content);
-    let log_text = lines.join("\n") + "\n";
+    let log_lines = parse_log_lines(content);
+    let log_text = log_lines.join("\n") + "\n";
 
     let ruleset = RuleSet::new_from_config();
     let m = evaluate_ruleset(&ruleset, &Log::new(log_text));
     let target = m.as_ref().map(|m| m.line_number);
     let rule = m.map(|m| m.rule);
 
-    let mut out: Vec<String> = Vec::with_capacity(lines.len());
-    for (i, l) in lines.into_iter().enumerate() {
-        // `line_number` is 1-based over the log lines.
-        if Some(i + 1) == target {
-            let annotated = annotate(&l, rule.as_ref().unwrap());
+    // Walk the raw fixture lines so `#=SOURCE=#` metadata stays verbatim and in
+    // place; the match marker is placed by counting only log lines, since the
+    // engine's `line_number` is 1-based over those (metadata excluded).
+    let mut out: Vec<String> = Vec::new();
+    let mut log_idx = 0usize;
+    for raw in content.lines() {
+        if raw.starts_with(SOURCE_PREFIX) {
+            out.push(raw.to_string());
+            continue;
+        }
+        let bare = strip_markers(raw);
+        log_idx += 1;
+        if Some(log_idx) == target {
+            let annotated = annotate(&bare, rule.as_ref().unwrap());
             out.push(format!("{MATCH_PREFIX}{annotated}"));
         } else {
-            out.push(l);
+            out.push(bare);
         }
     }
     out.join("\n") + "\n"

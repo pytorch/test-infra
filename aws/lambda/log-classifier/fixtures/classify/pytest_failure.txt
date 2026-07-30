@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30529790819/job/90834162653
 2026-07-30T10:55:18.2467887Z cachedir: .pytest_cache
 2026-07-30T10:55:18.2468141Z hypothesis profile 'pytorch_ci' -> database=None, max_examples=50, derandomize=True, suppress_health_check=[HealthCheck.too_slow]
 2026-07-30T10:55:18.2468412Z rootdir: /var/lib/jenkins/workspace

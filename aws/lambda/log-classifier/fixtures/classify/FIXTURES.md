@@ -13,6 +13,11 @@ fixture with no `#=MATCH=#` line records that nothing classifies. The marker
 records the **current** verdict. Re-bless after a ruleset change with
 `UPDATE_FIXTURES=1 cargo test --test classify`.
 
+An optional `#=SOURCE=#` line at the very top links back to the originating job
+(so a reviewer can open the live log during CR — these S3/GHA logs eventually
+expire). It is metadata: never fed to the classifier and preserved verbatim
+across re-blessing. `pull_fixture.py` writes it automatically.
+
 Note on the classifier's ignore-list: `src/log.rs` strips a few generic noise
 lines *before* classification — notably `##[error]Process completed with exit
 code N` and `##[error]Executing the custom container implementation failed`.

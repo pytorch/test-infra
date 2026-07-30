@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30507215085/job/90764858064
 2026-07-30T03:36:29.7333793Z WARNING:common:fp64 golden ref were not generated for google/gemma-2-2b. Setting accuracy check to cosine
 2026-07-30T03:36:29.7334376Z Traceback (most recent call last):
 2026-07-30T03:36:29.7342482Z   File "/__w/pytorch/pytorch/benchmarks/dynamo/common.py", line 2285, in check_accuracy

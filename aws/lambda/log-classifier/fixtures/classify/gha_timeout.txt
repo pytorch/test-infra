@@ -1,3 +1,4 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30432607865/job/90517766663
 2026-07-29T10:01:29.7638610Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_sub_xpu_float32 <- test/test_xpu.py PASSED [0.1512s] [ 76%]
 2026-07-29T10:01:29.7640731Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_view_as_complex_xpu_float32 <- test/test_xpu.py PASSED [0.0057s] [ 78%]
 2026-07-29T10:01:29.7642738Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_view_as_real_xpu_complex64 <- test/test_xpu.py PASSED [0.0061s] [ 79%]
