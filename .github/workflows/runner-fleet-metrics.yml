@@ -17,6 +17,8 @@ on:
         description: "Collect and print counts without uploading to S3"
         type: boolean
         default: false
+  # TESTING
+  pull_request:
 
 concurrency:
   group: runner-fleet-metrics
