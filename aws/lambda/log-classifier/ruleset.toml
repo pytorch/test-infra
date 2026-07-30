@@ -417,6 +417,19 @@ pattern = '^##\[error\]Error: pod failed to come online with error:.*is unhealth
 name = 'Artifact download failure'
 pattern = '^##\[error\](Unable to download artifact\(s\): Artifact not found) for name:'
 
+# GitHub couldn't fetch a repo/action tarball from codeload; the URL carries a
+# commit hash, so the generic fallback scatters every occurrence. Capture the
+# stable phrase only.
+[[rule]]
+name = 'Action archive download failure'
+pattern = '''^##\[error\](Failed to download archive) '.*' after \d+ attempts'''
+
+# S3 authorization failure on artifact upload; the ARN, resource path and job-id'd
+# object key all vary per run, so capture only the denied action (e.g. s3:PutObject).
+[[rule]]
+name = 'S3 access denied'
+pattern = '^##\[error\]User: .* is not authorized to perform: (s3:\w+)'
+
 [[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
