@@ -10,9 +10,7 @@ The expectation lives **in-band** in each fixture (see `tests/classify.rs`):
 the line the classifier currently lands on is prefixed with `#=MATCH=# ` and each
 captured span is wrapped in `‹ ›` (so the group key is visible in context); a
 fixture with no `#=MATCH=#` line records that nothing classifies. The marker
-records the **current** verdict — which for the bucket-(A) cases below is
-deliberately wrong (the *ideal* answer is noted in the table and per-fixture
-notes), documenting the bug rather than fixing it. Re-bless after a ruleset change with
+records the **current** verdict. Re-bless after a ruleset change with
 `UPDATE_FIXTURES=1 cargo test --test classify`.
 
 Note on the classifier's ignore-list: `src/log.rs` strips a few generic noise
@@ -42,11 +40,9 @@ trimmed off, re-run with a larger `--context`, or pin the window with
 the numbered log to help you pick). `--no-bless` writes the window offline
 (anchoring on the last `##[error]` / exit-code line instead of the classifier).
 
-After generating: rename to something descriptive and add a row to the table
-above (note the ideal answer there if it's a known misclassification).
-
-TODO: As of right now, some of these fixtures are arguably misclassified!  We
-will be working on improving them soon.
+After generating: rename to something descriptive. If the classifier lands on
+the wrong line (or nothing) for a real failure, prefer fixing the ruleset so the
+fixture blesses to the correct line, rather than checking in a wrong marker.
 
 ## Verification
 

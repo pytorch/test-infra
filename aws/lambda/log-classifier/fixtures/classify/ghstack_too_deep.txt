@@ -1,0 +1,41 @@
+2026-07-30T07:22:18.6508140Z [36;1m  --schedule "${SCHEDULE}" \[0m
+2026-07-30T07:22:18.6508426Z [36;1m  --branch "${HEAD_BRANCH}"[0m
+2026-07-30T07:22:18.6508813Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-07-30T07:22:18.6509118Z env:
+2026-07-30T07:22:18.6509489Z   UV_PYTHON_INSTALL_DIR: /var/lib/jenkins/.local/share/uv/python
+2026-07-30T07:22:18.6509843Z   UV_PYTHON: 3.12
+2026-07-30T07:22:18.6512871Z   GITHUB_TOKEN: ***
+2026-07-30T07:22:18.6513120Z   JOB_NAME: linux-jammy-py3.10-gcc11 / build
+2026-07-30T07:22:18.6513413Z   PR_NUMBER: 190825
+2026-07-30T07:22:18.6513612Z   TAG: 
+2026-07-30T07:22:18.6513798Z   EVENT_NAME: pull_request
+2026-07-30T07:22:18.6514026Z   SCHEDULE: 
+2026-07-30T07:22:18.6514222Z   HEAD_BRANCH: pull/190825
+2026-07-30T07:22:18.6514447Z ##[endgroup]
+2026-07-30T07:22:18.6533515Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-30T07:22:18.6534618Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-30T07:22:18.6534942Z ##[endgroup]
+2026-07-30T07:22:19.9596092Z Workflow: docs-build
+2026-07-30T07:22:19.9596420Z Job name: linux-jammy-py3.10-gcc11 / build
+2026-07-30T07:22:20.3764831Z INFO:root:Found no test-config label on the PR, so all test configs are included
+#=MATCH=# 2026-07-30T07:22:20.5826646Z PR #190825 ‹sits on top of >=10 ghstack entries; refusing to run CI›. Rebase once the lower PRs land, or add the ciflow/trunk label to force CI on this PR.
+2026-07-30T07:22:20.8110230Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-30T07:22:20.8117927Z ##[error]Process completed with exit code 1.
+2026-07-30T07:22:20.8209881Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-30T07:22:20.8218361Z ##[end-action id=filter.filter;outcome=failure;conclusion=failure;duration_ms=2173]
+2026-07-30T07:22:20.8222382Z ##[start-action display=Print the filtered test matrix;id=filter.__run]
+2026-07-30T07:22:20.8224710Z ##[end-action id=filter.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-07-30T07:22:20.8643997Z Post job cleanup.
+2026-07-30T07:22:20.8741366Z Post job cleanup.
+2026-07-30T07:22:20.8744708Z ##[start-action display=Setup uv;id=__27a597c1-44c7-421d-bb35-a5d78d74ef49.__pytorch_test-infra]
+2026-07-30T07:22:20.9530538Z Post job cleanup.
+2026-07-30T07:22:20.9533569Z ##[start-action display=Setup uv;id=__27a597c1-44c7-421d-bb35-a5d78d74ef49.__pytorch_test-infra.setup-uv]
+2026-07-30T07:22:20.9536058Z ##[end-action id=__27a597c1-44c7-421d-bb35-a5d78d74ef49.__pytorch_test-infra.setup-uv;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-07-30T07:22:20.9542164Z ##[end-action id=__27a597c1-44c7-421d-bb35-a5d78d74ef49.__pytorch_test-infra;outcome=success;conclusion=success;duration_ms=79]
+2026-07-30T07:22:20.9719878Z Post job cleanup.
+2026-07-30T07:22:20.9723465Z ##[start-action display=Checkout PyTorch;id=__c9162d88-7f23-4c42-abfb-647c34184493.__pytorch_pytorch]
+2026-07-30T07:22:21.0463035Z Post job cleanup.
+2026-07-30T07:22:21.0468070Z ##[start-action display=Checkout PyTorch;id=__c9162d88-7f23-4c42-abfb-647c34184493.__pytorch_pytorch.first-checkout-attempt]
+2026-07-30T07:22:21.0535040Z Post job cleanup.
+2026-07-30T07:22:21.0555558Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-30T07:22:21.0556689Z shell: /home/runner/externals/node20/bin/node {0}

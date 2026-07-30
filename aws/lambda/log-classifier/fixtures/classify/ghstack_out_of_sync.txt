@@ -1,0 +1,64 @@
+2026-07-30T02:02:01.4826508Z ##[endgroup]
+2026-07-30T02:02:03.3584761Z Collecting pyyaml==6.0.2
+2026-07-30T02:02:03.3601181Z   Using cached PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
+2026-07-30T02:02:03.3624140Z Using cached PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (751 kB)
+2026-07-30T02:02:03.3875327Z Installing collected packages: pyyaml
+2026-07-30T02:02:03.4406314Z Successfully installed pyyaml-6.0.2
+2026-07-30T02:02:03.4415228Z 
+2026-07-30T02:02:03.4415496Z [notice] A new release of pip is available: 26.1.2 -> 26.2
+2026-07-30T02:02:03.4416139Z [notice] To update, run: pip install --upgrade pip
+2026-07-30T02:02:03.4912993Z ##[group]Run set -ex
+2026-07-30T02:02:03.4913277Z [36;1mset -ex[0m
+2026-07-30T02:02:03.4913623Z [36;1mpython3 .github/scripts/trymerge.py --check-mergeability "${PR_NUM}"[0m
+2026-07-30T02:02:03.4961749Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-07-30T02:02:03.4962099Z env:
+2026-07-30T02:02:03.4962377Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:03.4962836Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib/pkgconfig
+2026-07-30T02:02:03.4963267Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:03.4963663Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:03.4964038Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:03.4964418Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib
+2026-07-30T02:02:03.4967187Z   GITHUB_TOKEN: ***
+2026-07-30T02:02:03.4967421Z   PR_NUM: 191388
+2026-07-30T02:02:03.4967633Z ##[endgroup]
+2026-07-30T02:02:03.5037196Z + python3 .github/scripts/trymerge.py --check-mergeability 191388
+2026-07-30T02:02:06.1153119Z Traceback (most recent call last):
+2026-07-30T02:02:06.1153736Z Skipping 1 of 4 PR (#189600) as its already been merged
+2026-07-30T02:02:06.1154150Z Found 3 PRs in the stack for 191388: [191357, 189601, 191388]
+2026-07-30T02:02:06.1161518Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2683, in <module>
+2026-07-30T02:02:06.1162364Z     main()
+2026-07-30T02:02:06.1162822Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2617, in main
+2026-07-30T02:02:06.1163457Z     get_ghstack_prs(repo, pr)  # raises error if out of sync
+2026-07-30T02:02:06.1164085Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 743, in get_ghstack_prs
+2026-07-30T02:02:06.1164640Z     raise RuntimeError(
+#=MATCH=# 2026-07-30T02:02:06.1166198Z RuntimeError: PR 189601 ‹is out of sync with the corresponding revision› 47fc9030ff952f8eb7b041a39a577257a7eb7974 on branch gh/williamwen42/512/orig that would be merged into main.  This usually happens because there is a non ghstack change in the PR.  Please sync them and try again (ex. make the changes on origin/gh/williamwen42/544/orig and run ghstack).
+2026-07-30T02:02:06.1294378Z ##[error]Process completed with exit code 1.
+2026-07-30T02:02:06.1348161Z ##[group]Run {
+2026-07-30T02:02:06.1348428Z [36;1m{[0m
+2026-07-30T02:02:06.1348684Z [36;1m  echo "# PR $PR_NUM is not mergeable into main"[0m
+2026-07-30T02:02:06.1349049Z [36;1m  echo "To debug, run the diagnostic workflow:"[0m
+2026-07-30T02:02:06.1349769Z [36;1m  echo "https://github.com/pytorch/test-infra/actions/workflows/pr-dependencies-check.yml"[0m
+2026-07-30T02:02:06.1350272Z [36;1m} >> "$GITHUB_STEP_SUMMARY"[0m
+2026-07-30T02:02:06.1397869Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-07-30T02:02:06.1398215Z env:
+2026-07-30T02:02:06.1398489Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:06.1398925Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib/pkgconfig
+2026-07-30T02:02:06.1399343Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:06.1399714Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:06.1400135Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-30T02:02:06.1400513Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib
+2026-07-30T02:02:06.1400838Z   PR_NUM: 191388
+2026-07-30T02:02:06.1401042Z ##[endgroup]
+2026-07-30T02:02:06.1597045Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-30T02:02:06.1598273Z Post job cleanup.
+2026-07-30T02:02:06.2470504Z [command]/usr/bin/git version
+2026-07-30T02:02:06.2508645Z git version 2.54.0
+2026-07-30T02:02:06.2538308Z Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/6bde6306-fc9d-4112-bc20-cffd4335734a/.gitconfig'
+2026-07-30T02:02:06.2547562Z Temporarily overriding HOME='/home/runner/work/_temp/6bde6306-fc9d-4112-bc20-cffd4335734a' before making global git config changes
+2026-07-30T02:02:06.2548535Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-30T02:02:06.2553057Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/pytorch/pytorch
+2026-07-30T02:02:06.2590324Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-30T02:02:06.2624244Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-30T02:02:06.2895830Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-30T02:02:06.2924486Z http.https://github.com/.extraheader
+2026-07-30T02:02:06.2934625Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader

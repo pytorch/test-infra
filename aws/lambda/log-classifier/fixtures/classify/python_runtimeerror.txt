@@ -1,0 +1,61 @@
+2026-07-30T01:59:21.2801063Z [1m[36mYou can reproduce these results locally by using `lintrunner -m origin/main`. (If you don't get the same results, run \'lintrunner init\' to update your local linter)[0m
+2026-07-30T01:59:21.2802518Z [1m[36mSee https://github.com/pytorch/pytorch/wiki/lintrunner for setup instructions. To apply suggested patches automatically, use the -a flag. Before pushing another commit,[0m
+2026-07-30T01:59:21.2803479Z [1m[36mplease verify locally and ensure everything passes.[0m
+2026-07-30T01:59:21.2843119Z ##[error]Linter failed. This a bug, please file an issue against the linter maintainer.
+
+CONTEXT:
+Linter command failed with non-zero exit code.
+STDERR:
+Traceback (most recent call last):
+  File "/__w/pytorch/pytorch/tools/linter/adapters/stable_shim_version_linter.py", line 86, in get_added_lines
+    result = subprocess.run(
+  File "/usr/lib/python3.10/subprocess.py", line 505, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+  File "/usr/lib/python3.10/subprocess.py", line 1154, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+  File "/usr/lib/python3.10/subprocess.py", line 2022, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/usr/lib/python3.10/subprocess.py", line 1198, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['git', 'diff', '4cd33ef59e1b6d327e9e3da0e6063217f076afef..HEAD', '/__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/c/shim.h']' timed out after 5 seconds
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/__w/pytorch/pytorch/tools/linter/adapters/stable_shim_version_linter.py", line 269, in <module>
+    lint_messages.extend(check_file(filename))
+  File "/__w/pytorch/pytorch/tools/linter/adapters/stable_shim_version_linter.py", line 128, in check_file
+    added_lines = get_added_lines(filename)
+  File "/__w/pytorch/pytorch/tools/linter/adapters/stable_shim_version_linter.py", line 99, in get_added_lines
+    raise RuntimeError(
+#=MATCH=# ‹RuntimeError: Failed to get git diff information for /__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/c/shim.h. Error: Command '['git', 'diff', '4cd33ef59e1b6d327e9e3da0e6063217f076afef..HEAD', '/__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/c/shim.h']' timed out after 5 seconds›
+
+
+STDOUT:
+
+2026-07-30T01:59:21.5921958Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-30T01:59:21.5949466Z ##[error]Process completed with exit code 1.
+2026-07-30T01:59:21.6045173Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-30T01:59:21.6298764Z Post job cleanup.
+2026-07-30T01:59:21.6302784Z ##[start-action display=Checkout PyTorch;id=__bfd89c1e-7c4b-4aea-b94c-0bd0b7e1d66e.__pytorch_pytorch]
+2026-07-30T01:59:21.6433276Z Post job cleanup.
+2026-07-30T01:59:21.6437377Z ##[start-action display=Checkout PyTorch;id=__bfd89c1e-7c4b-4aea-b94c-0bd0b7e1d66e.__pytorch_pytorch.first-checkout-attempt]
+2026-07-30T01:59:21.7122133Z Post job cleanup.
+2026-07-30T01:59:21.7141098Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-30T01:59:21.7142211Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-30T01:59:21.7142514Z ##[endgroup]
+2026-07-30T01:59:23.5674114Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-30T01:59:23.5674581Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-30T01:59:23.5675150Z [command]/usr/bin/git version
+2026-07-30T01:59:23.5675395Z git version 2.54.0
+2026-07-30T01:59:23.5677971Z Copying '/var/lib/jenkins/.gitconfig' to '/__w/_temp/14c3e2c4-e978-4d6a-9a0f-3f444cec4d77/.gitconfig'
+2026-07-30T01:59:23.5678770Z Temporarily overriding HOME='/__w/_temp/14c3e2c4-e978-4d6a-9a0f-3f444cec4d77' before making global git config changes
+2026-07-30T01:59:23.5679512Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-30T01:59:23.5680101Z [command]/usr/bin/git config --global --add safe.directory /__w/pytorch/pytorch
+2026-07-30T01:59:23.5681227Z Removing SSH command configuration
+2026-07-30T01:59:23.5681736Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-30T01:59:23.5683203Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-30T01:59:23.5684101Z Entering 'android/libs/fbjni'
+2026-07-30T01:59:23.5684445Z Entering 'third_party/FP16'
+2026-07-30T01:59:23.5684799Z Entering 'third_party/FXdiv'
+2026-07-30T01:59:23.5685144Z Entering 'third_party/NNPACK'

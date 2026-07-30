@@ -1,0 +1,61 @@
+2026-07-30T13:29:27.5549996Z [1266/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDADeviceAssertionHost.cpp.o
+2026-07-30T13:29:27.5550651Z [1267/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDACachingAllocator.cpp.o
+2026-07-30T13:29:27.7591391Z [1268/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAException.cpp.o
+2026-07-30T13:29:27.7592015Z [1269/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAFunctions.cpp.o
+2026-07-30T13:29:27.9664686Z [1270/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAMallocAsyncAllocator.cpp.o
+2026-07-30T13:29:27.9665386Z [1271/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAMiscFunctions.cpp.o
+2026-07-30T13:29:27.9666010Z [1272/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/CUDAStream.cpp.o
+2026-07-30T13:29:28.1939308Z [1273/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/impl/CUDAGuardImpl.cpp.o
+2026-07-30T13:29:28.1939981Z [1274/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/PeerToPeerAccess.cpp.o
+2026-07-30T13:29:28.1940481Z [1275/3874] Linking CXX static library lib/libdnnl.a
+2026-07-30T13:29:28.1940993Z [1276/3874] Scanning /__w/pytorch/pytorch/third_party/fmt/src/format.cc for CXX dependencies
+2026-07-30T13:29:28.1941597Z FAILED: [code=127] third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi 
+2026-07-30T13:29:28.1948526Z "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND" -format=p1689 -- /usr/bin/clang++ -DFMT_NO_UNIQUE_ADDRESS=[[no_unique_address]] -DHAVE_MALLOC_USABLE_SIZE=1 -DHAVE_MMAP=1 -DHAVE_POSIX_FALLOCATE=1 -DHAVE_SHM_OPEN=1 -DHAVE_SHM_UNLINK=1 -DIDEEP_USE_MKL -DMINIZ_DISABLE_ZIP_READER_CRC32_CHECKS -DONNXIFI_ENABLE_EXT=1 -DONNX_ML=1 -DONNX_NAMESPACE=onnx_torch -DUSE_EXTERNAL_MZCRC -D_FILE_OFFSET_BITS=64 -I/__w/pytorch/pytorch/third_party/fmt/include -isystem /__w/pytorch/pytorch/build/third_party/gloo -isystem /__w/pytorch/pytorch/cmake/../third_party/gloo -isystem /__w/pytorch/pytorch/cmake/../third_party/tensorpipe/third_party/libuv/include -isystem /__w/pytorch/pytorch/cmake/../third_party/googletest/googlemock/include -isystem /__w/pytorch/pytorch/cmake/../third_party/googletest/googletest/include -isystem /__w/pytorch/pytorch/third_party/protobuf/src -isystem /opt/python-3.10-venv/include -isystem /__w/pytorch/pytorch/third_party/ittapi/include -isystem /__w/pytorch/pytorch/cmake/../third_party/eigen -isystem /__w/pytorch/pytorch/third_party/ideep/mkl-dnn/include/oneapi/dnnl -isystem /__w/pytorch/pytorch/third_party/ideep/include -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -DNDEBUG -O3 -DNDEBUG -DNDEBUG -std=gnu++20 -fPIC -DMKL_HAS_SBGEMM -DMKL_HAS_SHGEMM -DTORCH_USE_LIBUV -DCAFFE2_USE_GLOO -x c++ /__w/pytorch/pytorch/third_party/fmt/src/format.cc -c -o third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o -resource-dir "/usr/lib/llvm-20/lib/clang/20" -MT third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi -MD -MF third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.d > third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.tmp && mv third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi.tmp third_party/fmt/CMakeFiles/fmt.dir/src/format.cc.o.ddi
+2026-07-30T13:29:28.1956161Z /bin/sh: 1: CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND: not found
+2026-07-30T13:29:28.1956611Z [1277/3874] Linking CXX static library lib/libtensorpipe_cuda.a
+2026-07-30T13:29:28.1957326Z [1278/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/impl/CUDATest.cpp.o
+2026-07-30T13:29:28.1957913Z [1279/3874] Building CXX object c10/cuda/CMakeFiles/c10_cuda.dir/driver_api.cpp.o
+2026-07-30T13:29:28.6195046Z [1280/3874] Building CUDA object third_party/gloo/gloo/CMakeFiles/gloo_cuda.dir/cuda.cu.o
+2026-07-30T13:29:28.6212526Z [1281/3874] Generating /__w/pytorch/pytorch/torch/csrc/autograd/generated/Functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/ViewFuncs.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_0.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_1.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_2.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_3.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_4.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_5.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_6.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_7.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_8.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType_9.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_0.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_1.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_2.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_3.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_4.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_5.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_6.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_7.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_8.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/TraceType_9.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/ADInplaceOrViewType_0.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/ADInplaceOrViewType_1.cpp, /__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/generated/c_shim_cpu.cpp, /__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/generated/c_shim_aten.cpp, /__w/pytorch/pytorch/torch/csrc/lazy/generated/LazyNativeFunctions.cpp, /__w/pytorch/pytorch/torch/csrc/lazy/generated/RegisterAutogradLazy.cpp, /__w/pytorch/pytorch/torch/csrc/lazy/generated/RegisterLazy.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/Functions.h, /__w/pytorch/pytorch/torch/csrc/autograd/generated/variable_factories.h, /__w/pytorch/pytorch/torch/csrc/autograd/generated/ViewFuncs.h, /__w/pytorch/pytorch/torch/csrc/autograd/generated/VariableType.h, /__w/pytorch/pytorch/torch/csrc/lazy/generated/LazyIr.h, /__w/pytorch/pytorch/torch/csrc/lazy/generated/LazyNonNativeIr.h, /__w/pytorch/pytorch/torch/csrc/lazy/generated/LazyNativeFunctions.h, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions_0.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions_1.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions_2.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions_3.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions_4.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_torch_functions_0.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_torch_functions_1.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_torch_functions_2.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_nn_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_fft_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_linalg_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_nested_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_sparse_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_special_functions.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_return_types.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_enum_tag.cpp, /__w/pytorch/pytorch/torch/csrc/functionalization/generated/ViewMetaClassesPythonBinding.cpp, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_functions.h, /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_return_types.h, /__w/pytorch/pytorch/torch/testing/_internal/generated/annotated_fn_args.py, /__w/pytorch/pytorch/torch/csrc/inductor/aoti_torch/generated/c_shim_cuda.cpp
+2026-07-30T13:29:28.8211854Z 
+2026-07-30T13:29:28.8212176Z *** CMake build failed
+2026-07-30T13:29:28.8212439Z + sccache_epilogue
+2026-07-30T13:29:28.8212694Z + echo '::group::Sccache Compilation Log'
+2026-07-30T13:29:28.8213046Z + echo '=================== sccache compilation log ==================='
+2026-07-30T13:29:28.8213602Z + python /__w/pytorch/pytorch/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-30T13:29:28.8214299Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-30T13:29:28.8214814Z + sccache --show-stats
+2026-07-30T13:29:28.8215034Z + sccache --stop-server
+2026-07-30T13:29:28.8215251Z + echo ::endgroup::
+2026-07-30T13:29:28.8215669Z [1282/3874] Building CUDA object third_party/gloo/gloo/CMakeFiles/gloo_cuda.dir/cuda_private.cu.o
+#=MATCH=# 2026-07-30T13:29:28.8216179Z ‹ninja: build stopped: subcommand failed›.
+2026-07-30T13:29:28.8216379Z 
+2026-07-30T13:29:28.8216563Z ERROR Backend subprocess exited when trying to invoke build_wheel
+2026-07-30T13:29:28.8217158Z ##[group]Sccache Compilation Log
+2026-07-30T13:29:28.8217457Z =================== sccache compilation log ===================
+2026-07-30T13:29:28.8218249Z storage write check failed: PermissionDenied (permanent) at write => S3Error { code: "AccessDenied", message: "Access Denied", resource: "", request_id: "5TCMZMB1F7723KBF" }
+2026-07-30T13:29:28.8218924Z 
+2026-07-30T13:29:28.8218929Z 
+2026-07-30T13:29:28.8218935Z 
+2026-07-30T13:29:28.8219007Z Context:
+2026-07-30T13:29:28.8219107Z 
+2026-07-30T13:29:28.8219408Z    uri: https://s3.us-east-1.amazonaws.com/ossci-compiler-cache-circleci-v2/.sccache_check
+2026-07-30T13:29:28.8219798Z 
+2026-07-30T13:29:28.8221106Z    response: Parts { status: 403, version: HTTP/1.1, headers: {"x-amz-request-id": "5TCMZMB1F7723KBF", "x-amz-id-2": "GUl+muPNRVzUtA8BRl6xAbpbae3lbx8vUWB/rW4q2C2jktSofTumozw3/AslNbKwqUGLASMSkdhGs95HgDzuXPIs+yz+MEMD", "content-type": "application/xml", "transfer-encoding": "chunked", "date": "Thu, 30 Jul 2026 13:27:56 GMT", "connection": "close", "server": "AmazonS3"} }
+2026-07-30T13:29:28.8222517Z 
+2026-07-30T13:29:28.8222590Z    service: s3
+2026-07-30T13:29:28.8222708Z 
+2026-07-30T13:29:28.8222793Z    path: .sccache_check
+2026-07-30T13:29:28.8222938Z 
+2026-07-30T13:29:28.8223010Z    written: 13
+2026-07-30T13:29:28.8223127Z 
+2026-07-30T13:29:28.8223133Z 
+2026-07-30T13:29:28.8223137Z 
+2026-07-30T13:29:28.8223409Z =========== If your build fails, please take a look at the log above for possible reasons ===========
+2026-07-30T13:29:28.8223935Z Compile requests                         1321
+2026-07-30T13:29:28.8224247Z Compile requests executed                1262
+2026-07-30T13:29:28.8224548Z Cache hits                               1226
+2026-07-30T13:29:28.8224844Z Cache hits (Assembler)                      1
+2026-07-30T13:29:28.8225140Z Cache hits (C/C++)                       1217
+2026-07-30T13:29:28.8225763Z Cache hits (CUBIN)                          2
+2026-07-30T13:29:28.8226056Z Cache hits (CUDA)                           2

@@ -23,7 +23,7 @@
 2026-07-28T23:19:32.5831290Z  torch/profiler/_cupti/records.py              |    3 +++
 2026-07-28T23:19:32.5997990Z INFO: PR SIZE is 3174
 2026-07-28T23:19:32.5998236Z 
-2026-07-28T23:19:32.5998441Z Your PR is 3174 LOC which is more than the 2000 maximum
+#=MATCH=# 2026-07-28T23:19:32.5998441Z Your PR is 3174 ‹LOC which is more than the 2000 maximum›
 2026-07-28T23:19:32.5999062Z allowed within PyTorch infra. PLease make sure to split up
 2026-07-28T23:19:32.5999529Z your PR into smaller pieces that can be reviewed.
 2026-07-28T23:19:32.5999954Z If you think that this rule should not apply to your PR,

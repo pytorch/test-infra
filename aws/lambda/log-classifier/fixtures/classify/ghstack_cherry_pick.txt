@@ -1,0 +1,51 @@
+2026-07-30T09:15:16.0378842Z 
+2026-07-30T09:15:16.0378919Z stderr: 
+2026-07-30T09:15:16.0379030Z 
+2026-07-30T09:15:16.1332036Z     return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+2026-07-30T09:15:16.1333314Z   File "/opt/hostedtoolcache/Python/3.10.20/x64/lib/python3.10/subprocess.py", line 526, in run
+2026-07-30T09:15:16.1380842Z     raise CalledProcessError(retcode, process.args,
+2026-07-30T09:15:16.1382697Z subprocess.CalledProcessError: Command '['git', '-C', '/home/runner/work/pytorch/pytorch', 'cherry-pick', '-x', 'f2c14040ce9aa74d0e5fa7e36b3f5df80f5be0c2']' returned non-zero exit status 1.
+2026-07-30T09:15:16.1383797Z 
+2026-07-30T09:15:16.1384078Z The above exception was the direct cause of the following exception:
+2026-07-30T09:15:16.1384846Z 
+2026-07-30T09:15:16.1385005Z Traceback (most recent call last):
+2026-07-30T09:15:16.1386126Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2709, in <module>
+2026-07-30T09:15:16.1387454Z     main()
+2026-07-30T09:15:16.1388062Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2644, in main
+2026-07-30T09:15:16.1389518Z     pr.merge_changes_locally(
+2026-07-30T09:15:16.1390734Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 1383, in merge_changes_locally
+2026-07-30T09:15:16.1391932Z     return self.merge_ghstack_into(
+2026-07-30T09:15:16.1392971Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 1218, in merge_ghstack_into
+2026-07-30T09:15:16.1393968Z     repo.cherry_pick(rev)
+2026-07-30T09:15:16.1395060Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/gitutils.py", line 224, in cherry_pick
+2026-07-30T09:15:16.1396370Z     self._run_git("cherry-pick", "-x", ref)
+2026-07-30T09:15:16.1397372Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/gitutils.py", line 152, in _run_git
+2026-07-30T09:15:16.1398161Z     return _check_output(["git", "-C", self.repo_dir] + list(args))
+2026-07-30T09:15:16.1398915Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/gitutils.py", line 56, in _check_output
+2026-07-30T09:15:16.1399588Z     raise RuntimeError(msg) from e
+#=MATCH=# 2026-07-30T09:15:16.1400455Z RuntimeError: Command `git -C /home/runner/work/pytorch/pytorch ‹cherry-pick› -x f2c14040ce9aa74d0e5fa7e36b3f5df80f5be0c2` returned non-zero exit code 1
+2026-07-30T09:15:16.1401267Z ```
+2026-07-30T09:15:16.1401506Z Auto-merging test/distributed/c10d_backend_common.py
+2026-07-30T09:15:16.1401948Z CONFLICT (content): Merge conflict in test/distributed/c10d_backend_common.py
+2026-07-30T09:15:16.1402401Z Auto-merging test/distributed/test_c10d_process_group.py
+2026-07-30T09:15:16.1402760Z Auto-merging torch/csrc/distributed/c10d/init.cpp
+2026-07-30T09:15:16.1403156Z Auto-merging torch/csrc/distributed/c10d/nccl2/ProcessGroupNCCL.hpp
+2026-07-30T09:15:16.1403686Z error: could not apply f2c14040ce9... [c10d][nccl2] Add collective timing and work sequence numbers
+2026-07-30T09:15:16.1404183Z hint: After resolving the conflicts, mark them with
+2026-07-30T09:15:16.1404750Z hint: "git add/rm <pathspec>", then run
+2026-07-30T09:15:16.1405032Z hint: "git cherry-pick --continue".
+2026-07-30T09:15:16.1405380Z hint: You can instead skip this commit with "git cherry-pick --skip".
+2026-07-30T09:15:16.1405818Z hint: To abort and get back to the state before "git cherry-pick",
+2026-07-30T09:15:16.1406167Z hint: run "git cherry-pick --abort".
+2026-07-30T09:15:16.1406537Z hint: Disable this message with "git config set advice.mergeConflict false"
+2026-07-30T09:15:16.1406902Z ```
+2026-07-30T09:15:16.1526441Z ##[error]Process completed with exit code 1.
+2026-07-30T09:15:16.1576809Z ##[group]Run {
+2026-07-30T09:15:16.1577071Z [36;1m{[0m
+2026-07-30T09:15:16.1577323Z [36;1m  echo "# PR $PR_NUM is not mergeable into main"[0m
+2026-07-30T09:15:16.1577697Z [36;1m  echo "To debug, run the diagnostic workflow:"[0m
+2026-07-30T09:15:16.1578230Z [36;1m  echo "https://github.com/pytorch/test-infra/actions/workflows/pr-dependencies-check.yml"[0m
+2026-07-30T09:15:16.1578720Z [36;1m} >> "$GITHUB_STEP_SUMMARY"[0m
+2026-07-30T09:15:16.1621462Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-07-30T09:15:16.1621813Z env:
+2026-07-30T09:15:16.1622078Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.20/x64

@@ -1,0 +1,61 @@
+2026-07-29T10:01:29.7638610Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_sub_xpu_float32 <- test/test_xpu.py PASSED [0.1512s] [ 76%]
+2026-07-29T10:01:29.7640731Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_view_as_complex_xpu_float32 <- test/test_xpu.py PASSED [0.0057s] [ 78%]
+2026-07-29T10:01:29.7642738Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_view_as_real_xpu_complex64 <- test/test_xpu.py PASSED [0.0061s] [ 79%]
+2026-07-29T10:01:29.7644713Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_view_xpu_float32 <- test/test_xpu.py PASSED [0.0359s] [ 80%]
+2026-07-29T10:01:29.7647316Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_zeros_like_xpu_float32 <- test/test_xpu.py PASSED [0.0114s] [ 81%]
+2026-07-29T10:01:29.7650308Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_compare_cpu_zeros_xpu_float32 <- test/test_xpu.py PASSED [0.0068s] [ 82%]
+2026-07-29T10:01:29.7653319Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_fused_rms_norm_xpu_bfloat16 <- test/test_xpu.py PASSED [0.0371s] [ 84%]
+2026-07-29T10:01:29.7656117Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_fused_rms_norm_xpu_float16 <- test/test_xpu.py PASSED [0.0255s] [ 85%]
+2026-07-29T10:01:29.7659069Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_fused_rms_norm_xpu_float32 <- test/test_xpu.py PASSED [0.0178s] [ 86%]
+2026-07-29T10:01:29.7661979Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_abs_xpu_bool <- test/test_xpu.py PASSED [0.0069s] [ 87%]
+2026-07-29T10:01:29.7665186Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_add_xpu_bool <- test/test_xpu.py PASSED [0.0195s] [ 89%]
+2026-07-29T10:01:29.7668191Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_clone_xpu_bool <- test/test_xpu.py PASSED [0.0065s] [ 90%]
+2026-07-29T10:01:29.7671582Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_div_no_rounding_mode_xpu_bool <- test/test_xpu.py PASSED [0.0944s] [ 91%]
+2026-07-29T10:01:29.7674769Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_fill_xpu_bool <- test/test_xpu.py PASSED [0.0075s] [ 92%]
+2026-07-29T10:01:29.7678205Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_mul_xpu_bool <- test/test_xpu.py PASSED [0.0165s] [ 93%]
+2026-07-29T10:01:29.7681220Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_resize__xpu_bool <- test/test_xpu.py PASSED [0.0075s] [ 95%]
+2026-07-29T10:01:29.7684356Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_resize_as__xpu_bool <- test/test_xpu.py PASSED [0.0086s] [ 96%]
+2026-07-29T10:01:29.7687070Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_view_xpu_bool <- test/test_xpu.py PASSED [0.0113s] [ 97%]
+2026-07-29T10:01:29.7689936Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_zeros_like_xpu_bool <- test/test_xpu.py PASSED [0.0180s] [ 98%]
+2026-07-29T10:01:29.7692686Z test_xpu_expandable_segments.py::TestXpuOpsXPU::test_non_standard_bool_values_zeros_xpu_bool <- test/test_xpu.py PASSED [0.0058s] [100%]
+2026-07-29T10:01:29.7694255Z 
+2026-07-29T10:01:29.7695877Z - generated xml file: /var/lib/jenkins/pytorch/test/test-reports/python-pytest/test_xpu_expandable_segments/test_xpu_expandable_segments-b340af2c2c68b544.xml -
+2026-07-29T10:01:29.7698302Z =========== 69 passed, 13 skipped, 37 deselected in 88.60s (0:01:28) ===========
+2026-07-29T10:01:29.7700874Z The following tests failed and then succeeded when run in a new process['test/test_xpu_expandable_segments.py::TestXpu::test_graph_capture_reset_recapture']
+2026-07-29T10:01:29.7702506Z 
+2026-07-29T10:01:29.7703836Z FINISHED PRINTING LOG FILE of test_xpu_expandable_segments 1/1 (test/test-reports/test_xpu_expandable_segments_1.1_bd4b3efca2d7054a_.log)
+2026-07-29T10:01:29.7705467Z 
+2026-07-29T10:01:29.7706494Z Finished test_xpu_expandable_segments 1/1 ... [2026-07-29 10:01:29.709801][107127.830133125], took 3.82min
+2026-07-29T10:01:29.7709255Z Parsing testcases for test report: /var/lib/jenkins/pytorch/test/test-reports/python-pytest/inductor.test_native_matmul/inductor.test_native_matmul-299d7b8661d1c287.xml
+2026-07-29T10:01:29.9603515Z Failed to parse and upload json test reports: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::308535385114:assumed-role/gha_workflow_s3_and_ecr_read_only/gha-ecr-login is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::gha-artifacts/test_jsons_while_running/30432607865/90517766663/python-pytest_inductor.test_native_matmul_inductor.test_native_matmul-299d7b8661d1c287.json" because no identity-based policy allows the s3:PutObject action
+#=MATCH=# 2026-07-29T14:40:54.4928479Z ##[error]The action ‹'Test' ›has timed out after 360 minutes.
+2026-07-29T14:40:54.5527009Z ##[group]Run # copy test results back to the mounted workspace, needed sudo, resulting permissions were correct
+2026-07-29T14:40:54.5529022Z [36;1m# copy test results back to the mounted workspace, needed sudo, resulting permissions were correct[0m
+2026-07-29T14:40:54.5531517Z [36;1mdocker exec -t "f7e78856fdd99a290d56a9f477a70386c2ba299223aa88981a13522e9900f067" sh -c "cd ../pytorch && sudo cp -R test/test-reports ../workspace/test"[0m
+2026-07-29T14:40:54.5566653Z shell: /usr/bin/bash -e {0}
+2026-07-29T14:40:54.5567565Z env:
+2026-07-29T14:40:54.5568306Z   GIT_DEFAULT_BRANCH: main
+2026-07-29T14:40:54.5569434Z   RUNNER_ARTIFACT_DIR: /home/jenkins/actions-runner-0/_work/_temp/artifacts
+2026-07-29T14:40:54.5571070Z   RUNNER_TEST_RESULTS_DIR: /home/jenkins/actions-runner-0/_work/_temp/test-results
+2026-07-29T14:40:54.5572493Z   RUNNER_DOCS_DIR: /home/jenkins/actions-runner-0/_work/_temp/docs
+2026-07-29T14:40:54.5574204Z   GPU_FLAG: --device=/dev/mem --device=/dev/dri --group-add video --group-add 109
+2026-07-29T14:40:54.5575420Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T14:40:54.5576285Z   AWS_REGION: us-east-1
+2026-07-29T14:40:54.5577297Z   AWS_ACCESS_KEY_ID: ***
+2026-07-29T14:40:54.5578355Z   AWS_SECRET_ACCESS_KEY: ***
+2026-07-29T14:40:54.5590269Z   AWS_SESSION_TOKEN: ***
+2026-07-29T14:40:54.5591319Z   UV_PYTHON_INSTALL_DIR: /home/jenkins/.local/share/uv/python
+2026-07-29T14:40:54.5592361Z   UV_PYTHON: 3.12
+2026-07-29T14:40:54.5593553Z   CONTAINER_NAME: f7e78856fdd99a290d56a9f477a70386c2ba299223aa88981a13522e9900f067
+2026-07-29T14:40:54.5594756Z ##[endgroup]
+2026-07-29T14:40:54.7111086Z ##[group]Run docker exec -t "f7e78856fdd99a290d56a9f477a70386c2ba299223aa88981a13522e9900f067" sh -c "sudo chown -R 1000:1000 test"
+2026-07-29T14:40:54.7113483Z [36;1mdocker exec -t "f7e78856fdd99a290d56a9f477a70386c2ba299223aa88981a13522e9900f067" sh -c "sudo chown -R 1000:1000 test"[0m
+2026-07-29T14:40:54.7147729Z shell: /usr/bin/bash -e {0}
+2026-07-29T14:40:54.7148582Z env:
+2026-07-29T14:40:54.7149389Z   GIT_DEFAULT_BRANCH: main
+2026-07-29T14:40:54.7150515Z   RUNNER_ARTIFACT_DIR: /home/jenkins/actions-runner-0/_work/_temp/artifacts
+2026-07-29T14:40:54.7152119Z   RUNNER_TEST_RESULTS_DIR: /home/jenkins/actions-runner-0/_work/_temp/test-results
+2026-07-29T14:40:54.7153547Z   RUNNER_DOCS_DIR: /home/jenkins/actions-runner-0/_work/_temp/docs
+2026-07-29T14:40:54.7155032Z   GPU_FLAG: --device=/dev/mem --device=/dev/dri --group-add video --group-add 109
+2026-07-29T14:40:54.7156255Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T14:40:54.7157297Z   AWS_REGION: us-east-1

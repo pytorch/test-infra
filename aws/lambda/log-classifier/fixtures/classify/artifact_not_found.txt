@@ -1,0 +1,68 @@
+2026-07-29T23:48:08.0720611Z Downloading single artifact
+#=MATCH=# 2026-07-29T23:48:08.2790307Z ##[error]‹Unable to download artifact(s): Artifact not found› for name: manywheel-py3_10-cuda13_0
+        Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact.
+        For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+2026-07-29T23:48:08.5576871Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-29T23:48:08.5604057Z ##[error]Process completed with exit code 1.
+2026-07-29T23:48:08.5705723Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-29T23:48:08.5821898Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T23:48:08.5823480Z ##[group]Run actions/upload-artifact@v4.4.0
+2026-07-29T23:48:08.5823814Z with:
+2026-07-29T23:48:08.5824092Z   name: libtorch-cuda13_0-shared-with-deps-release
+2026-07-29T23:48:08.5824450Z   retention-days: 14
+2026-07-29T23:48:08.5824739Z   if-no-files-found: error
+2026-07-29T23:48:08.5825061Z   path: /home/runner/_work/_temp/libtorch_output/
+2026-07-29T23:48:08.5825418Z   compression-level: 6
+2026-07-29T23:48:08.5825735Z   overwrite: false
+2026-07-29T23:48:08.5825995Z   include-hidden-files: false
+2026-07-29T23:48:08.5826272Z env:
+2026-07-29T23:48:08.5826612Z   ALPINE_IMAGE: 308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine
+2026-07-29T23:48:08.5827096Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T23:48:08.5827392Z   BINARY_ENV_FILE: /tmp/env
+2026-07-29T23:48:08.5827697Z   BUILD_ENVIRONMENT: linux-binary-manywheel
+2026-07-29T23:48:08.5830897Z   GITHUB_TOKEN: ***
+2026-07-29T23:48:08.5831154Z   PR_NUMBER: 
+2026-07-29T23:48:08.5831410Z   PYTORCH_FINAL_PACKAGE_DIR: /artifacts
+2026-07-29T23:48:08.5831736Z   PYTORCH_ROOT: /pytorch
+2026-07-29T23:48:08.5832039Z   SHA1: 7a0bb5187068d69dac9688c8724c8bef72f0971a
+2026-07-29T23:48:08.5832378Z   SKIP_ALL_TESTS: 0
+2026-07-29T23:48:08.5832626Z   DESIRED_CUDA: cu130
+2026-07-29T23:48:08.5832899Z   LIBTORCH_VARIANT: shared-with-deps
+2026-07-29T23:48:08.5833498Z ##[endgroup]
+2026-07-29T23:48:08.6252995Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-29T23:48:08.6254701Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-29T23:48:08.6255079Z ##[endgroup]
+2026-07-29T23:48:10.0842737Z (node:996) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-29T23:48:10.0843942Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-29T23:48:10.0844514Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:10.0845007Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:10.0845497Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:10.0845982Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:10.0849640Z ##[error]No files were found with the provided path: /__w/_temp/libtorch_output/. No artifacts will be uploaded.
+2026-07-29T23:48:10.3850220Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-29T23:48:10.3874614Z ##[error]Process completed with exit code 1.
+2026-07-29T23:48:10.3894351Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-29T23:48:10.4071002Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T23:48:10.4072514Z Post job cleanup.
+2026-07-29T23:48:10.4096763Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-29T23:48:10.4098131Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-29T23:48:10.4098482Z ##[endgroup]
+2026-07-29T23:48:11.7482216Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:11.7482832Z GITHUB_EVENT_PATH /github/workflow/event.json does not exist
+2026-07-29T23:48:11.7483605Z [command]/usr/bin/git version
+2026-07-29T23:48:11.7483902Z git version 2.47.3
+2026-07-29T23:48:11.7486703Z Copying '/root/.gitconfig' to '/__w/_temp/d329ee26-40ae-457a-b55c-7dbe7a3d8843/.gitconfig'
+2026-07-29T23:48:11.7487599Z Temporarily overriding HOME='/__w/_temp/d329ee26-40ae-457a-b55c-7dbe7a3d8843' before making global git config changes
+2026-07-29T23:48:11.7488410Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-29T23:48:11.7489078Z [command]/usr/bin/git config --global --add safe.directory /__w/pytorch/pytorch
+2026-07-29T23:48:11.7490112Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-29T23:48:11.7491494Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-29T23:48:11.7492970Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-29T23:48:11.7493650Z http.https://github.com/.extraheader
+2026-07-29T23:48:11.7494560Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-29T23:48:11.7496174Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-29T23:48:12.0235258Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-29T23:48:12.0236883Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-29T23:48:12.0237239Z ##[endgroup]
+2026-07-29T23:48:12.8889015Z Cleaning up orphan processes
+2026-07-29T23:48:12.8948504Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683, actions/download-artifact@v4.1.7, actions/upload-artifact@v4.4.0. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

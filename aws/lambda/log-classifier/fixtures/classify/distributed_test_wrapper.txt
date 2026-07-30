@@ -3,7 +3,7 @@
 2026-07-24T18:47:00.4264023Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'distributed/test_c10d_torchcomms.py', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=0', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 18:47:00.269458]
 2026-07-24T18:47:03.6568011Z 
 2026-07-24T18:47:03.6568821Z PRINTING LOG FILE of distributed/test_c10d_torchcomms 1/1 (test/test-reports/distributed.test_c10d_torchcomms_1.1_57d5e8b26f6005c4_.log)
-2026-07-24T18:47:03.6570425Z TestC10dTorchCommsBackendConfig - failed. This test class should extend from torch.testing._internal.common_utils.TestCase but it doesn't.
+#=MATCH=# 2026-07-24T18:47:03.6570425Z ‹TestC10dTorchCommsBackendConfig› - failed. This test class should extend from torch.testing._internal.common_utils.TestCase but it doesn't.
 2026-07-24T18:47:03.6571251Z Got exit code 1
 2026-07-24T18:47:03.6571812Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
 2026-07-24T18:47:03.6572299Z 
@@ -24,7 +24,7 @@
 2026-07-24T18:47:05.6777192Z Uploading artifacts took 1.08 seconds
 2026-07-24T18:47:05.6777850Z Writing 1 documents to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1784918824_1072106c879011f19b01dec92ee577a0
 2026-07-24T18:47:05.6778657Z     raise RuntimeError(failure.message + keep_going_message)
-#=MATCH=# 2026-07-24T18:47:05.6779110Z ‹RuntimeError: distributed/test_c10d_torchcomms 1/1 failed!›
+2026-07-24T18:47:05.6779110Z RuntimeError: distributed/test_c10d_torchcomms 1/1 failed!
 2026-07-24T18:47:05.6779385Z 
 2026-07-24T18:47:05.6779655Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
 2026-07-24T18:47:05.6780239Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.

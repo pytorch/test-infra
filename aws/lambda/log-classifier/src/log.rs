@@ -32,6 +32,8 @@ static IGNORE_LINE_REGEXES: Lazy<Vec<Regex>> = Lazy::new(|| {
         Regex::new(r"^##\[error\]Executing the custom container implementation failed").unwrap(),
         Regex::new(r"^##\[error\]TypeError: Cannot read properties of null \(reading 'jobPod'\)")
             .unwrap(),
+        // OSDC wrapper's cancellation notice; the real cause (if any) is above it.
+        Regex::new(r"\[OSDC\] Step cancelled by GitHub Actions").unwrap(),
     ]
 });
 
@@ -175,6 +177,10 @@ mod test {
         // jobPod null-read TypeError.
         assert!(IGNORE_LINE_REGEXES[3]
             .is_match("##[error]TypeError: Cannot read properties of null (reading 'jobPod')"));
+        // OSDC cancellation notice.
+        assert!(IGNORE_LINE_REGEXES[4].is_match(
+            "##[error][OSDC] Step cancelled by GitHub Actions (received SIGINT). ..."
+        ));
     }
 
     #[test]
@@ -237,6 +243,6 @@ mod test {
     fn ignore_line_regexes_compile() {
         // Forcing the Lazy to evaluate runs every Regex::new().unwrap(), which
         // would panic here if any pattern were malformed.
-        assert_eq!(IGNORE_LINE_REGEXES.len(), 4);
+        assert_eq!(IGNORE_LINE_REGEXES.len(), 5);
     }
 }

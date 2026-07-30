@@ -66,6 +66,13 @@ pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 name = 'bazel build failure'
 pattern = '^Target //:\w+ failed to build'
 
+# pip/build backend failed to build a wheel (e.g. torchcomms). Capture the package
+# name; without this the line is unmatched (the bazel-specific ERROR rule requires
+# bazel keywords).
+[[rule]]
+name = 'pip wheel build failure'
+pattern = '^\s*ERROR: Failed building wheel for (\S+)'
+
 [[rule]]
 name = 'gtest failure'
 pattern = '(^\[  FAILED  \].*) \(\d+'
@@ -93,6 +100,14 @@ pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
 [[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
+
+# Emitted by run_test.py when a test file's class forgets to subclass
+# common_utils.TestCase; the real cause, but it prints early and the generic
+# "distributed/... failed!" run_test.py wrapper line would otherwise win.
+# Capture just the class name so it groups across runs.
+[[rule]]
+name = 'Test class does not extend TestCase'
+pattern = '''^(\S+) - failed\. This test class should extend from .*TestCase but it doesn't\.'''
 
 [[rule]]
 name = 'Python unittest failure'
@@ -126,9 +141,13 @@ pattern = '^The following tests failed consistently: \[(.*)\]$'
 name = 'xla cpp test failure'
 pattern = 'Build completed, \d+ test FAILED, \d+ total actions'
 
+# Inductor benchmark per-model result. Group 1 is the model; keep group 2 to the
+# stable failure KIND (e.g. "FAIL:  graph_breaks") and let the trailing "=N,
+# expected=N" counts fall outside the capture so a model's regression doesn't
+# scatter by count.
 [[rule]]
 name = 'inductor model failure'
-pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
+pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:FAIL|IMPROVED): +[a-z_]+).*$'
 
 [[rule]]
 name = 'NVIDIA installation failure'
@@ -210,13 +229,23 @@ pattern = '^##\[error\]Response status code does not indicate success: .*$'
 name = 'Python Test timeout (KeyboardInterrupt)'
 pattern = '!+ KeyboardInterrupt !+'
 
+# run_test.py's per-file summary ("<file> <shard>/<nshards> failed!", sometimes
+# with a RuntimeError: prefix). Capture just the file so the shard index and the
+# optional prefix don't scatter the same file across groups.
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '(?:RuntimeError: )?.*test.* failed!'
+pattern = '^(?:RuntimeError: )?(\S*test\S*)(?: \d+/\d+)? failed!'
 
 [[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
+
+# Same failure surfaced as the torch.OutOfMemoryError class rather than
+# RuntimeError; the rule above (and the generic Python-error rules) miss it.
+# Capture the stable phrase, dropping the per-run GiB/GPU numbers.
+[[rule]]
+name = 'CUDA out of memory (torch.OutOfMemoryError)'
+pattern = '^torch\.OutOfMemoryError: (CUDA out of memory)\.'
 
 [[rule]]
 name = 'Python AttributeError'
@@ -237,6 +266,25 @@ pattern = '^\s*(test.*) errored - num_retries_left:'
 [[rule]]
 name = 'pr_time_benchmarks regression'
 pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
+
+# ghstack/merge infra errors that otherwise fall into the generic Python
+# RuntimeError rule below, which bakes the per-run PR number / revision sha /
+# branch name into the whole-line capture (every occurrence its own group).
+# Capture the stable phrase instead.
+[[rule]]
+name = 'ghstack PR out of sync'
+pattern = '^RuntimeError: PR \d+ (is out of sync with the corresponding revision)'
+
+[[rule]]
+name = 'ghstack git command failed'
+pattern = '^RuntimeError: Command `git .*(cherry-pick|diff|rebase|merge|apply).*` returned non-zero exit code'
+
+# filter_test_configs.py refuses CI on a too-deep ghstack; a plain INFO line (no
+# ##[error]) that otherwise leaves the job — and ~23 fanned-out jobs per stack —
+# classified as nothing. Drop the PR number from the capture.
+[[rule]]
+name = 'ghstack too deep - refusing to run CI'
+pattern = '^PR #\d+ (sits on top of >=\d+ ghstack entries; refusing to run CI)'
 
 [[rule]]
 name = 'Python RuntimeError'
@@ -315,6 +363,13 @@ pattern = 'IMPROVED:\s+graph_breaks='
 name = 'npm error'
 pattern = '^npm ERR! code .*'
 
+# pr-sanity-check.sh fails a too-large PR with this message and then just exits
+# 1 (the exit-code line is stripped as boilerplate), so without this rule the job
+# classifies as nothing. Capture drops the variable LOC count to stay groupable.
+[[rule]]
+name = 'PR exceeds maximum size'
+pattern = '^Your PR is \d+ (LOC which is more than the \d+ maximum)$'
+
 [[rule]]
 name = 'No release notes label'
 pattern = '^# This PR needs a `release notes:` label.*'
@@ -326,6 +381,30 @@ pattern = '^Mergeability Error: .*'
 [[rule]]
 name = 'New modules are not documented correctly'
 pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'
+
+# A small utility job (runner-determinator, collect_env, …) whose only output is a
+# GitHub REST API 403 body: the API rate limit was hit. User ID / request ID vary
+# per run, so capture just the stable phrase; otherwise these classify as nothing.
+[[rule]]
+name = 'GitHub API rate limit exceeded'
+pattern = '(API rate limit exceeded) for user ID \d+'
+
+# Runner-side infra failure: the pod backing a self-hosted runner never came
+# online. The pod name is random per run, so capture only the stable phase +
+# reason tail ("Pending: backoff timeout") to keep it groupable. Must beat the
+# generic GHA-error fallback below.
+[[rule]]
+name = 'Runner pod failed to come online'
+pattern = '^##\[error\]Error: pod failed to come online with error:.*is unhealthy with phase status (.*)$'
+
+# A downstream job couldn't fetch a build artifact because the upstream build
+# failed to produce it. The artifact name (py version / cuda / arch) varies per
+# job, so without this the generic GHA-error fallback captures the whole line and
+# every occurrence lands in its own group. Capture only the stable prefix so all
+# of these aggregate together.
+[[rule]]
+name = 'Artifact download failure'
+pattern = '^##\[error\](Unable to download artifact\(s\): Artifact not found) for name:'
 
 [[rule]]
 name = 'GHA error'
