@@ -46,7 +46,9 @@ def load_sql(migration: Migration) -> str:
     try:
         return migration.sql
     except UnicodeDecodeError as exc:
-        raise MigrationError(f"{migration.path.name} is not valid UTF-8: {exc}") from exc
+        raise MigrationError(
+            f"{migration.path.name} is not valid UTF-8: {exc}"
+        ) from exc
     except OSError as exc:
         raise MigrationError(
             f"Cannot read migration {migration.path.name}: {exc}"

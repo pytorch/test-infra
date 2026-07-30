@@ -640,7 +640,9 @@ def test_build_parser_apply_flags() -> None:
     assert parser.parse_args(["status"]).command == "status"
 
 
-def test_resolve_migrations_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_resolve_migrations_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     path, explicit = migrate.resolve_migrations_dir(str(tmp_path))
     assert explicit and path == tmp_path
     monkeypatch.setenv("CH_MIGRATIONS_DIR", str(tmp_path))
@@ -651,9 +653,7 @@ def test_resolve_migrations_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert not explicit and path.name == "migrations"
 
 
-def test_main_status_dispatch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_main_status_dispatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write(tmp_path, "0001_a.sql", "CREATE TABLE a")
     fake = FakeClient(ledger_exists=False)
     monkeypatch.setattr(migrate, "connect", lambda: fake)

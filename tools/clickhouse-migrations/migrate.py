@@ -26,9 +26,6 @@ from pathlib import Path
 from typing import Any
 
 from migrate_lib import (
-    Migration,
-    MigrationError,
-    OrderingReport,
     assert_single_statement,
     check_ordering,
     compute_checksum,
@@ -36,6 +33,9 @@ from migrate_lib import (
     detect_drift,
     discover_migrations,
     load_sql,
+    Migration,
+    MigrationError,
+    OrderingReport,
     orphan_versions,
     pending_migrations,
     validate_migrations,
