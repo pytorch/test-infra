@@ -73,6 +73,9 @@ jobs:
           set -euo pipefail
           ts="$(date -u +%Y%m%dT%H%M%SZ)"
           gzip -c runner_fleet_count.jsonl > runner_fleet_count.json.gz
+          # NB: do NOT set --content-encoding gzip. ClickHouse's s3() reader
+          # decompresses via the explicit compression arg in the replicator; a
+          # gzip Content-Encoding header makes it mis-read the object and ingest
+          # 0 rows silently (no error). Store plain gzip bytes instead.
           aws s3 cp runner_fleet_count.json.gz \
-            "s3://${S3_BUCKET}/${S3_PREFIX}/${RUNNER_ORG}/${ts}.json.gz" \
-            --content-type application/json --content-encoding gzip
+            "s3://${S3_BUCKET}/${S3_PREFIX}/${RUNNER_ORG}/${ts}.json.gz"
