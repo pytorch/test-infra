@@ -1,6 +1,7 @@
 """Fetch open PRs from trusted authors in pytorch/pytorch and log them.
 
-Gating, scoring, and the review decision are the seam to fill.
+The trusted-author set is the match rule. Risk-scoring and triggering the AI
+code-review workflow are the seam to fill.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ def _default_fetch(config: Config) -> list[OpenPR]:
 
 
 def run(config: Config, *, fetch: Callable[[Config], list[OpenPR]] = _default_fetch) -> None:
-    logger.info("planning investigations")
+    logger.info("reviewing open PRs from trusted authors in %s", TARGET_REPO)
     logger.debug("greenlight config: %r", config)
     prs = fetch(config)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(prs), len(TRUSTED_AUTHORS), TARGET_REPO)

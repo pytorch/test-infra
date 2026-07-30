@@ -4,12 +4,11 @@ Command reference for the `greenlight` service. Run every command from the `gree
 directory. `just` is the front-end for every workflow — run `just` or
 `just --list` to see all recipes.
 
-PyTorch Green Light runs one iteration of a phase and exits (cron-like), or loops as a daemon
-with `--loop`. It has two phases:
+PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
+loops as a daemon with `--loop`:
 
-- `plan` — fetch the open PRs from a fixed set of trusted authors in `pytorch/pytorch`
+- `review` — fetch the open PRs from a fixed set of trusted authors in `pytorch/pytorch`
   and log them (needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN`).
-- `act` — logs only (stub); planned: turn review decisions into approvals/revocations.
 
 ## Setup
 
@@ -29,28 +28,24 @@ pytest, yamllint) into `.venv`.
 ## Run
 
 ```bash
-just plan            # one plan iteration, then exit
-just act             # one act iteration, then exit
-just run <args>      # pass arbitrary args to the greenlight CLI (plan/act are shortcuts)
+just review          # one review iteration, then exit
+just run <args>      # pass arbitrary args to the greenlight CLI (review is a shortcut)
 ```
 
-`just act` logs `INFO greenlight.act applying approval decisions` and exits `0`.
-`just plan` logs `INFO greenlight.plan planning investigations`, then queries GitHub
-for the trusted authors' open PRs and logs each one; without
-`PYTORCH_GREENLIGHT_GITHUB_TOKEN` it raises and exits `1`. Log lines are
+`just review` logs `INFO greenlight.review reviewing open PRs from trusted authors in
+pytorch/pytorch`, then queries GitHub for the trusted authors' open PRs and logs each
+one; without `PYTORCH_GREENLIGHT_GITHUB_TOKEN` it raises and exits `1`. Log lines are
 `TIMESTAMP LEVEL logger message`. Exit codes: `0` ok, `1` the phase raised, `3`
 another instance holds the lock (`2` is an argparse usage error).
 
-`act` is a stub (logs only); `plan` fetches and logs the trusted authors' open PRs
-but does not yet gate, score, or decide reviews. Selection and scoring and
-approve/revoke are planned.
+`review` fetches and logs the trusted authors' open PRs but does not yet score risk or
+decide reviews. Risk-scoring, the AI code-review workflow, and approve/reject are planned.
 
 Daemon mode loops the phase on an interval:
 
 ```bash
-just plan --loop                 # loop forever, default 60s interval
-just plan --loop --interval 30   # loop every 30s
-just act --loop                  # same for act
+just review --loop               # loop forever, default 60s interval
+just review --loop --interval 30 # loop every 30s
 ```
 
 The daemon logs `INFO greenlight.runner daemon starting with interval N seconds`,
@@ -63,7 +58,7 @@ Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--lo
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token for read-only PR access; required by `plan` |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token for read-only PR access; required by `review` |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -76,22 +71,21 @@ logs the resolved `Config`.
 
 ## Simulate a run
 
-The intended end-to-end flow is: `plan` (select, gate, and score PRs; decide which
-need review) -> the code-review agent (the review step) -> `act` (approve or revoke
-based on the review decisions).
+The intended end-to-end flow is: `review` (fetch PRs, score risk, decide which need
+review) -> the AI code-review workflow (which approves or rejects).
 
-Reality today: `plan` fetches and logs the trusted authors' open PRs (a live,
-read-only GitHub call needing `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) but does not yet
-gate, score, or decide reviews; the code-review agent step is not implemented; and
-`act` logs only. So a local run exercises the two entry points and their wiring, not
-the real selection, review, or approve/revoke behavior.
+Reality today: `review` fetches and logs the trusted authors' open PRs (a live,
+read-only GitHub call needing `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) but does not yet score
+risk or decide reviews; the AI code-review workflow is not implemented. So a local run
+exercises the entry point and its wiring, not the real scoring, review, or
+approve/reject behavior.
 
 What you can run today (DEBUG to watch the flow):
 
 ```bash
-just plan --log-level DEBUG   # fetch + log trusted authors' open PRs (needs token; no gating/scoring yet)
-# code-review agent / review step — not implemented yet
-just act --log-level DEBUG    # logs only (stub)
+just review --log-level DEBUG   # fetch + log trusted authors' open PRs (needs token; no risk-scoring yet)
+# risk-scoring — not implemented yet
+# AI code-review workflow (approve/reject) — separate component, not implemented yet
 ```
 
 ## Quality gates

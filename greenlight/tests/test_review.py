@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from greenlight import github_client, plan
+from greenlight import github_client, review
 from greenlight.github_client import OpenPR
 
 
@@ -13,7 +13,7 @@ def test_run_with_prs_logs_count_and_one_line_per_pr(make_config, caplog):
     ]
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        plan.run(make_config(), fetch=lambda config: prs)
+        review.run(make_config(), fetch=lambda config: prs)
 
     messages = [record.getMessage() for record in caplog.records]
     assert any("found 2 open PR(s)" in message for message in messages)
@@ -23,7 +23,7 @@ def test_run_with_prs_logs_count_and_one_line_per_pr(make_config, caplog):
 
 def test_run_with_no_prs_logs_zero_count(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        plan.run(make_config(), fetch=lambda config: [])
+        review.run(make_config(), fetch=lambda config: [])
 
     messages = [record.getMessage() for record in caplog.records]
     assert any("found 0 open PR(s)" in message for message in messages)
@@ -31,7 +31,7 @@ def test_run_with_no_prs_logs_zero_count(make_config, caplog):
 
 def test_default_fetch_without_token_raises(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        plan._default_fetch(make_config(github_token=None))
+        review._default_fetch(make_config(github_token=None))
 
 
 def test_default_fetch_with_token_builds_client_and_lists_prs(make_config, monkeypatch):
@@ -39,7 +39,7 @@ def test_default_fetch_with_token_builds_client_and_lists_prs(make_config, monke
     built_with: dict[str, object] = {}
     listed_with: dict[str, object] = {}
     expected_prs = [
-        OpenPR(repo=plan.TARGET_REPO, number=1, author="octocat", title="fix", url="https://example.test/1")
+        OpenPR(repo=review.TARGET_REPO, number=1, author="octocat", title="fix", url="https://example.test/1")
     ]
 
     def fake_build_client(token):
@@ -55,10 +55,10 @@ def test_default_fetch_with_token_builds_client_and_lists_prs(make_config, monke
     monkeypatch.setattr(github_client, "build_client", fake_build_client)
     monkeypatch.setattr(github_client, "list_open_prs_by_authors", fake_list_open_prs_by_authors)
 
-    result = plan._default_fetch(make_config(github_token="secret-token"))
+    result = review._default_fetch(make_config(github_token="secret-token"))
 
     assert result is expected_prs
     assert built_with["token"] == "secret-token"
     assert listed_with["client"] is fake_client
-    assert listed_with["repo"] == plan.TARGET_REPO
-    assert listed_with["authors"] == plan.TRUSTED_AUTHORS
+    assert listed_with["repo"] == review.TARGET_REPO
+    assert listed_with["authors"] == review.TRUSTED_AUTHORS

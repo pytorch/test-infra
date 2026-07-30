@@ -4,12 +4,12 @@ This file is the canonical project guidance for any coding agent operating in `g
 
 ## What This Is
 
-PyTorch Green Light is a Python 3.14 service invoked from the CLI. It exposes two phases —
-`plan` and `act` — each of which runs a single iteration and
-exits (cron-like), e.g. `just run plan`. Either phase can also run as a long-lived
-daemon with `--loop`, e.g. `just run plan --loop`, which repeats that phase on an
-interval. Both phases share the same one-shot and daemon execution paths, so PyTorch Green Light
-can move between cron-driven and daemon deployment with no change to phase logic.
+PyTorch Green Light is a Python 3.14 service invoked from the CLI. Its `review` phase
+runs a single iteration and exits (cron-like), e.g. `just run review`. It can also run
+as a long-lived daemon with `--loop`, e.g. `just run review --loop`, which repeats the
+phase on an interval. The phase runs through the same one-shot and daemon execution
+paths, so PyTorch Green Light can move between cron-driven and daemon deployment with no
+change to phase logic.
 
 ## Tooling
 
@@ -46,22 +46,23 @@ defer; they block CI.
 
 ## The Service Seam
 
-PyTorch Green Light has two units of work, one per phase — the placeholder seams where new logic
-goes:
+PyTorch Green Light has one unit of work — the `review` phase — the placeholder seam where
+new logic goes:
 
-- `plan.run()` — fetches the open PRs from a fixed set of trusted authors in
-  `pytorch/pytorch` and logs them; the seam to fill is gating, scoring, and the
-  review decision. Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
-- `act.run()` — currently a stub (logs only); the seam to fill is turning review
-  decisions into PR approvals or revocations.
+- `review.run()` — fetches the open PRs from a fixed set of trusted authors in
+  `pytorch/pytorch` and logs them; the trusted-author set is the match rule. The seam
+  to fill is risk-scoring and triggering the AI code-review workflow. Requires
+  `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
+
+Approving or rejecting a PR now lives in that future triggered workflow, not in greenlight.
 
 The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 `github_client.build_pr_fingerprint`) is built and tested but not yet wired into
-`plan`/`act` or any ClickHouse table.
+`review` or any ClickHouse table.
 
-Add new logic inside the relevant phase's `run()`, which **must keep raising on
-failure** (it does not catch). The CLI selects a phase (`greenlight plan` / `greenlight act`)
-and runs it through one of two execution paths, so a phase can move between
+Add new logic inside `review.run()`, which **must keep raising on
+failure** (it does not catch). The CLI runs the `review` phase
+through one of two execution paths, so the phase can move between
 cron-driven and daemon deployment with no change to its logic:
 
 - One-shot / cron mode (`execute_once`) lets the exception propagate to a non-zero
@@ -69,12 +70,11 @@ cron-driven and daemon deployment with no change to its logic:
 - Daemon mode (`run_forever`, via `--loop`) catches the exception, logs it, backs
   off, and continues the loop.
 
-Keep each phase's `run()` propagating failures: do not swallow failures on the
+Keep `review.run()` propagating failures: do not swallow failures on the
 one-shot path, and do not let the daemon die on a single failed iteration.
 
-Both paths run under the single-instance lock (`PYTORCH_GREENLIGHT_LOCK_PATH`); the lock
-file is phase-suffixed (`.plan`/`.act`) so the two phases hold independent locks. In
-`--loop` mode, SIGTERM/SIGINT stop the daemon only between iterations. A hung iteration is
+Both paths run under the single-instance lock at the configured `PYTORCH_GREENLIGHT_LOCK_PATH`.
+In `--loop` mode, SIGTERM/SIGINT stop the daemon only between iterations. A hung iteration is
 guarded in two layers keyed off `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default 600s): a
 best-effort SIGALRM per-iteration timeout, which fires only on the main thread and cannot
 interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchdog that

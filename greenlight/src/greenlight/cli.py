@@ -8,7 +8,7 @@ import logging
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import act, plan
+from greenlight import review
 from greenlight.config import Config
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
-
-PHASES: dict[str, Callable[[Config], None]] = {"plan": plan.run, "act": act.run}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,19 +34,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser(
-        "plan",
+        "review",
         parents=[common],
-        help="fetch open PRs from trusted authors in pytorch/pytorch and log them",
+        help="fetch open PRs from trusted authors in pytorch/pytorch, match review rules, and log them",
         description=(
             "Fetch the open PRs from a fixed set of trusted authors in pytorch/pytorch and log them. "
             "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN."
         ),
-    )
-    subparsers.add_parser(
-        "act",
-        parents=[common],
-        help="log only (stub)",
-        description="Log-only stub. Turning review decisions into PR approvals or revocations is the seam to fill.",
     )
     return parser
 
@@ -62,12 +54,6 @@ def _config_from_args(args: argparse.Namespace) -> Config:
     if args.lock_path is not None:
         config = dataclasses.replace(config, lock_path=args.lock_path)
     return config
-
-
-def _phase_lock_path(base: str | None, phase: str) -> str | None:
-    if not base:
-        return None
-    return f"{base}.{phase}"
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
@@ -97,8 +83,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         configure_logging(config.log_level)
     except ValueError as exc:
         parser.error(str(exc))
-    lock_path = _phase_lock_path(config.lock_path, args.command)
+    lock_path = config.lock_path
     if lock_path is not None:
         logger.info("using single-instance lock path %s", lock_path)
-    run = PHASES[args.command]
+    run = review.run
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

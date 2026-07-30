@@ -15,13 +15,9 @@ setup:
 run *args:
     uv run greenlight {{args}}
 
-# Fetch open PRs from trusted authors in pytorch/pytorch and log them
-plan *args:
-    uv run greenlight plan {{args}}
-
-# Log only (stub)
-act *args:
-    uv run greenlight act {{args}}
+# Fetch open PRs from trusted authors in pytorch/pytorch, match review rules, and log them
+review *args:
+    uv run greenlight review {{args}}
 
 # Type-check source and tests
 typecheck:
