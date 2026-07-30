@@ -725,6 +725,13 @@
       "dynamo"
     ]
   ],
+  "test_max_autotune_decompose_k_dynamic_input_bwd (__main__.TestMaxAutotune)": [
+    "191620",
+    "https://github.com/pytorch/pytorch/issues/191620",
+    [
+      "xpu"
+    ]
+  ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
     "190748",
     "https://github.com/pytorch/pytorch/issues/190748",
