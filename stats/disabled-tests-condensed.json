@@ -29,13 +29,6 @@
       "macos"
     ]
   ],
-  "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "188897",
-    "https://github.com/pytorch/pytorch/issues/188897",
-    [
-      "rocm"
-    ]
-  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
@@ -355,13 +348,6 @@
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
-    [
-      "rocm"
-    ]
-  ],
-  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
-    "187203",
-    "https://github.com/pytorch/pytorch/issues/187203",
     [
       "rocm"
     ]
@@ -1038,13 +1024,6 @@
       "linux"
     ]
   ],
-  "test_scatter_add_to_large_input_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "187704",
-    "https://github.com/pytorch/pytorch/issues/187704",
-    [
-      "inductor"
-    ]
-  ],
   "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
     "167693",
     "https://github.com/pytorch/pytorch/issues/167693",
@@ -1241,13 +1220,6 @@
       "macos",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_stream_backward_sync (__main__.TestStreams)": [
-    "190190",
-    "https://github.com/pytorch/pytorch/issues/190190",
-    [
-      "linux"
     ]
   ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
