@@ -1,6 +1,9 @@
 from typing import List
 
-from .aggregate import (
+from .aggregate import PremergeData, PremergeRow
+from .htmlutil import escape, tip_attr
+from .premerge_explain import render_explanation
+from .premerge_status import (
     PREMERGE_STATUS_ERROR,
     PREMERGE_STATUS_FORCE_MERGE,
     PREMERGE_STATUS_NO_MERGE_RECORD,
@@ -9,12 +12,11 @@ from .aggregate import (
     PREMERGE_STATUS_RUN_SUCCEEDED,
     PREMERGE_STATUS_SKIPPED,
     PREMERGE_STATUS_TD_DESELECTED,
+    PREMERGE_STATUS_TD_UNKNOWN,
+    PREMERGE_STATUS_TEST_ABSENT,
     PREMERGE_STATUS_TOOLTIPS,
     PREMERGE_TOOLTIP_UNDETERMINED,
-    PremergeData,
-    PremergeRow,
 )
-from .htmlutil import escape, tip_attr
 
 
 PREMERGE_HEADING = "Pre-merge status (trunk/pull regressions)"
@@ -101,6 +103,8 @@ def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> 
     force_merge = counts.get(PREMERGE_STATUS_FORCE_MERGE, 0)
     not_in_matrix = counts.get(PREMERGE_STATUS_NOT_IN_MATRIX, 0)
     td = counts.get(PREMERGE_STATUS_TD_DESELECTED, 0)
+    test_absent = counts.get(PREMERGE_STATUS_TEST_ABSENT, 0)
+    td_unknown = counts.get(PREMERGE_STATUS_TD_UNKNOWN, 0)
     skipped = counts.get(PREMERGE_STATUS_SKIPPED, 0)
     run_ok = counts.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
     run_fail = counts.get(PREMERGE_STATUS_RUN_FAILED, 0)
@@ -129,16 +133,26 @@ def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> 
         _fn_row(r2, "merge gate ran"),
         _fn_drop(
             not_in_matrix,
-            "file/config not in the pre-merge matrix",
+            "the test's job wasn't in the pre-merge matrix",
             tips[PREMERGE_STATUS_NOT_IN_MATRIX],
         ),
-        _fn_row(r3, "test's file was in the matrix"),
+        _fn_row(r3, "the test's job was in the matrix"),
         _fn_drop(
             td,
-            "deselected by target-determination",
+            "target-determination excluded the test's file",
             tips[PREMERGE_STATUS_TD_DESELECTED],
         ),
-        _fn_row(r4, "test was selected to run"),
+        _fn_row(r4, "the test's file ran pre-merge"),
+        _fn_drop(
+            test_absent,
+            "the file ran, but this test left no result (not TD)",
+            tips[PREMERGE_STATUS_TEST_ABSENT],
+        ),
+        _fn_drop(
+            td_unknown,
+            "no result; couldn't determine if TD excluded the file",
+            tips[PREMERGE_STATUS_TD_UNKNOWN],
+        ),
         _fn_drop(skipped, "skipped", tips[PREMERGE_STATUS_SKIPPED]),
         _fn_row(run_ok, "ran and PASSED pre-merge (landrace)", "fn-pass"),
         _fn_row(run_fail, "ran and FAILED pre-merge (merged red)", "fn-fail"),
@@ -162,15 +176,18 @@ def _render_headline(premerge: PremergeData) -> str:
         '<div class="headline">'
         + _hl(
             premerge.green_would_be_red_commits,
-            "commits with otherwise-green signals that would be red if TD had "
-            "run the deselected test",
-            "Commits that had a target-determination-deselected test which "
-            "failed on main, and no other test that failed pre-merge - i.e. "
-            "the PR looked green but would have gone red had TD run that test.",
+            "commits that looked green pre-merge but whose failing test's file "
+            "was excluded by target-determination",
+            "Commits where target-determination excluded the failing test's "
+            "file from the pre-merge run and no other test failed pre-merge - "
+            "so the change looked green. Re-running the excluded test is not "
+            "guaranteed to reproduce the failure (landraces exist), but the "
+            "file was never given the chance to run.",
         )
         + _hl(
             premerge.td_deselected_commits,
-            "commits with TD-skipped signals that failed on main",
+            "commits whose failing test's file TD excluded pre-merge, that then "
+            "failed on main",
             PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED],
         )
         + "</div>"
@@ -267,64 +284,6 @@ def _row_table(
     )
 
 
-def _explanation() -> str:
-    rows = [
-        (
-            "no_merge_record",
-            "couldn't look",
-            "No merge record identified which pre-merge version to check - a "
-            "stacked-PR commit that isn't the top of its stack, a revert, or a "
-            "direct push. Status is unknown (a tool limitation, not a CI fact).",
-        ),
-        (
-            "force_merge",
-            "gate bypassed",
-            "The change was force-merged (-f), so the required checks never ran "
-            "this test before it landed. A process finding.",
-        ),
-        (
-            "not_in_matrix",
-            "file wasn't tested",
-            "The gate ran, but this test's whole job/config was not part of the "
-            "pre-merge checks - nothing from its file ran. A coverage gap.",
-        ),
-        (
-            "td_deselected",
-            "file tested, this test filtered out",
-            "The file's job ran, but target-determination (which skips tests it "
-            "predicts are unaffected) did not select this specific test - or it "
-            "was renamed/removed. A coverage gap of a finer grain.",
-        ),
-        (
-            "skipped",
-            "test reached, but opted out",
-            "The test was in the run but explicitly skipped (a skip condition / "
-            "platform guard), so it produced no pass/fail. Usually intentional.",
-        ),
-    ]
-    body = "".join(
-        f"<tr><td><code>NOT_RUN:{escape(key)}</code></td>"
-        f"<td>{escape(short)}</td><td>{escape(desc)}</td></tr>"
-        for key, short, desc in rows
-    )
-    return (
-        '<div class="explain">'
-        "<h3>What the NOT_RUN reasons mean</h3>"
-        '<p class="model">All NOT_RUN reasons mean the test produced no pass/fail '
-        "before merge - they differ by <em>where in the pipeline it dropped "
-        "out</em>. The funnel above is that pipeline: each stage must pass to "
-        "reach the next.</p>"
-        "<table><thead><tr><th>Reason</th><th>In one phrase</th>"
-        "<th>What happened</th></tr></thead><tbody>" + body + "</tbody></table>"
-        '<p class="model">Only <code>not_in_matrix</code> and '
-        "<code>td_deselected</code> are true test-coverage gaps worth chasing. "
-        "<code>force_merge</code> is a process signal, <code>skipped</code> is "
-        "usually intentional, and <code>no_merge_record</code> is a tool "
-        "blind spot.</p>"
-        "</div>"
-    )
-
-
 def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) -> str:
     heading = f"<h2>{escape(PREMERGE_HEADING)}</h2>"
     if premerge.total_eligible == 0:
@@ -360,5 +319,5 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
         + headline
         + funnels
         + tables
-        + _explanation()
+        + render_explanation()
     )

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
@@ -5,6 +6,26 @@ from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
 
 from .client import run_query
 from .logic import is_test_signal
+from .premerge_sql import MAIN_FAILING_TESTS_SQL, MAIN_JOBS_SQL
+
+
+# Failing configs for a landed commit, keyed by (file, name) -> {(build_env, test_config)}.
+FailingConfigs = Dict[Tuple[str, str], Set[Tuple[str, str]]]
+
+# workflow_job.name is "<build_env> / test (<test_config>, <shard>, <total>, <runner>...)".
+# build_env is everything before " / test (", test_config is the first parenthesized token
+# (delimited by ',' or ')'). Mirrors pytorch test-infra's get_reverts_caused_by_td.py so the
+# parsed keys line up with the TD artifact's (build_env, test_config) keys.
+_JOB_NAME_RE = re.compile(r"^(?P<build_env>.+?) / test \((?P<test_config>[^,)]+)")
+
+
+def parse_build_env_test_config(job_name: str) -> Optional[Tuple[str, str]]:
+    """(build_env, test_config) parsed from a workflow_job.name, or None if it is not a
+    shaped test job (e.g. a build job or an unparseable name)."""
+    match = _JOB_NAME_RE.match(job_name)
+    if match is None:
+        return None
+    return match.group("build_env").strip(), match.group("test_config").strip()
 
 
 REVERTS_SQL = """
@@ -67,6 +88,18 @@ WHERE repo = {repo:String}
   AND signal_source = 'test'
   AND toString(suspect_commit) IN {shas:Array(String)}
 GROUP BY commit_sha, signal_key
+"""
+
+# The `pull` workflow runs on a validated pre-merge head, oldest first. A head normally has
+# two: the PR's original run (which carries the real TD exclusions) and the merge-triggered
+# rerun (whose exclusions are empty). GROUP BY dedupes unmerged ReplacingMergeTree rows.
+PULL_RUNS_SQL = """
+SELECT id, run_attempt
+FROM default.workflow_run
+WHERE head_sha = {head_sha:String}
+  AND name = 'pull'
+GROUP BY id, run_attempt
+ORDER BY min(run_started_at) ASC
 """
 
 PUSH_CHUNK_SIZE = 500
@@ -153,3 +186,45 @@ def fetch_advisor_verdicts(
             wf = workflow or None
             verdicts[(commit_sha, signal_key)] = (verdict, conf, wf)
     return verdicts
+
+
+def fetch_pull_runs(client: Client, head_sha: str) -> List[Tuple[int, int]]:
+    """(id, run_attempt) of every `pull` workflow run on head_sha, oldest first."""
+    rows = run_query(client, PULL_RUNS_SQL, {"head_sha": head_sha})
+    return [(int(r[0]), int(r[1])) for r in rows]
+
+
+def fetch_failing_configs(
+    client: Client,
+    commit_sha: str,
+    lower: datetime,
+    upper: datetime,
+    tlow: datetime,
+) -> FailingConfigs:
+    """For a landed commit, the (build_env, test_config) set where each (file, name) FAILED
+    on main. Batched per commit (two queries, not one per signal): resolve the commit's test
+    jobs, then the tests that failed across them, joining job_id -> (build_env, test_config)
+    in Python. A job whose name does not parse is dropped (it carries no config to key by)."""
+    job_rows = run_query(
+        client, MAIN_JOBS_SQL, {"commit": commit_sha, "lower": lower, "upper": upper}
+    )
+    job_config: Dict[int, Tuple[str, str]] = {}
+    for job_id, name in job_rows:
+        parsed = parse_build_env_test_config(name)
+        if parsed is not None:
+            job_config[int(job_id)] = parsed
+    if not job_config:
+        return {}
+
+    fail_rows = run_query(
+        client,
+        MAIN_FAILING_TESTS_SQL,
+        {"job_ids": list(job_config), "tlow": tlow},
+    )
+    failing: FailingConfigs = {}
+    for job_id, file, name in fail_rows:
+        config = job_config.get(int(job_id))
+        if config is None:
+            continue
+        failing.setdefault((file, name), set()).add(config)
+    return failing

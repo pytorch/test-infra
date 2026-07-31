@@ -41,8 +41,19 @@ signals are excluded.
     force merge that still ran the test reports the test's real verdict instead —
     force_merge never masks a real outcome.
   - `NOT_RUN:skipped` — the test ran but every run was skipped.
-  - `NOT_RUN:td_deselected` — the test's file ran but the test was deselected
-    (test dependency / target determination).
+  - `NOT_RUN:td_deselected` — target determination (TD) excluded the failing
+    test's whole file from the pre-merge `pull` run (recorded in the S3
+    `td_exclusions` artifact), so the file — and this test — never ran. TD is
+    **file-level**: it predicts which files a change can affect and skips the
+    rest. This is the honest "green would be red" signal, though re-running the
+    excluded test is not guaranteed to reproduce the failure (landraces exist).
+  - `NOT_RUN:test_absent` — the test's file ran pre-merge but this specific test
+    produced no result row, and TD did **not** exclude it. Not a TD decision:
+    typically a renamed/removed/reparametrized test, a shard split, or a
+    job-filter edge.
+  - `NOT_RUN:td_unknown` — the test produced no pre-merge result and TD's
+    decision for its file could not be determined (the `td_exclusions` artifact
+    was missing or ambiguous). A minority of no-result tests land here.
   - `NOT_RUN:not_in_matrix` — the test's file never ran on the head (job not in
     the matrix, or no gate jobs at all on a non-force merge).
   - `NOT_RUN:no_merge_record` — no `default.merges` row resolved a pre-merge head
@@ -133,6 +144,24 @@ A real `-f` force merge, by contrast, DOES write a `default.merges` row (with
 `skip_mandatory_checks` set), so it resolves a head and its test status is queried
 normally; `NOT_RUN:force_merge` is reported only when the gate was bypassed AND the
 test genuinely did not run.
+
+### How `td_deselected` / `test_absent` / `td_unknown` are determined
+
+For a `regression` row whose test left no pre-merge result, the file-level target
+determination decision is read from the pre-merge `pull` run's S3 `td_exclusions`
+artifact: if the failing test's file is in the exclusion set the status is
+`td_deselected` (real TD); if the file ran but the test produced no result row it
+is `test_absent`; if the artifact is missing or ambiguous it is `td_unknown`.
+Honest limits: TD is **file-level** (it never targets an individual test), the
+decision is scoped to the `pull` workflow's run, and a minority of no-result tests
+cannot be resolved and fall to `td_unknown`.
+
+Older CSVs (generated before this split) used `NOT_RUN:td_deselected` to mean "the
+file ran but the test left no result" — today's `test_absent`. The HTML report
+detects such legacy CSVs (they carry none of the new vocabulary) and folds their
+`td_deselected` into `test_absent` so historical data is counted under the current
+meaning; a freshly generated CSV, which does carry `test_absent` / `td_unknown`
+rows, keeps its `td_deselected` as real file-level TD.
 
 ## Notes on the flaky scan
 

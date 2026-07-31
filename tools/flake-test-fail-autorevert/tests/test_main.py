@@ -18,9 +18,9 @@ def test_context_resolved_once_per_commit_via_collect(monkeypatch) -> None:
     # FIX C: N signals on one commit must resolve head/ts/jobs ONCE, not N times.
     resolves: List[str] = []
 
-    def fake_resolve(client, commit_sha, repo="pytorch/pytorch"):
+    def fake_resolve(client, commit_sha, repo="pytorch/pytorch", fetch_exclusions_fn=None):
         resolves.append(commit_sha)
-        return PremergeContext("h", TS, TS, [1], False, None)
+        return PremergeContext("h", TS, TS, [1], False, None, None, {})
 
     classifies: List[Tuple[str, str]] = []
 
@@ -68,9 +68,9 @@ def test_flaky_only_commit_gets_empty_premerge_status(monkeypatch) -> None:
     # keeps premerge_status "" — the collect loop must not resolve context for it.
     resolves: List[str] = []
 
-    def fake_resolve(client, commit_sha, repo="pytorch/pytorch"):
+    def fake_resolve(client, commit_sha, repo="pytorch/pytorch", fetch_exclusions_fn=None):
         resolves.append(commit_sha)
-        return PremergeContext(None, None, None, [], False, "ERROR")
+        return PremergeContext(None, None, None, [], False, "ERROR", None, {})
 
     sha = "Y" * 40
     rows = [

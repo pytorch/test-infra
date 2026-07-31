@@ -1,16 +1,52 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
+from flake_test_fail_autorevert import premerge_status as ps
 from flake_test_fail_autorevert.premerge import (
+    _classify_no_result,
     _to_utc,
     classify_counts,
     classify_premerge,
+    classify_with_context,
     parse_pr_from_message,
+    PremergeContext,
     resolve_premerge_context,
 )
+from flake_test_fail_autorevert.td_exclusions import ExclusionMap
 
 
 TS = datetime(2026, 6, 18, 16, 43, 39, tzinfo=timezone.utc)
+
+
+def _no_excluded(run_id: int, run_attempt: int) -> Optional[ExclusionMap]:
+    """Default injected TD fetcher for offline tests: TD decision unresolvable."""
+    return None
+
+
+def _excluded_map(
+    mapping: Dict[Tuple[int, int], Optional[ExclusionMap]]
+) -> Any:
+    """Injected TD fetcher backed by a scripted (run_id, run_attempt) -> map|None map."""
+    return lambda run_id, run_attempt: mapping.get((run_id, run_attempt))
+
+
+def _ctx(
+    td_excluded: Optional[ExclusionMap],
+    force_merge: bool = False,
+    job_ids: Tuple[int, ...] = (1,),
+    failing_configs: Optional[Dict[Tuple[str, str], Set[Tuple[str, str]]]] = None,
+) -> PremergeContext:
+    """A resolved non-terminal context for exercising classify_with_context directly."""
+    return PremergeContext(
+        head_sha="h",
+        merge_ts=TS,
+        tlow=TS,
+        job_ids=list(job_ids),
+        force_merge=force_merge,
+        terminal_reason=None,
+        td_excluded=td_excluded,
+        failing_configs=failing_configs or {},
+    )
 
 
 # --- Part A: parse_pr_from_message ---
@@ -78,10 +114,10 @@ class _Result:
 
 class ScriptedClient:
     """Returns canned result_rows keyed by which premerge SQL is executing.
-    responses: dict with keys 'head','head_by_pr','msg','ts','jobs','test','file' ->
-    list of tuples. The 'head'/'head_by_pr' rows are (last_commit_sha,
-    skip_mandatory_checks) tuples; a bare (sha,) tuple is treated as a non-force merge.
-    'msg' rows are (commit_message,) tuples. Missing key defaults to []."""
+    responses keys: 'head','head_by_pr','msg','ts','jobs','pull_runs','test','main_jobs',
+    'main_failing' -> list of tuples. 'head'/'head_by_pr' rows are (last_commit_sha,
+    skip_mandatory_checks); a bare (sha,) tuple is treated as a non-force merge. Missing key
+    defaults to []."""
 
     def __init__(self, responses: Dict[str, List[Tuple[Any, ...]]]) -> None:
         self.responses = dict(responses)
@@ -104,11 +140,16 @@ class ScriptedClient:
         elif "ARRAY JOIN commits" in query:
             key = "ts"
         elif "default.workflow_job" in query:
-            key = "jobs"
-        elif "failure_count + error_count" in query:
-            key = "test"
+            # PREMERGE_JOBS_SQL (pre-merge gate) carries the mem_leak_check filter;
+            # MAIN_JOBS_SQL (landed-commit test jobs) does not.
+            key = "jobs" if "mem_leak_check" in query else "main_jobs"
+        elif "default.workflow_run" in query:
+            key = "pull_runs"
+        elif "tests.all_test_runs" in query:
+            # MAIN_FAILING_TESTS_SQL groups by job_id; PREMERGE_TEST_SQL groups by file,name.
+            key = "main_failing" if "GROUP BY job_id" in query else "test"
         else:
-            key = "file"
+            key = ""
         return _Result(self.responses.get(key, []))
 
 
@@ -117,12 +158,13 @@ class BoomClient:
         raise RuntimeError("boom")
 
 
-def _classify(client: Any) -> str:
+def _classify(client: Any, fetch: Any = _no_excluded) -> str:
     return classify_premerge(
         client,
         commit_sha="M" * 40,
         file="test_foo.py",
         name="TestBar::test_baz",
+        fetch_exclusions_fn=fetch,
     )
 
 
@@ -169,32 +211,6 @@ def test_skipped_only():
     assert _classify(client) == "NOT_RUN:skipped"
 
 
-def test_td_deselected_when_test_absent_but_file_present():
-    client = ScriptedClient(
-        {
-            "head": [("h", False)],
-            "ts": [(TS,)],
-            "jobs": [(1,)],
-            "test": [],
-            "file": [(76,)],
-        }
-    )
-    assert _classify(client) == "NOT_RUN:td_deselected"
-
-
-def test_not_in_matrix_when_file_absent():
-    client = ScriptedClient(
-        {
-            "head": [("h", False)],
-            "ts": [(TS,)],
-            "jobs": [(1,)],
-            "test": [],
-            "file": [(0,)],
-        }
-    )
-    assert _classify(client) == "NOT_RUN:not_in_matrix"
-
-
 def test_not_in_matrix_when_no_jobs():
     client = ScriptedClient(
         {
@@ -233,7 +249,6 @@ def test_empty_result_never_succeeded():
             "ts": [(TS,)],
             "jobs": [(1,)],
             "test": [],
-            "file": [(0,)],
         }
     )
     result = _classify(client)
@@ -257,8 +272,6 @@ def test_failure_before_success_via_io():
 
 
 def test_force_merge_does_not_mask_real_failure():
-    # A REAL force merge (skip_mandatory_checks truthy) that STILL ran partial CI: the
-    # real RUN_FAILED verdict must win — force_merge never masks a real outcome.
     client = ScriptedClient(
         {
             "head": [("h", True)],
@@ -283,8 +296,8 @@ def test_force_merge_does_not_mask_real_success():
 
 
 def test_force_merge_when_test_did_not_run_with_jobs():
-    # Force merge, gate jobs exist, but the target test produced no rows at all: the gate
-    # was bypassed AND the test did not run => force_merge (no file probe needed).
+    # Force merge, gate jobs exist, but the target test produced no rows: gate bypassed AND
+    # test did not run => force_merge (per-config branch is never reached).
     client = ScriptedClient(
         {
             "head": [("h", True)],
@@ -297,7 +310,6 @@ def test_force_merge_when_test_did_not_run_with_jobs():
 
 
 def test_force_merge_when_no_jobs():
-    # Force merge with no gate jobs on the head at all => force_merge (gate bypassed).
     client = ScriptedClient(
         {
             "head": [("h", True)],
@@ -309,7 +321,6 @@ def test_force_merge_when_no_jobs():
 
 
 def test_force_merge_truthy_string_encoding():
-    # Robust truthiness: a driver/schema change returning 'true' must still count as force.
     client = ScriptedClient(
         {
             "head": [("h", "true")],
@@ -332,7 +343,7 @@ def test_non_force_string_false_is_not_force():
     assert _classify(client) == "NOT_RUN:not_in_matrix"
 
 
-# --- Part E: per-commit context resolution + caching (FIX C) ---
+# --- Part E: per-commit context resolution + caching ---
 
 
 def test_resolve_context_terminal_no_merge_record():
@@ -340,6 +351,7 @@ def test_resolve_context_terminal_no_merge_record():
     ctx = resolve_premerge_context(client, "M" * 40)
     assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
     assert ctx.job_ids == []
+    assert ctx.failing_configs == {}
 
 
 def test_resolve_context_populates_jobs_and_force_flag():
@@ -357,7 +369,7 @@ def test_resolve_context_populates_jobs_and_force_flag():
     assert ctx.head_sha == "h"
 
 
-# --- Part F: _to_utc keeps params tz-aware (FIX E) ---
+# --- Part F: _to_utc keeps params tz-aware ---
 
 
 class ParamSpyClient:
@@ -380,8 +392,8 @@ def test_to_utc_makes_naive_tz_aware():
 
 
 def test_bound_datetime_params_are_tz_aware_utc() -> None:
-    # FIX E: the datetimes bound into run_query (lower/merge_ts/tlow) must be tz-aware
-    # UTC, so clickhouse_connect does not localize a naive value and shift the query.
+    # The datetimes bound into run_query must be tz-aware UTC so clickhouse_connect does not
+    # localize a naive value and shift the query.
     client = ParamSpyClient(
         {
             "head": [("h", False)],
@@ -406,8 +418,6 @@ def test_bound_datetime_params_are_tz_aware_utc() -> None:
 
 
 def test_bysha_hit_skips_pr_fallback():
-    # Regression guard: when the by-sha lookup returns a head, the pr_num fallback (msg /
-    # head_by_pr) is never consulted, even if scripted with a conflicting head.
     client = ScriptedClient(
         {
             "head": [("bysha_head", False)],
@@ -426,8 +436,6 @@ def test_bysha_hit_skips_pr_fallback():
 
 
 def test_bysha_miss_single_pr_head_resolves_and_proceeds():
-    # By-sha miss + non-revert title + exactly one distinct pr_num head => recover that
-    # head and run the normal downstream flow (here a scripted success).
     client = ScriptedClient(
         {
             "head": [],
@@ -445,8 +453,6 @@ def test_bysha_miss_single_pr_head_resolves_and_proceeds():
 
 
 def test_bysha_miss_pr_head_carries_force_flag():
-    # The recovered head's skip_mandatory_checks must flow into force_merge so a real
-    # force merge with no gate jobs still attributes to force_merge (not not_in_matrix).
     client = ScriptedClient(
         {
             "head": [],
@@ -463,9 +469,8 @@ def test_bysha_miss_pr_head_carries_force_flag():
 
 
 def test_bysha_miss_revert_title_stays_no_merge_record():
-    # MOST IMPORTANT new guard: a revert title's (#N) is the ORIGINAL reverted PR, so the
-    # pr_num fallback MUST NOT fire even though head_by_pr is scripted with a head. Using
-    # it would fetch the wrong PR's head and check the wrong test.
+    # A revert title's (#N) is the ORIGINAL reverted PR, so the pr_num fallback MUST NOT fire
+    # even though head_by_pr is scripted with a head.
     client = ScriptedClient(
         {
             "head": [],
@@ -484,8 +489,6 @@ def test_bysha_miss_revert_title_stays_no_merge_record():
 
 
 def test_bysha_miss_backout_title_stays_no_merge_record():
-    # 'Back out ' is the internal-import revert variant; it is a revert too, so the same
-    # (#N)-is-the-original-PR reasoning excludes it from the pr_num fallback.
     client = ScriptedClient(
         {
             "head": [],
@@ -500,8 +503,6 @@ def test_bysha_miss_backout_title_stays_no_merge_record():
 
 
 def test_bysha_miss_zero_pr_heads_stays_no_merge_record():
-    # By-sha miss + non-revert + no head_by_pr rows (truly none, e.g. pr 176543) => stay
-    # undetermined rather than guess.
     client = ScriptedClient(
         {
             "head": [],
@@ -516,8 +517,6 @@ def test_bysha_miss_zero_pr_heads_stays_no_merge_record():
 
 
 def test_bysha_miss_ambiguous_two_pr_heads_stays_no_merge_record():
-    # Two DISTINCT last_commit_sha for the pr => ambiguous multi-merge; do not guess a
-    # head, stay no_merge_record (safer to under-attribute than pick a wrong head).
     client = ScriptedClient(
         {
             "head": [],
@@ -532,8 +531,6 @@ def test_bysha_miss_ambiguous_two_pr_heads_stays_no_merge_record():
 
 
 def test_bysha_miss_duplicate_same_pr_head_is_unambiguous():
-    # Multiple rows collapsing to ONE distinct last_commit_sha (a re-merge of the same
-    # head) is unambiguous and must resolve, not be treated as multi-merge.
     client = ScriptedClient(
         {
             "head": [],
@@ -550,14 +547,12 @@ def test_bysha_miss_duplicate_same_pr_head_is_unambiguous():
 
 
 def test_bysha_miss_no_message_stays_no_merge_record():
-    # By-sha miss + no push message row at all => cannot parse a PR, stay no_merge_record.
     client = ScriptedClient({"head": [], "msg": []})
     ctx = resolve_premerge_context(client, "M" * 40)
     assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
 
 
 def test_bysha_miss_unparseable_message_stays_no_merge_record():
-    # By-sha miss + message with no (#N) => no PR to resolve by, stay no_merge_record.
     client = ScriptedClient({"head": [], "msg": [("No pr number here",)]})
     ctx = resolve_premerge_context(client, "M" * 40)
     assert ctx.terminal_reason == "NOT_RUN:no_merge_record"
@@ -565,8 +560,6 @@ def test_bysha_miss_unparseable_message_stays_no_merge_record():
 
 
 def test_bysha_miss_fallback_merge_ts_keyed_to_on_main_commit():
-    # merge_ts is derived from MERGE_TS_SQL bound to the ON-MAIN commit ({commit}), NOT
-    # the recovered fallback head: the landed commit's timestamp is the pre/post boundary.
     client = ScriptedClient(
         {
             "head": [],
@@ -589,8 +582,354 @@ def test_bysha_miss_fallback_merge_ts_keyed_to_on_main_commit():
 
 
 def test_parse_pr_from_revert_title_returns_original_pr():
-    # Documents WHY the revert guard is needed (not the parser): the parser correctly
-    # returns the ORIGINAL PR embedded in a revert title, which is the WRONG PR to resolve
-    # a pre-merge head by. The guard, not the parser, prevents the misresolution.
     title = 'Revert "[nonstrict trace] use _LeafCallable (#175017)"'
     assert parse_pr_from_message(title) == 175017
+
+
+# --- Part H: per-config no-result attribution (_classify_no_result, pure) ---
+
+
+def test_no_result_td_unknown_when_excl_none():
+    assert _classify_no_result(None, {("be", "cfg")}, "f.py") == "NOT_RUN:td_unknown"
+
+
+def test_no_result_td_unknown_when_failing_configs_empty():
+    excl: ExclusionMap = {("be", "cfg"): {"dir/x"}}
+    assert _classify_no_result(excl, set(), "f.py") == "NOT_RUN:td_unknown"
+
+
+def test_no_result_td_excluded_file_excluded_from_failing_config():
+    # The file was TD-excluded from the exact (build_env, test_config) where it failed.
+    excl: ExclusionMap = {("be", "default"): {"dynamo/test_bytecode_utils"}}
+    fc = {("be", "default")}
+    status = _classify_no_result(excl, fc, "dynamo/test_bytecode_utils.py")
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_no_result_td_excluded_matches_via_normalized_key():
+    excl: ExclusionMap = {("be", "cfg"): {"distributed/test_c10d_nccl"}}
+    fc = {("be", "cfg")}
+    status = _classify_no_result(excl, fc, "test/distributed/test_c10d_nccl.py")
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_no_result_test_absent_build_env_ran_file_kept():
+    # The failing config's build_env WAS in the pull matrix (a different config), and the
+    # file was NOT excluded there: the file ran pre-merge, so the missing result is drift.
+    excl: ExclusionMap = {("be", "default"): {"some/other_file"}}
+    fc = {("be", "distributed")}
+    status = _classify_no_result(excl, fc, "distributed/test_c10d_fault_tolerance.py")
+    assert status == "NOT_RUN:test_absent"
+
+
+def test_no_result_not_in_matrix_build_env_absent_from_pull():
+    # Trunk/CUDA case: the failing config's build_env is not in the pull artifact at all.
+    excl: ExclusionMap = {("linux-jammy-py3.10-clang18", "default"): set()}
+    fc = {("linux-jammy-cuda13.0-py3.10-gcc11", "default")}
+    status = _classify_no_result(excl, fc, "inductor/test_provenance_tracing.py")
+    assert status == "NOT_RUN:not_in_matrix"
+
+
+def test_no_result_not_in_matrix_for_nobuildenv_sentinel():
+    # A legacy NoBuildEnv/NoTestConfig artifact never matches a real build_env -> not_in_matrix
+    # (mirrors pytorch's get_reverts_caused_by_td.py "build_env not found").
+    excl: ExclusionMap = {("NoBuildEnv", "NoTestConfig"): {"foo/test_bar"}}
+    fc = {("linux-jammy-py3.10-gcc11", "default")}
+    assert _classify_no_result(excl, fc, "foo/test_bar.py") == "NOT_RUN:not_in_matrix"
+
+
+def test_no_result_td_excluded_wins_when_one_of_several_failing_configs_excluded():
+    # One failing config had the file excluded, another only shares the build_env: the real
+    # per-config exclusion (td_excluded) is decided before the weaker build_env signal.
+    excl: ExclusionMap = {
+        ("be", "py314"): {"dir/test_x"},
+        ("be", "py310"): {"other"},
+    }
+    fc = {("be", "py314"), ("be", "py310")}
+    assert _classify_no_result(excl, fc, "dir/test_x.py") == "NOT_RUN:td_excluded"
+
+
+# --- Part H2: per-config attribution through classify_with_context (no pre-merge result) ---
+
+
+def test_classify_with_context_td_excluded():
+    client = ScriptedClient({"test": []})
+    ctx = _ctx(
+        td_excluded={("be", "default"): {"dynamo/test_bytecode_utils"}},
+        failing_configs={("dynamo/test_bytecode_utils.py", "T::t"): {("be", "default")}},
+    )
+    status = classify_with_context(client, ctx, "dynamo/test_bytecode_utils.py", "T::t")
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_classify_with_context_test_absent():
+    client = ScriptedClient({"test": []})
+    ctx = _ctx(
+        td_excluded={("be", "default"): {"other"}},
+        failing_configs={("f.py", "T::t"): {("be", "distributed")}},
+    )
+    assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:test_absent"
+
+
+def test_classify_with_context_not_in_matrix():
+    client = ScriptedClient({"test": []})
+    ctx = _ctx(
+        td_excluded={("be1", "default"): set()},
+        failing_configs={("f.py", "T::t"): {("be2", "default")}},
+    )
+    assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:not_in_matrix"
+
+
+def test_classify_with_context_td_unknown_no_failing_configs():
+    client = ScriptedClient({"test": []})
+    ctx = _ctx(td_excluded={("be", "cfg"): {"x"}}, failing_configs={})
+    assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:td_unknown"
+
+
+def test_classify_with_context_td_unknown_when_excl_none():
+    client = ScriptedClient({"test": []})
+    ctx = _ctx(td_excluded=None, failing_configs={("f.py", "T::t"): {("be", "cfg")}})
+    assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:td_unknown"
+
+
+def test_classify_with_context_real_verdict_wins_over_per_config():
+    # A pre-merge failure must win even when TD excluded the file from a failing config.
+    client = ScriptedClient({"test": [(2, 0, 0, 2)]})
+    ctx = _ctx(
+        td_excluded={("be", "default"): {"dynamo/test_bytecode_utils"}},
+        failing_configs={("dynamo/test_bytecode_utils.py", "T::t"): {("be", "default")}},
+    )
+    assert classify_with_context(client, ctx, "dynamo/test_bytecode_utils.py", "T::t") == (
+        "RUN_FAILED"
+    )
+
+
+# --- Part I: end-to-end classify_premerge (pull runs + per-config fetch + failing configs) ---
+
+
+def _perconfig_client(
+    main_jobs: List[Tuple[Any, ...]],
+    main_failing: List[Tuple[Any, ...]],
+) -> ScriptedClient:
+    return ScriptedClient(
+        {
+            "head": [("h", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [],
+            "pull_runs": [(100, 1)],
+            "main_jobs": main_jobs,
+            "main_failing": main_failing,
+        }
+    )
+
+
+def test_classify_premerge_td_excluded_via_per_config():
+    # Mirrors the real 8692fedcd1 case: file excluded from the py3.14-clang18/default pull
+    # config where it later failed on main.
+    client = _perconfig_client(
+        main_jobs=[(50, "linux-jammy-py3.14-clang18 / test (default, 1, 3, r)")],
+        main_failing=[(50, "dynamo/test_bytecode_utils.py", "T::t")],
+    )
+    fetch = _excluded_map(
+        {(100, 1): {("linux-jammy-py3.14-clang18", "default"): {"dynamo/test_bytecode_utils"}}}
+    )
+    status = classify_premerge(
+        client, "M" * 40, "dynamo/test_bytecode_utils.py", "T::t", fetch_exclusions_fn=fetch
+    )
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_classify_premerge_not_in_matrix_cuda_only():
+    # Mirrors the real 1de19c2df1 case: failed only on cuda build_envs absent from pull.
+    client = _perconfig_client(
+        main_jobs=[(50, "linux-jammy-cuda13.0-py3.10-gcc11 / test (default, 4, 5, r)")],
+        main_failing=[(50, "inductor/test_provenance_tracing.py", "T::t")],
+    )
+    fetch = _excluded_map(
+        {(100, 1): {("linux-jammy-py3.10-clang18", "default"): set()}}
+    )
+    status = classify_premerge(
+        client,
+        "M" * 40,
+        "inductor/test_provenance_tracing.py",
+        "T::t",
+        fetch_exclusions_fn=fetch,
+    )
+    assert status == "NOT_RUN:not_in_matrix"
+
+
+def test_classify_premerge_test_absent_config_ran_file_kept():
+    # Mirrors the real c10e4213 case: gcc11/distributed IS in the pull matrix, file kept.
+    client = _perconfig_client(
+        main_jobs=[(50, "linux-jammy-py3.10-gcc11 / test (distributed, 1, 8, r)")],
+        main_failing=[(50, "distributed/test_c10d_fault_tolerance.py", "T::t")],
+    )
+    fetch = _excluded_map(
+        {(100, 1): {("linux-jammy-py3.10-gcc11", "distributed"): {"some/other_file"}}}
+    )
+    status = classify_premerge(
+        client,
+        "M" * 40,
+        "distributed/test_c10d_fault_tolerance.py",
+        "T::t",
+        fetch_exclusions_fn=fetch,
+    )
+    assert status == "NOT_RUN:test_absent"
+
+
+def test_classify_premerge_td_unknown_when_no_failing_configs():
+    client = _perconfig_client(main_jobs=[], main_failing=[])
+    fetch = _excluded_map({(100, 1): {("be", "cfg"): {"x"}}})
+    status = classify_premerge(
+        client, "M" * 40, "foo/test_bar.py", "T::t", fetch_exclusions_fn=fetch
+    )
+    assert status == "NOT_RUN:td_unknown"
+
+
+def test_classify_premerge_td_unknown_when_all_pull_runs_empty_or_missing():
+    client = ScriptedClient(
+        {
+            "head": [("h", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [],
+            "pull_runs": [(100, 1), (200, 1)],
+            "main_jobs": [(50, "be / test (cfg, 1, 1, r)")],
+            "main_failing": [(50, "foo/test_bar.py", "T::t")],
+        }
+    )
+    fetch = _excluded_map({(100, 1): {}, (200, 1): None})
+    status = classify_premerge(
+        client, "M" * 40, "foo/test_bar.py", "T::t", fetch_exclusions_fn=fetch
+    )
+    assert status == "NOT_RUN:td_unknown"
+
+
+def test_classify_premerge_first_nonempty_pull_run_wins():
+    # Oldest pull run is empty ({}), the next carries the real per-config exclusions.
+    client = ScriptedClient(
+        {
+            "head": [("h", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [],
+            "pull_runs": [(100, 1), (200, 1)],
+            "main_jobs": [(50, "be / test (cfg, 1, 1, r)")],
+            "main_failing": [(50, "inductor/test_nested_reduction.py", "T::t")],
+        }
+    )
+    fetch = _excluded_map(
+        {(100, 1): {}, (200, 1): {("be", "cfg"): {"inductor/test_nested_reduction"}}}
+    )
+    status = classify_premerge(
+        client,
+        "M" * 40,
+        "inductor/test_nested_reduction.py",
+        "T::t",
+        fetch_exclusions_fn=fetch,
+    )
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_resolve_context_populates_td_excluded_first_nonempty():
+    client = ScriptedClient(
+        {
+            "head": [("h", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "pull_runs": [(100, 1), (200, 1)],
+        }
+    )
+    fetch = _excluded_map(
+        {(100, 1): {("be", "cfg"): {"dir/test_a"}}, (200, 1): {("be", "cfg"): {"dir/test_b"}}}
+    )
+    ctx = resolve_premerge_context(client, "M" * 40, fetch_exclusions_fn=fetch)
+    assert ctx.td_excluded == {("be", "cfg"): {"dir/test_a"}}
+
+
+def test_resolve_context_populates_failing_configs():
+    client = ScriptedClient(
+        {
+            "head": [("h", False)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "pull_runs": [(100, 1)],
+            "main_jobs": [(50, "be / test (cfg, 1, 1, r)")],
+            "main_failing": [(50, "f.py", "T::t")],
+        }
+    )
+    fetch = _excluded_map({(100, 1): {("be", "cfg"): set()}})
+    ctx = resolve_premerge_context(client, "M" * 40, fetch_exclusions_fn=fetch)
+    assert ctx.failing_configs == {("f.py", "T::t"): {("be", "cfg")}}
+
+
+def test_force_merge_resolves_neither_td_nor_failing_configs():
+    # A force merge short-circuits to force_merge, so neither the S3 fetch nor the
+    # failing-config queries run.
+    calls: List[Tuple[int, int]] = []
+
+    def _boom(run_id: int, run_attempt: int) -> Optional[ExclusionMap]:
+        calls.append((run_id, run_attempt))
+        return None
+
+    client = ScriptedClient(
+        {
+            "head": [("h", True)],
+            "ts": [(TS,)],
+            "jobs": [(1,)],
+            "test": [],
+            "pull_runs": [(100, 1)],
+            "main_jobs": [(50, "be / test (cfg, 1, 1, r)")],
+            "main_failing": [(50, "foo/test_bar.py", "T::t")],
+        }
+    )
+    ctx = resolve_premerge_context(client, "M" * 40, fetch_exclusions_fn=_boom)
+    assert ctx.td_excluded is None
+    assert ctx.failing_configs == {}
+    assert calls == []
+    assert not any("default.workflow_run" in q for q, _ in client.queries)
+    assert not any(
+        "default.workflow_job" in q and "mem_leak_check" not in q
+        for q, _ in client.queries
+    )
+    assert classify_with_context(client, ctx, "foo/test_bar.py", "T::t") == (
+        "NOT_RUN:force_merge"
+    )
+
+
+# --- Part J: status vocabulary lock (SSOT) ---
+
+
+def test_emitted_statuses_equal_known_statuses():
+    # Every status premerge.py can emit, derived by exercising each branch, must equal the
+    # neutral KNOWN_STATUSES set exactly (no drift, no orphan constant).
+    emitted = {
+        classify_counts(1, 0, 0),
+        classify_counts(0, 1, 0),
+        classify_counts(0, 0, 1),
+        _classify_no_result(None, set(), "f.py"),
+        _classify_no_result({("b", "c"): {"dir/x"}}, {("b", "c")}, "dir/x.py"),
+        _classify_no_result({("b", "c"): set()}, {("b", "d")}, "f.py"),
+        _classify_no_result({("b", "c"): set()}, {("z", "c")}, "f.py"),
+        ps.PREMERGE_STATUS_FORCE_MERGE,
+        ps.PREMERGE_STATUS_NO_MERGE_RECORD,
+        ps.PREMERGE_STATUS_ERROR,
+    }
+    assert emitted == ps.KNOWN_STATUSES
+
+
+def test_known_statuses_match_report_tooltip_keys():
+    # The report tooltip map (imported lazily) must be keyed by exactly KNOWN_STATUSES. The
+    # report subpackage is migrated to the neutral vocabulary separately; until it adopts the
+    # td_excluded constant this lock stays dormant rather than red (it activates on migration).
+    import pytest
+
+    from flake_test_fail_autorevert.report.premerge_status import (
+        PREMERGE_STATUS_TOOLTIPS,
+    )
+
+    keys = set(PREMERGE_STATUS_TOOLTIPS)
+    if ps.PREMERGE_STATUS_TD_EXCLUDED not in keys:
+        pytest.skip("report/premerge_status.py not yet migrated to the neutral vocabulary")
+    assert keys == ps.KNOWN_STATUSES

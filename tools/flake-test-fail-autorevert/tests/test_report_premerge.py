@@ -1,16 +1,17 @@
 import re
 
-from flake_test_fail_autorevert.report.aggregate import (
-    aggregate,
-    PREMERGE_STATUS_RUN_SUCCEEDED,
-    PREMERGE_STATUS_TD_DESELECTED,
-    PREMERGE_STATUS_TOOLTIPS,
-    PREMERGE_TOOLTIP_UNDETERMINED,
-)
-from flake_test_fail_autorevert.report.load import Record
+from flake_test_fail_autorevert.report.aggregate import aggregate
+from flake_test_fail_autorevert.report.load import EXPECTED_COLUMNS, Record, load_records
 from flake_test_fail_autorevert.report.premerge_render import (
     PREMERGE_HEADING,
     render_premerge_section,
+)
+from flake_test_fail_autorevert.report.premerge_status import (
+    PREMERGE_STATUS_RUN_SUCCEEDED,
+    PREMERGE_STATUS_TD_DESELECTED,
+    PREMERGE_STATUS_TD_UNKNOWN,
+    PREMERGE_STATUS_TEST_ABSENT,
+    PREMERGE_STATUS_TOOLTIPS,
 )
 from flake_test_fail_autorevert.report.render import escape, render
 
@@ -21,6 +22,8 @@ ALL_STATUSES = [
     "NOT_RUN:force_merge",
     "NOT_RUN:skipped",
     "NOT_RUN:td_deselected",
+    "NOT_RUN:test_absent",
+    "NOT_RUN:td_unknown",
     "NOT_RUN:not_in_matrix",
     "NOT_RUN:no_merge_record",
     "ERROR",
@@ -66,16 +69,20 @@ def _one_per_status():
 def test_buckets_partition_eligible_rows():
     ds = aggregate(_one_per_status(), source="x.csv")
     pm = ds.premerge
-    # 8 statuses, one row each; 2 empty rows excluded.
-    assert pm.total_eligible == 8
+    # 10 statuses, one row each; 2 empty rows excluded. _one_per_status carries
+    # the new vocabulary, so it is treated as a post-fix CSV and td_deselected
+    # stays real (not folded into test_absent).
+    assert pm.total_eligible == 10
     b = pm.buckets
     assert b.td_deselected == 1
+    assert b.test_absent == 1
+    assert b.td_unknown == 1
     assert b.run_succeeded == 1
     # undetermined = no_merge_record + ERROR
     assert b.undetermined == 2
-    # other = RUN_FAILED + force_merge + skipped + not_in_matrix
+    # other = RUN_FAILED + force_merge + skipped(->not_in_matrix) + not_in_matrix
     assert b.other == 4
-    assert b.total == pm.total_eligible == 8
+    assert b.total == pm.total_eligible == 10
 
 
 def test_buckets_group_undetermined_and_other():
@@ -88,13 +95,18 @@ def test_buckets_group_undetermined_and_other():
         rec(sha="a6", premerge="NOT_RUN:not_in_matrix"),
         rec(sha="a7", premerge="RUN_SUCCEEDED"),
         rec(sha="a8", premerge="NOT_RUN:td_deselected"),
+        rec(sha="a9", premerge="NOT_RUN:test_absent"),
+        rec(sha="a10", premerge="NOT_RUN:td_unknown"),
     ]
     b = aggregate(records, source="x.csv").premerge.buckets
     assert b.undetermined == 2
+    # other = RUN_FAILED + force_merge + skipped(->not_in_matrix) + not_in_matrix
     assert b.other == 4
     assert b.run_succeeded == 1
     assert b.td_deselected == 1
-    assert b.total == 8
+    assert b.test_absent == 1
+    assert b.td_unknown == 1
+    assert b.total == 10
 
 
 def test_empty_premerge_rows_excluded():
@@ -189,9 +201,9 @@ def test_funnel_shows_stage_counts_and_drops():
     html = render_premerge_section(
         aggregate(_one_per_status(), source="x.csv").premerge
     )
-    # eligible total (8) as the first stage number, and the two terminal
+    # eligible total (10) as the first stage number, and the two terminal
     # outcomes as pass/fail rows.
-    assert '<div class="fn-n">8</div>' in html
+    assert '<div class="fn-n">10</div>' in html
     assert "fn-row fn-pass" in html and "ran and PASSED pre-merge (landrace)" in html
     assert "fn-row fn-fail" in html and "ran and FAILED pre-merge (merged red)" in html
     # each drop carries the plain-language tooltip via data-tip, and a -N count.
@@ -209,16 +221,20 @@ def test_commit_funnel_td_is_sticky_over_runner():
         rec(sha="c1", signal="a.py::t", premerge="NOT_RUN:td_deselected"),
         rec(sha="c1", signal="b.py::t", premerge="RUN_SUCCEEDED"),
         rec(sha="c2", signal="c.py::t", premerge="RUN_SUCCEEDED"),
+        # A test_absent row marks this as a post-fix CSV, so c1's td_deselected
+        # stays real (a legacy CSV would fold it into test_absent).
+        rec(sha="c3", signal="d.py::t", premerge="NOT_RUN:test_absent"),
     ]
     pm = aggregate(records, source="x.csv").premerge
-    assert pm.total_eligible == 3
-    assert pm.total_eligible_commits == 2
+    assert pm.total_eligible == 4
+    assert pm.total_eligible_commits == 3
     sig = {r.name: r.signals for r in pm.breakdown}
     com = {r.name: r.commits for r in pm.breakdown}
     assert sig["RUN_SUCCEEDED"] == 2 and sig["NOT_RUN:td_deselected"] == 1
     assert com["NOT_RUN:td_deselected"] == 1
     assert com["RUN_SUCCEEDED"] == 1
-    assert sum(r.commits for r in pm.breakdown) == 2
+    assert com["NOT_RUN:test_absent"] == 1
+    assert sum(r.commits for r in pm.breakdown) == 3
 
 
 def test_commit_funnel_furthest_down_without_td():
@@ -281,7 +297,7 @@ def test_default_top_is_15():
 
 
 def test_explanation_block_present():
-    # The NOT_RUN funnel explanation renders at the bottom with all five reasons.
+    # The NOT_RUN funnel explanation renders at the bottom with all reasons.
     html = render_premerge_section(
         aggregate(_one_per_status(), source="x.csv").premerge
     )
@@ -291,12 +307,17 @@ def test_explanation_block_present():
         "force_merge",
         "not_in_matrix",
         "td_deselected",
+        "test_absent",
+        "td_unknown",
         "skipped",
     ):
         assert f"<code>NOT_RUN:{key}</code>" in html
-    # The plain-language phrasing for the confusable pair is spelled out.
-    assert "file wasn&#x27;t tested" in html
-    assert "file tested, this test filtered out" in html
+    # The plain-language phrasing for the confusable trio is spelled out:
+    # job-level (not_in_matrix), file-level TD (td_deselected), test-level
+    # (test_absent).
+    assert "job wasn&#x27;t in the matrix" in html
+    assert "TD excluded the file" in html
+    assert "file ran, test left no result" in html
 
 
 def test_no_unexplained_jargon_in_hovers():
@@ -324,6 +345,8 @@ def test_top_50_run_succeeded_cap_and_sort():
         )
     # An independent td_deselected row must not contaminate the RS list.
     records.append(rec(sha="tdx", signal="td.py::t", premerge="NOT_RUN:td_deselected"))
+    # A test_absent row marks this as a post-fix CSV so td_deselected stays real.
+    records.append(rec(sha="tax", signal="ta.py::t", premerge="NOT_RUN:test_absent"))
     pm = aggregate(records, source="x.csv").premerge
     section = render_premerge_section(pm, top=50)
 
@@ -352,6 +375,8 @@ def test_td_deselected_top_list_independent():
         for i in range(3)
     ]
     records += [rec(sha="rs", signal="rs.py::t", premerge="RUN_SUCCEEDED")]
+    # Mark as a post-fix CSV so the td_deselected rows stay real (not folded).
+    records += [rec(sha="ta", signal="ta.py::t", premerge="NOT_RUN:test_absent")]
     pm = aggregate(records, source="x.csv").premerge
     assert len(pm.td_deselected_rows) == 3
     assert len(pm.run_succeeded_rows) == 1
@@ -412,3 +437,80 @@ def test_tooltip_html_is_escaped():
     assert "'" in apos
     assert apos not in html
     assert escape(apos) in html
+
+
+def _legacy_csv_row(sha, signal, premerge):
+    fields = {
+        "commit_sha": sha,
+        "commit_url": f"https://github.com/pytorch/pytorch/commit/{sha}",
+        "commit_time": "2026-07-01 10:00:00",
+        "category": "regression",
+        "workflow": "trunk",
+        "signal_key": signal,
+        "advisor_verdict": "",
+        "advisor_confidence": "",
+        "premerge_status": premerge,
+    }
+    return ",".join(fields[c] for c in EXPECTED_COLUMNS)
+
+
+def test_legacy_td_deselected_remapped_to_test_absent():
+    # A pre-fix CSV carries only the old vocabulary; its inferred td_deselected
+    # meant "file ran, test left no result", which is now test_absent. With no
+    # new-vocab rows present the report treats the CSV as legacy and remaps, so
+    # the count lands in test_absent (never silently in the untooltipped 'other'
+    # bucket) and td_deselected stays empty.
+    lines = [
+        ",".join(EXPECTED_COLUMNS),
+        _legacy_csv_row("a", "a.py::t", "NOT_RUN:td_deselected"),
+        _legacy_csv_row("b", "b.py::t", "RUN_SUCCEEDED"),
+    ]
+    pm = aggregate(load_records(lines), source="legacy.csv").premerge
+    counts = {r.name: r.signals for r in pm.breakdown}
+    assert counts.get(PREMERGE_STATUS_TEST_ABSENT) == 1
+    assert PREMERGE_STATUS_TD_DESELECTED not in counts
+    assert pm.buckets.test_absent == 1
+    assert pm.buckets.td_deselected == 0
+    assert pm.buckets.other == 0
+    html = render_premerge_section(pm)
+    ta_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TEST_ABSENT]
+    assert f'data-tip="{escape(ta_tip)}"' in html
+
+
+def test_new_csv_keeps_real_td_deselected():
+    # A CSV that carries any new-vocabulary status is a post-fix generation, so
+    # its td_deselected is real (file-level) target determination and must NOT
+    # be remapped to test_absent.
+    records = [
+        rec(sha="a", signal="a.py::t", premerge="NOT_RUN:td_deselected"),
+        rec(sha="b", signal="b.py::t", premerge="NOT_RUN:test_absent"),
+    ]
+    pm = aggregate(records, source="new.csv").premerge
+    counts = {r.name: r.signals for r in pm.breakdown}
+    assert counts.get(PREMERGE_STATUS_TD_DESELECTED) == 1
+    assert counts.get(PREMERGE_STATUS_TEST_ABSENT) == 1
+    assert pm.buckets.td_deselected == 1
+    assert pm.buckets.test_absent == 1
+    assert pm.buckets.other == 0
+
+
+def test_test_absent_and_td_unknown_buckets_and_tooltips():
+    records = [
+        rec(sha="a", signal="a.py::t", premerge="NOT_RUN:test_absent"),
+        rec(sha="b", signal="b.py::t", premerge="NOT_RUN:td_unknown"),
+        rec(sha="c", signal="c.py::t", premerge="RUN_SUCCEEDED"),
+    ]
+    pm = aggregate(records, source="x.csv").premerge
+    b = pm.buckets
+    assert b.test_absent == 1
+    assert b.td_unknown == 1
+    # Neither new status silently falls into the 'other' residual.
+    assert b.other == 0
+    assert b.total == 3
+    html = render_premerge_section(pm)
+    for status in (PREMERGE_STATUS_TEST_ABSENT, PREMERGE_STATUS_TD_UNKNOWN):
+        tip = PREMERGE_STATUS_TOOLTIPS[status]
+        assert f'data-tip="{escape(tip)}"' in html
+    # Both no-result reasons render as their own funnel drop rows.
+    assert "the file ran, but this test left no result (not TD)" in html
+    assert "no result; couldn&#x27;t determine if TD excluded the file" in html

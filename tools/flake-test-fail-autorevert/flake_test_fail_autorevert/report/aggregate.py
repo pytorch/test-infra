@@ -3,83 +3,39 @@ from dataclasses import dataclass, replace
 from typing import Dict, List, Set, Tuple
 
 from .load import Record
+from .premerge_status import (
+    PREMERGE_STATUS_ERROR,
+    PREMERGE_STATUS_FORCE_MERGE,
+    PREMERGE_STATUS_NO_MERGE_RECORD,
+    PREMERGE_STATUS_NOT_IN_MATRIX,
+    PREMERGE_STATUS_RUN_FAILED,
+    PREMERGE_STATUS_RUN_SUCCEEDED,
+    PREMERGE_STATUS_SKIPPED,
+    PREMERGE_STATUS_TD_DESELECTED,
+    PREMERGE_STATUS_TD_UNKNOWN,
+    PREMERGE_STATUS_TEST_ABSENT,
+)
 
 
 CATEGORY_REGRESSION = "regression"
 CATEGORY_FLAKY = "flaky"
 
-PREMERGE_STATUS_TD_DESELECTED = "NOT_RUN:td_deselected"
-PREMERGE_STATUS_RUN_SUCCEEDED = "RUN_SUCCEEDED"
-PREMERGE_STATUS_RUN_FAILED = "RUN_FAILED"
-PREMERGE_STATUS_FORCE_MERGE = "NOT_RUN:force_merge"
-PREMERGE_STATUS_NO_MERGE_RECORD = "NOT_RUN:no_merge_record"
-PREMERGE_STATUS_ERROR = "ERROR"
-PREMERGE_STATUS_SKIPPED = "NOT_RUN:skipped"
-PREMERGE_STATUS_NOT_IN_MATRIX = "NOT_RUN:not_in_matrix"
-
-# Report-only remap: a test that reports "skipped" on the pre-merge head is often
-# skipped only because the pre-merge matrix ran a config that excludes it (e.g. the
-# 'slow' shard's fast-skip, or a platform guard) while the config that actually
-# executes it was absent - i.e. effectively a matrix-coverage gap, not a genuine
-# opt-out. The generator keeps the precise status; the report folds skipped into
-# not_in_matrix so the funnel/breakdown don't overstate genuine skips.
+# Always-applied report remap: a "skipped" pre-merge result is folded into
+# not_in_matrix so the funnel/breakdown don't overstate genuine skips - the
+# config that actually executes the test was simply absent from the matrix.
 _REPORT_STATUS_REMAP = {PREMERGE_STATUS_SKIPPED: PREMERGE_STATUS_NOT_IN_MATRIX}
 
-# Plain-language explanations of every pre-merge status, keyed once here so the
-# breakdown rows, totals cards, and table headings all share one source of
-# truth. Written for readers with no CI jargon; ASCII-only so they escape
-# cleanly into HTML title attributes.
-PREMERGE_STATUS_TOOLTIPS: Dict[str, str] = {
-    PREMERGE_STATUS_RUN_SUCCEEDED: (
-        "This test ran while the change was still a pull request and passed "
-        "there. It only started failing after the change landed on main - "
-        "usually a 'landrace': the change was fine on its own but broke when "
-        "combined with another change that merged around the same time."
-    ),
-    "RUN_FAILED": (
-        "This test already failed while the change was still a pull request, "
-        "yet it was merged anyway. The breakage was visible in CI before it "
-        "landed."
-    ),
-    "NOT_RUN:force_merge": (
-        "The change was merged without waiting for the required CI checks (a "
-        "force-merge / '-f'), so this test never ran before it landed."
-    ),
-    "NOT_RUN:skipped": (
-        "The test was present in the pre-merge run but was explicitly skipped, "
-        "so it produced no pass/fail result before merge."
-    ),
-    PREMERGE_STATUS_TD_DESELECTED: (
-        "The test's file ran before merge, but this specific test wasn't "
-        "selected - PyTorch skips tests it predicts are unaffected by the "
-        "change (or the test was renamed/removed). No pre-merge result exists "
-        "for it."
-    ),
-    "NOT_RUN:not_in_matrix": (
-        "The test's job/configuration didn't run before merge at all - it "
-        "wasn't part of this pull request's checks, even though other checks "
-        "did run."
-    ),
-    PREMERGE_STATUS_NO_MERGE_RECORD: (
-        "We couldn't identify which pre-merge version to check for this commit "
-        "- e.g. a stacked-PR commit that isn't the top of its stack, a revert, "
-        "or a direct push. Pre-merge status is unknown."
-    ),
-    PREMERGE_STATUS_ERROR: (
-        "The query that determines pre-merge status failed, so the status is "
-        "unknown for this row."
-    ),
-}
-
-# Grouped explanations for the two totals cards that combine several statuses.
-# Kept here so cards stay single-sourced alongside the per-status tooltips.
-PREMERGE_TOOLTIP_UNDETERMINED = (
-    "Pre-merge status couldn't be determined: either no pre-merge version "
-    "could be identified, or the lookup failed."
-)
-PREMERGE_TOOLTIP_OTHER = (
-    "All remaining outcomes: the test failed before merge, was force-merged, "
-    "was skipped, or its job wasn't in the pre-merge checks."
+# Two generator vintages produce CSVs this report must read. Legacy CSVs use
+# td_deselected to mean "the file ran but this test left no result" (today's
+# test_absent); current CSVs use td_deselected for real file-level target
+# determination. They are told apart by vocabulary: a CSV with any
+# test_absent/td_unknown row is current, so its td_deselected is real and must
+# not be rewritten; a CSV with none is legacy, so its td_deselected is folded to
+# test_absent. Indistinguishable edge: a current CSV with zero test_absent and
+# zero td_unknown rows is read as legacy.
+_LEGACY_STATUS_REMAP = {PREMERGE_STATUS_TD_DESELECTED: PREMERGE_STATUS_TEST_ABSENT}
+_NEW_PREMERGE_VOCAB = frozenset(
+    {PREMERGE_STATUS_TEST_ABSENT, PREMERGE_STATUS_TD_UNKNOWN}
 )
 
 
@@ -100,13 +56,22 @@ class PremergeStatusCount:
 @dataclass(frozen=True)
 class PremergeBuckets:
     td_deselected: int
+    test_absent: int
+    td_unknown: int
     run_succeeded: int
     undetermined: int
     other: int
 
     @property
     def total(self) -> int:
-        return self.td_deselected + self.run_succeeded + self.undetermined + self.other
+        return (
+            self.td_deselected
+            + self.test_absent
+            + self.td_unknown
+            + self.run_succeeded
+            + self.undetermined
+            + self.other
+        )
 
 
 @dataclass(frozen=True)
@@ -217,9 +182,12 @@ def _build_meta(source: str, records: List[Record], days: List[str]) -> Meta:
 
 
 def _apply_report_remap(records: List[Record]) -> List[Record]:
+    remap = dict(_REPORT_STATUS_REMAP)
+    if not any(r.premerge_status in _NEW_PREMERGE_VOCAB for r in records):
+        remap.update(_LEGACY_STATUS_REMAP)
     remapped = []
     for r in records:
-        target = _REPORT_STATUS_REMAP.get(r.premerge_status)
+        target = remap.get(r.premerge_status)
         remapped.append(replace(r, premerge_status=target) if target else r)
     return remapped
 
@@ -252,16 +220,20 @@ def _premerge_eligible(records: List[Record]) -> List[Record]:
 def _premerge_buckets(eligible: List[Record]) -> PremergeBuckets:
     counts: Counter = Counter(r.premerge_status for r in eligible)
     td_deselected = counts.get(PREMERGE_STATUS_TD_DESELECTED, 0)
+    test_absent = counts.get(PREMERGE_STATUS_TEST_ABSENT, 0)
+    td_unknown = counts.get(PREMERGE_STATUS_TD_UNKNOWN, 0)
     run_succeeded = counts.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
     undetermined = counts.get(PREMERGE_STATUS_NO_MERGE_RECORD, 0) + counts.get(
         PREMERGE_STATUS_ERROR, 0
     )
-    other = len(eligible) - td_deselected - run_succeeded - undetermined
+    accounted = td_deselected + test_absent + td_unknown + run_succeeded + undetermined
     buckets = PremergeBuckets(
         td_deselected=td_deselected,
+        test_absent=test_absent,
+        td_unknown=td_unknown,
         run_succeeded=run_succeeded,
         undetermined=undetermined,
-        other=other,
+        other=len(eligible) - accounted,
     )
     assert buckets.total == len(eligible), (
         "premerge buckets must partition the eligible rows: "
@@ -271,9 +243,11 @@ def _premerge_buckets(eligible: List[Record]) -> PremergeBuckets:
 
 
 _COMMIT_STATUS_PRIORITY = {
-    PREMERGE_STATUS_TD_DESELECTED: 6,
-    PREMERGE_STATUS_RUN_FAILED: 5,
-    PREMERGE_STATUS_RUN_SUCCEEDED: 4,
+    PREMERGE_STATUS_TD_DESELECTED: 8,
+    PREMERGE_STATUS_RUN_FAILED: 7,
+    PREMERGE_STATUS_RUN_SUCCEEDED: 6,
+    PREMERGE_STATUS_TEST_ABSENT: 5,
+    PREMERGE_STATUS_TD_UNKNOWN: 4,
     PREMERGE_STATUS_NOT_IN_MATRIX: 3,
     PREMERGE_STATUS_FORCE_MERGE: 2,
     PREMERGE_STATUS_NO_MERGE_RECORD: 1,
