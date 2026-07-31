@@ -20,11 +20,11 @@ just setup      # uv sync -> create .venv with deps
 
 ## Usage
 
-PyTorch Green Light has one entry point. `review` fetches the open PRs from a fixed
+PyTorch Green Light has two subcommands. `review` fetches the open PRs from a fixed
 set of trusted authors in `pytorch/pytorch` (a live, read-only GitHub call that
-requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) and logs them. Risk-scoring, the AI
-code-review workflow, and its approve/reject are planned — see the Current status
-section below.
+requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) and logs them. `verdict` records a single
+PR-review verdict and acts on the PR (see below). Risk-scoring and the AI code-review
+workflow that produces the verdict are planned — see the Current status section below.
 
 ```bash
 just run review                      # run the review phase once, then exit
@@ -35,6 +35,28 @@ just run review --loop --interval 30 # daemon, 30s between iterations
 
 The `review` examples require `PYTORCH_GREENLIGHT_GITHUB_TOKEN` to be set; without it
 `review` exits non-zero.
+
+### Recording a verdict
+
+A privileged CI job records a review verdict with `verdict`. It runs once (never a
+daemon): it writes a row to `misc.greenlight_pr_state` — storing the passed-in
+`eval_hash` verbatim — then, for `LAND`/`NO_LAND`, acts on the PR (`LAND` approves;
+`NO_LAND` dismisses greenlight's own prior approval and comments). `CANCELLED` and
+`FAILED` markers only record a row. The `reason` must be a canonical `ALLOWED_REASONS`
+code, and the model's message is defanged before it is posted to GitHub (the full
+message is stored verbatim in ClickHouse).
+
+```bash
+just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
+  --eval-hash "$EVAL_HASH" --bot-login 'greenlight-app[bot]'   # LAND/NO_LAND
+just run verdict --pr 123 --head-sha "$SHA" --status CANCELLED  # marker: row only
+just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
+  --eval-hash "$EVAL_HASH" --dry-run                            # offline; logs only
+```
+
+`verdict` needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (for `LAND`/`NO_LAND`) and the
+`CLICKHOUSE_*` credentials to write; `--dry-run` needs neither. `--bot-login` (the
+greenlight GitHub App's `<slug>[bot]` account) is required for `NO_LAND`.
 
 Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 
@@ -61,11 +83,16 @@ on failure, and clean signal shutdown — all built and tested. `review` fetches
 PRs from a fixed set of trusted authors in `pytorch/pytorch` (read-only GitHub) and
 logs them; it requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
 
+Also works: the `verdict` subcommand records a PR-review verdict to
+`misc.greenlight_pr_state` (storing the passed-in `eval_hash` verbatim) and, for
+LAND/NO_LAND, acts on the PR — approve, or dismiss greenlight's prior approval and
+comment. It is a one-shot call meant for a privileged CI job.
+
 Not built yet: risk-scoring and the review decision in `review`; the AI code-review
-workflow (a separate component) that approves or rejects; and wiring the `eval_hash`
-land-guard into `review` and persisting to `misc.greenlight_pr_state`. The
-hash and fingerprint code (`pr_hash`, `github_client`) and the ClickHouse table both
-exist, but they are not connected to the service.
+workflow (a separate component) that produces the verdict; and the review-side
+fingerprint computation plus the land-time verifier. `verdict` stores the `eval_hash`
+verbatim, but greenlight does not yet compute it in `review`, and nothing consumes
+`misc.greenlight_pr_state` at land time yet.
 
 When wired, the land-time verifier must look up stored state by `(repo, pr_number)`
 — the ledger's `ORDER BY` key — never by `eval_hash` alone: the fingerprint omits
@@ -90,10 +117,12 @@ All gates must pass before a change is complete.
 src/greenlight/
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
-  cli.py           # CLI parsing (review subcommand), dispatch, exit codes
+  cli.py           # CLI parsing (review + verdict subcommands), dispatch, exit codes
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # fetch open PRs from trusted authors in pytorch/pytorch and log them; raises on failure
-  github_client.py # read-only GitHub PR access + PR fingerprint builder
+  verdict.py       # one-shot: record a PR-review verdict, then approve/dismiss/comment on the PR
+  github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
+  clickhouse_client.py # ClickHouse connection + verdict-row insert into misc.greenlight_pr_state
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
   config.py        # PYTORCH_GREENLIGHT_* environment configuration
   guards.py        # single-instance lock + per-iteration SIGALRM timeout + hard watchdog

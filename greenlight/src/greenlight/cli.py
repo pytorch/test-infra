@@ -8,7 +8,7 @@ import logging
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import review
+from greenlight import review, verdict
 from greenlight.config import Config
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
@@ -41,6 +41,38 @@ def build_parser() -> argparse.ArgumentParser:
             "Fetch the open PRs from a fixed set of trusted authors in pytorch/pytorch and log them. "
             "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN."
         ),
+    )
+
+    verdict_parser = subparsers.add_parser(
+        "verdict",
+        help="record a PR review verdict once and act on GitHub",
+        description=(
+            "Record a single PR-review verdict in ClickHouse and, for LAND/NO_LAND, act on the PR. "
+            "Runs once outside the daemon loop and lock. Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for "
+            "LAND/NO_LAND and CLICKHOUSE_* credentials to write."
+        ),
+    )
+    verdict_parser.add_argument("--repo", default=review.TARGET_REPO, help="owner/name of the repository")
+    verdict_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
+    verdict_parser.add_argument("--head-sha", required=True, help="expected PR head SHA at evaluation time")
+    verdict_parser.add_argument("--eval-hash", default="", help="land-guard fingerprint to store verbatim")
+    verdict_parser.add_argument(
+        "--status",
+        choices=sorted(verdict.VERDICT_STATUSES),
+        default=None,
+        help="verdict status; if omitted it is read from --verdict-file",
+    )
+    verdict_parser.add_argument("--verdict-file", default=None, help="JSON file with {status, reason, message}")
+    verdict_parser.add_argument("--agent-job-url", default="", help="URL of the agent job that produced the verdict")
+    verdict_parser.add_argument("--eval-job-url", default="", help="URL of the evaluation job")
+    verdict_parser.add_argument(
+        "--bot-login",
+        default="",
+        help="greenlight bot login (e.g. greenlight-app[bot]); required to dismiss prior approvals on NO_LAND",
+    )
+    verdict_parser.add_argument("--log-level", default=None, help="logging level name")
+    verdict_parser.add_argument(
+        "--dry-run", action="store_true", help="log intended actions without writing or posting"
     )
     return parser
 
@@ -75,9 +107,39 @@ def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock
     return EXIT_OK
 
 
+def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        config = Config.from_env()
+        if args.log_level is not None:
+            config = dataclasses.replace(config, log_level=args.log_level)
+        configure_logging(config.log_level)
+    except ValueError as exc:
+        parser.error(str(exc))
+    request = verdict.VerdictRequest(
+        repo=args.repo,
+        pr_number=args.pr,
+        head_sha=args.head_sha,
+        eval_hash=args.eval_hash,
+        status=args.status,
+        verdict_file=args.verdict_file,
+        agent_job_url=args.agent_job_url,
+        eval_job_url=args.eval_job_url,
+        bot_login=args.bot_login,
+        dry_run=args.dry_run,
+    )
+    try:
+        verdict.run(request, config)
+    except Exception:
+        logger.exception("greenlight verdict failed")
+        return EXIT_FAILURE
+    return EXIT_OK
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    if args.command == "verdict":
+        return _run_verdict(args, parser)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

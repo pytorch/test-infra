@@ -1,16 +1,19 @@
-"""Read-only GitHub pull-request access for the greenlight service."""
+"""GitHub pull-request access for the greenlight service.
+
+Reads the open-PR list and the PR-fingerprint inputs, and performs the verdict write
+actions: post an approving review, comment, and dismiss greenlight's own prior approvals.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from greenlight.pr_hash import ChangedFile, HumanEvent, PRFingerprint, is_bot
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
-    from typing import Protocol
 
     from github import Github
 
@@ -83,6 +86,31 @@ if TYPE_CHECKING:
         def get_issue_comments(self) -> Iterable[_PRComment]: ...
         def get_review_comments(self) -> Iterable[_PRComment]: ...
         def get_reviews(self) -> Iterable[_PRReview]: ...
+
+    class _VerdictReview(Protocol):
+        @property
+        def id(self) -> int: ...
+        @property
+        def user(self) -> _PRUser | None: ...
+        @property
+        def state(self) -> str: ...
+        def dismiss(self, message: str) -> None: ...
+
+    class _VerdictPR(Protocol):
+        @property
+        def head(self) -> _PRBase: ...
+        def create_review(self, *, body: str, event: str) -> object: ...
+        def create_issue_comment(self, body: str) -> object: ...
+        def get_reviews(self) -> Iterable[_VerdictReview]: ...
+
+    class _VerdictRepo(Protocol):
+        def get_pull(self, number: int) -> _VerdictPR: ...
+
+
+class VerdictClient(Protocol):
+    """Structural GitHub client for the verdict path; the real ``github.Github`` satisfies it."""
+
+    def get_repo(self, full_name_or_id: str) -> _VerdictRepo: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,3 +232,43 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
         changed_files=changed_files,
         human_events=tuple(human_events),
     )
+
+
+REVIEW_EVENT_APPROVE = "APPROVE"
+REVIEW_EVENT_REQUEST_CHANGES = "REQUEST_CHANGES"
+REVIEW_EVENT_COMMENT = "COMMENT"
+_REVIEW_EVENTS: frozenset[str] = frozenset({REVIEW_EVENT_APPROVE, REVIEW_EVENT_REQUEST_CHANGES, REVIEW_EVENT_COMMENT})
+_REVIEW_STATE_APPROVED = "APPROVED"
+
+
+def get_pr(client: VerdictClient, repo: str, number: int) -> _VerdictPR:
+    return client.get_repo(repo).get_pull(number)
+
+
+def post_review(pr: _VerdictPR, *, event: str, body: str) -> None:
+    if event not in _REVIEW_EVENTS:
+        raise ValueError(f"unsupported review event {event!r}; expected one of {sorted(_REVIEW_EVENTS)}")
+    pr.create_review(body=body, event=event)
+
+
+def create_issue_comment(pr: _VerdictPR, body: str) -> None:
+    pr.create_issue_comment(body)
+
+
+def dismiss_prior_greenlight_approvals(pr: _VerdictPR, *, bot_login: str, message: str) -> list[int]:
+    """Dismiss every prior APPROVED review authored by ``bot_login``.
+
+    The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather
+    than read via ``get_user``, which is not available on an App installation token; only
+    that account's own approvals are ever dismissed.
+    """
+    target = bot_login.lower()
+    dismissed: list[int] = []
+    for review in pr.get_reviews():
+        user = review.user
+        if user is None or not user.login:
+            continue
+        if user.login.lower() == target and review.state == _REVIEW_STATE_APPROVED:
+            review.dismiss(message)
+            dismissed.append(review.id)
+    return dismissed

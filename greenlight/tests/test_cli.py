@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, review
+from greenlight import cli, review, verdict
 from greenlight.config import Config
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
@@ -294,3 +294,154 @@ def test_main_lock_open_failure_is_clear_not_phase_failure(tmp_path, monkeypatch
     assert rc == EXIT_FAILURE
     assert "greenlight phase failed" not in caplog.text
     assert bad in caplog.text
+
+
+def test_verdict_parser_parses_all_args():
+    parser = cli.build_parser()
+    args = parser.parse_args(
+        [
+            "verdict",
+            "--repo",
+            "owner/name",
+            "--pr",
+            "5",
+            "--head-sha",
+            "abc123",
+            "--eval-hash",
+            "d" * 64,
+            "--status",
+            "LAND",
+            "--verdict-file",
+            "some/dir/v.json",
+            "--agent-job-url",
+            "https://agent",
+            "--eval-job-url",
+            "https://eval",
+            "--bot-login",
+            "greenlight-app[bot]",
+            "--log-level",
+            "DEBUG",
+            "--dry-run",
+        ]
+    )
+    assert args.command == "verdict"
+    assert args.repo == "owner/name"
+    assert args.pr == 5
+    assert args.head_sha == "abc123"
+    assert args.eval_hash == "d" * 64
+    assert args.status == "LAND"
+    assert args.verdict_file == "some/dir/v.json"
+    assert args.agent_job_url == "https://agent"
+    assert args.eval_job_url == "https://eval"
+    assert args.bot_login == "greenlight-app[bot]"
+    assert args.log_level == "DEBUG"
+    assert args.dry_run is True
+
+
+def test_verdict_parser_defaults():
+    parser = cli.build_parser()
+    args = parser.parse_args(["verdict", "--pr", "5", "--head-sha", "abc123"])
+    assert args.repo == review.TARGET_REPO
+    assert args.eval_hash == ""
+    assert args.status is None
+    assert args.verdict_file is None
+    assert args.agent_job_url == ""
+    assert args.eval_job_url == ""
+    assert args.bot_login == ""
+    assert args.log_level is None
+    assert args.dry_run is False
+
+
+def test_verdict_parser_requires_pr():
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["verdict", "--head-sha", "abc"])
+
+
+def test_verdict_parser_requires_head_sha():
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["verdict", "--pr", "5"])
+
+
+def test_verdict_parser_rejects_unknown_status():
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["verdict", "--pr", "5", "--head-sha", "abc", "--status", "MAYBE"])
+
+
+def test_main_verdict_dispatches_and_builds_request(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_run(request, config):
+        captured["request"] = request
+        captured["config"] = config
+
+    monkeypatch.setattr(verdict, "run", fake_run)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    lock_mock = Mock()
+    monkeypatch.setattr(cli, "single_instance_lock", lock_mock)
+
+    rc = cli.main(
+        [
+            "verdict",
+            "--pr",
+            "7",
+            "--head-sha",
+            "abc123",
+            "--status",
+            "CANCELLED",
+            "--agent-job-url",
+            "https://agent",
+            "--bot-login",
+            "greenlight-app[bot]",
+        ]
+    )
+
+    assert rc == EXIT_OK
+    request = captured["request"]
+    assert isinstance(request, verdict.VerdictRequest)
+    assert request.pr_number == 7
+    assert request.head_sha == "abc123"
+    assert request.status == "CANCELLED"
+    assert request.repo == review.TARGET_REPO
+    assert request.agent_job_url == "https://agent"
+    assert request.bot_login == "greenlight-app[bot]"
+    assert isinstance(captured["config"], Config)
+    # verdict runs one-shot and must never touch the daemon single-instance lock.
+    lock_mock.assert_not_called()
+
+
+def test_main_verdict_failure_returns_exit_failure(monkeypatch):
+    monkeypatch.setattr(verdict, "run", Mock(side_effect=RuntimeError("boom")))
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["verdict", "--pr", "7", "--head-sha", "abc", "--status", "FAILED"])
+
+    assert rc == EXIT_FAILURE
+
+
+def test_main_verdict_bad_env_is_usage_error(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "not-a-number")
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["verdict", "--pr", "7", "--head-sha", "abc", "--status", "FAILED"])
+    assert excinfo.value.code == 2
+
+
+def test_main_verdict_applies_log_level_override(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_run(request, config):
+        captured["config"] = config
+
+    monkeypatch.setattr(verdict, "run", fake_run)
+    configure_mock = Mock()
+    monkeypatch.setattr(cli, "configure_logging", configure_mock)
+
+    rc = cli.main(["verdict", "--pr", "7", "--head-sha", "abc", "--status", "FAILED", "--log-level", "debug"])
+
+    assert rc == EXIT_OK
+    config = captured["config"]
+    assert isinstance(config, Config)
+    assert config.log_level == "DEBUG"
+    configure_mock.assert_called_once_with("DEBUG")

@@ -372,3 +372,138 @@ def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str 
     fingerprint = github_client.build_pr_fingerprint(pr, self_login=self_login)
 
     assert fingerprint.human_events == ()
+
+
+class _FakeVerdictReview:
+    def __init__(self, id: int, user: _FakeActor | None, state: str) -> None:
+        self.id = id
+        self.user = user
+        self.state = state
+        self.dismissed_with: str | None = None
+
+    def dismiss(self, message: str) -> None:
+        self.dismissed_with = message
+
+
+class _FakeVerdictPR:
+    def __init__(self, head_sha: str = "head", reviews: list[_FakeVerdictReview] | None = None) -> None:
+        self.head = _FakeBase(head_sha)
+        self._reviews = reviews or []
+        self.created_reviews: list[tuple[str, str]] = []
+        self.issue_comments: list[str] = []
+
+    def create_review(self, *, body: str, event: str) -> object:
+        self.created_reviews.append((event, body))
+        return object()
+
+    def create_issue_comment(self, body: str) -> object:
+        self.issue_comments.append(body)
+        return object()
+
+    def get_reviews(self) -> list[_FakeVerdictReview]:
+        return self._reviews
+
+
+class _FakeVerdictRepo:
+    def __init__(self, pr: _FakeVerdictPR) -> None:
+        self._pr = pr
+        self.get_pull_numbers: list[int] = []
+
+    def get_pull(self, number: int) -> _FakeVerdictPR:
+        self.get_pull_numbers.append(number)
+        return self._pr
+
+
+class _FakeVerdictClient:
+    def __init__(self, repo: _FakeVerdictRepo) -> None:
+        self._repo = repo
+        self.get_repo_names: list[str] = []
+
+    def get_repo(self, full_name_or_id: str) -> _FakeVerdictRepo:
+        self.get_repo_names.append(full_name_or_id)
+        return self._repo
+
+
+def test_get_pr_fetches_repo_then_pull():
+    pr = _FakeVerdictPR()
+    repo = _FakeVerdictRepo(pr)
+    client = _FakeVerdictClient(repo)
+
+    result = github_client.get_pr(client, "pytorch/pytorch", 42)
+
+    assert result is pr
+    assert client.get_repo_names == ["pytorch/pytorch"]
+    assert repo.get_pull_numbers == [42]
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        github_client.REVIEW_EVENT_APPROVE,
+        github_client.REVIEW_EVENT_REQUEST_CHANGES,
+        github_client.REVIEW_EVENT_COMMENT,
+    ],
+)
+def test_post_review_forwards_supported_events(event: str) -> None:
+    pr = _FakeVerdictPR()
+
+    github_client.post_review(pr, event=event, body="the body")
+
+    assert pr.created_reviews == [(event, "the body")]
+
+
+def test_post_review_rejects_unknown_event():
+    pr = _FakeVerdictPR()
+
+    with pytest.raises(ValueError, match="unsupported review event"):
+        github_client.post_review(pr, event="MERGE", body="x")
+
+    assert pr.created_reviews == []
+
+
+def test_post_review_propagates_errors():
+    class _BoomPR(_FakeVerdictPR):
+        def create_review(self, *, body: str, event: str) -> object:
+            raise RuntimeError("gh down")
+
+    with pytest.raises(RuntimeError, match="gh down"):
+        github_client.post_review(_BoomPR(), event=github_client.REVIEW_EVENT_APPROVE, body="x")
+
+
+def test_create_issue_comment_posts_body():
+    pr = _FakeVerdictPR()
+
+    github_client.create_issue_comment(pr, "please split this PR")
+
+    assert pr.issue_comments == ["please split this PR"]
+
+
+def test_dismiss_prior_greenlight_approvals_only_dismisses_own_approved():
+    reviews = [
+        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
+        _FakeVerdictReview(2, _FakeActor("alice"), "APPROVED"),
+        _FakeVerdictReview(3, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
+        _FakeVerdictReview(4, None, "APPROVED"),
+        _FakeVerdictReview(5, _FakeActor(""), "APPROVED"),
+        _FakeVerdictReview(6, _FakeActor("GreenLight-App[Bot]"), "APPROVED"),
+    ]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    dismissed = github_client.dismiss_prior_greenlight_approvals(
+        pr, bot_login="greenlight-app[bot]", message="superseded"
+    )
+
+    assert dismissed == [1, 6]
+    assert reviews[0].dismissed_with == "superseded"
+    assert reviews[5].dismissed_with == "superseded"
+    assert [r.dismissed_with for r in reviews[1:5]] == [None, None, None, None]
+
+
+def test_dismiss_prior_greenlight_approvals_when_none_match():
+    reviews = [_FakeVerdictReview(1, _FakeActor("alice"), "APPROVED")]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    dismissed = github_client.dismiss_prior_greenlight_approvals(pr, bot_login="greenlight-app[bot]", message="x")
+
+    assert dismissed == []
+    assert reviews[0].dismissed_with is None

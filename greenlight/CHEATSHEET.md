@@ -5,10 +5,13 @@ directory. `just` is the front-end for every workflow — run `just` or
 `just --list` to see all recipes.
 
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
-loops as a daemon with `--loop`:
+loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
 
 - `review` — fetch the open PRs from a fixed set of trusted authors in `pytorch/pytorch`
   and log them (needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN`).
+- `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
+  passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
+  dismiss greenlight's prior approval and comment). Runs once, never as a daemon.
 
 ## Setup
 
@@ -126,8 +129,9 @@ The `misc.greenlight_pr_state` schema is managed by the ClickHouse migration
 runner in `tools/clickhouse-migrations/`. Unlike every other command here, run
 these from the **repository root**, not `greenlight/`.
 
-The greenlight service does not yet read or write `misc.greenlight_pr_state`; the
-table and the `eval_hash` land-guard exist ahead of the wiring that will connect them.
+The `verdict` subcommand writes `misc.greenlight_pr_state` (recording a verdict and
+storing the passed-in `eval_hash` verbatim). The review-side fingerprint computation
+and the land-time verifier that reads this table back are not built yet.
 
 `migrate.py` reads credentials from the environment and does not load `.env`
 itself, so pass one with uv (a `.env` is git-ignored, so it is safe to create):
