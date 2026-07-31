@@ -147,7 +147,7 @@ _GITHUB_TIMEOUT_SECONDS: int = 15
 def build_client(token: str) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
-    return Github(auth=Auth.Token(token), per_page=100, timeout=_GITHUB_TIMEOUT_SECONDS)
+    return Github(auth=Auth.Token(token), per_page=100, timeout=_GITHUB_TIMEOUT_SECONDS, lazy=True)
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
