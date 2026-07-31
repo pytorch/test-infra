@@ -240,9 +240,19 @@ pattern = '^ERROR: AddressSanitizer'
 name = 'undefined reference linker error'
 pattern = 'undefined reference to .*'
 
+# run_test.py reports a test file killed by a signal as
+# "<file> <shard>/<n> failed! Received signal: SIGBUS" (test/run_test.py, the
+# `message += f" Received signal: {signal_name}"` branch). NB the emitter writes
+# a lowercase "signal"; this rule previously required "Received Signal:" and so
+# could never fire, leaving crashes (SIGBUS/SIGIOT/SIGSEGV) to fall through to
+# the generic "<file> N/N failed!" wrapper below and be reported as ordinary
+# test failures. Capture the file AND the signal so a crash is distinguishable
+# from a plain failure and an uptick in one signal is visible. Filtered runs
+# render as "test_ops, not (TestA or TestB) 3/8 failed! ..." and deliberately
+# do not match -- they fall through to the wrapper exactly as they do today.
 [[rule]]
 name = "Python Test SIG Code"
-pattern = '^.*(Received Signal: SIG.*)'
+pattern = '^(\S+)(?: \d+/\d+)? failed! [Rr]eceived [Ss]ignal: (SIG\w+)'
 
 [[rule]]
 name = 'Library not loaded'
