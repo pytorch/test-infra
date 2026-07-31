@@ -462,13 +462,6 @@
       "slow"
     ]
   ],
-  "test_extern_kernel_benchmark_valid_timing (__main__.TestExternKernelCaller)": [
-    "188668",
-    "https://github.com/pytorch/pytorch/issues/188668",
-    [
-      "rocm"
-    ]
-  ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
     "190295",
     "https://github.com/pytorch/pytorch/issues/190295",
@@ -674,13 +667,6 @@
       "macos",
       "rocm",
       "win"
-    ]
-  ],
-  "test_maml_omniglot_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180539",
-    "https://github.com/pytorch/pytorch/issues/180539",
-    [
-      "dynamo"
     ]
   ],
   "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
