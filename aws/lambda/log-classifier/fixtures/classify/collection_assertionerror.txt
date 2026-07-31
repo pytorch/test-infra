@@ -1,0 +1,57 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90970463859
+2026-07-30T19:16:42.3027598Z 
+2026-07-30T19:16:42.3027986Z Finished functorch/test_control_flow_cuda_initialization 1/1 ... [2026-07-30 19:16:42.104200][9711.320553266], took 0.14min
+2026-07-30T19:16:42.7146047Z Running functorch/test_memory_efficient_fusion 1/1 ... [2026-07-30 19:16:42.674521][9711.890871722]
+2026-07-30T19:16:42.7147334Z Parsing testcases for test report: /__w/pytorch/pytorch/test/test-reports/python-pytest/functorch.test_control_flow_cuda_initialization/functorch.test_control_flow_cuda_initialization-eaf21ad8bb7c6b3e.xml
+2026-07-30T19:16:42.7148984Z Parsing testcases for test report: /__w/pytorch/pytorch/test/test-reports/python-pytest/functorch.test_control_flow_cuda_initialization/functorch.test_control_flow_cuda_initialization-aa2038b5ef505399.xml
+2026-07-30T19:16:42.7150119Z Uploading artifacts took 0.26 seconds
+2026-07-30T19:16:42.7150447Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-30T19:16:42.7151575Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'functorch/test_memory_efficient_fusion.py', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-30 19:16:42.674909]
+2026-07-30T19:16:46.8248294Z 
+2026-07-30T19:16:46.8249297Z functorch/test_memory_efficient_fusion 1/1 was successful, full logs can be found in artifacts with path test/test-reports/functorch.test_memory_efficient_fusion_1.1_b590e9b17931a034_.log
+2026-07-30T19:16:46.8258348Z Running 22 items in this shard: test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_gelu_bias, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_hard_sigmoid, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_hard_swish, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_layer_norm, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_mish, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_rmsnorm, test/functorch/test_memory_efficient_fusion.py::TestMemoryEfficientOpAuthoring::test_swish, test/functorch/test_memory_efficient_fusion.py::NoChangeTestCase::test_empty, test/functorch/test_memory_efficient_fusion.py::NoChangeTestCase::test_hash_with_numbers, test/functorch/test_memory_efficient_fusion.py::NoChangeTestCase::test_nochange, test/functorch/test_memory_efficient_fusion.py::NoChangeTestCase::test_rand_like, test/functorch/test_memory_efficient_fusion.py::NoChangeTestCase::test_rand_n, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_immutable_list_multiple_entries, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_immutable_list_type, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_kwarg, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_nested_immutable_list_type, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_simple, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_simple_2, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_simple_multiple_same_ops, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_two_args, test/functorch/test_memory_efficient_fusion.py::ReduceTestCase::test_two_args_default, test/functorch/test_memory_efficient_fusion.py::RandomOpTestCase::test_random
+2026-07-30T19:16:46.8266454Z 
+2026-07-30T19:16:46.8266804Z Finished functorch/test_memory_efficient_fusion 1/1 ... [2026-07-30 19:16:46.796412][9716.012767678], took 0.07min
+2026-07-30T19:16:47.0278086Z Running test_overrides 1/1 ... [2026-07-30 19:16:46.834820][9716.051175459]
+2026-07-30T19:16:47.0279176Z Parsing testcases for test report: /__w/pytorch/pytorch/test/test-reports/python-pytest/functorch.test_memory_efficient_fusion/functorch.test_memory_efficient_fusion-f7e4327097f72fcd.xml
+2026-07-30T19:16:47.0280093Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-30T19:16:47.0281124Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'test_overrides.py', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-30 19:16:46.835117]
+2026-07-30T19:16:51.6963438Z 
+2026-07-30T19:16:51.6964051Z PRINTING LOG FILE of test_overrides 1/1 (test/test-reports/test_overrides_1.1_579988b2363e07fb_.log)
+2026-07-30T19:16:51.6964630Z Traceback (most recent call last):
+2026-07-30T19:16:51.6973147Z   File "/__w/pytorch/pytorch/test/test_overrides.py", line 382, in <module>
+2026-07-30T19:16:51.6973682Z     generate_tensor_like_torch_implementations()
+2026-07-30T19:16:51.6974361Z   File "/__w/pytorch/pytorch/test/test_overrides.py", line 370, in generate_tensor_like_torch_implementations
+2026-07-30T19:16:51.6975068Z     raise AssertionError(msg.format(pprint.pformat(untested_funcs)))
+#=MATCH=# 2026-07-30T19:16:51.6976547Z ‹AssertionError: The following functions are not tested for __torch_function__ support, please ensure there is an entry in the dict returned by torch.overrides.get_testing_overrides for this function or if a __torch_function__ override does not make sense, add an entry to the tuple returned by torch._overrides.get_ignored_functions.›
+2026-07-30T19:16:51.6977845Z 
+2026-07-30T19:16:51.6977962Z ["<class 'torch.Tensor'>._philox_bits_"]
+2026-07-30T19:16:51.6978249Z Got exit code 1
+2026-07-30T19:16:51.6978751Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
+2026-07-30T19:16:51.6979224Z 
+2026-07-30T19:16:51.6979569Z FINISHED PRINTING LOG FILE of test_overrides 1/1 (test/test-reports/test_overrides_1.1_579988b2363e07fb_.log)
+2026-07-30T19:16:51.6980018Z 
+2026-07-30T19:16:51.6980674Z Finished test_overrides 1/1 ... [2026-07-30 19:16:51.607384][9720.823739701], took 0.08min
+2026-07-30T19:16:51.8996335Z test_overrides 1/1 failed!
+2026-07-30T19:16:51.8996667Z Emitting td_test_failure_stats_v2
+2026-07-30T19:16:52.1030086Z Traceback (most recent call last):
+2026-07-30T19:16:52.1030891Z Uploading logs for 90970463859 to S3
+2026-07-30T19:16:52.1031194Z Uploading artifacts took 0.20 seconds
+2026-07-30T19:16:52.1031855Z Writing 1 documents to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1785439011_382c8ab48c4b11f19cc39a40abc625c8
+2026-07-30T19:16:52.1032929Z Done! Finish writing document to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1785439011_382c8ab48c4b11f19cc39a40abc625c8 
+2026-07-30T19:16:52.1033856Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2397, in <module>
+2026-07-30T19:16:52.1034251Z     main()
+2026-07-30T19:16:52.1034570Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2348, in main
+2026-07-30T19:16:52.1034932Z     run_tests(
+2026-07-30T19:16:52.1035278Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2169, in run_tests
+2026-07-30T19:16:52.1035796Z     raise RuntimeError(failure.message + keep_going_message)
+2026-07-30T19:16:52.1036183Z RuntimeError: test_overrides 1/1 failed!
+2026-07-30T19:16:52.1036410Z 
+2026-07-30T19:16:52.1036677Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
+2026-07-30T19:16:52.1037264Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.
+2026-07-30T19:16:53.1175867Z 
+2026-07-30T19:16:53.1176501Z ##[group]Sccache Compilation Log
+2026-07-30T19:16:53.1176876Z =================== sccache compilation log ===================
+2026-07-30T19:16:53.1177420Z =========== If your build fails, please take a look at the log above for possible reasons ===========
+2026-07-30T19:16:53.1177916Z Compile requests                     37
+2026-07-30T19:16:53.1178221Z Compile requests executed            34

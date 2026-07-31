@@ -1,0 +1,43 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90532014310
+2026-07-29T09:10:41.4176268Z   PYTORCH_ROOT: /pytorch
+2026-07-29T09:10:41.4176523Z   PACKAGE_TYPE: manywheel
+2026-07-29T09:10:41.4176770Z   DESIRED_CUDA: rocm7.2
+2026-07-29T09:10:41.4177007Z   GPU_ARCH_VERSION: 7.2
+2026-07-29T09:10:41.4177243Z   GPU_ARCH_TYPE: rocm
+2026-07-29T09:10:41.4177485Z   DOCKER_IMAGE: manylinux2_28-builder
+2026-07-29T09:10:41.4177766Z   DOCKER_IMAGE_TAG_PREFIX: rocm7.2
+2026-07-29T09:10:41.4178030Z   DESIRED_PYTHON: 3.14t
+2026-07-29T09:10:41.4178270Z   runs_on: linux.rocm.gpu.gfx942.1
+2026-07-29T09:10:41.4178780Z   timeout-minutes: 240
+2026-07-29T09:10:41.4179012Z ##[endgroup]
+2026-07-29T09:10:41.4179296Z Complete job name: manywheel-py3_14t-rocm7_2-test / test
+2026-07-29T09:10:41.4360756Z ##[group]Checking docker version
+2026-07-29T09:10:41.4367548Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-07-29T09:10:41.4577678Z '1.51'
+2026-07-29T09:10:41.4619669Z Docker daemon API version: '1.51'
+2026-07-29T09:10:41.4620837Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-07-29T09:10:41.4791475Z '1.51'
+2026-07-29T09:10:41.4821823Z Docker client API version: '1.51'
+2026-07-29T09:10:41.4831168Z ##[endgroup]
+2026-07-29T09:10:41.4834866Z ##[group]Clean up resources from previous jobs
+2026-07-29T09:10:41.4843191Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=f9739c"
+2026-07-29T09:10:41.5037462Z ##[command]/usr/bin/docker network prune --force --filter "label=f9739c"
+2026-07-29T09:10:41.5183458Z ##[endgroup]
+2026-07-29T09:10:41.5183718Z ##[group]Create local container network
+2026-07-29T09:10:41.5188865Z ##[command]/usr/bin/docker network create --label f9739c github_network_375aa4aa80a74dc488498a10436d373f
+2026-07-29T09:10:41.5483901Z 768f3d5eb00e10c1234334fb2396128b5655462530459e579174d241498a198a
+2026-07-29T09:10:41.5538756Z ##[endgroup]
+2026-07-29T09:10:41.5565872Z ##[group]Starting job container
+2026-07-29T09:10:41.5588688Z ##[command]/usr/bin/docker pull python:3.14t
+2026-07-29T09:10:41.8997929Z Error response from daemon: manifest for python:3.14t not found: manifest unknown: manifest unknown
+2026-07-29T09:10:41.9066778Z ##[warning]Docker pull failed with exit code 1, back off 7.078 seconds before retry.
+2026-07-29T09:10:48.9847772Z ##[command]/usr/bin/docker pull python:3.14t
+2026-07-29T09:10:49.3244918Z Error response from daemon: manifest for python:3.14t not found: manifest unknown: manifest unknown
+2026-07-29T09:10:49.3285253Z ##[warning]Docker pull failed with exit code 1, back off 9.502 seconds before retry.
+2026-07-29T09:10:58.8336256Z ##[command]/usr/bin/docker pull python:3.14t
+#=MATCH=# 2026-07-29T09:10:59.1799961Z ‹Error response from daemon: manifest for python:3.14t not found: manifest unknown: manifest unknown›
+2026-07-29T09:10:59.1874805Z ##[error]Docker pull failed with exit code 1
+2026-07-29T09:10:59.2040067Z Remove container network: github_network_375aa4aa80a74dc488498a10436d373f
+2026-07-29T09:10:59.2046790Z ##[command]/usr/bin/docker network rm github_network_375aa4aa80a74dc488498a10436d373f
+2026-07-29T09:10:59.9230759Z github_network_375aa4aa80a74dc488498a10436d373f
+2026-07-29T09:10:59.9379922Z Cleaning up orphan processes

@@ -49,6 +49,40 @@ After generating: rename to something descriptive. If the classifier lands on
 the wrong line (or nothing) for a real failure, prefer fixing the ruleset so the
 fixture blesses to the correct line, rather than checking in a wrong marker.
 
+### The window must not change the verdict
+
+The harness classifies the fixture **file**, not the original log — so a window
+that happens to end just after some matchable line can snap `#=MATCH=#` onto it
+and encode a verdict that *disagrees with production*. This is a real hazard, not
+a hypothetical: a pytest fixture once got trimmed to end on a `RERUNS` per-test
+header, so it asserted the classifier lands on a rerun, when on the full log it
+lands on the later `FAILURES` entry.
+
+After choosing a window, confirm the line it blesses to is the line the
+classifier picks on the **whole** log:
+
+```
+./pull_fixture.py <job-id> --name _tmp_fullcheck --full   # classify everything
+grep -n '#=MATCH=#' fixtures/classify/_tmp_fullcheck.txt  # compare, then delete
+```
+
+Widen until they agree. A long fixture asserting the true verdict beats a tidy
+one that lies — `pytest_failures_section.txt` is 663 lines because the confusers
+it must beat sit ~550 lines from the real traceback. Trimming later is safe *if*
+re-blessing leaves the marker on the same line; if the marker moves, the trim cut
+away a confuser that was doing real work.
+
+### Anchor position, not just text
+
+The matched line **number** is not only for display: `main.rs` feeds it to the
+Bedrock summarizer as the centre of a ±250-line window (`src/bedrock.rs`). When
+two lines both identify a failure, prefer the one adjacent to the real traceback.
+For pytest that means the per-test header under `==== FAILURES ====` rather than
+the verbose progress line (`test_x.py::T::t FAILED [3.6s] [ 31%]`), which sits
+wherever the test happened to run in the stream — possibly thousands of lines
+away. Note `evaluate_rule` takes each rule's *last* match, which is how a section
+printed twice (`RERUNS` then `FAILURES`) resolves to the real one.
+
 ## Verification
 
 `cargo test --test classify` passes (each fixture's `#=MATCH=#` marker — or its
