@@ -1,8 +1,7 @@
 """ClickHouse access for the greenlight service: connection and verdict-row insert.
 
-Connection settings read the same environment as the schema-migration runner in
-``tools/clickhouse-migrations/migrate.py`` so both point at one ClickHouse. Verdict
-rows are written to ``misc.greenlight_pr_state``; its ``_inserted_at`` column is
+Connection settings come from the standard ``CLICKHOUSE_*`` environment variables.
+Verdict rows are written to ``misc.greenlight_pr_state``; its ``_inserted_at`` column is
 MATERIALIZED server-side and is therefore never part of an insert.
 """
 

@@ -123,49 +123,18 @@ Removes `.venv`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`, `.coverage`,
 `coverage.json`, `htmlcov`, `dist`, `build`, `*.egg-info`, and all `__pycache__`
 directories. Re-run `just setup` afterwards to recreate `.venv`.
 
-## Database migrations
+## Database schema
 
-The `misc.greenlight_pr_state` schema is managed by the ClickHouse migration
-runner in `tools/clickhouse-migrations/`. Unlike every other command here, run
-these from the **repository root**, not `greenlight/`.
+The `misc.greenlight_pr_state` DDL and its grant live in `greenlight/sql/`, applied by
+hand in filename order — there is no automated migration tool (security does not permit
+automated DDL), so @clee2000 or @huydhn apply them manually:
 
-The `verdict` subcommand writes `misc.greenlight_pr_state` (recording a verdict and
-storing the passed-in `eval_hash` verbatim). The review-side fingerprint computation
-and the land-time verifier that reads this table back are not built yet.
+- `001_create_misc_greenlight_pr_state.sql` — create the table
+- `002_alter_greenlight_pr_state_version_default.sql` — set the `version` DEFAULT
+- `003_grant_greenlight_pr_state_insert.sql` — grant INSERT to `hud_user`
 
-`migrate.py` reads credentials from the environment and does not load `.env`
-itself, so pass one with uv (a `.env` is git-ignored, so it is safe to create):
-
-```bash
-cp tools/clickhouse-migrations/.env.example .env   # then fill in host + credentials
-```
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `CLICKHOUSE_HOST` | — | Bare host or full URL (`https://` and `:8443` are stripped); `CLICKHOUSE_ENDPOINT` is an accepted alias |
-| `CLICKHOUSE_USERNAME` | — | Required |
-| `CLICKHOUSE_PASSWORD` | — | Required |
-| `CLICKHOUSE_PORT` | `8443` | Connection port |
-
-```bash
-uv run --env-file .env tools/clickhouse-migrations/migrate.py status   # list applied vs pending (a read-only cred is enough)
-uv run --env-file .env tools/clickhouse-migrations/migrate.py apply    # apply pending migrations (needs an admin/DDL cred)
-uv run tools/clickhouse-migrations/migrate.py apply --dry-run          # print the SQL only; makes no DB connection
-```
-
-- **Credentials precedence:** `uv run --env-file` does *not* override `CLICKHOUSE_*`
-  variables already set in your shell — ambient values win silently. If your
-  environment already exports them (e.g. for pytorch-hud / clickhouse-mcp), unset
-  them first so your `.env` is used, e.g. `env -u CLICKHOUSE_HOST -u CLICKHOUSE_USERNAME
-  -u CLICKHOUSE_PASSWORD -u CLICKHOUSE_PORT uv run --env-file .env
-  tools/clickhouse-migrations/migrate.py apply`. This matters most for `apply` (it
-  writes DDL) — confirm the target before running it.
-- Migrations are forward-only and applied in filename order (e.g.
-  `0001_create_misc_greenlight_pr_state.sql`); each is recorded in the
-  `misc.schema_migrations` ledger only after it succeeds. There are no down migrations.
-- `apply` is a deliberate, human-run step using admin/DDL credentials. When wired,
-  the greenlight service will use data-only credentials and never run `apply`.
-- The runner excludes `.clickhouse.cloud` from the proxy on its own, so no manual
-  proxy bypass is needed here.
-
-See `tools/clickhouse-migrations/README.md` for authoring new migrations.
+The `verdict` subcommand connects with the standard `CLICKHOUSE_*` env vars
+(`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
+`CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`) and only ever INSERTs rows.
+The review-side fingerprint computation and the land-time verifier that reads this table
+back are not built yet.
