@@ -1,0 +1,12 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "startTime": "2026-07-20T00:00:00.000",
+      "stopTime": "2026-07-27T00:00:00.000"
+    }
+  ]
+}

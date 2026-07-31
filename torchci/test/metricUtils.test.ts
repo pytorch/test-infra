@@ -3,6 +3,10 @@ import {
   approximateFailureByType,
   approximateFailureByTypePercent,
   BROKEN_TRUNK_THRESHOLD,
+  computeSoleBlockers,
+  jobTypeOf,
+  SoleBlockerCommit,
+  soleBlockerCommitRange,
 } from "../lib/metricUtils";
 
 describe("Approximate failures by its categories", () => {
@@ -236,6 +240,135 @@ describe("Approximate failures by its categories", () => {
         [JobAnnotation.BROKEN_TRUNK]: 0,
         [JobAnnotation.TEST_FLAKE]: 20,
       },
+    });
+  });
+});
+
+describe("Sole viable/strict blockers", () => {
+  test("no data", () => {
+    expect(computeSoleBlockers(undefined)).toStrictEqual([]);
+    expect(computeSoleBlockers([])).toStrictEqual([]);
+  });
+
+  test("job type folds workflow + base name, drops config", () => {
+    expect(jobTypeOf("trunk / A / test (default)")).toBe("trunk / A");
+    expect(jobTypeOf("trunk / A / build")).toBe("trunk / A");
+    expect(jobTypeOf("lint / quick-checks")).toBe("lint / quick-checks");
+    // Nested jobs (>2 " / " components) drop only the trailing config, keeping
+    // the matrix instance (e.g. the python version) distinct.
+    expect(
+      jobTypeOf(
+        "trunk / dynamo-unittest / dynamo-test (3.11) / test (dynamo_wrapped)"
+      )
+    ).toBe("trunk / dynamo-unittest / dynamo-test (3.11)");
+    expect(
+      jobTypeOf(
+        "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_core)"
+      )
+    ).toBe("trunk / dynamo-unittest / dynamo-test (3.12)");
+  });
+
+  test("nested job types are config-consistent (no cross-matrix pruning)", () => {
+    // dynamo 3.11/wrapped is the sole blocker on one commit; 3.12 only ever
+    // blocks via a core+wrapped combo. Because 3.11 and 3.12 are DIFFERENT job
+    // types, 3.11's sole config must NOT prune the 3.12 combo rows.
+    const j311w =
+      "trunk / dynamo-unittest / dynamo-test (3.11) / test (dynamo_wrapped)";
+    const j312c =
+      "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_core)";
+    const j312w =
+      "trunk / dynamo-unittest / dynamo-test (3.12) / test (dynamo_wrapped)";
+    const data: SoleBlockerCommit[] = [
+      { sha: "1", time: "", blocking: [j311w] },
+      { sha: "2", time: "", blocking: [j312c, j312w] },
+      { sha: "3", time: "", blocking: [] },
+    ];
+
+    const names = computeSoleBlockers(data).map((r) => r.name);
+    expect(names).toContain(j311w); // sole
+    expect(names).toContain(j312c); // combo-only job type, kept
+    expect(names).toContain(j312w);
+  });
+
+  test("config-sole vs job-type-sole", () => {
+    // 5 evaluated commits; the last is green and only counts toward the total.
+    const data: SoleBlockerCommit[] = [
+      // A/default is the only blocker -> sole at both granularities
+      { sha: "1", time: "", blocking: ["trunk / A / test (default)"] },
+      // two configs of A -> not config-sole, but A is still the only job type
+      {
+        sha: "2",
+        time: "",
+        blocking: ["trunk / A / test (default)", "trunk / A / test (inductor)"],
+      },
+      // two different job types -> sole at neither granularity
+      {
+        sha: "3",
+        time: "",
+        blocking: ["trunk / A / test (default)", "trunk / B / build"],
+      },
+      // B/build is the only blocker
+      { sha: "4", time: "", blocking: ["trunk / B / build"] },
+      // green commit
+      { sha: "5", time: "", blocking: [] },
+    ];
+
+    expect(computeSoleBlockers(data)).toStrictEqual([
+      // A/default: sole 1/5, job type A sole 2/5 (commits 1 and 2)
+      {
+        name: "trunk / A / test (default)",
+        sole: 20,
+        soleJobType: 40,
+      },
+      // A/inductor is dropped: never individually sole, and its job type A
+      // already has an actionable row (A/default), so it is redundant.
+      // B/build: sole 1/5, job type B sole 1/5
+      { name: "trunk / B / build", sole: 20, soleJobType: 20 },
+    ]);
+  });
+
+  test("combo-only job type keeps its configs (no sole sibling to fall back on)", () => {
+    // A job type that only ever blocks via two of its configs failing together,
+    // so no single config is individually sole. Both rows must be kept so the
+    // job-type signal is not hidden.
+    const data: SoleBlockerCommit[] = [
+      {
+        sha: "1",
+        time: "",
+        blocking: ["trunk / C / test (x)", "trunk / C / test (y)"],
+      },
+      { sha: "2", time: "", blocking: [] },
+    ];
+
+    expect(computeSoleBlockers(data)).toStrictEqual([
+      { name: "trunk / C / test (x)", sole: 0, soleJobType: 50 },
+      { name: "trunk / C / test (y)", sole: 0, soleJobType: 50 },
+    ]);
+  });
+
+  test("commit range picks oldest/newest regardless of input order", () => {
+    expect(soleBlockerCommitRange(undefined)).toStrictEqual({ count: 0 });
+    expect(soleBlockerCommitRange([])).toStrictEqual({ count: 0 });
+
+    const data: SoleBlockerCommit[] = [
+      {
+        sha: "bbb",
+        time: "2026-07-27T09:00:00Z",
+        title: "newer",
+        blocking: [],
+      },
+      {
+        sha: "aaa",
+        time: "2026-07-26T09:00:00Z",
+        title: "older",
+        blocking: [],
+      },
+      { sha: "ccc", time: "2026-07-27T03:00:00Z", title: "mid", blocking: [] },
+    ];
+    expect(soleBlockerCommitRange(data)).toStrictEqual({
+      count: 3,
+      oldest: { sha: "aaa", title: "older", time: "2026-07-26T09:00:00Z" },
+      newest: { sha: "bbb", title: "newer", time: "2026-07-27T09:00:00Z" },
     });
   });
 });

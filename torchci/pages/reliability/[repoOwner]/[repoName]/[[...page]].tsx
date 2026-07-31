@@ -13,7 +13,11 @@ import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { fetcher } from "lib/GeneralUtils";
-import { approximateFailureByTypePercent } from "lib/metricUtils";
+import {
+  approximateFailureByTypePercent,
+  computeSoleBlockers,
+  soleBlockerCommitRange,
+} from "lib/metricUtils";
 import { JobAnnotation } from "lib/types";
 import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
@@ -38,6 +42,7 @@ const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 // Specialized version of TablePanel for reliability metrics
 function GroupReliabilityPanel({
   title,
+  subtitle,
   queryName,
   queryParams,
   metricHeaderName,
@@ -45,6 +50,8 @@ function GroupReliabilityPanel({
   filter,
 }: {
   title: string;
+  // Optional grey line under the title, e.g. the workflows this group covers.
+  subtitle?: string;
   queryName: string;
   queryParams: { [key: string]: any };
   metricHeaderName: string;
@@ -82,9 +89,28 @@ function GroupReliabilityPanel({
     })
     .sort((a, b) => Number(b[metricName]) - Number(a[metricName]));
 
+  const titleNode = subtitle ? (
+    <>
+      {title}
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontSize: "12px",
+          color: "text.secondary",
+        }}
+      >
+        {subtitle}
+      </Typography>
+    </>
+  ) : (
+    title
+  );
+
   return (
     <TablePanelWithData
-      title={title}
+      title={titleNode}
       data={failuresByTypes}
       columns={[
         {
@@ -145,6 +171,153 @@ function GroupReliabilityPanel({
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
+    />
+  );
+}
+
+// Table of jobs that solely block viable/strict. Unlike the failure-rate panels
+// this metric is defined at the commit gate, so it needs its own query
+// (viable/strict gating semantics) and client-side aggregation.
+function SoleBlockerPanel({
+  queryParams,
+  filter,
+}: {
+  queryParams: { [key: string]: any };
+  filter: any;
+}) {
+  const url = `/api/clickhouse/viable_strict_sole_blocker?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000,
+  });
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  const rows = computeSoleBlockers(data);
+  const range = soleBlockerCommitRange(data);
+
+  // Show the actual commit span the percentages were computed over, so the
+  // numbers are debuggable ("Last 1 day = commit A .. commit B").
+  const commitRef = (c: { sha: string; title: string; time: string }) => (
+    <a href={`/pytorch/pytorch/commit/${c.sha}`} title={`${c.sha}\n${c.title}`}>
+      {c.sha.substring(0, 7)}
+    </a>
+  );
+  const shortTitle = (t: string) =>
+    t.length > 44 ? t.substring(0, 43) + "…" : t;
+  const fmt = (t: string) => dayjs(t).format("MM/DD HH:mm");
+
+  const title = (
+    <>
+      Sole viable/strict blockers
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontSize: "12px",
+          color: "text.secondary",
+        }}
+      >
+        {range.count === 0 || !range.oldest || !range.newest ? (
+          "no fully-evaluated commits in range"
+        ) : (
+          <>
+            {range.count} commits · {commitRef(range.oldest)}{" "}
+            {shortTitle(range.oldest.title)} ({fmt(range.oldest.time)}) →{" "}
+            {commitRef(range.newest)} {shortTitle(range.newest.title)} (
+            {fmt(range.newest.time)})
+          </>
+        )}
+      </Typography>
+      <Typography
+        component="span"
+        sx={{
+          display: "block",
+          fontWeight: 400,
+          fontStyle: "italic",
+          fontSize: "11px",
+          color: "text.secondary",
+        }}
+      >
+        The &quot;By job (all configs)&quot; column folds a job&apos;s configs
+        together; it is shared across the job&apos;s rows and is not additive.
+      </Typography>
+    </>
+  );
+
+  return (
+    <TablePanelWithData
+      title={title}
+      data={rows}
+      columns={[
+        {
+          field: "sole",
+          headerName: "By config",
+          description:
+            "% of evaluated commits where this exact config is the only job blocking viable/strict.",
+          flex: 1,
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
+          },
+        },
+        {
+          field: "soleJobType",
+          headerName: "By job (all configs)",
+          description:
+            "% of evaluated commits where this job is the only thing blocking, via any of its configs. Shared across the job's rows — not additive.",
+          flex: 1,
+          valueFormatter: (value) => {
+            return Number(value).toFixed(2);
+          },
+        },
+        {
+          field: "name",
+          headerName: "Name",
+          flex: 5,
+          renderCell: (params: GridRenderCellParams<any, string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return `Invalid job name ${jobName}`;
+            }
+
+            const encodedJobName = encodeURIComponent(jobName);
+            return <a href={URL_PREFIX + encodedJobName}>{jobName}</a>;
+          },
+          cellClassName: (params: GridCellParams<any, string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return "";
+            }
+
+            return filter.has(jobName) ? styles.selectedRow : "";
+          },
+        },
+      ]}
+      dataGridProps={{
+        getRowId: (el: any) => el.name,
+        // Group the two percentage columns under one header so they read as
+        // "Sole viable/strict blocker %: By config | By job", rather than two
+        // near-identically named columns. Name gets its own (untitled) group so
+        // every column has a two-row header and it doesn't render with a ragged
+        // empty cell above it.
+        columnGroupingModel: [
+          {
+            groupId: "soleBlocking",
+            headerName: "Sole viable/strict blocker %",
+            children: [{ field: "sole" }, { field: "soleJobType" }],
+          },
+          {
+            groupId: "job",
+            headerName: "",
+            children: [{ field: "name" }],
+          },
+        ],
+      }}
     />
   );
 }
@@ -335,7 +508,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          Failures
+          Reliability
         </Typography>
         <TimeRangePicker
           startTime={startTime}
@@ -367,7 +540,8 @@ export default function Page() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
-            title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
+            title={"Viable/strict blocking jobs"}
+            subtitle={PRIMARY_WORKFLOWS.join(", ")}
             queryName={queryName}
             queryParams={{
               workflowNames: PRIMARY_WORKFLOWS,
@@ -381,7 +555,8 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
-            title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
+            title={"Non-blocking jobs"}
+            subtitle={SECONDARY_WORKFLOWS.join(", ")}
             queryName={queryName}
             queryParams={{
               workflowNames: SECONDARY_WORKFLOWS,
@@ -391,6 +566,10 @@ export default function Page() {
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
+        </Grid>
+
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          <SoleBlockerPanel queryParams={queryParams} filter={filter} />
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>

@@ -31,7 +31,7 @@ function NavBar() {
       href: "/job_cancellation_dashboard",
     },
     {
-      name: "Failures Metric",
+      name: "Reliability Metrics",
       href: "/reliability",
     },
     {
