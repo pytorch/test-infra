@@ -317,6 +317,13 @@
       "slow"
     ]
   ],
+  "test_cuda_use_mem_pool_stream_order_inductor (__main__.CUDACtxManagerTests)": [
+    "191702",
+    "https://github.com/pytorch/pytorch/issues/191702",
+    [
+      "linux"
+    ]
+  ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
@@ -348,6 +355,13 @@
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
+    [
+      "rocm"
+    ]
+  ],
+  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
+    "187203",
+    "https://github.com/pytorch/pytorch/issues/187203",
     [
       "rocm"
     ]
