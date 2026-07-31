@@ -600,13 +600,6 @@
       "linux"
     ]
   ],
-  "test_lennard_jones_batched_jac_jac_jacfwd_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180438",
-    "https://github.com/pytorch/pytorch/issues/180438",
-    [
-      "dynamo"
-    ]
-  ],
   "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180520",
     "https://github.com/pytorch/pytorch/issues/180520",
@@ -1323,13 +1316,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
-    "186909",
-    "https://github.com/pytorch/pytorch/issues/186909",
-    [
-      "rocm"
     ]
   ],
   "test_trace_return_dataclass (__main__.TestFX)": [
