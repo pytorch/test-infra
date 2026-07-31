@@ -133,6 +133,25 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 name = 'pytest failure'
 pattern = '^(?:FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
+# The per-test header pytest prints under "==== FAILURES ====" (and "== RERUNS
+# ==") -- the line immediately above the traceback for that test. Used when the
+# run printed no "short test summary info" section, so the rule above can't fire:
+# without it the winner is often a benign PytestUnraisableExceptionWarning
+# traceback raised in some *passing* test's __del__, hundreds of lines earlier.
+#
+# Anchoring here rather than on pytest's verbose progress line ("test_x.py::T::t
+# FAILED [3.66s] [ 31%]") is deliberate: the matched line number is what feeds the
+# +-250-line window the Bedrock summarizer sees (main.rs), and the progress line
+# sits wherever the test happened to run in the stream -- potentially thousands of
+# lines above the traceback in a full run. This header is always adjacent to it.
+# RERUNS is printed before FAILURES, and evaluate_rule takes each rule's *last*
+# match, so the final (real) FAILURES entry wins over the rerun copies.
+# NB the capture is pytest's "Class.test" header form, not the "file.py::Class::test"
+# id used by the rule above, so the two shapes group separately.
+[[rule]]
+name = 'pytest failure'
+pattern = '^_{4,} (\S+\.\S+) _{4,}$'
+
 [[rule]]
 name = 'Python unittest error'
 pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
@@ -302,6 +321,14 @@ pattern = '^RuntimeError: Command `git .*(cherry-pick|diff|rebase|merge|apply).*
 name = 'ghstack too deep - refusing to run CI'
 pattern = '^PR #\d+ (sits on top of >=\d+ ghstack entries; refusing to run CI)'
 
+# trymerge's mergeability check on a PR whose ghstack commits carry no PR
+# reference (submitted with an old ghstack). Same problem as the rules above: the
+# generic Python RuntimeError rule captures the whole line, baking in the per-run
+# commit sha so every occurrence lands in its own group.
+[[rule]]
+name = 'ghstack old version - unexpected PR count in commit'
+pattern = '^RuntimeError: (Found an unexpected number of PRs mentioned in commit) [0-9a-f]+'
+
 [[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
@@ -454,6 +481,25 @@ pattern = '''^##\[error\](Failed to download archive) '.*' after \d+ attempts'''
 [[rule]]
 name = 'S3 access denied'
 pattern = '^##\[error\]User: .* is not authorized to perform: (s3:\w+)'
+
+# aws-actions/configure-aws-credentials could not obtain credentials (OIDC /
+# id-token permission misconfig). Everything AWS-shaped downstream then fails, and
+# the *last* ##[error] in the log is one of those symptoms -- a continue-on-error
+# upload-artifact-s3 step emitting "Missing credentials in config" ~2000 lines
+# later -- so the GHA-error catch-all below blames the symptom, not the cause.
+# Capture the provider phrase only so it stays groupable.
+[[rule]]
+name = 'AWS credentials could not be loaded'
+pattern = '^##\[error\]Credentials could not be loaded, please check your action inputs: (.*)'
+
+# actions/checkout could not fetch the ref it was asked for; for a ciflow tag this
+# means the tag was deleted (or never pushed) before the job started. The ref name
+# carries a PR number so it must stay out of the capture. Without this rule the
+# catch-all below picks the *later* "The process '/usr/bin/git' failed with exit
+# code 128" wrapper and the actual cause is lost.
+[[rule]]
+name = 'git checkout ref not found'
+pattern = '''^##\[error\]fatal: (couldn't find remote ref) refs/.*'''
 
 [[rule]]
 name = 'GHA error'
