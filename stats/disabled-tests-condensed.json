@@ -29,6 +29,13 @@
       "macos"
     ]
   ],
+  "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "188897",
+    "https://github.com/pytorch/pytorch/issues/188897",
+    [
+      "rocm"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
@@ -268,13 +275,6 @@
     "https://github.com/pytorch/pytorch/issues/188627",
     [
       "linux",
-      "rocm"
-    ]
-  ],
-  "test_conv2d_backward_parametrized_dilation_2_stride_1_padding_1_kernel_3_channels_groups4_nhwc_True_cuda (__main__.GPUTests)": [
-    "188895",
-    "https://github.com/pytorch/pytorch/issues/188895",
-    [
       "rocm"
     ]
   ],
@@ -598,13 +598,6 @@
     "https://github.com/pytorch/pytorch/issues/188896",
     [
       "linux"
-    ]
-  ],
-  "test_lennard_jones_batched_jac_jac_jacrev_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180520",
-    "https://github.com/pytorch/pytorch/issues/180520",
-    [
-      "dynamo"
     ]
   ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
@@ -1240,6 +1233,13 @@
     "https://github.com/pytorch/pytorch/issues/190165",
     [
       "dynamo"
+    ]
+  ],
+  "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "191746",
+    "https://github.com/pytorch/pytorch/issues/191746",
+    [
+      "linux"
     ]
   ],
   "test_thread_shutdown (__main__.TestAutogradWithCompiledAutograd)": [
