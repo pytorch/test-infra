@@ -1,0 +1,99 @@
+name: Green Light Review Scan
+
+# Manually runs the greenlight scanner (`just review`): lists open pytorch/pytorch PRs
+# from trusted authors and dispatches greenlight-pr-review.yml for each new or changed
+# PR. Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Single pytorch/pytorch PR number to scan (empty = all trusted authors)"
+        required: false
+        default: ""
+        type: string
+      max:
+        description: "Max dispatches this run (empty = no cap)"
+        required: false
+        default: ""
+        type: string
+      ref:
+        description: "Ref of greenlight-pr-review.yml to dispatch"
+        required: false
+        default: "main"
+        type: string
+      timeout_minutes:
+        description: "In-flight / re-dispatch timeout (minutes)"
+        required: false
+        default: "30"
+        type: string
+      log_level:
+        description: "Log verbosity"
+        required: false
+        default: "INFO"
+        type: choice
+        options:
+          - DEBUG
+          - INFO
+          - WARNING
+          - ERROR
+
+# Singleton: only one scan runs at a time, and a new dispatch waits rather than
+# cancelling an in-flight scan (which could leave dispatch bookkeeping half-done).
+concurrency:
+  group: ${{ github.workflow }}-singleton
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: greenlight
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
+    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
+    # Actions: write and Pull requests: read so the minted token can dispatch the
+    # reviewer workflow and read PRs across pytorch/pytorch and pytorch/test-infra.
+    environment: greenlight-record
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea  # v4.2.1
+        with:
+          working_directory: greenlight
+
+      - name: Mint Green Light app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: pytorch,test-infra
+          permission-pull-requests: read
+          permission-actions: write
+
+      - name: Sync dependencies
+        run: just setup
+
+      - name: Scan and dispatch
+        env:
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          IN_PR: ${{ inputs.pr }}
+          IN_MAX: ${{ inputs.max }}
+          IN_REF: ${{ inputs.ref }}
+          IN_TIMEOUT: ${{ inputs.timeout_minutes }}
+          IN_LOG_LEVEL: ${{ inputs.log_level }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); fi
+          if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
+          args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")
+          just review "${args[@]}"
