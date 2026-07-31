@@ -1,7 +1,10 @@
 import logging
+import queue
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -324,6 +327,214 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
     assert [number for number, *_ in dispatched] == [3]
     assert "skipping PR #1" in caplog.text
     assert any(record.exc_info is not None for record in caplog.records)
+
+
+def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
+    dispatched: list[tuple[int, str, str, str]] = []
+
+    def boom_fingerprint(_client, number):
+        if number in (1, 3):
+            raise RuntimeError(f"fingerprint boom {number}")
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+        dispatched.append((number, head_sha, eval_hash, dispatch_ref))
+
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"2 PR\(s\) failed during scan: \[1, 3\]"),
+    ):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(3), _open_pr(1), _open_pr(2)],
+            fingerprint=boom_fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            now=lambda: _NOW,
+        )
+
+    # Scanned in fetch order [3, 1, 2], so failed is collected as [3, 1]; the sorted(failed) in
+    # the RuntimeError reorders that to ascending [1, 3] -- drop that sort and this match fails.
+    # Healthy PR2 still dispatches before the aggregate failure surfaces.
+    assert [number for number, *_ in dispatched] == [2]
+    assert "skipping PR #1" in caplog.text
+    assert "skipping PR #3" in caplog.text
+
+
+def test_scan_larger_than_worker_pool_fingerprints_every_pr(make_config):
+    numbers = list(range(1, review._FINGERPRINT_WORKERS + 5))
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(n) for n in numbers],
+        fingerprints={n: (f"headsha{n}", _HASH_A) for n in numbers},
+    )
+
+    # More tasks than workers must all run with none dropped; worker threads append in
+    # nondeterministic order, so the fingerprinted set is compared rather than its order.
+    assert sorted(scan.fingerprinted) == numbers
+    assert [number for number, *_ in scan.dispatched] == numbers
+
+
+def test_fingerprints_run_concurrently_across_workers(make_config):
+    # Fill the pool to prove full concurrency, but demand >=2 parties even if the pool is
+    # shrunk to 1: a 1-party barrier is satisfied by a single serial task and proves nothing.
+    k = max(2, review._FINGERPRINT_WORKERS)
+    numbers = list(range(1, k + 1))
+    barrier = threading.Barrier(k, timeout=5)
+    dispatched: list[int] = []
+
+    def barrier_fingerprint(_client, number):
+        barrier.wait()
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+        dispatched.append(number)
+
+    review.run(
+        make_config(github_token="t"),
+        build_github=lambda _token: _CLIENT,
+        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fingerprint=barrier_fingerprint,
+        read_state=lambda _repo, _numbers: {},
+        dispatch=fake_dispatch,
+        now=lambda: _NOW,
+    )
+
+    # Every task blocks on the k-party barrier before returning, so only genuine concurrency
+    # (k workers running at once) lets all parties arrive and release. Serial execution would
+    # leave the barrier short, time out into BrokenBarrierError, and raise RuntimeError here.
+    assert sorted(dispatched) == numbers
+
+
+def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
+    # Force >=2 tasks in flight at once (see the concurrency test): isolation is only
+    # meaningful when multiple borrowed clients are held simultaneously.
+    k = max(2, review._FINGERPRINT_WORKERS)
+    numbers = list(range(1, k + 1))
+    barrier = threading.Barrier(k, timeout=5)
+    built: list[object] = []
+
+    def factory(_token):
+        client = object()
+        built.append(client)
+        return cast("Github", client)
+
+    seen: dict[int, object] = {}
+
+    def recording_fingerprint(client, number):
+        seen[number] = client
+        barrier.wait()
+        return (f"headsha{number}", _HASH_A)
+
+    dispatched: list[int] = []
+
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+        dispatched.append(number)
+
+    review.run(
+        make_config(github_token="t"),
+        build_github=factory,
+        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fingerprint=recording_fingerprint,
+        read_state=lambda _repo, _numbers: {},
+        dispatch=fake_dispatch,
+        now=lambda: _NOW,
+    )
+
+    main_client = built[0]
+    worker_clients = set(built[1:])
+    passed = set(seen.values())
+    # The barrier holds all k tasks in-flight at once, so each must be holding a different
+    # borrowed client -- proving per-task isolation. The main client drives fetch/dispatch
+    # only and must never reach a worker, or the shared-client data race would be back.
+    assert passed <= worker_clients
+    assert main_client not in passed
+    assert len(passed) > 1
+    assert sorted(dispatched) == numbers
+
+
+def test_run_closes_main_and_worker_clients(make_config):
+    class _Closeable:
+        def __init__(self) -> None:
+            self.closed = 0
+
+        def close(self) -> None:
+            self.closed += 1
+
+    built: list[_Closeable] = []
+
+    def factory(_token):
+        client = _Closeable()
+        built.append(client)
+        return cast("Github", client)
+
+    review.run(
+        make_config(github_token="t"),
+        build_github=factory,
+        fetch=lambda _client: [_open_pr(1), _open_pr(2)],
+        fingerprint=lambda _client, number: (f"headsha{number}", _HASH_A),
+        read_state=lambda _repo, _numbers: {},
+        dispatch=lambda *_args: None,
+        now=lambda: _NOW,
+    )
+
+    # main client + min(_FINGERPRINT_WORKERS, 2 PRs) = 2 worker clients are all built, and
+    # each is closed exactly once as the scan unwinds -- the connection pools are not leaked.
+    assert len(built) == 3
+    assert all(client.closed == 1 for client in built)
+
+
+def test_close_client_swallows_close_errors(caplog):
+    class _Boom:
+        def close(self) -> None:
+            raise RuntimeError("close boom")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        review._close_client(cast("Github", _Boom()))
+
+    # A failing close must never raise, so it cannot mask the scan's real outcome; it is
+    # logged with exc_info instead.
+    assert "failed to close GitHub client" in caplog.text
+    assert any(record.exc_info is not None for record in caplog.records)
+
+
+def test_fingerprint_task_returns_client_on_exception():
+    pool: queue.Queue[Github] = queue.Queue()
+    client = cast("Github", object())
+    pool.put(client)
+
+    def boom(_client, _number):
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        review._fingerprint_task(boom, pool, 1)
+
+    # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
+    # with more PRs than workers drains the pool and queue.get blocks the scan forever.
+    assert pool.get_nowait() is client
+
+
+def test_fetch_failure_still_closes_main_client(make_config):
+    client = Mock()
+
+    def boom_fetch(_client):
+        raise RuntimeError("fetch boom")
+
+    with pytest.raises(RuntimeError, match="fetch boom"):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: cast("Github", client),
+            fetch=boom_fetch,
+            fingerprint=lambda _client, number: (f"headsha{number}", _HASH_A),
+            read_state=lambda _repo, _numbers: {},
+            dispatch=lambda *_args: None,
+            now=lambda: _NOW,
+        )
+
+    # fetch raises after the main client is built but before any worker exists; the ExitStack must
+    # still close it as it unwinds, or every early failure leaks the client's connection pool.
+    client.close.assert_called_once()
 
 
 def test_deferred_dispatch_is_logged(make_config, caplog):

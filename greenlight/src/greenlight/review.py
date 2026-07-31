@@ -10,7 +10,10 @@ seams so the loop is testable without any of them.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import queue
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -22,6 +25,7 @@ from greenlight.decision import Decision, decide
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from concurrent.futures import Future
 
     from github import Github
 
@@ -42,6 +46,8 @@ TRUSTED_AUTHORS: set[str] = {
     "jeanschmidt",  # Jean Schmidt
 }
 
+_FINGERPRINT_WORKERS = 8
+
 # Never-reviewed candidates sort ahead of every recorded one; this stands in for their
 # absent version so the sort key stays a homogeneous (bool, datetime) tuple.
 _MIN_VERSION = datetime.min
@@ -60,6 +66,27 @@ def _default_fetch(client: Github) -> list[OpenPR]:
 
 def _default_fingerprint(client: Github, pr_number: int) -> tuple[str, str]:
     return github_client.fingerprint_pr(client, TARGET_REPO, pr_number)
+
+
+def _fingerprint_task(
+    fingerprint: Callable[[Github, int], tuple[str, str]],
+    client_pool: queue.Queue[Github],
+    number: int,
+) -> tuple[str, str]:
+    client = client_pool.get()
+    try:
+        return fingerprint(client, number)
+    finally:
+        client_pool.put(client)
+
+
+def _close_client(client: Github) -> None:
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            logger.exception("failed to close GitHub client")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,32 +152,52 @@ def run(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    client = build_github(token)
-    pr_numbers = _candidate_numbers(client, pr=pr, fetch=fetch)
-    states = read_state(TARGET_REPO, pr_numbers)
-    timeout = timedelta(minutes=timeout_minutes)
-    evaluated_at = now()
-    pending: list[_Candidate] = []
-    failed: list[int] = []
-    for number in pr_numbers:
-        try:
-            head_sha, eval_hash = fingerprint(client, number)
-            recorded = states.get(number)
-            outcome = decide(
-                current_eval_hash=eval_hash,
-                latest_status=recorded.status if recorded is not None else None,
-                latest_eval_hash=recorded.eval_hash if recorded is not None else None,
-                latest_version=recorded.version if recorded is not None else None,
-                now=evaluated_at,
-                timeout=timeout,
-            )
-            logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
-            if outcome.action is Decision.DISPATCH:
-                pending.append(_Candidate(number, head_sha, eval_hash, recorded, outcome.reason))
-        except Exception:
-            logger.exception("skipping PR #%d: failed to evaluate", number)
-            failed.append(number)
-            continue
-    _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
-    if failed:
-        raise RuntimeError(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
+    with contextlib.ExitStack() as clients:
+        client = build_github(token)
+        clients.callback(_close_client, client)
+        pr_numbers = _candidate_numbers(client, pr=pr, fetch=fetch)
+        states = read_state(TARGET_REPO, pr_numbers)
+        timeout = timedelta(minutes=timeout_minutes)
+        evaluated_at = now()
+        pending: list[_Candidate] = []
+        failed: list[int] = []
+        worker_count = min(_FINGERPRINT_WORKERS, len(pr_numbers))
+        worker_clients: list[Github] = []
+        for _ in range(worker_count):
+            worker_client = build_github(token)
+            clients.callback(_close_client, worker_client)
+            worker_clients.append(worker_client)
+        futures: dict[int, Future[tuple[str, str]]] = {}
+        if worker_count:
+            # PyGithub is not thread-safe, so each concurrent task borrows a client for its
+            # exclusive use; sizing the pool to the client count keeps queue.get non-blocking
+            # and guarantees no two running tasks ever share one.
+            client_pool: queue.Queue[Github] = queue.Queue()
+            for worker_client in worker_clients:
+                client_pool.put(worker_client)
+            with ThreadPoolExecutor(max_workers=worker_count) as pool:
+                futures = {
+                    number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in pr_numbers
+                }
+        for number in pr_numbers:
+            try:
+                head_sha, eval_hash = futures[number].result()
+                recorded = states.get(number)
+                outcome = decide(
+                    current_eval_hash=eval_hash,
+                    latest_status=recorded.status if recorded is not None else None,
+                    latest_eval_hash=recorded.eval_hash if recorded is not None else None,
+                    latest_version=recorded.version if recorded is not None else None,
+                    now=evaluated_at,
+                    timeout=timeout,
+                )
+                logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
+                if outcome.action is Decision.DISPATCH:
+                    pending.append(_Candidate(number, head_sha, eval_hash, recorded, outcome.reason))
+            except Exception:
+                logger.exception("skipping PR #%d: failed to evaluate", number)
+                failed.append(number)
+                continue
+        _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
+        if failed:
+            raise RuntimeError(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
