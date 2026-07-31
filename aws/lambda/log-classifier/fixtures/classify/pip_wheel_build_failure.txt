@@ -1,0 +1,42 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30476022305/job/90688867283
+2026-07-29T19:59:45.5515727Z   [31m   [0m -- Performing Test HAVE_ALIGNED_STORAGE - Success
+2026-07-29T19:59:45.5516181Z   [31m   [0m -- Performing Test HAVE_LOCALTIME_R
+2026-07-29T19:59:45.5516649Z   [31m   [0m -- Performing Test HAVE_LOCALTIME_R - Success
+2026-07-29T19:59:45.5517344Z   [31m   [0m -- Using header-only fmt from: /opt/conda/envs/py_3.10/lib/python3.10/site-packages/torch/include
+2026-07-29T19:59:45.5518423Z   [31m   [0m -- Found Python3: /opt/conda/envs/py_3.10/bin/python3 (found version "3.10.20") found components: Interpreter Development.Module
+2026-07-29T19:59:45.5519546Z   [31m   [0m CMake Error at /opt/conda/envs/py_3.10/lib/python3.10/site-packages/torch/share/cmake/Caffe2/public/LoadHIP.cmake:70 (message):
+2026-07-29T19:59:45.5520422Z   [31m   [0m   No GPU arch specified for ROCm build.  Please use PYTORCH_ROCM_ARCH
+2026-07-29T19:59:45.5521020Z   [31m   [0m   environment variable to specify GPU archs to build for.
+2026-07-29T19:59:45.5521511Z   [31m   [0m Call Stack (most recent call first):
+2026-07-29T19:59:45.5522238Z   [31m   [0m   /opt/conda/envs/py_3.10/lib/python3.10/site-packages/torch/share/cmake/Caffe2/Caffe2Config.cmake:72 (include)
+2026-07-29T19:59:45.5523363Z   [31m   [0m   /opt/conda/envs/py_3.10/lib/python3.10/site-packages/cmake/data/share/cmake-3.31/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
+2026-07-29T19:59:45.5524496Z   [31m   [0m   /opt/conda/envs/py_3.10/lib/python3.10/site-packages/torch/share/cmake/Torch/TorchConfig.cmake:62 (find_dependency)
+2026-07-29T19:59:45.5525537Z   [31m   [0m   CMakeLists.txt:136 (find_package)
+2026-07-29T19:59:45.5525908Z   [31m   [0m 
+2026-07-29T19:59:45.5526161Z   [31m   [0m 
+2026-07-29T19:59:45.5526520Z   [31m   [0m -- Configuring incomplete, errors occurred!
+2026-07-29T19:59:45.5527106Z   [31m   [0m error: command '/opt/conda/envs/py_3.10/bin/cmake' failed with exit code 1
+2026-07-29T19:59:45.5527635Z   [31m   [0m [31m[end of output][0m
+2026-07-29T19:59:45.5527933Z   
+2026-07-29T19:59:45.5528428Z   [1;35mnote[0m: This error originates from a subprocess, and is likely not a problem with pip.
+#=MATCH=# 2026-07-29T19:59:45.5529348Z [31m  ERROR: Failed building wheel for ‹torchcomms›[0m[31m
+2026-07-29T19:59:45.5529804Z [0m[?25hFailed to build torchcomms
+2026-07-29T19:59:45.5530245Z [31mERROR: Failed to build one or more wheels[0m[31m
+2026-07-29T19:59:50.7378748Z [0m+ sccache_epilogue
+2026-07-29T19:59:50.7379533Z + echo '::group::Sccache Compilation Log'
+2026-07-29T19:59:50.7380813Z ##[group]Sccache Compilation Log
+2026-07-29T19:59:50.7381536Z + echo '=================== sccache compilation log ==================='
+2026-07-29T19:59:50.7382379Z =================== sccache compilation log ===================
+2026-07-29T19:59:50.7383560Z + python /var/lib/jenkins/workspace/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-29T19:59:50.7554561Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-29T19:59:50.7556105Z =========== If your build fails, please take a look at the log above for possible reasons ===========
+2026-07-29T19:59:50.7557157Z + sccache --show-stats
+2026-07-29T19:59:50.7589696Z Compile requests                    162
+2026-07-29T19:59:50.7590574Z Compile requests executed            65
+2026-07-29T19:59:50.7591258Z Cache hits                            0
+2026-07-29T19:59:50.7591832Z Cache misses                         59
+2026-07-29T19:59:50.7592451Z Cache misses (C/C++)                 59
+2026-07-29T19:59:50.7593052Z Cache hits rate                    0.00 %
+2026-07-29T19:59:50.7593713Z Cache hits rate (C/C++)            0.00 %
+2026-07-29T19:59:50.7594406Z Cache timeouts                        0
+2026-07-29T19:59:50.7595085Z Cache read errors                     0

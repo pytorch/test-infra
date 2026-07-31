@@ -12,8 +12,26 @@ with the expected verdict recorded **in-band**:
 - `#=MATCH=# ` prefixes the line the classifier surfaces; each captured span is
   wrapped in `‹ ›` (so the group key is visible in context).
 - A fixture with no `#=MATCH=#` line records that nothing classifies.
+- An optional `#=SOURCE=#` line at the top links to the source job (metadata:
+  never classified, preserved across re-blessing; written by `pull_fixture.py`).
 
 The marker snapshots **current** behavior. Full format: `fixtures/classify/FIXTURES.md`.
+
+## Reviewing fixtures (`git showfix`)
+
+New fixtures are all-additions, so `git show` paints every log line green and
+buries the `#=MATCH=#` line. `tools/color_fixture_diff.py` recolors a
+`git show`/`git diff` stream: it dims the added log body, highlights only the
+match line (and its `‹ ›` captures) and the `#=SOURCE=#` link, and leaves
+non-fixture files (ruleset.toml, log.rs) in normal green. Wire up two aliases —
+`showfix` for a single commit, `difffix` for a range/working tree (use
+`git difffix main...HEAD` to review a whole branch; `git show` would list each
+commit separately, so a fixture touched by two commits shows up twice):
+
+```
+git config alias.showfix '!f() { root="$(git rev-parse --show-toplevel)"; cd "${GIT_PREFIX:-.}" && git show --color=never "$@" | "$root/aws/lambda/log-classifier/tools/color_fixture_diff.py" | less -R; }; f'
+git config alias.difffix '!f() { root="$(git rev-parse --show-toplevel)"; cd "${GIT_PREFIX:-.}" && git diff --color=never "$@" | "$root/aws/lambda/log-classifier/tools/color_fixture_diff.py" | less -R; }; f'
+```
 
 - Run: `cargo test --test classify`
 - Re-bless after a ruleset/engine change (verify the diff before committing!):

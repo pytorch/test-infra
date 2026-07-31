@@ -5,7 +5,7 @@
 2026-07-27T21:47:27.4552484Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7168s/7200s)
 2026-07-27T21:47:47.4989757Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7188s/7200s)
 2026-07-27T21:48:07.5539267Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7208s/7200s)
-#=MATCH=# 2026-07-27T21:48:27.6295636Z ##[error]‹Error: pod failed to come online with error: Error: Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow is unhealthy with phase status Pending: backoff timeout›
+#=MATCH=# 2026-07-27T21:48:27.6295636Z ##[error]Error: pod failed to come online with error: Error: Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow is unhealthy with phase status ‹Pending: backoff timeout›
     at /opt/runner-hooks/dist/index.js:510:27
     at step (/opt/runner-hooks/dist/index.js:417:23)
     at Object.next (/opt/runner-hooks/dist/index.js:398:53)

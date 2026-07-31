@@ -49,6 +49,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -190,8 +191,28 @@ def preview(lines: list[str], start: int, end: int, edge: int = 3) -> str:
     )
 
 
-def write_window(fixture: Path, lines: list[str], start: int, end: int) -> None:
-    fixture.write_text("\n".join(lines[start : end + 1]) + "\n")
+def write_window(
+    fixture: Path, lines: list[str], start: int, end: int, source: str | None = None
+) -> None:
+    body = "\n".join(lines[start : end + 1]) + "\n"
+    # A `#=SOURCE=#` metadata line at the top links back to the originating job for
+    # review; the harness never feeds it to the classifier and preserves it across
+    # re-blessing. Only added on the final write (not the intermediate full-log
+    # bless), so raw line numbers there stay aligned.
+    if source:
+        body = f"#=SOURCE=# {source}\n" + body
+    fixture.write_text(body)
+
+
+def source_link(job_arg: str, job_id: int, repo: str) -> str:
+    """Best link back to the job: the GitHub Actions URL if that's what was passed,
+    else the raw-log S3 URL (always derivable from the job id)."""
+    arg = job_arg.strip()
+    # Check the actual URL host (not a substring, which "github.com.evil" defeats).
+    host = urllib.parse.urlparse(arg).hostname or ""
+    if host == "github.com" or host.endswith(".github.com"):
+        return arg
+    return log_url(job_id, repo)
 
 
 def report(
@@ -284,11 +305,12 @@ def main() -> None:
     name = (args.name or f"job_{job_id}").removesuffix(".txt")
     fixture = FIXTURE_DIR / f"{name}.txt"
     last = len(lines) - 1
+    src = source_link(args.job, job_id, args.repo)
 
     win = explicit_window(lines, args)
     if win is not None:
         # Explicit window: write once, bless once.
-        write_window(fixture, lines, *win)
+        write_window(fixture, lines, *win, source=src)
         if not args.no_bless:
             bless()
         report(fixture, lines, *win, blessed=not args.no_bless)
@@ -303,7 +325,7 @@ def main() -> None:
             # trailing teardown stays out of the window.
             start, end = max(0, a - args.tail), min(last, a + args.context)
             print(f"error-line anchor at raw line {a + 1} (offline; --no-bless)")
-        write_window(fixture, lines, start, end)
+        write_window(fixture, lines, start, end, source=src)
         report(fixture, lines, start, end, blessed=False)
     else:
         # Default: bless the whole log to find the classifier's line, then trim.
@@ -324,7 +346,7 @@ def main() -> None:
             else:
                 start, end = max(0, a - args.tail), min(last, a + args.context)
                 print(f"classifier matched nothing; anchoring on error line {a + 1}")
-        write_window(fixture, lines, start, end)
+        write_window(fixture, lines, start, end, source=src)
         bless()  # re-annotate on the trimmed window
         report(fixture, lines, start, end, blessed=True)
 
