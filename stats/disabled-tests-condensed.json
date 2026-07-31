@@ -829,14 +829,6 @@
       "macos"
     ]
   ],
-  "test_nonzero_multichunk_above_int32 (__main__.TestMPS)": [
-    "190881",
-    "https://github.com/pytorch/pytorch/issues/190881",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
