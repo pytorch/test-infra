@@ -317,6 +317,63 @@ mod test {
         assert_eq!(match_.rule.name, "Operator backwards compatibility");
     }
 
+    // The three timeout shapes from pytorch/pytorch#191754. These live here
+    // rather than in fixtures/classify/ because fixtures are verbatim CI logs
+    // and the two enriched shapes do not exist in any log yet -- the runner
+    // change has not landed and propagated. Replace with real fixtures once it
+    // has; until then these pin the agreed formats so the rules cannot rot.
+    #[test]
+    fn timeout_prefers_in_flight_test_nodeid() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            Command took >30min, returning 124\n\
+            Got exit code 124\n\
+            TIMED OUT: test_foo.py::TestBar::test_baz\n\
+            test_foo 1/1 failed!\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Test file timeout");
+        assert_eq!(match_.captures, vec!["test_foo.py::TestBar::test_baz"]);
+    }
+
+    #[test]
+    fn timeout_falls_back_to_file_label_when_no_test_started() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            Command took >30min, returning 124 (test_segment_reductions 1/1)\n\
+            Got exit code 124\n\
+            No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)\n\
+            test_segment_reductions 1/1 failed!\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Test file timeout");
+        // Shard is outside the capture so 3/8 and 5/8 of one file aggregate.
+        assert_eq!(match_.captures, vec!["test_segment_reductions"]);
+    }
+
+    #[test]
+    fn timeout_bare_form_still_matches_for_old_runners() {
+        // Release branches keep emitting the unenriched line indefinitely.
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            Command took >30min, returning 124\n\
+            Got exit code 124\n\
+            test_segment_reductions 1/1 failed!\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Test file timeout");
+        assert_eq!(match_.captures, vec!["Command took >30min, returning 124"]);
+    }
+
     #[test]
     fn backwards_compat_bc_fc_model_load_failure() {
         let ruleset = RuleSet::new_from_config();

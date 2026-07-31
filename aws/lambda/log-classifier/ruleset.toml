@@ -266,10 +266,30 @@ pattern = '^##\[error\]Response status code does not indicate success: .*$'
 name = 'Python Test timeout (KeyboardInterrupt)'
 pattern = '!+ KeyboardInterrupt !+'
 
-# run_test.py killed a test file that exceeded its wall-clock limit (exit 124).
-# Without this the job falls through to the generic "<file> N/N failed!" wrapper
-# below, which mislabels a timeout as an ordinary test failure. The file that
-# timed out is on the "Finished ..." line just below, in context.
+# run_test.py killed a test that exceeded its wall-clock limit (exit 124 means a
+# genuinely unkillable hang: wait_for_process SIGINTs first and returns the
+# child's real exit code if it dies gracefully). Without these the job falls
+# through to the generic "<file> N/N failed!" wrapper below, which mislabels a
+# timeout as an ordinary test failure.
+#
+# Three shapes, most specific first, per pytorch/pytorch#191754:
+#   1. "TIMED OUT: <nodeid>"                     a test was in flight; best signal
+#   2. "... returning 124 (<file> <shard>/<n>)"  hang during import/collection
+#   3. "... returning 124"                       pre-#191754 code and release
+#                                                branches; keep indefinitely
+# 1 and 2 are mutually exclusive for a given timeout ("a test was running" vs
+# "nothing started"). Before #191754 only shape 3 existed, so every timeout in
+# the fleet shared one group key and a single hanging test was invisible.
+[[rule]]
+name = 'Test file timeout'
+pattern = '^TIMED OUT: (\S+)'
+
+# NB the shard is deliberately left OUT of the capture: the same file hanging on
+# shard 3/8 and 5/8 is one problem and should aggregate into one group.
+[[rule]]
+name = 'Test file timeout'
+pattern = '^Command took >\d+min, returning 124 \((\S+)'
+
 [[rule]]
 name = 'Test file timeout'
 pattern = '^Command took >\d+min, returning 124'
