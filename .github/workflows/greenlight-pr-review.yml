@@ -1,0 +1,23 @@
+name: Green Light PR Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "pytorch/pytorch PR number to review"
+        required: true
+        type: string
+      head_sha:
+        description: "Head commit SHA the verdict is pinned to (land-guard)"
+        required: true
+        type: string
+      eval_hash:
+        description: "Land-guard fingerprint of the evaluated inputs"
+        required: true
+        type: string
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "stub"
