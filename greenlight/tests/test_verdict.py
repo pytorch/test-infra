@@ -317,6 +317,29 @@ def test_marker_failed_stores_eval_hash_verbatim_without_validation(make_config)
     assert payload["status"] == "FAILED"
 
 
+def test_marker_ai_review_started_emits_payload_only(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="pytorch/pytorch", pr_number=11, head_sha="h", status="AI_REVIEW_STARTED")
+
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip) == {
+        "repo": "pytorch/pytorch",
+        "pr_number": 11,
+        "head_sha": "h",
+        "status": "AI_REVIEW_STARTED",
+        "reason": "",
+        "eval_hash": "",
+        "message": "",
+        "eval_job": "",
+        "agent_job": "",
+        "version": _VERSION,
+    }
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}.json.gz"
+
+
 def test_dry_run_full_is_offline(make_config, tmp_path, caplog):
     rec = _Recorder()
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")

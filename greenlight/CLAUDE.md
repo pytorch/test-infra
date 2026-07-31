@@ -44,21 +44,24 @@ defer; they block CI.
 - Single source of truth: define each value and type exactly once, import elsewhere.
 - No `print()` — use the logging module.
 
-## The Service Seam
+## The Service Phase
 
-PyTorch Green Light has one unit of work — the `review` phase — the placeholder seam where
-new logic goes:
+PyTorch Green Light has one unit of work — the `review` phase:
 
-- `review.run()` — fetches the open PRs from a fixed set of trusted authors in
-  `pytorch/pytorch` and logs them; the trusted-author set is the match rule. The seam
-  to fill is risk-scoring and triggering the AI code-review workflow. Requires
-  `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
+- `review.run()` — scans the open PRs from a fixed set of trusted authors in
+  `pytorch/pytorch` (the trusted-author set is the match rule); for each PR it computes the
+  fingerprint (`eval_hash`), reads the PR's latest state from `misc.greenlight_pr_state`,
+  and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
+  for new or changed PRs. Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` and `CLICKHOUSE_*`
+  read access.
 
-Approving or rejecting a PR now lives in that future triggered workflow, not in greenlight.
+Approving or rejecting a PR lives in the dispatched reviewer workflow (through `verdict`),
+not in the `review` scan itself.
 
 The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
-`github_client.build_pr_fingerprint`) is built and tested but not yet wired into
-`review` or any ClickHouse table.
+`github_client.build_pr_fingerprint`) is computed by the `review` scan and recorded to
+`misc.greenlight_pr_state` by `verdict`; only the land-time verifier that reads it back at
+land time is not built yet.
 
 Add new logic inside `review.run()`, which **must keep raising on
 failure** (it does not catch). The CLI runs the `review` phase

@@ -15,7 +15,7 @@ setup:
 run *args:
     uv run greenlight {{args}}
 
-# Fetch open PRs from trusted authors in pytorch/pytorch, match review rules, and log them
+# Scan open PRs from trusted authors in pytorch/pytorch; dispatch the reviewer workflow for new/changed PRs
 review *args:
     uv run greenlight review {{args}}
 

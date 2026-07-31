@@ -11,8 +11,8 @@ a fixed local path (the record workflow uploads it to ``s3://gha-artifacts/``, w
 clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and then
 updates GitHub with a defanged copy of the message: LAND posts an approving review,
 NO_LAND dismisses greenlight's own prior approval (matched by ``bot_login``) and comments.
-MARKER statuses (CANCELLED / FAILED) only emit the row -- no PR fetch, no GitHub post. The
-command never writes to ClickHouse directly.
+MARKER statuses (CANCELLED / FAILED / AI_REVIEW_STARTED) only emit the row -- no PR fetch,
+no GitHub post. The command never writes to ClickHouse directly.
 """
 
 from __future__ import annotations
@@ -20,12 +20,20 @@ from __future__ import annotations
 import gzip
 import json
 import logging
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import github_client
+from greenlight import constants, github_client
+from greenlight.constants import (
+    IN_FLIGHT_STATUSES,
+    RETRY_STATUSES,
+    S3_KEY_PREFIX,
+    STATUS_LAND,
+    STATUS_NO_LAND,
+    TERMINAL_STATUSES,
+    VERDICT_STATUSES,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,15 +41,12 @@ if TYPE_CHECKING:
     from greenlight.config import Config
     from greenlight.github_client import VerdictClient
 
+__all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
+
 logger = logging.getLogger(__name__)
 
-STATUS_LAND = "LAND"
-STATUS_NO_LAND = "NO_LAND"
-STATUS_CANCELLED = "CANCELLED"
-STATUS_FAILED = "FAILED"
-_FULL_STATUSES: frozenset[str] = frozenset({STATUS_LAND, STATUS_NO_LAND})
-_MARKER_STATUSES: frozenset[str] = frozenset({STATUS_CANCELLED, STATUS_FAILED})
-VERDICT_STATUSES: frozenset[str] = _FULL_STATUSES | _MARKER_STATUSES
+_FULL_STATUSES = TERMINAL_STATUSES
+_MARKER_STATUSES = RETRY_STATUSES | IN_FLIGHT_STATUSES
 
 # Canonical verdict reason codes. The ci-artifacts JSON schema and reviewer SKILL mirror
 # this set byte-for-byte; any change here must update them in lockstep.
@@ -61,12 +66,10 @@ ALLOWED_REASONS: frozenset[str] = frozenset(
     }
 )
 
-_EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
 _MESSAGE_CAP = 4000
 _ZERO_WIDTH_SPACE = chr(0x200B)
 
-_S3_KEY_PREFIX = "greenlight_pr_state"
 # Fixed paths are the contract with the record workflow, which `aws s3 cp`s the row file
 # to the bucket-relative key. Constant on purpose; tests inject a fake emit instead.
 _ROW_PATH = "/tmp/greenlight-verdict-row.json.gz"  # noqa: S108
@@ -149,8 +152,7 @@ def _resolve_verdict(request: VerdictRequest) -> tuple[str, str, str]:
 
 
 def _validate_eval_hash(value: str) -> None:
-    if not _EVAL_HASH_RE.fullmatch(value):
-        raise ValueError(f"eval_hash must be 64 lowercase hex characters, got {value!r}")
+    constants.validate_eval_hash(value)
 
 
 def _validate_reason(reason: str) -> None:
@@ -191,7 +193,7 @@ def _post_body(status: str, reason: str, message: str, run_url: str) -> str:
 
 def _object_key(repo: str, pr_number: int, version: str) -> str:
     compact = version.replace("-", "").replace(":", "").replace(" ", "T").replace(".", "_")
-    return f"{_S3_KEY_PREFIX}/{repo}/{pr_number}/{compact}.json.gz"
+    return f"{S3_KEY_PREFIX}/{repo}/{pr_number}/{compact}.json.gz"
 
 
 def _emit_payload(

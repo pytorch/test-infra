@@ -9,7 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-from greenlight.pr_hash import ChangedFile, HumanEvent, PRFingerprint, is_bot
+from greenlight import constants
+from greenlight.pr_hash import ChangedFile, HumanEvent, PRFingerprint, compute_pr_hash, is_bot
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
         def title(self) -> str: ...
         @property
         def html_url(self) -> str: ...
+        @property
+        def head(self) -> _PRBase: ...
 
     class _Repo(Protocol):
         def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
@@ -87,6 +90,13 @@ if TYPE_CHECKING:
         def get_review_comments(self) -> Iterable[_PRComment]: ...
         def get_reviews(self) -> Iterable[_PRReview]: ...
 
+    class _ScanPR(_FingerprintPR, Protocol):
+        @property
+        def head(self) -> _PRBase: ...
+
+    class _ScanRepo(Protocol):
+        def get_pull(self, number: int) -> _ScanPR: ...
+
     class _VerdictReview(Protocol):
         @property
         def id(self) -> int: ...
@@ -113,6 +123,12 @@ class VerdictClient(Protocol):
     def get_repo(self, full_name_or_id: str) -> _VerdictRepo: ...
 
 
+class ScanClient(Protocol):
+    """Structural GitHub client for the scan/fingerprint path; the real ``github.Github`` satisfies it."""
+
+    def get_repo(self, full_name_or_id: str) -> _ScanRepo: ...
+
+
 @dataclass(frozen=True, slots=True)
 class OpenPR:
     repo: str
@@ -120,6 +136,7 @@ class OpenPR:
     author: str
     title: str
     url: str
+    head_sha: str
 
 
 # Pin the request timeout so a future PyGithub default change can't let
@@ -150,6 +167,7 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
                     author=login,
                     title=pr.title,
                     url=pr.html_url,
+                    head_sha=pr.head.sha,
                 )
             )
     return sorted(prs, key=lambda p: p.number)
@@ -232,6 +250,19 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
         changed_files=changed_files,
         human_events=tuple(human_events),
     )
+
+
+def fingerprint_pr(client: ScanClient, repo: str, pr_number: int) -> tuple[str, str]:
+    """Fetch the PR and return its ``(head_sha, eval_hash)``.
+
+    Beyond the pull fetch this costs ~4 paginated GitHub calls: ``build_pr_fingerprint``
+    reads files, issue comments, review comments, and reviews.
+    """
+    pr = client.get_repo(repo).get_pull(pr_number)
+    head_sha = pr.head.sha
+    eval_hash = compute_pr_hash(build_pr_fingerprint(pr))
+    constants.validate_eval_hash(eval_hash)
+    return head_sha, eval_hash
 
 
 REVIEW_EVENT_APPROVE = "APPROVE"

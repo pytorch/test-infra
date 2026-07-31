@@ -1,3 +1,4 @@
+import functools
 import logging
 import sys
 from contextlib import contextmanager
@@ -7,6 +8,7 @@ import pytest
 
 from greenlight import cli, review, verdict
 from greenlight.config import Config
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
 
@@ -77,7 +79,10 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
 
     assert rc == EXIT_OK
     assert isinstance(captured["config"], Config)
-    assert captured["run"] is review.run
+    bound = captured["run"]
+    assert isinstance(bound, functools.partial)
+    assert bound.func is review.run
+    assert bound.keywords == {"pr": None, "max_dispatches": None, "ref": "main", "timeout_minutes": 30}
 
 
 def test_main_oneshot_failure_returns_exit_failure(monkeypatch):
@@ -152,7 +157,7 @@ def test_cli_args_override_env(monkeypatch):
 def test_cli_log_level_override(monkeypatch):
     captured: dict[str, object] = {}
 
-    def phase(config):
+    def phase(config, **_kwargs):
         captured["config"] = config
 
     monkeypatch.setattr(review, "run", phase)
@@ -255,7 +260,7 @@ def test_main_logs_effective_lock_path(monkeypatch, caplog):
 def test_cli_log_level_normalized_and_accepted(raw, expected, monkeypatch):
     captured: dict[str, object] = {}
 
-    def phase(config):
+    def phase(config, **_kwargs):
         captured["config"] = config
 
     monkeypatch.setattr(review, "run", phase)
@@ -445,3 +450,57 @@ def test_main_verdict_applies_log_level_override(monkeypatch):
     assert isinstance(config, Config)
     assert config.log_level == "DEBUG"
     configure_mock.assert_called_once_with("DEBUG")
+
+
+def test_review_parser_parses_scan_flags():
+    parser = cli.build_parser()
+    args = parser.parse_args(["review", "--pr", "5", "--max", "3", "--ref", "release/2.9", "--timeout-minutes", "45"])
+    assert args.pr == 5
+    assert args.max == 3
+    assert args.ref == "release/2.9"
+    assert args.timeout_minutes == 45
+
+
+def test_review_parser_scan_flag_defaults():
+    parser = cli.build_parser()
+    args = parser.parse_args(["review"])
+    assert args.pr is None
+    assert args.max is None
+    assert args.ref == DEFAULT_DISPATCH_REF
+    assert args.timeout_minutes == DEFAULT_TIMEOUT_MINUTES
+
+
+def test_main_review_binds_scan_flags_into_run(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5", "--max", "2", "--ref", "release/2.9", "--timeout-minutes", "45"])
+
+    assert rc == EXIT_OK
+    review_mock.assert_called_once()
+    assert isinstance(review_mock.call_args.args[0], Config)
+    assert review_mock.call_args.kwargs == {
+        "pr": 5,
+        "max_dispatches": 2,
+        "ref": "release/2.9",
+        "timeout_minutes": 45,
+    }
+
+
+def test_main_review_defaults_bind_into_run(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review"])
+
+    assert rc == EXIT_OK
+    assert review_mock.call_args.kwargs == {
+        "pr": None,
+        "max_dispatches": None,
+        "ref": DEFAULT_DISPATCH_REF,
+        "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
+    }

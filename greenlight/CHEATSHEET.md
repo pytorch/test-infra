@@ -7,8 +7,12 @@ directory. `just` is the front-end for every workflow — run `just` or
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
 loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
 
-- `review` — fetch the open PRs from a fixed set of trusted authors in `pytorch/pytorch`
-  and log them (needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN`).
+- `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
+  for each, compute its fingerprint (`eval_hash`), read its latest state from
+  `misc.greenlight_pr_state`, and dispatch the reviewer workflow
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. Needs
+  `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
+  (`CLICKHOUSE_*`).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval and comment). Runs once, never as a daemon.
@@ -31,18 +35,30 @@ pytest, yamllint) into `.venv`.
 ## Run
 
 ```bash
-just review          # one review iteration, then exit
-just run <args>      # pass arbitrary args to the greenlight CLI (review is a shortcut)
+just review                          # one scan + dispatch iteration, then exit
+just run <args>                      # pass arbitrary args to the greenlight CLI (review is a shortcut)
+just review --pr 123                 # restrict the scan to PR #123
+just review --max 5                  # cap this iteration at 5 dispatches
+just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
+just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 30)
 ```
 
-`just review` logs `INFO greenlight.review reviewing open PRs from trusted authors in
-pytorch/pytorch`, then queries GitHub for the trusted authors' open PRs and logs each
-one; without `PYTORCH_GREENLIGHT_GITHUB_TOKEN` it raises and exits `1`. Log lines are
-`TIMESTAMP LEVEL logger message`. Exit codes: `0` ok, `1` the phase raised, `3`
-another instance holds the lock (`2` is an argparse usage error).
+`just review` scans the trusted authors' open PRs and, for each PR that is new or changed
+since its last recorded state, dispatches the reviewer workflow
+(`greenlight-pr-review.yml` on `pytorch/test-infra`); an in-flight review (marked
+`AI_REVIEW_STARTED`) is left alone until the `--timeout-minutes` window elapses. Without
+`PYTORCH_GREENLIGHT_GITHUB_TOKEN` it raises and exits `1`; a scan that finds any PR also
+reads ClickHouse, so the `CLICKHOUSE_*` credentials must be set. Log lines are `TIMESTAMP
+LEVEL logger message`. Exit codes: `0` ok, `1` the phase raised, `3` another instance
+holds the lock (`2` is an argparse usage error).
 
-`review` fetches and logs the trusted authors' open PRs but does not yet score risk or
-decide reviews. Risk-scoring, the AI code-review workflow, and approve/reject are planned.
+The scan flags combine: `--pr N` restricts the scan to one PR, `--max N` caps how many
+dispatches a single iteration issues, `--ref` sets the `pytorch/test-infra` ref the
+reviewer workflow is dispatched at (default `main`), and `--timeout-minutes` (default 30)
+is how long an `AI_REVIEW_STARTED` review counts as in-flight before it is re-dispatched.
+That 30 is below the reviewer workflow's own ~45-55 min budget, so with the default the
+scanner can re-dispatch (cancel and restart) a review that is still running, and a very
+slow PR can loop; raise `--timeout-minutes` in the deployment if that matters.
 
 Daemon mode loops the phase on an interval:
 
@@ -56,12 +72,13 @@ runs each iteration, and on SIGTERM/SIGINT stops cleanly after the current
 iteration (`INFO greenlight.runner daemon stopped`, exit `0`). Signals are observed
 only between iterations.
 
-Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--log-level`, and
-`--lock-path` override them.
+Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--log-level`,
+and `--lock-path` override the matching env vars, and `review` adds the scan flags `--pr`,
+`--max`, `--ref`, and `--timeout-minutes`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token for read-only PR access; required by `review` |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR read on `pytorch/pytorch` |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -74,21 +91,29 @@ logs the resolved `Config`.
 
 ## Simulate a run
 
-The intended end-to-end flow is: `review` (fetch PRs, score risk, decide which need
-review) -> the AI code-review workflow (which approves or rejects).
+The end-to-end flow, per trusted-author PR:
 
-Reality today: `review` fetches and logs the trusted authors' open PRs (a live,
-read-only GitHub call needing `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) but does not yet score
-risk or decide reviews; the AI code-review workflow is not implemented. So a local run
-exercises the entry point and its wiring, not the real scoring, review, or
-approve/reject behavior.
+1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`).
+2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
+3. If the PR is new, or its fingerprint changed since that state, and no review is
+   in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow
+   (`greenlight-pr-review.yml` on `pytorch/test-infra`).
+4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
+   the next scan sees the review as in-flight and does not re-dispatch it.
+5. The workflow reviews the PR and records its verdict through `verdict`, which emits a
+   row to `s3://gha-artifacts/greenlight_pr_state/` (ingested into
+   `misc.greenlight_pr_state`) and, for `LAND`/`NO_LAND`, approves or
+   dismisses-and-comments on the PR.
 
-What you can run today (DEBUG to watch the flow):
+Only the land-time verifier — the pytorchbot side that reads the recorded state back at
+land time — is not built yet.
+
+A scan is live: it makes real GitHub and ClickHouse calls and will really dispatch the
+reviewer workflow. Scope a trial run with `--pr N` and cap it with `--max N`; add
+`--log-level DEBUG` to watch the flow:
 
 ```bash
-just review --log-level DEBUG   # fetch + log trusted authors' open PRs (needs token; no risk-scoring yet)
-# risk-scoring — not implemented yet
-# AI code-review workflow (approve/reject) — separate component, not implemented yet
+just review --pr 123 --max 1 --log-level DEBUG   # scan one PR, dispatch at most once
 ```
 
 ## Quality gates
@@ -135,9 +160,10 @@ automated DDL), so @clee2000 or @huydhn apply them manually:
 
 The `verdict` subcommand does NOT write ClickHouse directly: it emits a gzipped JSON row
 that the record workflow uploads to `s3://gha-artifacts/greenlight_pr_state/`, and the
-clickhouse-replicator-s3 path ingests it into the table. greenlight keeps ClickHouse READ
-access for the service's SELECTs via `clickhouse_client.connect()`, which reads the standard
-`CLICKHOUSE_*` connection variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias,
-`CLICKHOUSE_USERNAME`, `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). The
-review-side fingerprint computation and the land-time verifier that reads this table back
-are not built yet.
+clickhouse-replicator-s3 path ingests it into the table. greenlight reads ClickHouse via
+`clickhouse_client.connect()` — the `review` scan looks up each PR's latest state here, by
+`(repo, pr_number)` — using the standard `CLICKHOUSE_*` connection variables
+(`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
+`CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). The review-side fingerprint
+computation is wired; only the land-time verifier that reads this table back at land time
+is not built yet.

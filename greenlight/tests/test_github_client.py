@@ -4,6 +4,7 @@ import pytest
 from github import Github
 
 from greenlight import github_client
+from greenlight.constants import EVAL_HASH_RE
 from greenlight.github_client import OpenPR
 from greenlight.pr_hash import ChangedFile, HumanEvent, compute_pr_hash
 
@@ -14,11 +15,12 @@ class _FakeUser:
 
 
 class _FakePull:
-    def __init__(self, number: int, login: str | None, title: str, html_url: str) -> None:
+    def __init__(self, number: int, login: str | None, title: str, html_url: str, head_sha: str = "head-sha") -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
         self.title = title
         self.html_url = html_url
+        self.head = _FakeBase(head_sha)
 
 
 class _FakeRepo:
@@ -103,8 +105,10 @@ class _FakePR:
         issue_comments: list[_FakeComment],
         review_comments: list[_FakeComment],
         reviews: list[_FakeReview],
+        head_sha: str = "head-sha",
     ) -> None:
         self.base = _FakeBase(base_sha)
+        self.head = _FakeBase(head_sha)
         self._files = files
         self._issue_comments = issue_comments
         self._review_comments = review_comments
@@ -123,9 +127,33 @@ class _FakePR:
         return self._reviews
 
 
+class _FakeScanRepo:
+    def __init__(self, pr: _FakePR) -> None:
+        self._pr = pr
+        self.get_pull_numbers: list[int] = []
+
+    def get_pull(self, number: int) -> _FakePR:
+        self.get_pull_numbers.append(number)
+        return self._pr
+
+
+class _FakeScanClient:
+    def __init__(self, repo: _FakeScanRepo) -> None:
+        self._repo = repo
+        self.get_repo_names: list[str] = []
+
+    def get_repo(self, full_name_or_id: str) -> _FakeScanRepo:
+        self.get_repo_names.append(full_name_or_id)
+        return self._repo
+
+
 def test_list_open_prs_by_authors_maps_pull_fields():
     client = _client_with_pulls(
-        [_FakePull(42, "jeanschmidt", "fix flaky test", "https://github.com/pytorch/pytorch/pull/42")]
+        [
+            _FakePull(
+                42, "jeanschmidt", "fix flaky test", "https://github.com/pytorch/pytorch/pull/42", head_sha="abc123"
+            )
+        ]
     )
 
     prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["jeanschmidt"])
@@ -137,6 +165,7 @@ def test_list_open_prs_by_authors_maps_pull_fields():
             author="jeanschmidt",
             title="fix flaky test",
             url="https://github.com/pytorch/pytorch/pull/42",
+            head_sha="abc123",
         )
     ]
 
@@ -372,6 +401,47 @@ def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str 
     fingerprint = github_client.build_pr_fingerprint(pr, self_login=self_login)
 
     assert fingerprint.human_events == ()
+
+
+def test_fingerprint_pr_returns_head_sha_and_eval_hash():
+    pr = _FakePR(
+        base_sha="base-sha",
+        files=[_FakeFile(filename="a.py", status="modified", sha="blob-a")],
+        issue_comments=[],
+        review_comments=[],
+        reviews=[],
+        head_sha="deadbeef",
+    )
+    repo = _FakeScanRepo(pr)
+    client = _FakeScanClient(repo)
+
+    head_sha, eval_hash = github_client.fingerprint_pr(client, "pytorch/pytorch", 99)
+
+    assert head_sha == "deadbeef"
+    assert EVAL_HASH_RE.fullmatch(eval_hash)
+    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr))
+    assert client.get_repo_names == ["pytorch/pytorch"]
+    assert repo.get_pull_numbers == [99]
+
+
+def test_fingerprint_pr_hashes_golden_fixture():
+    pr = _golden_pr()
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    head_sha, eval_hash = github_client.fingerprint_pr(client, "pytorch/pytorch", 7)
+
+    assert head_sha == "head-sha"
+    assert EVAL_HASH_RE.fullmatch(eval_hash)
+    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr))
+
+
+def test_fingerprint_pr_rejects_non_hex_hash(monkeypatch):
+    pr = _FakePR(base_sha="sha", files=[], issue_comments=[], review_comments=[], reviews=[])
+    client = _FakeScanClient(_FakeScanRepo(pr))
+    monkeypatch.setattr(github_client, "compute_pr_hash", lambda _fingerprint: "not-a-64-hex-digest")
+
+    with pytest.raises(ValueError, match="64 lowercase hex"):
+        github_client.fingerprint_pr(client, "pytorch/pytorch", 1)
 
 
 class _FakeVerdictReview:

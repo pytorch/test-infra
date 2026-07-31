@@ -1,6 +1,10 @@
 name: Green Light PR Review
 
-# Two-job privilege split for reviewing a pytorch/pytorch PR and recording a verdict:
+# Three jobs for reviewing a pytorch/pytorch PR and recording a verdict. review and
+# record split privileges so untrusted PR content never shares a job with the App key:
+#   announce_start — emits the AI_REVIEW_STARTED in-flight marker at run start so the
+#             scanner does not re-dispatch a PR whose review is running. No App token,
+#             no model; S3 write only, via OIDC role/arc.
 #   review  — UNPRIVILEGED. Runs the AI model over untrusted PR content. Has Bedrock
 #             (OIDC) access only; it can read code and emit a verdict file, nothing more.
 #   record  — PRIVILEGED. No model. Validates the verdict, mints the Green Light App
@@ -31,6 +35,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  announce_start:
+    environment: greenlight-record
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PR_NUMBER: ${{ github.event.inputs.pr_number }}
+      HEAD_SHA: ${{ github.event.inputs.head_sha }}
+      EVAL_HASH: ${{ github.event.inputs.eval_hash }}
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: ./.github/actions/setup-uv
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
+
+      - name: Emit AI_REVIEW_STARTED marker
+        run: |
+          set -euo pipefail
+          uv run --project greenlight greenlight verdict \
+            --status AI_REVIEW_STARTED \
+            --repo pytorch/pytorch \
+            --pr "$PR_NUMBER" \
+            --head-sha "$HEAD_SHA" \
+            --eval-hash "$EVAL_HASH"
+
+      - name: Upload verdict row to S3
+        run: |
+          set -euo pipefail
+          aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"
+
   review:
     environment: bedrock
     runs-on: ubuntu-latest

@@ -20,21 +20,34 @@ just setup      # uv sync -> create .venv with deps
 
 ## Usage
 
-PyTorch Green Light has two subcommands. `review` fetches the open PRs from a fixed
-set of trusted authors in `pytorch/pytorch` (a live, read-only GitHub call that
-requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`) and logs them. `verdict` records a single
-PR-review verdict and acts on the PR (see below). Risk-scoring and the AI code-review
-workflow that produces the verdict are planned — see the Current status section below.
+PyTorch Green Light has two subcommands. `review` scans the open PRs from a fixed set of
+trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
+(`eval_hash`), reads the PR's latest recorded state from ClickHouse
+`misc.greenlight_pr_state`, and dispatches the reviewer workflow
+(`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
+their last review. An in-flight review — one marked `AI_REVIEW_STARTED` — is left alone
+until the `--timeout-minutes` re-dispatch window elapses. `verdict` records a single
+PR-review verdict and acts on the PR (see below).
 
 ```bash
-just run review                      # run the review phase once, then exit
+just run review                      # scan + dispatch once, then exit
 just review                          # convenience alias for `just run review`
-just run review --loop               # run the review phase forever as a daemon
+just run review --loop               # scan + dispatch forever as a daemon
 just run review --loop --interval 30 # daemon, 30s between iterations
+just run review --pr 123             # restrict the scan to PR #123
+just run review --max 5              # cap this iteration at 5 dispatches
+just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
+just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 30)
 ```
 
-The `review` examples require `PYTORCH_GREENLIGHT_GITHUB_TOKEN` to be set; without it
-`review` exits non-zero.
+`review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan that finds at least one
+trusted-author PR also reads ClickHouse, so the `CLICKHOUSE_*` credentials must be set in
+practice; without the token `review` exits non-zero.
+
+The default `--timeout-minutes` is 30, below the reviewer workflow's own ~45-55 min
+budget, so with the default the scanner can re-dispatch (cancel and restart) a review that
+is still running, and a very slow PR can loop. Raise `--timeout-minutes` in the deployment
+if that matters.
 
 ### Recording a verdict
 
@@ -67,13 +80,18 @@ Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token for read-only PR access; required by `review` |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR read on `pytorch/pytorch` |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
+
+`review` additionally reads ClickHouse — any scan that finds at least one trusted-author
+PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
+variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
+`CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT`, default `8443`).
 
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default `600`, `0` = disabled) bounds every
 iteration in both one-shot and `--loop` mode. In `--loop` mode, SIGTERM/SIGINT are
@@ -84,23 +102,27 @@ hung run.
 
 Works today: the CLI runs the `review` phase once (cron-like) or as a `--loop` daemon,
 with a single-instance lock, a per-iteration soft timeout plus a hard watchdog, backoff
-on failure, and clean signal shutdown — all built and tested. `review` fetches the open
-PRs from a fixed set of trusted authors in `pytorch/pytorch` (read-only GitHub) and
-logs them; it requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
+on failure, and clean signal shutdown — all built and tested. `review` scans the open PRs
+from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fingerprint
+(`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
+dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
+PRs that are new or changed. An `AI_REVIEW_STARTED` marker is treated as an in-flight
+review and left alone until the `--timeout-minutes` window (default 30) elapses. `review`
+requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan with at least one PR reads
+ClickHouse (`CLICKHOUSE_*`).
 
-Also works: the `verdict` subcommand emits a PR-review verdict row (with the passed-in
-`eval_hash` verbatim) for the record workflow to upload to
+Also works: the reviewer workflow's `announce_start` job emits the `AI_REVIEW_STARTED`
+marker at run start; the `verdict` subcommand emits a PR-review verdict row (with the
+passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval and comment. It is a one-shot call for a privileged CI
-job and never writes ClickHouse directly. The service keeps ClickHouse READ access
-(`clickhouse_client.connect()`) for its own SELECTs.
+dismiss greenlight's prior approval and comment. `verdict` is a one-shot call for a
+privileged CI job and never writes ClickHouse directly. The service reads ClickHouse via
+`clickhouse_client.connect()` for both the review scan and its other SELECTs.
 
-Not built yet: risk-scoring and the review decision in `review`; the AI code-review
-workflow (a separate component) that produces the verdict; and the review-side
-fingerprint computation plus the land-time verifier. `verdict` stores the `eval_hash`
-verbatim, but greenlight does not yet compute it in `review`, and nothing consumes
-`misc.greenlight_pr_state` at land time yet.
+Not built yet: only the land-time verifier — the pytorchbot side that reads
+`misc.greenlight_pr_state` back at land time. The review-side scan, fingerprint, state
+read, and dispatch are all wired; nothing consumes the recorded state at land time yet.
 
 When wired, the land-time verifier must look up stored state by `(repo, pr_number)`
 — the ledger's `ORDER BY` key — never by `eval_hash` alone: the fingerprint omits
@@ -127,12 +149,16 @@ src/greenlight/
   __main__.py      # `python -m greenlight` entry point
   cli.py           # CLI parsing (review + verdict subcommands), dispatch, exit codes
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
-  review.py        # fetch open PRs from trusted authors in pytorch/pytorch and log them; raises on failure
+  review.py        # scan trusted-author PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
+  state.py         # read a PR's latest recorded state from misc.greenlight_pr_state
+  decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
+  dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
   verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss/comment on the PR
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
   clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
   config.py        # PYTORCH_GREENLIGHT_* environment configuration
+  constants.py     # shared constants for the review scan/dispatch flow
   guards.py        # single-instance lock + per-iteration SIGALRM timeout + hard watchdog
   log.py           # logging setup
   exit_codes.py    # process exit codes

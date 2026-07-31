@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import functools
 import logging
 import sys
 from typing import TYPE_CHECKING
 
 from greenlight import review, verdict
 from greenlight.config import Config
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
@@ -33,14 +35,31 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run a greenlight phase once (default) or as a resilient daemon with --loop.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser(
+    review_parser = subparsers.add_parser(
         "review",
         parents=[common],
-        help="fetch open PRs from trusted authors in pytorch/pytorch, match review rules, and log them",
+        help="scan open PRs from trusted authors in pytorch/pytorch and dispatch the AI review workflow",
         description=(
-            "Fetch the open PRs from a fixed set of trusted authors in pytorch/pytorch and log them. "
-            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN."
+            "Scan the open PRs from a fixed set of trusted authors in pytorch/pytorch, read each PR's "
+            "latest recorded state, and dispatch the review workflow for new or changed PRs. "
+            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
         ),
+    )
+    review_parser.add_argument(
+        "--pr", type=int, default=None, help="scan only this PR number, bypassing the trusted-author listing"
+    )
+    review_parser.add_argument(
+        "--max",
+        type=int,
+        default=None,
+        help="cap the number of workflow dispatches per scan; skipped and waiting PRs do not count",
+    )
+    review_parser.add_argument("--ref", default=DEFAULT_DISPATCH_REF, help="git ref of the review workflow to dispatch")
+    review_parser.add_argument(
+        "--timeout-minutes",
+        type=int,
+        default=DEFAULT_TIMEOUT_MINUTES,
+        help="minutes before an in-flight or failed review is re-dispatched",
     )
 
     verdict_parser = subparsers.add_parser(
@@ -148,5 +167,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     lock_path = config.lock_path
     if lock_path is not None:
         logger.info("using single-instance lock path %s", lock_path)
-    run = review.run
+    run = functools.partial(
+        review.run,
+        pr=args.pr,
+        max_dispatches=args.max,
+        ref=args.ref,
+        timeout_minutes=args.timeout_minutes,
+    )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)
