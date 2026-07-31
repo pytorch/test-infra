@@ -1,4 +1,5 @@
 import styles from "components/commit/commit.module.css";
+import CrcrPrSection from "components/crcr/CrcrPrSection";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -184,6 +185,10 @@ export default function CommitStatus({
         unstableIssues={unstableIssues}
         repoFullName={`${repoOwner}/${repoName}`}
       />
+      {isCommitPage &&
+        commit.prNum != null &&
+        repoOwner === "pytorch" &&
+        repoName === "pytorch" && <CrcrPrSection prNumber={commit.prNum} />}
       {isCommitPage && (
         <WorkflowDispatcher
           repoOwner={repoOwner}

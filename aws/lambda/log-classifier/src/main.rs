@@ -51,7 +51,7 @@ async fn handle(
             // check if match has the lowest priority in the ruleset
             if best_match.rule.name == ruleset.rules.last().unwrap().name {
                 // kick off the llm to get the rule
-                match make_query(&log, &best_match.line_number, 100).await {
+                match make_query(&log, &best_match.line_number, 500).await {
                     Some(llm_match_json) => {
                         body = serde_json::to_string_pretty(&llm_match_json)?;
                         match_json = llm_match_json;
@@ -265,6 +265,75 @@ mod test {
         }
     }
 
+    // Regression test: a red backwards_compat job must be blamed on the real
+    // cause (check_forward_backward_compatibility.py's "backward incompatible
+    // changes" warning), not on the FAIL lines from the deliberate
+    // failure-injection self-checks (check_public_api_test_fails) that appear
+    // in EVERY backwards_compat log, green or red.
+    #[test]
+    fn backwards_compat_not_blamed_on_public_api_self_check() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            ++ python test/test_public_bindings.py -k test_modules_can_be_imported\n\
+            + test_output='FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            Generating XML reports...\n\
+            FAILED (failures=1)'\n\
+            Success! 'test_modules_can_be_imported' identified a non-importable module torch.abcd1234.\n\
+            + python check_forward_backward_compatibility.py --existing-schemas nightly_schemas.txt\n\
+            [WARNING 2026-07-28 01:23:45,678 check_forward_backward_compatibility.py:332] The PR is introducing backward incompatible changes to the operator library. Please contact PyTorch team to confirm whether this change is wanted or not. \n\
+            \n\
+            Broken ops: [\n\
+            \taten::foo(Tensor self) -> Tensor\n\
+            ]\n\
+            ##[error]Process completed with exit code 1.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Operator backwards compatibility");
+        assert_eq!(
+            match_.captures,
+            vec![
+                "The PR is introducing backward incompatible changes to the operator library."
+                    .to_string()
+            ]
+        );
+    }
+
+    // The pre-Oct-2024 checker printed the message with plain print(), i.e. no
+    // "[WARNING ...]" prefix. Make sure that format still matches too.
+    #[test]
+    fn backwards_compat_matches_unprefixed_format() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            The PR is introducing backward incompatible changes to the operator library. Please contact PyTorch team to confirm whether this change is wanted or not.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(match_.rule.name, "Operator backwards compatibility");
+    }
+
+    #[test]
+    fn backwards_compat_bc_fc_model_load_failure() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            FAIL: test_modules_can_be_imported (__main__.TestPublicBindings)\n\
+            BC check failed: old model cannot be load in new code\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).unwrap();
+        assert_eq!(
+            match_.rule.name,
+            "Forward/backward compatibility check failed"
+        );
+    }
+
     #[test]
     fn gather_optional_context() {
         let mut ruleset = RuleSet::new();
@@ -286,6 +355,38 @@ mod test {
             match_json.context,
             ["++ exit 1", "++ echo DUMMY", "+ python testing"]
         );
+    }
+
+    #[test]
+    fn evaluate_ruleset_matches_real_error_after_dropping_boilerplate() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            >>> Lint for test/foo.py:\n\
+            ##[error]Process completed with exit code 1.\n\
+            "
+            .into(),
+        );
+        let match_ = evaluate_ruleset(&ruleset, &log).expect("should match the real error line");
+        assert_eq!(match_.line_number, 1);
+        assert_eq!(match_.rule.name, "Lintrunner failure");
+        assert_eq!(log.lines.get(&1).unwrap(), ">>> Lint for test/foo.py:");
+    }
+
+    #[test]
+    fn evaluate_ruleset_returns_none_for_only_boilerplate() {
+        let ruleset = RuleSet::new_from_config();
+        let log = Log::new(
+            "\
+            ##[error]Process completed with exit code 1.\n\
+            [OSDC] Step script exited with code 1\n\
+            "
+            .into(),
+        );
+        // Every line is boilerplate and dropped, so the log is empty; the classify
+        // path yields "No match found" (None) rather than panicking.
+        assert!(log.lines.is_empty());
+        assert!(evaluate_ruleset(&ruleset, &log).is_none());
     }
 
     // Actually download some id.

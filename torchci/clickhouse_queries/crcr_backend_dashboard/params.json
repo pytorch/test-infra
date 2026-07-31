@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "days": "UInt64",
+    "per_page": "UInt64",
+    "offset": "UInt64"
+  },
+  "tests": [
+    {
+      "repo": "<company>/<repo>",
+      "days": "7",
+      "per_page": "50",
+      "offset": "0"
+    }
+  ]
+}

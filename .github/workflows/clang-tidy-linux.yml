@@ -52,7 +52,7 @@ jobs:
         uses: ./.github/actions/clang-tidy-upload
         with:
           platform: ${{ matrix.platform }}
-          version: 19.1.4
+          version: 21.1.0
           upload-to-s3: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
 
 concurrency:

@@ -258,7 +258,10 @@ export async function hasWritePermissions(
 ): Promise<boolean> {
   // GitHub Apps authenticate via installations, not as repo collaborators,
   // so the collaborator permission check doesn't apply to them.
-  if (username === "facebook-github-tools[bot]") {
+  if (
+    username === "facebook-github-tools[bot]" ||
+    username === "meta-codesync[bot]"
+  ) {
     return true;
   }
   const permissions = await getUserPermissions(ctx, username);

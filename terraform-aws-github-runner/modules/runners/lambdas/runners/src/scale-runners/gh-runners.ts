@@ -1,3 +1,4 @@
+import { RequestError } from '@octokit/request-error';
 import { Repo, getRepoKey, expBackOff } from './utils';
 import { RunnerType, RunnerTypeScaleConfig } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
@@ -11,6 +12,11 @@ import YAML from 'yaml';
 
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
+
+function verboseErrorToString(e: unknown): string {
+  const data = e instanceof RequestError ? e.response?.data : undefined;
+  return data ? `${e} | response: ${JSON.stringify(data)}` : `${e}`;
+}
 
 export interface GHRateLimitInfo {
   limit: number;
@@ -488,12 +494,12 @@ export async function createRegistrationTokenRepo(
         }
         return response.data.token;
       } catch (e) {
-        console.error(`[createRegistrationTokenRepo <anonymous>]: ${e}`);
+        console.error(`[createRegistrationTokenRepo <anonymous>]: ${verboseErrorToString(e)}`);
         throw e;
       }
     });
   } catch (e) {
-    console.error(`[createRegistrationTokenRepo]: ${e}`);
+    console.error(`[createRegistrationTokenRepo]: ${verboseErrorToString(e)}`);
     throw e;
   }
 }
@@ -527,12 +533,12 @@ export async function createRegistrationTokenOrg(
         }
         return response.data.token;
       } catch (e) {
-        console.error(`[createRegistrationTokenOrg <anonymous>]: ${e}`);
+        console.error(`[createRegistrationTokenOrg <anonymous>]: ${verboseErrorToString(e)}`);
         throw e;
       }
     });
   } catch (e) {
-    console.error(`[createRegistrationTokenOrg]: ${e}`);
+    console.error(`[createRegistrationTokenOrg]: ${verboseErrorToString(e)}`);
     throw e;
   }
 }

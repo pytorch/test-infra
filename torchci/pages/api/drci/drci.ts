@@ -1,10 +1,14 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
+import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
+  DRCI_COMMENT_AUTHOR,
   fetchPRLabels,
   FLAKY_RULES_JSON,
   formDrciComment,
@@ -28,7 +32,9 @@ import { fetchCommitTimestamp } from "lib/fetchCommit";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import fetchPR from "lib/fetchPR";
 import {
+  fetchCrcrWorkflows,
   fetchFailedJobsFromCommits,
+  fetchJobNamesFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
@@ -154,7 +160,7 @@ export async function updateDrciComments(
       ? []
       : fetchRecentWorkflows(
           `${owner}/${repo}`,
-          await getPRsWithPendingJobInComment(`${owner}/${repo}`),
+          await getPRsNeedingCommentRefresh(`${owner}/${repo}`),
           NUM_MINUTES + ""
         ),
   ]);
@@ -180,6 +186,7 @@ export async function updateDrciComments(
     /*cache*/ true
   );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
+  const baseCommitJobNames = await getBaseCommitJobNames(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${owner}/${repo}`,
     workflowsByPR
@@ -212,6 +219,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        unknownJobs,
         awaitingApprovalJobs,
         relatedJobs,
         relatedIssues,
@@ -223,7 +231,8 @@ export async function updateDrciComments(
         labels || [],
         unstableIssues || [],
         disabledTestIssues || [],
-        mergeCommits || []
+        mergeCommits || [],
+        baseCommitJobNames.get(pr_info.merge_base)
       );
 
       failures[pr_info.pr_number] = {
@@ -231,8 +240,84 @@ export async function updateDrciComments(
         FLAKY: flakyJobs,
         BROKEN_TRUNK: brokenTrunkJobs,
         UNSTABLE: unstableJobs,
+        UNKNOWN: unknownJobs,
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
+
+      // Auto-dispatch the AI CI Advisor on NEW + UNCLASSIFIED failures. Both are
+      // PR failures the advisor can usefully analyze: unknownJobs (Unclassified)
+      // are failures whose job did not run on the merge base, so Dr.CI has no
+      // same-job baseline -- but the advisor builds its own recent-trunk baseline
+      // by job-name pattern, so it still has signal. They're passed as one list
+      // so the maxNewFailures outage guard bounds the combined per-PR fan-out
+      // (Unclassified were historically part of the new-failure bucket; splitting
+      // them in the Dr.CI comment was only to reduce comment noise). No-op unless
+      // the feature flag + production env + per-repo config are all set; dispatch
+      // only (no comment/merge changes), with its own ClickHouse dedup + outage
+      // guard. Wrapped so an advisor error can never break the comment.
+      try {
+        await autoDispatchAdvisorForNewFailures({
+          owner,
+          repo,
+          prNumber: pr_info.pr_number,
+          headSha: pr_info.head_sha,
+          mergeBaseSha: pr_info.merge_base,
+          newFailures: [...failedJobs, ...unknownJobs],
+        });
+      } catch (e) {
+        console.error(
+          "advisor auto-dispatch threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
+
+      // Look up AI advisor verdicts / in-progress dispatches for this PR's new
+      // and unclassified failures, rendered as an inline "AI verdict:" line per
+      // job. Wrapped so an advisor / ClickHouse error can never break the comment.
+      let advisorLines: Map<number, string> = new Map();
+      try {
+        advisorLines = await buildAdvisorVerdictLines(
+          HUD_URL,
+          owner,
+          repo,
+          pr_info.pr_number,
+          pr_info.head_sha,
+          [...failedJobs, ...unknownJobs]
+        );
+      } catch (e) {
+        console.error(
+          "advisor verdict-line build threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
+
+      // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
+      // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
+      // separately and classified based on their downstream_repo_level.
+      const crcrL3Jobs: RecentWorkflowsData[] = [];
+      try {
+        const crcrWorkflows = await fetchCrcrWorkflows(`${owner}/${repo}`, [
+          pr_info.pr_number,
+        ]);
+        for (const job of crcrWorkflows) {
+          const level = job.downstreamLevel || "";
+          if (level === "L3") {
+            crcrL3Jobs.push(job);
+          } else if (level === "L4") {
+            // L4 failures are blocking — merge them into failedJobs
+            failedJobs.push(job);
+          }
+        }
+      } catch (err) {
+        // If CRCR fetch fails, log and proceed — don't block the Dr.CI update
+        console.error("Failed to fetch CRCR workflows:", err);
+      }
+
+      if (crcrL3Jobs.length > 0) {
+        failures[pr_info.pr_number].CRCR_L3 = crcrL3Jobs;
+      }
 
       const failureInfo = constructResultsComment(
         pending,
@@ -240,7 +325,9 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        unknownJobs,
         awaitingApprovalJobs,
+        crcrL3Jobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -250,7 +337,8 @@ export async function updateDrciComments(
         HUD_URL,
         owner,
         repo,
-        pr_info.pr_number
+        pr_info.pr_number,
+        advisorLines
       );
 
       const comment = formDrciComment(
@@ -344,7 +432,20 @@ function removeFailureContext(failure: {
  * @param repo The repository to search for PRs in. E.g. "pytorch/pytorch"
  * @returns A list of PR numbers
  */
-async function getPRsWithPendingJobInComment(repo: String): Promise<number[]> {
+// PRs whose Dr.CI comment is in a transient state that warrants a re-render
+// even with no recent (< NUM_MINUTES) workflow activity. Two cases:
+//   - `\d Pending`: the comment still shows pending jobs that may resolve.
+//   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
+//     to the AI advisor but its verdict had not landed at the last render, so
+//     the comment carries the in-progress `alt="AI verdict: pending"` line. The
+//     verdict can land seconds after a render and the PR's CI then go quiet,
+//     so without this clause the concluded <details> expand would never get
+//     written. Once the verdict renders, the alt becomes `AI verdict: <label>`
+//     (no "pending"), so the PR self-clears from this set. We match the full
+//     alt attribute (not the bare phrase) so an escaped model summary can't
+//     false-match.
+// Both branches stay gated by the open-PR + 1-month freshness guards below.
+async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
 select
     issue_comment.issue_url
@@ -353,12 +454,15 @@ from
     join default.pull_request on issue_comment.issue_url = pull_request.issue_url
 where
     body like '<!-- drci-comment-start -->%'
-    and match(body, '\\d Pending')
+    and (match(body, '\\d Pending') or position(body, {pendingAltAttr: String}) > 0)
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
     and pull_request.state = 'open'
 `;
-  const results = await queryClickhouse(query, { repo: `%${repo}%` });
+  const results = await queryClickhouse(query, {
+    repo: `%${repo}%`,
+    pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
+  });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
 
@@ -514,6 +618,29 @@ export async function getBaseCommitJobs(
   return jobsByShaByName;
 }
 
+// Returns the set of job names (with shard/unstable suffix stripped) that ran
+// at each merge-base SHA, regardless of conclusion. DrCI uses this to tell
+// "this job did not run on base at all" (no signal -> Unknown) apart from
+// "this job ran on base and passed" (PR-introduced regression -> new failure).
+export async function getBaseCommitJobNames(
+  workflowsByPR: Map<number, PRandJobs>
+): Promise<Map<string, Set<string>>> {
+  const baseShas = _.uniq(
+    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
+  );
+
+  const rows = await fetchJobNamesFromCommits(baseShas);
+
+  const namesBySha = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (!namesBySha.has(row.head_sha)) {
+      namesBySha.set(row.head_sha, new Set());
+    }
+    namesBySha.get(row.head_sha)!.add(removeJobNameSuffix(row.name));
+  }
+  return namesBySha;
+}
+
 async function getExistingDrCiComments(
   repoFullName: string,
   workflowsByPR: Map<number, PRandJobs>
@@ -527,11 +654,18 @@ from
   default.issue_comment final
 where
   body like '%<!-- drci-comment-start -->%'
+  and user.login = {drciCommentAuthor: String}
   and issue_url in {prUrls: Array(String)}
+-- Order so the oldest comment lands last; the Map below keeps the last entry
+-- per PR, so we deterministically pick the original Dr. CI comment if there
+-- ever are multiple bot-authored marker comments (matches getDrciComment,
+-- which returns the first match from chronologically-ordered listComments).
+order by id desc
     `;
   return new Map(
     (
       await queryClickhouse(existingCommentsQuery, {
+        drciCommentAuthor: DRCI_COMMENT_AUTHOR,
         prUrls: Array.from(workflowsByPR.keys()).map(
           (prNumber) =>
             `https://api.github.com/repos/${repoFullName}/issues/${prNumber}`
@@ -556,7 +690,9 @@ function constructResultsJobsSections(
   collapsed: boolean = false,
   relatedJobs: Map<number, RecentWorkflowsData> = new Map(),
   relatedIssues: Map<number, IssueData[]> = new Map(),
-  relatedInfo: Map<number, string> = new Map()
+  relatedInfo: Map<number, string> = new Map(),
+  // job.id -> pre-rendered "AI verdict:" line, appended under each bullet.
+  advisorLines: Map<number, string> = new Map()
 ): string {
   if (jobs.length === 0) {
     return "";
@@ -618,6 +754,12 @@ function constructResultsJobsSections(
     if (job.failure_captures && job.failure_captures.length > 0) {
       output += `    \`${job.failure_captures[0]}\`\n`;
     }
+
+    // AI advisor verdict line (badge + optional reasoning expand), if any.
+    const advisorLine = advisorLines.get(job.id);
+    if (advisorLine) {
+      output += advisorLine;
+    }
   }
   output += "</p></details>";
   return output;
@@ -641,7 +783,9 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
+  unknownJobs: RecentWorkflowsData[],
   awaitingApprovalJobs: RecentWorkflowsData[],
+  crcrL3Jobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
   relatedInfo: Map<number, string>,
@@ -651,13 +795,16 @@ export function constructResultsComment(
   hudBaseUrl: string,
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  // job.id -> pre-rendered "AI verdict:" line (empty unless advisor-enabled).
+  advisorLines: Map<number, string> = new Map()
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
   const unrelatedFailureCount = _(flakyJobs)
     .concat(brokenTrunkJobs)
     .concat(unstableJobs)
+    .concat(crcrL3Jobs)
     .filter((job) => !isPending(job))
     .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
@@ -689,6 +836,10 @@ export function constructResultsComment(
     "Failure",
     unrelatedFailureCount
   )}`;
+  const unknownFailures = `${unknownJobs.length} Unclassified ${pluralize(
+    "Failure",
+    unknownJobs.length
+  )}`;
   const pendingJobs = `${pending} Pending`;
   const awaitingApprovalMsg = `${awaitingApprovalJobs.length} Awaiting Approval`;
 
@@ -697,10 +848,11 @@ export function constructResultsComment(
   const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
   const hasUnrelatedFailures = unrelatedFailureCount > 0;
+  const hasUnknownFailures = unknownJobs.length > 0;
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
-  if (hasSignificantFailures || hasCancelledFailures) {
+  if (hasSignificantFailures || hasCancelledFailures || hasUnknownFailures) {
     icon = failuresIcon;
   } else if (hasAwaitingApproval) {
     icon = warningIcon;
@@ -720,7 +872,7 @@ export function constructResultsComment(
   if (hasCancelledFailures) {
     title_messages.push(cancelledFailures);
   }
-  if (!hasAnyFailing && !hasAwaitingApproval) {
+  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
     title_messages.push(noneFailing);
   }
   if (hasPending) {
@@ -736,6 +888,9 @@ export function constructResultsComment(
 
     title_messages.push(unrelatedFailuresMsg);
   }
+  if (hasUnknownFailures) {
+    title_messages.push(unknownFailures);
+  }
 
   let title = headerPrefix + icon + " " + title_messages.join(", ");
   output += title;
@@ -747,7 +902,7 @@ export function constructResultsComment(
   }
   output += ":";
 
-  if (!hasAnyFailing && !hasAwaitingApproval) {
+  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
 
@@ -770,6 +925,10 @@ export function constructResultsComment(
     );
   }
 
+  // advisorLines is threaded only into the NEW FAILURES and UNCLASSIFIED
+  // sections below -- those are the only failures the advisor dispatches on.
+  // Broken-trunk / flaky / unstable / awaiting-approval jobs are already
+  // explained by their own section, so they intentionally get no verdict line.
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -785,7 +944,35 @@ export function constructResultsComment(
       false,
       relatedJobs,
       relatedIssues,
-      relatedInfo
+      relatedInfo,
+      advisorLines
+    );
+  }
+
+  if (unknownJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `UNCLASSIFIED ${pluralize(
+        "FAILURE",
+        unknownJobs.length
+      ).toLocaleUpperCase()}`,
+      `DrCI could not classify the following ${pluralize(
+        "job",
+        unknownJobs.length
+      )} because the workflow did not run on the merge base. The ${pluralize(
+        "failure",
+        unknownJobs.length
+      )} may be pre-existing on trunk or introduced by this PR`,
+      unknownJobs,
+      "",
+      false,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo,
+      advisorLines
     );
   }
 
@@ -865,6 +1052,23 @@ export function constructResultsComment(
     relatedIssues,
     relatedInfo
   );
+  output += constructResultsJobsSections(
+    hudBaseUrl,
+    owner,
+    repo,
+    prNumber,
+    "CRCR (non-blocking)",
+    `The following CRCR downstream CI ${pluralize(
+      "job",
+      crcrL3Jobs.length
+    )} failed but ${pluralize("is", crcrL3Jobs.length, "are")} non-blocking`,
+    crcrL3Jobs,
+    "",
+    true,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo
+  );
   return output;
 }
 
@@ -921,13 +1125,15 @@ export async function getWorkflowJobsStatuses(
   labels: string[] = [],
   unstableIssues: IssueData[] = [],
   disabledTestIssues: IssueData[] = [],
-  mergeCommits: string[] = []
+  mergeCommits: string[] = [],
+  baseJobNames?: Set<string>
 ): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
+  unknownJobs: RecentWorkflowsData[];
   awaitingApprovalJobs: RecentWorkflowsData[];
   relatedJobs: Map<number, RecentWorkflowsData>;
   relatedIssues: Map<number, IssueData[]>;
@@ -939,6 +1145,7 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
   const failedJobs: RecentWorkflowsData[] = [];
+  const unknownJobs: RecentWorkflowsData[] = [];
   const awaitingApprovalJobs: RecentWorkflowsData[] = [];
 
   // This map holds the list of the base failures for broken trunk jobs or the similar
@@ -999,6 +1206,19 @@ export async function getWorkflowJobsStatuses(
       }
 
       if (isExcludedFromFlakiness(job)) {
+        // No flakiness signal will be checked for this job. If it also did not
+        // run on the merge base, DrCI has nothing to compare against -> Unknown.
+        if (
+          baseJobNames !== undefined &&
+          !baseJobNames.has(removeJobNameSuffix(job.name))
+        ) {
+          unknownJobs.push(job);
+          relatedInfo.set(
+            job.id,
+            "this job did not run on the merge base, so DrCI cannot tell whether the failure is pre-existing"
+          );
+          continue;
+        }
         failedJobs.push(job);
         continue;
       }
@@ -1147,6 +1367,22 @@ export async function getWorkflowJobsStatuses(
       continue;
     }
 
+    // If this job did not run on the merge base at all, DrCI has no signal to
+    // tell whether the failure is pre-existing or PR-introduced. Surface it as
+    // Unknown rather than blaming the PR. Only applies when the caller passes
+    // baseJobNames; tests that omit it preserve legacy behavior.
+    if (
+      baseJobNames !== undefined &&
+      !baseJobNames.has(removeJobNameSuffix(job.name))
+    ) {
+      unknownJobs.push(job);
+      relatedInfo.set(
+        job.id,
+        "this job did not run on the merge base, so DrCI cannot tell whether the failure is pre-existing"
+      );
+      continue;
+    }
+
     failedJobs.push(job);
   }
 
@@ -1156,6 +1392,7 @@ export async function getWorkflowJobsStatuses(
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    unknownJobs,
     awaitingApprovalJobs,
     relatedJobs,
     relatedIssues,

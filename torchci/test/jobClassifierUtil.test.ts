@@ -1,4 +1,7 @@
-import { getNameWithoutOSDC } from "../lib/JobClassifierUtil";
+import {
+  getNameWithoutOSDC,
+  isJobViableStrictBlocking,
+} from "../lib/JobClassifierUtil";
 
 describe("getNameWithoutOSDC", () => {
   test.each([
@@ -45,5 +48,33 @@ describe("getNameWithoutOSDC", () => {
     ],
   ])("rewrites %j -> %j", (input, expected) => {
     expect(getNameWithoutOSDC(input)).toBe(expected);
+  });
+});
+
+describe("isJobViableStrictBlocking", () => {
+  // pytorch/pytorch defines viable/strict-blocking job patterns.
+  test.each([
+    ["pull / linux-jammy-py3.9-gcc11 / test", true],
+    ["trunk / macos-py3-arm64 / build", true],
+    ["Lint / lintrunner", true],
+    ["some-random-job", false],
+    [", mem_leak check", false],
+  ])("pytorch/pytorch %j -> %s", (jobName, expected) => {
+    expect(isJobViableStrictBlocking(jobName, "pytorch", "pytorch")).toBe(
+      expected
+    );
+  });
+
+  // Domain repos have no viable/strict-blocking definitions, so every job must
+  // be reported as non-blocking. Regression guard for the HUD grouped-view bug
+  // where applying this filter on a domain repo emptied every group and turned
+  // all grouped cells grey (AllNull).
+  test.each([
+    ["pytorch", "vision", "pull / linux / test"],
+    ["pytorch", "vision", "Build Linux Wheels"],
+    ["pytorch", "executorch", "trunk / lint"],
+    ["pytorch", "audio", "unit-test / linux"],
+  ])("%s/%s job %j -> false", (repoOwner, repoName, jobName) => {
+    expect(isJobViableStrictBlocking(jobName, repoOwner, repoName)).toBe(false);
   });
 });

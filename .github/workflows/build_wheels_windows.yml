@@ -143,6 +143,9 @@ jobs:
         with:
           architecture: aarch64
           path: "${{env.DEPENDENCIES_DIR}}\\git"
+      - uses: ./test-infra/.github/actions/setup-windows
+        with:
+          cuda-version: ${{ env.CU_VERSION }}
       - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
         if: env.CHANNEL == 'test'
@@ -163,7 +166,7 @@ jobs:
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         env:
-          XPU_VERSION: '2025.3'
+          XPU_VERSION: '2026.1'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Update NVIDIA driver
@@ -184,6 +187,18 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
           architecture: arm64
+      - name: Set BUILD_VERSION for Arm64 RC build
+        # Arm64 does not run setup-binary-builds (x64-only), so pytorch_pkg_helpers
+        # never sets BUILD_VERSION. Without it setup.py appends the git sha
+        # (e.g. torchvision-0.28.0+5a5dd12). For RC (test channel) set BUILD_VERSION
+        # to "<version.txt>+<arch>" to match what pytorch_pkg_helpers produces for
+        # x64 (e.g. torchvision-0.28.0+cpu) and torch's own win_arm64 wheels.
+        if: ${{ inputs.architecture == 'arm64' && env.CHANNEL == 'test' }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          if [[ -f version.txt ]]; then
+            echo "BUILD_VERSION=$(cat version.txt)+${CU_VERSION}" >> "${GITHUB_ENV}"
+          fi
       - name: Install torch dependency
         if: inputs.architecture == 'x64'
         run: |
@@ -233,7 +248,9 @@ jobs:
           echo SSL_CERT_FILE=%CERT_PATH% >> %GITHUB_ENV%
           echo REQUESTS_CA_BUNDLE=%CERT_PATH% >> %GITHUB_ENV%
       - name: Build clean
-        if: inputs.architecture == 'x64'
+        # Only relevant for setup-py builds; python-build-package projects may
+        # not have a setup.py (e.g. scikit-build-core based builds).
+        if: inputs.build-platform == 'setup-py' && inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
         env:
           ENV_SCRIPT: ${{ inputs.env-script }}

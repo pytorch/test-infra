@@ -1,0 +1,20 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30533012812/job/90845795592
+﻿2026-07-30T10:33:37.0347135Z Current runner version: '2.336.0'
+2026-07-30T10:33:37.0352906Z Runner name: 'gnr816793.jf.intel.com_b60_card_7'
+2026-07-30T10:33:37.0353675Z Runner group name: 'linux.idc.xpu.group'
+2026-07-30T10:33:37.0354739Z Machine name: 'gnr816793'
+2026-07-30T10:33:37.0356799Z ##[group]GITHUB_TOKEN Permissions
+2026-07-30T10:33:37.0359288Z Contents: read
+2026-07-30T10:33:37.0359718Z Metadata: read
+2026-07-30T10:33:37.0360152Z ##[endgroup]
+2026-07-30T10:33:37.0363158Z Secret source: Actions
+2026-07-30T10:33:37.0364371Z Prepare workflow directory
+2026-07-30T10:33:38.1304832Z Prepare all required actions
+2026-07-30T10:33:38.1474530Z Getting action download info
+2026-07-30T10:33:38.6176600Z Download action repository 'pytorch/pytorch@main' (SHA:050ce9e1226b95d6b5938bdd5e245491f7219fd8)
+2026-07-30T10:35:18.6494363Z ##[warning]Failed to download action 'https://codeload.github.com/pytorch/pytorch/tar.gz/050ce9e1226b95d6b5938bdd5e245491f7219fd8'. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing. 
+2026-07-30T10:35:18.6503557Z ##[warning]Back off 23.854 seconds before retry.
+2026-07-30T10:37:22.5234937Z ##[warning]Failed to download action 'https://codeload.github.com/pytorch/pytorch/tar.gz/050ce9e1226b95d6b5938bdd5e245491f7219fd8'. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing. 
+2026-07-30T10:37:22.5238024Z ##[warning]Back off 18.171 seconds before retry.
+2026-07-30T10:39:20.7109104Z ##[error]Action 'https://codeload.github.com/pytorch/pytorch/tar.gz/050ce9e1226b95d6b5938bdd5e245491f7219fd8' download has timed out. Error: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing. 
+#=MATCH=# 2026-07-30T10:39:20.7140484Z ##[error]‹Failed to download archive› 'https://codeload.github.com/pytorch/pytorch/tar.gz/050ce9e1226b95d6b5938bdd5e245491f7219fd8' after 3 attempts.

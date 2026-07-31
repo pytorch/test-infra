@@ -113,13 +113,14 @@ def T(
     name: str,
     failure_runs: int,
     success_runs: int = 0,
+    classname: str = "",
 ):
     return TestRow(
         job_id=JobId(job),
         wf_run_id=WfRunId(run),
         workflow_run_attempt=RunAttempt(attempt),
         file=file,
-        classname="",
+        classname=classname,
         name=name,
         failure_runs=failure_runs,
         success_runs=success_runs,
@@ -275,6 +276,38 @@ class TestSignalExtraction(unittest.TestCase):
         # find X1 commit in the signal and ensure it has no events
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
         self.assertEqual(x1.events, [])
+
+    def test_skipped_attempt_yields_no_event(self):
+        # Regression: a `skipped` job (status=completed, conclusion=skipped)
+        # used to fall through JobMeta.status's default and emit a PENDING
+        # event that persisted in autorevert_state until lookback expired.
+        # It should be treated as missing (no event), same as cancelled.
+        jobs = [
+            J(
+                sha="S2",
+                run=701,
+                job=51,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="S1",
+                run=700,
+                job=50,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                status="completed",
+                conclusion="skipped",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        s1 = next(c for c in sig.commits if c.head_sha == "S1")
+        self.assertEqual(s1.events, [])
 
     def test_non_test_inclusion_gate(self):
         # (a) only test failures -> test-failure job signal emitted (not non-test job signal)
@@ -1061,6 +1094,159 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(c2.advisor_result)
         self.assertEqual(c2.advisor_result.verdict.value, "garbage")
         self.assertEqual(c2.advisor_result.signal_key, test_key)
+
+    def test_test_signal_with_empty_file_has_no_test_module(self):
+        # When tests.all_test_runs has empty `file` for a row, TestRow.test_id
+        # falls back to the bare `name` (no `::`). signal_extraction must mark
+        # the resulting Signal as untargeted (test_module=None) instead of
+        # emitting a bogus method-named module that run_test.py --include
+        # would later reject with "invalid choice".
+        jobs = [
+            J(
+                sha="C1",
+                run=900,
+                job=900,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=900,
+                run=900,
+                attempt=1,
+                file="",  # CH row with no file path — primary failure mode
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(signals, "trunk", "test_partial_eval_graph_conv")
+        self.assertIsNotNone(sig)
+        self.assertIsNone(sig.test_module)
+
+    def test_test_signal_with_populated_file_has_test_module(self):
+        # Sanity: the normal `file::name` path still produces a usable
+        # test_module (`test_jit` from `test_jit.py::...`).
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_jit.py",
+                name="test_partial_eval_graph_conv",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_jit.py::test_partial_eval_graph_conv"
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.test_module, "test_jit")
+
+    def test_test_classname_unique_is_surfaced(self):
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoader",
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_dataloader.py::test_shuffle_pin_memory"
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.test_file, "test_dataloader.py")
+        self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
+        self.assertEqual(sig.test_classname, "TestDataLoader")
+
+    def test_test_classname_ambiguous_is_omitted(self):
+        # Same file::name failing under two different classes: the collapsed
+        # test_id cannot disambiguate, so classname must be omitted, not
+        # guessed (regression guard for nondeterministic classname capture).
+        jobs = [
+            J(
+                sha="C1",
+                run=901,
+                job=901,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C2",
+                run=902,
+                job=902,
+                attempt=1,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=901,
+                run=901,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoaderPersistentWorkers",
+            ),
+            T(
+                job=902,
+                run=902,
+                attempt=1,
+                file="test_dataloader.py",
+                name="test_shuffle_pin_memory",
+                failure_runs=1,
+                success_runs=0,
+                classname="TestDataLoader",
+            ),
+        ]
+        signals = self._extract(jobs, tests)
+        sig = self._find_test_signal(
+            signals, "trunk", "test_dataloader.py::test_shuffle_pin_memory"
+        )
+        self.assertIsNotNone(sig)
+        self.assertIsNone(sig.test_classname)
+        self.assertEqual(sig.test_file, "test_dataloader.py")
+        self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
 
 
 if __name__ == "__main__":

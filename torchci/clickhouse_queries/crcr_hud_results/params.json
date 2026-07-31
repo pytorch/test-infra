@@ -1,0 +1,10 @@
+{
+  "params": {
+    "prNums": "Array(Int64)"
+  },
+  "tests": [
+    {
+      "prNums": "[12345]"
+    }
+  ]
+}

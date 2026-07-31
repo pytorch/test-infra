@@ -1,0 +1,131 @@
+2026-07-24T18:47:00.4262407Z Running distributed/test_c10d_torchcomms 1/1 ... [2026-07-24 18:47:00.269144][5722.385406931]
+2026-07-24T18:47:00.4262902Z SCRIBE_GRAPHQL_ACCESS_TOKEN is NOT set
+2026-07-24T18:47:00.4264023Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'distributed/test_c10d_torchcomms.py', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=0', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 18:47:00.269458]
+2026-07-24T18:47:03.6568011Z 
+2026-07-24T18:47:03.6568821Z PRINTING LOG FILE of distributed/test_c10d_torchcomms 1/1 (test/test-reports/distributed.test_c10d_torchcomms_1.1_57d5e8b26f6005c4_.log)
+#=MATCH=# 2026-07-24T18:47:03.6570425Z ‹TestC10dTorchCommsBackendConfig› - failed. This test class should extend from torch.testing._internal.common_utils.TestCase but it doesn't.
+2026-07-24T18:47:03.6571251Z Got exit code 1
+2026-07-24T18:47:03.6571812Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
+2026-07-24T18:47:03.6572299Z 
+2026-07-24T18:47:03.6572801Z FINISHED PRINTING LOG FILE of distributed/test_c10d_torchcomms 1/1 (test/test-reports/distributed.test_c10d_torchcomms_1.1_57d5e8b26f6005c4_.log)
+2026-07-24T18:47:03.6573421Z 
+2026-07-24T18:47:03.6573743Z Finished distributed/test_c10d_torchcomms 1/1 ... [2026-07-24 18:47:03.538120][5725.654382616], took 0.05min
+2026-07-24T18:47:04.6668511Z distributed/test_c10d_torchcomms 1/1 failed!
+2026-07-24T18:47:04.6668899Z Emitting td_test_failure_stats_v2
+2026-07-24T18:47:05.6765866Z /__w/pytorch/pytorch/tools/stats/upload_metrics.py:156: UserWarning: Error uploading metric td_test_failure_stats_v2 to DynamoDB: Unable to locate credentials
+2026-07-24T18:47:05.6766792Z   warn(f"Error uploading metric {metric_name} to DynamoDB: {e}")
+2026-07-24T18:47:05.6767201Z Traceback (most recent call last):
+2026-07-24T18:47:05.6774802Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2397, in <module>
+2026-07-24T18:47:05.6775253Z     main()
+2026-07-24T18:47:05.6775596Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2348, in main
+2026-07-24T18:47:05.6775976Z     run_tests(
+2026-07-24T18:47:05.6776324Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2169, in run_tests
+2026-07-24T18:47:05.6776819Z Failed to upload artifacts: Unable to locate credentials
+2026-07-24T18:47:05.6777192Z Uploading artifacts took 1.08 seconds
+2026-07-24T18:47:05.6777850Z Writing 1 documents to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1784918824_1072106c879011f19b01dec92ee577a0
+2026-07-24T18:47:05.6778657Z     raise RuntimeError(failure.message + keep_going_message)
+2026-07-24T18:47:05.6779110Z RuntimeError: distributed/test_c10d_torchcomms 1/1 failed!
+2026-07-24T18:47:05.6779385Z 
+2026-07-24T18:47:05.6779655Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
+2026-07-24T18:47:05.6780239Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.
+2026-07-24T18:47:06.2821510Z 
+2026-07-24T18:47:06.2821871Z real	0m9.377s
+2026-07-24T18:47:06.2822123Z user	0m6.972s
+2026-07-24T18:47:06.2822325Z sys	0m0.981s
+2026-07-24T18:47:06.2822520Z + sccache_epilogue
+2026-07-24T18:47:06.2823276Z + echo '::group::Sccache Compilation Log'
+2026-07-24T18:47:06.2823667Z + echo '=================== sccache compilation log ==================='
+2026-07-24T18:47:06.2824266Z + python /__w/pytorch/pytorch/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-24T18:47:06.2825009Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-24T18:47:06.2825530Z + sccache --show-stats
+2026-07-24T18:47:06.2825773Z + sccache --stop-server
+2026-07-24T18:47:06.2826026Z + echo ::endgroup::
+2026-07-24T18:47:06.2826481Z ##[group]Sccache Compilation Log
+2026-07-24T18:47:06.2826807Z =================== sccache compilation log ===================
+2026-07-24T18:47:06.2827643Z storage write check failed: PermissionDenied (permanent) at write => S3Error { code: "AccessDenied", message: "Access Denied", resource: "", request_id: "4DGERBD62D4JFCZB" }
+2026-07-24T18:47:06.2828337Z 
+2026-07-24T18:47:06.2828343Z 
+2026-07-24T18:47:06.2828354Z 
+2026-07-24T18:47:06.2828435Z Context:
+2026-07-24T18:47:06.2828546Z 
+2026-07-24T18:47:06.2828854Z    uri: https://s3.us-east-1.amazonaws.com/ossci-compiler-cache-circleci-v2/.sccache_check
+2026-07-24T18:47:06.2829264Z 
+2026-07-24T18:47:06.2830913Z    response: Parts { status: 403, version: HTTP/1.1, headers: {"x-amz-request-id": "4DGERBD62D4JFCZB", "x-amz-id-2": "VMMd199Eqe1rBr0hhGExkpxcTO5wtSeQLYBSvU1jBAqgTbCg2psrSCwoqL3yVlBHzOYXwFq0Wv0qejSlo4ZyiQuj4sJP5wLs", "content-type": "application/xml", "transfer-encoding": "chunked", "date": "Fri, 24 Jul 2026 18:44:29 GMT", "connection": "close", "server": "AmazonS3"} }
+2026-07-24T18:47:06.2832452Z 
+2026-07-24T18:47:06.2832532Z    service: s3
+2026-07-24T18:47:06.2832662Z 
+2026-07-24T18:47:06.2832759Z    path: .sccache_check
+2026-07-24T18:47:06.2832910Z 
+2026-07-24T18:47:06.2832993Z    written: 13
+2026-07-24T18:47:06.2833117Z 
+2026-07-24T18:47:06.2833122Z 
+2026-07-24T18:47:06.2833126Z 
+2026-07-24T18:47:06.2833420Z =========== If your build fails, please take a look at the log above for possible reasons ===========
+2026-07-24T18:47:06.2833925Z Compile requests                     197
+2026-07-24T18:47:06.2834231Z Compile requests executed             97
+2026-07-24T18:47:06.2834526Z Cache hits                            62
+2026-07-24T18:47:06.2834814Z Cache hits (C/C++)                    62
+2026-07-24T18:47:06.2835102Z Cache misses                          29
+2026-07-24T18:47:06.2835392Z Cache misses (C/C++)                  29
+2026-07-24T18:47:06.2835688Z Cache hits rate                    68.13 %
+2026-07-24T18:47:06.2835995Z Cache hits rate (C/C++)            68.13 %
+2026-07-24T18:47:06.2836297Z Cache timeouts                         0
+2026-07-24T18:47:06.2836587Z Cache read errors                      0
+2026-07-24T18:47:06.2836884Z Forced recaches                        0
+2026-07-24T18:47:06.2837174Z Cache write errors                    29
+2026-07-24T18:47:06.2837462Z Cache errors                           2
+2026-07-24T18:47:06.2837752Z Cache errors (C/C++)                   2
+2026-07-24T18:47:06.2838046Z Compilations                          29
+2026-07-24T18:47:06.2838343Z Compilation failures                   4
+2026-07-24T18:47:06.2838650Z Non-cacheable compilations             0
+2026-07-24T18:47:06.2838955Z Non-cacheable calls                   34
+2026-07-24T18:47:06.2839254Z Non-compilation calls                 66
+2026-07-24T18:47:06.2839557Z Unsupported compiler calls             0
+2026-07-24T18:47:06.2839861Z Average cache write                0.000 s
+2026-07-24T18:47:06.2840168Z Average compiler                  17.852 s
+2026-07-24T18:47:06.2840499Z Average cache read hit             0.026 s
+2026-07-24T18:47:06.2840808Z Failed distributed compilations        0
+2026-07-24T18:47:06.2841020Z 
+2026-07-24T18:47:06.2841113Z Non-cacheable reasons:
+2026-07-24T18:47:06.2841361Z multiple input files                  34
+2026-07-24T18:47:06.2841563Z 
+2026-07-24T18:47:06.2841797Z Cache location                  s3, name: ossci-compiler-cache-circleci-v2, prefix: /
+2026-07-24T18:47:06.2842443Z Base directories                (none)
+2026-07-24T18:47:06.2842728Z Version (client)                0.16.0
+2026-07-24T18:47:06.2843014Z Stopping sccache server...
+2026-07-24T18:47:06.2843273Z Compile requests                     197
+2026-07-24T18:47:06.2843570Z Compile requests executed             97
+2026-07-24T18:47:06.2843900Z Cache hits                            62
+2026-07-24T18:47:06.2844181Z Cache hits (C/C++)                    62
+2026-07-24T18:47:06.2844460Z Cache misses                          29
+2026-07-24T18:47:06.2844753Z Cache misses (C/C++)                  29
+2026-07-24T18:47:06.2845042Z Cache hits rate                    68.13 %
+2026-07-24T18:47:06.2845339Z Cache hits rate (C/C++)            68.13 %
+2026-07-24T18:47:06.2845633Z Cache timeouts                         0
+2026-07-24T18:47:06.2845922Z Cache read errors                      0
+2026-07-24T18:47:06.2846208Z Forced recaches                        0
+2026-07-24T18:47:06.2846496Z Cache write errors                    29
+2026-07-24T18:47:06.2846790Z Cache errors                           2
+2026-07-24T18:47:06.2847075Z Cache errors (C/C++)                   2
+2026-07-24T18:47:06.2847362Z Compilations                          29
+2026-07-24T18:47:06.2847652Z Compilation failures                   4
+2026-07-24T18:47:06.2847959Z Non-cacheable compilations             0
+2026-07-24T18:47:06.2848258Z Non-cacheable calls                   34
+2026-07-24T18:47:06.2848552Z Non-compilation calls                 66
+2026-07-24T18:47:06.2849005Z Unsupported compiler calls             0
+2026-07-24T18:47:06.2849329Z Average cache write                0.000 s
+2026-07-24T18:47:06.2849630Z Average compiler                  17.852 s
+2026-07-24T18:47:06.2849931Z Average cache read hit             0.026 s
+2026-07-24T18:47:06.2850240Z Failed distributed compilations        0
+2026-07-24T18:47:06.2850444Z 
+2026-07-24T18:47:06.2850536Z Non-cacheable reasons:
+2026-07-24T18:47:06.2850783Z multiple input files                  34
+2026-07-24T18:47:06.2851100Z 
+2026-07-24T18:47:06.2851336Z Cache location                  s3, name: ossci-compiler-cache-circleci-v2, prefix: /
+2026-07-24T18:47:06.2851776Z Base directories                (none)
+2026-07-24T18:47:06.2852060Z Version (client)                0.16.0
+2026-07-24T18:47:06.2852502Z ##[endgroup]
+2026-07-24T18:47:06.7107531Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-24T18:47:06.7128750Z ##[error]Process completed with exit code 1.
+2026-07-24T18:47:06.7147309Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-24T18:47:06.7216637Z ##[group]Run cat test/**/*_toprint.log || true

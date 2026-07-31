@@ -1,0 +1,71 @@
+2026-07-27T21:46:07.2864037Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7087s/7200s)
+2026-07-27T21:46:27.3275172Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7107s/7200s)
+2026-07-27T21:46:47.3746013Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7127s/7200s)
+2026-07-27T21:47:07.4154364Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7147s/7200s)
+2026-07-27T21:47:27.4552484Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7168s/7200s)
+2026-07-27T21:47:47.4989757Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7188s/7200s)
+2026-07-27T21:48:07.5539267Z Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow: phase=Pending, conditions=[PodScheduled=False], waiting=[none] (7208s/7200s)
+#=MATCH=# 2026-07-27T21:48:27.6295636Z ##[error]Error: pod failed to come online with error: Error: Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow is unhealthy with phase status ‹Pending: backoff timeout›
+    at /opt/runner-hooks/dist/index.js:510:27
+    at step (/opt/runner-hooks/dist/index.js:417:23)
+    at Object.next (/opt/runner-hooks/dist/index.js:398:53)
+    at fulfilled (/opt/runner-hooks/dist/index.js:389:58)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-27T21:48:27.6304871Z 
+2026-07-27T21:48:27.6305743Z [runner-container-hooks] FATAL: Error: pod failed to come online with error: Error: Pod mt-l-x86aavx2-29-113-a10g-v24bh-runner-fbtr6-workflow is unhealthy with phase status Pending: backoff timeout
+2026-07-27T21:48:27.6306709Z     at /opt/runner-hooks/dist/index.js:510:27
+2026-07-27T21:48:27.6307063Z     at step (/opt/runner-hooks/dist/index.js:417:23)
+2026-07-27T21:48:27.6307450Z     at Object.next (/opt/runner-hooks/dist/index.js:398:53)
+2026-07-27T21:48:27.6307849Z     at fulfilled (/opt/runner-hooks/dist/index.js:389:58)
+2026-07-27T21:48:27.6308343Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-27T21:48:27.6426488Z ##[error]Process completed with exit code 1.
+2026-07-27T21:48:27.6542001Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-27T21:48:27.7225956Z ##[group]Run cat test/**/*_toprint.log || true
+2026-07-27T21:48:27.7226492Z [36;1mcat test/**/*_toprint.log || true[0m
+2026-07-27T21:48:27.7229154Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-07-27T21:48:27.7229479Z env:
+2026-07-27T21:48:27.7229672Z   GIT_DEFAULT_BRANCH: main
+2026-07-27T21:48:27.7229902Z ##[endgroup]
+2026-07-27T21:48:27.7307391Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-27T21:48:27.7308661Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-27T21:48:27.7308977Z ##[endgroup]
+2026-07-27T21:48:28.8186987Z 
+2026-07-27T21:48:28.8187572Z [runner-container-hooks] FATAL: TypeError: Cannot read properties of null (reading 'jobPod')
+2026-07-27T21:48:28.8188145Z     at /opt/runner-hooks/dist/index.js:986:34
+2026-07-27T21:48:28.8188511Z     at step (/opt/runner-hooks/dist/index.js:952:23)
+2026-07-27T21:48:28.8188900Z     at Object.next (/opt/runner-hooks/dist/index.js:933:53)
+2026-07-27T21:48:28.8189338Z     at /opt/runner-hooks/dist/index.js:927:71
+2026-07-27T21:48:28.8189665Z     at new Promise (<anonymous>)
+2026-07-27T21:48:28.8190078Z     at __webpack_modules__.8791.__awaiter (/opt/runner-hooks/dist/index.js:923:12)
+2026-07-27T21:48:28.8190574Z     at runScriptStep (/opt/runner-hooks/dist/index.js:969:12)
+2026-07-27T21:48:28.8190951Z     at /opt/runner-hooks/dist/index.js:1198:72
+2026-07-27T21:48:28.8191294Z     at step (/opt/runner-hooks/dist/index.js:1148:23)
+2026-07-27T21:48:28.8191677Z     at Object.next (/opt/runner-hooks/dist/index.js:1129:53)
+2026-07-27T21:48:28.8196835Z ##[error]TypeError: Cannot read properties of null (reading 'jobPod')
+    at /opt/runner-hooks/dist/index.js:986:34
+    at step (/opt/runner-hooks/dist/index.js:952:23)
+    at Object.next (/opt/runner-hooks/dist/index.js:933:53)
+    at /opt/runner-hooks/dist/index.js:927:71
+    at new Promise (<anonymous>)
+    at __webpack_modules__.8791.__awaiter (/opt/runner-hooks/dist/index.js:923:12)
+    at runScriptStep (/opt/runner-hooks/dist/index.js:969:12)
+    at /opt/runner-hooks/dist/index.js:1198:72
+    at step (/opt/runner-hooks/dist/index.js:1148:23)
+    at Object.next (/opt/runner-hooks/dist/index.js:1129:53)
+2026-07-27T21:48:28.8289733Z ##[error][OSDC] Step script exited with code 1. This is a script/workflow error, not an infrastructure issue. Check the step logs above for the actual failure.
+2026-07-27T21:48:28.8318215Z ##[error]Process completed with exit code 1.
+2026-07-27T21:48:28.8397330Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-27T21:48:28.9031463Z ##[group]Run aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
+2026-07-27T21:48:28.9032074Z with:
+2026-07-27T21:48:28.9032416Z   role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_hf-cache-write
+2026-07-27T21:48:28.9032828Z   aws-region: us-east-1
+2026-07-27T21:48:28.9033068Z   audience: sts.amazonaws.com
+2026-07-27T21:48:28.9033341Z   output-env-credentials: true
+2026-07-27T21:48:28.9033586Z env:
+2026-07-27T21:48:28.9033770Z   GIT_DEFAULT_BRANCH: main
+2026-07-27T21:48:28.9034377Z ##[endgroup]
+2026-07-27T21:48:28.9096230Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-27T21:48:28.9097515Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-27T21:48:28.9097830Z ##[endgroup]
+2026-07-27T21:48:29.7527045Z 
+2026-07-27T21:48:29.7527604Z [runner-container-hooks] FATAL: TypeError: Cannot read properties of null (reading 'jobPod')

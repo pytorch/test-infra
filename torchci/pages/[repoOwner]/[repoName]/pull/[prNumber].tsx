@@ -2,6 +2,7 @@ import { Stack } from "@mui/material";
 import { CommitInfo } from "components/commit/CommitInfo";
 import DrCIButton from "components/common/DrCIButton";
 import ErrorBoundary from "components/common/ErrorBoundary";
+import CrcrPrSection from "components/crcr/CrcrPrSection";
 import { useSetTitle } from "components/layout/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { PRData } from "lib/types";
@@ -120,6 +121,11 @@ function Page() {
             sha={selectedSha}
             isCommitPage={false}
           />
+        )}
+      </ErrorBoundary>
+      <ErrorBoundary>
+        {prNumber && repoOwner === "pytorch" && repoName === "pytorch" && (
+          <CrcrPrSection prNumber={parseInt(prNumber as string)} />
         )}
       </ErrorBoundary>
     </div>

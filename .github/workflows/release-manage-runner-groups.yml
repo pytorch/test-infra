@@ -1,0 +1,62 @@
+name: Release manage runner groups
+
+on:
+  # The desired state only changes at release milestones, so run on demand and
+  # when the test-channel version is advanced (the go-live bump), rather than on
+  # a cron.
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply changes (otherwise dry-run)"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - tools/scripts/generate_binary_build_matrix.py
+  pull_request:
+    paths:
+      - .github/workflows/release-manage-runner-groups.yml
+      - tools/scripts/release_manage_runner_groups.py
+      - tools/scripts/generate_binary_build_matrix.py
+      - tools/tests/test_release_manage_runner_groups.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-manage-runner-groups
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    # The token lives in the protected environment and is only selected on
+    # main, so PRs and forks never see it and run discovery-only.
+    environment: ${{ github.ref == 'refs/heads/main' && 'runner-group' || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install dependencies
+        run: python3 -m pip install requests==2.32.3 PyYAML==6.0.2
+
+      - name: Reconcile release runner groups
+        env:
+          # Token for managing runner groups, only present in the runner-group
+          # environment (i.e. on main). Falls back to the default token for
+          # read-only discovery on PRs.
+          RUNNER_GROUP_TOKEN: ${{ secrets.RUNNER_GROUP_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          # Apply only from main, and only for the go-live push (matrix version
+          # bump) or an explicit dispatch with apply=true. Everything else is a
+          # dry-run.
+          SHOULD_APPLY: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.apply) }}
+        run: |
+          SCRIPT=tools/scripts/release_manage_runner_groups.py
+          if [ "${SHOULD_APPLY}" = "true" ]; then
+            python3 "${SCRIPT}" --apply
+          else
+            python3 "${SCRIPT}"
+          fi

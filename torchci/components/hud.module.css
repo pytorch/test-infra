@@ -243,7 +243,8 @@
   pointer-events: none;
 }
 
-.advisorVerdict_revert {
+.advisorVerdict_revert,
+.advisorVerdict_related {
   background: #d32f2f;
   color: #fff;
 }

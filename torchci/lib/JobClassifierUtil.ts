@@ -9,7 +9,14 @@ type RepoViableStrictBlockingJobsMap = {
 
 // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
 export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
-  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i],
+  "pytorch/pytorch": [
+    /pull/i,
+    /trunk/i,
+    /lint/i,
+    /linux-aarch64/i,
+    /docs-build/i,
+    /\(L4\)/,
+  ],
 };
 
 export function isJobViableStrictBlocking(
@@ -67,10 +74,15 @@ const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
 const GROUP_XPU = "XPU";
 const GROUP_VLLM = "vLLM";
+const GROUP_CRCR = "CRCR";
 const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
+  {
+    regex: /^CRCR /,
+    name: GROUP_CRCR,
+  },
   {
     regex: /vllm/i,
     name: GROUP_VLLM,
@@ -229,6 +241,7 @@ const HUD_GROUP_SORTING = [
   GROUP_BINARY_WINDOWS,
   GROUP_MEMORY_LEAK_CHECK,
   GROUP_RERUN_DISABLED_TESTS,
+  GROUP_CRCR,
   // These two groups should always be at the end
   GROUP_OTHER,
   GROUP_UNSTABLE,

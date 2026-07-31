@@ -32,7 +32,8 @@ export interface RunnersApiResponse {
 export function getRunnerGroupLabel(runner: RunnerData): string {
   const labelNames = runner.labels.map((label) => label.name);
 
-  // Find labels with "." (excluding any that end with ".runners") or starting with "macos-"
+  // Find labels with "." (excluding any that end with ".runners") or
+  // starting with "macos-".
   // Why have such funky logic? We have many labels on our runners today, but this
   // is what's common in all the ones that jobs actually use.
   const validLabels = labelNames.filter(
@@ -54,6 +55,19 @@ export function getRunnerGroupLabel(runner: RunnerData): string {
   // Special case for ROCm runners provided by that don't have proper GitHub labels
   // but use naming conventions like: linux.rocm.gpu.gfx942.1-xxxx-runner-xxxxx
   const runnerName = runner.name;
+
+  // ARC/OSDC runners register with empty labels and pod names of the form
+  // <scaleset>-<replicaset-hash>-runner-<pod-hash>, e.g.
+  // mt-l-x86aavx2-189-704-a10g-8-c8z6d-runner-4q77c. We want to group by the
+  // scaleset prefix (mt-l-x86aavx2-189-704-a10g-8), which is also what
+  // workflows put after `runs-on:`. The scaleset name format is documented at
+  // pytorch/ci-infra:osdc/docs/runner_naming_convention.md
+  // TODO: today only "mt-" (Meta) is in active use; expand to other providers
+  // (lf/am/in/nv/ib) and the "c-" canary prefix when those fleets come online.
+  const arcMatch = runnerName.match(/^(mt-.+)-[a-z0-9]+-runner-[a-z0-9]+$/i);
+  if (arcMatch) {
+    return arcMatch[1];
+  }
 
   // Look for dotted prefixes before "-" followed by random suffix
   const namePatterns = [

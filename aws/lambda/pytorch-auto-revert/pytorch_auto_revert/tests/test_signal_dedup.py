@@ -90,6 +90,30 @@ class TestSignalDedup(unittest.TestCase):
         # Both commits should each have two events (one per status) after dedup
         self.assertEqual([len(c.events) for c in out[0].commits], [2, 2])
 
+    def test_dedup_preserves_test_identity(self):
+        # Signal-level test_file/test_classname/test_name must survive the
+        # Signal reconstruction inside _dedup_signal_events.
+        e = SignalEvent(
+            name="t",
+            status=SignalStatus.FAILURE,
+            started_at=ts(self.t0, 1),
+            wf_run_id=1,
+        )
+        commit = SignalCommit(head_sha="sha", timestamp=ts(self.t0, 0), events=[e])
+        s = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="wf",
+            commits=[commit],
+            test_file="test/foo.py",
+            test_classname="TestFooBar",
+            test_name="test_bar",
+        )
+        ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
+        out = ex._dedup_signal_events([s])
+        self.assertEqual(out[0].test_file, "test/foo.py")
+        self.assertEqual(out[0].test_classname, "TestFooBar")
+        self.assertEqual(out[0].test_name, "test_bar")
+
 
 if __name__ == "__main__":
     unittest.main()

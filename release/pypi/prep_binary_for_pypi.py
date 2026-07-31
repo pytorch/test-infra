@@ -17,6 +17,40 @@ import tempfile
 from pathlib import Path
 
 
+# PyPI validates trove classifiers against a fixed list and rejects unknown
+# ones. Python 3.15 is still pre-release and not yet a recognized classifier, so
+# wheels built with 3.15 support fail to upload with an "invalid classifier"
+# error. Strip these classifier values from the METADATA of every staged wheel.
+CLASSIFIERS_TO_REMOVE = frozenset(
+    {
+        "Programming Language :: Python :: 3.15",
+    }
+)
+
+
+def remove_disallowed_classifiers(metadata_file):
+    """Drop Classifier lines PyPI would reject (e.g. pre-release Python 3.15)."""
+    with open(metadata_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    kept = []
+    removed = []
+    for line in lines:
+        # METADATA classifier entries are formatted as "Classifier: <value>".
+        if line.startswith("Classifier:"):
+            value = line.split(":", 1)[1].strip()
+            if value in CLASSIFIERS_TO_REMOVE:
+                removed.append(value)
+                continue
+        kept.append(line)
+
+    if removed:
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            f.writelines(kept)
+        for value in removed:
+            print(f"Removed disallowed classifier: {value}")
+
+
 def process_wheel(whl_file, output_dir=None):
     # Check if auditwheel is installed
     try:
@@ -105,6 +139,11 @@ def process_wheel(whl_file, output_dir=None):
                     except UnicodeDecodeError:
                         # Skip binary files
                         pass
+
+            # Strip classifiers PyPI will not accept (e.g. pre-release 3.15)
+            # before upload. Done while metadata_file still points at the
+            # current (pre-rename) dist-info directory.
+            remove_disallowed_classifiers(metadata_file)
 
             # Rename the dist-info directory
             new_dist_info_dir = dist_info_dir.replace(

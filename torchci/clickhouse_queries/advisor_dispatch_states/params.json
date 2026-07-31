@@ -1,0 +1,9 @@
+{
+  "params": {
+    "owner": "String",
+    "repo": "String",
+    "headSha": "String",
+    "signalKeys": "Array(String)"
+  },
+  "tests": []
+}

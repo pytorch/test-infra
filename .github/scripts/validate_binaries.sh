@@ -27,10 +27,9 @@ get_python_config() {
             PYTHON_V=3.14.0rc1
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
-        3.13t)
-            PYTHON_V=3.13
-            CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
-            ;;
+        # Note: 3.15 / 3.15t are intentionally absent here. They are provisioned
+        # via uv (CPython 3.15.0b1) in the interpreter-setup branch below and
+        # never reach the conda create path that reads CONDA_EXTRA_PARAM.
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
             CONDA_EXTRA_PARAM=""
@@ -189,13 +188,20 @@ run_smoke_tests() {
         source "${SCRIPT_DIR}/validate_test_ops.sh"
     fi
 
+    # torch.compile is not supported on Python 3.15+ (torch.compile() raises
+    # RuntimeError at call time), so disable the compile smoke test there.
+    local compile_check=""
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        compile_check="--torch-compile-check disabled"
+    fi
+
     # Regular smoke test
-    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+    ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
 
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 install numpy --upgrade --force-reinstall
-        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix}
+        ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
     fi
 
     popd
@@ -217,15 +223,81 @@ cleanup_conda_env() {
     fi
 }
 
+# Fail the build if the installed torch wheel exceeds a hard size ceiling.
+#
+# Scope: Linux x86_64 + aarch64 wheels only, excluding ROCm (whose wheels are
+# legitimately multi-GB). The measured value is the compressed .whl DOWNLOAD
+# size as reported by pip on its "Downloading"/"Using cached" line -- i.e. the
+# same size published to download.pytorch.org / PyPI, not the (much larger)
+# unpacked install footprint. Reads the captured pip-install log ($1).
+#
+# Ceiling is ${WHEEL_SIZE_THRESHOLD_MB} MB (default 850).
+check_wheel_size() {
+    local log_file="$1"
+    local threshold_mb="${WHEEL_SIZE_THRESHOLD_MB:-850}"
+
+    # Only linux / linux-aarch64 wheels; skip libtorch and ROCm.
+    if [[ ${TARGET_OS} != 'linux' && ${TARGET_OS} != 'linux-aarch64' ]]; then
+        return 0
+    fi
+    if [[ ${MATRIX_PACKAGE_TYPE} != 'wheel' || ${MATRIX_GPU_ARCH_TYPE:-} == 'rocm' ]]; then
+        echo "Wheel-size check skipped for package=${MATRIX_PACKAGE_TYPE} arch=${MATRIX_GPU_ARCH_TYPE:-cpu}"
+        return 0
+    fi
+
+    # Pull the torch wheel's size off pip's Downloading/Using-cached line, e.g.
+    #   Downloading torch-2.10.0.dev...-linux_x86_64.whl (812.4 MB)
+    # torch-[0-9] isolates the torch wheel from torchvision-/torchaudio-.
+    local frag
+    frag=$(grep -oiE "torch-[0-9][^ /]*\.whl \([0-9.]+ ?[kKmMgG]i?B\)" "${log_file}" | tail -1 || true)
+    if [[ -z ${frag} ]]; then
+        echo "::warning::wheel-size check: could not find the torch wheel size in the pip output; skipping"
+        return 0
+    fi
+
+    local size unit size_mb
+    size=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\1/')
+    unit=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\2/')
+    case ${unit} in
+        B)             size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024/1024}") ;;
+        kB|KB|kiB|KiB) size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024}") ;;
+        MB|MiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}}") ;;
+        GB|GiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}*1024}") ;;
+        *) echo "::warning::wheel-size check: unrecognized size unit '${unit}'; skipping"; return 0 ;;
+    esac
+
+    # Always surface the measured size (as an annotation) whether or not the
+    # check passes, so it is visible on the run summary of a successful job too.
+    echo "::notice::torch wheel size: ${size_mb} MB (arch=${MATRIX_GPU_ARCH_TYPE:-cpu} os=${TARGET_OS} py=${MATRIX_PYTHON_VERSION:-?}); ceiling ${threshold_mb} MB"
+    if awk "BEGIN{exit !(${size_mb} > ${threshold_mb})}"; then
+        echo "::error::torch wheel ${size_mb} MB exceeds the ${threshold_mb} MB ceiling (arch=${MATRIX_GPU_ARCH_TYPE:-cpu}, os=${TARGET_OS}, py=${MATRIX_PYTHON_VERSION:-?})"
+        return 1
+    fi
+}
+
 #######################################
 # Main Script
 #######################################
 
 handle_aarch64_cuda_override
 
+# torchvision wheels are not published for Python 3.15 / 3.15t yet, so validate
+# torch only: skip the torchvision install and its smoke-test module check.
+# Guard with :- since libtorch builds run this before the libtorch exit below
+# and do not set MATRIX_PYTHON_VERSION (set -u would abort otherwise).
+if [[ ${MATRIX_PYTHON_VERSION:-} == "3.15" || ${MATRIX_PYTHON_VERSION:-} == "3.15t" ]]; then
+    export TORCH_ONLY=true
+fi
+
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
-    curl "${MATRIX_INSTALLATION}" -o libtorch.zip
-    unzip libtorch.zip
+    LIBTORCH_PYTHON="python3"
+    if [[ ${TARGET_OS} == 'windows' ]]; then
+        # Windows runners only source conda.sh at this point without activating
+        # an env, so no python is on PATH yet. Activate base to get one.
+        conda activate base
+        LIBTORCH_PYTHON="python"
+    fi
+    "${LIBTORCH_PYTHON}" "${SCRIPT_DIR}/validate_libtorch.py" "${MATRIX_INSTALLATION}"
     exit 0
 fi
 
@@ -235,16 +307,44 @@ if [[ ${TARGET_OS} == 'windows' ]]; then
     export PYTHON_RUN="python"
 fi
 
-# Setup conda environment
-update_conda
-get_python_config
-conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" ${CONDA_EXTRA_PARAM}
-conda activate "${ENV_NAME}"
+# Setup the Python environment.
+#
+# Python 3.15 is still pre-release. The cp315/cp315t wheels are built against
+# CPython 3.15.0b1 (see pytorch .ci/docker/common/install_cpython.sh), but
+# conda-forge only ships 3.15.0a8 -- the pre-release ABI differs, so installing
+# the wheel under the conda interpreter segfaults on "import torch". Provision
+# the matching 3.15.0b1 interpreter with uv (from python-build-standalone)
+# instead of conda. A --seed venv provides pip so the rest of the flow (pip3
+# install, smoke tests) is unchanged.
+if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+    UV_PYTHON="3.15.0b1"
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        UV_PYTHON="3.15.0b1+freethreaded"
+    fi
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source "${HOME}/.local/bin/env"
+    uv venv --seed --python "${UV_PYTHON}" "${ENV_NAME}"
+    source "${ENV_NAME}/bin/activate"
+else
+    update_conda
+    get_python_config
+    conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
+    conda activate "${ENV_NAME}"
+fi
 
 # Save original PATH for macos-arm64 workaround
 export OLD_PATH=${PATH}
 if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
     export PATH="${CONDA_PREFIX}/bin:${PATH}"
+fi
+
+# Nightly ROCm validation runs on the lean pytorch/almalinux-builder:cpu-main
+# image, which does not ship libatomic.so.1. torch's _C extension links it, so
+# `import torch` fails with "libatomic.so.1: cannot open shared object file".
+# conda envs mask this by pulling libatomic in via libgcc, but the uv-based
+# 3.15 env does not, so install it explicitly. Scoped to ROCm on Linux.
+if [[ ${MATRIX_GPU_ARCH_TYPE:-} == 'rocm' && ${TARGET_OS} == 'linux' ]]; then
+    (dnf install -y libatomic || yum install -y libatomic) || true
 fi
 
 # Remove previous installation if wheel package
@@ -258,7 +358,13 @@ if [[ ${USE_WHEEL_VARIANTS:-} == 'true' ]]; then
 else
     INSTALLATION=$(build_installation_command)
     TEST_SUFFIX=$(get_test_suffix)
-    eval "${INSTALLATION}"
+    # Tee the install output so we can read the torch wheel's download size off
+    # pip's "Downloading"/"Using cached" line (set -o pipefail keeps eval's exit
+    # status, so a failed install still aborts).
+    WHEEL_INSTALL_LOG="$(mktemp)"
+    eval "${INSTALLATION}" 2>&1 | tee "${WHEEL_INSTALL_LOG}"
+    check_wheel_size "${WHEEL_INSTALL_LOG}"
+    rm -f "${WHEEL_INSTALL_LOG}"
 fi
 
 # Install numpy 1.x after torch install

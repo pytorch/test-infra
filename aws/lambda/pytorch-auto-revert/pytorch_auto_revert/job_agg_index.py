@@ -40,6 +40,12 @@ class JobMeta:
       status resolves to PENDING.
     - is_cancelled: True if any grouped row is cancelled. Cancelled groups are
       treated as "missing" (no event), i.e., `status` returns None.
+    - is_skipped: True if all grouped rows are skipped. Skipped groups are
+      treated as "missing" (no event), same as cancelled — a skipped job
+      produced no signal-bearing outcome (e.g. `if:` gate, required-check
+      skip when an upstream dependency was cancelled/failed). Requires
+      ALL rows skipped so a real attempt that ran alongside a skipped
+      shard still drives the verdict.
     - has_failures: True if any grouped row is a failure (KG-adjusted conclusion).
       If True, overall status resolves to FAILURE.
     - all_completed_success: True if all grouped rows completed successfully. If
@@ -53,6 +59,7 @@ class JobMeta:
     started_at: datetime = datetime.min
     is_pending: bool = False
     is_cancelled: bool = False
+    is_skipped: bool = False
     has_failures: bool = False
     all_completed_success: bool = False
     has_non_test_failures: bool = False
@@ -61,12 +68,12 @@ class JobMeta:
     @property
     def status(self) -> Optional[SignalStatus]:
         """
-        - canceled -> treat as 'missing' (None)
+        - canceled / skipped -> treat as 'missing' (None)
         - any_failure -> FAILURE
         - all_completed_success -> SUCCESS
         - else -> PENDING
         """
-        if self.is_cancelled:
+        if self.is_cancelled or self.is_skipped:
             return None
         if self.has_failures:
             return SignalStatus.FAILURE
@@ -178,6 +185,7 @@ class JobAggIndex(Generic[KeyT]):
             started_at=started_at,
             is_pending=(any(r.is_pending for r in jrows)),
             is_cancelled=(any(r.is_cancelled for r in jrows)),
+            is_skipped=(all(r.is_skipped for r in jrows)),
             has_failures=(any(r.is_failure for r in jrows)),
             all_completed_success=(all(r.is_success for r in jrows)),
             has_non_test_failures=(

@@ -92,7 +92,7 @@ runs:
         uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           miniconda-version: "latest"
-          python-version: 3.9
+          python-version: "3.10"
       - name: Clean conda environment
         shell: bash -l {0}
         run: |
@@ -113,7 +113,7 @@ runs:
           conda create \
             --yes --quiet \
             --prefix "${CONDA_ENV}" \
-            "python=3.9"
+            "python=3.10" pip
           CONDA_ENV="${CONDA_ENV}"
           CONDA_RUN="conda run --no-capture-output -p ${CONDA_ENV}"
           ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
@@ -129,18 +129,52 @@ runs:
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
-          conda install -y conda=25.3.0
+          # Only pin conda on the Linux/Windows build containers. Their base env
+          # ships an older conda and relies on the implicit `defaults` channel
+          # that conda>=26 removed (upgrading them yields NoChannelsConfiguredError
+          # on the conda create below). The macOS runners' base env is on Python
+          # 3.14 -- which conda=25.3.0 has no build for (py314 starts at 26.1.0) --
+          # and already ships a newer conda with channels configured, so leave it
+          # untouched.
+          if [[ "${RUNNER_OS}" != "macOS" ]]; then
+            conda install -y conda=25.3.0
+          elif [[ "${PYTHON_VERSION}" == 3.15* ]]; then
+            # Newer macOS base conda 400s on the 3.15 label download; pin an older one.
+            conda install -y python=3.11
+            if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
+              conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
+            fi
+            conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
+          fi
+
+          # Pin openssl=3.5.6 by default: openssl 3.5.7 regressed ASN.1 parsing
+          # and rejects a malformed cert in the Windows machine cert store,
+          # breaking ssl.create_default_context() with "[ASN1: NOT_ENOUGH_DATA]"
+          # at smoke-test time. See https://github.com/pytorch/pytorch/pull/186846
+          # The 3.15 cases below clear this: the 3.15 beta requires openssl>=3.5.7,
+          # and 3.15 is Linux-only with its smoke test skipped, so the Windows
+          # regression does not apply.
+          export OPENSSL_PIN="openssl=3.5.6"
 
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
+            3.15t)
+              # 3.15 is a pre-release. conda-forge ships the beta interpreter
+              # under its python_dev label, but that build depends on a
+              # _python_rc marker package that only exists under the python_rc
+              # label, so both labels are required to solve.
+              export PYTHON_VERSION=3.15.0b4
+              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+              export OPENSSL_PIN=""
+              ;;
+            3.15)
+              export PYTHON_VERSION=3.15.0b4
+              export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
+              export OPENSSL_PIN=""
+              ;;
             3.14t)
               export PYTHON_VERSION=3.14
               export CONDA_EXTRA_PARAM=" python-freethreading"
-              ;;
-            3.13t)
-              export PYTHON_VERSION=3.13
-              # python-freethreading package for 3.13t only exist in conda-forge
-              export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
               ;;
           esac
 
@@ -154,6 +188,7 @@ runs:
               libpng \
               pkg-config=0.29 \
               wheel=0.37  \
+              ${OPENSSL_PIN} \
               ${CONDA_EXTRA_PARAM}
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"

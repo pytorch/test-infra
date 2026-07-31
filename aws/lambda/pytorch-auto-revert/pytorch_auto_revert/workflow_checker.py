@@ -170,9 +170,23 @@ class WorkflowRestartChecker:
                 repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
                 workflow = repo.get_workflow(wf_ref.file_name)
 
-        for attempt in RetryWithBackoff():
+        # The /dispatches endpoint is non-idempotent — GitHub can return 5xx after the
+        # workflow run has already been created, so transparent retries on 5xx produce
+        # duplicate runs. Two safeguards:
+        #   1. Use `factory.dispatch_client.requester` (constructed with retry=0) so
+        #      PyGithub's urllib3 layer does not retry POST 5xx automatically.
+        #   2. Cap the explicit outer retry at 2 attempts total (max_retries=1) — one
+        #      extra try buys resilience against a cold-network blip without inviting
+        #      a duplicate-run storm during a sustained GitHub outage.
+        dispatch_requester = factory.dispatch_client.requester
+        for attempt in RetryWithBackoff(max_retries=1):
             with attempt:
-                proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs=inputs)
+                proper_workflow_create_dispatch(
+                    workflow,
+                    ref=tag_ref,
+                    inputs=inputs,
+                    requester=dispatch_requester,
+                )
 
         workflow_url = (
             f"https://github.com/{self.repo_owner}/{self.repo_name}"

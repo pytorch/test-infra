@@ -101,6 +101,7 @@ describe("verify-drci-functionality", () => {
         {
           id: comment_id,
           node_id: comment_node_id,
+          user: { login: drciUtils.DRCI_COMMENT_AUTHOR },
           body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
         },
       ])
@@ -120,6 +121,52 @@ describe("verify-drci-functionality", () => {
         }
       )
       .reply(200);
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    handleScope(scope);
+  });
+
+  test("Dr. CI ignores a marker-bearing comment from a non-bot author and posts its own", async () => {
+    // Regression test: another tool (e.g. an internal diff-handoff bot) can post
+    // a comment that embeds the DRCI_COMMENT_START marker. Dr. CI must not treat
+    // that comment as its own and overwrite it; it should post a fresh comment.
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = require("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["user"]["login"] = some_user;
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = REPO;
+
+    jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockImplementation((query, params) => {
+        return Promise.resolve([]);
+      });
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
+        return true;
+      })
+      .reply(200, [
+        {
+          id: comment_id,
+          node_id: comment_node_id,
+          user: { login: some_user },
+          body: "<!-- drci-comment-start -->\nhandoff\n<!-- drci-comment-end -->\n",
+        },
+      ])
+      // Must create a new comment rather than patch the impostor one.
+      .post(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
+        const comment = body.body;
+        expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
+        expect(
+          comment.includes("See artifacts and rendered test results")
+        ).toBeTruthy();
+        return true;
+      })
+      .reply(200);
+
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
     handleScope(scope);
   });
@@ -221,6 +268,7 @@ describe("verify-drci-functionality", () => {
         {
           id: comment_id,
           node_id: comment_node_id,
+          user: { login: drciUtils.DRCI_COMMENT_AUTHOR },
           body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
         },
       ])

@@ -1,0 +1,62 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30529790819/job/90834162693
+2026-07-30T11:29:42.0791550Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_silu_cuda_float32 PASSED [0.0925s] [ 89%]
+2026-07-30T11:29:42.0791718Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_softshrink_cuda_float32 PASSED [0.1487s] [ 89%]
+2026-07-30T11:29:42.0791910Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_nn_functional_unfold_cuda_float32 PASSED [1.8950s] [ 89%]
+2026-07-30T11:29:42.0792060Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_norm_nuc_cuda_float32 PASSED [0.1074s] [ 89%]
+2026-07-30T11:29:42.0792221Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_normal_cuda_float32 PASSED [0.0951s] [ 89%]
+2026-07-30T11:29:42.0792370Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_reshape_as_cuda_float32 PASSED [0.0945s] [ 89%]
+2026-07-30T11:29:42.0792530Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_scatter_reduce_sum_cuda_float32 PASSED [0.1505s] [ 89%]
+2026-07-30T11:29:42.0792671Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_sinh_cuda_float32 PASSED [0.0754s] [ 89%]
+2026-07-30T11:29:42.0792824Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_split_list_args_cuda_float32 PASSED [0.0853s] [ 89%]
+2026-07-30T11:29:42.0792981Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_split_with_sizes_cuda_float32 PASSED [0.0901s] [ 89%]
+2026-07-30T11:29:42.0793125Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_squeeze_cuda_float32 PASSED [0.0987s] [ 89%]
+2026-07-30T11:29:42.0794339Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_stack_cuda_float32 PASSED [0.1097s] [ 89%]
+2026-07-30T11:29:42.0794492Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_unsafe_split_cuda_float32 PASSED [0.0896s] [ 89%]
+2026-07-30T11:29:42.0794636Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_amp_view_as_cuda_float32 PASSED [0.0912s] [ 89%]
+2026-07-30T11:29:42.0794800Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_acos_cuda_float32 PASSED [0.0770s] [ 89%]
+2026-07-30T11:29:42.0794947Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_acosh_cuda_float32 PASSED [0.0743s] [ 89%]
+2026-07-30T11:29:42.0795090Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_amin_cuda_float32 PASSED [0.2322s] [ 90%]
+2026-07-30T11:29:42.0795231Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_asin_cuda_float32 PASSED [0.0681s] [ 90%]
+2026-07-30T11:29:42.0795380Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_bfloat16_cuda_float32 PASSED [0.0793s] [ 90%]
+2026-07-30T11:29:42.0795522Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_cdist_cuda_float32 PASSED [2.1175s] [ 90%]
+2026-07-30T11:29:42.0795669Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_copysign_cuda_float32 PASSED [0.1449s] [ 90%]
+2026-07-30T11:29:42.0795815Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_double_cuda_float32 PASSED [0.0836s] [ 90%]
+2026-07-30T11:29:42.0796006Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_fft_fftn_cuda_float32 PASSED [0.1258s] [ 90%]
+2026-07-30T11:29:42.0796158Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_fft_irfftn_cuda_float32 PASSED [0.2292s] [ 90%]
+2026-07-30T11:29:42.0796301Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_fill_cuda_float32 PASSED [0.0703s] [ 90%]
+2026-07-30T11:29:42.0796520Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_kron_cuda_float32 PASSED [0.0770s] [ 90%]
+2026-07-30T11:29:42.0796698Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_linalg_lstsq_grad_oriented_cuda_float32 PASSED [0.3370s] [ 90%]
+2026-07-30T11:29:42.0796839Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_linalg_solve_triangular_cuda_float32 
+2026-07-30T11:29:42.0796843Z 
+2026-07-30T11:29:42.0797033Z - generated xml file: /var/lib/jenkins/workspace/test/test-reports/python-pytest/test_ops/test_ops-bd59d6e0a9d647a4.xml -
+#=MATCH=# 2026-07-30T11:29:42.0798194Z ‹!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!›
+2026-07-30T11:29:42.0798391Z /opt/conda/envs/py_3.10/lib/python3.10/site-packages/torch/_library/simple_registry.py:142: KeyboardInterrupt
+2026-07-30T11:29:42.0798481Z (to show a full traceback on KeyboardInterrupt use --full-trace)
+2026-07-30T11:29:42.0798575Z ========== 1182 passed, 1523 skipped, 24 xfailed in 497.69s (0:08:17) ==========
+2026-07-30T11:29:42.0798632Z Command took >30min, returning 124
+2026-07-30T11:29:42.0798678Z Got exit code 124
+2026-07-30T11:29:42.0798725Z Retrying single test...
+2026-07-30T11:29:42.0798862Z Test results will be stored in test-reports/python-pytest/test_ops/test_ops-e6754ab9e0215913.xml
+2026-07-30T11:29:42.0798937Z ============================= test session starts ==============================
+2026-07-30T11:29:42.0799072Z platform linux -- Python 3.10.20, pytest-7.3.2, pluggy-1.6.0 -- /opt/conda/envs/py_3.10/bin/python
+2026-07-30T11:29:42.0799121Z cachedir: .pytest_cache
+2026-07-30T11:29:42.0799304Z hypothesis profile 'pytorch_ci' -> database=None, max_examples=50, derandomize=True, suppress_health_check=[HealthCheck.too_slow]
+2026-07-30T11:29:42.0799363Z rootdir: /var/lib/jenkins/workspace
+2026-07-30T11:29:42.0799412Z configfile: pytest.ini
+2026-07-30T11:29:42.0799604Z plugins: subtests-0.13.1, cpp-2.3.0, flakefinder-1.1.0, rerunfailures-14.0, xdist-3.3.1, xdoctest-1.3.0, hypothesis-6.56.4, typeguard-4.3.0
+2026-07-30T11:29:42.0799700Z collecting ... collected 34059 items / 3020 deselected / 31039 selected
+2026-07-30T11:29:42.0799966Z stepcurrent: skipping 2729 already run items. Running only test/test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_linalg_solve_triangular_cuda_float32
+2026-07-30T11:29:42.0800020Z Running 1 items in this shard
+2026-07-30T11:29:42.0800023Z 
+2026-07-30T11:29:42.0801382Z test_ops.py::TestFakeTensorCUDA::test_fake_crossref_backward_no_amp_linalg_solve_triangular_cuda_float32 PASSED [7.0532s] [100%]
+2026-07-30T11:29:42.0801389Z 
+2026-07-30T11:29:42.0801571Z - generated xml file: /var/lib/jenkins/workspace/test/test-reports/python-pytest/test_ops/test_ops-e6754ab9e0215913.xml -
+2026-07-30T11:29:42.0801653Z ====================== 1 passed, 3020 deselected in 8.94s ======================
+2026-07-30T11:29:42.0801698Z Got exit code 0
+2026-07-30T11:29:42.0801790Z Test succeeded in new process, continuing with the rest of the tests
+2026-07-30T11:29:42.0801923Z Test results will be stored in test-reports/python-pytest/test_ops/test_ops-6447451da44fa2ea.xml
+2026-07-30T11:29:42.0801995Z ============================= test session starts ==============================
+2026-07-30T11:29:42.0802124Z platform linux -- Python 3.10.20, pytest-7.3.2, pluggy-1.6.0 -- /opt/conda/envs/py_3.10/bin/python
+2026-07-30T11:29:42.0802172Z cachedir: .pytest_cache
+2026-07-30T11:29:42.0802371Z hypothesis profile 'pytorch_ci' -> database=None, max_examples=50, derandomize=True, suppress_health_check=[HealthCheck.too_slow]
+2026-07-30T11:29:42.0802488Z rootdir: /var/lib/jenkins/workspace

@@ -67,6 +67,18 @@ function NavBar() {
       name: "Test File Reports",
       href: "/tests/fileReport",
     },
+    {
+      name: "CUDA Trunk test stats",
+      href: "/cuda_test_stats",
+    },
+    {
+      name: "MacOS test stats",
+      href: "/mac_test_stats",
+    },
+    {
+      name: "ROCm test stats",
+      href: "/rocm_test_stats",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
@@ -113,6 +125,10 @@ function NavBar() {
       name: "Claude Billing",
       href: "/claude_billing",
     },
+    {
+      name: "CRCR Metrics",
+      href: "/crcr/metrics",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
@@ -144,13 +160,13 @@ function NavBar() {
             </Link>
           </li>
           <li>
-            <Link prefetch={false} href="/hud/pytorch/audio/main">
-              TorchAudio
+            <Link prefetch={false} href="/hud/pytorch/helion/main">
+              Helion
             </Link>
           </li>
           <li>
-            <Link prefetch={false} href="/hud/pytorch/helion/main">
-              Helion
+            <Link prefetch={false} href="/crcr">
+              CRCR
             </Link>
           </li>
         </ul>

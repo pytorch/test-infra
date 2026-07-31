@@ -11,7 +11,11 @@ import {
 const CIFLOW_PENDING_MARKER = "<!-- ciflow-pending -->";
 
 function isCIFlowLabel(label: string): boolean {
-  return label.startsWith("ciflow/");
+  // `ciflow/crcr/*` are Cross-Repo CI Relay gating labels: the relay reacts to
+  // the `pull_request.labeled` webhook directly, they do not push a git tag to
+  // trigger CI. So they must not go through this push-tag machinery (which would
+  // wrongly flag them as an "Unknown label" and create a spurious ciflow tag).
+  return label.startsWith("ciflow/") && !label.startsWith("ciflow/crcr/");
 }
 
 /**
@@ -158,6 +162,18 @@ async function handleSyncEvent(
     );
     // Don't remove labels -- they represent user intent.
     // Tags simply won't be created until workflows are approved.
+    // Refresh the pending comment so it doesn't show a stale "CI has now been
+    // triggered" message after a new commit re-gates approval.
+    const ciflowLabels = payload.pull_request.labels
+      .map((l) => l.name)
+      .filter(isCIFlowLabel);
+    if (ciflowLabels.length > 0) {
+      await upsertPendingComment(
+        context,
+        payload.pull_request.number,
+        ciflowLabels
+      );
+    }
     return;
   }
 
@@ -294,6 +310,21 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
 
   // Only care about pull_request workflow runs
   if (payload.workflow_run.event !== "pull_request") {
+    return;
+  }
+
+  // Skip runs that are gated on maintainer approval (e.g. first-time-contributor PRs).
+  // GitHub may surface this as either status=waiting/action_required, or — when it
+  // immediately completes the run pending approval — status=completed with
+  // conclusion=action_required (see pytorch/pytorch#182109). startup_failure mirrors
+  // hasApprovedPullRuns in utils.ts, which treats it as not-yet-approved.
+  const wr = payload.workflow_run as any;
+  if (
+    wr.status === "waiting" ||
+    wr.status === "action_required" ||
+    wr.conclusion === "action_required" ||
+    wr.conclusion === "startup_failure"
+  ) {
     return;
   }
 

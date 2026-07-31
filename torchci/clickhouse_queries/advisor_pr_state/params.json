@@ -1,0 +1,7 @@
+{
+  "params": {
+    "prNumber": "Int64",
+    "htmlUrl": "String"
+  },
+  "tests": []
+}

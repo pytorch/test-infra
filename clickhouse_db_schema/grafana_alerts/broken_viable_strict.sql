@@ -23,7 +23,7 @@ WITH raw_jobs AS (
     WHERE
         -- Filter down to the viable/strict blocking jobs we care about
         (
-            j.workflow_name IN ('pull', 'trunk')
+            j.workflow_name IN ('pull', 'trunk', 'docs-build')
             OR j.workflow_name LIKE 'linux-binary-%'
         )
         AND j.job_name NOT LIKE '%rerun_disabled_tests%'

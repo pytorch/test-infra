@@ -1,0 +1,110 @@
+name: Cross-Repo CI Relay Callback
+
+description: >
+  Report the status of a downstream CI workflow back to the Cross-Repo CI
+  Relay server.  The job must have `id-token: write` permission so that a
+  GitHub OIDC token can be minted and used to authenticate the callback.
+
+  For PR/push workflows triggered by `repository_dispatch`, the action reads
+  `github.event.client_payload` automatically.  For nightly/periodic workflows
+  triggered by `schedule` (cron), set `delivery-id` to the upstream commit SHA
+  and `event-type` to "nightly" or "periodic" — the action will construct the
+  payload from scratch (no client_payload needed).
+
+inputs:
+  status:
+    description: >
+      Workflow status to report.  Must be either "in_progress" or "completed".
+      For nightly/periodic event types, only "completed" is accepted.
+    required: true
+  conclusion:
+    description: >
+      Conclusion of the workflow run, passed through to the check run as-is
+      (typically "job.status").  Required when status is "completed" and
+      must be a value GitHub accepts (e.g. success, failure, cancelled).  Ignored
+      when status is "in_progress".
+    required: false
+    default: ''
+  delivery-id:
+    description: >
+      Dispatch ID for the callback.  For PR/push workflows this is read from
+      client_payload automatically and should NOT be set.  For nightly/periodic
+      workflows (self-triggered via cron), set this to the upstream commit SHA
+      that was tested — it becomes the correlation key on the HUD.
+    required: false
+    default: ''
+  event-type:
+    description: >
+      Event type override.  For PR/push workflows this is read from
+      client_payload automatically and should NOT be set.  For nightly/periodic
+      workflows, set this to "nightly" or "periodic".
+    required: false
+    default: ''
+  test-results:
+    description: >
+      Optional JSON string with test result summary (counts: passed/failed/skipped).
+      Note: This should be a summary only, not a full enumeration of all test cases.
+      Full test results should be uploaded as artifacts and referenced via `artifact-url`.
+    required: false
+    default: ''
+  callback-url:
+    description: >
+      Base URL of the result callback server.
+    required: false
+    default: https://gwuj7w5coh4y4l66urspge6mnm0pwaxq.lambda-url.us-east-1.on.aws/github/callback/
+  artifact-url:
+    description: >
+      URL to downstream-hosted artifacts (logs, reports, results),
+      any publicly accessible URL.
+    required: false
+    default: ''
+  max-time:
+    description: >
+      Maximum time in seconds to wait for the callback HTTP request to complete.
+    required: false
+    default: 10
+  job-name:
+    description: >
+      Identifier for this job, used to name the upstream check run
+      (crcr/<repo>/<workflow>/<job-name>). Defaults to github.job, the job's key
+      in the workflow file, which is fine for a normal single job. For a MATRIX
+      job every leg shares the same github.job, so you MUST pass a value that
+      includes the matrix values (for example a job-name of "build-cpu" /
+      "build-cuda" for a matrix over cpu/cuda) to give each leg its own check
+      run; otherwise the legs collide on the same name.
+    required: false
+    default: ${{ github.job }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mint OIDC token
+      id: oidc
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const token = await core.getIDToken("pytorch-cross-repo-ci-relay");
+          core.setSecret(token);
+          core.setOutput('token', token);
+
+    - name: Send callback to relay server
+      shell: bash
+      env:
+        SCHEMA_VERSION: 1
+        STATUS: ${{ inputs.status }}
+        CONCLUSION: ${{ inputs.conclusion }}
+        WORKFLOW_NAME: ${{ github.workflow }}
+        WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        TEST_RESULTS: ${{ inputs.test-results }}
+        CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        CALLBACK_URL: ${{ inputs.callback-url }}
+        ARTIFACT_URL: ${{ inputs.artifact-url }}
+        JOB_NAME: ${{ inputs.job-name }}
+        CHECK_RUN_ID: ${{ job.check_run_id }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        MAX_TIME: ${{ inputs.max-time }}
+        DELIVERY_ID_OVERRIDE: ${{ inputs.delivery-id }}
+        EVENT_TYPE_OVERRIDE: ${{ inputs.event-type }}
+      run: python3 "${{ github.action_path }}/report_callback.py"

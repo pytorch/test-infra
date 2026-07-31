@@ -22,7 +22,6 @@ sudo may print the following warning message that can be ignored. The chown comm
 + echo 'For more details refer to https://github.com/sudo-project/sudo/issues/42'
 For more details refer to https://github.com/sudo-project/sudo/issues/42
 + sudo chown -R 1000 /var/lib/jenkins/workspace
-##[error]Process completed with exit code 1.
 Prepare all required actions
 Getting action download info
 ##[group]Run ./.github/actions/pytest-cache-upload

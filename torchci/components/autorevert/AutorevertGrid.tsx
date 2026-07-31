@@ -44,8 +44,10 @@ const INELIGIBLE_REASONS: Record<string, string> = {
     "Some commits between the failure and baseline have pending CI — waiting for results.",
   advisor_not_related:
     "AI advisor determined this failure is not related to the suspect commit.",
+  advisor_infra_issue:
+    "AI advisor determined this failure is an infrastructure issue, not caused by the suspect commit.",
   advisor_garbage:
-    "AI advisor flagged this signal as unreliable (infrastructure flake).",
+    "AI advisor flagged this signal as invalid — it does not reflect a real CI outcome.",
 };
 
 function outcomeTooltip(

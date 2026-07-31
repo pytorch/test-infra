@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
 import github
 
@@ -18,6 +18,7 @@ from .signal import (
     Ineligible,
     RestartCommits,
     Signal,
+    SignalSource,
 )
 from .signal_extraction_types import RunContext
 from .utils import (
@@ -33,6 +34,33 @@ from .workflow_checker import WorkflowRestartChecker
 
 # Alias for outcomes produced by signal processing
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
+
+
+# Top-level natural-language framing attached to the advisor's
+# `signal_pattern.json` payload when `DispatchAdvisor.is_born_red` is set.
+# Said once at the top level rather than duplicated into every baseline
+# commit's `partition` label.
+_BORN_RED_PATTERN_CONTEXT = (
+    "born-red / newly-observed-red test signal: this test signal has NO "
+    "observations on any commit older than the suspect in the lookback "
+    "window. The suspect commit is the first commit on which the signal "
+    "appears, and it fails. Older commits in the `no_signal` partition "
+    "have empty events because the test was not extracted there — this "
+    "is ambiguous and could mean any of:\n"
+    "  (a) the suspect ADDED this test;\n"
+    "  (b) the suspect ENABLED / un-skipped an existing test or removed a "
+    "TD / skipping filter that previously masked it;\n"
+    "  (c) the suspect MOVED or RENAMED the test so its identity is newly "
+    "visible;\n"
+    "  (d) the suspect changed sharding / job selection so an existing "
+    "already-failing test became visible.\n"
+    "Read the suspect commit's diff and decide which of (a)-(d) applies. "
+    "Recommend `revert` only if the suspect's diff explicitly introduces "
+    "or enables the failing test (cases a / b / c). For (d) — sharding "
+    "or job-selection change exposing a pre-existing failure — recommend "
+    "`not_related` because the suspect did not cause the test to fail, "
+    "only made it observable."
+)
 
 
 class CommitPRSourceAction(Enum):
@@ -335,6 +363,20 @@ class SignalActionProcessor:
         for (wf, sha), sources in restart_map.items():
             jobs = [_derive_job_filter(src.job_base_name) for src in sources]
 
+            # If any contributing signal in the group is untargeted at the
+            # test-module level — i.e. a JOB-track signal (test_module always
+            # None), or a TEST-track signal whose CH row had empty `file` so
+            # signal_extraction couldn't derive a module — drop the
+            # tests-to-include filter for the whole group. Otherwise the
+            # narrowing contributed by sibling TEST signals would silently
+            # starve the untargeted signal's "full job re-run" intent.
+            has_untargeted = any(src.test_module is None for src in sources)
+            tests_to_include = (
+                frozenset()
+                if has_untargeted
+                else frozenset(src.test_module for src in sources)
+            )
+
             groups.append(
                 ActionGroup(
                     type="restart",
@@ -342,9 +384,7 @@ class SignalActionProcessor:
                     workflow_target=wf,
                     sources=sources,
                     jobs_to_include=frozenset(j for j in jobs if j is not None),
-                    tests_to_include=frozenset(
-                        src.test_module for src in sources if src.test_module
-                    ),
+                    tests_to_include=tests_to_include,
                 )
             )
         return groups
@@ -652,9 +692,12 @@ class SignalActionProcessor:
         notes = ""
         if not dry_run:
             try:
-                gh_client = GHClientFactory().client
+                factory = GHClientFactory()
+                gh_client = factory.client
                 repo = gh_client.get_repo(ctx.repo_full_name)
                 workflow = repo.get_workflow("claude-autorevert-advisor.yml")
+                # /dispatches is non-idempotent — route the POST through dispatch_client
+                # (retry=0) so a 5xx from GitHub does not silently spawn duplicate runs.
                 proper_workflow_create_dispatch(
                     workflow,
                     ref="main",
@@ -663,6 +706,7 @@ class SignalActionProcessor:
                         "pr_number": str(pr_number),
                         "signal_pattern": signal_pattern_json,
                     },
+                    requester=factory.dispatch_client.requester,
                 )
             except Exception as exc:
                 ok = False
@@ -720,15 +764,28 @@ class SignalActionProcessor:
             "unknown: commits between failed and successful partitions "
             "with no resolved events (pending or missing data)"
         )
-        LABEL_SUCCESSFUL = (
-            "successful: baseline commits where this signal was GREEN "
-            "before the suspect commit"
-        )
-        LABEL_PRIOR = (
-            "prior: older commits before the successful baseline. "
-            "Important: the signal may have been fixed and then failed again. "
-            "Don't make assumptions just based on the presence of failures here."
-        )
+        # Born-red / newly-observed-red case: a test-track signal with no green
+        # observations in the lookback window. The "successful" set actually
+        # carries commits where this test signal was NOT OBSERVED (no extracted
+        # events). The label stays short — the natural-language framing of what
+        # the advisor needs to figure out lives in `pattern_context` at the
+        # top level (so it's said once, not duplicated per commit).
+        if dispatch_advisor.is_born_red:
+            LABEL_SUCCESSFUL = (
+                "no_signal: baseline commits where this test signal was not "
+                "observed (no extracted events). See top-level pattern_context."
+            )
+            LABEL_PRIOR = "prior: even older commits with no signal observation"
+        else:
+            LABEL_SUCCESSFUL = (
+                "successful: baseline commits where this signal was GREEN "
+                "before the suspect commit"
+            )
+            LABEL_PRIOR = (
+                "prior: older commits before the successful baseline. "
+                "Important: the signal may have been fixed and then failed again. "
+                "Don't make assumptions just based on the presence of failures here."
+            )
 
         def _fmt_ts(dt: Optional[datetime]) -> str:
             if dt is None:
@@ -807,17 +864,30 @@ class SignalActionProcessor:
                 }
             )
 
-        return json.dumps(
-            {
-                "signal_key": signal.key,
-                "signal_source": signal.source.value if signal.source else "unknown",
-                "workflow_name": signal.workflow_name,
-                "job_base_name": signal.job_base_name,
-                "commit_order": "newest_first",
-                "suspect_commit": dispatch_advisor.suspect_commit,
-                "commits": commits_json,
-            }
-        )
+        payload: Dict[str, Any] = {
+            "signal_key": signal.key,
+            "signal_source": signal.source.value if signal.source else "unknown",
+            "workflow_name": signal.workflow_name,
+            "job_base_name": signal.job_base_name,
+            "commit_order": "newest_first",
+            "suspect_commit": dispatch_advisor.suspect_commit,
+        }
+        # For TEST signals, surface authoritative test identity once at the
+        # top of the payload (file/classname/name from tests.all_test_runs).
+        # Every FAILURE event in this signal IS this specific test failing —
+        # the AI advisor does not need to re-derive from logs. Only emitted
+        # when populated to keep the payload backward-compatible.
+        if signal.source == SignalSource.TEST:
+            if signal.test_file:
+                payload["test_file"] = signal.test_file
+            if signal.test_classname:
+                payload["test_classname"] = signal.test_classname
+            if signal.test_name:
+                payload["test_name"] = signal.test_name
+        payload["commits"] = commits_json
+        if dispatch_advisor.is_born_red:
+            payload["pattern_context"] = _BORN_RED_PATTERN_CONTEXT
+        return json.dumps(payload)
 
     def _commit_message_check_pr_is_revert(
         self, commit_message: str, ctx: RunContext

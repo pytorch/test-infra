@@ -24,10 +24,15 @@ ARCH=${ARCH:-cpu}
 # This extract links to packages from the index.html
 # We strip all extra characters including final sha256 char
 echo "Retrieving packages for promotion for ${PACKAGE_NAME} ${PACKAGE_VERSION}"
+# Python 3.15 is still pre-release, so do not stage its wheels to PyPI. Exclude
+# both the regular (cp315-cp315) and free-threaded (cp315-cp315t) 3.15 wheels:
+# the "-cp315-" clause drops both by interpreter tag, and the explicit "-cp315t-"
+# clause also drops any wheel tagged free-threaded by ABI.
 pkgs_to_promote=$(\
     curl -fsSL "https://download-s3.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
         | grep "${PACKAGE_NAME}-${PACKAGE_VERSION}${VERSION_SUFFIX}-" \
         | grep "${PLATFORM}" \
+        | grep -Ev -- "-cp315-|-cp315t-" \
         | cut -d '"' -f2 \
         | cut -d "#" -f1
 )

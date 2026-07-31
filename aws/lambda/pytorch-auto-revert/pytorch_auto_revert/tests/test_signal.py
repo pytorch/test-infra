@@ -882,6 +882,16 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         self.assertEqual(res.older_successful_commit, "sha_old")
         self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
 
+    def test_advisor_related_produces_autorevert_pattern(self):
+        """When advisor says 'related' (context-neutral successor to 'revert'),
+        produce AutorevertPattern just like 'revert'."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.RELATED)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "sha_mid")
+        self.assertEqual(res.older_successful_commit, "sha_old")
+        self.assertEqual(res.newer_failing_commits, ["sha_newest", "sha_newer"])
+
     def test_advisor_not_related_produces_ineligible(self):
         """When advisor says 'not_related', return Ineligible."""
         s = self._make_signal_with_advisor(AdvisorVerdict.NOT_RELATED)
@@ -962,6 +972,56 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         res = s.process_valid_autorevert_pattern()
         # Garbage expired — should proceed to AutorevertPattern
         self.assertIsInstance(res, AutorevertPattern)
+
+    def test_advisor_infra_issue_produces_ineligible(self):
+        """infra_issue is treated like not_related: block the signal, no revert."""
+        s = self._make_signal_with_advisor(AdvisorVerdict.INFRA_ISSUE)
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_INFRA_ISSUE)
+
+    def test_advisor_infra_issue_does_not_expire(self):
+        """Unlike garbage, infra_issue has no 2h window — an old verdict still blocks."""
+        old_timestamp = datetime.now(tz=timezone.utc) - timedelta(hours=3)
+        advisor_result = AIAdvisorResult(
+            verdict=AdvisorVerdict.INFRA_ISSUE,
+            confidence=0.95,
+            timestamp=old_timestamp,
+            signal_key="job",
+        )
+        c_newest = SignalCommit(
+            head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 7)],
+        )
+        c_newer = SignalCommit(
+            head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        c_suspected = SignalCommit(
+            head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
+            events=[self._ev("job", SignalStatus.FAILURE, 4)],
+            advisor_result=advisor_result,
+        )
+        c_base = SignalCommit(
+            head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_newest, c_newer, c_suspected, c_base],
+        )
+        res = s.process_valid_autorevert_pattern()
+        # infra_issue has no expiry window — still blocked as not-the-suspect's-fault
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_INFRA_ISSUE)
 
     def test_advisor_unsure_continues_normal_processing(self):
         """When advisor says 'unsure', continue with normal autorevert logic."""
@@ -1099,6 +1159,396 @@ class TestAdvisorVerdictIntegration(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, AutorevertPattern)
+
+
+class TestSignalReplace(unittest.TestCase):
+    """Tests for Signal.replace() — `dataclasses.replace`-style API."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    # Sentinels pinned per current Signal API — non-default values for
+    # every __init__ field. Adding a new Signal field MUST add an entry
+    # here (otherwise the introspection assertion fires) AND propagate
+    # the field inside Signal.replace (otherwise the no-changes round
+    # trip assertion fires).
+    _SENTINELS = {
+        "key": "test/foo.py::test_bar",
+        "workflow_name": "trunk",
+        "commits": [SignalCommit("sha_a", datetime(2025, 8, 19, 12, 0, 0), [])],
+        "job_base_name": "linux-jammy / test",
+        "test_module": "test_foo",
+        "source": SignalSource.JOB,
+        "test_file": "test/foo.py",
+        "test_classname": "TestFooBar",
+        "test_name": "test_bar",
+    }
+
+    def _init_params(self):
+        import inspect
+
+        return [p for p in inspect.signature(Signal.__init__).parameters if p != "self"]
+
+    def test_sentinels_cover_all_init_fields(self):
+        """Adding a new Signal field forces this test to fail until a
+        sentinel is pinned in `_SENTINELS`. Forces the test author to
+        consider whether `Signal.replace()` propagates the new field too
+        (which the next test would otherwise catch silently as a
+        "dropped field" with an unhelpful default value).
+        """
+        missing = set(self._init_params()) - set(self._SENTINELS)
+        self.assertFalse(
+            missing,
+            (
+                f"Signal has new __init__ field(s) {sorted(missing)!r} not "
+                "pinned in _SENTINELS. Add a sentinel value AND propagate the "
+                "field inside Signal.replace, then re-run."
+            ),
+        )
+
+    def test_replace_with_no_changes_preserves_all_fields(self):
+        """`replace()` with no kwargs must return a copy where every field
+        equals the original. Catches the bug class where Signal.replace
+        forgets to forward a field — without enumerating each individually.
+        """
+        s = Signal(**self._SENTINELS)
+        out = s.replace()
+        self.assertIsNot(out, s, "replace() must return a new instance")
+        for name in self._init_params():
+            self.assertEqual(
+                getattr(out, name),
+                self._SENTINELS[name],
+                f"Signal.replace() dropped field {name!r}",
+            )
+
+    def test_replace_swaps_a_field(self):
+        """Smoke test: `replace(commits=...)` actually swaps the commit list."""
+        s = Signal(**self._SENTINELS)
+        new_commits = [SignalCommit("sha_b", self.t0, [])]
+        out = s.replace(commits=new_commits)
+        self.assertEqual(out.commits, new_commits)
+        # original untouched
+        self.assertEqual(s.commits, self._SENTINELS["commits"])
+        # other fields preserved
+        self.assertEqual(out.key, self._SENTINELS["key"])
+        self.assertEqual(out.workflow_name, self._SENTINELS["workflow_name"])
+
+    def test_replace_unknown_kwarg_raises(self):
+        """Stale or typo'd kwargs are caught at runtime."""
+        s = Signal(**self._SENTINELS)
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
+            s.replace(this_field_does_not_exist=42)
+
+
+class TestSignalCommitReplace(unittest.TestCase):
+    """Tests for SignalCommit.replace() — same shape as TestSignalReplace."""
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+    # Sentinels pinned per current SignalCommit API — non-default values
+    # for every __init__ field. Adding a new SignalCommit field MUST add
+    # an entry here AND propagate the field inside SignalCommit.replace.
+    _SENTINELS = {
+        "head_sha": "sha_abc",
+        "timestamp": datetime(2025, 8, 19, 12, 0, 0),
+        "events": [
+            SignalEvent(
+                "ev_a",
+                SignalStatus.FAILURE,
+                datetime(2025, 8, 19, 12, 0, 0),
+                wf_run_id=1,
+            )
+        ],
+        "advisor_result": AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.9,
+            timestamp=datetime(2025, 8, 19, 12, 0, 0),
+            signal_key="k",
+        ),
+    }
+
+    def _init_params(self):
+        import inspect
+
+        return [
+            p
+            for p in inspect.signature(SignalCommit.__init__).parameters
+            if p != "self"
+        ]
+
+    def test_sentinels_cover_all_init_fields(self):
+        missing = set(self._init_params()) - set(self._SENTINELS)
+        self.assertFalse(
+            missing,
+            (
+                f"SignalCommit has new __init__ field(s) {sorted(missing)!r} not "
+                "pinned in _SENTINELS. Add a sentinel value AND propagate the "
+                "field inside SignalCommit.replace, then re-run."
+            ),
+        )
+
+    def test_replace_with_no_changes_preserves_all_fields(self):
+        c = SignalCommit(**self._SENTINELS)
+        out = c.replace()
+        self.assertIsNot(out, c)
+        # `events` may have been re-sorted by SignalCommit.__init__; compare
+        # by event names which are preserved in order for our sentinels.
+        for name in self._init_params():
+            if name == "events":
+                self.assertEqual(
+                    [e.name for e in out.events],
+                    [e.name for e in self._SENTINELS["events"]],
+                    "SignalCommit.replace() dropped 'events'",
+                )
+            else:
+                self.assertEqual(
+                    getattr(out, name),
+                    self._SENTINELS[name],
+                    f"SignalCommit.replace() dropped field {name!r}",
+                )
+
+    def test_replace_swaps_a_field(self):
+        c = SignalCommit(**self._SENTINELS)
+        new_events = [SignalEvent("ev_b", SignalStatus.SUCCESS, self.t0, wf_run_id=2)]
+        out = c.replace(events=new_events)
+        self.assertEqual([e.name for e in out.events], ["ev_b"])
+        # advisor_result preserved
+        self.assertEqual(out.advisor_result, self._SENTINELS["advisor_result"])
+
+    def test_replace_unknown_kwarg_raises(self):
+        c = SignalCommit(**self._SENTINELS)
+        with self.assertRaisesRegex(TypeError, "this_field_does_not_exist"):
+            c.replace(this_field_does_not_exist=42)
+
+
+class TestBornRedTestSignal(unittest.TestCase):
+    """Test-track born-red detection: failing head + empty-events tail.
+
+    Covers the blind spot where a test was introduced by the same commit that
+    breaks it (or by a recent ancestor): the green→red partition path returns
+    `Ineligible(NO_SUCCESSES)` and bails before dispatching the advisor. The
+    born-red path asks the advisor "did the suspect commit introduce this
+    failing test?" instead.
+    """
+
+    def setUp(self) -> None:
+        self.t0 = datetime(2026, 5, 21, 12, 0, 0)
+
+    def _ev(
+        self,
+        name: str,
+        status: SignalStatus,
+        minute: int,
+        wf_run_id: int = 1,
+        job_id: int = 100,
+    ) -> SignalEvent:
+        return SignalEvent(
+            name=name,
+            status=status,
+            started_at=ts(self.t0, minute),
+            wf_run_id=wf_run_id,
+            job_id=job_id,
+        )
+
+    def _fail(self, sha: str, minute: int, *, job_id: int = 100) -> SignalCommit:
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[self._ev("t", SignalStatus.FAILURE, minute, job_id=job_id)],
+        )
+
+    def _empty(self, sha: str, minute: int) -> SignalCommit:
+        return SignalCommit(head_sha=sha, timestamp=ts(self.t0, minute), events=[])
+
+    def _test_signal(self, commits, key: str = "f.py::t") -> Signal:
+        return Signal(
+            key=key,
+            workflow_name="trunk",
+            commits=commits,
+            source=SignalSource.TEST,
+        )
+
+    # ---- partition_born_red shape checks ----
+
+    def test_partition_born_red_canonical_shape(self):
+        commits = [
+            self._fail("f1", 0, job_id=1),
+            self._fail("f2", -10, job_id=2),
+            self._empty("e1", -20),
+            self._empty("e2", -30),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        self.assertIsNotNone(part)
+        assert part is not None  # narrow type for mypy
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual([c.head_sha for c in part.successful], ["e1", "e2"])
+        self.assertEqual(part.unknown, [])
+
+    def test_partition_born_red_none_when_has_successes(self):
+        # Even one success disqualifies the born-red shape — the main partition
+        # path applies instead.
+        commits = [
+            self._fail("f1", 0),
+            SignalCommit(
+                head_sha="s1",
+                timestamp=ts(self.t0, -10),
+                events=[self._ev("t", SignalStatus.SUCCESS, -10)],
+            ),
+        ]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_none_without_empty_tail(self):
+        # All commits fail — chronic infra shape, not born-red.
+        commits = [self._fail("f1", 0), self._fail("f2", -10)]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_none_without_failures(self):
+        # Only empty commits — nothing to act on.
+        commits = [self._empty("e1", 0), self._empty("e2", -10)]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_none_on_interleaved_empty_then_fail(self):
+        # newest=empty, older=fail violates the [FAIL...][EMPTY...] order.
+        commits = [self._empty("e1", 0), self._fail("f1", -10), self._empty("e2", -20)]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_none_on_pending_only_commit(self):
+        # Pending-only commits are neither failures nor empty — bail.
+        commits = [
+            self._fail("f1", 0),
+            SignalCommit(
+                head_sha="p1",
+                timestamp=ts(self.t0, -10),
+                events=[self._ev("t", SignalStatus.PENDING, -10)],
+            ),
+            self._empty("e1", -20),
+        ]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_requires_two_commits(self):
+        # Single commit can't form a partition.
+        self.assertIsNone(self._test_signal([self._fail("f1", 0)]).partition_born_red())
+
+    # ---- process_valid_autorevert_pattern wiring ----
+
+    def test_process_dispatches_advisor_for_born_red(self):
+        commits = [
+            self._fail("f1", 0, job_id=11),
+            self._fail("f2", -10, job_id=12),
+            self._empty("e1", -20),
+        ]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNotNone(res.advisor)
+        # Suspect = oldest failing commit (f2)
+        self.assertEqual(res.advisor.suspect_commit, "f2")
+        self.assertEqual(res.advisor.failed_commits, ("f1", "f2"))
+        self.assertEqual(res.advisor.successful_commits, ("e1",))
+        self.assertTrue(res.advisor.is_born_red)
+
+    def test_process_holds_advisor_below_failing_commit_threshold(self):
+        # Single failing commit — wait for the next trunk advance before paying
+        # advisor cost (REQUIRE_FAILED_COMMITS_BORN_RED == 2). Distinct
+        # commits, not raw event counts, gate the dispatch.
+        commits = [self._fail("f1", 0), self._empty("e1", -10)]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNone(res.advisor)
+
+    def test_process_threshold_counts_distinct_commits_not_events(self):
+        # Single commit with multiple FAILURE events (e.g. retries / multiple
+        # shards) is one trunk observation, NOT two — should not dispatch.
+        c_multi_event = SignalCommit(
+            head_sha="f1",
+            timestamp=ts(self.t0, 0),
+            events=[
+                self._ev("t", SignalStatus.FAILURE, 0, wf_run_id=1, job_id=11),
+                self._ev("t", SignalStatus.FAILURE, 1, wf_run_id=2, job_id=12),
+                self._ev("t", SignalStatus.FAILURE, 2, wf_run_id=3, job_id=13),
+            ],
+        )
+        commits = [c_multi_event, self._empty("e1", -10)]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNone(res.advisor)
+
+    def test_process_no_advisor_for_job_track_born_red(self):
+        # Born-red detection is test-track only. Job-track signals with the
+        # same shape are likely persistent infra failures or new jobs with a
+        # warm-up — not actionable via this path.
+        commits = [
+            self._fail("f1", 0, job_id=21),
+            self._fail("f2", -10, job_id=22),
+            self._empty("e1", -20),
+        ]
+        s = Signal(
+            key="job",
+            workflow_name="trunk",
+            commits=commits,
+            source=SignalSource.JOB,
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNone(res.advisor)
+
+    def test_process_no_advisor_when_chronic_failure_no_empty_tail(self):
+        # Chronic shape — every commit fails, no empties. Lambda continues to
+        # return the existing NO_SUCCESSES without an advisor.
+        commits = [self._fail("f1", 0), self._fail("f2", -10), self._fail("f3", -20)]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
+        self.assertIsNone(res.advisor)
+
+    def test_process_returns_autorevert_pattern_on_advisor_revert_verdict(self):
+        # Advisor previously returned `revert` on the suspect with high
+        # confidence → born-red path lifts the verdict into an
+        # `AutorevertPattern` so the lambda actions a revert.
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.REVERT,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+        )
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.suspected_commit, "f2")
+        # Newer failing commit reported alongside the suspect.
+        self.assertEqual(res.newer_failing_commits, ["f1"])
+        # Older "successful" reference = newest empty-events commit (implicit
+        # baseline) — used in the revert PR body.
+        self.assertEqual(res.older_successful_commit, "e1")
+        self.assertIsNotNone(res.advisor_verdict)
+
+    def test_process_blocks_on_advisor_not_related_verdict(self):
+        verdict = AIAdvisorResult(
+            verdict=AdvisorVerdict.NOT_RELATED,
+            confidence=0.95,
+            timestamp=self.t0,
+            signal_key="f.py::t",
+        )
+        suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=ts(self.t0, -10),
+            events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
+            advisor_result=verdict,
+        )
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        res = self._test_signal(commits).process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.ADVISOR_NOT_RELATED)
 
 
 if __name__ == "__main__":

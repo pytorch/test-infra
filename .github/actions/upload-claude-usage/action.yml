@@ -32,12 +32,24 @@ runs:
           exit 0
         fi
 
+        # Resolve the actor. For scheduled runs there is no human trigger, so
+        # github.actor falls back to whoever last modified the workflow file —
+        # which misattributes automated usage to a person (e.g. a daily cron
+        # showing up under the maintainer who last edited it). Record the
+        # workflow name instead so these rows are clearly automated and remain
+        # distinguishable per-workflow. github.event_name is still stored, so
+        # the original signal isn't lost.
+        ACTOR="${{ github.actor }}"
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          ACTOR="${{ github.workflow }} (scheduled)"
+        fi
+
         # Extract fields and add context
         jq -n \
           --arg repo "${{ github.repository }}" \
           --argjson run_id "${{ github.run_id }}" \
           --argjson run_attempt "${{ github.run_attempt }}" \
-          --arg actor "${{ github.actor }}" \
+          --arg actor "$ACTOR" \
           --arg event_name "${{ github.event_name }}" \
           --argjson pr_number "${{ github.event.issue.number || github.event.pull_request.number || 0 }}" \
           --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000)" \

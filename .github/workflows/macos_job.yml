@@ -80,6 +80,16 @@ on:
         required: false
         type: string
         default: "3.9"
+      default-packages:
+        description: |
+          Default packages to pre-install in the conda env. Forwarded to
+          setup-miniconda. Set to "" to skip pre-installing the default
+          packages entirely (useful when the caller installs its own conda
+          env from a single channel and wants to avoid mixed-channel
+          solver conflicts with the defaults-channel pre-population).
+        required: false
+        type: string
+        default: "cmake=3.22 ninja=1.10 pkg-config=0.29 wheel=0.37"
 
 jobs:
   job:
@@ -109,6 +119,7 @@ jobs:
         uses: ./test-infra/.github/actions/setup-miniconda
         with:
           python-version: ${{ inputs.python-version }}
+          default-packages: ${{ inputs.default-packages }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

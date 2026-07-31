@@ -1,6 +1,6 @@
 import { Tooltip } from "@mui/material";
 import AdvisorSection from "components/job/AdvisorSection";
-import { AdvisorVerdict } from "lib/advisorVerdictUtils";
+import { AdvisorVerdict, AdvisorVerdictType } from "lib/advisorVerdictUtils";
 import styles from "./autorevert.module.css";
 import {
   CellEvent,
@@ -29,16 +29,20 @@ const HIGHLIGHT_LABELS: Record<string, string> = {
   restart: "Targeted for CI restart",
 };
 
-const ADV_VERDICT_CLS: Record<string, string> = {
+const ADV_VERDICT_CLS: Record<AdvisorVerdictType, string> = {
   revert: styles.advRevert,
+  related: styles.advRevert,
   not_related: styles.advNotRelated,
+  infra_issue: styles.advInfra,
   garbage: styles.advGarbage,
   unsure: styles.advUnsure,
 };
 
-const ADV_VERDICT_SHORT: Record<string, string> = {
+const ADV_VERDICT_SHORT: Record<AdvisorVerdictType, string> = {
   revert: "REV",
+  related: "REV",
   not_related: "OK",
+  infra_issue: "INF",
   garbage: "JNK",
   unsure: "?",
 };

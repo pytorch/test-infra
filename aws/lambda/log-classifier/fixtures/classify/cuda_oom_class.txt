@@ -1,0 +1,42 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30507215085/job/90764858064
+2026-07-30T03:36:29.7333793Z WARNING:common:fp64 golden ref were not generated for google/gemma-2-2b. Setting accuracy check to cosine
+2026-07-30T03:36:29.7334376Z Traceback (most recent call last):
+2026-07-30T03:36:29.7342482Z   File "/__w/pytorch/pytorch/benchmarks/dynamo/common.py", line 2285, in check_accuracy
+2026-07-30T03:36:29.7343051Z     model_fp64, inputs_fp64 = cast_to_fp64(
+2026-07-30T03:36:29.7343575Z   File "/__w/pytorch/pytorch/benchmarks/dynamo/common.py", line 1741, in cast_to_fp64
+2026-07-30T03:36:29.7344083Z     return cast_to(torch.float64, model, inputs)
+2026-07-30T03:36:29.7344580Z   File "/__w/pytorch/pytorch/benchmarks/dynamo/common.py", line 1718, in cast_to
+2026-07-30T03:36:29.7345029Z     model = model.to(dtype)
+2026-07-30T03:36:29.7345601Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/transformers/modeling_utils.py", line 3761, in to
+2026-07-30T03:36:29.7346314Z     return super().to(*args, **kwargs)
+2026-07-30T03:36:29.7346871Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1385, in to
+2026-07-30T03:36:29.7347424Z     return self._apply(convert)
+2026-07-30T03:36:29.7347968Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 933, in _apply
+2026-07-30T03:36:29.7348515Z     module._apply(fn)
+2026-07-30T03:36:29.7349023Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 933, in _apply
+2026-07-30T03:36:29.7349566Z     module._apply(fn)
+2026-07-30T03:36:29.7350070Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 966, in _apply
+2026-07-30T03:36:29.7350622Z     param_applied = fn(param)
+2026-07-30T03:36:29.7351165Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1371, in convert
+2026-07-30T03:36:29.7351710Z     return t.to(
+#=MATCH=# 2026-07-30T03:36:29.7354318Z torch.OutOfMemoryError: ‹CUDA out of memory›. Tried to allocate 4.39 GiB. GPU 0 has a total capacity of 22.30 GiB of which 2.94 GiB is free. Process 48849 has 19.36 GiB memory in use. Of the allocated memory 9.83 GiB is allocated by PyTorch, and 9.20 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+2026-07-30T03:37:06.5396008Z ERROR:fbscribelogger:send_messages: atexit err <Response [400]>
+2026-07-30T03:37:06.5396531Z Compilation time (from dynamo_timed): 35.127931623
+2026-07-30T03:37:06.5396858Z pass
+2026-07-30T03:37:06.5398623Z TIMING: _recursive_pre_grad_passes:0.02998 _recursive_joint_graph_passes:1.66108 _recursive_post_grad_passes:1.99996 async_compile.wait:0.07602 code_gen:7.71527 inductor_compile:16.26263 backend_compile:26.98536 gc:0.00028 entire_frame_compile:35.12793 cudagraphify.get_container:0.00443 CachingAutotuner.benchmark_all_configs:0.45627 CUDAGraphNode.record:0.01668 total_wall_time:35.12793
+2026-07-30T03:37:06.5400794Z STATS: call_* op count: 2380 | FakeTensorMode.__torch_dispatch__:31855 | FakeTensor.__torch_dispatch__:17130 | ProxyTorchDispatchMode.__torch_dispatch__:7692
+2026-07-30T03:37:06.5401659Z Dynamo produced 1 graphs covering 2380 ops with 0 graph breaks (0 unique)
+2026-07-30T03:37:16.4507209Z 
+2026-07-30T03:37:18.8781464Z loading model: 0it [00:00, ?it/s]
+2026-07-30T03:37:18.8781726Z 
+2026-07-30T03:37:25.7521608Z Loading weights:   0%|          | 0/146 [00:00<?, ?it/s][A
+2026-07-30T03:37:25.9545122Z 
+2026-07-30T03:37:25.9545780Z Loading weights:   1%|          | 1/146 [00:06<16:31,  6.84s/it][A
+2026-07-30T03:37:25.9546280Z 
+2026-07-30T03:37:26.1571687Z Loading weights:   1%|▏         | 2/146 [00:06<06:54,  2.88s/it][A
+2026-07-30T03:37:26.1572041Z 
+2026-07-30T03:37:26.5607342Z Loading weights:   2%|▏         | 3/146 [00:07<03:58,  1.67s/it][A
+2026-07-30T03:37:26.5607691Z 
+2026-07-30T03:37:26.9660445Z Loading weights:   3%|▎         | 4/146 [00:07<02:41,  1.14s/it][A
+2026-07-30T03:37:26.9660789Z 
+2026-07-30T03:37:26.9661107Z Loading weights:   3%|▎         | 5/146 [00:07<02:04,  1.13it/s][A

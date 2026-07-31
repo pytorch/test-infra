@@ -1,0 +1,20 @@
+{
+  "params": {
+    "repo": "String",
+    "ref": "String",
+    "workflow": "String",
+    "jobFilter": "String",
+    "count": "UInt32",
+    "sha": "String"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "ref": "refs/heads/main",
+      "workflow": "trunk",
+      "jobFilter": "(?i)macos",
+      "count": 5,
+      "sha": ""
+    }
+  ]
+}

@@ -1,9 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
-import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
-import { getOctokitWithUserToken } from "./github";
-// Give access to people who do not have write permissions to pytorch/pytorch
-import allowList from "./torchagent/allowList.json";
+import { authorizeGithubToken } from "./auth/githubAuth";
 
 /**
  * Helper that implements the common auth logic shared by the TorchAgent
@@ -16,7 +13,7 @@ import allowList from "./torchagent/allowList.json";
  *       request immediately and return the special placeholder user
  *       "grafana-bypass-user".
  *   2.  Otherwise ensure that the caller is authenticated with GitHub and
- *       has write-level access to pytorch/pytorch.
+ *       has write-level access to pytorch/pytorch (see `authorizeGithubToken`).
  *
  * Each API route should call this function early.  If the function returns
  * `null` the route must `return` immediately because the HTTP response has
@@ -27,7 +24,7 @@ export async function getAuthorizedUsername(
   res: NextApiResponse,
   authOptions: any
 ): Promise<string | null> {
-  // 1. Cookie bypass logic -------------------------------------------------
+  // 1. Cookie bypass logic
   const AUTH_TOKEN = process.env.GRAFANA_MCP_AUTH_TOKEN || "";
   const authCookie = req.cookies["GRAFANA_MCP_AUTH_TOKEN"];
 
@@ -36,7 +33,7 @@ export async function getAuthorizedUsername(
     return "grafana-bypass-user";
   }
 
-  // 2. Standard GitHub authentication flow --------------------------------
+  // 2. Standard GitHub authentication flow
   // @ts-ignore – next-auth's Session type is not exported client-side
   const session = await getServerSession(req, res, authOptions);
 
@@ -47,51 +44,14 @@ export async function getAuthorizedUsername(
     return null;
   }
 
-  const repoOwner = "pytorch";
-  const repoName = "pytorch";
-
-  try {
-    const octokit = await getOctokitWithUserToken(
-      // @ts-ignore – next-auth's Session type is not exported client-side
-      session.accessToken as string
-    );
-    const user = await octokit.rest.users.getAuthenticated();
-
-    if (!user?.data?.login) {
-      console.log("Rejected: Could not authenticate user with GitHub");
-      res.status(401).json({ error: "GitHub authentication failed" });
-      return null;
-    }
-
-    if (allowList.includes(user.data.login)) {
-      console.log(
-        `Authorized: User ${user.data.login} is in the flambeau allow list`
-      );
-      return user.data.login;
-    }
-
-    const hasWritePermissions = await hasWritePermissionsUsingOctokit(
-      octokit,
-      user.data.login,
-      repoOwner,
-      repoName
-    );
-
-    if (!hasWritePermissions) {
-      console.log(
-        `Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`
-      );
-      res.status(403).json({
-        error: "Write permissions to pytorch/pytorch repository required",
-      });
-      return null;
-    }
-
-    console.log(`Authorized: User ${user.data.login} has write permissions`);
-    return user.data.login;
-  } catch (error) {
-    console.error("Error checking permissions:", error);
-    res.status(500).json({ error: "Permission check failed" });
+  // @ts-ignore – next-auth's Session type is not exported client-side
+  const result = await authorizeGithubToken(session.accessToken as string);
+  if (!result.ok) {
+    console.log(`Rejected: ${result.error}`);
+    res.status(result.status).json({ error: result.error });
     return null;
   }
+
+  console.log(`Authorized: User ${result.login}`);
+  return result.login;
 }

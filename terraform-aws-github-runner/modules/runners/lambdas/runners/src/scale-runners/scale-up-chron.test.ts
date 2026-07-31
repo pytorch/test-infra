@@ -73,6 +73,24 @@ const hudQueryInvalidOrgResponse = [
     max_queue_time_minutes: 32,
   },
 ];
+const hudQueryDivergentOrgResponse = [
+  {
+    runner_label: 'test_runner_type1',
+    org: 'meta_org',
+    repo: 'meta_repo',
+    num_queued_jobs: 1,
+    min_queue_time_minutes: 31,
+    max_queue_time_minutes: 31,
+  },
+  {
+    runner_label: 'test_runner_type1',
+    org: 'scale_org',
+    repo: 'scale_repo',
+    num_queued_jobs: 1,
+    min_queue_time_minutes: 31,
+    max_queue_time_minutes: 31,
+  },
+];
 
 const runnerTypeValid = 'test_runner_type1';
 const runnerTypeInvalid = 'runner_type_invalid';
@@ -158,6 +176,69 @@ describe('scaleUpChron', () => {
     await scaleUpChron(metrics);
     expect(scaleUpChronInstanceNoOpSpy).toBeCalledTimes(0);
     expect(mockedScaleUp).toBeCalledTimes(1);
+  });
+
+  it("backfills the fleet's own org (authGHOrg) even when scaleConfigOrg differs", async () => {
+    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+
+    jest.clearAllMocks();
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+      () =>
+        ({
+          ...baseCfg,
+          authGHOrg: 'meta_org',
+          scaleConfigOrg: 'scale_org',
+        } as unknown as Config),
+    );
+
+    mocked(shuffleArrayInPlace).mockImplementation((a) => a);
+    mocked(getRepo).mockReturnValue({ owner: 'meta_org', repo: 'meta_repo' });
+    mocked(getRunnerTypes).mockResolvedValue(
+      new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
+    );
+    mocked(expBackOff).mockResolvedValue({ data: hudQueryDivergentOrgResponse });
+
+    await scaleUpChron(metrics);
+
+    expect(mockedScaleUp).toBeCalledTimes(1);
+    expect(mockedScaleUp).toHaveBeenCalledWith(
+      'aws:sqs',
+      expect.objectContaining({
+        repositoryOwner: 'meta_org',
+        repositoryName: 'meta_repo',
+        runnerLabels: ['test_runner_type1'],
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('falls back to scaleConfigOrg when authGHOrg is empty string (shared-catalog fleet)', async () => {
+    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+
+    jest.clearAllMocks();
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+      () =>
+        ({
+          ...baseCfg,
+          authGHOrg: '',
+        } as unknown as Config),
+    );
+
+    mocked(shuffleArrayInPlace).mockImplementation((a) => a);
+    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    mocked(getRunnerTypes).mockResolvedValue(
+      new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
+    );
+    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+
+    await scaleUpChron(metrics);
+
+    expect(mockedScaleUp).toBeCalledTimes(1);
+    expect(mockedScaleUp).toHaveBeenCalledWith(
+      'aws:sqs',
+      expect.objectContaining({ repositoryOwner: 'test_org1' }),
+      expect.anything(),
+    );
   });
 
   it('scaled up throws error', async () => {

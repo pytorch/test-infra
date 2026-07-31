@@ -41,6 +41,11 @@ on:
         required: false
         type: string
         default: ''
+      also-upload-to-gpu-arch-versions:
+        description: "Comma-separated list of extra gpu_arch_versions to upload the wheel to (e.g. 'xpu' to also upload a cpu wheel to the xpu index)"
+        required: false
+        type: string
+        default: ''
       wheel-nightly-policy:
         description: Custom wheel upload policy for nightly
         type: string
@@ -141,6 +146,29 @@ jobs:
             shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
             ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read \
               --metadata "checksum-sha256=${shm_id}"
+          done
+
+      - name: Upload package to extra gpu arch versions
+        if: ${{ inputs.also-upload-to-gpu-arch-versions != '' }}
+        shell: bash
+        working-directory: ${{ inputs.repository }}
+        env:
+          ALSO_UPLOAD_TO: ${{ inputs.also-upload-to-gpu-arch-versions }}
+        run: |
+          set -ex
+
+          AWS_CMD="aws s3 cp --dryrun"
+          if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
+            AWS_CMD="aws s3 cp"
+          fi
+
+          for extra_gpu_arch_version in ${ALSO_UPLOAD_TO//,/ }; do
+            EXTRA_PATH="s3://pytorch/whl/${CHANNEL}/${extra_gpu_arch_version}/"
+            for pkg in dist/*; do
+              shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
+              ${AWS_CMD} "$pkg" "${EXTRA_PATH}" --acl public-read \
+                --metadata "checksum-sha256=${shm_id}"
+            done
           done
 
       - name: Upload package to pypi

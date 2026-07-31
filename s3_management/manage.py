@@ -127,6 +127,7 @@ PACKAGE_ALLOW_LIST = {
         "onemkl_sycl_sparse",
         "onemkl_sycl_rng",
         "onemkl_license",
+        "pyzes",
         # ----
         "Pillow",
         "certifi",

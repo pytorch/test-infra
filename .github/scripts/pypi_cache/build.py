@@ -154,11 +154,17 @@ def run_cmd(
     )
 
 
+def _no_sign() -> bool:
+    return os.environ.get("AWS_NO_SIGN_REQUEST", "").lower() in ("1", "true", "yes")
+
+
 def aws_s3_cp(src: str, dst: str, *, recursive: bool = False) -> None:
     """``aws s3 cp`` wrapper.  Raises on failure."""
     cmd = ["aws", "s3", "cp", src, dst]
     if recursive:
         cmd.append("--recursive")
+    if _no_sign():
+        cmd.append("--no-sign-request")
     run_cmd(cmd)
 
 
@@ -168,7 +174,10 @@ def aws_s3_ls(path: str) -> list[str]:
     Returns an empty list when the prefix does not exist or the command
     fails (mirrors the ``|| true`` in the original bash).
     """
-    result = run_cmd(["aws", "s3", "ls", path], check=False, capture=True)
+    cmd = ["aws", "s3", "ls", path]
+    if _no_sign():
+        cmd.append("--no-sign-request")
+    result = run_cmd(cmd, check=False, capture=True)
     if result.returncode != 0:
         return []
     names: list[str] = []
@@ -306,6 +315,7 @@ def main() -> None:
     script_dir = Path(__file__).resolve().parent
     cuda_dir = os.environ.get("CUDA_DIR", "")
     force_rebuild = os.environ.get("FORCE_REBUILD", "")
+    dry_run = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
 
     wants_dir = BUILD_DIR / "wants"
     wheel_dir = BUILD_DIR / "wheels"
@@ -314,6 +324,9 @@ def main() -> None:
 
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     FAILURE_SUMMARY_PATH.write_text("")
+
+    if dry_run:
+        print("==> DRY RUN: wheels will be built but not uploaded to S3")
 
     try:
         # Step 1: CUDA
@@ -392,7 +405,8 @@ def main() -> None:
 
                 for whl in sorted(out.glob("*.whl")):
                     whl = repair_if_needed(whl, script_dir, BUILD_DIR)
-                    upload_wheel(whl, s3_bucket, variant)
+                    if not dry_run:
+                        upload_wheel(whl, s3_bucket, variant)
                     existing_wheels.append(whl.name)
                     built += 1
 

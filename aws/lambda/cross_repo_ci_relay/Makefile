@@ -1,21 +1,24 @@
-SHARED := config.py utils.py redis_helper.py allowlist.py gh_helper.py event_handler.py
-PIP_FLAGS := --platform manylinux2014_x86_64 --only-binary=:all: --implementation cp --python-version 3.13
-AWS_REGION := us-east-1
-FUNCTION_NAME := cross_repo_ci_webhook
+AWS_REGION ?= us-east-1
+CALLBACK_FUNCTION_NAME ?= cross_repo_ci_callback
+WEBHOOK_FUNCTION_NAME  ?= cross_repo_ci_webhook
 
-deployment.zip: clean
-	mkdir -p ./deployment
-	cp $(SHARED) lambda_function.py ./deployment/
-	pip3 install --target ./deployment -r requirements.txt $(PIP_FLAGS)
-	cd deployment && zip -r ../deployment.zip .
-
-deploy: deployment.zip
-	aws lambda update-function-code --region $(AWS_REGION) --function-name $(FUNCTION_NAME) --zip-file fileb://deployment.zip
+.PHONY: test deploy deploy-callback deploy-webhook clean
 
 test:
 	python3 -m pytest tests -v
 
-clean:
-	rm -rf deployment deployment.zip
+# Deploy both; keep going on failure so a broken half doesn't block the other.
+deploy:
+	@rc=0; \
+	for t in deploy-callback deploy-webhook; do $(MAKE) $$t || rc=$$?; done; \
+	exit $$rc
 
-.PHONY: prepare deploy test clean
+deploy-callback:
+	$(MAKE) -C callback deploy AWS_REGION=$(AWS_REGION) FUNCTION_NAME=$(CALLBACK_FUNCTION_NAME)
+
+deploy-webhook:
+	$(MAKE) -C webhook deploy AWS_REGION=$(AWS_REGION) FUNCTION_NAME=$(WEBHOOK_FUNCTION_NAME)
+
+clean:
+	$(MAKE) -C callback clean
+	$(MAKE) -C webhook clean

@@ -75,6 +75,12 @@ describe("check-labels-bot", () => {
       expect(isLabelErrComment(body, "pytorch-bot")).toBe(true);
     });
 
+    test("returns true for bot comment with [bot] suffix", () => {
+      const body = formLabelErrComment();
+      expect(isLabelErrComment(body, "github-actions[bot]")).toBe(true);
+      expect(isLabelErrComment(body, "pytorch-bot[bot]")).toBe(true);
+    });
+
     test("returns false for non-bot author", () => {
       const body = formLabelErrComment();
       expect(isLabelErrComment(body, "random-user")).toBe(false);

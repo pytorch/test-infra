@@ -58,29 +58,50 @@ aws_promote() {
     )
     # ^ We grep for package_name-.*pytorch_version to avoid any situations where domain libraries have
     #   the same version on our S3 buckets
+}
 
-    # After copying, explicitly set SHA256 checksums for wheels that don't have them
-    # This ensures checksums are preserved even if --metadata-directive COPY fails to copy them
-    if [[ $DRY_RUN = "disabled" ]]; then
-        echo "+ Setting SHA256 checksums for copied wheels..."
-        dest_prefix="${PYTORCH_S3_TO#s3://pytorch/}"
-        dest_prefix="${dest_prefix%/}"
+aws_set_checksums() {
+    # Re-derive SHA256 checksum metadata on the S3 destination wheels.
+    # Runs as the final step of promotion so faster operations (S3 copy, R2
+    # upload) are not blocked waiting on this download-heavy loop.
+    package_name=$1
+    pytorch_version=$(get_pytorch_version)
+    DRY_RUN=${DRY_RUN:-enabled}
 
-        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        manage_v2_script="${script_dir}/../../s3_management/manage_v2.py"
-
-        if [[ -f "${manage_v2_script}" ]]; then
-            echo "+ Running: python ${manage_v2_script} ${dest_prefix} --set-checksum --package-name ${package_name} --package-version ${pytorch_version}"
-            python "${manage_v2_script}" "${dest_prefix}" \
-                --set-checksum \
-                --package-name "${package_name}" \
-                --package-version "${pytorch_version}" || {
-                echo "- WARNING: Failed to set SHA256 checksums, but copy succeeded"
-            }
-        else
-            echo "- WARNING: manage_v2.py not found at ${manage_v2_script}, skipping checksum computation"
-        fi
+    if [[ $DRY_RUN != "disabled" ]]; then
+        echo "+ DRY RUN: skipping SHA256 recomputation for ${package_name}"
+        return 0
     fi
+
+    echo "=-=-=-= Setting SHA256 checksums for ${package_name} v${pytorch_version} on S3 =-=-=-="
+    dest_prefix="${PYTORCH_S3_TO#s3://pytorch/}"
+    dest_prefix="${dest_prefix%/}"
+
+    # manage_v2.py --set-checksum only supports whl and whl/test prefixes
+    # (it raises ValueError on anything else). Skip for libtorch/etc.
+    case "${dest_prefix}" in
+        whl|whl/test) ;;
+        *)
+            echo "+ Skipping SHA256 recomputation: dest prefix '${dest_prefix}' is not whl/whl-test; manage_v2.py only supports those."
+            return 0
+            ;;
+    esac
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    manage_v2_script="${script_dir}/../../s3_management/manage_v2.py"
+
+    if [[ ! -f "${manage_v2_script}" ]]; then
+        echo "- WARNING: manage_v2.py not found at ${manage_v2_script}, skipping checksum computation"
+        return 0
+    fi
+
+    echo "+ Running: python ${manage_v2_script} ${dest_prefix} --set-checksum --package-name ${package_name} --package-version ${pytorch_version}"
+    python "${manage_v2_script}" "${dest_prefix}" \
+        --set-checksum \
+        --package-name "${package_name}" \
+        --package-version "${pytorch_version}" || {
+        echo "- WARNING: Failed to set SHA256 checksums, but copy succeeded"
+    }
 }
 
 r2_promote() {
@@ -105,11 +126,19 @@ r2_promote() {
     echo "=-=-=-= Promoting ${package_name} v${pytorch_version} to R2 =-=-=-="
     echo "+ R2 destination: ${r2_dest}"
 
+    # PACKAGE_NAME and PACKAGE_INCLUDE_SUFFIX are consumed as AWS S3 globs by
+    # aws_promote (e.g. libtorch-*, *manylinux*). Convert their '*' wildcards
+    # into '.*' so the same expressions work as a grep -E regex here.
+    local pkg_regex="${package_name//\*/.*}"
+    local include_glob="${PACKAGE_INCLUDE_SUFFIX:-*}"
+    local include_regex="${include_glob//\*/.*}"
+    local match_pattern="${pkg_regex}-${pytorch_version}${include_regex}"
+
     if [[ $DRY_RUN = "enabled" ]]; then
         echo "+ DRY RUN: Would copy matching files from ${PYTORCH_S3_FROM} to R2 ${r2_dest}"
         # List what would be copied
         ${AWS} s3 ls "${PYTORCH_S3_FROM/\/$//}/" --recursive \
-            | grep "${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-}" || true
+            | grep -E "${match_pattern}" || true
         return 0
     fi
 
@@ -126,10 +155,13 @@ r2_promote() {
 
     # List matching files from S3 first (using current OIDC credentials)
     echo "+ Listing matching files from S3..."
-    local s3_from_path="${PYTORCH_S3_FROM/\/$//}"
+    local s3_from_path="${PYTORCH_S3_FROM%/}"
+    # Bucket-relative source prefix (e.g. "libtorch/test"), used to preserve the
+    # per-arch subfolder layout (cpu/, cu126/, ...) when mapping keys onto R2.
+    local s3_from_prefix="${s3_from_path#"${PYTORCH_S3_BUCKET}"/}"
     local file_list="${tmp_dir}/file_list.txt"
     ${AWS} s3 ls "${s3_from_path}/" --recursive \
-        | grep "${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-}" \
+        | grep -E "${match_pattern}" \
         | awk '{print $NF}' > "${file_list}" || true
 
     local total_files
@@ -173,6 +205,12 @@ r2_promote() {
         filename=$(basename "${s3_key}")
         local local_file="${tmp_dir}/${filename}"
 
+        # Preserve the source subfolder layout relative to the promotion
+        # channel so per-arch directories (cpu/, cu126/, ...) are kept on R2
+        # instead of being flattened to the destination root.
+        local rel_path="${s3_key#"${s3_from_prefix}"/}"
+        local r2_target="${r2_dest%/}/${rel_path}"
+
         # Download single file from S3 (using S3 credentials)
         _restore_s3_creds
         (
@@ -188,7 +226,7 @@ r2_promote() {
         _set_r2_creds
         (
             set -x
-            ${AWS} s3 cp "${local_file}" "${r2_dest/\/$//}/${filename}" \
+            ${AWS} s3 cp "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
         )

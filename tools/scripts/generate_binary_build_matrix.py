@@ -22,10 +22,25 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
+    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
 }
+
+# Preview Python versions validated for torch only, on Linux x86 and aarch64.
+# These are opt-in via INCLUDE_PREVIEW_PYTHON_VERSIONS so that the shared
+# generator default is unchanged for domain libraries (torchvision, torchaudio)
+# and for Windows/macOS, which do not have wheels for these versions yet.
+PREVIEW_PYTHON_ARCHES_DICT = {
+    "nightly": ["3.15", "3.15t"],
+    "test": ["3.15", "3.15t"],
+    "release": [],
+}
+
+# Python versions for which only torch is validated (no torchvision). torchvision
+# wheels are not published for these versions yet, so the install command must
+# request torch alone.
+TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
 
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
@@ -37,7 +52,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2"],
     "test": ["12.6", "13.0", "13.2"],
-    "release": ["12.6", "12.8", "13.0"],
+    "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
@@ -84,9 +99,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.13.0"
-CURRENT_CANDIDATE_VERSION = "2.12.0"
-CURRENT_STABLE_VERSION = "2.11.0"
+CURRENT_NIGHTLY_VERSION = "2.14.0"
+CURRENT_CANDIDATE_VERSION = "2.13.0"
+CURRENT_STABLE_VERSION = "2.13.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -293,6 +308,11 @@ def get_wheel_install_command(
         else PACKAGES_TO_INSTALL_WHL
     )
 
+    # Validate torch only (no torchvision) for versions without published
+    # torchvision wheels, e.g. 3.15 / 3.15t.
+    if python_version in TORCH_ONLY_PYTHON_ARCHES:
+        PACKAGES_TO_INSTALL = "torch"
+
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
@@ -330,7 +350,9 @@ def generate_libtorch_matrix(
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
+    include_preview_python_versions: bool = False,
 ) -> List[Dict[str, str]]:
+    # libtorch is python-agnostic; the preview python versions do not apply.
     ret: List[Dict[str, str]] = []
 
     if arches is None:
@@ -347,7 +369,9 @@ def generate_libtorch_matrix(
 
     if abi_versions is None or len(abi_versions) == 0:
         if os == WINDOWS:
-            abi_versions = [RELEASE, DEBUG]
+            # Windows libtorch debug builds are no longer produced; only ship
+            # release builds for nightly and release channels.
+            abi_versions = [RELEASE]
         elif os == LINUX:
             abi_versions = [CXX11_ABI]
         elif os in [MACOS_ARM64]:
@@ -420,12 +444,26 @@ def generate_wheels_matrix(
     getting_started: bool = False,
     python_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
+    include_preview_python_versions: bool = False,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
+
+    explicitly_requested_versions = bool(python_versions)
 
     if not python_versions:
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
+
+        # Opt-in preview versions (e.g. 3.15/3.15t) are torch-only and validated
+        # on Linux x86/aarch64 and macOS arm64. Append them to the default list
+        # so the shared default (used by domain libraries and Windows) is
+        # unaffected.
+        if include_preview_python_versions and os in (
+            LINUX,
+            LINUX_AARCH64,
+            MACOS_ARM64,
+        ):
+            python_versions += PREVIEW_PYTHON_ARCHES_DICT.get(channel, [])
 
     if os == WINDOWS_ARM64:
         python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
@@ -467,10 +505,6 @@ def generate_wheels_matrix(
             gpu_arch_version = (
                 "" if arch_version in [CPU, CPU_AARCH64, XPU] else arch_version
             )
-
-            # TODO: Enable python 3.13t on cpu-s390x or Windows
-            if (gpu_arch_type == "cpu-s390x") and python_version == "3.13t":
-                continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
 
@@ -530,6 +564,7 @@ def generate_build_matrix(
     build_python_only: str,
     getting_started: str = "false",
     python_versions: Optional[List[str]] = None,
+    include_preview_python_versions: str = "disable",
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -559,6 +594,8 @@ def generate_build_matrix(
                     use_only_dl_pytorch_org == "true",
                     getting_started == "true",
                     python_versions,
+                    include_preview_python_versions=include_preview_python_versions
+                    == ENABLE,
                 )
             )
 
@@ -660,6 +697,15 @@ def main(args: List[str]) -> None:
         default=os.getenv("PYTHON_VERSIONS", "[]"),
     )
 
+    parser.add_argument(
+        "--include-preview-python-versions",
+        help="Include opt-in preview python versions (torch-only, Linux x86 and "
+        "aarch64) in the matrix",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("INCLUDE_PREVIEW_PYTHON_VERSIONS", DISABLE),
+    )
+
     options = parser.parse_args(args)
     try:
         python_versions = json.loads(options.python_versions)
@@ -683,6 +729,7 @@ def main(args: List[str]) -> None:
         options.build_python_only,
         options.getting_started,
         python_versions,
+        options.include_preview_python_versions,
     )
 
     print(json.dumps(build_matrix))

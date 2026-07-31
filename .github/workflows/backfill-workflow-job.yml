@@ -1,9 +1,7 @@
 name: Backfill workflow jobs in DynamoDB and ClickHouse
 
 on:
-  schedule:
-    # Every 5 minutes
-    - cron: "*/5 * * * *"
+  workflow_dispatch:
 
 permissions:
   id-token: write

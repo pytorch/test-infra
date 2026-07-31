@@ -22,6 +22,7 @@ import {
   ListUtilizationMetadataInfoAPIResponse,
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
+import dynamic from "next/dynamic";
 import {
   CommitApiResponse,
   WorkflowRunInfo,
@@ -30,6 +31,15 @@ import React, { useEffect, useState } from "react";
 import { FaInfoCircle } from "react-icons/fa";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
+
+// Lazy-loaded: the Gantt code is fetched only when a box's toggle is opened,
+// so it stays off the initial commit/PR page bundle and render path.
+const WorkflowGantt = dynamic(() => import("components/commit/JobTimeline"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ padding: 8, fontSize: 12 }}>Loading timeline…</div>
+  ),
+});
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -202,6 +212,7 @@ export default function WorkflowBox({
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
 
+  const [showGantt, setShowGantt] = useState(false);
   const [searchString, setSearchString] = useState("");
   const [searchRes, setSearchRes] = useState<{
     results: Map<string, LogSearchResult>;
@@ -280,6 +291,12 @@ export default function WorkflowBox({
                   : "Show Additional Test Info"}
               </button>
             )}
+            <button
+              onClick={() => setShowGantt(!showGantt)}
+              className={styles.buttonBorder}
+            >
+              {showGantt ? "Hide Gantt Chart" : "View as Gantt Chart"}
+            </button>
           </div>
           <form
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
@@ -310,6 +327,7 @@ export default function WorkflowBox({
           jobs={jobs}
         />
       )}
+      {showGantt && <WorkflowGantt jobs={jobs} />}
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id} id={`${job.id}-box`}>

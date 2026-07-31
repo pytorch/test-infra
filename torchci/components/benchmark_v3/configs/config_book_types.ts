@@ -24,7 +24,7 @@ export const BenchmarkPageType = {
 
 // Infer the type automatically
 export type BenchmarkPageType =
-  typeof BenchmarkPageType[keyof typeof BenchmarkPageType];
+  (typeof BenchmarkPageType)[keyof typeof BenchmarkPageType];
 
 export type BenchmarkUIConfig = {
   apiId: string;

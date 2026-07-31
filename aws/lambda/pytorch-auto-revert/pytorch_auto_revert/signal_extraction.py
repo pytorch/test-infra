@@ -138,21 +138,8 @@ class SignalExtractor:
                         continue
                     filtered.append(e)
                     prev_key = key
-                new_commits.append(
-                    SignalCommit(
-                        head_sha=c.head_sha, timestamp=c.timestamp, events=filtered
-                    )
-                )
-            deduped.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+                new_commits.append(c.replace(events=filtered))
+            deduped.append(s.replace(commits=new_commits))
         return deduped
 
     # -----------------------------
@@ -223,22 +210,9 @@ class SignalExtractor:
                             job_id=None,
                         )
                     )
-                new_commits.append(
-                    SignalCommit(
-                        head_sha=c.head_sha, timestamp=c.timestamp, events=synth_events
-                    )
-                )
+                new_commits.append(c.replace(events=synth_events))
 
-            out.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+            out.append(s.replace(commits=new_commits))
         return out
 
     # -----------------------------
@@ -284,26 +258,10 @@ class SignalExtractor:
                         timestamp=ts,
                         signal_key=s.key,
                     )
-                    new_commits.append(
-                        SignalCommit(
-                            head_sha=c.head_sha,
-                            timestamp=c.timestamp,
-                            events=c.events,
-                            advisor_result=advisor_result,
-                        )
-                    )
+                    new_commits.append(c.replace(advisor_result=advisor_result))
                 else:
                     new_commits.append(c)
-            out.append(
-                Signal(
-                    key=s.key,
-                    workflow_name=s.workflow_name,
-                    commits=new_commits,
-                    job_base_name=s.job_base_name,
-                    test_module=s.test_module,
-                    source=s.source,
-                )
-            )
+            out.append(s.replace(commits=new_commits))
         return out
 
     # -----------------------------
@@ -393,6 +351,13 @@ class SignalExtractor:
         failing_tests_by_job_base_name: Set[
             Tuple[WorkflowName, JobBaseName, TestId]
         ] = set()
+        # Capture structured test identity per test_id so we can attach it
+        # once at the Signal level. The TestRow `test_id` property collapses
+        # to "file::name" and drops classname, so one test_id may span
+        # multiple classes; collect all distinct non-empty classnames and
+        # only surface one later if it is unambiguous.
+        test_file_name_by_test_id: Dict[TestId, Tuple[str, str]] = {}
+        test_classnames_by_test_id: Dict[TestId, Set[str]] = {}
         for tr in test_rows:
             job = jobs_by_id.get(tr.job_id)
             job_base_name = job.base_name
@@ -419,6 +384,11 @@ class SignalExtractor:
                 outcome = existing
 
             tests_by_group_attempt[key] = outcome
+            test_file_name_by_test_id.setdefault(tr.test_id, (tr.file, tr.name))
+            if tr.classname:
+                test_classnames_by_test_id.setdefault(tr.test_id, set()).add(
+                    tr.classname
+                )
 
             # Track keys that have at least one persistent failure (no retry success)
             if outcome.failure_runs > 0 and outcome.success_runs == 0:
@@ -520,9 +490,25 @@ class SignalExtractor:
                 )
 
             if has_any_events:
-                # Extract test module from test_id (format: "file.py::test_name")
-                # Result: "file" or "path/to/file" without .py extension
-                test_module = test_id.split("::")[0].replace(".py", "")
+                # Extract test module from test_id (format: "file.py::test_name").
+                # When the CH row's `file` column is empty, TestRow.test_id falls
+                # back to the bare `name` (no `::`) and we can't derive a path
+                # that `run_test.py --include` would accept. Mark such signals
+                # as untargeted (test_module=None) so the action layer dispatches
+                # them without a tests-to-include filter (job-style restart),
+                # rather than emitting a bogus method-named module that argparse
+                # would reject with "invalid choice".
+                if "::" in test_id:
+                    test_module = test_id.split("::")[0].replace(".py", "")
+                else:
+                    test_module = None
+                test_file, test_name = test_file_name_by_test_id.get(test_id, ("", ""))
+                # Classname is only trustworthy when a single distinct value
+                # was seen for this test_id; otherwise omit rather than guess.
+                classnames = test_classnames_by_test_id.get(test_id, set())
+                test_classname = (
+                    next(iter(classnames)) if len(classnames) == 1 else None
+                )
 
                 signals.append(
                     Signal(
@@ -532,6 +518,9 @@ class SignalExtractor:
                         job_base_name=str(job_base_name),
                         test_module=test_module,
                         source=SignalSource.TEST,
+                        test_file=test_file or None,
+                        test_classname=test_classname or None,
+                        test_name=test_name or None,
                     )
                 )
 

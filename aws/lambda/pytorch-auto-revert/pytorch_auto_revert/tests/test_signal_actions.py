@@ -759,6 +759,140 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         # Timestamps are human-readable
         self.assertIn("UTC", commits["sha_fail"]["timestamp"])
 
+    def test_born_red_attaches_pattern_context_and_short_label(self):
+        """When is_born_red=True, the JSON carries the long framing once at
+        the top level (`pattern_context`) and uses a SHORT partition label
+        for each baseline commit.
+
+        Earlier iterations duplicated the full natural-language framing into
+        every commit's `partition` field. Said once: `pattern_context`. Per
+        commit: a terse label that points back at the top-level context.
+        """
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2026, 5, 21, 12, 0, 0)
+        c_newer_fail = SignalCommit(
+            head_sha="f1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=11),
+            ],
+        )
+        c_suspect = SignalCommit(
+            head_sha="f2",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=2, job_id=12),
+            ],
+        )
+        c_baseline = SignalCommit(head_sha="e1", timestamp=t0, events=[])
+
+        signal = Signal(
+            key="inductor/test_flip.py::test_flip_zero_dim",
+            workflow_name="trunk",
+            commits=[c_newer_fail, c_suspect, c_baseline],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="f2",
+            failed_commits=("f1", "f2"),
+            successful_commits=("e1",),
+            is_born_red=True,
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+
+        # Top-level pattern_context carries the long framing (said once).
+        self.assertIn("pattern_context", result)
+        ctx = result["pattern_context"]
+        self.assertIn("born-red", ctx)
+        # Enumerates the four ambiguity causes the advisor must distinguish.
+        for cue in ("ADDED", "ENABLED", "MOVED", "sharding"):
+            self.assertIn(cue, ctx)
+        # Tells the advisor what to recommend in each case.
+        self.assertIn("revert", ctx)
+        self.assertIn("not_related", ctx)
+
+        # Per-commit partition labels stay SHORT — they only point back at
+        # the top-level context.
+        commits = {c["sha"]: c for c in result["commits"]}
+        baseline_label = commits["e1"]["partition"]
+        self.assertIn("no_signal", baseline_label)
+        self.assertLess(
+            len(baseline_label),
+            len(ctx) // 3,
+            "per-commit label must be short relative to pattern_context",
+        )
+        # The fully-spelled-out cause cues live in pattern_context, NOT in
+        # every commit's label.
+        for cue in ("ADDED", "ENABLED", "MOVED"):
+            self.assertNotIn(cue, baseline_label)
+
+    def test_non_born_red_has_no_pattern_context(self):
+        """`pattern_context` is born-red-only — not emitted for normal
+        green→red patterns."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2026, 5, 21, 12, 0, 0)
+        c_fail = SignalCommit(
+            head_sha="f1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=11),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="b1",
+            timestamp=t0,
+            events=[
+                SignalEvent("t", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=12),
+            ],
+        )
+        signal = Signal(
+            key="k",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.TEST,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="f1",
+            failed_commits=("f1",),
+            successful_commits=("b1",),
+            is_born_red=False,
+        )
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        self.assertNotIn("pattern_context", result)
+
     def test_unknown_partition_label(self):
         """Commits between failed and successful partitions get 'unknown' label."""
         import json
@@ -965,6 +1099,130 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         # JSON is valid and re-parseable
         reparsed = json.loads(json.dumps(result))
         self.assertEqual(reparsed, result)
+
+    def test_test_identity_surfaced_for_test_signals(self):
+        """TEST signals surface authoritative test identity (file/classname/name)
+        once at the top of the payload. Every FAILURE event in the signal IS
+        this specific test failing — no duplication per event."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        t1 = datetime(2025, 8, 19, 11, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent(
+                    "test", SignalStatus.FAILURE, t0, wf_run_id=100, job_id=200
+                ),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t1,
+            events=[
+                SignalEvent("test", SignalStatus.SUCCESS, t1, wf_run_id=99, job_id=199),
+            ],
+        )
+        signal = Signal(
+            key="test/inductor/test_comm_analysis.py::test_nccl_estimate_device_resolution_gpu",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy / test",
+            test_file="test/inductor/test_comm_analysis.py",
+            test_classname="TestNcclEstimateDeviceResolution",
+            test_name="test_nccl_estimate_device_resolution_gpu",
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        # Top-level test identity is present, populated, and authoritative
+        self.assertEqual(result["test_file"], "test/inductor/test_comm_analysis.py")
+        self.assertEqual(result["test_classname"], "TestNcclEstimateDeviceResolution")
+        self.assertEqual(
+            result["test_name"], "test_nccl_estimate_device_resolution_gpu"
+        )
+
+        # No per-event test_failures emission (would be redundant with signal_key)
+        for c in result["commits"]:
+            for ev in c["events"]:
+                self.assertNotIn("test_failures", ev)
+                self.assertNotIn("test_file", ev)
+                self.assertNotIn("test_classname", ev)
+                self.assertNotIn("test_name", ev)
+
+    def test_test_identity_omitted_for_job_signals(self):
+        """JOB signals (and TEST signals without identity populated) must not
+        emit the test_* top-level keys."""
+        import json
+
+        from pytorch_auto_revert.signal import (
+            DispatchAdvisor,
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+
+        c_fail = SignalCommit(
+            head_sha="sha_fail",
+            timestamp=t0,
+            events=[
+                SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            timestamp=t0,
+            events=[
+                SignalEvent("j", SignalStatus.SUCCESS, t0, wf_run_id=2, job_id=2),
+            ],
+        )
+        signal = Signal(
+            key="lint",
+            workflow_name="trunk",
+            commits=[c_fail, c_base],
+            source=SignalSource.JOB,
+        )
+        advisor = DispatchAdvisor(
+            suspect_commit="sha_fail",
+            failed_commits=("sha_fail",),
+            successful_commits=("sha_base",),
+        )
+
+        result = json.loads(
+            SignalActionProcessor._build_signal_pattern_json(
+                signal=signal,
+                dispatch_advisor=advisor,
+                repo_full_name="pytorch/pytorch",
+            )
+        )
+        for k in ("test_file", "test_classname", "test_name"):
+            self.assertNotIn(k, result)
 
 
 class TestDispatchAdvisorsMethod(unittest.TestCase):
@@ -1268,6 +1526,272 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         self.assertIsNotNone(result[0].commits[0].advisor_result)
         self.assertEqual(
             result[0].commits[0].advisor_result.verdict, AdvisorVerdict.UNSURE
+        )
+
+    def test_preserves_test_identity_on_attach(self):
+        # Signal-level test_file/test_classname/test_name must survive the
+        # Signal reconstruction inside _attach_advisor_verdicts.
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import Sha
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10)],
+        )
+        signal = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="trunk",
+            commits=[c1],
+            source=SignalSource.TEST,
+            test_file="test/foo.py",
+            test_classname="TestFooBar",
+            test_name="test_bar",
+        )
+        extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
+        extractor._datasource = Mock()
+        extractor._datasource.fetch_advisor_verdicts.return_value = {
+            ("sha_aaa", "test/foo.py::test_bar"): ("revert", 0.95, t0),
+        }
+        out = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
+        self.assertEqual(out[0].test_file, "test/foo.py")
+        self.assertEqual(out[0].test_classname, "TestFooBar")
+        self.assertEqual(out[0].test_name, "test_bar")
+
+
+class TestInjectPendingWorkflowEvents(unittest.TestCase):
+    """Tests for SignalExtractor._inject_pending_workflow_events."""
+
+    def test_preserves_test_identity_on_inject(self):
+        # Signal-level test_file/test_classname/test_name must survive the
+        # Signal reconstruction inside _inject_pending_workflow_events.
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalSource,
+            SignalStatus,
+        )
+        from pytorch_auto_revert.signal_extraction import SignalExtractor
+        from pytorch_auto_revert.signal_extraction_types import (
+            JobBaseName,
+            JobId,
+            JobName,
+            JobRow,
+            RunAttempt,
+            Sha,
+            WfRunId,
+            WorkflowName,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c1 = SignalCommit(
+            "sha_aaa",
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=10)],
+        )
+        signal = Signal(
+            key="test/foo.py::test_bar",
+            workflow_name="trunk",
+            commits=[c1],
+            source=SignalSource.TEST,
+            test_file="test/foo.py",
+            test_classname="TestFooBar",
+            test_name="test_bar",
+        )
+        # One pending JobRow on a different wf_run_id triggers synthesis on c1.
+        pending_job = JobRow(
+            head_sha=Sha("sha_aaa"),
+            workflow_name=WorkflowName("trunk"),
+            wf_run_id=WfRunId(2),
+            job_id=JobId(20),
+            run_attempt=RunAttempt(1),
+            name=JobName("j"),
+            status="in_progress",
+            conclusion="",
+            started_at=t0,
+            created_at=t0,
+            rule="",
+        )
+        extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
+        out = extractor._inject_pending_workflow_events([signal], [pending_job])
+        self.assertEqual(out[0].test_file, "test/foo.py")
+        self.assertEqual(out[0].test_classname, "TestFooBar")
+        self.assertEqual(out[0].test_name, "test_bar")
+        # Synthesis actually fired (otherwise the test wouldn't exercise
+        # the reconstruction path)
+        self.assertGreater(len(out[0].commits[0].events), 1)
+
+
+class TestGroupActionsTestsToInclude(unittest.TestCase):
+    """Coalescing rules around `tests_to_include` in `group_actions`.
+
+    Covers the empty-`file` CH-row class (T262...) and the JOB+TEST mixed
+    coalescing case where a JOB-track signal's "full job re-run" intent
+    must not be silently narrowed by sibling TEST signals.
+    """
+
+    def _signal(
+        self,
+        *,
+        key: str,
+        commit: str,
+        source,
+        job_base_name: str,
+        test_module=None,
+    ):
+        from pytorch_auto_revert.signal import (
+            Signal,
+            SignalCommit,
+            SignalEvent,
+            SignalStatus,
+        )
+
+        t0 = datetime(2025, 8, 19, 12, 0, 0)
+        c = SignalCommit(
+            commit,
+            t0,
+            [SignalEvent("j", SignalStatus.FAILURE, t0, wf_run_id=1, job_id=1)],
+        )
+        return Signal(
+            key=key,
+            workflow_name="trunk",
+            commits=[c],
+            job_base_name=job_base_name,
+            test_module=test_module,
+            source=source,
+        )
+
+    def _make_restart(self, commit: str):
+        from pytorch_auto_revert.signal import RestartCommits
+
+        return RestartCommits(commit_shas={commit})
+
+    def test_only_test_signals_with_modules_keeps_test_filter(self):
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s1 = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        s2 = self._signal(
+            key="test_jit.py::test_b",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        groups = proc.group_actions(
+            [(s1, self._make_restart("abc")), (s2, self._make_restart("abc"))]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        g = restarts[0]
+        self.assertEqual(g.tests_to_include, frozenset({"test_jit"}))
+        self.assertEqual(g.jobs_to_include, frozenset({"linux-jammy-py3.10-clang18"}))
+
+    def test_test_signal_with_no_module_drops_test_filter(self):
+        # TEST signal whose CH row had empty `file` (signal_extraction left
+        # test_module=None). Group must dispatch with no tests-to-include —
+        # no run_test.py-recognized module to filter on.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s = self._signal(
+            key="test_partial_eval_graph_conv",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module=None,
+        )
+        groups = proc.group_actions([(s, self._make_restart("abc"))])
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        self.assertEqual(restarts[0].tests_to_include, frozenset())
+        self.assertEqual(
+            restarts[0].jobs_to_include,
+            frozenset({"linux-jammy-py3.10-clang18"}),
+        )
+
+    def test_mixed_test_module_and_no_module_drops_test_filter(self):
+        # When some sibling TEST signals carry a module and others don't
+        # (some CH rows had empty `file`, others didn't — the original
+        # bug shape), drop the test filter for the whole group rather
+        # than narrowing only the targetable ones and starving the rest.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s_targeted = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        s_untargeted = self._signal(
+            key="test_partial_eval_graph_conv",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module=None,
+        )
+        groups = proc.group_actions(
+            [
+                (s_targeted, self._make_restart("abc")),
+                (s_untargeted, self._make_restart("abc")),
+            ]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        self.assertEqual(restarts[0].tests_to_include, frozenset())
+
+    def test_job_track_and_test_track_same_workflow_drops_test_filter(self):
+        # Mixed JOB-track + TEST-track signals on the same (workflow, sha).
+        # JOB signal wants the entire job re-run; coalescing previously
+        # narrowed the dispatch to TEST signals' modules, throwing the JOB
+        # signal's intent away. New rule: any untargeted source → empty
+        # tests_to_include.
+        from pytorch_auto_revert.signal import SignalSource
+
+        proc = SignalActionProcessor()
+        s_job = self._signal(
+            key="linux-jammy-py3.10-clang18 / build",
+            commit="abc",
+            source=SignalSource.JOB,
+            job_base_name="linux-jammy-py3.10-clang18 / build",
+            test_module=None,
+        )
+        s_test = self._signal(
+            key="test_jit.py::test_a",
+            commit="abc",
+            source=SignalSource.TEST,
+            job_base_name="linux-jammy-py3.10-clang18 / test",
+            test_module="test_jit",
+        )
+        groups = proc.group_actions(
+            [(s_job, self._make_restart("abc")), (s_test, self._make_restart("abc"))]
+        )
+        restarts = [g for g in groups if g.type == "restart"]
+        self.assertEqual(len(restarts), 1)
+        g = restarts[0]
+        self.assertEqual(g.tests_to_include, frozenset())
+        self.assertEqual(
+            g.jobs_to_include,
+            frozenset(
+                {"linux-jammy-py3.10-clang18"}
+            ),  # both job_base_names normalize to same display name
         )
 
 

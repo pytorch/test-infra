@@ -14,6 +14,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { IssueData, JobData, RowData } from "lib/types";
+import { useHideNonViableStrictPreference } from "lib/useGroupingPreference";
 import {
   MonsterFailuresContext,
   PinnedTooltipContext,
@@ -159,10 +160,31 @@ export default function HudGroupedCell({
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const [monsterFailures] = useContext(MonsterFailuresContext);
+  const [hideNonViableStrict] = useHideNonViableStrictPreference();
+
+  // When hiding non-viable-strict, restrict the group's status calculation
+  // (and tooltip contents) to viable/strict-blocking jobs only — otherwise a
+  // non-viable-strict failure would still light up a kept group column.
+  //
+  // The viable/strict-blocking concept only exists for pytorch/pytorch, so this
+  // filter must be ignored for every other repo. Without this guard, on a
+  // domain repo (e.g. pytorch/vision, pytorch/executorch) the filter removes
+  // *every* job from the group, `effectiveJobs` becomes empty, and the status
+  // computation below falls into `noStatusJobs.length === effectiveJobs.length`
+  // (0 === 0) => AllNull => every grouped cell renders grey. This mirrors the
+  // column-visibility guard in the HUD page (`isPyTorchPyTorchRepo`).
+  const isPyTorchPyTorchRepo =
+    repoOwner === "pytorch" && repoName === "pytorch";
+  const effectiveJobs =
+    hideNonViableStrict && isPyTorchPyTorchRepo
+      ? jobs.filter((job) =>
+          isJobViableStrictBlocking(job.name, repoOwner, repoName)
+        )
+      : jobs;
 
   // Check if this group contains autorevert signals
   const isAutorevertSignal = rowData
-    ? isGroupAutorevertSignal(jobs, rowData)
+    ? isGroupAutorevertSignal(effectiveJobs, rowData)
     : false;
 
   // Build cell style classes
@@ -183,7 +205,7 @@ export default function HudGroupedCell({
   const failedPreviousRunJobs = [];
 
   let viableStrictBlocking = false;
-  for (const job of jobs) {
+  for (const job of effectiveJobs) {
     if (isFailedJob(job)) {
       if (
         isRerunDisabledTestsJob(job) ||
@@ -219,7 +241,7 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.WarningOnly;
   } else if (!(queuedJobs.length === 0)) {
     conclusion = GroupedJobStatus.Queued;
-  } else if (noStatusJobs.length === jobs.length) {
+  } else if (noStatusJobs.length === effectiveJobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }
 

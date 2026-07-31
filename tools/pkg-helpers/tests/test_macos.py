@@ -9,7 +9,6 @@ from pytorch_pkg_helpers.macos import get_macos_variables
         ("3.11", "14.0"),
         ("3.12", "14.0"),
         ("3.13", "14.0"),
-        ("3.13t", "14.0"),
         ("3.14", "14.0"),
         ("3.14t", "14.0"),
     ],

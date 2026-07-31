@@ -1,0 +1,7 @@
+{
+  "params": {
+    "repo": "String",
+    "prNumber": "Int64"
+  },
+  "tests": []
+}
