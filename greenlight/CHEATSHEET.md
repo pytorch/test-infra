@@ -131,11 +131,13 @@ automated DDL), so @clee2000 or @huydhn apply them manually:
 
 - `001_create_misc_greenlight_pr_state.sql` — create the table
 - `002_alter_greenlight_pr_state_version_default.sql` — set the `version` DEFAULT
+- `003_alter_greenlight_pr_state_add_meta.sql` — add the `_meta` column the replicator needs
 
-No per-table grant file is needed: the PR-review workflow writes as a shared ClickHouse
-write user (`CLICKHOUSE_HUD_USER_WRITE_*` secrets on the `greenlight-record` environment)
-that already holds INSERT through its broad grants. The `verdict` subcommand reads the
-standard `CLICKHOUSE_*` connection variables (`CLICKHOUSE_HOST` or its
-`CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`, `CLICKHOUSE_PASSWORD`, and
-`CLICKHOUSE_PORT` default `8443`) and only ever INSERTs rows. The review-side fingerprint
-computation and the land-time verifier that reads this table back are not built yet.
+The `verdict` subcommand does NOT write ClickHouse directly: it emits a gzipped JSON row
+that the record workflow uploads to `s3://gha-artifacts/greenlight_pr_state/`, and the
+clickhouse-replicator-s3 path ingests it into the table. greenlight keeps ClickHouse READ
+access for the service's SELECTs via `clickhouse_client.connect()`, which reads the standard
+`CLICKHOUSE_*` connection variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias,
+`CLICKHOUSE_USERNAME`, `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). The
+review-side fingerprint computation and the land-time verifier that reads this table back
+are not built yet.

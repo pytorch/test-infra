@@ -39,24 +39,29 @@ The `review` examples require `PYTORCH_GREENLIGHT_GITHUB_TOKEN` to be set; witho
 ### Recording a verdict
 
 A privileged CI job records a review verdict with `verdict`. It runs once (never a
-daemon): it writes a row to `misc.greenlight_pr_state` — storing the passed-in
-`eval_hash` verbatim — then, for `LAND`/`NO_LAND`, acts on the PR (`LAND` approves;
-`NO_LAND` dismisses greenlight's own prior approval and comments). `CANCELLED` and
-`FAILED` markers only record a row. The `reason` must be a canonical `ALLOWED_REASONS`
-code, and the model's message is defanged before it is posted to GitHub (the full
-message is stored verbatim in ClickHouse).
+daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canonical
+`ALLOWED_REASONS` code) that the record workflow uploads to
+`s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
+it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. Then,
+for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves; `NO_LAND` dismisses greenlight's
+own prior approval and comments). `CANCELLED` and `FAILED` markers only emit the row. The
+model's message is defanged before it is posted to GitHub, while the full message is stored
+verbatim in the emitted row.
 
 ```bash
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
   --eval-hash "$EVAL_HASH" --bot-login 'greenlight-app[bot]'   # LAND/NO_LAND
-just run verdict --pr 123 --head-sha "$SHA" --status CANCELLED  # marker: row only
+just run verdict --pr 123 --head-sha "$SHA" --status CANCELLED  # marker: emit row only
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
   --eval-hash "$EVAL_HASH" --dry-run                            # offline; logs only
 ```
 
-`verdict` needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (for `LAND`/`NO_LAND`) and the
-`CLICKHOUSE_*` credentials to write; `--dry-run` needs neither. `--bot-login` (the
-greenlight GitHub App's `<slug>[bot]` account) is required for `NO_LAND`.
+The command writes the gzipped row to `/tmp/greenlight-verdict-row.json.gz` and its
+bucket-relative key to `/tmp/greenlight-verdict-key.txt`; the workflow `aws s3 cp`s the
+former to the latter. There is no direct ClickHouse write, so no `CLICKHOUSE_*` credentials
+are needed here; `verdict` needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN` to post `LAND`/`NO_LAND`,
+and `--dry-run` needs nothing. `--bot-login` (the greenlight GitHub App's `<slug>[bot]`
+account) is required for `NO_LAND`.
 
 Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 
@@ -83,10 +88,13 @@ on failure, and clean signal shutdown — all built and tested. `review` fetches
 PRs from a fixed set of trusted authors in `pytorch/pytorch` (read-only GitHub) and
 logs them; it requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`.
 
-Also works: the `verdict` subcommand records a PR-review verdict to
-`misc.greenlight_pr_state` (storing the passed-in `eval_hash` verbatim) and, for
-LAND/NO_LAND, acts on the PR — approve, or dismiss greenlight's prior approval and
-comment. It is a one-shot call meant for a privileged CI job.
+Also works: the `verdict` subcommand emits a PR-review verdict row (with the passed-in
+`eval_hash` verbatim) for the record workflow to upload to
+`s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
+it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
+dismiss greenlight's prior approval and comment. It is a one-shot call for a privileged CI
+job and never writes ClickHouse directly. The service keeps ClickHouse READ access
+(`clickhouse_client.connect()`) for its own SELECTs.
 
 Not built yet: risk-scoring and the review decision in `review`; the AI code-review
 workflow (a separate component) that produces the verdict; and the review-side
@@ -120,9 +128,9 @@ src/greenlight/
   cli.py           # CLI parsing (review + verdict subcommands), dispatch, exit codes
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # fetch open PRs from trusted authors in pytorch/pytorch and log them; raises on failure
-  verdict.py       # one-shot: record a PR-review verdict, then approve/dismiss/comment on the PR
+  verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss/comment on the PR
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
-  clickhouse_client.py # ClickHouse connection + verdict-row insert into misc.greenlight_pr_state
+  clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
   config.py        # PYTORCH_GREENLIGHT_* environment configuration
   guards.py        # single-instance lock + per-iteration SIGALRM timeout + hard watchdog

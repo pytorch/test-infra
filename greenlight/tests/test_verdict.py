@@ -1,3 +1,4 @@
+import gzip
 import json
 import logging
 from datetime import UTC, datetime
@@ -5,7 +6,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import clickhouse_client, verdict
+from greenlight import verdict
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -13,8 +14,9 @@ if TYPE_CHECKING:
 
 _FIXED = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
 _HASH = "a" * 64
-_COLUMNS = list(clickhouse_client.INSERT_COLUMNS)
 _BOT = "greenlight-app[bot]"
+_VERSION = "2026-07-30 12:00:00.000"
+_VERSION_COMPACT = "20260730T120000_000"
 
 
 class _Recorder:
@@ -22,20 +24,16 @@ class _Recorder:
         self.events: list[str] = []
 
 
-class _FakeCHClient:
+class _FakeEmit:
     def __init__(self, rec: _Recorder) -> None:
         self._rec = rec
-        self.rows: list[tuple[str, list[list[object]], list[str]]] = []
+        self.row_gzip: bytes | None = None
+        self.key: str | None = None
 
-    def insert(self, table, data, *, column_names):
-        self._rec.events.append("insert")
-        self.rows.append((table, data, list(column_names)))
-        return object()
-
-
-class _RaisingCHClient:
-    def insert(self, table, data, *, column_names):
-        raise RuntimeError("ch boom")
+    def __call__(self, row_gzip: bytes, key: str) -> None:
+        self._rec.events.append("emit")
+        self.row_gzip = row_gzip
+        self.key = key
 
 
 class _FakeUser:
@@ -109,17 +107,23 @@ def _write_verdict(tmp_path: Path, **payload: object) -> str:
     return str(path)
 
 
+def _decode(row_gzip: bytes | None) -> dict[str, object]:
+    assert row_gzip is not None
+    data: dict[str, object] = json.loads(gzip.decompress(row_gzip))
+    return data
+
+
 def _boom_build_github(token: str) -> NoReturn:
     raise AssertionError("build_github should not be called")
 
 
-def _boom_connect() -> NoReturn:
-    raise AssertionError("ch_connect should not be called")
+def _boom_emit(row_gzip: bytes, key: str) -> NoReturn:
+    raise AssertionError("emit should not be called")
 
 
-def test_full_land_writes_row_then_approves(make_config, tmp_path):
+def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     pr = _FakePR("headsha", rec)
     repo = _FakeRepo(pr)
     gh = _FakeGithub(repo)
@@ -131,26 +135,66 @@ def test_full_land_writes_row_then_approves(make_config, tmp_path):
         captured["token"] = token
         return gh
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=build_github, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=build_github, emit=emit, now=lambda: _FIXED)
 
     assert captured["token"] == "tok"
     assert gh.get_repo_names == ["pytorch/pytorch"]
     assert repo.get_pull_numbers == [7]
-    assert rec.events == ["insert", "review:APPROVE"]
-    # ClickHouse row stores the full message verbatim.
-    assert ch.rows[0][1][0] == ["pytorch/pytorch", 7, "headsha", "LAND", "clean", _HASH, "LGTM", "", "", _FIXED]
-    assert ch.rows[0][2] == _COLUMNS
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert _decode(emit.row_gzip) == {
+        "repo": "pytorch/pytorch",
+        "pr_number": 7,
+        "head_sha": "headsha",
+        "status": "LAND",
+        "reason": "clean",
+        "eval_hash": _HASH,
+        "message": "LGTM",
+        "eval_job": "",
+        "agent_job": "",
+        "version": _VERSION,
+    }
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}.json.gz"
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
     assert body.startswith("Green Light: LAND (reason: clean)")
     assert "LGTM" in body
 
 
-def test_full_no_land_writes_row_dismisses_then_comments(make_config, tmp_path):
+def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="ok")
+    req = VerdictRequest(repo="o/r", pr_number=3, head_sha="h", eval_hash=_HASH, verdict_file=vf)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert emit.row_gzip is not None
+    raw = gzip.decompress(emit.row_gzip).decode("utf-8")
+    assert raw.endswith("\n")
+    assert raw.count("\n") == 1  # exactly one JSONEachRow line
+    obj = json.loads(raw)
+    assert list(obj.keys()) == [
+        "repo",
+        "pr_number",
+        "head_sha",
+        "status",
+        "reason",
+        "eval_hash",
+        "message",
+        "eval_job",
+        "agent_job",
+        "version",
+    ]
+    assert isinstance(obj["pr_number"], int)
+    assert isinstance(obj["version"], str)
+    assert obj["version"] == _VERSION
+
+
+def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
     reviews = [
         _FakeReview(1, _BOT, "APPROVED", rec),
         _FakeReview(2, "alice", "APPROVED", rec),
@@ -169,25 +213,17 @@ def test_full_no_land_writes_row_dismisses_then_comments(make_config, tmp_path):
         bot_login=_BOT,
     )
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=lambda t: gh, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["insert", "dismiss:1", "comment"]
+    assert rec.events == ["emit", "dismiss:1", "comment"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
-    # ClickHouse stores the FULL, un-defanged message.
-    assert ch.rows[0][1][0] == [
-        "pytorch/pytorch",
-        8,
-        "headsha",
-        "NO_LAND",
-        "scope_too_large",
-        _HASH,
-        "@pytorchbot please split",
-        "https://eval-run",
-        "",
-        _FIXED,
-    ]
+    payload = _decode(emit.row_gzip)
+    # The FULL, un-defanged message is stored in the emitted payload.
+    assert payload["message"] == "@pytorchbot please split"
+    assert payload["status"] == "NO_LAND"
+    assert payload["reason"] == "scope_too_large"
+    assert payload["eval_job"] == "https://eval-run"
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}.json.gz"
     # The posted comment is defanged: header + run URL, @ neutralized, fenced.
     body = pr.comments[0]
     assert body.startswith("Green Light: NO_LAND (reason: scope_too_large)\nhttps://eval-run")
@@ -199,41 +235,37 @@ def test_full_no_land_writes_row_dismisses_then_comments(make_config, tmp_path):
 
 def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_path):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     pr = _FakePR("h", rec, reviews=[_FakeReview(1, "alice", "APPROVED", rec)])
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
     req = VerdictRequest(repo="r", pr_number=1, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=lambda t: gh, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["insert", "comment"]
+    assert rec.events == ["emit", "comment"]
     assert pr.comments[0].startswith("Green Light: NO_LAND (reason: unclear_intent)")
 
 
 def test_mismatched_head_land_still_records_and_approves(make_config, tmp_path):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     pr = _FakePR("actual-sha", rec)  # live head differs from the input head_sha
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
     req = VerdictRequest(repo="r", pr_number=1, head_sha="expected-sha", eval_hash=_HASH, verdict_file=vf)
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=lambda t: gh, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    # A moved head no longer aborts: the row is written and the PR is approved.
-    assert rec.events == ["insert", "review:APPROVE"]
-    assert ch.rows[0][1][0][2] == "expected-sha"  # the INPUT head_sha is stored verbatim
+    # A moved head no longer aborts: the row is emitted and the PR is approved.
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert _decode(emit.row_gzip)["head_sha"] == "expected-sha"  # the INPUT head_sha is stored verbatim
     assert pr.created_reviews[0][0] == "APPROVE"
 
 
 def test_mismatched_head_no_land_still_records_and_comments(make_config, tmp_path):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
     pr = _FakePR("actual-sha", rec, reviews=reviews)
     gh = _FakeGithub(_FakeRepo(pr))
@@ -242,40 +274,47 @@ def test_mismatched_head_no_land_still_records_and_comments(make_config, tmp_pat
         repo="r", pr_number=1, head_sha="expected-sha", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
     )
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=lambda t: gh, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["insert", "dismiss:1", "comment"]
-    assert ch.rows[0][1][0][2] == "expected-sha"  # the INPUT head_sha is stored verbatim
+    assert rec.events == ["emit", "dismiss:1", "comment"]
+    assert _decode(emit.row_gzip)["head_sha"] == "expected-sha"  # the INPUT head_sha is stored verbatim
 
 
-def test_marker_cancelled_writes_row_only(make_config):
+def test_marker_cancelled_emits_payload_only(make_config):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     req = VerdictRequest(repo="pytorch/pytorch", pr_number=9, head_sha="h", status="CANCELLED")
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=_boom_build_github, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["insert"]
-    assert ch.rows[0][1][0] == ["pytorch/pytorch", 9, "h", "CANCELLED", "", "", "", "", "", _FIXED]
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip) == {
+        "repo": "pytorch/pytorch",
+        "pr_number": 9,
+        "head_sha": "h",
+        "status": "CANCELLED",
+        "reason": "",
+        "eval_hash": "",
+        "message": "",
+        "eval_job": "",
+        "agent_job": "",
+        "version": _VERSION,
+    }
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}.json.gz"
 
 
 def test_marker_failed_stores_eval_hash_verbatim_without_validation(make_config):
     rec = _Recorder()
-    ch = _FakeCHClient(rec)
+    emit = _FakeEmit(rec)
     req = VerdictRequest(repo="r", pr_number=2, head_sha="h", status="FAILED", eval_hash="not-a-valid-hash")
 
-    verdict.run(
-        req, make_config(github_token="tok"), build_github=_boom_build_github, ch_connect=lambda: ch, now=lambda: _FIXED
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["insert"]
-    # eval_hash column is stored verbatim for markers -- no hex validation.
-    assert ch.rows[0][1][0][5] == "not-a-valid-hash"
-    assert ch.rows[0][1][0][3] == "FAILED"
+    assert rec.events == ["emit"]
+    # eval_hash is stored verbatim for markers -- no hex validation.
+    payload = _decode(emit.row_gzip)
+    assert payload["eval_hash"] == "not-a-valid-hash"
+    assert payload["status"] == "FAILED"
 
 
 def test_dry_run_full_is_offline(make_config, tmp_path, caplog):
@@ -290,7 +329,7 @@ def test_dry_run_full_is_offline(make_config, tmp_path, caplog):
             req,
             make_config(github_token="tok"),
             build_github=_boom_build_github,
-            ch_connect=_boom_connect,
+            emit=_boom_emit,
             now=lambda: _FIXED,
         )
 
@@ -313,11 +352,7 @@ def test_full_rejects_reason_not_in_allowlist(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="not an allowed verdict reason"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
@@ -327,11 +362,7 @@ def test_full_rejects_empty_message(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="non-empty message"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
@@ -341,11 +372,7 @@ def test_full_rejects_missing_message_key(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="non-empty message"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
@@ -355,11 +382,7 @@ def test_no_land_without_bot_login_raises(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="NO_LAND requires --bot-login"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
@@ -369,11 +392,7 @@ def test_full_invalid_eval_hash_rejected_before_github(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="eval_hash"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
@@ -383,31 +402,49 @@ def test_full_missing_github_token_raises(make_config, tmp_path):
 
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
         verdict.run(
-            req,
-            make_config(github_token=None),
-            build_github=_boom_build_github,
-            ch_connect=_boom_connect,
-            now=lambda: _FIXED,
+            req, make_config(github_token=None), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
 
 
-def test_clickhouse_insert_errors_are_not_swallowed(make_config, tmp_path):
+def test_emit_errors_are_not_swallowed(make_config, tmp_path):
     rec = _Recorder()
     pr = _FakePR("h", rec)
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
     req = VerdictRequest(repo="r", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf)
 
-    with pytest.raises(RuntimeError, match="ch boom"):
+    def raising_emit(row_gzip: bytes, key: str) -> NoReturn:
+        raise RuntimeError("emit boom")
+
+    with pytest.raises(RuntimeError, match="emit boom"):
         verdict.run(
-            req,
-            make_config(github_token="tok"),
-            build_github=lambda t: gh,
-            ch_connect=_RaisingCHClient,
-            now=lambda: _FIXED,
+            req, make_config(github_token="tok"), build_github=lambda t: gh, emit=raising_emit, now=lambda: _FIXED
         )
 
-    assert pr.created_reviews == []
+    assert pr.created_reviews == []  # emit failed before the post
+
+
+def test_object_key_scheme():
+    assert (
+        verdict._object_key("owner/name", 42, "2026-07-30 12:00:00.123")
+        == "greenlight_pr_state/owner/name/42/20260730T120000_123.json.gz"
+    )
+
+
+def test_utcnow_is_timezone_aware_utc():
+    assert verdict._utcnow().tzinfo is UTC
+
+
+def test_default_emit_writes_row_and_key_files(tmp_path, monkeypatch):
+    row_path = tmp_path / "row.json.gz"
+    key_path = tmp_path / "key.txt"
+    monkeypatch.setattr(verdict, "_ROW_PATH", str(row_path))
+    monkeypatch.setattr(verdict, "_KEY_PATH", str(key_path))
+
+    verdict._default_emit(b"gzip-bytes", "greenlight_pr_state/o/r/1/x.json.gz")
+
+    assert row_path.read_bytes() == b"gzip-bytes"
+    assert key_path.read_text(encoding="utf-8") == "greenlight_pr_state/o/r/1/x.json.gz"
 
 
 def test_defang_neutralizes_at_mentions_and_wraps_in_fence():

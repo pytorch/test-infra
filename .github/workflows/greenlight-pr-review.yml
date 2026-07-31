@@ -4,8 +4,10 @@ name: Green Light PR Review
 #   review  — UNPRIVILEGED. Runs the AI model over untrusted PR content. Has Bedrock
 #             (OIDC) access only; it can read code and emit a verdict file, nothing more.
 #   record  — PRIVILEGED. No model. Validates the verdict, mints the Green Light App
-#             token, and writes the row to ClickHouse. Kept separate so untrusted PR
-#             content never runs in a job that holds the App key or write creds.
+#             token, posts the review, and uploads the verdict row to
+#             s3://gha-artifacts/greenlight_pr_state/ (via OIDC role/arc) for the
+#             clickhouse-replicator-s3 Lambda to ingest. Kept separate so untrusted
+#             PR content never runs in a job that holds the App key.
 
 on:
   workflow_dispatch:
@@ -195,17 +197,15 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Protected environment holding ALL record-job secrets (provision before first run):
-    #   GREENLIGHT_APP_ID and GREENLIGHT_APP_PRIVATE_KEY (the Green Light App key), and
-    #   CLICKHOUSE_HUD_USER_WRITE_URL/_USERNAME/_PASSWORD (a dedicated ClickHouse write
-    #   user). These live on this environment and are NOT inherited from the repo/org.
+    # Protected environment holding the Green Light App key (provision before first run):
+    #   GREENLIGHT_APP_ID and GREENLIGHT_APP_PRIVATE_KEY. These live on this environment
+    #   and are NOT inherited from the repo/org. Verdict rows are emitted to S3 via the
+    #   OIDC role below, so no ClickHouse credentials are needed here.
     environment: greenlight-record
     permissions:
       contents: read
+      id-token: write
     env:
-      CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_URL }}
-      CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_USERNAME }}
-      CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_PASSWORD }}
       PR_NUMBER: ${{ github.event.inputs.pr_number }}
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
@@ -225,6 +225,13 @@ jobs:
 
       - name: Install uv
         uses: ./.github/actions/setup-uv
+
+      - name: Configure AWS credentials via OIDC
+        # Ungated: success, cancelled, and failed all upload a verdict row to S3.
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
 
       - name: Download verdict artifact
         if: ${{ needs.review.result == 'success' }}
@@ -307,3 +314,13 @@ jobs:
             --head-sha "$HEAD_SHA" \
             --eval-hash "$EVAL_HASH" \
             --eval-job-url "$RUN_URL"
+
+      - name: Upload verdict row to S3
+        # Exactly one record step above produced the row + key at fixed /tmp paths.
+        # No `if:` — the default success() runs this after whichever branch ran and
+        # skips it if that branch failed (skipped siblings don't count as failures).
+        # Single PutObject, no --content-encoding: the ClickHouse s3() reader expects
+        # the object stored as-is and would read 0 rows if it were marked gzip-encoded.
+        run: |
+          set -euo pipefail
+          aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"

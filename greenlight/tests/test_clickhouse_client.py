@@ -1,24 +1,9 @@
 import os
 import sys
-from datetime import UTC, datetime
 
 import pytest
 
 from greenlight import clickhouse_client
-from greenlight.clickhouse_client import INSERT_COLUMNS, VerdictRow
-
-_EXPECTED_COLUMNS = [
-    "repo",
-    "pr_number",
-    "head_sha",
-    "status",
-    "reason",
-    "eval_hash",
-    "message",
-    "eval_job",
-    "agent_job",
-    "version",
-]
 
 
 @pytest.fixture(autouse=True)
@@ -30,12 +15,7 @@ def _clean_clickhouse_env(monkeypatch):
 
 
 class _FakeCHClient:
-    def __init__(self) -> None:
-        self.inserts: list[tuple[str, object, list[str]]] = []
-
-    def insert(self, table, data, *, column_names):
-        self.inserts.append((table, data, list(column_names)))
-        return object()
+    """Stand-in for the clickhouse_connect client returned by get_client (read path)."""
 
 
 class _FakeCHModule:
@@ -55,50 +35,6 @@ def fake_clickhouse(monkeypatch):
     fake = _FakeCHModule()
     monkeypatch.setitem(sys.modules, "clickhouse_connect", fake)
     return fake
-
-
-def test_insert_columns_order_is_the_table_contract():
-    assert list(INSERT_COLUMNS) == _EXPECTED_COLUMNS
-
-
-def test_insert_verdict_row_sends_table_columns_and_values():
-    client = _FakeCHClient()
-    version = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
-    row = VerdictRow(
-        repo="pytorch/pytorch",
-        pr_number=123,
-        head_sha="deadbeef",
-        status="LAND",
-        reason="looks good",
-        eval_hash="a" * 64,
-        message="LGTM",
-        eval_job="https://eval",
-        agent_job="https://agent",
-        version=version,
-    )
-
-    clickhouse_client.insert_verdict_row(client, row)
-
-    assert client.inserts == [
-        (
-            "misc.greenlight_pr_state",
-            [
-                [
-                    "pytorch/pytorch",
-                    123,
-                    "deadbeef",
-                    "LAND",
-                    "looks good",
-                    "a" * 64,
-                    "LGTM",
-                    "https://eval",
-                    "https://agent",
-                    version,
-                ]
-            ],
-            _EXPECTED_COLUMNS,
-        )
-    ]
 
 
 def test_connect_passes_expected_client_kwargs(fake_clickhouse, monkeypatch):

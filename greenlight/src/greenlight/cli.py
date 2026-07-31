@@ -47,9 +47,9 @@ def build_parser() -> argparse.ArgumentParser:
         "verdict",
         help="record a PR review verdict once and act on GitHub",
         description=(
-            "Record a single PR-review verdict in ClickHouse and, for LAND/NO_LAND, act on the PR. "
-            "Runs once outside the daemon loop and lock. Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for "
-            "LAND/NO_LAND and CLICKHOUSE_* credentials to write."
+            "Record a single PR-review verdict: emit the row for S3 -> ClickHouse ingestion and, "
+            "for LAND/NO_LAND, post the GitHub review. Runs once outside the daemon loop and lock. "
+            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for LAND/NO_LAND."
         ),
     )
     verdict_parser.add_argument("--repo", default=review.TARGET_REPO, help="owner/name of the repository")

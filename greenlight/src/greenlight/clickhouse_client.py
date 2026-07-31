@@ -1,24 +1,20 @@
-"""ClickHouse access for the greenlight service: connection and verdict-row insert.
+"""ClickHouse connection helper for the greenlight service.
 
-Connection settings come from the standard ``CLICKHOUSE_*`` environment variables.
-Verdict rows are written to ``misc.greenlight_pr_state``; its ``_inserted_at`` column is
-MATERIALIZED server-side and is therefore never part of an insert.
+Connection settings come from the standard ``CLICKHOUSE_*`` environment variables. The
+returned client is used for the service's read (SELECT) queries; verdict writes go
+through the S3 -> replicator path (see ``verdict``), not a direct INSERT from here.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import astuple, dataclass, fields
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from datetime import datetime
+    from clickhouse_connect.driver.client import Client
 
 logger = logging.getLogger(__name__)
-
-TABLE = "misc.greenlight_pr_state"
 
 _DEFAULT_PORT = 8443
 _CLICKHOUSE_CLOUD_DOMAIN = ".clickhouse.cloud"
@@ -26,37 +22,6 @@ _ENV_HELP = (
     "Set CLICKHOUSE_HOST (or its alias CLICKHOUSE_ENDPOINT), CLICKHOUSE_USERNAME, "
     "CLICKHOUSE_PASSWORD (and optionally CLICKHOUSE_PORT, default 8443)."
 )
-
-
-class ClickHouseClient(Protocol):
-    def insert(
-        self,
-        table: str,
-        data: Sequence[Sequence[object]],
-        *,
-        column_names: Sequence[str],
-    ) -> object: ...
-
-
-@dataclass(frozen=True, slots=True)
-class VerdictRow:
-    repo: str
-    pr_number: int
-    head_sha: str
-    status: str
-    reason: str
-    eval_hash: str
-    message: str
-    eval_job: str
-    agent_job: str
-    version: datetime
-
-
-INSERT_COLUMNS: tuple[str, ...] = tuple(f.name for f in fields(VerdictRow))
-
-
-def insert_verdict_row(client: ClickHouseClient, row: VerdictRow) -> None:
-    client.insert(TABLE, [list(astuple(row))], column_names=list(INSERT_COLUMNS))
 
 
 def _require_env(name: str) -> str:
@@ -92,7 +57,7 @@ def _ensure_clickhouse_cloud_no_proxy() -> None:
             os.environ[var] = ",".join([*entries, _CLICKHOUSE_CLOUD_DOMAIN])
 
 
-def connect() -> ClickHouseClient:
+def connect() -> Client:
     host = _host_from_env()
     username = _require_env("CLICKHOUSE_USERNAME")
     password = _require_env("CLICKHOUSE_PASSWORD")
@@ -100,7 +65,7 @@ def connect() -> ClickHouseClient:
     _ensure_clickhouse_cloud_no_proxy()
     import clickhouse_connect  # lazy: keeps this module importable without the dep
 
-    client: ClickHouseClient = clickhouse_connect.get_client(
+    client: Client = clickhouse_connect.get_client(
         host=host,
         username=username,
         password=password,

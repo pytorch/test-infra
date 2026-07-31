@@ -6,15 +6,18 @@ maps it straight to an exit code.
 
 Statuses split into two modes. FULL verdicts (LAND / NO_LAND) carry a ``--verdict-file``
 holding ``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASONS`` and
-``message`` must be non-empty. The row is written to ClickHouse first (storing the FULL
-message verbatim), then GitHub is updated with a defanged copy: LAND posts an approving
-review, NO_LAND dismisses greenlight's own prior approval (matched by ``bot_login``) and
-comments. MARKER statuses (CANCELLED / FAILED) only write a row -- no PR fetch, no GitHub
-post -- so a job that never produced a verdict still records terminal state idempotently.
+``message`` must be non-empty. The command emits a gzipped single-line JSONEachRow row to
+a fixed local path (the record workflow uploads it to ``s3://gha-artifacts/``, where the
+clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and then
+updates GitHub with a defanged copy of the message: LAND posts an approving review,
+NO_LAND dismisses greenlight's own prior approval (matched by ``bot_login``) and comments.
+MARKER statuses (CANCELLED / FAILED) only emit the row -- no PR fetch, no GitHub post. The
+command never writes to ClickHouse directly.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import re
@@ -22,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import clickhouse_client, github_client
+from greenlight import github_client
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -62,6 +65,12 @@ _EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
 _MESSAGE_CAP = 4000
 _ZERO_WIDTH_SPACE = chr(0x200B)
+
+_S3_KEY_PREFIX = "greenlight_pr_state"
+# Fixed paths are the contract with the record workflow, which `aws s3 cp`s the row file
+# to the bucket-relative key. Constant on purpose; tests inject a fake emit instead.
+_ROW_PATH = "/tmp/greenlight-verdict-row.json.gz"  # noqa: S108
+_KEY_PATH = "/tmp/greenlight-verdict-key.txt"  # noqa: S108
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,36 +189,58 @@ def _post_body(status: str, reason: str, message: str, run_url: str) -> str:
     return f"{header}\n\n{_defang(message)}"
 
 
-def _row(
-    request: VerdictRequest, status: str, reason: str, message: str, version: datetime
-) -> clickhouse_client.VerdictRow:
-    return clickhouse_client.VerdictRow(
-        repo=request.repo,
-        pr_number=request.pr_number,
-        head_sha=request.head_sha,
-        status=status,
-        reason=reason,
-        eval_hash=request.eval_hash,
-        message=message,
-        eval_job=request.eval_job_url,
-        agent_job=request.agent_job_url,
-        version=version,
-    )
+def _object_key(repo: str, pr_number: int, version: str) -> str:
+    compact = version.replace("-", "").replace(":", "").replace(" ", "T").replace(".", "_")
+    return f"{_S3_KEY_PREFIX}/{repo}/{pr_number}/{compact}.json.gz"
+
+
+def _emit_payload(
+    request: VerdictRequest,
+    status: str,
+    reason: str,
+    message: str,
+    *,
+    now: Callable[[], datetime],
+    emit: Callable[[bytes, str], None],
+) -> str:
+    version = now().replace(tzinfo=None).isoformat(sep=" ", timespec="milliseconds")
+    row = {
+        "repo": request.repo,
+        "pr_number": request.pr_number,
+        "head_sha": request.head_sha,
+        "status": status,
+        "reason": reason,
+        "eval_hash": request.eval_hash,
+        "message": message,
+        "eval_job": request.eval_job_url,
+        "agent_job": request.agent_job_url,
+        "version": version,
+    }
+    line = json.dumps(row, separators=(",", ":"), ensure_ascii=False) + "\n"
+    key = _object_key(request.repo, request.pr_number, version)
+    emit(gzip.compress(line.encode("utf-8"), mtime=0), key)
+    return key
+
+
+def _default_emit(row_gzip: bytes, key: str) -> None:
+    with open(_ROW_PATH, "wb") as fh:
+        fh.write(row_gzip)
+    with open(_KEY_PATH, "w", encoding="utf-8") as fh:
+        fh.write(key)
 
 
 def _run_marker(
     request: VerdictRequest,
     status: str,
     *,
-    ch_connect: Callable[[], clickhouse_client.ClickHouseClient],
+    emit: Callable[[bytes, str], None],
     now: Callable[[], datetime],
 ) -> None:
-    row = _row(request, status, "", "", now())
     if request.dry_run:
-        logger.info("[dry-run] would record %s marker for %s#%d", status, request.repo, request.pr_number)
+        logger.info("[dry-run] would emit %s marker payload for %s#%d", status, request.repo, request.pr_number)
         return
-    clickhouse_client.insert_verdict_row(ch_connect(), row)
-    logger.info("recorded %s marker for %s#%d", status, request.repo, request.pr_number)
+    key = _emit_payload(request, status, "", "", now=now, emit=emit)
+    logger.info("emitted %s marker payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
 
 
 def _run_full(
@@ -220,13 +251,13 @@ def _run_full(
     message: str,
     *,
     build_github: Callable[[str], VerdictClient],
-    ch_connect: Callable[[], clickhouse_client.ClickHouseClient],
+    emit: Callable[[bytes, str], None],
     now: Callable[[], datetime],
 ) -> None:
-    # --dry-run stays fully offline: no token, no GitHub fetch, no ClickHouse write.
+    # --dry-run stays fully offline: no token, no GitHub fetch, no payload written.
     if request.dry_run:
         logger.info(
-            "[dry-run] would record %s (reason: %s) for %s#%d and post to GitHub",
+            "[dry-run] would emit %s (reason: %s) for %s#%d and post to GitHub",
             status,
             reason,
             request.repo,
@@ -238,8 +269,8 @@ def _run_full(
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
-    clickhouse_client.insert_verdict_row(ch_connect(), _row(request, status, reason, message, now()))
-    logger.info("recorded %s verdict for %s#%d", status, request.repo, request.pr_number)
+    key = _emit_payload(request, status, reason, message, now=now, emit=emit)
+    logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     body = _post_body(status, reason, message, request.eval_job_url or request.agent_job_url)
     if status == STATUS_LAND:
         github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=body)
@@ -261,12 +292,12 @@ def run(
     config: Config,
     *,
     build_github: Callable[[str], VerdictClient] = github_client.build_client,
-    ch_connect: Callable[[], clickhouse_client.ClickHouseClient] = clickhouse_client.connect,
+    emit: Callable[[bytes, str], None] = _default_emit,
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
     status, reason, message = _resolve_verdict(request)
     if status in _MARKER_STATUSES:
-        _run_marker(request, status, ch_connect=ch_connect, now=now)
+        _run_marker(request, status, emit=emit, now=now)
         return
     _validate_reason(reason)
     _validate_message(message)
@@ -280,6 +311,6 @@ def run(
         reason,
         message,
         build_github=build_github,
-        ch_connect=ch_connect,
+        emit=emit,
         now=now,
     )
