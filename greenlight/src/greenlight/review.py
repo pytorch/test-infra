@@ -98,11 +98,14 @@ class _Candidate:
     reason: str
 
 
-def _staleness_key(candidate: _Candidate) -> tuple[bool, datetime]:
-    recorded = candidate.state
+def _staleness_key_for_state(recorded: PRState | None) -> tuple[bool, datetime]:
     if recorded is None:
         return (False, _MIN_VERSION)
     return (True, recorded.version)
+
+
+def _staleness_key(candidate: _Candidate) -> tuple[bool, datetime]:
+    return _staleness_key_for_state(candidate.state)
 
 
 def _candidate_numbers(client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]) -> list[int]:
@@ -133,6 +136,89 @@ def _dispatch_pending(
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
 
 
+def _evaluate_pr(
+    number: int,
+    future: Future[tuple[str, str]],
+    states: dict[int, PRState],
+    *,
+    now: datetime,
+    timeout: timedelta,
+    failed: list[int],
+) -> _Candidate | None:
+    try:
+        head_sha, eval_hash = future.result()
+        recorded = states.get(number)
+        outcome = decide(
+            current_eval_hash=eval_hash,
+            latest_status=recorded.status if recorded is not None else None,
+            latest_eval_hash=recorded.eval_hash if recorded is not None else None,
+            latest_version=recorded.version if recorded is not None else None,
+            now=now,
+            timeout=timeout,
+        )
+        logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
+        if outcome.action is Decision.DISPATCH:
+            return _Candidate(number, head_sha, eval_hash, recorded, outcome.reason)
+        return None
+    except Exception:
+        logger.exception("skipping PR #%d: failed to evaluate", number)
+        failed.append(number)
+        return None
+
+
+def _fingerprint_all(
+    pr_numbers: Sequence[int],
+    states: dict[int, PRState],
+    *,
+    fingerprint: Callable[[Github, int], tuple[str, str]],
+    client_pool: queue.Queue[Github],
+    worker_count: int,
+    now: datetime,
+    timeout: timedelta,
+    failed: list[int],
+) -> list[_Candidate]:
+    futures: dict[int, Future[tuple[str, str]]] = {}
+    if worker_count:
+        with ThreadPoolExecutor(max_workers=worker_count) as pool:
+            futures = {
+                number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in pr_numbers
+            }
+    pending: list[_Candidate] = []
+    for number in pr_numbers:
+        candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed)
+        if candidate is not None:
+            pending.append(candidate)
+    return pending
+
+
+def _fingerprint_until_dispatchable(
+    pr_numbers: Sequence[int],
+    states: dict[int, PRState],
+    *,
+    fingerprint: Callable[[Github, int], tuple[str, str]],
+    client_pool: queue.Queue[Github],
+    worker_count: int,
+    limit: int,
+    now: datetime,
+    timeout: timedelta,
+    failed: list[int],
+) -> list[_Candidate]:
+    ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
+    pending: list[_Candidate] = []
+    if worker_count:
+        with ThreadPoolExecutor(max_workers=worker_count) as pool:
+            for start in range(0, len(ranked), worker_count):
+                if len(pending) >= limit:
+                    break
+                batch = ranked[start : start + worker_count]
+                futures = {number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in batch}
+                for number in batch:
+                    candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed)
+                    if candidate is not None:
+                        pending.append(candidate)
+    return pending
+
+
 def run(
     config: Config,
     *,
@@ -159,45 +245,39 @@ def run(
         states = read_state(TARGET_REPO, pr_numbers)
         timeout = timedelta(minutes=timeout_minutes)
         evaluated_at = now()
-        pending: list[_Candidate] = []
         failed: list[int] = []
         worker_count = min(_FINGERPRINT_WORKERS, len(pr_numbers))
-        worker_clients: list[Github] = []
+        # PyGithub is not thread-safe, so each concurrent task borrows a client for its
+        # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
+        # and guarantees no two running tasks ever share one.
+        client_pool: queue.Queue[Github] = queue.Queue()
         for _ in range(worker_count):
             worker_client = build_github(token)
             clients.callback(_close_client, worker_client)
-            worker_clients.append(worker_client)
-        futures: dict[int, Future[tuple[str, str]]] = {}
-        if worker_count:
-            # PyGithub is not thread-safe, so each concurrent task borrows a client for its
-            # exclusive use; sizing the pool to the client count keeps queue.get non-blocking
-            # and guarantees no two running tasks ever share one.
-            client_pool: queue.Queue[Github] = queue.Queue()
-            for worker_client in worker_clients:
-                client_pool.put(worker_client)
-            with ThreadPoolExecutor(max_workers=worker_count) as pool:
-                futures = {
-                    number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in pr_numbers
-                }
-        for number in pr_numbers:
-            try:
-                head_sha, eval_hash = futures[number].result()
-                recorded = states.get(number)
-                outcome = decide(
-                    current_eval_hash=eval_hash,
-                    latest_status=recorded.status if recorded is not None else None,
-                    latest_eval_hash=recorded.eval_hash if recorded is not None else None,
-                    latest_version=recorded.version if recorded is not None else None,
-                    now=evaluated_at,
-                    timeout=timeout,
-                )
-                logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
-                if outcome.action is Decision.DISPATCH:
-                    pending.append(_Candidate(number, head_sha, eval_hash, recorded, outcome.reason))
-            except Exception:
-                logger.exception("skipping PR #%d: failed to evaluate", number)
-                failed.append(number)
-                continue
+            client_pool.put(worker_client)
+        if max_dispatches is None:
+            pending = _fingerprint_all(
+                pr_numbers,
+                states,
+                fingerprint=fingerprint,
+                client_pool=client_pool,
+                worker_count=worker_count,
+                now=evaluated_at,
+                timeout=timeout,
+                failed=failed,
+            )
+        else:
+            pending = _fingerprint_until_dispatchable(
+                pr_numbers,
+                states,
+                fingerprint=fingerprint,
+                client_pool=client_pool,
+                worker_count=worker_count,
+                limit=max(0, max_dispatches),
+                now=evaluated_at,
+                timeout=timeout,
+                failed=failed,
+            )
         _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
         if failed:
             raise RuntimeError(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")

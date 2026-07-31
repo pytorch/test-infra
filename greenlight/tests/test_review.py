@@ -209,6 +209,104 @@ def test_max_zero_dispatches_nothing(make_config):
     )
 
     assert scan.dispatched == []
+    # A zero cap does no work at all: nothing is fingerprinted, not just nothing dispatched.
+    assert scan.fingerprinted == []
+
+
+def test_max_with_no_candidates_dispatches_nothing(make_config):
+    scan = _run_scan(make_config, listed=[], fingerprints={}, max_dispatches=1)
+
+    assert scan.dispatched == []
+    assert scan.fingerprinted == []
+    assert scan.read_calls == [(review.TARGET_REPO, [])]
+
+
+def test_max_early_stop_limits_fingerprints(make_config):
+    numbers = list(range(1, 30))
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(n) for n in numbers],
+        fingerprints={n: (f"headsha{n}", _HASH_A) for n in numbers},
+        max_dispatches=1,
+    )
+
+    # 29 equally stale never-reviewed PRs: staleness ties break on listing order, so PR1 takes the
+    # single slot. Early-stop fingerprints only the first worker-sized batch, never all 29.
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert sorted(scan.fingerprinted) == list(range(1, review._FINGERPRINT_WORKERS + 1))
+
+
+def test_max_dispatches_most_stale_first(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2), _open_pr(3)],
+        fingerprints={1: ("headsha1", _HASH_B), 2: ("headsha2", _HASH_A), 3: ("headsha3", _HASH_B)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW), 3: _state(3, STATUS_LAND, _HASH_A, _OLD)},
+        max_dispatches=2,
+    )
+
+    # Same inputs as the --max-None fairness test but capped at 2: the two stalest dispatchable
+    # (never-reviewed PR2, then oldest-recorded PR3) dispatch in staleness order; PR1 is deferred.
+    assert [number for number, *_ in scan.dispatched] == [2, 3]
+
+
+def test_max_continues_past_non_dispatch_batches(make_config):
+    stale_decided = list(range(1, review._FINGERPRINT_WORKERS + 1))
+    target = review._FINGERPRINT_WORKERS + 1
+    numbers = [*stale_decided, target]
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(n) for n in numbers],
+        fingerprints={
+            **{n: (f"headsha{n}", _HASH_A) for n in stale_decided},
+            target: (f"headsha{target}", _HASH_B),
+        },
+        states={
+            **{n: _state(n, STATUS_LAND, _HASH_A, _OLD) for n in stale_decided},
+            target: _state(target, STATUS_LAND, _HASH_A, _NEW),
+        },
+        max_dispatches=1,
+    )
+
+    # The stalest PRs all SKIP (decided, unchanged) and fill the first batch with no dispatchable, so
+    # early-stop must fingerprint into the second batch to reach the lone changed PR -- SKIP PRs
+    # ahead of the Kth dispatchable are still fingerprinted.
+    assert scan.dispatched == [(target, f"headsha{target}", _HASH_B, DEFAULT_DISPATCH_REF)]
+    assert sorted(scan.fingerprinted) == numbers
+
+
+def test_max_fingerprint_failure_still_raises(make_config, caplog):
+    numbers = list(range(1, 30))
+    dispatched: list[int] = []
+
+    def boom_fingerprint(_client, number):
+        if number == 3:
+            raise RuntimeError("fingerprint boom")
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+        dispatched.append(number)
+
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[3\]"),
+    ):
+        review.run(
+            make_config(github_token="t"),
+            max_dispatches=1,
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(n) for n in numbers],
+            fingerprint=boom_fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            now=lambda: _NOW,
+        )
+
+    # PR3 sits in the first (only) launched batch, so its fingerprint failure is attempted and
+    # surfaces as the aggregate RuntimeError; the healthy stalest PR1 still dispatches first, and the
+    # never-fingerprinted PRs beyond that batch are absent from the sorted failed list.
+    assert dispatched == [1]
+    assert "skipping PR #3" in caplog.text
 
 
 def test_pr_targets_single_pr_bypasses_listing(make_config):
