@@ -248,20 +248,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_angle_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "191438",
-    "https://github.com/pytorch/pytorch/issues/191438",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_native_group_norm_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "185367",
-    "https://github.com/pytorch/pytorch/issues/185367",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
@@ -285,20 +271,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
-    "189326",
-    "https://github.com/pytorch/pytorch/issues/189326",
-    [
-      "xpu"
-    ]
-  ],
-  "test_copy_non_blocking_is_pinned_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "189327",
-    "https://github.com/pytorch/pytorch/issues/189327",
-    [
-      "xpu"
     ]
   ],
   "test_cross_stream_stride_copy (__main__.TestUserStreamCompile)": [
@@ -434,13 +406,6 @@
       "linux"
     ]
   ],
-  "test_dtypes_angle_xpu (__main__.TestCommonXPU)": [
-    "191434",
-    "https://github.com/pytorch/pytorch/issues/191434",
-    [
-      "xpu"
-    ]
-  ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
     "188840",
     "https://github.com/pytorch/pytorch/issues/188840",
@@ -460,13 +425,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "190295",
-    "https://github.com/pytorch/pytorch/issues/190295",
-    [
-      "xpu"
     ]
   ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
@@ -777,13 +735,6 @@
       "mac",
       "macos",
       "rocm"
-    ]
-  ],
-  "test_new_group_sort_ranks_false_preserves_order_cpu (__main__.TestC10dTorchCommsBasicCPU)": [
-    "189222",
-    "https://github.com/pytorch/pytorch/issues/189222",
-    [
-      "linux"
     ]
   ],
   "test_nonzero_above_uint32 (__main__.TestMPS)": [
@@ -1203,13 +1154,6 @@
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_swap_allows_tensor_weakref (__main__.TestTorch)": [
-    "190165",
-    "https://github.com/pytorch/pytorch/issues/190165",
     [
       "dynamo"
     ]
