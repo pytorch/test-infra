@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90532014328
+2026-07-29T09:31:11.1583316Z 	libdw.so.1 => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/libdw.so.1 (0x00007f3e94600000)
+2026-07-29T09:31:11.1583602Z 	librocfft.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocfft.so (0x00007f3e92c51000)
+2026-07-29T09:31:11.1583902Z 	librocrand.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocrand.so (0x00007f3e6308a000)
+2026-07-29T09:31:11.1584214Z 	librocsparse.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocsparse.so (0x00007f3e4389c000)
+2026-07-29T09:31:11.1584472Z 	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x00007f3e949d3000)
+2026-07-29T09:31:11.1584638Z 	librocm_smi64.so.1 => not found
+2026-07-29T09:31:11.1584850Z 	librocroller.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocroller.so (0x00007f3e417f3000)
+2026-07-29T09:31:11.1585099Z 	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f3e949b3000)
+2026-07-29T09:31:11.1585332Z 	libelf.so.1 => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/libelf.so.1 (0x00007f3e41400000)
+2026-07-29T09:31:11.1585593Z 	libbz2.so.1 => /lib/x86_64-linux-gnu/libbz2.so.1 (0x00007f3e949a0000) with runpath 
+2026-07-29T09:31:11.1585873Z 	librocrand.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocrand.so (0x00007f3e6308a000)
+2026-07-29T09:31:11.1586183Z 	librocsparse.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocsparse.so (0x00007f3e4389c000)
+2026-07-29T09:31:11.1586441Z 	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x00007f3e949d3000)
+2026-07-29T09:31:11.1586604Z 	librocm_smi64.so.1 => not found
+2026-07-29T09:31:11.1586814Z 	librocroller.so => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/librocroller.so (0x00007f3e417f3000)
+2026-07-29T09:31:11.1587061Z 	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f3e949b3000)
+2026-07-29T09:31:11.1587290Z 	libelf.so.1 => /usr/local/bin/../lib/python3.11/site-packages/torch/lib/libelf.so.1 (0x00007f3e41400000)
+2026-07-29T09:31:11.1587550Z 	libbz2.so.1 => /lib/x86_64-linux-gnu/libbz2.so.1 (0x00007f3e949a0000) with runpath '
+2026-07-29T09:31:11.1587747Z +++ realpath /pytorch/.ci/pytorch/check_binary.sh
+2026-07-29T09:31:11.1587916Z ++ dirname /__w/pytorch/pytorch/.ci/pytorch/check_binary.sh
+2026-07-29T09:31:11.1588147Z + TEST_CODE_DIR=/__w/pytorch/pytorch/.ci/pytorch/test_example_code
+2026-07-29T09:31:11.1588310Z + [[ manywheel == \l\i\b\t\o\r\c\h ]]
+2026-07-29T09:31:11.1588430Z + pushd /tmp
+2026-07-29T09:31:11.1588530Z + python -c 'import torch'
+2026-07-29T09:31:11.1588643Z /tmp /__w/pytorch/pytorch
+2026-07-29T09:31:11.1840479Z Traceback (most recent call last):
+2026-07-29T09:31:11.1840624Z   File "<string>", line 1, in <module>
+2026-07-29T09:31:11.1841381Z   File "/usr/local/lib/python3.11/site-packages/torch/__init__.py", line 585, in <module>
+2026-07-29T09:31:11.1841644Z     from torch._C import *  # noqa: F403
+2026-07-29T09:31:11.1841776Z     ^^^^^^^^^^^^^^^^^^^^^^
+#=MATCH=# 2026-07-29T09:31:11.1841963Z ‹ImportError: librocm_smi64.so.1: cannot open shared object file: No such file or directory›
+2026-07-29T09:31:11.1935632Z ##[error]Process completed with exit code 1.
+2026-07-29T09:31:11.1998608Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T09:31:11.1999172Z Post job cleanup.
+2026-07-29T09:31:11.2002857Z ##[command]/usr/bin/docker exec  8bda2e23036fe80d9b13e7d5d77ff945d4efcd0d8e8b24827a685b03a2f9dd5c sh -c "cat /etc/*release | grep ^ID"
+2026-07-29T09:31:11.3020094Z [command]/usr/bin/git version
+2026-07-29T09:31:11.3037699Z git version 2.47.3
+2026-07-29T09:31:11.3050880Z Copying '/github/home/.gitconfig' to '/__w/_temp/878e9770-5b02-48f8-8705-a545bab3dd7b/.gitconfig'
+2026-07-29T09:31:11.3055952Z Temporarily overriding HOME='/__w/_temp/878e9770-5b02-48f8-8705-a545bab3dd7b' before making global git config changes
+2026-07-29T09:31:11.3056310Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-29T09:31:11.3058034Z [command]/usr/bin/git config --global --add safe.directory /__w/pytorch/pytorch
+2026-07-29T09:31:11.3075783Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-29T09:31:11.3090460Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-29T09:31:11.3281824Z Entering 'android/libs/fbjni'
+2026-07-29T09:31:11.3305899Z Entering 'third_party/FP16'
+2026-07-29T09:31:11.3329111Z Entering 'third_party/FXdiv'
+2026-07-29T09:31:11.3352899Z Entering 'third_party/NNPACK'
+2026-07-29T09:31:11.3374956Z Entering 'third_party/NVTX'
+2026-07-29T09:31:11.3397693Z Entering 'third_party/VulkanMemoryAllocator'
+2026-07-29T09:31:11.3420975Z Entering 'third_party/XNNPACK'
+2026-07-29T09:31:11.3447851Z Entering 'third_party/aiter'
+2026-07-29T09:31:11.3471670Z Entering 'third_party/aiter/3rdparty/composable_kernel'
+2026-07-29T09:31:11.3499848Z Entering 'third_party/benchmark'
+2026-07-29T09:31:11.3523316Z Entering 'third_party/composable_kernel'
+2026-07-29T09:31:11.3548870Z Entering 'third_party/cpp-httplib'
+2026-07-29T09:31:11.3571803Z Entering 'third_party/cpuinfo'
+2026-07-29T09:31:11.3594269Z Entering 'third_party/cudnn_frontend'
+2026-07-29T09:31:11.3614815Z Entering 'third_party/cutlass'
+2026-07-29T09:31:11.3638154Z Entering 'third_party/fbgemm'
+2026-07-29T09:31:11.3665763Z Entering 'third_party/fbgemm/external/asmjit'
+2026-07-29T09:31:11.3683458Z Entering 'third_party/fbgemm/external/composable_kernel'

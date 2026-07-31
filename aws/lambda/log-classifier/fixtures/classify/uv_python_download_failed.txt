@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90611728755
+2026-07-29T17:45:10.6195370Z INFO:delocate.delocating:Modifying install name in torch/_C.cpython-315-darwin.so from @rpath/libtorch_python.dylib to @loader_path/lib/libtorch_python.dylib
+2026-07-29T17:45:10.6668400Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_cpu.dylib from @rpath/libomp.dylib to @loader_path/libomp.dylib
+2026-07-29T17:45:21.0990840Z Fixing: /var/folders/8j/sfr9qqcj73j4p6nhwcfpr0th0000gn/T/tmp.B5JxQEFrJ0/torch-2.14.0.dev20260729-cp315-cp315-macosx_14_0_arm64.whl
+2026-07-29T17:45:21.1126230Z Delocated 1 wheel(s) into /Users/runner/work/_temp/artifacts/wheel-py3_15-cpu
+2026-07-29T17:45:21.1165820Z + rm -f /var/folders/8j/sfr9qqcj73j4p6nhwcfpr0th0000gn/T/tmp.FmfbskW61P
+2026-07-29T17:45:21.1218920Z ++ date +%s
+2026-07-29T17:45:21.1248580Z + iter_elapsed=1172
+2026-07-29T17:45:21.1248990Z ##[endgroup]
+2026-07-29T17:45:21.1249200Z + iter=7
+2026-07-29T17:45:21.1249420Z + echo ::endgroup::
+2026-07-29T17:45:21.1249710Z + [[ -n /Users/runner/work/_temp/_runner_file_commands/step_summary_f131439b-56ef-4a21-95bc-a187349a78a3 ]]
+2026-07-29T17:45:21.1250330Z + [[ ! -s /Users/runner/work/_temp/_runner_file_commands/step_summary_f131439b-56ef-4a21-95bc-a187349a78a3 ]]
+2026-07-29T17:45:21.1250750Z + printf '| %s | %dm %ds |\n' 3.15 19 32
+2026-07-29T17:45:21.1257640Z + for desired in '${DESIRED_PYTHONS}'
+2026-07-29T17:45:21.1258040Z + echo '::group::Build wheel for Python 3.15t'
+2026-07-29T17:45:21.1258440Z ##[group]Build wheel for Python 3.15t
+2026-07-29T17:45:21.1261380Z ++ date +%s
+2026-07-29T17:45:21.1279740Z + iter_start=1785347121
+2026-07-29T17:45:21.1279950Z + uv_req=3.15t
+2026-07-29T17:45:21.1280120Z + case "${desired}" in
+2026-07-29T17:45:21.1281500Z + uv_req=3.15.0b3+freethreaded
+2026-07-29T17:45:21.1281730Z + [[ 3.15t == 3.15* ]]
+2026-07-29T17:45:21.1282220Z + export UV_PYTHON_DOWNLOADS_JSON_URL=https://raw.githubusercontent.com/astral-sh/uv/0.11.29/crates/uv-python/download-metadata.json
+2026-07-29T17:45:21.1282930Z + UV_PYTHON_DOWNLOADS_JSON_URL=https://raw.githubusercontent.com/astral-sh/uv/0.11.29/crates/uv-python/download-metadata.json
+2026-07-29T17:45:21.1283370Z + uv python install 3.15.0b3+freethreaded
+2026-07-29T17:45:21.6250830Z Downloading cpython-3.15.0b3+freethreaded-macos-aarch64-none (download) (25.7MiB)
+2026-07-29T17:45:22.2734140Z  Downloaded cpython-3.15.0b3+freethreaded-macos-aarch64-none (download)
+2026-07-29T17:45:22.3596910Z Installed Python 3.15.0b3 in 1.17s
+2026-07-29T17:45:22.3712790Z  + cpython-3.15.0b3+freethreaded-macos-aarch64-none (python3.15t)
+2026-07-29T17:45:22.4083860Z ++ uv python find 3.15.0b3+freethreaded
+#=MATCH=# 2026-07-29T17:45:22.4385450Z error: ‹Error while fetching remote python downloads json› from 'https://raw.githubusercontent.com/astral-sh/uv/0.11.29/crates/uv-python/download-metadata.json'
+2026-07-29T17:45:22.4489290Z   Caused by: Failed to download https://raw.githubusercontent.com/astral-sh/uv/0.11.29/crates/uv-python/download-metadata.json
+2026-07-29T17:45:22.4590500Z   Caused by: error sending request for url (https://raw.githubusercontent.com/astral-sh/uv/0.11.29/crates/uv-python/download-metadata.json)
+2026-07-29T17:45:22.4691600Z   Caused by: client error (Connect)
+2026-07-29T17:45:22.4792510Z   Caused by: dns error
+2026-07-29T17:45:22.4892930Z   Caused by: failed to lookup address information: nodename nor servname provided, or not known
+2026-07-29T17:45:22.4993560Z + py_bin=
+2026-07-29T17:45:22.5105160Z ##[error]Process completed with exit code 2.
+2026-07-29T17:45:22.5245620Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T17:45:22.5246620Z ##[group]Run actions/upload-artifact@v4.4.0
+2026-07-29T17:45:22.5246840Z with:
+2026-07-29T17:45:22.5247000Z   name: wheel-py3_10-cpu
+2026-07-29T17:45:22.5247180Z   retention-days: 14
+2026-07-29T17:45:22.5247320Z   if-no-files-found: error
+2026-07-29T17:45:22.5247520Z   path: /Users/runner/work/_temp/artifacts/wheel-py3_10-cpu
+2026-07-29T17:45:22.5247740Z   compression-level: 6
+2026-07-29T17:45:22.5248010Z   overwrite: false
+2026-07-29T17:45:22.5248180Z   include-hidden-files: false
+2026-07-29T17:45:22.5248360Z env:
+2026-07-29T17:45:22.5248540Z   ALPINE_IMAGE: 308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine
+2026-07-29T17:45:22.5249040Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T17:45:22.5249230Z   BUILD_ENVIRONMENT: macos-arm64-binary-wheel
+2026-07-29T17:45:22.5251570Z   GITHUB_TOKEN: ***
+2026-07-29T17:45:22.5251700Z   PR_NUMBER: 
+2026-07-29T17:45:22.5257680Z   SKIP_ALL_TESTS: 1
+2026-07-29T17:45:22.5257840Z   PYTORCH_ROOT: /Users/runner/work/pytorch/pytorch
+2026-07-29T17:45:22.5258350Z   PACKAGE_TYPE: wheel
+2026-07-29T17:45:22.5258510Z   DESIRED_CUDA: cpu
+2026-07-29T17:45:22.5258640Z   GPU_ARCH_TYPE: cpu
+2026-07-29T17:45:22.5258820Z   DESIRED_PYTHONS: 3.10 3.11 3.12 3.13 3.14 3.14t 3.15 3.15t
+2026-07-29T17:45:22.5260410Z   PYTORCH_EXTRA_INSTALL_REQUIREMENTS: cuda-toolkit[nvrtc,cudart,cupti,cufft,curand,cusolver,cusparse,cublas,cufile,nvjitlink,nvtx]==13.0.3; platform_system == 'Linux' | cuda-bindings>=13.0.3,<14; platform_system == 'Linux' and python_version < '3.15' | nvidia-cudnn-cu13==9.24.0.43; platform_system == 'Linux' | nvidia-cusparselt-cu13==0.8.1; platform_system == 'Linux' | nvidia-nccl-cu13==2.30.7; platform_system == 'Linux' | nvidia-nvshmem-cu13==3.4.5; platform_system == 'Linux'

@@ -38,6 +38,14 @@ pattern = '^Found the unimplemented_v2 or unimplemented_v2_with_warning calls be
 name = 'Lintrunner failure'
 pattern = '^>>> Lint for.*'
 
+# lintrunner's linter tool itself crashed ("General linter failure"), distinct
+# from a per-file lint violation above. Capture the linter code so CLANGTIDY vs
+# RUFF etc. group separately; otherwise only the far-away "##[error]Linter
+# failed" GHA-error catch-all fires and loses which linter died.
+[[rule]]
+name = 'Lintrunner general linter failure'
+pattern = '^\s*Error \((\w+)\) Linter failed$'
+
 [[rule]]
 name = 'GHA timeout'
 pattern = '^##\[error\]The action (.*)has timed out(?: after .* minutes|)?.'
@@ -342,6 +350,15 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 [[rule]]
 name = 'Docker error'
 pattern = '^docker: Error.*'
+
+# `uv python install/find` couldn't fetch download-metadata.json (runner DNS /
+# network failure); the URL carries the uv version, so capture only the stable
+# phrase. Without this the real cause is unclassified and a benign CMake
+# feature-probe "ninja: build stopped" (Build error) wins instead -- so this must
+# sit above the ninja rules below.
+[[rule]]
+name = 'uv python download metadata fetch failed'
+pattern = '''^error: (Error while fetching remote python downloads json) from '.*'$'''
 
 # ninja's per-edge failure marker, printed immediately before the failing command
 # and its error output -- so surfacing it lands the real cause in the context

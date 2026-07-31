@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90390561472
+2026-07-28T19:53:48.0466804Z + python tools/dynamo/verify_dynamo.py
+2026-07-28T19:53:48.9552189Z Traceback (most recent call last):
+2026-07-28T19:53:48.9558314Z   File "/__w/pytorch/pytorch/tools/dynamo/verify_dynamo.py", line 153, in check_dynamo
+2026-07-28T19:53:48.9558868Z     import torch._dynamo as dynamo
+2026-07-28T19:53:48.9559450Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/__init__.py", line 13, in <module>
+2026-07-28T19:53:48.9560001Z     from . import (
+2026-07-28T19:53:48.9560209Z     ...<7 lines>...
+2026-07-28T19:53:48.9560405Z     )
+2026-07-28T19:53:48.9561385Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/aot_compile.py", line 17, in <module>
+2026-07-28T19:53:48.9562150Z     from torch._dynamo.convert_frame import GraphRuntimeEnv
+2026-07-28T19:53:48.9562809Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/convert_frame.py", line 62, in <module>
+2026-07-28T19:53:48.9563461Z     from torch._dynamo.symbolic_convert import TensorifyState
+2026-07-28T19:53:48.9564145Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/symbolic_convert.py", line 65, in <module>
+2026-07-28T19:53:48.9564710Z     from . import (
+2026-07-28T19:53:48.9564920Z     ...<6 lines>...
+2026-07-28T19:53:48.9565117Z     )
+2026-07-28T19:53:48.9565592Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/trace_rules.py", line 60, in <module>
+2026-07-28T19:53:48.9566159Z     from .variables import (
+2026-07-28T19:53:48.9566405Z     ...<22 lines>...
+2026-07-28T19:53:48.9566607Z     )
+2026-07-28T19:53:48.9567115Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/variables/__init__.py", line 19, in <module>
+2026-07-28T19:53:48.9567710Z     from .base import VariableTracker
+2026-07-28T19:53:48.9568301Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/variables/base.py", line 2550, in <module>
+2026-07-28T19:53:48.9568880Z     from . import builder
+2026-07-28T19:53:48.9569432Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/variables/builder.py", line 212, in <module>
+2026-07-28T19:53:48.9570032Z     from .builtin import BuiltinVariable
+2026-07-28T19:53:48.9570636Z   File "/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/variables/builtin.py", line 96, in <module>
+2026-07-28T19:53:48.9571223Z     from .object_protocol import (
+2026-07-28T19:53:48.9571491Z     ...<38 lines>...
+2026-07-28T19:53:48.9571697Z     )
+#=MATCH=# 2026-07-28T19:53:48.9572564Z ‹ImportError: cannot import name 'python_constant_richcompare_impl' from 'torch._dynamo.variables.object_protocol' (/opt/python-3.14-venv/lib/python3.14t/site-packages/torch/_dynamo/variables/object_protocol.py)›
+2026-07-28T19:53:48.9573438Z 
+2026-07-28T19:53:48.9573541Z CPU eager sanity check failed
+2026-07-28T19:53:48.9573714Z 
+2026-07-28T19:53:48.9573815Z Python version: 3.14.6
+2026-07-28T19:53:48.9574055Z `torch` version: 2.14.0a0+giteb77cd9
+2026-07-28T19:53:48.9574328Z CUDA version: None
+2026-07-28T19:53:48.9574543Z ROCM version: None
+2026-07-28T19:53:48.9574679Z 
+2026-07-28T19:53:49.3624494Z + sccache_epilogue
+2026-07-28T19:53:49.3624816Z + echo '::group::Sccache Compilation Log'
+2026-07-28T19:53:49.3625204Z + echo '=================== sccache compilation log ==================='
+2026-07-28T19:53:49.3625807Z + python /__w/pytorch/pytorch/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-28T19:53:49.3626545Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-28T19:53:49.3627061Z + sccache --show-stats
+2026-07-28T19:53:49.3627319Z + sccache --stop-server
+2026-07-28T19:53:49.3627803Z ##[group]Sccache Compilation Log
+2026-07-28T19:53:49.3628129Z =================== sccache compilation log ===================
+2026-07-28T19:53:49.3628951Z storage write check failed: PermissionDenied (permanent) at write => S3Error { code: "AccessDenied", message: "Access Denied", resource: "", request_id: "SJF9RM80BGD8C5RK" }
+2026-07-28T19:53:49.3629645Z 
+2026-07-28T19:53:49.3630068Z 
+2026-07-28T19:53:49.3630073Z 
+2026-07-28T19:53:49.3630159Z Context:
+2026-07-28T19:53:49.3630266Z 
+2026-07-28T19:53:49.3630574Z    uri: https://s3.us-east-1.amazonaws.com/ossci-compiler-cache-circleci-v2/.sccache_check
+2026-07-28T19:53:49.3630981Z 
+2026-07-28T19:53:49.3632439Z    response: Parts { status: 403, version: HTTP/1.1, headers: {"x-amz-request-id": "SJF9RM80BGD8C5RK", "x-amz-id-2": "mCryCpR9VwAv0TL0oaHVBZcS+AVOfH66izPS92bdJKl1xYMF5OdxSO1NPPhW8KHOPGWhz7+GAbo=", "content-type": "application/xml", "transfer-encoding": "chunked", "date": "Tue, 28 Jul 2026 19:53:22 GMT", "connection": "close", "server": "AmazonS3"} }
+2026-07-28T19:53:49.3633838Z 
+2026-07-28T19:53:49.3633921Z    service: s3
+2026-07-28T19:53:49.3634049Z 
+2026-07-28T19:53:49.3634138Z    path: .sccache_check

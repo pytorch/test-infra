@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90388671272
+2026-07-28T19:45:38.7020954Z + [[ -d /tmp/.lintbin ]]
+2026-07-28T19:45:38.7021188Z + cp -r /tmp/.lintbin .
+2026-07-28T19:45:38.7021408Z Running pyrefly
+2026-07-28T19:45:39.1120877Z + [[ '' == \1 ]]
+2026-07-28T19:45:39.1121161Z + spin regenerate-version
+2026-07-28T19:45:39.1121422Z + spin regenerate-type-stubs
+2026-07-28T19:45:39.1121855Z $ /var/lib/jenkins/ci_env/bin/python -m tools.generate_torch_version --is-debug=false
+2026-07-28T19:45:39.1122502Z Changes detected in type stub files for Pytorch type stubs. Regenerating...
+2026-07-28T19:45:39.1123638Z $ /var/lib/jenkins/ci_env/bin/python -m tools.pyi.gen_pyi --native-functions-path aten/src/ATen/native/native_functions.yaml --tags-path aten/src/ATen/native/tags.yaml --deprecated-functions-path tools/autograd/deprecated.yaml
+2026-07-28T19:45:42.7619505Z Type stubs and hashes updated.
+2026-07-28T19:45:42.7620010Z No hash file for Datapipes type stubs. Regenerating...
+2026-07-28T19:45:42.7620496Z $ /var/lib/jenkins/ci_env/bin/python torch/utils/data/datapipes/gen_pyi.py
+2026-07-28T19:45:42.9637645Z + find torch -name '*.pyi' -exec git add --force -- '{}' +
+2026-07-28T19:45:42.9638019Z + RC=0
+2026-07-28T19:45:42.9638256Z + spin lint -- --force-color --tee-json=lint.json
+2026-07-28T19:45:42.9638570Z Type stubs regenerated.
+2026-07-28T19:45:43.1663309Z Changes detected in lint configuration files. Setting up linting tools...
+2026-07-28T19:45:43.9756490Z Linting tools set up and hashes updated.
+2026-07-28T19:45:43.9756836Z Regenerating version...
+2026-07-28T19:45:43.9757245Z $ /var/lib/jenkins/ci_env/bin/python -m tools.generate_torch_version --is-debug=false
+2026-07-28T19:45:44.1782822Z Regenerating type stubs...
+2026-07-28T19:45:44.1783573Z No changes detected in type stub files for Pytorch type stubs.
+2026-07-28T19:45:44.1783996Z No hash file for Datapipes type stubs. Regenerating...
+2026-07-28T19:45:44.1784440Z $ /var/lib/jenkins/ci_env/bin/python torch/utils/data/datapipes/gen_pyi.py
+2026-07-28T19:45:44.1784860Z Type stubs regenerated.
+2026-07-28T19:45:44.1785070Z Done.
+2026-07-28T19:45:44.1785453Z $ uvx --python 3.10 lintrunner@0.12.7 list
+2026-07-28T19:45:44.3810647Z $ uvx --python 3.10 lintrunner@0.12.7 --tee-json /tmp/spinlint_af73oy2t.json --take ROOT_LOGGING,PYBIND11_INCLUDE,ATEN_CPU_GPU_AGNOSTIC,RAWCUDA,NO_WORKFLOWS_ON_FORK,TESTOWNERS,META_NO_CREATE_UNBACKED,RAWCUDADEVICE,C10_NODISCARD,CMAKE_MINIMUM_REQUIRED,GHA,EXEC,DEPLOY_DETECTION,SHELLCHECK,CMAKE,RUFF,WORKFLOWSYNC,HEADER_ONLY_LINTER,NEWLINE,PYPIDEP,CUBINCLUDE,LINTRUNNER_VERSION,MERGE_CONFLICTLESS_CSV,PYREFLY,CALL_ONCE,IMPORT_LINTER,SPACES,C10_UNUSED,NOQA,DOCSTRING_LINTER,RAWTHROW,TYPEIGNORE,TABS,COPYRIGHT,TYPENOSKIP,CONTEXT_DECORATOR,SET_LINTER,SYMPY_MINMAX,INCLUDE,ERROR_PRONE_ISINSTANCE,PYPROJECT,PYBIND11_SPECIALIZATION,CLANGTIDY_EXECUTORCH_COMPATIBILITY,NATIVEFUNCTIONS,ONCE_FLAG --all-files --force-color
+2026-07-28T19:45:58.8164351Z 
+2026-07-28T19:45:58.8164364Z 
+2026-07-28T19:45:58.8164948Z >>> General linter failure:
+2026-07-28T19:45:58.8165175Z 
+#=MATCH=# 2026-07-28T19:45:58.8166295Z   [41m[1mError[0m (‹CLANGTIDY_EXECUTORCH_COMPATIBILITY›) [4mLinter failed[0m
+2026-07-28T19:45:58.8166945Z     Linter failed. This a bug, please file an issue against the linter
+2026-07-28T19:45:58.8167325Z     maintainer.
+2026-07-28T19:45:58.8167507Z     
+2026-07-28T19:45:58.8167670Z     CONTEXT:
+2026-07-28T19:45:58.8167896Z     Linter command failed with non-zero exit code.
+2026-07-28T19:45:58.8168190Z     STDERR:
+2026-07-28T19:45:58.8168501Z     <Thread_0:DEBUG> $ /__w/pytorch/pytorch/.lintbin/clang-tidy -p=/__w/
+2026-07-28T19:45:58.8168995Z     pytorch/pytorch/build --extra-arg -I/usr/lib/llvm-11/include/openmp
+2026-07-28T19:45:58.8169515Z     --extra-arg -I/usr/include/python3.10 --extra-arg -I/__w/pytorch/pytorch/
+2026-07-28T19:45:58.8170082Z     third_party/pybind11/include --extra-arg -I/__w/pytorch/pytorch/aten/
+2026-07-28T19:45:58.8170589Z     src --extra-arg -I/__w/pytorch/pytorch --extra-arg -I/usr/bin/../lib/gcc/
+2026-07-28T19:45:58.8171092Z     x86_64-linux-gnu/11/../../../../include/c++/11 --extra-arg -I/usr/bin/../
+2026-07-28T19:45:58.8171575Z     lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11
+2026-07-28T19:45:58.8172069Z     --extra-arg -I/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/
+2026-07-28T19:45:58.8172554Z     c++/11/backward --extra-arg -I/usr/lib/llvm-18/lib/clang/18/include
+2026-07-28T19:45:58.8173049Z     --extra-arg -I/usr/local/include --extra-arg -I/usr/include/x86_64-linux-
+2026-07-28T19:45:58.8173563Z     gnu --extra-arg -I/usr/include --extra-arg -I/__w/pytorch/pytorch/build
+2026-07-28T19:45:58.8174069Z     --extra-arg -I/__w/pytorch/pytorch/build/aten/src /__w/pytorch/pytorch/
+2026-07-28T19:45:58.8174480Z     c10/macros/Export.h -- -std=c++17
+2026-07-28T19:45:58.8174852Z     <Thread_1:DEBUG> $ /__w/pytorch/pytorch/.lintbin/clang-tidy -p=/__w/
+2026-07-28T19:45:58.8175335Z     pytorch/pytorch/build --extra-arg -I/usr/lib/llvm-11/include/openmp
+2026-07-28T19:45:58.8175853Z     --extra-arg -I/usr/include/python3.10 --extra-arg -I/__w/pytorch/pytorch/
+2026-07-28T19:45:58.8176382Z     third_party/pybind11/include --extra-arg -I/__w/pytorch/pytorch/aten/
+2026-07-28T19:45:58.8176889Z     src --extra-arg -I/__w/pytorch/pytorch --extra-arg -I/usr/bin/../lib/gcc/
+2026-07-28T19:45:58.8177384Z     x86_64-linux-gnu/11/../../../../include/c++/11 --extra-arg -I/usr/bin/../
+2026-07-28T19:45:58.8177867Z     lib/gcc/x86_64-linux-gnu/11/../../../../include/x86_64-linux-gnu/c++/11
+2026-07-28T19:45:58.8178353Z     --extra-arg -I/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/
+2026-07-28T19:45:58.8178833Z     c++/11/backward --extra-arg -I/usr/lib/llvm-18/lib/clang/18/include
