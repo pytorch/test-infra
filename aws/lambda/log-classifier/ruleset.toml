@@ -294,6 +294,27 @@ pattern = '^Command took >\d+min, returning 124 \((\S+)'
 name = 'Test file timeout'
 pattern = '^Command took >\d+min, returning 124'
 
+# A test file that blew up at import/collection time, before any test ran. The
+# only other evidence is run_test.py's "<file> N/N failed!" summary below, which
+# names the file but not the cause -- so a dev sees "test_ops 3/4 failed!" when
+# the truth is e.g. an unresolved merge-conflict marker committed into
+# common_methods_invocations.py, breaking every file that imports it. Observed:
+# 16 of 16 sampled wrapper-only PR failures were collection failures with a real
+# exception line sitting right there in the log.
+#
+# These must sit ABOVE the wrapper to beat it. Only SyntaxError/AssertionError
+# are promoted, not the generic Python exception rules further down: the wrapper
+# line itself can read "RuntimeError: test_ops 3/4 failed!", so demoting the
+# wrapper under 'Python RuntimeError' would capture that whole line instead and
+# make grouping strictly worse. Neither exception below can match the wrapper.
+[[rule]]
+name = 'Python SyntaxError'
+pattern = '^\s*SyntaxError: .*'
+
+[[rule]]
+name = 'Python AssertionError'
+pattern = '^AssertionError: .*'
+
 # run_test.py's per-file summary ("<file> <shard>/<nshards> failed!", sometimes
 # with a RuntimeError: prefix). Capture just the file so the shard index and the
 # optional prefix don't scatter the same file across groups.
