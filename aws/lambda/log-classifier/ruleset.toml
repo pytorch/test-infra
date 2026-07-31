@@ -463,9 +463,19 @@ name = 'GitHub API rate limit exceeded'
 pattern = '(API rate limit exceeded) for user ID \d+'
 
 # Runner-side infra failure: the pod backing a self-hosted runner never came
-# online. The pod name is random per run, so capture only the stable phase +
-# reason tail ("Pending: backoff timeout") to keep it groupable. Must beat the
-# generic GHA-error fallback below.
+# online. Only the "-<rand>-runner-<rand>-workflow" suffix of the pod name is
+# random; the prefix is the runner pool (mt-l-x86iavx512-8-64, lf-l-arm64g4-16-62,
+# ...), which is exactly what you need to see a single sick pool. Capturing only
+# the phase tail is useless on its own: in a week of main it was
+# "Pending: backoff timeout" for 39 of 39 pod failures, i.e. one group for ~15%
+# of all red jobs, while 90% of them were in fact one pool (x86iavx512-8-64).
+# Capture pool + phase. The general form below stays as a fallback so a pod name
+# that doesn't fit this shape still classifies rather than falling through to
+# the GHA-error catch-all.
+[[rule]]
+name = 'Runner pod failed to come online'
+pattern = '^##\[error\]Error: pod failed to come online with error: Error: Pod (.+)-\w+-runner-\w+-workflow is unhealthy with phase status (.*)$'
+
 [[rule]]
 name = 'Runner pod failed to come online'
 pattern = '^##\[error\]Error: pod failed to come online with error:.*is unhealthy with phase status (.*)$'
