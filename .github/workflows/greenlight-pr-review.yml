@@ -195,16 +195,17 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Protected environment holding the Green Light App key. Provision before first run:
-    #   secrets GREENLIGHT_APP_ID and GREENLIGHT_APP_PRIVATE_KEY on this environment;
-    #   the CLICKHOUSE_HUD_USER_* secrets are inherited from the repo/org.
+    # Protected environment holding ALL record-job secrets (provision before first run):
+    #   GREENLIGHT_APP_ID and GREENLIGHT_APP_PRIVATE_KEY (the Green Light App key), and
+    #   CLICKHOUSE_HUD_USER_WRITE_URL/_USERNAME/_PASSWORD (a dedicated ClickHouse write
+    #   user). These live on this environment and are NOT inherited from the repo/org.
     environment: greenlight-record
     permissions:
       contents: read
     env:
-      CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
-      CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
-      CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+      CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_URL }}
+      CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_USERNAME }}
+      CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_WRITE_PASSWORD }}
       PR_NUMBER: ${{ github.event.inputs.pr_number }}
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
