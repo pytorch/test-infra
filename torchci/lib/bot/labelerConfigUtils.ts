@@ -115,3 +115,24 @@ export async function getLabelsFromLabelerConfig(
   }
   return labels;
 }
+
+export function getDraftGatedLabelsToRemove(
+  config: Record<string, unknown>,
+  changed_files: string[],
+  isDraft: boolean
+): string[] {
+  const toRemove: string[] = [];
+  for (const [label, rawRule] of Object.entries(config)) {
+    const rule = normalizeLabelerRule(rawRule);
+    if (rule === null || Array.isArray(rule) || rule.draft === undefined) {
+      continue;
+    }
+    const globsMatch = globsFromRule(rule).some((glob) =>
+      changed_files.some((file) => minimatch(file, glob))
+    );
+    if (globsMatch && !draftConstraintAllowsLabel(rule, isDraft)) {
+      toRemove.push(label);
+    }
+  }
+  return toRemove;
+}

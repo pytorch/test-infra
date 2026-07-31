@@ -1,5 +1,6 @@
 import {
   draftConstraintAllowsLabel,
+  getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
   normalizeLabelerRule,
 } from "lib/bot/labelerConfigUtils";
@@ -128,6 +129,44 @@ describe("labelerConfigUtils", () => {
         "torch/a.py",
       ]);
       expect(labels).toEqual(["ciflow/x"]);
+    });
+  });
+
+  describe("getDraftGatedLabelsToRemove", () => {
+    const config = {
+      "ciflow/inductor": {
+        globs: ["torch/_dynamo/**"],
+        draft: false,
+      },
+      "draft-only": {
+        globs: ["torch/**"],
+        draft: true,
+      },
+      "module: dynamo": ["torch/_dynamo/**"],
+    };
+
+    test("removes draft:false label when PR is draft", () => {
+      expect(
+        getDraftGatedLabelsToRemove(config, ["torch/_dynamo/a.py"], true)
+      ).toEqual(["ciflow/inductor"]);
+    });
+
+    test("removes draft:true label when PR is not draft", () => {
+      expect(getDraftGatedLabelsToRemove(config, ["torch/a.py"], false)).toEqual(
+        ["draft-only"]
+      );
+    });
+
+    test("skips legacy array rules", () => {
+      expect(
+        getDraftGatedLabelsToRemove(config, ["torch/_dynamo/a.py"], true)
+      ).not.toContain("module: dynamo");
+    });
+
+    test("returns empty when globs do not match", () => {
+      expect(getDraftGatedLabelsToRemove(config, ["docs/a.md"], true)).toEqual(
+        []
+      );
     });
   });
 });

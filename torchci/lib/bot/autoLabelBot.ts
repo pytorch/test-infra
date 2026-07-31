@@ -1,6 +1,13 @@
 import { Context, Probot } from "probot";
-import { addLabelErrComment, hasRequiredLabels } from "./checkLabelsUtils";
-import { getLabelsFromLabelerConfig } from "./labelerConfigUtils";
+import {
+  addLabelErrComment,
+  BOT_AUTHORS,
+  hasRequiredLabels,
+} from "./checkLabelsUtils";
+import {
+  getDraftGatedLabelsToRemove,
+  getLabelsFromLabelerConfig,
+} from "./labelerConfigUtils";
 import {
   addLabels,
   CachedIssueTracker,
@@ -338,6 +345,35 @@ function getReleaseNotesCategoryAndTopic(
   return ["uncategorized", topic];
 }
 
+async function getBotAppliedLabels(
+  context: Context,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  labelNames: string[]
+): Promise<Set<string>> {
+  if (labelNames.length === 0) {
+    return new Set();
+  }
+  const lastLabeledBy = new Map<string, string>();
+  const events = await context.octokit.issues.listEventsForTimeline(
+    context.repo({ issue_number: issueNumber })
+  );
+  for (const event of events.data) {
+    if (event.event === "labeled" && event.label?.name) {
+      lastLabeledBy.set(event.label.name, event.actor?.login ?? "");
+    }
+  }
+  const botApplied = new Set<string>();
+  for (const label of labelNames) {
+    const actor = lastLabeledBy.get(label)?.toLowerCase() ?? "";
+    if (actor.endsWith("[bot]") || BOT_AUTHORS.includes(actor)) {
+      botApplied.add(label);
+    }
+  }
+  return botApplied;
+}
+
 export async function addNewLabels(
   existingLabels: string[],
   labelsToAdd: string[],
@@ -455,6 +491,7 @@ function myBot(app: Probot): void {
       "pull_request.edited",
       "pull_request.synchronize",
       "pull_request.ready_for_review",
+      "pull_request.converted_to_draft",
     ],
     async (context) => {
       const owner = context.payload.repository.owner.login;
@@ -533,10 +570,38 @@ function myBot(app: Probot): void {
 
       await addNewLabels(labels, labelsToAdd, context);
 
+      const labelerConfig = await labelerConfigTracker.loadLabelsConfig(
+        context
+      );
+      const draftGatedToRemove = getDraftGatedLabelsToRemove(
+        labelerConfig as Record<string, unknown>,
+        filesChanged,
+        isDraft
+      ).filter((label) => labels.includes(label));
+      const botAppliedLabels = await getBotAppliedLabels(
+        context,
+        owner,
+        repo,
+        context.payload.pull_request.number,
+        draftGatedToRemove
+      );
+      for (const label of draftGatedToRemove) {
+        if (!botAppliedLabels.has(label)) {
+          continue;
+        }
+        await context.octokit.issues.removeLabel(
+          context.repo({
+            issue_number: context.payload.pull_request.number,
+            name: label,
+          })
+        );
+      }
+
       // After auto-labeling is complete, check if the PR still needs required labels.
       // We do this here instead of in checkLabelsBot to avoid a race condition where
       // checkLabelsBot posts an error comment before auto-labeling has a chance to
-      // add the required labels.
+      // add the required labels. Only run on opened (not ready_for_review) so draft
+      // transitions do not post duplicate required-label comments.
       if (
         isPyTorchPyTorch(owner, repo) &&
         context.payload.action === "opened"
