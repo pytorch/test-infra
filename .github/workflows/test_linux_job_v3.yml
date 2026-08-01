@@ -55,7 +55,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        runner_type: ["mt-l-x86iavx512-11-125-a100"]
+        runner_type: ["mt-l-x86aavx2-29-113-l4"]
     with:
       job-name: "linux-py3.10-cu128"
       runner: ${{ matrix.runner_type }}
