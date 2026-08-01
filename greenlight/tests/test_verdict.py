@@ -59,11 +59,29 @@ class _FakeHead:
         self.sha = sha
 
 
+class _FakeComment:
+    def __init__(self, body: str, login: str | None, rec: _Recorder) -> None:
+        self.body = body
+        self.user = _FakeUser(login) if login is not None else None
+        self._rec = rec
+
+    def edit(self, body: str) -> None:
+        self.body = body
+        self._rec.events.append("edit")
+
+
 class _FakePR:
-    def __init__(self, head_sha: str, rec: _Recorder, reviews: list[_FakeReview] | None = None) -> None:
+    def __init__(
+        self,
+        head_sha: str,
+        rec: _Recorder,
+        reviews: list[_FakeReview] | None = None,
+        issue_comments: list[_FakeComment] | None = None,
+    ) -> None:
         self.head = _FakeHead(head_sha)
         self._rec = rec
         self._reviews = reviews or []
+        self._issue_comments = issue_comments or []
         self.created_reviews: list[tuple[str, str]] = []
         self.comments: list[str] = []
 
@@ -76,6 +94,9 @@ class _FakePR:
         self.comments.append(body)
         self._rec.events.append("comment")
         return object()
+
+    def get_issue_comments(self) -> list[_FakeComment]:
+        return self._issue_comments
 
     def get_reviews(self) -> list[_FakeReview]:
         return self._reviews
@@ -128,7 +149,9 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     repo = _FakeRepo(pr)
     gh = _FakeGithub(repo)
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
-    req = VerdictRequest(repo="pytorch/pytorch", pr_number=7, head_sha="headsha", eval_hash=_HASH, verdict_file=vf)
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=7, head_sha="headsha", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
     captured: dict[str, object] = {}
 
     def build_github(token):
@@ -140,7 +163,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert captured["token"] == "tok"
     assert gh.get_repo_names == ["pytorch/pytorch"]
     assert repo.get_pull_numbers == [7]
-    assert rec.events == ["emit", "review:APPROVE"]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
     assert _decode(emit.row_gzip) == {
         "repo": "pytorch/pytorch",
         "pr_number": 7,
@@ -156,8 +179,11 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}.json.gz"
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
-    assert body.startswith("Green Light: LAND (reason: clean)")
-    assert "LGTM" in body
+    assert body == verdict._LAND_REVIEW_BODY == "Green Light: approved"
+    comment = pr.comments[0]
+    assert verdict._COMMENT_MARKER in comment
+    assert f"**{verdict._LAND_HEADLINE}**" in comment
+    assert "LGTM" in comment
 
 
 def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
@@ -166,7 +192,7 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     pr = _FakePR("h", rec)
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="ok")
-    req = VerdictRequest(repo="o/r", pr_number=3, head_sha="h", eval_hash=_HASH, verdict_file=vf)
+    req = VerdictRequest(repo="o/r", pr_number=3, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
@@ -224,9 +250,12 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert payload["reason"] == "scope_too_large"
     assert payload["eval_job"] == "https://eval-run"
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}.json.gz"
-    # The posted comment is defanged: header + run URL, @ neutralized, fenced.
+    # The upserted comment is defanged: marker + headline + <details> why, @ neutralized, fenced.
     body = pr.comments[0]
-    assert body.startswith("Green Light: NO_LAND (reason: scope_too_large)\nhttps://eval-run")
+    assert body.startswith(verdict._COMMENT_MARKER)
+    assert f"**{verdict._NO_LAND_HEADLINE}**" in body
+    assert "reason: `scope_too_large`" in body
+    assert "[Inference job](https://eval-run)" in body
     assert "@pytorchbot" not in body
     assert "pytorchbot" in body
     assert verdict._ZERO_WIDTH_SPACE in body
@@ -244,7 +273,48 @@ def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_pat
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["emit", "comment"]
-    assert pr.comments[0].startswith("Green Light: NO_LAND (reason: unclear_intent)")
+    assert pr.comments[0].startswith(verdict._COMMENT_MARKER)
+    assert f"**{verdict._NO_LAND_HEADLINE}**" in pr.comments[0]
+    assert "reason: `unclear_intent`" in pr.comments[0]
+
+
+def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    existing = _FakeComment(f"{verdict._COMMENT_MARKER}\nprevious NO_LAND text", _BOT, rec)
+    pr = _FakePR("h", rec, issue_comments=[existing])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # LAND approves with the one-liner, then edits its own comment in place (no new create).
+    assert rec.events == ["emit", "review:APPROVE", "edit"]
+    assert pr.created_reviews[0] == ("APPROVE", verdict._LAND_REVIEW_BODY)
+    assert pr.comments == []
+    assert verdict._COMMENT_MARKER in existing.body
+    assert f"**{verdict._LAND_HEADLINE}**" in existing.body
+    assert "LGTM" in existing.body
+
+
+def test_full_no_land_upserts_existing_marked_comment(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    existing = _FakeComment(f"{verdict._COMMENT_MARKER}\nprevious LAND text", _BOT, rec)
+    pr = _FakePR("h", rec, reviews=reviews, issue_comments=[existing])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # NO_LAND dismisses the prior approval, then edits the same comment in place.
+    assert rec.events == ["emit", "dismiss:1", "edit"]
+    assert pr.comments == []
+    assert f"**{verdict._NO_LAND_HEADLINE}**" in existing.body
+    assert "needs work" in existing.body
 
 
 def test_mismatched_head_land_still_records_and_approves(make_config, tmp_path):
@@ -253,12 +323,14 @@ def test_mismatched_head_land_still_records_and_approves(make_config, tmp_path):
     pr = _FakePR("actual-sha", rec)  # live head differs from the input head_sha
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
-    req = VerdictRequest(repo="r", pr_number=1, head_sha="expected-sha", eval_hash=_HASH, verdict_file=vf)
+    req = VerdictRequest(
+        repo="r", pr_number=1, head_sha="expected-sha", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     # A moved head no longer aborts: the row is emitted and the PR is approved.
-    assert rec.events == ["emit", "review:APPROVE"]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
     assert _decode(emit.row_gzip)["head_sha"] == "expected-sha"  # the INPUT head_sha is stored verbatim
     assert pr.created_reviews[0][0] == "APPROVE"
 
@@ -344,7 +416,13 @@ def test_dry_run_full_is_offline(make_config, tmp_path, caplog):
     rec = _Recorder()
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
     req = VerdictRequest(
-        repo="pytorch/pytorch", pr_number=3, head_sha="h", eval_hash=_HASH, verdict_file=vf, dry_run=True
+        repo="pytorch/pytorch",
+        pr_number=3,
+        head_sha="h",
+        eval_hash=_HASH,
+        verdict_file=vf,
+        dry_run=True,
+        bot_login=_BOT,
     )
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
@@ -403,7 +481,17 @@ def test_no_land_without_bot_login_raises(make_config, tmp_path):
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="scope_too_large", message="m")
     req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf)
 
-    with pytest.raises(ValueError, match="NO_LAND requires --bot-login"):
+    with pytest.raises(ValueError, match="LAND/NO_LAND requires --bot-login"):
+        verdict.run(
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
+        )
+
+
+def test_land_without_bot_login_raises(make_config, tmp_path):
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
+    req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf)
+
+    with pytest.raises(ValueError, match="LAND/NO_LAND requires --bot-login"):
         verdict.run(
             req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
@@ -421,7 +509,7 @@ def test_full_invalid_eval_hash_rejected_before_github(make_config, tmp_path):
 
 def test_full_missing_github_token_raises(make_config, tmp_path):
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
-    req = VerdictRequest(repo="r", pr_number=6, head_sha="h", eval_hash=_HASH, verdict_file=vf)
+    req = VerdictRequest(repo="r", pr_number=6, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
 
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
         verdict.run(
@@ -434,7 +522,7 @@ def test_emit_errors_are_not_swallowed(make_config, tmp_path):
     pr = _FakePR("h", rec)
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
-    req = VerdictRequest(repo="r", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf)
+    req = VerdictRequest(repo="r", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
 
     def raising_emit(row_gzip: bytes, key: str) -> NoReturn:
         raise RuntimeError("emit boom")
@@ -493,18 +581,36 @@ def test_defang_uses_longer_fence_than_backtick_run():
     assert "before ``` after" in out
 
 
-def test_post_body_includes_header_and_run_url():
-    body = verdict._post_body("LAND", "clean", "hi", "https://run")
+def test_comment_body_land_has_marker_headline_reason_and_job_link():
+    body = verdict._comment_body("LAND", "clean", "looks good", "https://job")
 
-    assert body.startswith("Green Light: LAND (reason: clean)\nhttps://run\n\n")
-    assert "hi" in body
+    assert body.startswith(verdict._COMMENT_MARKER)
+    assert f"**{verdict._LAND_HEADLINE}**" in body
+    assert "<details>" in body
+    assert "<summary>Why</summary>" in body
+    assert "looks good" in body
+    assert "reason: `clean`" in body
+    assert "[Inference job](https://job)" in body
+    assert body.endswith("</details>")
 
 
-def test_post_body_omits_url_line_when_absent():
-    body = verdict._post_body("NO_LAND", "scope_too_large", "hi", "")
+def test_comment_body_no_land_headline_and_defangs_message():
+    body = verdict._comment_body("NO_LAND", "scope_too_large", "ping @pytorchbot", "https://job")
 
-    assert body.startswith("Green Light: NO_LAND (reason: scope_too_large)\n\n")
+    assert f"**{verdict._NO_LAND_HEADLINE}**" in body
+    assert "@pytorchbot" not in body
+    assert "pytorchbot" in body
+    assert verdict._ZERO_WIDTH_SPACE in body
+    assert "```" in body
+
+
+def test_comment_body_omits_job_link_when_absent():
+    body = verdict._comment_body("NO_LAND", "unclear_intent", "hi", "")
+
+    assert "[Inference job]" not in body
     assert "https" not in body
+    assert "reason: `unclear_intent`" in body
+    assert body.endswith("</details>")
 
 
 def test_resolve_cli_status_overrides_file(tmp_path):

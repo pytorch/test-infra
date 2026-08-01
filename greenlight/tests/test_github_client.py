@@ -411,10 +411,27 @@ class _FakeVerdictReview:
         self.dismissed_with = message
 
 
+class _FakeVerdictComment:
+    def __init__(self, body: str, user: _FakeActor | None) -> None:
+        self.body = body
+        self.user = user
+        self.edited_with: str | None = None
+
+    def edit(self, body: str) -> None:
+        self.body = body
+        self.edited_with = body
+
+
 class _FakeVerdictPR:
-    def __init__(self, head_sha: str = "head", reviews: list[_FakeVerdictReview] | None = None) -> None:
+    def __init__(
+        self,
+        head_sha: str = "head",
+        reviews: list[_FakeVerdictReview] | None = None,
+        existing_comments: list[_FakeVerdictComment] | None = None,
+    ) -> None:
         self.head = _FakeBase(head_sha)
         self._reviews = reviews or []
+        self._existing_comments = existing_comments or []
         self.created_reviews: list[tuple[str, str]] = []
         self.issue_comments: list[str] = []
 
@@ -425,6 +442,9 @@ class _FakeVerdictPR:
     def create_issue_comment(self, body: str) -> object:
         self.issue_comments.append(body)
         return object()
+
+    def get_issue_comments(self) -> list[_FakeVerdictComment]:
+        return self._existing_comments
 
     def get_reviews(self) -> list[_FakeVerdictReview]:
         return self._reviews
@@ -496,12 +516,96 @@ def test_post_review_propagates_errors():
         github_client.post_review(_BoomPR(), event=github_client.REVIEW_EVENT_APPROVE, body="x")
 
 
-def test_create_issue_comment_posts_body():
-    pr = _FakeVerdictPR()
+_MARKER = "<!-- mark -->"
+_BOT_LOGIN = "greenlight-app[bot]"
 
-    github_client.create_issue_comment(pr, "please split this PR")
 
-    assert pr.issue_comments == ["please split this PR"]
+def test_upsert_issue_comment_edits_bot_marked_comment():
+    existing = _FakeVerdictComment(f"{_MARKER}\nold body", _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new body", author_login=_BOT_LOGIN)
+
+    assert existing.edited_with == "new body"
+    assert pr.issue_comments == []  # edited in place, not created
+
+
+def test_upsert_issue_comment_creates_when_none_marked():
+    existing = _FakeVerdictComment("unrelated comment", _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh body", author_login=_BOT_LOGIN)
+
+    assert existing.edited_with is None
+    assert pr.issue_comments == ["fresh body"]
+
+
+def test_upsert_issue_comment_ignores_marked_comment_from_other_author():
+    impostor = _FakeVerdictComment(f"{_MARKER} copied", _FakeActor("alice"))
+    pr = _FakeVerdictPR(existing_comments=[impostor])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh body", author_login=_BOT_LOGIN)
+
+    assert impostor.edited_with is None  # a copied marker cannot hijack the upsert
+    assert pr.issue_comments == ["fresh body"]
+
+
+def test_upsert_issue_comment_matches_author_case_insensitively():
+    existing = _FakeVerdictComment(f"{_MARKER} x", _FakeActor("GreenLight-App[Bot]"))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new body", author_login=_BOT_LOGIN)
+
+    assert existing.edited_with == "new body"
+
+
+def test_upsert_issue_comment_handles_comment_with_no_user():
+    ghost = _FakeVerdictComment(f"{_MARKER} ghost", None)
+    pr = _FakeVerdictPR(existing_comments=[ghost])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh body", author_login=_BOT_LOGIN)
+
+    assert ghost.edited_with is None
+    assert pr.issue_comments == ["fresh body"]
+
+
+def test_upsert_issue_comment_handles_user_with_empty_login():
+    ghost = _FakeVerdictComment(f"{_MARKER} x", _FakeActor(None))
+    pr = _FakeVerdictPR(existing_comments=[ghost])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh body", author_login=_BOT_LOGIN)
+
+    assert ghost.edited_with is None
+    assert pr.issue_comments == ["fresh body"]
+
+
+@pytest.mark.parametrize("bad_login", ["", None])
+def test_upsert_issue_comment_rejects_empty_author_login(bad_login: str | None) -> None:
+    existing = _FakeVerdictComment(f"{_MARKER} anything", _FakeActor("alice"))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    with pytest.raises(ValueError, match="non-empty author_login"):
+        github_client.upsert_issue_comment(
+            pr,
+            marker=_MARKER,
+            body="new body",
+            author_login=bad_login,  # type: ignore[arg-type]
+        )
+
+    assert existing.edited_with is None
+    assert pr.issue_comments == []
+
+
+def test_upsert_issue_comment_edits_first_matching_comment():
+    first = _FakeVerdictComment(f"{_MARKER} first", _FakeActor(_BOT_LOGIN))
+    second = _FakeVerdictComment(f"{_MARKER} second", _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[first, second])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new body", author_login=_BOT_LOGIN)
+
+    assert first.edited_with == "new body"
+    assert second.edited_with is None
+    assert pr.issue_comments == []
 
 
 def test_dismiss_prior_greenlight_approvals_only_dismisses_own_approved():

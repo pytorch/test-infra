@@ -9,10 +9,12 @@ holding ``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASO
 ``message`` must be non-empty. The command emits a gzipped single-line JSONEachRow row to
 a fixed local path (the record workflow uploads it to ``s3://gha-artifacts/``, where the
 clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and then
-updates GitHub with a defanged copy of the message: LAND posts an approving review,
-NO_LAND dismisses greenlight's own prior approval (matched by ``bot_login``) and comments.
-MARKER statuses (CANCELLED / FAILED / AI_REVIEW_STARTED) only emit the row -- no PR fetch,
-no GitHub post. The command never writes to ClickHouse directly.
+updates GitHub with a defanged copy of the message. Both LAND and NO_LAND upsert one
+canonical verdict comment -- edited in place across runs, found by a hidden marker and
+restricted to greenlight's own account (``bot_login``); LAND additionally posts an approving
+review, and NO_LAND additionally dismisses greenlight's own prior approval (matched by
+``bot_login``). MARKER statuses (CANCELLED / FAILED / AI_REVIEW_STARTED) only emit the row --
+no PR fetch, no GitHub post. The command never writes to ClickHouse directly.
 """
 
 from __future__ import annotations
@@ -30,7 +32,6 @@ from greenlight.constants import (
     RETRY_STATUSES,
     S3_KEY_PREFIX,
     STATUS_LAND,
-    STATUS_NO_LAND,
     TERMINAL_STATUSES,
     VERDICT_STATUSES,
 )
@@ -69,6 +70,14 @@ ALLOWED_REASONS: frozenset[str] = frozenset(
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
 _MESSAGE_CAP = 4000
 _ZERO_WIDTH_SPACE = chr(0x200B)
+
+# The hidden marker anchors the single evolving verdict comment: every run locates its own
+# prior comment by this substring and edits it in place, so NO_LAND<->LAND transitions reuse
+# one comment instead of stacking new ones.
+_COMMENT_MARKER = "<!-- greenlight-verdict -->"
+_LAND_HEADLINE = "PR approved to be merged without human review"
+_NO_LAND_HEADLINE = "PR requires human review"
+_LAND_REVIEW_BODY = "Green Light: approved"
 
 # Fixed paths are the contract with the record workflow, which `aws s3 cp`s the row file
 # to the bucket-relative key. Constant on purpose; tests inject a fake emit instead.
@@ -184,11 +193,23 @@ def _defang(text: str) -> str:
     return f"{fence}\n{neutralized}\n{fence}"
 
 
-def _post_body(status: str, reason: str, message: str, run_url: str) -> str:
-    header = f"Green Light: {status} (reason: {reason})"
-    if run_url:
-        header = f"{header}\n{run_url}"
-    return f"{header}\n\n{_defang(message)}"
+def _comment_body(status: str, reason: str, message: str, job_url: str) -> str:
+    headline = _LAND_HEADLINE if status == STATUS_LAND else _NO_LAND_HEADLINE
+    parts = [
+        _COMMENT_MARKER,
+        f"**{headline}**",
+        "",
+        "<details>",
+        "<summary>Why</summary>",
+        "",
+        _defang(message),
+        "",
+        f"reason: `{reason}`",
+    ]
+    if job_url:
+        parts += ["", f"[Inference job]({job_url})"]
+    parts.append("</details>")
+    return "\n".join(parts)
 
 
 def _object_key(repo: str, pr_number: int, version: str) -> str:
@@ -273,9 +294,11 @@ def _run_full(
     pr = github_client.get_pr(client, request.repo, request.pr_number)
     key = _emit_payload(request, status, reason, message, now=now, emit=emit)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
-    body = _post_body(status, reason, message, request.eval_job_url or request.agent_job_url)
+    job_url = request.agent_job_url or request.eval_job_url
+    body = _comment_body(status, reason, message, job_url)
     if status == STATUS_LAND:
-        github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=body)
+        github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
+        github_client.upsert_issue_comment(pr, marker=_COMMENT_MARKER, body=body, author_login=request.bot_login)
         logger.info("approved %s#%d", request.repo, request.pr_number)
         return
     dismissed = github_client.dismiss_prior_greenlight_approvals(
@@ -285,7 +308,7 @@ def _run_full(
         logger.info(
             "dismissed %d prior greenlight approval(s) on %s#%d", len(dismissed), request.repo, request.pr_number
         )
-    github_client.create_issue_comment(pr, body)
+    github_client.upsert_issue_comment(pr, marker=_COMMENT_MARKER, body=body, author_login=request.bot_login)
     logger.info("posted NO_LAND comment on %s#%d", request.repo, request.pr_number)
 
 
@@ -304,8 +327,11 @@ def run(
     _validate_reason(reason)
     _validate_message(message)
     _validate_eval_hash(request.eval_hash)
-    if status == STATUS_NO_LAND and not request.bot_login:
-        raise ValueError("NO_LAND requires --bot-login to dismiss any prior greenlight approval")
+    if status in TERMINAL_STATUSES and not request.bot_login:
+        raise ValueError(
+            "LAND/NO_LAND requires --bot-login (author-scopes the verdict comment upsert; "
+            "NO_LAND also dismisses prior greenlight approvals)"
+        )
     _run_full(
         request,
         config,

@@ -86,11 +86,19 @@ if TYPE_CHECKING:
         def state(self) -> str: ...
         def dismiss(self, message: str) -> None: ...
 
+    class _VerdictComment(Protocol):
+        @property
+        def body(self) -> str: ...
+        @property
+        def user(self) -> _PRUser | None: ...
+        def edit(self, body: str) -> None: ...
+
     class _VerdictPR(Protocol):
         @property
         def head(self) -> _PRBase: ...
         def create_review(self, *, body: str, event: str) -> object: ...
         def create_issue_comment(self, body: str) -> object: ...
+        def get_issue_comments(self) -> Iterable[_VerdictComment]: ...
         def get_reviews(self) -> Iterable[_VerdictReview]: ...
 
     class _VerdictRepo(Protocol):
@@ -237,7 +245,23 @@ def post_review(pr: _VerdictPR, *, event: str, body: str) -> None:
     pr.create_review(body=body, event=event)
 
 
-def create_issue_comment(pr: _VerdictPR, body: str) -> None:
+def upsert_issue_comment(pr: _VerdictPR, *, marker: str, body: str, author_login: str) -> None:
+    """Edit greenlight's own ``marker``-bearing comment in place, or create it if none exists.
+
+    The author filter restricts edits to a comment authored by ``author_login`` so a copied
+    ``marker`` in a third party's comment cannot hijack the canonical verdict comment.
+    """
+    if not author_login:
+        raise ValueError("upsert_issue_comment requires a non-empty author_login")
+    target = author_login.lower()
+    for comment in pr.get_issue_comments():
+        if marker not in comment.body:
+            continue
+        user = comment.user
+        if user is None or not user.login or user.login.lower() != target:
+            continue
+        comment.edit(body)
+        return
     pr.create_issue_comment(body)
 
 
