@@ -114,6 +114,24 @@ jobs:
           additional-fetch-refs: |
             refs/heads/main
 
+      # An additional fetch ref pointing at the ref being checked out. Both
+      # refspecs resolve to the same destination, and git refuses to fetch two
+      # different sources into one destination, so the additional one has to be
+      # dropped. This is what a push to main hits with the default
+      # additional-fetch-refs
+      - name: Additional fetch refs colliding with the checked out ref
+        uses: ./.github/actions/checkout/
+        with:
+          path: .github/actions/checkout/colliding-fetch-refs
+          additional-fetch-refs: |
+            ${{ github.ref }}
+
+      - name: Verify additional fetch refs colliding with the checked out ref
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: __test__/verify-colliding-fetch-refs.sh
+
       # Sparse checkout
       - name: Sparse checkout
         uses: ./.github/actions/checkout/
