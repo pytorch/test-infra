@@ -221,4 +221,43 @@ describe('ref-helper tests', () => {
     expect(refSpec[0]).toBe('+refs/heads/main:refs/remotes/origin/main')
     expect(refSpec[1]).toBe('+refs/tags/my-tag:refs/tags/my-tag')
   })
+
+  it('getRefSpec sha + refs/heads/ drops the colliding additional fetch ref', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/main', commit, [
+      'refs/heads/main'
+    ])
+    expect(refSpec.length).toBe(1)
+    expect(refSpec[0]).toBe(`+${commit}:refs/remotes/origin/main`)
+  })
+
+  it('getRefSpec keeps additional fetch refs that do not collide', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/main', commit, [
+      'refs/heads/main',
+      'refs/heads/viable/strict'
+    ])
+    expect(refSpec.length).toBe(2)
+    expect(refSpec[0]).toBe(`+${commit}:refs/remotes/origin/main`)
+    expect(refSpec[1]).toBe(
+      '+refs/heads/viable/strict:refs/remotes/origin/viable/strict'
+    )
+  })
+
+  it('getRefSpec de-dupes repeated additional fetch refs', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/my/branch', '', [
+      'refs/heads/main',
+      'refs/heads/main'
+    ])
+    expect(refSpec.length).toBe(2)
+    expect(refSpec[0]).toBe(
+      '+refs/heads/my/branch:refs/remotes/origin/my/branch'
+    )
+    expect(refSpec[1]).toBe('+refs/heads/main:refs/remotes/origin/main')
+  })
+
+  it('getRefSpec sha only keeps additional fetch refs', async () => {
+    const refSpec = refHelper.getRefSpec('', commit, ['refs/heads/main'])
+    expect(refSpec.length).toBe(2)
+    expect(refSpec[0]).toBe(commit)
+    expect(refSpec[1]).toBe('+refs/heads/main:refs/remotes/origin/main')
+  })
 })

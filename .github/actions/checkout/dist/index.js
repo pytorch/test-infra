@@ -2340,13 +2340,38 @@ function getSingleRefSpec(ref, commit) {
         return [`+${ref}:${ref}`];
     }
 }
+/**
+ * Returns the destination of a refspec, or an empty string when the refspec has
+ * no destination (a bare commit)
+ */
+function getRefSpecDestination(refSpec) {
+    const separator = refSpec.indexOf(':');
+    return separator < 0 ? '' : refSpec.substring(separator + 1);
+}
 function getRefSpec(ref, commit, additionalFetchRefs) {
     const result = [];
-    const singleRefSpec = getSingleRefSpec(ref, commit);
-    result.push(...singleRefSpec);
+    const destinations = new Set();
+    // git refuses to fetch two different sources into the same destination, so
+    // keep only the first refspec for any given destination. The ref being
+    // checked out comes first and wins: when the workflow pins a commit on main,
+    // its `+<commit>:refs/remotes/origin/main` would otherwise collide with
+    // `+refs/heads/main:refs/remotes/origin/main` from additional-fetch-refs
+    const appendRefSpecs = (refSpecs) => {
+        for (const refSpec of refSpecs) {
+            const destination = getRefSpecDestination(refSpec);
+            if (destination) {
+                if (destinations.has(destination)) {
+                    core.info(`Skipping refspec '${refSpec}', '${destination}' is already fetched by another refspec`);
+                    continue;
+                }
+                destinations.add(destination);
+            }
+            result.push(refSpec);
+        }
+    };
+    appendRefSpecs(getSingleRefSpec(ref, commit));
     for (const additionalRef of additionalFetchRefs) {
-        const additionalRefSpec = getSingleRefSpec(additionalRef, '');
-        result.push(...additionalRefSpec);
+        appendRefSpecs(getSingleRefSpec(additionalRef, ''));
     }
     return result;
 }
