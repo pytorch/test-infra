@@ -40,7 +40,7 @@ just run <args>                      # pass arbitrary args to the greenlight CLI
 just review --pr 123                 # restrict the scan to PR #123
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
-just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 30)
+just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
 ```
 
 `just review` scans the trusted authors' open PRs and, for each PR that is new or changed
@@ -54,11 +54,12 @@ holds the lock (`2` is an argparse usage error).
 
 The scan flags combine: `--pr N` restricts the scan to one PR, `--max N` caps how many
 dispatches a single iteration issues, `--ref` sets the `pytorch/test-infra` ref the
-reviewer workflow is dispatched at (default `main`), and `--timeout-minutes` (default 30)
+reviewer workflow is dispatched at (default `main`), and `--timeout-minutes` (default 45)
 is how long an `AI_REVIEW_STARTED` review counts as in-flight before it is re-dispatched.
-That 30 is below the reviewer workflow's own ~45-55 min budget, so with the default the
-scanner can re-dispatch (cancel and restart) a review that is still running, and a very
-slow PR can loop; raise `--timeout-minutes` in the deployment if that matters.
+That 45 is above the reviewer workflow's own ~37-40 min budget, so with the default the
+scanner lets a running review finish (or time out and record a verdict) before it
+re-dispatches, rather than cancelling and restarting one that is still running; lower
+`--timeout-minutes` in the deployment if you need a stuck review reclaimed sooner.
 
 Daemon mode loops the phase on an interval:
 

@@ -37,17 +37,18 @@ just run review --loop --interval 30 # daemon, 30s between iterations
 just run review --pr 123             # restrict the scan to PR #123
 just run review --max 5              # cap this iteration at 5 dispatches
 just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
-just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 30)
+just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 45)
 ```
 
 `review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan that finds at least one
 trusted-author PR also reads ClickHouse, so the `CLICKHOUSE_*` credentials must be set in
 practice; without the token `review` exits non-zero.
 
-The default `--timeout-minutes` is 30, below the reviewer workflow's own ~45-55 min
-budget, so with the default the scanner can re-dispatch (cancel and restart) a review that
-is still running, and a very slow PR can loop. Raise `--timeout-minutes` in the deployment
-if that matters.
+The default `--timeout-minutes` is 45, above the reviewer workflow's own ~37-40 min
+budget, so with the default the scanner lets a running review finish (or time out and
+record a verdict) before it re-dispatches, rather than cancelling and restarting one that
+is still running. Lower `--timeout-minutes` in the deployment if you need a stuck review
+reclaimed sooner.
 
 ### Recording a verdict
 
@@ -108,7 +109,7 @@ from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fin
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
 PRs that are new or changed. An `AI_REVIEW_STARTED` marker is treated as an in-flight
-review and left alone until the `--timeout-minutes` window (default 30) elapses. `review`
+review and left alone until the `--timeout-minutes` window (default 45) elapses. `review`
 requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan with at least one PR reads
 ClickHouse (`CLICKHOUSE_*`).
 

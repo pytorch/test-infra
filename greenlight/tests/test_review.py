@@ -36,7 +36,7 @@ _HASH_B = "b" * 64
 _AUTHORIZED = frozenset({"alband", "alice", "bob"})
 _NOW = datetime(2026, 7, 31, 12, 0, 0)
 _FRESH = _NOW - timedelta(minutes=10)
-_STALE = _NOW - timedelta(minutes=40)
+_STALE = _NOW - timedelta(minutes=50)
 _OLD = _NOW - timedelta(days=2)
 _NEW = _NOW - timedelta(hours=1)
 

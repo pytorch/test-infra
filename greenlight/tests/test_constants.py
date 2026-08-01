@@ -84,7 +84,7 @@ def test_dispatch_constants_values():
     assert constants.DISPATCH_REPO == "pytorch/test-infra"
     assert constants.WORKFLOW_FILE == "greenlight-pr-review.yml"
     assert constants.DEFAULT_DISPATCH_REF == "main"
-    assert constants.DEFAULT_TIMEOUT_MINUTES == 30
+    assert constants.DEFAULT_TIMEOUT_MINUTES == 45
 
 
 def test_merge_rules_constants_values():

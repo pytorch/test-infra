@@ -105,7 +105,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "pr": None,
         "max_dispatches": None,
         "ref": "main",
-        "timeout_minutes": 30,
+        "timeout_minutes": 45,
         "force": False,
     }
 
@@ -487,12 +487,12 @@ def test_main_verdict_applies_log_level_override(monkeypatch):
 def test_review_parser_parses_scan_flags():
     parser = cli.build_parser()
     args = parser.parse_args(
-        ["review", "--pr", "5", "--max", "3", "--ref", "release/2.9", "--timeout-minutes", "45", "--force"]
+        ["review", "--pr", "5", "--max", "3", "--ref", "release/2.9", "--timeout-minutes", "60", "--force"]
     )
     assert args.pr == 5
     assert args.max == 3
     assert args.ref == "release/2.9"
-    assert args.timeout_minutes == 45
+    assert args.timeout_minutes == 60
     assert args.force is True
 
 
@@ -512,7 +512,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
-    rc = cli.main(["review", "--pr", "5", "--max", "2", "--ref", "release/2.9", "--timeout-minutes", "45"])
+    rc = cli.main(["review", "--pr", "5", "--max", "2", "--ref", "release/2.9", "--timeout-minutes", "60"])
 
     assert rc == EXIT_OK
     review_mock.assert_called_once()
@@ -521,7 +521,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "pr": 5,
         "max_dispatches": 2,
         "ref": "release/2.9",
-        "timeout_minutes": 45,
+        "timeout_minutes": 60,
         "force": False,
     }
 

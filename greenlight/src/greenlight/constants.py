@@ -23,7 +23,7 @@ TARGET_REPO = "pytorch/pytorch"
 DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
-DEFAULT_TIMEOUT_MINUTES = 30
+DEFAULT_TIMEOUT_MINUTES = 45
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 
