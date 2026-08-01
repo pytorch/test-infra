@@ -67,6 +67,23 @@ WHERE job_id IN {job_ids:Array(Int64)}
 GROUP BY file, name
 """
 
+# The (build_env, test_config) that actually RAN in one pre-merge `pull` workflow run, read
+# from the run's real test jobs — the SOLE source of pull-matrix membership, since the TD
+# exclusion artifact omits any config that excluded no files (so absence there means nothing).
+# Filtered by (run_id, run_attempt) to the exact run whose exclusions were used; created_at
+# bounds engage the workflow_job minmax skip index (run_id is not the primary-key prefix).
+# DISTINCT collapses per-shard duplicates and unmerged ReplacingMergeTree rows, so FINAL is
+# unnecessary; only '% / test (%' names carry a (build_env, test_config).
+PULL_CONFIGS_SQL = """
+SELECT DISTINCT name
+FROM default.workflow_job
+WHERE run_id = {run_id:Int64}
+  AND run_attempt = {run_attempt:Int64}
+  AND created_at >= {lower:DateTime}
+  AND created_at <= {upper:DateTime}
+  AND name LIKE '% / test (%'
+"""
+
 # Failing-config resolution, step A: test jobs on the LANDED commit (head_sha = the merged
 # sha on main), keyed by name so build_env/test_config can be parsed. Bounded by created_at
 # around the merge window so the workflow_job scan stays small. FINAL dedupes the

@@ -1,38 +1,31 @@
 """Pre-merge trunk-gate classification for a merged commit's test signal.
 
-`premerge_status` vocabulary (one of), all sourced from premerge_status.py:
+`premerge_status` vocabulary (all sourced from premerge_status.py):
   RUN_SUCCEEDED         test ran on the validated pre-merge head and passed
   RUN_FAILED            test ran and at least one shard failed ("merged despite red")
-  NOT_RUN:force_merge   REAL force merge (skip_mandatory_checks) AND the test did not
-                        run at all — the gate was bypassed
+  NOT_RUN:force_merge   real force merge (skip_mandatory_checks) AND the test did not run
   NOT_RUN:skipped       test ran but every run was skipped
-  NOT_RUN:td_excluded   no pre-merge result AND the file was in the pre-merge `pull`
-                        TD-excluded set FOR A (build_env, test_config) where the test later
-                        FAILED on main — real per-config target determination removed the
-                        failing config's coverage
-  NOT_RUN:test_absent   no pre-merge result, but a failing (build_env, test_config)'s
-                        build_env WAS in the pull matrix with the file kept — the config ran
-                        pre-merge and TD did not exclude the file (renamed/removed/param
-                        drift), NOT TD
-  NOT_RUN:not_in_matrix no pre-merge result AND no failing config's build_env was in the
-                        pre-merge pull matrix (e.g. a trunk/CUDA/ROCm/mps-only signal), or
-                        no pre-merge gate jobs ran on the head at all
-  NOT_RUN:td_unknown    no pre-merge result and TD's per-config decision is unresolvable —
-                        no non-empty pull TD artifact, or no failing config resolved on main
-  NOT_RUN:no_merge_record  no default.merges row resolved a pre-merge head (ghstack
-                        non-tip commit, revert, direct push, or data predating the table);
-                        the honest label, NOT an inference of force merge.
-  ERROR                 a query failed after retries, or the merge timestamp is missing/
-                        epoch. RUN_SUCCEEDED is NEVER emitted from an empty/partial read.
+  NOT_RUN:td_excluded   no pre-merge result AND the file was TD-excluded from a config where
+                        it later FAILED on main (per-config), or from the flat artifact
+  NOT_RUN:test_absent   no pre-merge result, but a failing config actually RAN in the pull
+                        matrix with the file kept (drift: renamed/removed/param), NOT TD
+  NOT_RUN:not_in_matrix no pre-merge result AND no failing config ran in the pull matrix
+                        (trunk/CUDA/ROCm/mps-only), or no gate jobs ran on the head
+  NOT_RUN:td_unknown    no pre-merge result and attribution unresolvable — no non-empty pull
+                        artifact, no failing config on main, or the pull matrix is unknown
+  NOT_RUN:no_merge_record  no default.merges row resolved a pre-merge head (ghstack non-tip,
+                        revert, direct push, or data predating the table)
+  ERROR                 a query failed after retries, or the merge timestamp is missing/epoch
 
-RUN_SUCCEEDED requires a POSITIVE success-row observation; a force merge never masks a real
-pre-merge verdict (a real RUN_*/skipped outcome always wins over force_merge).
-
-PyTorch TD is PER-CONFIG: the same file can be excluded from one (build_env, test_config)
-and kept in another. A no-result test is td_excluded ONLY when its file was excluded from a
-(build_env, test_config) where it FAILED on main; if that config kept the file it is
-test_absent, and if the failing config's build_env was never in the pull matrix it is
-not_in_matrix.
+RUN_SUCCEEDED requires a POSITIVE success-row observation; a real RUN_*/skipped verdict
+always wins over force_merge. TD is PER-CONFIG: the same file can be excluded from one
+(build_env, test_config) and kept in another, so a no-result test is td_excluded only when
+excluded from a config where it FAILED on main. Matrix membership (test_absent vs
+not_in_matrix) is read from the pull run's ACTUAL jobs (pull_configs), never the exclusion
+artifact — which omits any config that excluded no files. Older runs emit a single flat
+exclusion list (NoBuildEnv sentinel) with no config attribution; a file listed there is
+td_excluded, and a mixed artifact's flat list is unioned into that check (see
+premerge_classify._classify_no_result).
 """
 
 import logging
@@ -43,6 +36,7 @@ from typing import Callable, List, NamedTuple, Optional, Set, Tuple
 from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
 
 from .client import run_query
+from .premerge_classify import _classify_no_result, classify_counts
 from .premerge_sql import (
     COMMIT_MSG_ONE_SQL,
     MERGE_HEAD_BY_PR_SQL,
@@ -56,15 +50,14 @@ from .premerge_status import (
     PREMERGE_STATUS_FORCE_MERGE,
     PREMERGE_STATUS_NO_MERGE_RECORD,
     PREMERGE_STATUS_NOT_IN_MATRIX,
-    PREMERGE_STATUS_RUN_FAILED,
-    PREMERGE_STATUS_RUN_SUCCEEDED,
-    PREMERGE_STATUS_SKIPPED,
-    PREMERGE_STATUS_TD_EXCLUDED,
-    PREMERGE_STATUS_TD_UNKNOWN,
-    PREMERGE_STATUS_TEST_ABSENT,
 )
-from .queries import fetch_failing_configs, FailingConfigs, fetch_pull_runs
-from .td_exclusions import ExclusionMap, fetch_exclusions, normalize_test_file
+from .queries import (
+    fetch_failing_configs,
+    FailingConfigs,
+    fetch_pull_configs,
+    fetch_pull_runs,
+)
+from .td_exclusions import ExclusionMap, fetch_exclusions
 
 
 logger = logging.getLogger(__name__)
@@ -111,56 +104,15 @@ def _is_force(value: object) -> bool:
     return bool(value)
 
 
-def classify_counts(fails: int, successes: int, skips: int) -> Optional[str]:
-    """Classify a test's pre-merge outcome from aggregated run counts.
-    Failure is checked BEFORE success so a mixed shard set where any shard failed is
-    reported as RUN_FAILED (the 'merged despite red' signal) rather than masked by a
-    passing retry. Returns None when there are no pass/fail/skip rows (caller resolves the
-    no-result attribution: td_excluded / test_absent / not_in_matrix / td_unknown)."""
-    if fails > 0:
-        return PREMERGE_STATUS_RUN_FAILED
-    if successes > 0:
-        return PREMERGE_STATUS_RUN_SUCCEEDED
-    if skips > 0:
-        return PREMERGE_STATUS_SKIPPED
-    return None
-
-
-def _classify_no_result(
-    excl: Optional[ExclusionMap],
-    failing_configs: Set[Tuple[str, str]],
-    file: str,
-) -> str:
-    """Per-config attribution for a regression test with NO pre-merge result row.
-    `excl` is the pre-merge pull per-(build_env, test_config) exclusion map (None when TD's
-    decision is unresolvable); `failing_configs` is the (build_env, test_config) set where
-    the test FAILED on main. Matches pytorch's get_reverts_caused_by_td.py: a build_env or
-    config absent from the artifact is not a TD exclusion. Order matters — td_excluded (a
-    real per-config coverage removal) is decided before the weaker build_env-level signals."""
-    if excl is None or not failing_configs:
-        return PREMERGE_STATUS_TD_UNKNOWN
-    normalized = normalize_test_file(file)
-    # A failing config that had the file excluded: TD removed the coverage that would have
-    # caught this failure pre-merge.
-    if any(normalized in excl.get(config, frozenset()) for config in failing_configs):
-        return PREMERGE_STATUS_TD_EXCLUDED
-    # The failing config's build_env ran in the pull matrix (TD kept the file there): the
-    # config exercised the file pre-merge, so an absent result is drift, not TD.
-    pull_build_envs = {build_env for build_env, _ in excl}
-    if any(build_env in pull_build_envs for build_env, _ in failing_configs):
-        return PREMERGE_STATUS_TEST_ABSENT
-    # No failing config's build_env was in the pull matrix (trunk/CUDA/ROCm/mps-only, or a
-    # legacy NoBuildEnv artifact): the failing config was never gated pre-merge.
-    return PREMERGE_STATUS_NOT_IN_MATRIX
-
-
 class PremergeContext(NamedTuple):
     """Per-commit pre-merge resolution shared across all of a commit's test signals.
-    head_sha/merge_ts/job_ids/td_excluded/failing_configs depend only on the commit, so
-    they are resolved once. A non-None terminal_reason short-circuits classification to that
-    value for every signal of the commit without any further query. td_excluded is the
-    pre-merge `pull` per-config TD-excluded map (None = unresolvable); failing_configs maps
-    (file, name) to the (build_env, test_config) set where it failed on main."""
+    head_sha/merge_ts/job_ids/td_excluded/failing_configs/pull_configs depend only on the
+    commit, so they are resolved once. A non-None terminal_reason short-circuits
+    classification to that value for every signal of the commit without any further query.
+    td_excluded is the pre-merge `pull` per-config TD-excluded map (None = unresolvable);
+    failing_configs maps (file, name) to the (build_env, test_config) set where it failed on
+    main; pull_configs is the (build_env, test_config) set that actually RAN in that pull run
+    (empty = unknown), the sole source of pre-merge matrix membership."""
 
     head_sha: Optional[str]
     merge_ts: Optional[datetime]
@@ -170,6 +122,7 @@ class PremergeContext(NamedTuple):
     terminal_reason: Optional[str]
     td_excluded: Optional[ExclusionMap]
     failing_configs: FailingConfigs
+    pull_configs: Set[Tuple[str, str]]
 
 
 def _resolve_head_by_pr(
@@ -213,16 +166,18 @@ def _resolve_td_excluded(
     client: Client,
     head_sha: str,
     fetch_exclusions_fn: ExclusionsFetcher,
-) -> Optional[ExclusionMap]:
-    """The pre-merge per-config TD-excluded map for head_sha's `pull` runs.
-    Tries each pull run oldest-first and returns the FIRST non-empty artifact (the PR's
-    original run holds the real exclusions; the merge-triggered rerun is empty). Returns
-    None when no run yields a non-empty artifact — TD's decision is then unknown."""
+) -> Tuple[Optional[ExclusionMap], Optional[Tuple[int, int]]]:
+    """The pre-merge per-config TD-excluded map for head_sha's `pull` runs, plus the
+    (run_id, run_attempt) it came from. Tries each pull run oldest-first and returns the
+    FIRST non-empty artifact (the PR's original run holds the real exclusions; the
+    merge-triggered rerun is empty), so matrix membership can be read from the SAME run.
+    Returns (None, None) when no run yields a non-empty artifact — TD's decision is then
+    unknown."""
     for run_id, run_attempt in fetch_pull_runs(client, head_sha):
         excluded = fetch_exclusions_fn(run_id, run_attempt)
         if excluded:
-            return excluded
-    return None
+            return excluded, (run_id, run_attempt)
+    return None, None
 
 
 def resolve_premerge_context(
@@ -262,7 +217,8 @@ def resolve_premerge_context(
             fallback = _resolve_head_by_pr(client, commit_sha, owner_name, project_name)
             if fallback is None:
                 return PremergeContext(
-                    None, None, None, [], False, PREMERGE_STATUS_NO_MERGE_RECORD, None, {}
+                    None, None, None, [], False,
+                    PREMERGE_STATUS_NO_MERGE_RECORD, None, {}, set(),
                 )
             head_sha, force_merge = fallback
 
@@ -272,7 +228,8 @@ def resolve_premerge_context(
         ts = ts_rows[0][0] if ts_rows else None
         if ts is None or ts.year <= 1970:
             return PremergeContext(
-                head_sha, None, None, [], force_merge, PREMERGE_STATUS_ERROR, None, {}
+                head_sha, None, None, [], force_merge,
+                PREMERGE_STATUS_ERROR, None, {}, set(),
             )
         merge_ts = _to_utc(ts)
 
@@ -297,7 +254,7 @@ def resolve_premerge_context(
                 else PREMERGE_STATUS_NOT_IN_MATRIX
             )
             return PremergeContext(
-                head_sha, merge_ts, tlow, [], force_merge, reason, None, {}
+                head_sha, merge_ts, tlow, [], force_merge, reason, None, {}, set()
             )
 
         # A force merge short-circuits to force_merge before the per-config branch is
@@ -306,8 +263,20 @@ def resolve_premerge_context(
         if force_merge:
             td_excluded: Optional[ExclusionMap] = None
             failing_configs: FailingConfigs = {}
+            pull_configs: Set[Tuple[str, str]] = set()
         else:
-            td_excluded = _resolve_td_excluded(client, head_sha, fetch_exclusions_fn)
+            td_excluded, pull_run = _resolve_td_excluded(
+                client, head_sha, fetch_exclusions_fn
+            )
+            # Matrix membership is read from the SAME pull run's real jobs (the exclusion
+            # artifact omits configs that excluded no files), bounded to the gate window the
+            # run's jobs fall in. Only needed when a map resolved: without one a no-result
+            # test is td_unknown regardless, so the extra query is skipped.
+            pull_configs = (
+                fetch_pull_configs(client, pull_run[0], pull_run[1], lower, merge_ts)
+                if pull_run is not None
+                else set()
+            )
             # Failing configs come from the LANDED commit's post-merge jobs (head_sha =
             # commit_sha on main), so the window opens at the merge and runs forward.
             fc_low = _to_utc(merge_ts - timedelta(days=PARTITION_MARGIN_DAYS))
@@ -316,7 +285,8 @@ def resolve_premerge_context(
                 client, commit_sha, fc_low, fc_high, fc_low
             )
         return PremergeContext(
-            head_sha, merge_ts, tlow, job_ids, force_merge, None, td_excluded, failing_configs
+            head_sha, merge_ts, tlow, job_ids, force_merge, None, td_excluded,
+            failing_configs, pull_configs,
         )
     except Exception as exc:
         logger.warning(
@@ -325,7 +295,9 @@ def resolve_premerge_context(
             exc,
             exc_info=True,
         )
-        return PremergeContext(None, None, None, [], False, PREMERGE_STATUS_ERROR, None, {})
+        return PremergeContext(
+            None, None, None, [], False, PREMERGE_STATUS_ERROR, None, {}, set()
+        )
 
 
 def classify_with_context(
@@ -366,10 +338,12 @@ def classify_with_context(
         if context.force_merge:
             return PREMERGE_STATUS_FORCE_MERGE
 
-        # Per-config no-result attribution against the failing configs resolved on main.
+        # Per-config no-result attribution against the failing configs resolved on main and
+        # the configs that actually ran in the pre-merge pull matrix.
         return _classify_no_result(
             context.td_excluded,
             context.failing_configs.get((file, name), set()),
+            context.pull_configs,
             file,
         )
     except Exception as exc:

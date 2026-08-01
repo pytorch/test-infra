@@ -6,7 +6,7 @@ from clickhouse_connect.driver import Client  # type: ignore[import-not-found]
 
 from .client import run_query
 from .logic import is_test_signal
-from .premerge_sql import MAIN_FAILING_TESTS_SQL, MAIN_JOBS_SQL
+from .premerge_sql import MAIN_FAILING_TESTS_SQL, MAIN_JOBS_SQL, PULL_CONFIGS_SQL
 
 
 # Failing configs for a landed commit, keyed by (file, name) -> {(build_env, test_config)}.
@@ -192,6 +192,32 @@ def fetch_pull_runs(client: Client, head_sha: str) -> List[Tuple[int, int]]:
     """(id, run_attempt) of every `pull` workflow run on head_sha, oldest first."""
     rows = run_query(client, PULL_RUNS_SQL, {"head_sha": head_sha})
     return [(int(r[0]), int(r[1])) for r in rows]
+
+
+def fetch_pull_configs(
+    client: Client,
+    run_id: int,
+    run_attempt: int,
+    lower: datetime,
+    upper: datetime,
+) -> Set[Tuple[str, str]]:
+    """The (build_env, test_config) set that actually RAN in one pre-merge `pull` workflow
+    run — the SOLE source of pull-matrix membership. The TD-exclusion artifact omits any
+    config that excluded no files, so it cannot answer 'did this config run'; the run's real
+    test jobs can. Names that do not parse as a shaped test job are dropped. Bounded by
+    (run_id, run_attempt) to the exact run whose exclusions were used, plus a created_at
+    window for skip-index pruning."""
+    rows = run_query(
+        client,
+        PULL_CONFIGS_SQL,
+        {"run_id": run_id, "run_attempt": run_attempt, "lower": lower, "upper": upper},
+    )
+    configs: Set[Tuple[str, str]] = set()
+    for (name,) in rows:
+        parsed = parse_build_env_test_config(name)
+        if parsed is not None:
+            configs.add(parsed)
+    return configs
 
 
 def fetch_failing_configs(

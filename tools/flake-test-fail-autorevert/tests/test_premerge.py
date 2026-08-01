@@ -3,14 +3,16 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from flake_test_fail_autorevert import premerge_status as ps
 from flake_test_fail_autorevert.premerge import (
-    _classify_no_result,
     _to_utc,
-    classify_counts,
     classify_premerge,
     classify_with_context,
     parse_pr_from_message,
     PremergeContext,
     resolve_premerge_context,
+)
+from flake_test_fail_autorevert.premerge_classify import (
+    _classify_no_result,
+    classify_counts,
 )
 from flake_test_fail_autorevert.td_exclusions import ExclusionMap
 
@@ -35,6 +37,7 @@ def _ctx(
     force_merge: bool = False,
     job_ids: Tuple[int, ...] = (1,),
     failing_configs: Optional[Dict[Tuple[str, str], Set[Tuple[str, str]]]] = None,
+    pull_configs: Optional[Set[Tuple[str, str]]] = None,
 ) -> PremergeContext:
     """A resolved non-terminal context for exercising classify_with_context directly."""
     return PremergeContext(
@@ -46,6 +49,7 @@ def _ctx(
         terminal_reason=None,
         td_excluded=td_excluded,
         failing_configs=failing_configs or {},
+        pull_configs=pull_configs or set(),
     )
 
 
@@ -141,8 +145,14 @@ class ScriptedClient:
             key = "ts"
         elif "default.workflow_job" in query:
             # PREMERGE_JOBS_SQL (pre-merge gate) carries the mem_leak_check filter;
-            # MAIN_JOBS_SQL (landed-commit test jobs) does not.
-            key = "jobs" if "mem_leak_check" in query else "main_jobs"
+            # PULL_CONFIGS_SQL (the pull run's matrix) filters by run_id; MAIN_JOBS_SQL
+            # (landed-commit test jobs) does neither.
+            if "mem_leak_check" in query:
+                key = "jobs"
+            elif "run_id" in query:
+                key = "pull_configs"
+            else:
+                key = "main_jobs"
         elif "default.workflow_run" in query:
             key = "pull_runs"
         elif "tests.all_test_runs" in query:
@@ -587,66 +597,148 @@ def test_parse_pr_from_revert_title_returns_original_pr():
 
 
 # --- Part H: per-config no-result attribution (_classify_no_result, pure) ---
+# Signature: _classify_no_result(excl, failing_configs, pull_configs, file). Matrix membership
+# (test_absent vs not_in_matrix) comes from pull_configs -- the configs that actually RAN --
+# never from the exclusion artifact keys.
 
 
 def test_no_result_td_unknown_when_excl_none():
-    assert _classify_no_result(None, {("be", "cfg")}, "f.py") == "NOT_RUN:td_unknown"
+    assert (
+        _classify_no_result(None, {("be", "cfg")}, {("be", "cfg")}, "f.py")
+        == "NOT_RUN:td_unknown"
+    )
 
 
 def test_no_result_td_unknown_when_failing_configs_empty():
     excl: ExclusionMap = {("be", "cfg"): {"dir/x"}}
-    assert _classify_no_result(excl, set(), "f.py") == "NOT_RUN:td_unknown"
+    assert _classify_no_result(excl, set(), {("be", "cfg")}, "f.py") == "NOT_RUN:td_unknown"
 
 
 def test_no_result_td_excluded_file_excluded_from_failing_config():
-    # The file was TD-excluded from the exact (build_env, test_config) where it failed.
+    # The file was TD-excluded from the exact (build_env, test_config) where it failed;
+    # td_excluded is decided before any pull_configs matrix question.
     excl: ExclusionMap = {("be", "default"): {"dynamo/test_bytecode_utils"}}
     fc = {("be", "default")}
-    status = _classify_no_result(excl, fc, "dynamo/test_bytecode_utils.py")
+    status = _classify_no_result(excl, fc, set(), "dynamo/test_bytecode_utils.py")
     assert status == "NOT_RUN:td_excluded"
 
 
 def test_no_result_td_excluded_matches_via_normalized_key():
     excl: ExclusionMap = {("be", "cfg"): {"distributed/test_c10d_nccl"}}
     fc = {("be", "cfg")}
-    status = _classify_no_result(excl, fc, "test/distributed/test_c10d_nccl.py")
+    status = _classify_no_result(excl, fc, set(), "test/distributed/test_c10d_nccl.py")
     assert status == "NOT_RUN:td_excluded"
 
 
-def test_no_result_test_absent_build_env_ran_file_kept():
-    # The failing config's build_env WAS in the pull matrix (a different config), and the
-    # file was NOT excluded there: the file ran pre-merge, so the missing result is drift.
+def test_no_result_test_absent_config_ran_file_kept():
+    # The failing config actually RAN in the pull matrix (it is in pull_configs) and the file
+    # was NOT excluded there: the file ran pre-merge, so the missing result is drift.
     excl: ExclusionMap = {("be", "default"): {"some/other_file"}}
     fc = {("be", "distributed")}
-    status = _classify_no_result(excl, fc, "distributed/test_c10d_fault_tolerance.py")
+    pull = {("be", "distributed")}
+    status = _classify_no_result(excl, fc, pull, "distributed/test_c10d_fault_tolerance.py")
     assert status == "NOT_RUN:test_absent"
 
 
-def test_no_result_not_in_matrix_build_env_absent_from_pull():
-    # Trunk/CUDA case: the failing config's build_env is not in the pull artifact at all.
+def test_no_result_test_absent_config_ran_with_zero_exclusions():
+    # THE BUG: the failing config ran in pull but excluded nothing, so it is ABSENT from the
+    # exclusion artifact (its build_env may not appear at all). Matrix membership from
+    # pull_configs still yields test_absent; the old build_env-in-artifact heuristic would
+    # have mislabeled this not_in_matrix.
+    excl: ExclusionMap = {("other-env", "default"): {"x"}}
+    fc = {("dynamo-cpython-test", "dynamo_cpython")}
+    pull = {("dynamo-cpython-test", "dynamo_cpython"), ("other-env", "default")}
+    status = _classify_no_result(excl, fc, pull, "dynamo/test_bytecode_utils.py")
+    assert status == "NOT_RUN:test_absent"
+
+
+def test_no_result_not_in_matrix_config_absent_from_pull():
+    # Trunk/CUDA case: the failing config never ran in the pull matrix (absent from
+    # pull_configs, which is non-empty), so nothing from its file ran pre-merge.
     excl: ExclusionMap = {("linux-jammy-py3.10-clang18", "default"): set()}
     fc = {("linux-jammy-cuda13.0-py3.10-gcc11", "default")}
-    status = _classify_no_result(excl, fc, "inductor/test_provenance_tracing.py")
+    pull = {("linux-jammy-py3.10-clang18", "default")}
+    status = _classify_no_result(excl, fc, pull, "inductor/test_provenance_tracing.py")
     assert status == "NOT_RUN:not_in_matrix"
 
 
-def test_no_result_not_in_matrix_for_nobuildenv_sentinel():
-    # A legacy NoBuildEnv/NoTestConfig artifact never matches a real build_env -> not_in_matrix
-    # (mirrors pytorch's get_reverts_caused_by_td.py "build_env not found").
+def test_no_result_not_in_matrix_matches_full_key_not_build_env():
+    # Locks the fix: a failing config sharing only the BUILD_ENV with a config that ran (but
+    # not the full (build_env, test_config)) is NOT in the matrix -> not_in_matrix.
+    excl: ExclusionMap = {("be", "cfg2"): {"other"}}
+    fc = {("be", "cfg1")}
+    pull = {("be", "cfg2")}
+    assert _classify_no_result(excl, fc, pull, "f.py") == "NOT_RUN:not_in_matrix"
+
+
+def test_no_result_td_unknown_when_pull_configs_unavailable():
+    # Non-excluded case with empty pull_configs (jobs query failed / matrix unknown): fall
+    # back to td_unknown rather than guess test_absent or not_in_matrix.
+    excl: ExclusionMap = {("be", "cfg"): {"other"}}
+    fc = {("be", "cfg")}
+    assert _classify_no_result(excl, fc, set(), "f.py") == "NOT_RUN:td_unknown"
+
+
+def test_no_result_flat_artifact_file_listed_is_td_excluded():
+    # A flat NoBuildEnv sentinel artifact lists the file -> td_excluded (file-level TD
+    # exclusion; pull_configs is not consulted once td_excluded matches).
     excl: ExclusionMap = {("NoBuildEnv", "NoTestConfig"): {"foo/test_bar"}}
     fc = {("linux-jammy-py3.10-gcc11", "default")}
-    assert _classify_no_result(excl, fc, "foo/test_bar.py") == "NOT_RUN:not_in_matrix"
+    assert _classify_no_result(excl, fc, set(), "foo/test_bar.py") == "NOT_RUN:td_excluded"
+
+
+def test_no_result_flat_artifact_file_absent_uses_pull_configs():
+    # Flat artifact, file NOT listed: the non-excluded case now resolves via pull_configs.
+    # Failing config ran -> test_absent; a different config ran -> not_in_matrix.
+    excl: ExclusionMap = {("NoBuildEnv", "NoTestConfig"): {"some/other_file"}}
+    fc = {("gcc11", "default")}
+    assert _classify_no_result(excl, fc, {("gcc11", "default")}, "foo/test_bar.py") == (
+        "NOT_RUN:test_absent"
+    )
+    assert _classify_no_result(excl, fc, {("other", "default")}, "foo/test_bar.py") == (
+        "NOT_RUN:not_in_matrix"
+    )
+
+
+def test_no_result_flat_artifact_file_absent_td_unknown_when_matrix_unknown():
+    # Flat artifact, file NOT listed, and pull_configs empty (matrix unknown) -> td_unknown.
+    excl: ExclusionMap = {("NoBuildEnv", "NoTestConfig"): {"some/other_file"}}
+    fc = {("gcc11", "default")}
+    assert _classify_no_result(excl, fc, set(), "foo/test_bar.py") == "NOT_RUN:td_unknown"
+
+
+def test_no_result_flat_artifact_matches_via_normalized_key():
+    excl: ExclusionMap = {("NoBuildEnv", "NoTestConfig"): {"distributed/test_c10d_nccl"}}
+    fc = {("be", "cfg")}
+    status = _classify_no_result(excl, fc, set(), "test/distributed/test_c10d_nccl.py")
+    assert status == "NOT_RUN:td_excluded"
+
+
+def test_no_result_mixed_flat_and_per_config_unions_flat_list():
+    # Mixed artifact: the NoBuildEnv sentinel present ALONGSIDE real per-config keys. A file
+    # in the flat list must still be td_excluded even though the failing config's per-config
+    # entry excludes something else -- the flat list is unioned into the td_excluded check.
+    excl: ExclusionMap = {
+        ("NoBuildEnv", "NoTestConfig"): {"foo/test_bar"},
+        ("be", "cfg"): {"unrelated"},
+    }
+    fc = {("be", "cfg")}
+    assert _classify_no_result(excl, fc, {("be", "cfg")}, "foo/test_bar.py") == (
+        "NOT_RUN:td_excluded"
+    )
 
 
 def test_no_result_td_excluded_wins_when_one_of_several_failing_configs_excluded():
     # One failing config had the file excluded, another only shares the build_env: the real
-    # per-config exclusion (td_excluded) is decided before the weaker build_env signal.
+    # per-config exclusion (td_excluded) is decided before the pull_configs matrix question.
     excl: ExclusionMap = {
         ("be", "py314"): {"dir/test_x"},
         ("be", "py310"): {"other"},
     }
     fc = {("be", "py314"), ("be", "py310")}
-    assert _classify_no_result(excl, fc, "dir/test_x.py") == "NOT_RUN:td_excluded"
+    assert _classify_no_result(excl, fc, {("be", "py310")}, "dir/test_x.py") == (
+        "NOT_RUN:td_excluded"
+    )
 
 
 # --- Part H2: per-config attribution through classify_with_context (no pre-merge result) ---
@@ -667,6 +759,7 @@ def test_classify_with_context_test_absent():
     ctx = _ctx(
         td_excluded={("be", "default"): {"other"}},
         failing_configs={("f.py", "T::t"): {("be", "distributed")}},
+        pull_configs={("be", "distributed")},
     )
     assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:test_absent"
 
@@ -676,6 +769,7 @@ def test_classify_with_context_not_in_matrix():
     ctx = _ctx(
         td_excluded={("be1", "default"): set()},
         failing_configs={("f.py", "T::t"): {("be2", "default")}},
+        pull_configs={("be1", "default")},
     )
     assert classify_with_context(client, ctx, "f.py", "T::t") == "NOT_RUN:not_in_matrix"
 
@@ -710,6 +804,7 @@ def test_classify_with_context_real_verdict_wins_over_per_config():
 def _perconfig_client(
     main_jobs: List[Tuple[Any, ...]],
     main_failing: List[Tuple[Any, ...]],
+    pull_configs: Optional[List[Tuple[Any, ...]]] = None,
 ) -> ScriptedClient:
     return ScriptedClient(
         {
@@ -720,6 +815,7 @@ def _perconfig_client(
             "pull_runs": [(100, 1)],
             "main_jobs": main_jobs,
             "main_failing": main_failing,
+            "pull_configs": pull_configs or [],
         }
     )
 
@@ -741,10 +837,11 @@ def test_classify_premerge_td_excluded_via_per_config():
 
 
 def test_classify_premerge_not_in_matrix_cuda_only():
-    # Mirrors the real 1de19c2df1 case: failed only on cuda build_envs absent from pull.
+    # Mirrors the real 1de19c2df1 case: failed only on a cuda config that never ran in pull.
     client = _perconfig_client(
         main_jobs=[(50, "linux-jammy-cuda13.0-py3.10-gcc11 / test (default, 4, 5, r)")],
         main_failing=[(50, "inductor/test_provenance_tracing.py", "T::t")],
+        pull_configs=[("linux-jammy-py3.10-clang18 / test (default, 1, 3, r)",)],
     )
     fetch = _excluded_map(
         {(100, 1): {("linux-jammy-py3.10-clang18", "default"): set()}}
@@ -764,6 +861,7 @@ def test_classify_premerge_test_absent_config_ran_file_kept():
     client = _perconfig_client(
         main_jobs=[(50, "linux-jammy-py3.10-gcc11 / test (distributed, 1, 8, r)")],
         main_failing=[(50, "distributed/test_c10d_fault_tolerance.py", "T::t")],
+        pull_configs=[("linux-jammy-py3.10-gcc11 / test (distributed, 1, 8, r)",)],
     )
     fetch = _excluded_map(
         {(100, 1): {("linux-jammy-py3.10-gcc11", "distributed"): {"some/other_file"}}}
@@ -774,6 +872,23 @@ def test_classify_premerge_test_absent_config_ran_file_kept():
         "distributed/test_c10d_fault_tolerance.py",
         "T::t",
         fetch_exclusions_fn=fetch,
+    )
+    assert status == "NOT_RUN:test_absent"
+
+
+def test_classify_premerge_test_absent_config_ran_absent_from_artifact():
+    # THE BUG end-to-end, mirroring the real d69cb8024947 pull run: dynamo-cpython-test ran
+    # but excluded no files, so it is ABSENT from the exclusion artifact (only other-env is).
+    # pull_configs (real jobs) still records that it ran -> test_absent, not not_in_matrix.
+    job = "dynamo-cpython-test / test (dynamo_cpython, 1, 1, r)"
+    client = _perconfig_client(
+        main_jobs=[(50, job)],
+        main_failing=[(50, "dynamo/test_bytecode_utils.py", "T::t")],
+        pull_configs=[(job,)],
+    )
+    fetch = _excluded_map({(100, 1): {("other-env", "default"): {"x"}}})
+    status = classify_premerge(
+        client, "M" * 40, "dynamo/test_bytecode_utils.py", "T::t", fetch_exclusions_fn=fetch
     )
     assert status == "NOT_RUN:test_absent"
 
@@ -887,6 +1002,7 @@ def test_force_merge_resolves_neither_td_nor_failing_configs():
     ctx = resolve_premerge_context(client, "M" * 40, fetch_exclusions_fn=_boom)
     assert ctx.td_excluded is None
     assert ctx.failing_configs == {}
+    assert ctx.pull_configs == set()
     assert calls == []
     assert not any("default.workflow_run" in q for q, _ in client.queries)
     assert not any(
@@ -908,10 +1024,10 @@ def test_emitted_statuses_equal_known_statuses():
         classify_counts(1, 0, 0),
         classify_counts(0, 1, 0),
         classify_counts(0, 0, 1),
-        _classify_no_result(None, set(), "f.py"),
-        _classify_no_result({("b", "c"): {"dir/x"}}, {("b", "c")}, "dir/x.py"),
-        _classify_no_result({("b", "c"): set()}, {("b", "d")}, "f.py"),
-        _classify_no_result({("b", "c"): set()}, {("z", "c")}, "f.py"),
+        _classify_no_result(None, set(), set(), "f.py"),
+        _classify_no_result({("b", "c"): {"dir/x"}}, {("b", "c")}, set(), "dir/x.py"),
+        _classify_no_result({("b", "c"): {"o"}}, {("b", "c")}, {("b", "c")}, "f.py"),
+        _classify_no_result({("b", "c"): set()}, {("z", "d")}, {("b", "c")}, "f.py"),
         ps.PREMERGE_STATUS_FORCE_MERGE,
         ps.PREMERGE_STATUS_NO_MERGE_RECORD,
         ps.PREMERGE_STATUS_ERROR,
@@ -920,16 +1036,10 @@ def test_emitted_statuses_equal_known_statuses():
 
 
 def test_known_statuses_match_report_tooltip_keys():
-    # The report tooltip map (imported lazily) must be keyed by exactly KNOWN_STATUSES. The
-    # report subpackage is migrated to the neutral vocabulary separately; until it adopts the
-    # td_excluded constant this lock stays dormant rather than red (it activates on migration).
-    import pytest
-
+    # The report tooltip map must be keyed by exactly KNOWN_STATUSES -- if the generator ever
+    # drops or renames a status, or the report loses one, this lock fails (never skips).
     from flake_test_fail_autorevert.report.premerge_status import (
         PREMERGE_STATUS_TOOLTIPS,
     )
 
-    keys = set(PREMERGE_STATUS_TOOLTIPS)
-    if ps.PREMERGE_STATUS_TD_EXCLUDED not in keys:
-        pytest.skip("report/premerge_status.py not yet migrated to the neutral vocabulary")
-    assert keys == ps.KNOWN_STATUSES
+    assert set(PREMERGE_STATUS_TOOLTIPS) == ps.KNOWN_STATUSES

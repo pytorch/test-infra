@@ -8,11 +8,14 @@ object keyed by (workflow_run_id, run_attempt). The body is gzipped JSON
 same file can be excluded from one config and kept in another, so exclusions MUST be matched
 against the specific (build_env, test_config) where the test failed — not unioned.
 
-A key that is present with an EMPTY list means TD kept every file for that config, i.e. the
-config was in the pull matrix; a build_env absent from the dict was never in the pull matrix.
+The artifact records ONLY what TD deselected: a (build_env, test_config) appears here only
+when it excluded at least one file, so it CANNOT be read as a matrix-membership list — a
+config absent from the dict may still have run with nothing excluded. Pull-matrix membership
+comes from the run's real jobs (see queries.fetch_pull_configs), never this file.
 Some (older) runs emit a single sentinel key ``{"NoBuildEnv": {"NoTestConfig": [...]}}``
-instead of real per-config data; those never match a real (build_env, test_config), matching
-PyTorch's own get_reverts_caused_by_td.py.
+instead of real per-config data. is_flat()/flat_excluded_files() detect that shape so the
+classifier can fall back to file-level matching (the flat list applies to no attributable
+config) rather than treating the whole artifact as per-config.
 """
 
 import gzip
@@ -33,6 +36,11 @@ logger = logging.getLogger(__name__)
 
 # Per-config exclusion map: (build_env, test_config) -> normalized excluded test files.
 ExclusionMap = Dict[Tuple[str, str], Set[str]]
+
+# Sentinel key older TD runs use when they record a single flat exclusion list with no real
+# per-(build_env, test_config) attribution. Defined here so flat-ness is detected in exactly
+# one place; callers use is_flat()/flat_excluded_files() rather than sniffing keys.
+_FLAT_SENTINEL = ("NoBuildEnv", "NoTestConfig")
 
 # Public, anonymous bucket; the corporate proxy reaches it, so no NO_PROXY handling.
 TD_EXCLUSIONS_URL = (
@@ -62,6 +70,19 @@ def normalize_test_file(path: str) -> str:
     return key
 
 
+def is_flat(exclusions: ExclusionMap) -> bool:
+    """True when the artifact carries ONLY the NoBuildEnv/NoTestConfig sentinel — a single
+    flat exclusion list with no real per-(build_env, test_config) attribution. Callers use
+    this to fall back to file-level matching instead of per-config matching."""
+    return set(exclusions) == {_FLAT_SENTINEL}
+
+
+def flat_excluded_files(exclusions: ExclusionMap) -> Set[str]:
+    """The flat sentinel's excluded file set (empty when absent). Only meaningful together
+    with is_flat(); keeps the sentinel key private to this module."""
+    return exclusions.get(_FLAT_SENTINEL, set())
+
+
 def _open_url(url: str) -> bytes:
     """GET the URL anonymously and return the raw (still-gzipped) response body.
     Isolated so tests can substitute the transport with no network."""
@@ -74,8 +95,9 @@ def _parse_exclusions(raw: bytes) -> ExclusionMap:
     The object is stored gzipped (Content-Encoding: gzip) and urllib does not decompress
     it, so gunzip when the gzip magic is present. Every level is type-checked defensively:
     non-dict envs/configs and non-list file arrays are skipped, and a stray string (not a
-    list) is NOT iterated character-by-character. A config present with an empty list is
-    kept as an empty set — that records that the config WAS in the pull matrix."""
+    list) is NOT iterated character-by-character. A config present with an empty list is kept
+    as an empty set (it excluded no files); this is faithful to the artifact but implies
+    nothing about matrix membership, which is not derivable here."""
     if raw[:2] == _GZIP_MAGIC:
         raw = gzip.decompress(raw)
     data = json.loads(raw)

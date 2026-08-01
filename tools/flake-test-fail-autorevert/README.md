@@ -41,21 +41,26 @@ signals are excluded.
     force merge that still ran the test reports the test's real verdict instead —
     force_merge never masks a real outcome.
   - `NOT_RUN:skipped` — the test ran but every run was skipped.
-  - `NOT_RUN:td_deselected` — target determination (TD) excluded the failing
-    test's whole file from the pre-merge `pull` run (recorded in the S3
-    `td_exclusions` artifact), so the file — and this test — never ran. TD is
-    **file-level**: it predicts which files a change can affect and skips the
-    rest. This is the honest "green would be red" signal, though re-running the
-    excluded test is not guaranteed to reproduce the failure (landraces exist).
-  - `NOT_RUN:test_absent` — the test's file ran pre-merge but this specific test
-    produced no result row, and TD did **not** exclude it. Not a TD decision:
+  - `NOT_RUN:td_excluded` — target determination (TD) excluded the failing
+    test's file from the pre-merge `pull` run for a configuration where the test
+    later FAILED on `main` (decided **per config** from the S3 `td_exclusions`
+    artifact), so the file — and this test — never ran there. TD is
+    **file-level** (it never targets an individual test): it predicts which files
+    a change can affect and skips the rest, per `(build_env, test_config)`. This
+    is the honest "green would be red" signal, though re-running the excluded
+    test is not guaranteed to reproduce the failure (landraces exist).
+  - `NOT_RUN:test_absent` — a failing configuration actually ran its file in the
+    pre-merge `pull` run (its jobs ran and TD kept the file), but this specific
+    test produced no result row and TD did **not** exclude it. Not a TD decision:
     typically a renamed/removed/reparametrized test, a shard split, or a
     job-filter edge.
   - `NOT_RUN:td_unknown` — the test produced no pre-merge result and TD's
-    decision for its file could not be determined (the `td_exclusions` artifact
-    was missing or ambiguous). A minority of no-result tests land here.
-  - `NOT_RUN:not_in_matrix` — the test's file never ran on the head (job not in
-    the matrix, or no gate jobs at all on a non-force merge).
+    per-config decision could not be determined: no non-empty `pull` exclusion
+    artifact, no failing configuration resolved on `main`, or a flat artifact
+    that did not list the file. A minority of no-result tests land here.
+  - `NOT_RUN:not_in_matrix` — no failing configuration actually ran in the
+    pre-merge `pull` matrix at all (a trunk/CUDA/ROCm/mps-only config that only
+    runs after merge), or no gate jobs ran on the head — so the file never ran.
   - `NOT_RUN:no_merge_record` — no `default.merges` row resolved a pre-merge head
     for this commit, so we cannot classify it. This is the honest label for a
     ghstack **non-tip** commit (only the stack's tip PR gets a merges row keyed by
@@ -145,23 +150,46 @@ A real `-f` force merge, by contrast, DOES write a `default.merges` row (with
 normally; `NOT_RUN:force_merge` is reported only when the gate was bypassed AND the
 test genuinely did not run.
 
-### How `td_deselected` / `test_absent` / `td_unknown` are determined
+### How `td_excluded` / `test_absent` / `td_unknown` are determined
 
-For a `regression` row whose test left no pre-merge result, the file-level target
-determination decision is read from the pre-merge `pull` run's S3 `td_exclusions`
-artifact: if the failing test's file is in the exclusion set the status is
-`td_deselected` (real TD); if the file ran but the test produced no result row it
-is `test_absent`; if the artifact is missing or ambiguous it is `td_unknown`.
-Honest limits: TD is **file-level** (it never targets an individual test), the
-decision is scoped to the `pull` workflow's run, and a minority of no-result tests
-cannot be resolved and fall to `td_unknown`.
+For a `regression` row whose test left no pre-merge result, two lookups classify
+it, both scoped to the configurations where the test actually FAILED on `main`.
+Which of those configurations actually **ran** the file pre-merge is read from
+the pre-merge `pull` run's real jobs (the `(build_env, test_config)` pairs that
+executed) — not inferred from the exclusions artifact. Whether target
+determination **excluded** the file is read **per configuration** from that run's
+S3 `td_exclusions` artifact, which maps each `(build_env, test_config)` to the
+files TD excluded from it. TD is **file-level** — it never targets an individual
+test — and the same file can be excluded from one config and kept in another:
 
-Older CSVs (generated before this split) used `NOT_RUN:td_deselected` to mean "the
-file ran but the test left no result" — today's `test_absent`. The HTML report
-detects such legacy CSVs (they carry none of the new vocabulary) and folds their
-`td_deselected` into `test_absent` so historical data is counted under the current
-meaning; a freshly generated CSV, which does carry `test_absent` / `td_unknown`
-rows, keeps its `td_deselected` as real file-level TD.
+- `td_excluded` — the failing test's file was excluded from a config where it
+  failed (real TD; the coverage that would have caught the failure was removed).
+- `test_absent` — a failing config actually ran the file pre-merge (its jobs ran
+  and TD kept the file), so an absent result is drift (rename/removal/
+  reparametrization or a shard/job-filter edge), not TD.
+- `not_in_matrix` — no failing config ran in the pre-merge `pull` matrix at all
+  (trunk/CUDA/ROCm/mps-only), so nothing from the file ran pre-merge.
+- `td_unknown` — TD's decision is unresolvable: no non-empty `pull` artifact, no
+  failing config resolved on `main`, or a **flat** artifact (see below) that did
+  not list the file.
+
+**Hybrid file-level fallback.** Older runs publish a single *flat* exclusion list
+(a `NoBuildEnv` sentinel) with no per-config attribution. There the three-way
+split is impossible, so the decision falls back to file-level: the file is
+`td_excluded` if it appears in the flat list, otherwise `td_unknown` (a flat list
+cannot tell `test_absent` from `not_in_matrix`).
+
+Honest limits: TD is file-level, a hard ceiling — it never proves the individual
+test itself would have run; the decision is scoped to the `pull` workflow's run;
+flat artifacts are common enough that some no-result tests fall to `td_unknown`;
+and trunk/CUDA-only configurations that never enter the pull matrix surface as
+`not_in_matrix`.
+
+Older CSVs (generated before this per-config split) used `NOT_RUN:td_deselected`
+to mean "the file ran but the test left no result" — today's `test_absent`. The
+HTML report folds every `td_deselected` value into `test_absent`
+**unconditionally**: the current generator emits `td_excluded` for real TD
+exclusion, so a `td_deselected` value can only be the old inference.
 
 ## Notes on the flaky scan
 

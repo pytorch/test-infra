@@ -10,6 +10,8 @@ from flake_test_fail_autorevert import td_exclusions
 from flake_test_fail_autorevert.td_exclusions import (
     _parse_exclusions,
     fetch_exclusions,
+    flat_excluded_files,
+    is_flat,
     normalize_test_file,
 )
 
@@ -68,8 +70,9 @@ def test_parse_keeps_per_config_keys_separately():
 
 
 def test_parse_keeps_empty_config_as_empty_set():
-    # A config present with an empty list means TD kept every file for that config, i.e. the
-    # config WAS in the pull matrix — the key must survive as an empty set, not be dropped.
+    # An empty list means TD excluded no files for that config; the key must survive as an
+    # empty set rather than be dropped. It implies nothing about matrix membership (which is
+    # not derivable from this artifact).
     body = _gzip_json({"env": {"cfg": []}})
     assert _parse_exclusions(body) == {("env", "cfg"): set()}
 
@@ -90,6 +93,25 @@ def test_parse_skips_non_list_and_non_string_entries_no_char_explosion():
 
 def test_parse_non_dict_top_level_returns_empty():
     assert _parse_exclusions(_gzip_json(["not", "a", "dict"])) == {}
+
+
+# --- is_flat / flat_excluded_files ---
+
+
+def test_is_flat_true_only_for_sole_sentinel_key():
+    flat = {("NoBuildEnv", "NoTestConfig"): {"a/test_x"}}
+    assert is_flat(flat) is True
+    assert flat_excluded_files(flat) == {"a/test_x"}
+
+
+def test_is_flat_false_for_per_config_and_mixed_and_empty():
+    per_config = {("env", "cfg"): {"a/test_x"}}
+    assert is_flat(per_config) is False
+    assert flat_excluded_files(per_config) == set()
+    # A sentinel key alongside a real key is treated as per-config, not flat.
+    mixed = {("NoBuildEnv", "NoTestConfig"): {"x"}, ("env", "cfg"): {"y"}}
+    assert is_flat(mixed) is False
+    assert is_flat({}) is False
 
 
 # --- fetch_exclusions (HTTP layer mocked) ---

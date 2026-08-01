@@ -1,9 +1,6 @@
 from typing import List
 
-from .aggregate import PremergeData, PremergeRow
-from .htmlutil import escape, tip_attr
-from .premerge_explain import render_explanation
-from .premerge_status import (
+from ..premerge_status import (
     PREMERGE_STATUS_ERROR,
     PREMERGE_STATUS_FORCE_MERGE,
     PREMERGE_STATUS_NO_MERGE_RECORD,
@@ -11,9 +8,14 @@ from .premerge_status import (
     PREMERGE_STATUS_RUN_FAILED,
     PREMERGE_STATUS_RUN_SUCCEEDED,
     PREMERGE_STATUS_SKIPPED,
-    PREMERGE_STATUS_TD_DESELECTED,
+    PREMERGE_STATUS_TD_EXCLUDED,
     PREMERGE_STATUS_TD_UNKNOWN,
     PREMERGE_STATUS_TEST_ABSENT,
+)
+from .aggregate import PremergeData, PremergeRow
+from .htmlutil import escape, tip_attr
+from .premerge_explain import render_explanation
+from .premerge_status import (
     PREMERGE_STATUS_TOOLTIPS,
     PREMERGE_TOOLTIP_UNDETERMINED,
 )
@@ -102,9 +104,9 @@ def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> 
     )
     force_merge = counts.get(PREMERGE_STATUS_FORCE_MERGE, 0)
     not_in_matrix = counts.get(PREMERGE_STATUS_NOT_IN_MATRIX, 0)
-    td = counts.get(PREMERGE_STATUS_TD_DESELECTED, 0)
-    test_absent = counts.get(PREMERGE_STATUS_TEST_ABSENT, 0)
+    td_excluded = counts.get(PREMERGE_STATUS_TD_EXCLUDED, 0)
     td_unknown = counts.get(PREMERGE_STATUS_TD_UNKNOWN, 0)
+    test_absent = counts.get(PREMERGE_STATUS_TEST_ABSENT, 0)
     skipped = counts.get(PREMERGE_STATUS_SKIPPED, 0)
     run_ok = counts.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
     run_fail = counts.get(PREMERGE_STATUS_RUN_FAILED, 0)
@@ -112,7 +114,7 @@ def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> 
     r1 = total - undetermined
     r2 = r1 - force_merge
     r3 = r2 - not_in_matrix
-    r4 = r3 - td
+    r4 = r3 - td_excluded - td_unknown
     tips = PREMERGE_STATUS_TOOLTIPS
     parts = [
         '<div class="fn-block">',
@@ -133,25 +135,25 @@ def _funnel_block(title: str, first_row_noun: str, counts: dict, total: int) -> 
         _fn_row(r2, "merge gate ran"),
         _fn_drop(
             not_in_matrix,
-            "the test's job wasn't in the pre-merge matrix",
+            "the test's config wasn't in the pre-merge matrix",
             tips[PREMERGE_STATUS_NOT_IN_MATRIX],
         ),
-        _fn_row(r3, "the test's job was in the matrix"),
+        _fn_row(r3, "the test's config was in the matrix"),
         _fn_drop(
-            td,
+            td_excluded,
             "target-determination excluded the test's file",
-            tips[PREMERGE_STATUS_TD_DESELECTED],
+            tips[PREMERGE_STATUS_TD_EXCLUDED],
+        ),
+        _fn_drop(
+            td_unknown,
+            "no result; couldn't determine if TD excluded the file",
+            tips[PREMERGE_STATUS_TD_UNKNOWN],
         ),
         _fn_row(r4, "the test's file ran pre-merge"),
         _fn_drop(
             test_absent,
             "the file ran, but this test left no result (not TD)",
             tips[PREMERGE_STATUS_TEST_ABSENT],
-        ),
-        _fn_drop(
-            td_unknown,
-            "no result; couldn't determine if TD excluded the file",
-            tips[PREMERGE_STATUS_TD_UNKNOWN],
         ),
         _fn_drop(skipped, "skipped", tips[PREMERGE_STATUS_SKIPPED]),
         _fn_row(run_ok, "ran and PASSED pre-merge (landrace)", "fn-pass"),
@@ -176,8 +178,8 @@ def _render_headline(premerge: PremergeData) -> str:
         '<div class="headline">'
         + _hl(
             premerge.green_would_be_red_commits,
-            "commits that looked green pre-merge but whose failing test's file "
-            "was excluded by target-determination",
+            "commits that looked green pre-merge but where TD excluded the "
+            "failing test's file",
             "Commits where target-determination excluded the failing test's "
             "file from the pre-merge run and no other test failed pre-merge - "
             "so the change looked green. Re-running the excluded test is not "
@@ -185,10 +187,10 @@ def _render_headline(premerge: PremergeData) -> str:
             "file was never given the chance to run.",
         )
         + _hl(
-            premerge.td_deselected_commits,
-            "commits whose failing test's file TD excluded pre-merge, that then "
-            "failed on main",
-            PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED],
+            premerge.td_excluded_commits,
+            "commits where TD excluded the failing test's file pre-merge, that "
+            "then failed on main",
+            PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_EXCLUDED],
         )
         + "</div>"
     )
@@ -289,7 +291,7 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
     if premerge.total_eligible == 0:
         return heading + f'<div class="empty">{escape(_NO_DATA)}</div>'
 
-    td_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED]
+    td_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_EXCLUDED]
     rs_tooltip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_RUN_SUCCEEDED]
     headline = _render_headline(premerge)
     funnels = _render_funnels(premerge)
@@ -305,8 +307,8 @@ def render_premerge_section(premerge: PremergeData, top: int = _PREMERGE_TOP) ->
         + "</div>"
         + '<div class="grid">'
         + _row_table(
-            f"Top {top} {PREMERGE_STATUS_TD_DESELECTED}",
-            premerge.td_deselected_rows,
+            f"Top {top} {PREMERGE_STATUS_TD_EXCLUDED}",
+            premerge.td_excluded_rows,
             top,
             td_tooltip,
         )

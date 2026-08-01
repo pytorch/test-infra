@@ -1,16 +1,20 @@
 import re
 
+import pytest
+
 from flake_test_fail_autorevert.report.aggregate import aggregate
 from flake_test_fail_autorevert.report.load import EXPECTED_COLUMNS, Record, load_records
 from flake_test_fail_autorevert.report.premerge_render import (
     PREMERGE_HEADING,
     render_premerge_section,
 )
-from flake_test_fail_autorevert.report.premerge_status import (
+from flake_test_fail_autorevert.premerge_status import (
     PREMERGE_STATUS_RUN_SUCCEEDED,
-    PREMERGE_STATUS_TD_DESELECTED,
+    PREMERGE_STATUS_TD_EXCLUDED,
     PREMERGE_STATUS_TD_UNKNOWN,
     PREMERGE_STATUS_TEST_ABSENT,
+)
+from flake_test_fail_autorevert.report.premerge_status import (
     PREMERGE_STATUS_TOOLTIPS,
 )
 from flake_test_fail_autorevert.report.render import escape, render
@@ -21,7 +25,7 @@ ALL_STATUSES = [
     "RUN_FAILED",
     "NOT_RUN:force_merge",
     "NOT_RUN:skipped",
-    "NOT_RUN:td_deselected",
+    "NOT_RUN:td_excluded",
     "NOT_RUN:test_absent",
     "NOT_RUN:td_unknown",
     "NOT_RUN:not_in_matrix",
@@ -69,12 +73,10 @@ def _one_per_status():
 def test_buckets_partition_eligible_rows():
     ds = aggregate(_one_per_status(), source="x.csv")
     pm = ds.premerge
-    # 10 statuses, one row each; 2 empty rows excluded. _one_per_status carries
-    # the new vocabulary, so it is treated as a post-fix CSV and td_deselected
-    # stays real (not folded into test_absent).
+    # 10 statuses, one row each; 2 empty rows excluded.
     assert pm.total_eligible == 10
     b = pm.buckets
-    assert b.td_deselected == 1
+    assert b.td_excluded == 1
     assert b.test_absent == 1
     assert b.td_unknown == 1
     assert b.run_succeeded == 1
@@ -94,7 +96,7 @@ def test_buckets_group_undetermined_and_other():
         rec(sha="a5", premerge="NOT_RUN:skipped"),
         rec(sha="a6", premerge="NOT_RUN:not_in_matrix"),
         rec(sha="a7", premerge="RUN_SUCCEEDED"),
-        rec(sha="a8", premerge="NOT_RUN:td_deselected"),
+        rec(sha="a8", premerge="NOT_RUN:td_excluded"),
         rec(sha="a9", premerge="NOT_RUN:test_absent"),
         rec(sha="a10", premerge="NOT_RUN:td_unknown"),
     ]
@@ -103,7 +105,7 @@ def test_buckets_group_undetermined_and_other():
     # other = RUN_FAILED + force_merge + skipped(->not_in_matrix) + not_in_matrix
     assert b.other == 4
     assert b.run_succeeded == 1
-    assert b.td_deselected == 1
+    assert b.td_excluded == 1
     assert b.test_absent == 1
     assert b.td_unknown == 1
     assert b.total == 10
@@ -119,6 +121,15 @@ def test_empty_premerge_rows_excluded():
     assert pm.total_eligible == 1
     assert pm.buckets.run_succeeded == 1
     assert pm.buckets.total == 1
+
+
+def test_unknown_status_raises_not_asserts():
+    # The guard must raise a real exception, not assert: a bare assert is stripped
+    # under `python -O`, which would silently bucket an unrecognized status into
+    # 'other'. A bogus status is neither remapped nor in KNOWN_STATUSES.
+    records = [rec(sha="u1", signal="u1.py::t", premerge="NOT_RUN:bogus")]
+    with pytest.raises(ValueError, match="KNOWN_STATUSES"):
+        aggregate(records, source="x.csv")
 
 
 def test_breakdown_counts_desc_with_name_tiebreak():
@@ -218,11 +229,9 @@ def test_funnel_shows_stage_counts_and_drops():
 
 def test_commit_funnel_td_is_sticky_over_runner():
     records = [
-        rec(sha="c1", signal="a.py::t", premerge="NOT_RUN:td_deselected"),
+        rec(sha="c1", signal="a.py::t", premerge="NOT_RUN:td_excluded"),
         rec(sha="c1", signal="b.py::t", premerge="RUN_SUCCEEDED"),
         rec(sha="c2", signal="c.py::t", premerge="RUN_SUCCEEDED"),
-        # A test_absent row marks this as a post-fix CSV, so c1's td_deselected
-        # stays real (a legacy CSV would fold it into test_absent).
         rec(sha="c3", signal="d.py::t", premerge="NOT_RUN:test_absent"),
     ]
     pm = aggregate(records, source="x.csv").premerge
@@ -230,8 +239,8 @@ def test_commit_funnel_td_is_sticky_over_runner():
     assert pm.total_eligible_commits == 3
     sig = {r.name: r.signals for r in pm.breakdown}
     com = {r.name: r.commits for r in pm.breakdown}
-    assert sig["RUN_SUCCEEDED"] == 2 and sig["NOT_RUN:td_deselected"] == 1
-    assert com["NOT_RUN:td_deselected"] == 1
+    assert sig["RUN_SUCCEEDED"] == 2 and sig["NOT_RUN:td_excluded"] == 1
+    assert com["NOT_RUN:td_excluded"] == 1
     assert com["RUN_SUCCEEDED"] == 1
     assert com["NOT_RUN:test_absent"] == 1
     assert sum(r.commits for r in pm.breakdown) == 3
@@ -275,14 +284,14 @@ def test_table_headings_have_titles():
         aggregate(_one_per_status(), source="x.csv").premerge, top=50
     )
     rs_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_RUN_SUCCEEDED]
-    td_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_DESELECTED]
+    td_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TD_EXCLUDED]
     assert (
         f'<h3 class="tip" data-tip="{escape(rs_tip)}">'
         f"Top 50 {PREMERGE_STATUS_RUN_SUCCEEDED} (landraces)</h3>"
     ) in html
     assert (
         f'<h3 class="tip" data-tip="{escape(td_tip)}">'
-        f"Top 50 {PREMERGE_STATUS_TD_DESELECTED}</h3>"
+        f"Top 50 {PREMERGE_STATUS_TD_EXCLUDED}</h3>"
     ) in html
 
 
@@ -292,7 +301,7 @@ def test_default_top_is_15():
         aggregate(_one_per_status(), source="x.csv").premerge
     )
     assert "Top 15 RUN_SUCCEEDED (landraces)" in html
-    assert "Top 15 NOT_RUN:td_deselected" in html
+    assert "Top 15 NOT_RUN:td_excluded" in html
     assert "Top 50" not in html
 
 
@@ -306,16 +315,16 @@ def test_explanation_block_present():
         "no_merge_record",
         "force_merge",
         "not_in_matrix",
-        "td_deselected",
+        "td_excluded",
         "test_absent",
         "td_unknown",
         "skipped",
     ):
         assert f"<code>NOT_RUN:{key}</code>" in html
     # The plain-language phrasing for the confusable trio is spelled out:
-    # job-level (not_in_matrix), file-level TD (td_deselected), test-level
+    # config-level (not_in_matrix), file-level TD (td_excluded), test-level
     # (test_absent).
-    assert "job wasn&#x27;t in the matrix" in html
+    assert "config wasn&#x27;t in the matrix" in html
     assert "TD excluded the file" in html
     assert "file ran, test left no result" in html
 
@@ -343,10 +352,8 @@ def test_top_50_run_succeeded_cap_and_sort():
                 premerge="RUN_SUCCEEDED",
             )
         )
-    # An independent td_deselected row must not contaminate the RS list.
-    records.append(rec(sha="tdx", signal="td.py::t", premerge="NOT_RUN:td_deselected"))
-    # A test_absent row marks this as a post-fix CSV so td_deselected stays real.
-    records.append(rec(sha="tax", signal="ta.py::t", premerge="NOT_RUN:test_absent"))
+    # An independent td_excluded row must not contaminate the RS list.
+    records.append(rec(sha="tdx", signal="td.py::t", premerge="NOT_RUN:td_excluded"))
     pm = aggregate(records, source="x.csv").premerge
     section = render_premerge_section(pm, top=50)
 
@@ -364,21 +371,19 @@ def test_top_50_run_succeeded_cap_and_sort():
     # Newest 50 kept (s010..s059); oldest 10 (s000..s009) dropped.
     assert "s010.py::t" in ls_block
     assert "s009.py::t" not in ls_block
-    # td_deselected list is independent and short.
-    assert len(pm.td_deselected_rows) == 1
-    assert pm.td_deselected_rows[0].signal_key == "td.py::t"
+    # td_excluded list is independent and short.
+    assert len(pm.td_excluded_rows) == 1
+    assert pm.td_excluded_rows[0].signal_key == "td.py::t"
 
 
-def test_td_deselected_top_list_independent():
+def test_td_excluded_top_list_independent():
     records = [
-        rec(sha=f"t{i}", signal=f"t{i}.py::t", premerge="NOT_RUN:td_deselected")
+        rec(sha=f"t{i}", signal=f"t{i}.py::t", premerge="NOT_RUN:td_excluded")
         for i in range(3)
     ]
     records += [rec(sha="rs", signal="rs.py::t", premerge="RUN_SUCCEEDED")]
-    # Mark as a post-fix CSV so the td_deselected rows stay real (not folded).
-    records += [rec(sha="ta", signal="ta.py::t", premerge="NOT_RUN:test_absent")]
     pm = aggregate(records, source="x.csv").premerge
-    assert len(pm.td_deselected_rows) == 3
+    assert len(pm.td_excluded_rows) == 3
     assert len(pm.run_succeeded_rows) == 1
 
 
@@ -400,7 +405,7 @@ def test_section_present_in_full_render_both_modes():
         assert f"<h2>{PREMERGE_HEADING}</h2>" in html
         assert "What the NOT_RUN reasons mean" in html
         assert "Top 15 RUN_SUCCEEDED (landraces)" in html
-        assert "Top 15 NOT_RUN:td_deselected" in html
+        assert "Top 15 NOT_RUN:td_excluded" in html
 
 
 def test_commit_links_use_commit_url():
@@ -455,11 +460,10 @@ def _legacy_csv_row(sha, signal, premerge):
 
 
 def test_legacy_td_deselected_remapped_to_test_absent():
-    # A pre-fix CSV carries only the old vocabulary; its inferred td_deselected
-    # meant "file ran, test left no result", which is now test_absent. With no
-    # new-vocab rows present the report treats the CSV as legacy and remaps, so
-    # the count lands in test_absent (never silently in the untooltipped 'other'
-    # bucket) and td_deselected stays empty.
+    # Old CSVs only ever emitted NOT_RUN:td_deselected as the inferred "file ran,
+    # test left no result" (today's test_absent). The report folds it into
+    # test_absent so the count is tooltipped and never lands silently in the
+    # untooltipped 'other' bucket.
     lines = [
         ",".join(EXPECTED_COLUMNS),
         _legacy_csv_row("a", "a.py::t", "NOT_RUN:td_deselected"),
@@ -468,28 +472,48 @@ def test_legacy_td_deselected_remapped_to_test_absent():
     pm = aggregate(load_records(lines), source="legacy.csv").premerge
     counts = {r.name: r.signals for r in pm.breakdown}
     assert counts.get(PREMERGE_STATUS_TEST_ABSENT) == 1
-    assert PREMERGE_STATUS_TD_DESELECTED not in counts
+    assert "NOT_RUN:td_deselected" not in counts
+    assert PREMERGE_STATUS_TD_EXCLUDED not in counts
     assert pm.buckets.test_absent == 1
-    assert pm.buckets.td_deselected == 0
+    assert pm.buckets.td_excluded == 0
     assert pm.buckets.other == 0
     html = render_premerge_section(pm)
     ta_tip = PREMERGE_STATUS_TOOLTIPS[PREMERGE_STATUS_TEST_ABSENT]
     assert f'data-tip="{escape(ta_tip)}"' in html
 
 
-def test_new_csv_keeps_real_td_deselected():
-    # A CSV that carries any new-vocabulary status is a post-fix generation, so
-    # its td_deselected is real (file-level) target determination and must NOT
-    # be remapped to test_absent.
+def test_legacy_td_deselected_remaps_unconditionally_with_td_excluded():
+    # The remap is UNCONDITIONAL - no vocabulary sniffing. Even when the CSV also
+    # carries the current td_excluded status, a legacy td_deselected value still
+    # folds to test_absent (it can only be the old inference) while the real
+    # td_excluded is left untouched.
+    lines = [
+        ",".join(EXPECTED_COLUMNS),
+        _legacy_csv_row("a", "a.py::t", "NOT_RUN:td_deselected"),
+        _legacy_csv_row("b", "b.py::t", "NOT_RUN:td_excluded"),
+    ]
+    pm = aggregate(load_records(lines), source="mixed.csv").premerge
+    counts = {r.name: r.signals for r in pm.breakdown}
+    assert counts.get(PREMERGE_STATUS_TEST_ABSENT) == 1
+    assert counts.get(PREMERGE_STATUS_TD_EXCLUDED) == 1
+    assert "NOT_RUN:td_deselected" not in counts
+    assert pm.buckets.test_absent == 1
+    assert pm.buckets.td_excluded == 1
+    assert pm.buckets.other == 0
+
+
+def test_td_excluded_is_never_remapped():
+    # td_excluded is the real per-config TD signal and must never be folded into
+    # test_absent - only the legacy td_deselected string is.
     records = [
-        rec(sha="a", signal="a.py::t", premerge="NOT_RUN:td_deselected"),
+        rec(sha="a", signal="a.py::t", premerge="NOT_RUN:td_excluded"),
         rec(sha="b", signal="b.py::t", premerge="NOT_RUN:test_absent"),
     ]
     pm = aggregate(records, source="new.csv").premerge
     counts = {r.name: r.signals for r in pm.breakdown}
-    assert counts.get(PREMERGE_STATUS_TD_DESELECTED) == 1
+    assert counts.get(PREMERGE_STATUS_TD_EXCLUDED) == 1
     assert counts.get(PREMERGE_STATUS_TEST_ABSENT) == 1
-    assert pm.buckets.td_deselected == 1
+    assert pm.buckets.td_excluded == 1
     assert pm.buckets.test_absent == 1
     assert pm.buckets.other == 0
 

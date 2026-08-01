@@ -1,21 +1,22 @@
 from typing import Dict
 
+from ..premerge_status import (
+    PREMERGE_STATUS_ERROR,
+    PREMERGE_STATUS_FORCE_MERGE,
+    PREMERGE_STATUS_NO_MERGE_RECORD,
+    PREMERGE_STATUS_NOT_IN_MATRIX,
+    PREMERGE_STATUS_RUN_FAILED,
+    PREMERGE_STATUS_RUN_SUCCEEDED,
+    PREMERGE_STATUS_SKIPPED,
+    PREMERGE_STATUS_TD_EXCLUDED,
+    PREMERGE_STATUS_TD_UNKNOWN,
+    PREMERGE_STATUS_TEST_ABSENT,
+)
 
-PREMERGE_STATUS_TD_DESELECTED = "NOT_RUN:td_deselected"
-PREMERGE_STATUS_TEST_ABSENT = "NOT_RUN:test_absent"
-PREMERGE_STATUS_TD_UNKNOWN = "NOT_RUN:td_unknown"
-PREMERGE_STATUS_RUN_SUCCEEDED = "RUN_SUCCEEDED"
-PREMERGE_STATUS_RUN_FAILED = "RUN_FAILED"
-PREMERGE_STATUS_FORCE_MERGE = "NOT_RUN:force_merge"
-PREMERGE_STATUS_NO_MERGE_RECORD = "NOT_RUN:no_merge_record"
-PREMERGE_STATUS_ERROR = "ERROR"
-PREMERGE_STATUS_SKIPPED = "NOT_RUN:skipped"
-PREMERGE_STATUS_NOT_IN_MATRIX = "NOT_RUN:not_in_matrix"
 
-
-# Plain-language explanation of every pre-merge status, keyed once here so the
-# breakdown rows, funnel drops, and table headings share one source of truth.
-# ASCII-only so they escape cleanly into HTML attributes.
+# Plain-language explanation of every pre-merge status. Keys are the neutral
+# status constants so the breakdown rows, funnel drops, and table headings share
+# one vocabulary; values are ASCII-only so they escape cleanly into HTML attrs.
 PREMERGE_STATUS_TOOLTIPS: Dict[str, str] = {
     PREMERGE_STATUS_RUN_SUCCEEDED: (
         "This test ran while the change was still a pull request and passed "
@@ -36,28 +37,32 @@ PREMERGE_STATUS_TOOLTIPS: Dict[str, str] = {
         "The test was present in the pre-merge run but was explicitly skipped, "
         "so it produced no pass/fail result before merge."
     ),
-    PREMERGE_STATUS_TD_DESELECTED: (
+    PREMERGE_STATUS_TD_EXCLUDED: (
         "Target determination (TD) excluded the failing test's file from the "
-        "pre-merge run - TD predicts which files a change can affect and skips "
-        "the rest - so the file, and this test, never ran before merge. "
-        "Re-running is not guaranteed to reproduce the failure (landraces "
-        "exist), but the file was never given the chance."
+        "pre-merge run for the configuration where it later failed - TD "
+        "predicts which files a change can affect and skips the rest, per "
+        "configuration - so the file, and this test, never ran before merge. "
+        "This is the honest 'green would be red' signal; re-running is not "
+        "guaranteed to reproduce the failure (landraces exist), but the file "
+        "was never given the chance."
     ),
     PREMERGE_STATUS_TEST_ABSENT: (
-        "The test's file ran before merge, but this specific test produced no "
-        "result row and was not excluded by target determination - usually a "
-        "renamed, removed, or reparametrized test, or a shard/job-filter edge. "
-        "No pre-merge pass/fail exists for it."
+        "The failing test's configuration ran its file before merge and target "
+        "determination did NOT exclude it, but this specific test produced no "
+        "result row - usually a renamed, removed, or reparametrized test, or a "
+        "shard/job-filter edge. Not a TD decision; no pre-merge pass/fail "
+        "exists for it."
     ),
     PREMERGE_STATUS_TD_UNKNOWN: (
-        "This test produced no pre-merge result, and we could not determine "
-        "whether target determination excluded its file - a no-result test of "
-        "undetermined cause."
+        "This test produced no pre-merge result and TD's decision for its file "
+        "could not be determined - no usable exclusion record, or a flat "
+        "record that did not list the file. A no-result test of undetermined "
+        "cause."
     ),
     PREMERGE_STATUS_NOT_IN_MATRIX: (
-        "The test's job/configuration didn't run before merge at all - it "
-        "wasn't part of this pull request's checks, even though other checks "
-        "did run."
+        "The failing test's config never ran in the pre-merge (pull) matrix - "
+        "e.g. a trunk- or CUDA-only config that only runs after merge - so "
+        "nothing from its file ran before the change landed."
     ),
     PREMERGE_STATUS_NO_MERGE_RECORD: (
         "We couldn't identify which pre-merge version to check for this commit "
