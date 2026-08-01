@@ -7,6 +7,15 @@ import it and compute a byte-identical digest; a mismatch means the verifier
 refuses to land. ``scheme_version`` is part of the hashed payload, so any change to
 the payload, its canonicalization, or the hash algorithm MUST bump
 ``HASH_SCHEME_VERSION`` and add a new golden test that pins the new digest.
+
+Which comments feed the hash is a cross-process contract too: the writer keeps only
+events authored by pytorch/pytorch's merge-authorized set (see ``merge_authz`` and
+``github_client.build_pr_fingerprint``), so the land-time verifier MUST resolve that
+same set the same way -- via ``merge_authz.resolve_authorized_logins``, which lowercases
+every login and unions ALL merge_rules entries. It MUST NOT reuse pytorch's
+``trymerge.py`` authorization check: that is case-sensitive and scoped to the rules whose
+file patterns match a single PR, so its set diverges from this full lowercased union and
+yields a different digest -- refusing every land.
 """
 
 from __future__ import annotations
@@ -16,7 +25,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-HASH_SCHEME_VERSION = 3
+HASH_SCHEME_VERSION = 4
 
 BOT_LOGINS: frozenset[str] = frozenset(
     {

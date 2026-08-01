@@ -19,10 +19,13 @@ S3_KEY_PREFIX = "greenlight_pr_state"
 EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
 
+TARGET_REPO = "pytorch/pytorch"
 DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 30
+
+MERGE_RULES_PATH = ".github/merge_rules.yaml"
 
 
 def validate_eval_hash(value: str) -> None:

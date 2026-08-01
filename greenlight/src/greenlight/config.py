@@ -15,12 +15,13 @@ _DEFAULT_LOG_LEVEL = "INFO"
 _DEFAULT_MAX_RUNTIME_SECONDS = 600.0
 _DEFAULT_BACKOFF_BASE_SECONDS = 1.0
 _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
+_DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
 _MAX_SECONDS = 2_592_000.0
 
-_POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds")
+_POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds", "merge_rules_ttl_seconds")
 _NON_NEGATIVE_FIELDS = ("max_runtime_seconds",)
 
 
@@ -65,6 +66,7 @@ class Config:
     max_runtime_seconds: float = _DEFAULT_MAX_RUNTIME_SECONDS
     backoff_base_seconds: float = _DEFAULT_BACKOFF_BASE_SECONDS
     backoff_max_seconds: float = _DEFAULT_BACKOFF_MAX_SECONDS
+    merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
     github_token: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -94,6 +96,9 @@ class Config:
             ),
             backoff_max_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", _DEFAULT_BACKOFF_MAX_SECONDS
+            ),
+            merge_rules_ttl_seconds=_read_float(
+                source, "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", _DEFAULT_MERGE_RULES_TTL_SECONDS
             ),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
         )

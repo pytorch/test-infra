@@ -162,12 +162,18 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
     return sorted(prs, key=lambda p: p.number)
 
 
-def _actor_login(user: _PRActor | None, self_login: str | None) -> str | None:
+def _actor_login(
+    user: _PRActor | None, self_login: str | None, authorized_logins: frozenset[str] | None = None
+) -> str | None:
     """Return the login to attribute an event to, or None if the actor is excluded.
 
     Excludes ghost/deleted actors (``user`` or its login missing), bots, and the
     greenlight account itself (``self_login``). The falsy-login guard runs before the
     ``self_login`` comparison so a null login never reaches ``.lower()``.
+
+    When ``authorized_logins`` is given, an actor outside that (lowercased) set is also
+    excluded, so only merge-authorized humans feed the fingerprint. ``None`` applies no
+    such filter and keeps every non-bot, non-self human.
     """
     if user is None:
         return None
@@ -178,15 +184,23 @@ def _actor_login(user: _PRActor | None, self_login: str | None) -> str | None:
         return None
     if self_login is not None and login.lower() == self_login.lower():
         return None
+    if authorized_logins is not None and login.lower() not in authorized_logins:
+        return None
     return login
 
 
-def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -> PRFingerprint:
+def build_pr_fingerprint(
+    pr: _FingerprintPR, *, self_login: str | None = None, authorized_logins: frozenset[str] | None = None
+) -> PRFingerprint:
     """Build the deterministic fingerprint for a PR.
 
     ``self_login`` MUST be exactly the greenlight bot account and identical on the
     writer and the verifier: the login passed here has its own events dropped, so a
     human login would exclude that human's reviews and open an approval-bypass.
+
+    ``authorized_logins`` restricts the events to comments from that merge-authorized set
+    (see ``merge_authz``); ``None`` keeps every non-bot, non-self human. The writer and
+    the verifier MUST pass the identically-resolved set or their digests diverge.
 
     Coverage: the fingerprint covers ``base_sha``, ``head_sha``, and the ``id`` and
     ``body`` of non-bot, non-self human events (issue comments, review comments, and
@@ -195,17 +209,17 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
     """
     human_events: list[HumanEvent] = []
     for comment in pr.get_issue_comments():
-        if _actor_login(comment.user, self_login) is None:
+        if _actor_login(comment.user, self_login, authorized_logins) is None:
             continue
         human_events.append(HumanEvent(id=comment.id, body=comment.body))
 
     for review_comment in pr.get_review_comments():
-        if _actor_login(review_comment.user, self_login) is None:
+        if _actor_login(review_comment.user, self_login, authorized_logins) is None:
             continue
         human_events.append(HumanEvent(id=review_comment.id, body=review_comment.body))
 
     for review in pr.get_reviews():
-        if _actor_login(review.user, self_login) is None:
+        if _actor_login(review.user, self_login, authorized_logins) is None:
             continue
         human_events.append(HumanEvent(id=review.id, body=review.body))
 
@@ -216,15 +230,18 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
     )
 
 
-def fingerprint_pr(client: ScanClient, repo: str, pr_number: int) -> tuple[str, str]:
+def fingerprint_pr(
+    client: ScanClient, repo: str, pr_number: int, *, authorized_logins: frozenset[str] | None = None
+) -> tuple[str, str]:
     """Fetch the PR and return its ``(head_sha, eval_hash)``.
 
     Beyond the pull fetch this costs ~3 paginated GitHub calls: ``build_pr_fingerprint``
-    reads issue comments, review comments, and reviews.
+    reads issue comments, review comments, and reviews. ``authorized_logins`` is the
+    merge-authorized comment filter threaded into ``build_pr_fingerprint``.
     """
     pr = client.get_repo(repo).get_pull(pr_number)
     head_sha = pr.head.sha
-    eval_hash = compute_pr_hash(build_pr_fingerprint(pr))
+    eval_hash = compute_pr_hash(build_pr_fingerprint(pr, authorized_logins=authorized_logins))
     constants.validate_eval_hash(eval_hash)
     return head_sha, eval_hash
 

@@ -9,9 +9,9 @@ import logging
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import review, verdict
+from greenlight import github_client, merge_authz, review, verdict
 from greenlight.config import Config
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for LAND/NO_LAND."
         ),
     )
-    verdict_parser.add_argument("--repo", default=review.TARGET_REPO, help="owner/name of the repository")
+    verdict_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the repository")
     verdict_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
     verdict_parser.add_argument("--head-sha", required=True, help="expected PR head SHA at evaluation time")
     verdict_parser.add_argument("--eval-hash", default="", help="land-guard fingerprint to store verbatim")
@@ -116,6 +116,13 @@ def _config_from_args(args: argparse.Namespace) -> Config:
     if args.lock_path is not None:
         config = dataclasses.replace(config, lock_path=args.lock_path)
     return config
+
+
+def _build_authz_client(config: Config) -> merge_authz.AuthzClient:
+    token = config.github_token
+    if token is None:
+        raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to resolve merge authorization")
+    return github_client.build_client(token)
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
@@ -183,6 +190,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--force requires --pr")
     if args.force and args.loop:
         parser.error("--force cannot be combined with --loop")
+    # One cache for the whole process: bound into the partial here (not per iteration), so a
+    # --loop daemon refetches merge_rules at most once per TTL across all its scans.
+    authorized_cache = merge_authz.AuthorizedLoginsCache(
+        build_client=lambda: _build_authz_client(config),
+        ttl_seconds=config.merge_rules_ttl_seconds,
+    )
     run = functools.partial(
         review.run,
         pr=args.pr,
@@ -190,5 +203,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         ref=args.ref,
         timeout_minutes=args.timeout_minutes,
         force=args.force,
+        resolve_authorized=authorized_cache.get,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

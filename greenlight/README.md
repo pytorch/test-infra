@@ -80,13 +80,14 @@ Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR read on `pytorch/pytorch` |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR read on `pytorch/pytorch`, and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
+| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long a resolved `merge_rules.yaml` authorized-login set is cached before refetch |
 
 `review` additionally reads ClickHouse — any scan that finds at least one trusted-author
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -129,6 +130,16 @@ When wired, the land-time verifier must look up stored state by `(repo, pr_numbe
 repo and PR number, so a hash-only lookup would let one PR's approval replay onto a
 different PR. The writer (greenlight) and the verifier (pytorchbot) run the identical
 `pr_hash` / `build_pr_fingerprint` code and upgrade hash schemes together.
+
+The fingerprint also covers only comments authored by `pytorch/pytorch`'s
+merge-authorized set — every `approved_by` login in `.github/merge_rules.yaml`, with team
+refs expanded to members (see `merge_authz`). The land-time verifier MUST resolve that same
+set the same way — via `merge_authz.resolve_authorized_logins`, which lowercases every login
+and unions *all* `merge_rules.yaml` entries — and MUST NOT reuse pytorch's `trymerge.py`
+authorization check, which is case-sensitive and scoped to the rules whose file patterns
+match a single PR. A divergent set computes a different digest and refuses every land. A
+login entering or leaving the set re-fingerprints only the PRs where that login has
+commented.
 
 ## Development
 

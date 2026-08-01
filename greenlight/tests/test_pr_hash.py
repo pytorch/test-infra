@@ -127,8 +127,8 @@ def test_compute_pr_hash_handles_lone_surrogate_in_body_without_raising():
     assert compute_pr_hash(fp) == digest
 
 
-def test_compute_pr_hash_golden_scheme_v3():
-    """Golden digest pinning scheme v3 (SHA-256).
+def test_compute_pr_hash_golden_scheme_v4():
+    """Golden digest pinning scheme v4 (SHA-256).
 
     Any change to the payload, its canonicalization, or the hash algorithm breaks
     this on purpose; regenerate the literal only alongside a HASH_SCHEME_VERSION bump.
@@ -140,13 +140,13 @@ def test_compute_pr_hash_golden_scheme_v3():
             HumanEvent(id=2, body="lgtm"),
             HumanEvent(id=1, body="hi"),
         ),
-        scheme_version=3,
+        scheme_version=4,
     )
 
-    assert compute_pr_hash(fp) == "451155c8118d6a801580b42cdab69212cba9422e717ebdbff3161bbcecf784e0"
+    assert compute_pr_hash(fp) == "7aafb42b947f4d63210cb7970641638c47be5bd0cef6814fafa9bdc57176c5f5"
 
 
-def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v3():
+def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v4():
     """Golden that pins the payload sort KEY (``key=_canonical``), not just the algorithm.
 
     The fixture is crafted so canonical (sorted-dict-key) ordering diverges from a
@@ -162,14 +162,14 @@ def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v3():
             HumanEvent(id=1, body="z"),
             HumanEvent(id=2, body="a"),
         ),
-        scheme_version=3,
+        scheme_version=4,
     )
 
-    assert compute_pr_hash(fp) == "475227150e94bc8f8fc6153d76048f003b06eb5f0401674d6b768ed63a3fe089"
+    assert compute_pr_hash(fp) == "181b902bdd8bd20067df4cf5011ce276121d6b5a34d40e121e1a4f8158af2ec5"
 
 
 def test_hash_scheme_version_is_pinned():
-    assert HASH_SCHEME_VERSION == 3
+    assert HASH_SCHEME_VERSION == 4
 
 
 def test_pr_fingerprint_scheme_version_defaults_to_current_scheme():

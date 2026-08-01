@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from greenlight import dispatch as dispatch_module
 from greenlight import github_client, state
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.decision import Decision, decide
 
 if TYPE_CHECKING:
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-TARGET_REPO = "pytorch/pytorch"
 TRUSTED_AUTHORS: set[str] = {
     "albanD",  # Alban Desmaison
     "jathu",  # Jathu Satkunarajah
@@ -64,18 +63,19 @@ def _default_fetch(client: Github) -> list[OpenPR]:
     return github_client.list_open_prs_by_authors(client, TARGET_REPO, TRUSTED_AUTHORS)
 
 
-def _default_fingerprint(client: Github, pr_number: int) -> tuple[str, str]:
-    return github_client.fingerprint_pr(client, TARGET_REPO, pr_number)
+def _default_fingerprint(client: Github, pr_number: int, authorized_logins: frozenset[str]) -> tuple[str, str]:
+    return github_client.fingerprint_pr(client, TARGET_REPO, pr_number, authorized_logins=authorized_logins)
 
 
 def _fingerprint_task(
-    fingerprint: Callable[[Github, int], tuple[str, str]],
+    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
     client_pool: queue.Queue[Github],
     number: int,
+    authorized_logins: frozenset[str],
 ) -> tuple[str, str]:
     client = client_pool.get()
     try:
-        return fingerprint(client, number)
+        return fingerprint(client, number, authorized_logins)
     finally:
         client_pool.put(client)
 
@@ -174,9 +174,10 @@ def _fingerprint_all(
     pr_numbers: Sequence[int],
     states: dict[int, PRState],
     *,
-    fingerprint: Callable[[Github, int], tuple[str, str]],
+    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
     client_pool: queue.Queue[Github],
     worker_count: int,
+    authorized_logins: frozenset[str],
     now: datetime,
     timeout: timedelta,
     failed: list[int],
@@ -186,7 +187,8 @@ def _fingerprint_all(
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             futures = {
-                number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in pr_numbers
+                number: pool.submit(_fingerprint_task, fingerprint, client_pool, number, authorized_logins)
+                for number in pr_numbers
             }
     pending: list[_Candidate] = []
     for number in pr_numbers:
@@ -200,9 +202,10 @@ def _fingerprint_until_dispatchable(
     pr_numbers: Sequence[int],
     states: dict[int, PRState],
     *,
-    fingerprint: Callable[[Github, int], tuple[str, str]],
+    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
     client_pool: queue.Queue[Github],
     worker_count: int,
+    authorized_logins: frozenset[str],
     limit: int,
     now: datetime,
     timeout: timedelta,
@@ -217,7 +220,10 @@ def _fingerprint_until_dispatchable(
                 if len(pending) >= limit:
                     break
                 batch = ranked[start : start + worker_count]
-                futures = {number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in batch}
+                futures = {
+                    number: pool.submit(_fingerprint_task, fingerprint, client_pool, number, authorized_logins)
+                    for number in batch
+                }
                 for number in batch:
                     candidate = _evaluate_pr(
                         number, futures[number], states, now=now, timeout=timeout, failed=failed, force=force
@@ -237,9 +243,10 @@ def run(
     force: bool = False,
     build_github: Callable[[str], Github] = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
-    fingerprint: Callable[[Github, int], tuple[str, str]] = _default_fingerprint,
+    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]] = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
+    resolve_authorized: Callable[[], frozenset[str]],
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
     logger.info("reviewing trusted-author PRs in %s", TARGET_REPO)
@@ -247,6 +254,10 @@ def run(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+    # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
+    # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
+    authorized_logins = resolve_authorized()
+    logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
     with contextlib.ExitStack() as clients:
         client = build_github(token)
         clients.callback(_close_client, client)
@@ -271,6 +282,7 @@ def run(
                 fingerprint=fingerprint,
                 client_pool=client_pool,
                 worker_count=worker_count,
+                authorized_logins=authorized_logins,
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
@@ -283,6 +295,7 @@ def run(
                 fingerprint=fingerprint,
                 client_pool=client_pool,
                 worker_count=worker_count,
+                authorized_logins=authorized_logins,
                 limit=max(0, max_dispatches),
                 now=evaluated_at,
                 timeout=timeout,

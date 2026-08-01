@@ -306,6 +306,102 @@ def test_build_pr_fingerprint_with_no_activity_returns_empty_human_events():
     assert fingerprint.human_events == ()
 
 
+def test_build_pr_fingerprint_keeps_only_authorized_humans():
+    pr = _FakePR(
+        base_sha="sha",
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "authorized"),
+            _FakeComment(2, _FakeActor("mallory", "User"), "unauthorized"),
+            _FakeComment(3, _FakeActor("ci-bot", "Bot"), "bot"),
+        ],
+        review_comments=[_FakeComment(4, _FakeActor("BOB", "User"), "authorized upper-case")],
+        reviews=[_FakeReview(5, _FakeActor("eve", "User"), "unauthorized review")],
+    )
+
+    fingerprint = github_client.build_pr_fingerprint(pr, authorized_logins=frozenset({"alice", "bob"}))
+
+    # Only authorized humans survive, matched case-insensitively (BOB -> bob); the unauthorized
+    # humans and the bot are all dropped.
+    assert fingerprint.human_events == (
+        HumanEvent(id=1, body="authorized"),
+        HumanEvent(id=4, body="authorized upper-case"),
+    )
+
+
+def test_build_pr_fingerprint_none_authorized_keeps_all_non_bot_humans():
+    pr = _FakePR(
+        base_sha="sha",
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "keep"),
+            _FakeComment(2, _FakeActor("mallory", "User"), "also keep"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+
+    # None (the default) applies no authorization filter: every non-bot human is kept.
+    assert github_client.build_pr_fingerprint(pr).human_events == (
+        HumanEvent(id=1, body="keep"),
+        HumanEvent(id=2, body="also keep"),
+    )
+
+
+def test_build_pr_fingerprint_empty_authorized_drops_every_comment():
+    pr = _FakePR(
+        base_sha="sha",
+        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "note")],
+        review_comments=[],
+        reviews=[],
+    )
+
+    # An empty (but not None) set authorizes nobody, so no human comment feeds the hash.
+    assert github_client.build_pr_fingerprint(pr, authorized_logins=frozenset()).human_events == ()
+
+
+def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
+    pr = _FakePR(
+        base_sha="sha",
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "authorized other"),
+            _FakeComment(2, _FakeActor("greenlight", "User"), "authorized self"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+
+    # greenlight is in the authorized set yet still excluded as self_login: authorization must not
+    # bypass the self-exclusion approval-bypass guard.
+    fingerprint = github_client.build_pr_fingerprint(
+        pr, self_login="greenlight", authorized_logins=frozenset({"alice", "greenlight"})
+    )
+
+    assert fingerprint.human_events == (HumanEvent(id=1, body="authorized other"),)
+
+
+def test_fingerprint_pr_threads_authorized_logins():
+    pr = _FakePR(
+        base_sha="base",
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "authorized"),
+            _FakeComment(2, _FakeActor("mallory", "User"), "unauthorized"),
+        ],
+        review_comments=[],
+        reviews=[],
+        head_sha="deadbeef",
+    )
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    head_sha, eval_hash = github_client.fingerprint_pr(
+        client, "pytorch/pytorch", 3, authorized_logins=frozenset({"alice"})
+    )
+
+    assert head_sha == "deadbeef"
+    # Equals the hash of the fingerprint built with the SAME filter (set threaded through), and
+    # differs from the unfiltered hash (mallory would otherwise be included).
+    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr, authorized_logins=frozenset({"alice"})))
+    assert eval_hash != compute_pr_hash(github_client.build_pr_fingerprint(pr))
+
+
 def _golden_pr() -> _FakePR:
     """Fixture for the end-to-end golden.
 
@@ -329,11 +425,11 @@ def _golden_pr() -> _FakePR:
     )
 
 
-def test_build_pr_fingerprint_golden_hash_scheme_v3():
-    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v3 digest.
+def test_build_pr_fingerprint_golden_hash_scheme_v4():
+    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v4 digest.
 
     Guards against drift in is_bot / BOT_LOGINS / self_login exclusion and the
-    PR-field mapping. Uses the default scheme_version (3); a future
+    PR-field mapping. Uses the default scheme_version (4); a future
     HASH_SCHEME_VERSION bump regenerates this literal.
     """
     fingerprint = github_client.build_pr_fingerprint(_golden_pr(), self_login="greenlight")
@@ -342,7 +438,7 @@ def test_build_pr_fingerprint_golden_hash_scheme_v3():
         HumanEvent(id=1, body="please fix"),
         HumanEvent(id=6, body="lgtm"),
     )
-    assert compute_pr_hash(fingerprint) == "a6926e4cf8cf4cce783b1c0ceb132140205186d77effbb0016c5c39388d1bae7"
+    assert compute_pr_hash(fingerprint) == "21bf49e1deed3d5591d82cf45c03e398dcdfbde8816ee7b87d37907a7178c120"
 
 
 @pytest.mark.parametrize("null_login", [None, ""])

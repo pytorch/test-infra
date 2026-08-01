@@ -2,20 +2,39 @@ import functools
 import logging
 import sys
 from contextlib import contextmanager
+from types import MethodType
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, review, verdict
+from greenlight import cli, merge_authz, review, verdict
 from greenlight.config import Config
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @contextmanager
 def _noop_lock(path):
     yield
+
+
+def _pop_resolve_authorized(kwargs: Mapping[str, object]) -> dict[str, object]:
+    """Assert ``resolve_authorized`` is a shared cache's ``.get`` and return the remaining kwargs.
+
+    Every review path must bind the process-wide ``AuthorizedLoginsCache.get`` as the resolver;
+    stripping it here lets the caller compare the rest of the bound scan flags by value.
+    """
+    remaining = dict(kwargs)
+    resolve = remaining.pop("resolve_authorized")
+    assert isinstance(resolve, MethodType)
+    assert isinstance(resolve.__self__, merge_authz.AuthorizedLoginsCache)
+    assert resolve.__func__ is merge_authz.AuthorizedLoginsCache.get
+    return remaining
 
 
 def test_build_parser_parses_common_flags_per_subcommand():
@@ -82,7 +101,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
     bound = captured["run"]
     assert isinstance(bound, functools.partial)
     assert bound.func is review.run
-    assert bound.keywords == {
+    assert _pop_resolve_authorized(bound.keywords) == {
         "pr": None,
         "max_dispatches": None,
         "ref": "main",
@@ -355,7 +374,7 @@ def test_verdict_parser_parses_all_args():
 def test_verdict_parser_defaults():
     parser = cli.build_parser()
     args = parser.parse_args(["verdict", "--pr", "5", "--head-sha", "abc123"])
-    assert args.repo == review.TARGET_REPO
+    assert args.repo == TARGET_REPO
     assert args.eval_hash == ""
     assert args.status is None
     assert args.verdict_file is None
@@ -421,7 +440,7 @@ def test_main_verdict_dispatches_and_builds_request(monkeypatch):
     assert request.pr_number == 7
     assert request.head_sha == "abc123"
     assert request.status == "CANCELLED"
-    assert request.repo == review.TARGET_REPO
+    assert request.repo == TARGET_REPO
     assert request.agent_job_url == "https://agent"
     assert request.bot_login == "greenlight-app[bot]"
     assert request.run_id == 456
@@ -498,7 +517,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
     assert rc == EXIT_OK
     review_mock.assert_called_once()
     assert isinstance(review_mock.call_args.args[0], Config)
-    assert review_mock.call_args.kwargs == {
+    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": 2,
         "ref": "release/2.9",
@@ -516,7 +535,7 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
     rc = cli.main(["review"])
 
     assert rc == EXIT_OK
-    assert review_mock.call_args.kwargs == {
+    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
         "pr": None,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -554,10 +573,45 @@ def test_main_review_force_binds_into_run(monkeypatch):
     rc = cli.main(["review", "--pr", "5", "--force"])
 
     assert rc == EXIT_OK
-    assert review_mock.call_args.kwargs == {
+    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
         "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
         "force": True,
     }
+
+
+def test_build_authz_client_requires_token():
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
+        cli._build_authz_client(Config(github_token=None))
+
+
+def test_build_authz_client_builds_github_client():
+    from github import Github
+
+    client = cli._build_authz_client(Config(github_token="tok"))
+
+    assert isinstance(client, Github)
+
+
+def test_main_review_cache_uses_configured_ttl(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "123")
+    captured: dict[str, object] = {}
+
+    def fake_run(config, **kwargs):
+        captured["resolve"] = kwargs["resolve_authorized"]
+
+    monkeypatch.setattr(review, "run", fake_run)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5"])
+
+    assert rc == EXIT_OK
+    resolve = captured["resolve"]
+    assert isinstance(resolve, MethodType)
+    cache = resolve.__self__
+    # One process-wide cache, built from config: the configured TTL flows into it.
+    assert isinstance(cache, merge_authz.AuthorizedLoginsCache)
+    assert cache._ttl_seconds == 123.0

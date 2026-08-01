@@ -15,6 +15,7 @@ from greenlight.constants import (
     STATUS_AI_REVIEW_STARTED,
     STATUS_CANCELLED,
     STATUS_LAND,
+    TARGET_REPO,
 )
 from greenlight.github_client import OpenPR
 from greenlight.state import PRState
@@ -32,6 +33,7 @@ _CLIENT = cast("Github", object())
 
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
+_AUTHORIZED = frozenset({"alband", "alice", "bob"})
 _NOW = datetime(2026, 7, 31, 12, 0, 0)
 _FRESH = _NOW - timedelta(minutes=10)
 _STALE = _NOW - timedelta(minutes=40)
@@ -41,7 +43,7 @@ _NEW = _NOW - timedelta(hours=1)
 
 def _open_pr(number: int, *, head_sha: str | None = None) -> OpenPR:
     return OpenPR(
-        repo=review.TARGET_REPO,
+        repo=TARGET_REPO,
         number=number,
         author="albanD",
         title=f"fix {number}",
@@ -60,6 +62,8 @@ class _Scan:
     read_calls: list[tuple[str, list[int]]]
     fingerprinted: list[int]
     listed_calls: int
+    resolver_calls: int
+    authorized_seen: list[frozenset[str]]
 
 
 def _run_scan(
@@ -73,6 +77,7 @@ def _run_scan(
     ref: str = DEFAULT_DISPATCH_REF,
     timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES,
     force: bool = False,
+    authorized: frozenset[str] = _AUTHORIZED,
     now: datetime = _NOW,
 ) -> _Scan:
     states = states or {}
@@ -80,13 +85,16 @@ def _run_scan(
     read_calls: list[tuple[str, list[int]]] = []
     fingerprinted: list[int] = []
     listed_calls: list[int] = []
+    resolver_calls: list[int] = []
+    authorized_seen: list[frozenset[str]] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
         return list(listed)
 
-    def fake_fingerprint(_client, number):
+    def fake_fingerprint(_client, number, authorized_logins):
         fingerprinted.append(number)
+        authorized_seen.append(authorized_logins)
         return fingerprints[number]
 
     def fake_read_state(repo, numbers):
@@ -96,6 +104,10 @@ def _run_scan(
 
     def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
+
+    def fake_resolve_authorized():
+        resolver_calls.append(1)
+        return authorized
 
     review.run(
         make_config(github_token="t"),
@@ -109,9 +121,10 @@ def _run_scan(
         fingerprint=fake_fingerprint,
         read_state=fake_read_state,
         dispatch=fake_dispatch,
+        resolve_authorized=fake_resolve_authorized,
         now=lambda: now,
     )
-    return _Scan(dispatched, read_calls, fingerprinted, len(listed_calls))
+    return _Scan(dispatched, read_calls, fingerprinted, len(listed_calls), len(resolver_calls), authorized_seen)
 
 
 def test_never_reviewed_dispatches(make_config):
@@ -119,7 +132,7 @@ def test_never_reviewed_dispatches(make_config):
 
     assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
     assert scan.fingerprinted == [1]
-    assert scan.read_calls == [(review.TARGET_REPO, [1])]
+    assert scan.read_calls == [(TARGET_REPO, [1])]
 
 
 def test_decided_same_hash_skips(make_config):
@@ -220,7 +233,7 @@ def test_max_with_no_candidates_dispatches_nothing(make_config):
 
     assert scan.dispatched == []
     assert scan.fingerprinted == []
-    assert scan.read_calls == [(review.TARGET_REPO, [])]
+    assert scan.read_calls == [(TARGET_REPO, [])]
 
 
 def test_max_early_stop_limits_fingerprints(make_config):
@@ -281,7 +294,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
     numbers = list(range(1, 30))
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, number):
+    def boom_fingerprint(_client, number, _authorized):
         if number == 3:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
@@ -301,6 +314,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
 
@@ -317,7 +331,7 @@ def test_pr_targets_single_pr_bypasses_listing(make_config):
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
     assert scan.listed_calls == 0
     assert scan.fingerprinted == [5]
-    assert scan.read_calls == [(review.TARGET_REPO, [5])]
+    assert scan.read_calls == [(TARGET_REPO, [5])]
 
 
 def test_pr_decided_still_skips(make_config):
@@ -370,7 +384,7 @@ def test_force_dispatches_decided_pr_via_until_dispatchable(make_config, caplog)
 def test_force_fingerprint_failure_still_raises(make_config, caplog):
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, _number):
+    def boom_fingerprint(_client, _number, _authorized):
         raise RuntimeError("fingerprint boom")
 
     def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
@@ -389,6 +403,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
 
@@ -453,7 +468,7 @@ def test_read_state_called_once_with_all_candidates(make_config):
         states={1: _state(1, STATUS_LAND, _HASH_A, _NEW), 2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
     )
 
-    assert scan.read_calls == [(review.TARGET_REPO, [1, 2, 3])]
+    assert scan.read_calls == [(TARGET_REPO, [1, 2, 3])]
 
 
 def test_no_candidates_dispatches_nothing(make_config):
@@ -461,13 +476,13 @@ def test_no_candidates_dispatches_nothing(make_config):
 
     assert scan.dispatched == []
     assert scan.fingerprinted == []
-    assert scan.read_calls == [(review.TARGET_REPO, [])]
+    assert scan.read_calls == [(TARGET_REPO, [])]
 
 
 def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number):
+    def boom_fingerprint(_client, number, _authorized):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
@@ -486,6 +501,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
 
@@ -500,7 +516,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
 def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number):
+    def boom_fingerprint(_client, number, _authorized):
         if number in (1, 3):
             raise RuntimeError(f"fingerprint boom {number}")
         return (f"headsha{number}", _HASH_A)
@@ -519,6 +535,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
 
@@ -552,7 +569,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
     barrier = threading.Barrier(k, timeout=5)
     dispatched: list[int] = []
 
-    def barrier_fingerprint(_client, number):
+    def barrier_fingerprint(_client, number, _authorized):
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
@@ -566,6 +583,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
         dispatch=fake_dispatch,
+        resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
     )
 
@@ -590,7 +608,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
     seen: dict[int, object] = {}
 
-    def recording_fingerprint(client, number):
+    def recording_fingerprint(client, number, _authorized):
         seen[number] = client
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
@@ -607,6 +625,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
         fingerprint=recording_fingerprint,
         read_state=lambda _repo, _numbers: {},
         dispatch=fake_dispatch,
+        resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
     )
 
@@ -641,9 +660,10 @@ def test_run_closes_main_and_worker_clients(make_config):
         make_config(github_token="t"),
         build_github=factory,
         fetch=lambda _client: [_open_pr(1), _open_pr(2)],
-        fingerprint=lambda _client, number: (f"headsha{number}", _HASH_A),
+        fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         dispatch=lambda *_args: None,
+        resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
     )
 
@@ -672,11 +692,11 @@ def test_fingerprint_task_returns_client_on_exception():
     client = cast("Github", object())
     pool.put(client)
 
-    def boom(_client, _number):
+    def boom(_client, _number, _authorized):
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        review._fingerprint_task(boom, pool, 1)
+        review._fingerprint_task(boom, pool, 1, _AUTHORIZED)
 
     # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
     # with more PRs than workers drains the pool and queue.get blocks the scan forever.
@@ -694,9 +714,10 @@ def test_fetch_failure_still_closes_main_client(make_config):
             make_config(github_token="t"),
             build_github=lambda _token: cast("Github", client),
             fetch=boom_fetch,
-            fingerprint=lambda _client, number: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=lambda *_args: None,
+            resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
 
@@ -737,7 +758,55 @@ def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
 
 def test_run_without_token_raises(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        review.run(make_config(github_token=None))
+        review.run(make_config(github_token=None), resolve_authorized=lambda: _AUTHORIZED)
+
+
+def test_run_missing_token_does_not_resolve_authorized(make_config):
+    resolved: list[int] = []
+
+    def counting_resolve() -> frozenset[str]:
+        resolved.append(1)
+        return _AUTHORIZED
+
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
+        review.run(make_config(github_token=None), resolve_authorized=counting_resolve)
+
+    # The token check precedes authorization resolution, so a tokenless scan never builds an
+    # authz client -- it fails fast on the cheaper local check.
+    assert resolved == []
+
+
+def test_run_cold_authorized_failure_propagates(make_config):
+    def boom_resolve() -> frozenset[str]:
+        raise RuntimeError("merge_rules unreachable")
+
+    # A cold resolver failure must propagate out of run() (the daemon backs off, the one-shot exits
+    # non-zero); run never falls back to hashing all human comments.
+    with pytest.raises(RuntimeError, match="merge_rules unreachable"):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1)],
+            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            read_state=lambda _repo, _numbers: {},
+            dispatch=lambda *_args: None,
+            resolve_authorized=boom_resolve,
+            now=lambda: _NOW,
+        )
+
+
+def test_run_resolves_authorized_once_and_threads_to_fingerprints(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2), _open_pr(3)],
+        fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A), 3: ("h3", _HASH_A)},
+        authorized=frozenset({"alice", "bob"}),
+    )
+
+    # The resolver is called exactly once per scan (not once per PR), and that one resolved set is
+    # threaded into every fingerprint call.
+    assert scan.resolver_calls == 1
+    assert scan.authorized_seen == [frozenset({"alice", "bob"})] * 3
 
 
 def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
@@ -756,27 +825,29 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
 
     assert result is expected
     assert captured["client"] is _CLIENT
-    assert captured["repo"] == review.TARGET_REPO
+    assert captured["repo"] == TARGET_REPO
     assert captured["authors"] == review.TRUSTED_AUTHORS
 
 
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):
     captured: dict[str, object] = {}
 
-    def fake_fingerprint_pr(client, repo, pr_number):
+    def fake_fingerprint_pr(client, repo, pr_number, *, authorized_logins):
         captured["client"] = client
         captured["repo"] = repo
         captured["pr_number"] = pr_number
+        captured["authorized_logins"] = authorized_logins
         return ("headsha", _HASH_A)
 
     monkeypatch.setattr(github_client, "fingerprint_pr", fake_fingerprint_pr)
 
-    result = review._default_fingerprint(_CLIENT, 7)
+    result = review._default_fingerprint(_CLIENT, 7, _AUTHORIZED)
 
     assert result == ("headsha", _HASH_A)
     assert captured["client"] is _CLIENT
-    assert captured["repo"] == review.TARGET_REPO
+    assert captured["repo"] == TARGET_REPO
     assert captured["pr_number"] == 7
+    assert captured["authorized_logins"] is _AUTHORIZED
 
 
 def test_utcnow_is_naive_utc():
