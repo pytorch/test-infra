@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="greenlight bot login (e.g. greenlight-app[bot]); required to dismiss prior approvals on NO_LAND",
     )
+    verdict_parser.add_argument(
+        "--run-id",
+        type=int,
+        default=None,
+        help="CI run id that owns the status comment; an older run never overwrites a newer run's comment",
+    )
     verdict_parser.add_argument("--log-level", default=None, help="logging level name")
     verdict_parser.add_argument(
         "--dry-run", action="store_true", help="log intended actions without writing or posting"
@@ -149,6 +155,7 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         agent_job_url=args.agent_job_url,
         eval_job_url=args.eval_job_url,
         bot_login=args.bot_login,
+        run_id=args.run_id,
         dry_run=args.dry_run,
     )
     try:

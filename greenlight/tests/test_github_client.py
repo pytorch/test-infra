@@ -608,6 +608,90 @@ def test_upsert_issue_comment_edits_first_matching_comment():
     assert pr.issue_comments == []
 
 
+def test_format_and_parse_run_marker_round_trip():
+    marker = github_client.format_run_marker(4567)
+
+    assert marker == "<!-- greenlight-run: 4567 -->"
+    assert github_client.parse_run_marker(f"header\n{marker}\nbody") == 4567
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["", "no marker here", "<!-- greenlight-run: abc -->", "<!-- greenlight-run:  -->"],
+)
+def test_parse_run_marker_returns_none_when_absent_or_garbled(body: str) -> None:
+    assert github_client.parse_run_marker(body) is None
+
+
+def test_parse_run_marker_reads_header_ignoring_stamp_in_message_body():
+    body = (
+        f"{_MARKER}\n{github_client.format_run_marker(5)}\n**headline**\n\n"
+        "<details>\n<summary>Why</summary>\n\n"
+        "```\ninjected <!-- greenlight-run: 999999 -->\n```\n</details>"
+    )
+
+    # The stamp is read from the controlled header, never from the untrusted message region.
+    assert github_client.parse_run_marker(body) == 5
+
+
+def test_parse_run_marker_none_when_only_message_body_has_stamp():
+    body = (
+        f"{_MARKER}\n**headline**\n\n<details>\n<summary>Why</summary>\n\n<!-- greenlight-run: 999999 -->\n</details>"
+    )
+
+    assert github_client.parse_run_marker(body) is None
+
+
+def _run_stamped(run_id: int) -> str:
+    return f"{_MARKER}\n{github_client.format_run_marker(run_id)}\nold"
+
+
+def test_upsert_issue_comment_edits_when_existing_run_is_older():
+    existing = _FakeVerdictComment(_run_stamped(5), _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new", author_login=_BOT_LOGIN, run_id=10)
+
+    assert existing.edited_with == "new"
+
+
+def test_upsert_issue_comment_edits_when_existing_run_equals_current():
+    existing = _FakeVerdictComment(_run_stamped(10), _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new", author_login=_BOT_LOGIN, run_id=10)
+
+    assert existing.edited_with == "new"
+
+
+def test_upsert_issue_comment_edits_when_existing_has_no_run_stamp():
+    existing = _FakeVerdictComment(f"{_MARKER}\nold", _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="new", author_login=_BOT_LOGIN, run_id=10)
+
+    assert existing.edited_with == "new"
+
+
+def test_upsert_issue_comment_skips_when_existing_run_is_newer():
+    existing = _FakeVerdictComment(_run_stamped(20), _FakeActor(_BOT_LOGIN))
+    pr = _FakeVerdictPR(existing_comments=[existing])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="stale", author_login=_BOT_LOGIN, run_id=10)
+
+    # A superseded (older) run must never regress the live run's comment.
+    assert existing.edited_with is None
+    assert pr.issue_comments == []
+
+
+def test_upsert_issue_comment_creates_when_none_matched_even_with_run_id():
+    pr = _FakeVerdictPR(existing_comments=[])
+
+    github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh", author_login=_BOT_LOGIN, run_id=10)
+
+    assert pr.issue_comments == ["fresh"]
+
+
 def test_dismiss_prior_greenlight_approvals_only_dismisses_own_approved():
     reviews = [
         _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),

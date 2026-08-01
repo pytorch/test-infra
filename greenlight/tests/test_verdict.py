@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import verdict
+from greenlight import comment_format, github_client, verdict
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -179,10 +179,10 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}.json.gz"
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
-    assert body == verdict._LAND_REVIEW_BODY == "Green Light: approved"
+    assert body == verdict._LAND_REVIEW_BODY == ""
     comment = pr.comments[0]
-    assert verdict._COMMENT_MARKER in comment
-    assert f"**{verdict._LAND_HEADLINE}**" in comment
+    assert comment_format.COMMENT_MARKER in comment
+    assert f"**{comment_format.LAND_HEADLINE}**" in comment
     assert "LGTM" in comment
 
 
@@ -252,13 +252,13 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}.json.gz"
     # The upserted comment is defanged: marker + headline + <details> why, @ neutralized, fenced.
     body = pr.comments[0]
-    assert body.startswith(verdict._COMMENT_MARKER)
-    assert f"**{verdict._NO_LAND_HEADLINE}**" in body
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert f"**{comment_format.NO_LAND_HEADLINE}**" in body
     assert "reason: `scope_too_large`" in body
     assert "[Inference job](https://eval-run)" in body
     assert "@pytorchbot" not in body
     assert "pytorchbot" in body
-    assert verdict._ZERO_WIDTH_SPACE in body
+    assert comment_format._ZERO_WIDTH_SPACE in body
     assert "```" in body
 
 
@@ -273,15 +273,15 @@ def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_pat
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["emit", "comment"]
-    assert pr.comments[0].startswith(verdict._COMMENT_MARKER)
-    assert f"**{verdict._NO_LAND_HEADLINE}**" in pr.comments[0]
+    assert pr.comments[0].startswith(comment_format.COMMENT_MARKER)
+    assert f"**{comment_format.NO_LAND_HEADLINE}**" in pr.comments[0]
     assert "reason: `unclear_intent`" in pr.comments[0]
 
 
 def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
-    existing = _FakeComment(f"{verdict._COMMENT_MARKER}\nprevious NO_LAND text", _BOT, rec)
+    existing = _FakeComment(f"{comment_format.COMMENT_MARKER}\nprevious NO_LAND text", _BOT, rec)
     pr = _FakePR("h", rec, issue_comments=[existing])
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
@@ -293,8 +293,8 @@ def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
     assert rec.events == ["emit", "review:APPROVE", "edit"]
     assert pr.created_reviews[0] == ("APPROVE", verdict._LAND_REVIEW_BODY)
     assert pr.comments == []
-    assert verdict._COMMENT_MARKER in existing.body
-    assert f"**{verdict._LAND_HEADLINE}**" in existing.body
+    assert comment_format.COMMENT_MARKER in existing.body
+    assert f"**{comment_format.LAND_HEADLINE}**" in existing.body
     assert "LGTM" in existing.body
 
 
@@ -302,7 +302,7 @@ def test_full_no_land_upserts_existing_marked_comment(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
     reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
-    existing = _FakeComment(f"{verdict._COMMENT_MARKER}\nprevious LAND text", _BOT, rec)
+    existing = _FakeComment(f"{comment_format.COMMENT_MARKER}\nprevious LAND text", _BOT, rec)
     pr = _FakePR("h", rec, reviews=reviews, issue_comments=[existing])
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
@@ -313,7 +313,7 @@ def test_full_no_land_upserts_existing_marked_comment(make_config, tmp_path):
     # NO_LAND dismisses the prior approval, then edits the same comment in place.
     assert rec.events == ["emit", "dismiss:1", "edit"]
     assert pr.comments == []
-    assert f"**{verdict._NO_LAND_HEADLINE}**" in existing.body
+    assert f"**{comment_format.NO_LAND_HEADLINE}**" in existing.body
     assert "needs work" in existing.body
 
 
@@ -410,6 +410,225 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
         "version": _VERSION,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}.json.gz"
+
+
+def test_marker_ai_review_started_with_bot_login_emits_row_then_upserts_reviewing_comment(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    captured: dict[str, object] = {}
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=12,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        eval_job_url="https://run",
+        run_id=123,
+    )
+
+    def build_github(token):
+        captured["token"] = token
+        return gh
+
+    verdict.run(req, make_config(github_token="tok"), build_github=build_github, emit=emit, now=lambda: _FIXED)
+
+    # The row is authoritative and emitted first; the reviewing comment is the follow-up.
+    assert rec.events == ["emit", "comment"]
+    assert captured["token"] == "tok"
+    assert gh.get_repo_names == ["pytorch/pytorch"]
+    body = pr.comments[0]
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert github_client.format_run_marker(123) in body
+    assert f"**{comment_format.REVIEWING_HEADLINE}**" in body
+    assert "Green Light is reviewing this PR." in body
+    assert "[Inference job](https://run)" in body
+
+
+def test_marker_ai_review_started_prefers_agent_job_url(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="r",
+        pr_number=12,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        agent_job_url="https://agent",
+        eval_job_url="https://eval",
+        run_id=1,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert "[Inference job](https://agent)" in pr.comments[0]
+
+
+def test_marker_with_bot_login_but_no_token_is_row_only(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="r", pr_number=16, head_sha="h", status="AI_REVIEW_STARTED", bot_login=_BOT, run_id=1)
+
+    verdict.run(req, make_config(github_token=None), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    # No token means no comment path is attempted: build_github must not be called.
+    assert rec.events == ["emit"]
+
+
+def test_marker_ai_review_started_comment_failure_is_best_effort(make_config, caplog):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="r", pr_number=13, head_sha="h", status="AI_REVIEW_STARTED", bot_login=_BOT, run_id=1)
+
+    def boom_build(token):
+        raise RuntimeError("gh exploded")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=boom_build, emit=emit, now=lambda: _FIXED)
+
+    # The row survives a comment-post failure; the error is logged, not raised.
+    assert rec.events == ["emit"]
+    assert any("Failed to upsert verdict comment" in record.getMessage() for record in caplog.records)
+
+
+def test_marker_cancelled_with_bot_login_upserts_did_not_complete_comment(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="r",
+        pr_number=14,
+        head_sha="h",
+        status="CANCELLED",
+        bot_login=_BOT,
+        eval_job_url="https://run",
+        run_id=7,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "comment"]
+    body = pr.comments[0]
+    assert f"**{comment_format.INCOMPLETE_HEADLINE}**" in body
+    assert "reason: `cancelled`" in body
+    assert github_client.format_run_marker(7) in body
+    assert "[Inference job](https://run)" in body
+
+
+def test_marker_failed_with_bot_login_upserts_did_not_complete_comment(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="r", pr_number=15, head_sha="h", status="FAILED", bot_login=_BOT, eval_job_url="https://run", run_id=8
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "comment"]
+    body = pr.comments[0]
+    assert f"**{comment_format.INCOMPLETE_HEADLINE}**" in body
+    assert "reason: `failed`" in body
+
+
+def test_full_land_comment_includes_run_stamp(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="r", pr_number=17, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT, run_id=99
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert github_client.format_run_marker(99) in pr.comments[0]
+
+
+def test_full_land_approves_with_empty_body(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=18, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert pr.created_reviews == [("APPROVE", "")]
+
+
+class _CommentBoomPR(_FakePR):
+    """A PR whose issue-comment create always fails, to prove the cosmetic write is best-effort."""
+
+    def create_issue_comment(self, body: str) -> object:
+        raise RuntimeError("comment 5xx")
+
+
+class _ReviewBoomPR(_FakePR):
+    """A PR whose approving review always fails, to prove the merge-gate write stays fatal."""
+
+    def create_review(self, *, body: str, event: str) -> object:
+        raise RuntimeError("review 5xx")
+
+
+def test_full_land_comment_failure_is_best_effort(make_config, tmp_path, caplog):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _CommentBoomPR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=20, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # The APPROVE review posted (merge gate) and the row emitted; the failed comment did not raise.
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert pr.created_reviews == [("APPROVE", "")]
+    assert emit.row_gzip is not None
+    assert any("Failed to upsert verdict comment" in record.getMessage() for record in caplog.records)
+
+
+def test_full_land_post_review_failure_is_fatal(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _ReviewBoomPR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=21, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    with pytest.raises(RuntimeError, match="review 5xx"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # The approving review is the merge gate: its failure must propagate, not be swallowed.
+    assert rec.events == ["emit"]
+    assert pr.created_reviews == []
+
+
+def test_full_no_land_comment_failure_is_best_effort_and_still_dismisses(make_config, tmp_path, caplog):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _CommentBoomPR("h", rec, reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(repo="r", pr_number=22, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # The dismissal (security action) ran and the row emitted; the failed comment did not raise.
+    assert rec.events == ["emit", "dismiss:1"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert emit.row_gzip is not None
+    assert any("Failed to upsert verdict comment" in record.getMessage() for record in caplog.records)
 
 
 def test_dry_run_full_is_offline(make_config, tmp_path, caplog):
@@ -556,61 +775,6 @@ def test_default_emit_writes_row_and_key_files(tmp_path, monkeypatch):
 
     assert row_path.read_bytes() == b"gzip-bytes"
     assert key_path.read_text(encoding="utf-8") == "greenlight_pr_state/o/r/1/x.json.gz"
-
-
-def test_defang_neutralizes_at_mentions_and_wraps_in_fence():
-    out = verdict._defang("ping @pytorchbot now")
-
-    assert "@pytorchbot" not in out
-    assert "pytorchbot" in out
-    assert verdict._ZERO_WIDTH_SPACE in out
-    assert out.startswith("```")
-    assert out.endswith("```")
-
-
-def test_defang_caps_length():
-    out = verdict._defang("x" * 5000)
-
-    assert out.count("x") == 4000
-
-
-def test_defang_uses_longer_fence_than_backtick_run():
-    out = verdict._defang("before ``` after")
-
-    assert out.split("\n", 1)[0] == "`" * 4
-    assert "before ``` after" in out
-
-
-def test_comment_body_land_has_marker_headline_reason_and_job_link():
-    body = verdict._comment_body("LAND", "clean", "looks good", "https://job")
-
-    assert body.startswith(verdict._COMMENT_MARKER)
-    assert f"**{verdict._LAND_HEADLINE}**" in body
-    assert "<details>" in body
-    assert "<summary>Why</summary>" in body
-    assert "looks good" in body
-    assert "reason: `clean`" in body
-    assert "[Inference job](https://job)" in body
-    assert body.endswith("</details>")
-
-
-def test_comment_body_no_land_headline_and_defangs_message():
-    body = verdict._comment_body("NO_LAND", "scope_too_large", "ping @pytorchbot", "https://job")
-
-    assert f"**{verdict._NO_LAND_HEADLINE}**" in body
-    assert "@pytorchbot" not in body
-    assert "pytorchbot" in body
-    assert verdict._ZERO_WIDTH_SPACE in body
-    assert "```" in body
-
-
-def test_comment_body_omits_job_link_when_absent():
-    body = verdict._comment_body("NO_LAND", "unclear_intent", "hi", "")
-
-    assert "[Inference job]" not in body
-    assert "https" not in body
-    assert "reason: `unclear_intent`" in body
-    assert body.endswith("</details>")
 
 
 def test_resolve_cli_status_overrides_file(tmp_path):

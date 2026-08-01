@@ -330,6 +330,8 @@ def test_verdict_parser_parses_all_args():
             "https://eval",
             "--bot-login",
             "greenlight-app[bot]",
+            "--run-id",
+            "123",
             "--log-level",
             "DEBUG",
             "--dry-run",
@@ -345,6 +347,7 @@ def test_verdict_parser_parses_all_args():
     assert args.agent_job_url == "https://agent"
     assert args.eval_job_url == "https://eval"
     assert args.bot_login == "greenlight-app[bot]"
+    assert args.run_id == 123
     assert args.log_level == "DEBUG"
     assert args.dry_run is True
 
@@ -359,6 +362,7 @@ def test_verdict_parser_defaults():
     assert args.agent_job_url == ""
     assert args.eval_job_url == ""
     assert args.bot_login == ""
+    assert args.run_id is None
     assert args.log_level is None
     assert args.dry_run is False
 
@@ -406,6 +410,8 @@ def test_main_verdict_dispatches_and_builds_request(monkeypatch):
             "https://agent",
             "--bot-login",
             "greenlight-app[bot]",
+            "--run-id",
+            "456",
         ]
     )
 
@@ -418,6 +424,7 @@ def test_main_verdict_dispatches_and_builds_request(monkeypatch):
     assert request.repo == review.TARGET_REPO
     assert request.agent_job_url == "https://agent"
     assert request.bot_login == "greenlight-app[bot]"
+    assert request.run_id == 456
     assert isinstance(captured["config"], Config)
     # verdict runs one-shot and must never touch the daemon single-instance lock.
     lock_mock.assert_not_called()

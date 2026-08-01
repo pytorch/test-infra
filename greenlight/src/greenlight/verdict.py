@@ -13,8 +13,12 @@ updates GitHub with a defanged copy of the message. Both LAND and NO_LAND upsert
 canonical verdict comment -- edited in place across runs, found by a hidden marker and
 restricted to greenlight's own account (``bot_login``); LAND additionally posts an approving
 review, and NO_LAND additionally dismisses greenlight's own prior approval (matched by
-``bot_login``). MARKER statuses (CANCELLED / FAILED / AI_REVIEW_STARTED) only emit the row --
-no PR fetch, no GitHub post. The command never writes to ClickHouse directly.
+``bot_login``). The row is authoritative, so the comment upsert is best-effort on every path (a
+failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
+merge gate and stay load-bearing -- they raise on failure. MARKER statuses (CANCELLED / FAILED /
+AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
+best-effort upsert that same canonical comment to show the run as in-progress (AI_REVIEW_STARTED)
+or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse directly.
 """
 
 from __future__ import annotations
@@ -26,7 +30,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import constants, github_client
+from greenlight import comment_format, constants, github_client
 from greenlight.constants import (
     IN_FLIGHT_STATUSES,
     RETRY_STATUSES,
@@ -40,7 +44,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from greenlight.config import Config
-    from greenlight.github_client import VerdictClient
+    from greenlight.github_client import VerdictClient, VerdictPR
 
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
 
@@ -68,16 +72,10 @@ ALLOWED_REASONS: frozenset[str] = frozenset(
 )
 
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
-_MESSAGE_CAP = 4000
-_ZERO_WIDTH_SPACE = chr(0x200B)
 
-# The hidden marker anchors the single evolving verdict comment: every run locates its own
-# prior comment by this substring and edits it in place, so NO_LAND<->LAND transitions reuse
-# one comment instead of stacking new ones.
-_COMMENT_MARKER = "<!-- greenlight-verdict -->"
-_LAND_HEADLINE = "PR approved to be merged without human review"
-_NO_LAND_HEADLINE = "PR requires human review"
-_LAND_REVIEW_BODY = "Green Light: approved"
+# The APPROVE review is the merge gate; its body is intentionally empty so it adds no text on
+# top of the canonical verdict comment, which already states the outcome.
+_LAND_REVIEW_BODY = ""
 
 # Fixed paths are the contract with the record workflow, which `aws s3 cp`s the row file
 # to the bucket-relative key. Constant on purpose; tests inject a fake emit instead.
@@ -96,6 +94,7 @@ class VerdictRequest:
     agent_job_url: str = ""
     eval_job_url: str = ""
     bot_login: str = ""
+    run_id: int | None = None
     dry_run: bool = False
 
 
@@ -176,42 +175,6 @@ def _validate_message(message: str) -> None:
         raise ValueError("a non-empty message is required for a LAND/NO_LAND verdict")
 
 
-def _defang(text: str) -> str:
-    """Render untrusted model text safe to post to GitHub.
-
-    Caps length, neutralizes @-mentions/bot-commands with a zero-width space after each
-    '@', and wraps the result in a code fence longer than any backtick run it contains so
-    the content cannot break out of the block.
-    """
-    capped = text[:_MESSAGE_CAP]
-    neutralized = capped.replace("@", "@" + _ZERO_WIDTH_SPACE)
-    longest = current = 0
-    for ch in neutralized:
-        current = current + 1 if ch == "`" else 0
-        longest = max(longest, current)
-    fence = "`" * max(3, longest + 1)
-    return f"{fence}\n{neutralized}\n{fence}"
-
-
-def _comment_body(status: str, reason: str, message: str, job_url: str) -> str:
-    headline = _LAND_HEADLINE if status == STATUS_LAND else _NO_LAND_HEADLINE
-    parts = [
-        _COMMENT_MARKER,
-        f"**{headline}**",
-        "",
-        "<details>",
-        "<summary>Why</summary>",
-        "",
-        _defang(message),
-        "",
-        f"reason: `{reason}`",
-    ]
-    if job_url:
-        parts += ["", f"[Inference job]({job_url})"]
-    parts.append("</details>")
-    return "\n".join(parts)
-
-
 def _object_key(repo: str, pr_number: int, version: str) -> str:
     compact = version.replace("-", "").replace(":", "").replace(" ", "T").replace(".", "_")
     return f"{S3_KEY_PREFIX}/{repo}/{pr_number}/{compact}.json.gz"
@@ -252,10 +215,47 @@ def _default_emit(row_gzip: bytes, key: str) -> None:
         fh.write(key)
 
 
+def _best_effort_upsert(
+    request: VerdictRequest,
+    config: Config,
+    body: str,
+    *,
+    build_github: Callable[[str], VerdictClient],
+    pr: VerdictPR | None = None,
+) -> None:
+    """Upsert the canonical verdict comment as a best-effort, cosmetic write.
+
+    The emitted row is authoritative; the comment is cosmetic. A raise here would fail the CLI
+    and skip the workflow's ``success()``-gated S3 upload, losing the row -- so any failure is
+    logged and swallowed. ``pr`` is reused when the caller already fetched it for a load-bearing
+    action (the LAND review / NO_LAND dismiss); otherwise the client and PR are fetched here so a
+    transient fetch failure is swallowed too.
+    """
+    try:
+        if pr is None:
+            if not config.github_token:
+                return
+            client = build_github(config.github_token)
+            pr = github_client.get_pr(client, request.repo, request.pr_number)
+        github_client.upsert_issue_comment(
+            pr,
+            marker=comment_format.COMMENT_MARKER,
+            body=body,
+            author_login=request.bot_login,
+            run_id=request.run_id,
+        )
+    except Exception as exc:
+        logger.error("Failed to upsert verdict comment for PR #%s: %s", request.pr_number, exc, exc_info=True)
+    else:
+        logger.info("upserted verdict comment on %s#%d", request.repo, request.pr_number)
+
+
 def _run_marker(
     request: VerdictRequest,
+    config: Config,
     status: str,
     *,
+    build_github: Callable[[str], VerdictClient],
     emit: Callable[[bytes, str], None],
     now: Callable[[], datetime],
 ) -> None:
@@ -264,6 +264,10 @@ def _run_marker(
         return
     key = _emit_payload(request, status, "", "", now=now, emit=emit)
     logger.info("emitted %s marker payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
+    if not request.bot_login:
+        return
+    body = comment_format.marker_body(status, request.agent_job_url or request.eval_job_url, request.run_id)
+    _best_effort_upsert(request, config, body, build_github=build_github)
 
 
 def _run_full(
@@ -295,11 +299,11 @@ def _run_full(
     key = _emit_payload(request, status, reason, message, now=now, emit=emit)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
-    body = _comment_body(status, reason, message, job_url)
+    body = comment_format.verdict_body(status, reason, message, job_url, request.run_id)
     if status == STATUS_LAND:
         github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
-        github_client.upsert_issue_comment(pr, marker=_COMMENT_MARKER, body=body, author_login=request.bot_login)
         logger.info("approved %s#%d", request.repo, request.pr_number)
+        _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
         return
     dismissed = github_client.dismiss_prior_greenlight_approvals(
         pr, bot_login=request.bot_login, message=_SUPERSEDED_MESSAGE
@@ -308,8 +312,7 @@ def _run_full(
         logger.info(
             "dismissed %d prior greenlight approval(s) on %s#%d", len(dismissed), request.repo, request.pr_number
         )
-    github_client.upsert_issue_comment(pr, marker=_COMMENT_MARKER, body=body, author_login=request.bot_login)
-    logger.info("posted NO_LAND comment on %s#%d", request.repo, request.pr_number)
+    _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
 
 
 def run(
@@ -322,7 +325,7 @@ def run(
 ) -> None:
     status, reason, message = _resolve_verdict(request)
     if status in _MARKER_STATUSES:
-        _run_marker(request, status, emit=emit, now=now)
+        _run_marker(request, config, status, build_github=build_github, emit=emit, now=now)
         return
     _validate_reason(reason)
     _validate_message(message)

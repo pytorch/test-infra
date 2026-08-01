@@ -6,6 +6,7 @@ actions: post an approving review, comment, and dismiss greenlight's own prior a
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
@@ -93,7 +94,7 @@ if TYPE_CHECKING:
         def user(self) -> _PRUser | None: ...
         def edit(self, body: str) -> None: ...
 
-    class _VerdictPR(Protocol):
+    class VerdictPR(Protocol):
         @property
         def head(self) -> _PRBase: ...
         def create_review(self, *, body: str, event: str) -> object: ...
@@ -102,7 +103,7 @@ if TYPE_CHECKING:
         def get_reviews(self) -> Iterable[_VerdictReview]: ...
 
     class _VerdictRepo(Protocol):
-        def get_pull(self, number: int) -> _VerdictPR: ...
+        def get_pull(self, number: int) -> VerdictPR: ...
 
 
 class VerdictClient(Protocol):
@@ -235,21 +236,42 @@ _REVIEW_EVENTS: frozenset[str] = frozenset({REVIEW_EVENT_APPROVE, REVIEW_EVENT_R
 _REVIEW_STATE_APPROVED = "APPROVED"
 
 
-def get_pr(client: VerdictClient, repo: str, number: int) -> _VerdictPR:
+def get_pr(client: VerdictClient, repo: str, number: int) -> VerdictPR:
     return client.get_repo(repo).get_pull(number)
 
 
-def post_review(pr: _VerdictPR, *, event: str, body: str) -> None:
+def post_review(pr: VerdictPR, *, event: str, body: str) -> None:
     if event not in _REVIEW_EVENTS:
         raise ValueError(f"unsupported review event {event!r}; expected one of {sorted(_REVIEW_EVENTS)}")
     pr.create_review(body=body, event=event)
 
 
-def upsert_issue_comment(pr: _VerdictPR, *, marker: str, body: str, author_login: str) -> None:
+_RUN_MARKER_RE = re.compile(r"<!-- greenlight-run: (\d+) -->")
+# The run stamp lives in the header we fully control, above the <details> block that holds the
+# untrusted (only defanged) model message; parsing stops there so a message cannot spoof a stamp.
+_COMMENT_HEADER_END = "<details>"
+
+
+def format_run_marker(run_id: int) -> str:
+    return f"<!-- greenlight-run: {run_id} -->"
+
+
+def parse_run_marker(body: str) -> int | None:
+    header = body.split(_COMMENT_HEADER_END, 1)[0]
+    match = _RUN_MARKER_RE.search(header)
+    return int(match.group(1)) if match else None
+
+
+def upsert_issue_comment(
+    pr: VerdictPR, *, marker: str, body: str, author_login: str, run_id: int | None = None
+) -> None:
     """Edit greenlight's own ``marker``-bearing comment in place, or create it if none exists.
 
     The author filter restricts edits to a comment authored by ``author_login`` so a copied
     ``marker`` in a third party's comment cannot hijack the canonical verdict comment.
+
+    When ``run_id`` is given and the existing comment carries a strictly newer run's stamp, the
+    edit is skipped: a superseded run must never regress the live run's comment.
     """
     if not author_login:
         raise ValueError("upsert_issue_comment requires a non-empty author_login")
@@ -260,12 +282,16 @@ def upsert_issue_comment(pr: _VerdictPR, *, marker: str, body: str, author_login
         user = comment.user
         if user is None or not user.login or user.login.lower() != target:
             continue
+        if run_id is not None:
+            existing = parse_run_marker(comment.body)
+            if existing is not None and existing > run_id:
+                return
         comment.edit(body)
         return
     pr.create_issue_comment(body)
 
 
-def dismiss_prior_greenlight_approvals(pr: _VerdictPR, *, bot_login: str, message: str) -> list[int]:
+def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
     """Dismiss every prior APPROVED review authored by ``bot_login``.
 
     The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather

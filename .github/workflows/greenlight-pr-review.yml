@@ -1,17 +1,20 @@
 name: Green Light PR Review
 
-# Three jobs for reviewing a pytorch/pytorch PR and recording a verdict. review and
-# record split privileges so untrusted PR content never shares a job with the App key:
+# Three jobs for reviewing a pytorch/pytorch PR and recording a verdict. Privileges are
+# split so the untrusted model never shares a job with the App key:
 #   announce_start — emits the AI_REVIEW_STARTED in-flight marker at run start so the
-#             scanner does not re-dispatch a PR whose review is running. No App token,
-#             no model; S3 write only, via OIDC role/arc.
+#             scanner does not re-dispatch a PR whose review is running, and posts the
+#             "review in progress" status comment. Mints a pull-requests:write App token
+#             for that comment and writes the S3 row via OIDC role/arc; runs no model, so
+#             the untrusted model is still confined to the read-only review job.
 #   review  — UNPRIVILEGED. Runs the AI model over untrusted PR content. Has Bedrock
 #             (OIDC) access only; it can read code and emit a verdict file, nothing more.
 #   record  — PRIVILEGED. No model. Validates the verdict, mints the Green Light App
-#             token, posts the review, and uploads the verdict row to
-#             s3://gha-artifacts/greenlight_pr_state/ (via OIDC role/arc) for the
-#             clickhouse-replicator-s3 Lambda to ingest. Kept separate so untrusted
-#             PR content never runs in a job that holds the App key.
+#             token, and posts the outcome: the LAND/NO_LAND verdict on success, or a
+#             "did not complete" status comment when the review was cancelled or failed.
+#             Uploads the verdict row to s3://gha-artifacts/greenlight_pr_state/ (via
+#             OIDC role/arc) for the clickhouse-replicator-s3 Lambda to ingest. Kept
+#             separate so untrusted PR content never runs in a job that holds the App key.
 
 on:
   workflow_dispatch:
@@ -46,6 +49,8 @@ jobs:
       PR_NUMBER: ${{ github.event.inputs.pr_number }}
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RUN_ID: ${{ github.run_id }}
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@v4
@@ -66,7 +71,21 @@ jobs:
           role-to-assume: arn:aws:iam::308535385114:role/arc
           aws-region: us-east-1
 
-      - name: Emit AI_REVIEW_STARTED marker
+      - name: Mint Green Light app token
+        id: app-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: pytorch
+          permission-pull-requests: write
+
+      - name: Emit AI_REVIEW_STARTED marker and post reviewing comment
+        env:
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
           set -euo pipefail
           uv run --project greenlight greenlight verdict \
@@ -74,7 +93,10 @@ jobs:
             --repo pytorch/pytorch \
             --pr "$PR_NUMBER" \
             --head-sha "$HEAD_SHA" \
-            --eval-hash "$EVAL_HASH"
+            --eval-hash "$EVAL_HASH" \
+            --bot-login "$BOT_LOGIN" \
+            --eval-job-url "$RUN_URL" \
+            --run-id "$RUN_ID"
 
       - name: Upload verdict row to S3
         run: |
@@ -243,7 +265,7 @@ jobs:
         uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
 
   record:
-    needs: [review]
+    needs: [announce_start, review]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -260,6 +282,7 @@ jobs:
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RUN_ID: ${{ github.run_id }}
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@v4
@@ -314,8 +337,9 @@ jobs:
           echo "Verdict OK: $status"
 
       - name: Mint Green Light app token
-        if: ${{ needs.review.result == 'success' }}
+        if: always()
         id: app-token
+        continue-on-error: true
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
@@ -339,10 +363,14 @@ jobs:
             --verdict-file /tmp/greenlight-verdict.json \
             --bot-login "$BOT_LOGIN" \
             --agent-job-url "$RUN_URL" \
-            --eval-job-url "$RUN_URL"
+            --eval-job-url "$RUN_URL" \
+            --run-id "$RUN_ID"
 
       - name: Record cancelled run
         if: ${{ needs.review.result == 'cancelled' }}
+        env:
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
           set -euo pipefail
           uv run --project greenlight greenlight verdict \
@@ -351,10 +379,15 @@ jobs:
             --pr "$PR_NUMBER" \
             --head-sha "$HEAD_SHA" \
             --eval-hash "$EVAL_HASH" \
-            --eval-job-url "$RUN_URL"
+            --bot-login "$BOT_LOGIN" \
+            --eval-job-url "$RUN_URL" \
+            --run-id "$RUN_ID"
 
       - name: Record failed run
         if: ${{ needs.review.result == 'failure' }}
+        env:
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
           set -euo pipefail
           uv run --project greenlight greenlight verdict \
@@ -363,7 +396,9 @@ jobs:
             --pr "$PR_NUMBER" \
             --head-sha "$HEAD_SHA" \
             --eval-hash "$EVAL_HASH" \
-            --eval-job-url "$RUN_URL"
+            --bot-login "$BOT_LOGIN" \
+            --eval-job-url "$RUN_URL" \
+            --run-id "$RUN_ID"
 
       - name: Upload verdict row to S3
         # Exactly one record step above produced the row + key at fixed /tmp paths.
