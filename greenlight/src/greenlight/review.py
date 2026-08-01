@@ -144,10 +144,14 @@ def _evaluate_pr(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    force: bool,
 ) -> _Candidate | None:
     try:
         head_sha, eval_hash = future.result()
         recorded = states.get(number)
+        if force:
+            logger.info("PR #%d: DISPATCH (forced)", number)
+            return _Candidate(number, head_sha, eval_hash, recorded, "forced")
         outcome = decide(
             current_eval_hash=eval_hash,
             latest_status=recorded.status if recorded is not None else None,
@@ -176,6 +180,7 @@ def _fingerprint_all(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    force: bool,
 ) -> list[_Candidate]:
     futures: dict[int, Future[tuple[str, str]]] = {}
     if worker_count:
@@ -185,7 +190,7 @@ def _fingerprint_all(
             }
     pending: list[_Candidate] = []
     for number in pr_numbers:
-        candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed)
+        candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed, force=force)
         if candidate is not None:
             pending.append(candidate)
     return pending
@@ -202,6 +207,7 @@ def _fingerprint_until_dispatchable(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    force: bool,
 ) -> list[_Candidate]:
     ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
     pending: list[_Candidate] = []
@@ -213,7 +219,9 @@ def _fingerprint_until_dispatchable(
                 batch = ranked[start : start + worker_count]
                 futures = {number: pool.submit(_fingerprint_task, fingerprint, client_pool, number) for number in batch}
                 for number in batch:
-                    candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed)
+                    candidate = _evaluate_pr(
+                        number, futures[number], states, now=now, timeout=timeout, failed=failed, force=force
+                    )
                     if candidate is not None:
                         pending.append(candidate)
     return pending
@@ -226,6 +234,7 @@ def run(
     max_dispatches: int | None = None,
     ref: str = DEFAULT_DISPATCH_REF,
     timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES,
+    force: bool = False,
     build_github: Callable[[str], Github] = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
     fingerprint: Callable[[Github, int], tuple[str, str]] = _default_fingerprint,
@@ -265,6 +274,7 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                force=force,
             )
         else:
             pending = _fingerprint_until_dispatchable(
@@ -277,6 +287,7 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                force=force,
             )
         _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
         if failed:

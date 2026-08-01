@@ -82,7 +82,13 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
     bound = captured["run"]
     assert isinstance(bound, functools.partial)
     assert bound.func is review.run
-    assert bound.keywords == {"pr": None, "max_dispatches": None, "ref": "main", "timeout_minutes": 30}
+    assert bound.keywords == {
+        "pr": None,
+        "max_dispatches": None,
+        "ref": "main",
+        "timeout_minutes": 30,
+        "force": False,
+    }
 
 
 def test_main_oneshot_failure_returns_exit_failure(monkeypatch):
@@ -454,11 +460,14 @@ def test_main_verdict_applies_log_level_override(monkeypatch):
 
 def test_review_parser_parses_scan_flags():
     parser = cli.build_parser()
-    args = parser.parse_args(["review", "--pr", "5", "--max", "3", "--ref", "release/2.9", "--timeout-minutes", "45"])
+    args = parser.parse_args(
+        ["review", "--pr", "5", "--max", "3", "--ref", "release/2.9", "--timeout-minutes", "45", "--force"]
+    )
     assert args.pr == 5
     assert args.max == 3
     assert args.ref == "release/2.9"
     assert args.timeout_minutes == 45
+    assert args.force is True
 
 
 def test_review_parser_scan_flag_defaults():
@@ -468,6 +477,7 @@ def test_review_parser_scan_flag_defaults():
     assert args.max is None
     assert args.ref == DEFAULT_DISPATCH_REF
     assert args.timeout_minutes == DEFAULT_TIMEOUT_MINUTES
+    assert args.force is False
 
 
 def test_main_review_binds_scan_flags_into_run(monkeypatch):
@@ -486,6 +496,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "max_dispatches": 2,
         "ref": "release/2.9",
         "timeout_minutes": 45,
+        "force": False,
     }
 
 
@@ -503,4 +514,43 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
         "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
+        "force": False,
+    }
+
+
+def test_main_force_without_pr_is_usage_error(monkeypatch):
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    run_mock = Mock()
+    monkeypatch.setattr(review, "run", run_mock)
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["review", "--force"])
+    assert excinfo.value.code == 2
+    run_mock.assert_not_called()
+
+
+def test_main_force_with_loop_is_usage_error(monkeypatch):
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    run_forever_mock = Mock()
+    monkeypatch.setattr(cli, "run_forever", run_forever_mock)
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["review", "--pr", "5", "--force", "--loop"])
+    assert excinfo.value.code == 2
+    run_forever_mock.assert_not_called()
+
+
+def test_main_review_force_binds_into_run(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5", "--force"])
+
+    assert rc == EXIT_OK
+    assert review_mock.call_args.kwargs == {
+        "pr": 5,
+        "max_dispatches": None,
+        "ref": DEFAULT_DISPATCH_REF,
+        "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
+        "force": True,
     }

@@ -72,6 +72,7 @@ def _run_scan(
     max_dispatches: int | None = None,
     ref: str = DEFAULT_DISPATCH_REF,
     timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES,
+    force: bool = False,
     now: datetime = _NOW,
 ) -> _Scan:
     states = states or {}
@@ -102,6 +103,7 @@ def _run_scan(
         max_dispatches=max_dispatches,
         ref=ref,
         timeout_minutes=timeout_minutes,
+        force=force,
         build_github=lambda _token: _CLIENT,
         fetch=fake_fetch,
         fingerprint=fake_fingerprint,
@@ -328,6 +330,74 @@ def test_pr_decided_still_skips(make_config):
 
     assert scan.dispatched == []
     assert scan.listed_calls == 0
+
+
+def test_force_dispatches_decided_pr_via_fingerprint_all(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            states={5: _state(5, STATUS_LAND, _HASH_A, _NEW)},
+            force=True,
+        )
+
+    # The decided PR from test_pr_decided_still_skips (terminal LAND, unchanged hash) normally SKIPs;
+    # force bypasses decide on the max_dispatches=None path (_fingerprint_all) and dispatches it,
+    # still using the fingerprint's head_sha/eval_hash and tagging the reason "forced".
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert "PR #5: DISPATCH (forced)" in caplog.text
+    assert "dispatched review for PR #5 (forced)" in caplog.text
+
+
+def test_force_dispatches_decided_pr_via_until_dispatchable(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            states={5: _state(5, STATUS_LAND, _HASH_A, _NEW)},
+            max_dispatches=1,
+            force=True,
+        )
+
+    # The capped path (_fingerprint_until_dispatchable, selected by a non-None --max) must honor
+    # force identically: the same decided PR is dispatched with reason "forced".
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert "PR #5: DISPATCH (forced)" in caplog.text
+
+
+def test_force_fingerprint_failure_still_raises(make_config, caplog):
+    dispatched: list[int] = []
+
+    def boom_fingerprint(_client, _number):
+        raise RuntimeError("fingerprint boom")
+
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+        dispatched.append(number)
+
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[7\]"),
+    ):
+        review.run(
+            make_config(github_token="t"),
+            pr=7,
+            force=True,
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [],
+            fingerprint=boom_fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            now=lambda: _NOW,
+        )
+
+    # force short-circuits decide, not the try/except: the fingerprint failure is raised before the
+    # force branch is reached, so PR7 is still caught, recorded as failed, and surfaces as the
+    # aggregate RuntimeError -- force never bypasses failure handling nor dispatches a failed PR.
+    assert dispatched == []
+    assert "skipping PR #7" in caplog.text
+    assert any(record.exc_info is not None for record in caplog.records)
 
 
 def test_ref_forwarded_to_dispatch(make_config):

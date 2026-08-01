@@ -61,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TIMEOUT_MINUTES,
         help="minutes before an in-flight or failed review is re-dispatched",
     )
+    review_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="re-dispatch even if already reviewed; requires --pr, not allowed with --loop",
+    )
 
     verdict_parser = subparsers.add_parser(
         "verdict",
@@ -167,11 +172,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     lock_path = config.lock_path
     if lock_path is not None:
         logger.info("using single-instance lock path %s", lock_path)
+    if args.force and args.pr is None:
+        parser.error("--force requires --pr")
+    if args.force and args.loop:
+        parser.error("--force cannot be combined with --loop")
     run = functools.partial(
         review.run,
         pr=args.pr,
         max_dispatches=args.max,
         ref=args.ref,
         timeout_minutes=args.timeout_minutes,
+        force=args.force,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)
