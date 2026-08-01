@@ -16,7 +16,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-HASH_SCHEME_VERSION = 2
+HASH_SCHEME_VERSION = 3
 
 BOT_LOGINS: frozenset[str] = frozenset(
     {
@@ -48,27 +48,15 @@ def is_bot(login: str | None, user_type: str | None = None) -> bool:
 
 
 @dataclass(frozen=True, slots=True)
-class ChangedFile:
-    path: str
-    status: str
-    blob_sha: str
-    previous_path: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class HumanEvent:
-    kind: str
     id: int
-    author: str
     body: str
-    state: str | None
-    timestamp: str
 
 
 @dataclass(frozen=True, slots=True)
 class PRFingerprint:
     base_sha: str
-    changed_files: tuple[ChangedFile, ...]
+    head_sha: str
     human_events: tuple[HumanEvent, ...]
     scheme_version: int = HASH_SCHEME_VERSION
 
@@ -81,7 +69,7 @@ def compute_pr_hash(fingerprint: PRFingerprint) -> str:
     payload = {
         "scheme_version": fingerprint.scheme_version,
         "base_sha": fingerprint.base_sha,
-        "changed_files": sorted((asdict(f) for f in fingerprint.changed_files), key=_canonical),
+        "head_sha": fingerprint.head_sha,
         "human_events": sorted((asdict(e) for e in fingerprint.human_events), key=_canonical),
     }
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")

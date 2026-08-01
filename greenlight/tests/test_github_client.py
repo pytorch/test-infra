@@ -1,12 +1,10 @@
-from datetime import UTC, datetime
-
 import pytest
 from github import Github
 
 from greenlight import github_client
 from greenlight.constants import EVAL_HASH_RE
 from greenlight.github_client import OpenPR
-from greenlight.pr_hash import ChangedFile, HumanEvent, compute_pr_hash
+from greenlight.pr_hash import HumanEvent, compute_pr_hash
 
 
 class _FakeUser:
@@ -67,29 +65,18 @@ class _FakeActor:
         self.type = type
 
 
-class _FakeFile:
-    def __init__(self, filename: str, status: str, sha: str, previous_filename: str | None = None) -> None:
-        self.filename = filename
-        self.status = status
-        self.sha = sha
-        self.previous_filename = previous_filename
-
-
 class _FakeComment:
-    def __init__(self, id: int, user: _FakeActor | None, body: str, updated_at: datetime | None) -> None:
+    def __init__(self, id: int, user: _FakeActor | None, body: str) -> None:
         self.id = id
         self.user = user
         self.body = body
-        self.updated_at = updated_at
 
 
 class _FakeReview:
-    def __init__(self, id: int, user: _FakeActor | None, body: str, state: str, submitted_at: datetime | None) -> None:
+    def __init__(self, id: int, user: _FakeActor | None, body: str) -> None:
         self.id = id
         self.user = user
         self.body = body
-        self.state = state
-        self.submitted_at = submitted_at
 
 
 class _FakeBase:
@@ -101,7 +88,6 @@ class _FakePR:
     def __init__(
         self,
         base_sha: str,
-        files: list[_FakeFile],
         issue_comments: list[_FakeComment],
         review_comments: list[_FakeComment],
         reviews: list[_FakeReview],
@@ -109,13 +95,9 @@ class _FakePR:
     ) -> None:
         self.base = _FakeBase(base_sha)
         self.head = _FakeBase(head_sha)
-        self._files = files
         self._issue_comments = issue_comments
         self._review_comments = review_comments
         self._reviews = reviews
-
-    def get_files(self) -> list[_FakeFile]:
-        return self._files
 
     def get_issue_comments(self) -> list[_FakeComment]:
         return self._issue_comments
@@ -260,49 +242,42 @@ def test_build_client_pins_request_timeout():
     assert requester.__dict__["_Requester__timeout"] == 15
 
 
-def test_build_pr_fingerprint_maps_files_and_filters_bots_by_type_suffix_and_denylist():
+def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_denylist():
     pr = _FakePR(
         base_sha="base-sha-123",
-        files=[
-            _FakeFile(filename="a.py", status="modified", sha="sha-a"),
-            _FakeFile(filename="new_name.py", status="renamed", sha="sha-b", previous_filename="old_name.py"),
-        ],
         issue_comments=[
-            _FakeComment(1, _FakeActor("alice", "User"), "please fix", datetime(2026, 1, 1, tzinfo=UTC)),
-            _FakeComment(2, _FakeActor("ci-bot", "Bot"), "build failed", datetime(2026, 1, 2, tzinfo=UTC)),
-            _FakeComment(3, None, "ghost comment", None),
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("ci-bot", "Bot"), "build failed"),
+            _FakeComment(3, None, "ghost comment"),
         ],
         review_comments=[
-            _FakeComment(4, _FakeActor("bob", "User"), "nit: rename this", datetime(2026, 1, 3, tzinfo=UTC)),
-            _FakeComment(5, _FakeActor("some-app[bot]", "User"), "automated nit", datetime(2026, 1, 4, tzinfo=UTC)),
+            _FakeComment(4, _FakeActor("bob", "User"), "nit: rename this"),
+            _FakeComment(5, _FakeActor("some-app[bot]", "User"), "automated nit"),
         ],
         reviews=[
-            _FakeReview(6, _FakeActor("carol", "User"), "lgtm", "APPROVED", datetime(2026, 1, 5, tzinfo=UTC)),
-            _FakeReview(7, _FakeActor("dependabot", "User"), "auto-approve", "APPROVED", None),
+            _FakeReview(6, _FakeActor("carol", "User"), "lgtm"),
+            _FakeReview(7, _FakeActor("dependabot", "User"), "auto-approve"),
         ],
+        head_sha="head-sha-123",
     )
 
     fingerprint = github_client.build_pr_fingerprint(pr)
 
     assert fingerprint.base_sha == "base-sha-123"
-    assert fingerprint.changed_files == (
-        ChangedFile(path="a.py", status="modified", blob_sha="sha-a"),
-        ChangedFile(path="new_name.py", status="renamed", blob_sha="sha-b", previous_path="old_name.py"),
-    )
+    assert fingerprint.head_sha == "head-sha-123"
     assert fingerprint.human_events == (
-        HumanEvent("issue_comment", 1, "alice", "please fix", None, "2026-01-01T00:00:00+00:00"),
-        HumanEvent("review_comment", 4, "bob", "nit: rename this", None, "2026-01-03T00:00:00+00:00"),
-        HumanEvent("review", 6, "carol", "lgtm", "APPROVED", "2026-01-05T00:00:00+00:00"),
+        HumanEvent(id=1, body="please fix"),
+        HumanEvent(id=4, body="nit: rename this"),
+        HumanEvent(id=6, body="lgtm"),
     )
 
 
 def test_build_pr_fingerprint_excludes_self_login():
     pr = _FakePR(
         base_sha="sha",
-        files=[],
-        issue_comments=[_FakeComment(1, _FakeActor("jeanschmidt", "User"), "self note", None)],
+        issue_comments=[_FakeComment(1, _FakeActor("jeanschmidt", "User"), "self note")],
         review_comments=[],
-        reviews=[_FakeReview(2, _FakeActor("jeanschmidt", "User"), "self review", "APPROVED", None)],
+        reviews=[_FakeReview(2, _FakeActor("jeanschmidt", "User"), "self review")],
     )
 
     fingerprint = github_client.build_pr_fingerprint(pr, self_login="jeanschmidt")
@@ -313,37 +288,21 @@ def test_build_pr_fingerprint_excludes_self_login():
 def test_build_pr_fingerprint_keeps_others_when_self_login_does_not_match():
     pr = _FakePR(
         base_sha="sha",
-        files=[],
-        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "note", None)],
+        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "note")],
         review_comments=[],
         reviews=[],
     )
 
     fingerprint = github_client.build_pr_fingerprint(pr, self_login="jeanschmidt")
 
-    assert fingerprint.human_events == (HumanEvent("issue_comment", 1, "alice", "note", None, ""),)
+    assert fingerprint.human_events == (HumanEvent(id=1, body="note"),)
 
 
-def test_build_pr_fingerprint_uses_empty_string_timestamp_when_missing():
-    pr = _FakePR(
-        base_sha="sha",
-        files=[],
-        issue_comments=[],
-        review_comments=[],
-        reviews=[_FakeReview(1, _FakeActor("carol", "User"), "pending review", "PENDING", None)],
-    )
+def test_build_pr_fingerprint_with_no_activity_returns_empty_human_events():
+    pr = _FakePR(base_sha="sha", issue_comments=[], review_comments=[], reviews=[])
 
     fingerprint = github_client.build_pr_fingerprint(pr)
 
-    assert fingerprint.human_events == (HumanEvent("review", 1, "carol", "pending review", "PENDING", ""),)
-
-
-def test_build_pr_fingerprint_with_no_activity_returns_empty_tuples():
-    pr = _FakePR(base_sha="sha", files=[], issue_comments=[], review_comments=[], reviews=[])
-
-    fingerprint = github_client.build_pr_fingerprint(pr)
-
-    assert fingerprint.changed_files == ()
     assert fingerprint.human_events == ()
 
 
@@ -355,36 +314,35 @@ def _golden_pr() -> _FakePR:
     """
     return _FakePR(
         base_sha="golden-base-sha",
-        files=[_FakeFile(filename="x.py", status="modified", sha="blob-x")],
         issue_comments=[
-            _FakeComment(1, _FakeActor("alice", "User"), "please fix", datetime(2026, 1, 1, tzinfo=UTC)),
-            _FakeComment(2, _FakeActor("dependabot", "User"), "bump dep", datetime(2026, 1, 2, tzinfo=UTC)),
-            _FakeComment(3, _FakeActor("greenlight", "User"), "self note", datetime(2026, 1, 3, tzinfo=UTC)),
-            _FakeComment(4, None, "ghost comment", None),
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("dependabot", "User"), "bump dep"),
+            _FakeComment(3, _FakeActor("greenlight", "User"), "self note"),
+            _FakeComment(4, None, "ghost comment"),
         ],
         review_comments=[
-            _FakeComment(5, _FakeActor("some-app[bot]", "User"), "automated nit", datetime(2026, 1, 4, tzinfo=UTC)),
+            _FakeComment(5, _FakeActor("some-app[bot]", "User"), "automated nit"),
         ],
         reviews=[
-            _FakeReview(6, _FakeActor("carol", "User"), "lgtm", "APPROVED", datetime(2026, 1, 5, tzinfo=UTC)),
+            _FakeReview(6, _FakeActor("carol", "User"), "lgtm"),
         ],
     )
 
 
-def test_build_pr_fingerprint_golden_hash_scheme_v2():
-    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v2 digest.
+def test_build_pr_fingerprint_golden_hash_scheme_v3():
+    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v3 digest.
 
     Guards against drift in is_bot / BOT_LOGINS / self_login exclusion and the
-    PR-field mapping. Uses the default scheme_version (2); a future
+    PR-field mapping. Uses the default scheme_version (3); a future
     HASH_SCHEME_VERSION bump regenerates this literal.
     """
     fingerprint = github_client.build_pr_fingerprint(_golden_pr(), self_login="greenlight")
 
     assert fingerprint.human_events == (
-        HumanEvent("issue_comment", 1, "alice", "please fix", None, "2026-01-01T00:00:00+00:00"),
-        HumanEvent("review", 6, "carol", "lgtm", "APPROVED", "2026-01-05T00:00:00+00:00"),
+        HumanEvent(id=1, body="please fix"),
+        HumanEvent(id=6, body="lgtm"),
     )
-    assert compute_pr_hash(fingerprint) == "d856345ee246471315379f43926be55954f23f0af76df81475f0809ece4db9fb"
+    assert compute_pr_hash(fingerprint) == "a6926e4cf8cf4cce783b1c0ceb132140205186d77effbb0016c5c39388d1bae7"
 
 
 @pytest.mark.parametrize("null_login", [None, ""])
@@ -392,10 +350,9 @@ def test_build_pr_fingerprint_golden_hash_scheme_v2():
 def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str | None, self_login: str | None) -> None:
     pr = _FakePR(
         base_sha="sha",
-        files=[],
-        issue_comments=[_FakeComment(1, _FakeActor(null_login, "User"), "ghost note", None)],
+        issue_comments=[_FakeComment(1, _FakeActor(null_login, "User"), "ghost note")],
         review_comments=[],
-        reviews=[_FakeReview(2, _FakeActor(null_login, "User"), "ghost review", "APPROVED", None)],
+        reviews=[_FakeReview(2, _FakeActor(null_login, "User"), "ghost review")],
     )
 
     fingerprint = github_client.build_pr_fingerprint(pr, self_login=self_login)
@@ -406,7 +363,6 @@ def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str 
 def test_fingerprint_pr_returns_head_sha_and_eval_hash():
     pr = _FakePR(
         base_sha="base-sha",
-        files=[_FakeFile(filename="a.py", status="modified", sha="blob-a")],
         issue_comments=[],
         review_comments=[],
         reviews=[],
@@ -436,7 +392,7 @@ def test_fingerprint_pr_hashes_golden_fixture():
 
 
 def test_fingerprint_pr_rejects_non_hex_hash(monkeypatch):
-    pr = _FakePR(base_sha="sha", files=[], issue_comments=[], review_comments=[], reviews=[])
+    pr = _FakePR(base_sha="sha", issue_comments=[], review_comments=[], reviews=[])
     client = _FakeScanClient(_FakeScanRepo(pr))
     monkeypatch.setattr(github_client, "compute_pr_hash", lambda _fingerprint: "not-a-64-hex-digest")
 

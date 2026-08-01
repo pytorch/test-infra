@@ -10,11 +10,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from greenlight import constants
-from greenlight.pr_hash import ChangedFile, HumanEvent, PRFingerprint, compute_pr_hash, is_bot
+from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import datetime
 
     from github import Github
 
@@ -46,16 +45,6 @@ if TYPE_CHECKING:
         @property
         def type(self) -> str: ...
 
-    class _PRFile(Protocol):
-        @property
-        def filename(self) -> str: ...
-        @property
-        def status(self) -> str: ...
-        @property
-        def sha(self) -> str: ...
-        @property
-        def previous_filename(self) -> str | None: ...
-
     class _PRComment(Protocol):
         @property
         def id(self) -> int: ...
@@ -63,8 +52,6 @@ if TYPE_CHECKING:
         def user(self) -> _PRActor | None: ...
         @property
         def body(self) -> str: ...
-        @property
-        def updated_at(self) -> datetime | None: ...
 
     class _PRReview(Protocol):
         @property
@@ -73,10 +60,6 @@ if TYPE_CHECKING:
         def user(self) -> _PRActor | None: ...
         @property
         def body(self) -> str: ...
-        @property
-        def state(self) -> str: ...
-        @property
-        def submitted_at(self) -> datetime | None: ...
 
     class _PRBase(Protocol):
         @property
@@ -85,17 +68,14 @@ if TYPE_CHECKING:
     class _FingerprintPR(Protocol):
         @property
         def base(self) -> _PRBase: ...
-        def get_files(self) -> Iterable[_PRFile]: ...
+        @property
+        def head(self) -> _PRBase: ...
         def get_issue_comments(self) -> Iterable[_PRComment]: ...
         def get_review_comments(self) -> Iterable[_PRComment]: ...
         def get_reviews(self) -> Iterable[_PRReview]: ...
 
-    class _ScanPR(_FingerprintPR, Protocol):
-        @property
-        def head(self) -> _PRBase: ...
-
     class _ScanRepo(Protocol):
-        def get_pull(self, number: int) -> _ScanPR: ...
+        def get_pull(self, number: int) -> _FingerprintPR: ...
 
     class _VerdictReview(Protocol):
         @property
@@ -173,10 +153,6 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
     return sorted(prs, key=lambda p: p.number)
 
 
-def _iso(value: datetime | None) -> str:
-    return "" if value is None else value.isoformat()
-
-
 def _actor_login(user: _PRActor | None, self_login: str | None) -> str | None:
     """Return the login to attribute an event to, or None if the actor is excluded.
 
@@ -203,51 +179,30 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
     writer and the verifier: the login passed here has its own events dropped, so a
     human login would exclude that human's reviews and open an approval-bypass.
 
-    Coverage (a product decision, to finalize at wiring time): the fingerprint covers
-    ``base_sha``, the changed files (with content-derived ``blob_sha``), and non-bot,
-    non-self human events. It deliberately EXCLUDES ``head.sha``, file mode,
-    base-branch drift, and the PR title/body.
+    Coverage: the fingerprint covers ``base_sha``, ``head_sha``, and the ``id`` and
+    ``body`` of non-bot, non-self human events (issue comments, review comments, and
+    reviews). It deliberately EXCLUDES the changed files, event kind/author/state/
+    timestamp, and the PR title/body.
     """
-    changed_files = tuple(
-        ChangedFile(path=f.filename, status=f.status, blob_sha=f.sha, previous_path=f.previous_filename)
-        for f in pr.get_files()
-    )
-
     human_events: list[HumanEvent] = []
     for comment in pr.get_issue_comments():
-        login = _actor_login(comment.user, self_login)
-        if login is None:
+        if _actor_login(comment.user, self_login) is None:
             continue
-        human_events.append(
-            HumanEvent("issue_comment", comment.id, login, comment.body, None, _iso(comment.updated_at))
-        )
+        human_events.append(HumanEvent(id=comment.id, body=comment.body))
 
     for review_comment in pr.get_review_comments():
-        login = _actor_login(review_comment.user, self_login)
-        if login is None:
+        if _actor_login(review_comment.user, self_login) is None:
             continue
-        human_events.append(
-            HumanEvent(
-                "review_comment",
-                review_comment.id,
-                login,
-                review_comment.body,
-                None,
-                _iso(review_comment.updated_at),
-            )
-        )
+        human_events.append(HumanEvent(id=review_comment.id, body=review_comment.body))
 
     for review in pr.get_reviews():
-        login = _actor_login(review.user, self_login)
-        if login is None:
+        if _actor_login(review.user, self_login) is None:
             continue
-        human_events.append(
-            HumanEvent("review", review.id, login, review.body, review.state, _iso(review.submitted_at))
-        )
+        human_events.append(HumanEvent(id=review.id, body=review.body))
 
     return PRFingerprint(
         base_sha=pr.base.sha,
-        changed_files=changed_files,
+        head_sha=pr.head.sha,
         human_events=tuple(human_events),
     )
 
@@ -255,8 +210,8 @@ def build_pr_fingerprint(pr: _FingerprintPR, *, self_login: str | None = None) -
 def fingerprint_pr(client: ScanClient, repo: str, pr_number: int) -> tuple[str, str]:
     """Fetch the PR and return its ``(head_sha, eval_hash)``.
 
-    Beyond the pull fetch this costs ~4 paginated GitHub calls: ``build_pr_fingerprint``
-    reads files, issue comments, review comments, and reviews.
+    Beyond the pull fetch this costs ~3 paginated GitHub calls: ``build_pr_fingerprint``
+    reads issue comments, review comments, and reviews.
     """
     pr = client.get_repo(repo).get_pull(pr_number)
     head_sha = pr.head.sha
