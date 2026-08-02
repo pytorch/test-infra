@@ -1,0 +1,663 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90739920874
+2026-07-29T23:58:10.4613408Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 17%]
+2026-07-29T23:58:10.4614214Z test_torch.py::TestTorch::test_storage_fix_weakref_no_leak SKIPPED [0.0429s] (https://github.com/pytorch/torchdynamo/issues/1993) [ 17%]
+2026-07-29T23:58:10.4615172Z test_torch.py::TestTorch::test_storage_from_tensor_dealloc SKIPPED [0.0430s] (Tracker hook does not work in TorchDynamo) [ 17%]
+2026-07-29T23:58:10.4616150Z test_torch.py::TestTorch::test_storage_from_tensor_dealloc_resurrected SKIPPED [0.0431s] (Tracker hook does not work in TorchDynamo) [ 17%]
+2026-07-29T23:58:10.4617282Z test_torch.py::TestTorch::test_storage_from_tensor_dealloc_zombie SKIPPED [0.0428s] (Tracker hook does not work in TorchDynamo) [ 17%]
+2026-07-29T23:58:10.4618321Z test_torch.py::TestTorch::test_storage_preserve_nonhermetic_in_hermetic_context SKIPPED [0.0429s] (Not a suitable test for TorchDynamo) [ 17%]
+2026-07-29T23:58:10.4619151Z test_torch.py::TestTorch::test_storage_resurrected_weak_ref PASSED [0.2066s] [ 17%]
+2026-07-29T23:58:10.4620511Z test_torch.py::TestTorch::test_storage_slot_dealloc /opt/python-3.14-venv/lib/python3.14/site-packages/_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning: Exception ignored while calling deallocator <function Tracker.__del__ at 0x7f443c72acf0>: None
+2026-07-29T23:58:10.4621631Z 
+2026-07-29T23:58:10.4621743Z Traceback (most recent call last):
+2026-07-29T23:58:10.4622521Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 6751, in __del__
+2026-07-29T23:58:10.4622938Z     self.marker[0] = True
+2026-07-29T23:58:10.4623177Z     ^^^^^^^^^^^
+2026-07-29T23:58:10.4623560Z AttributeError: 'Tracker' object has no attribute 'marker'. Did you mean: 'make'?
+2026-07-29T23:58:10.4623931Z 
+2026-07-29T23:58:10.4624134Z   warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+2026-07-29T23:58:10.4624547Z SKIPPED [0.3674s] (False is not true
+2026-07-29T23:58:10.4624741Z 
+2026-07-29T23:58:10.4624921Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4625488Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorch.test_storage_slot_dealloc
+2026-07-29T23:58:10.4625882Z 
+2026-07-29T23:58:10.4626289Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 17%]
+2026-07-29T23:58:10.4627203Z test_torch.py::TestTorch::test_storage_weakref_dealloc SKIPPED [0.0437s] (https://github.com/pytorch/torchdynamo/issues/1993) [ 17%]
+2026-07-29T23:58:10.4628190Z test_torch.py::TestTorch::test_structseq_repr PASSED [0.1783s]           [ 18%]
+2026-07-29T23:58:10.4628865Z test_torch.py::TestTorch::test_subclass_preserved PASSED [0.2507s]       [ 18%]
+2026-07-29T23:58:10.4629537Z test_torch.py::TestTorch::test_subclass_tensors PASSED [0.1028s]         [ 18%]
+2026-07-29T23:58:10.4630197Z test_torch.py::TestTorch::test_sum_neg_dim PASSED [0.1417s]              [ 18%]
+2026-07-29T23:58:10.4630908Z test_torch.py::TestTorch::test_swap_basic SKIPPED [0.0351s] (Dynamo adds weakrefs) [ 18%]
+2026-07-29T23:58:10.4631674Z test_torch.py::TestTorch::test_swap_fail_slots SKIPPED [0.0352s] (Dynamo adds weakrefs) [ 18%]
+2026-07-29T23:58:10.4632397Z test_torch.py::TestTorch::test_t_not_2d_error PASSED [0.0499s]           [ 18%]
+2026-07-29T23:58:10.4633070Z test_torch.py::TestTorch::test_tensor_base_init PASSED [0.1672s]         [ 18%]
+2026-07-29T23:58:10.4633935Z test_torch.py::TestTorch::test_tensor_base_new PASSED [0.1073s]          [ 18%]
+2026-07-29T23:58:10.4634603Z test_torch.py::TestTorch::test_tensor_ctor_scalar PASSED [0.1330s]       [ 18%]
+2026-07-29T23:58:10.4648510Z test_torch.py::TestTorch::test_tensor_cycle_via_dict SKIPPED [0.0426s] (Not a suitable test for TorchDynamo) [ 19%]
+2026-07-29T23:58:10.4649894Z test_torch.py::TestTorch::test_tensor_cycle_via_slots SKIPPED [0.6735s] (False is not true
+2026-07-29T23:58:10.4650306Z 
+2026-07-29T23:58:10.4650636Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4651223Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorch.test_tensor_cycle_via_slots
+2026-07-29T23:58:10.4651754Z 
+2026-07-29T23:58:10.4652036Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 19%]
+2026-07-29T23:58:10.4652839Z test_torch.py::TestTorch::test_tensor_dead_weak_ref SKIPPED [0.0446s] (https://github.com/pytorch/torchdynamo/issues/1993) [ 19%]
+2026-07-29T23:58:10.4653895Z test_torch.py::TestTorch::test_tensor_dict_dealloc SKIPPED [0.0439s] (Not a suitable test for TorchDynamo) [ 19%]
+2026-07-29T23:58:10.4654779Z test_torch.py::TestTorch::test_tensor_finalizer_dealloc SKIPPED [0.1758s] (False is not true
+2026-07-29T23:58:10.4655283Z 
+2026-07-29T23:58:10.4655537Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4656447Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorch.test_tensor_finalizer_dealloc
+2026-07-29T23:58:10.4656880Z 
+2026-07-29T23:58:10.4657136Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 19%]
+2026-07-29T23:58:10.4657942Z test_torch.py::TestTorch::test_tensor_fix_weakref_no_leak SKIPPED [0.0438s] (https://github.com/pytorch/torchdynamo/issues/1993) [ 19%]
+2026-07-29T23:58:10.4658729Z test_torch.py::TestTorch::test_tensor_item_no_warning PASSED [0.0691s]   [ 19%]
+2026-07-29T23:58:10.4659454Z test_torch.py::TestTorch::test_tensor_ressurecting_clear SKIPPED [0.0434s] (cannot trace t2.grad_fn._saved_self) [ 19%]
+2026-07-29T23:58:10.4660203Z test_torch.py::TestTorch::test_tensor_resurrected_weak_ref PASSED [0.0695s] [ 19%]
+2026-07-29T23:58:10.4660780Z test_torch.py::TestTorch::test_tensor_set PASSED [2.6725s]               [ 19%]
+2026-07-29T23:58:10.4661337Z test_torch.py::TestTorch::test_tensor_set_errors PASSED [0.2947s]        [ 20%]
+2026-07-29T23:58:10.4662676Z test_torch.py::TestTorch::test_tensor_slot_dealloc /opt/python-3.14-venv/lib/python3.14/site-packages/_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning: Exception ignored while calling deallocator <function Tracker.__del__ at 0x7f443c72acf0>: None
+2026-07-29T23:58:10.4663789Z 
+2026-07-29T23:58:10.4663901Z Traceback (most recent call last):
+2026-07-29T23:58:10.4664356Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 6751, in __del__
+2026-07-29T23:58:10.4664768Z     self.marker[0] = True
+2026-07-29T23:58:10.4665008Z     ^^^^^^^^^^^
+2026-07-29T23:58:10.4665380Z AttributeError: 'Tracker' object has no attribute 'marker'. Did you mean: 'make'?
+2026-07-29T23:58:10.4665751Z 
+2026-07-29T23:58:10.4665956Z   warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+2026-07-29T23:58:10.4666357Z SKIPPED [0.2816s] (False is not true
+2026-07-29T23:58:10.4666554Z 
+2026-07-29T23:58:10.4666736Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4667431Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorch.test_tensor_slot_dealloc
+2026-07-29T23:58:10.4667841Z 
+2026-07-29T23:58:10.4668095Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 20%]
+2026-07-29T23:58:10.4668889Z test_torch.py::TestTorch::test_tensor_weakref_dealloc SKIPPED [0.0437s] (https://github.com/pytorch/torchdynamo/issues/1993) [ 20%]
+2026-07-29T23:58:10.4669667Z test_torch.py::TestTorch::test_tensor_where_scalar PASSED [0.1370s]      [ 20%]
+2026-07-29T23:58:10.4670277Z test_torch.py::TestTorch::test_tensor_with_grad_to_scalar_warning PASSED [0.0694s] [ 20%]
+2026-07-29T23:58:10.4671162Z test_torch.py::TestTorch::test_tensoriterator_output_setup PASSED [0.5785s] [ 20%]
+2026-07-29T23:58:10.4671996Z test_torch.py::TestTorch::test_terminate_handler_on_crash SKIPPED [0.0396s] (test is slow; run with PYTORCH_TEST_WITH_SLOW to enable test) [ 20%]
+2026-07-29T23:58:10.4672792Z test_torch.py::TestTorch::test_to PASSED [1.2117s]                       [ 20%]
+2026-07-29T23:58:10.4673612Z test_torch.py::TestTorch::test_to_with_tensor PASSED [0.1281s]           [ 20%]
+2026-07-29T23:58:10.4674289Z test_torch.py::TestTorch::test_topk_neg_dim PASSED [0.1539s]             [ 20%]
+2026-07-29T23:58:10.4674958Z test_torch.py::TestTorch::test_torch_from_file PASSED [0.4461s]          [ 21%]
+2026-07-29T23:58:10.4675615Z test_torch.py::TestTorch::test_transpose_neg_dim PASSED [0.1346s]        [ 21%]
+2026-07-29T23:58:10.4676246Z test_torch.py::TestTorch::test_type PASSED [0.4103s]                     [ 21%]
+2026-07-29T23:58:10.4676862Z test_torch.py::TestTorch::test_type_alias PASSED [0.0566s]               [ 21%]
+2026-07-29T23:58:10.4678326Z test_torch.py::TestTorch::test_type_conversion_via_dtype_name /opt/python-3.14-venv/lib/python3.14/site-packages/_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning: Exception ignored while calling deallocator <function Tracker.__del__ at 0x7f443c72acf0>: None
+2026-07-29T23:58:10.4679558Z 
+2026-07-29T23:58:10.4679800Z Traceback (most recent call last):
+2026-07-29T23:58:10.4680481Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 6751, in __del__
+2026-07-29T23:58:10.4681022Z     self.marker[0] = True
+2026-07-29T23:58:10.4681361Z     ^^^^^^^^^^^
+2026-07-29T23:58:10.4681836Z AttributeError: 'Tracker' object has no attribute 'marker'. Did you mean: 'make'?
+2026-07-29T23:58:10.4682292Z 
+2026-07-29T23:58:10.4682643Z   warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+2026-07-29T23:58:10.4683128Z PASSED [2.1691s] [ 21%]
+2026-07-29T23:58:10.4683613Z test_torch.py::TestTorch::test_typed_storage_deprecation_warning PASSED [0.1807s] [ 21%]
+2026-07-29T23:58:10.4684333Z test_torch.py::TestTorch::test_typed_storage_internal_no_warning PASSED [0.3103s] [ 21%]
+2026-07-29T23:58:10.4685024Z test_torch.py::TestTorch::test_unbind_neg_dim PASSED [0.1558s]           [ 21%]
+2026-07-29T23:58:10.4685673Z test_torch.py::TestTorch::test_unflatten PASSED [1.5500s]                [ 21%]
+2026-07-29T23:58:10.4686342Z test_torch.py::TestTorch::test_unfold_neg_dim PASSED [0.1390s]           [ 21%]
+2026-07-29T23:58:10.4686999Z test_torch.py::TestTorch::test_unsqueeze_neg_dim PASSED [0.1348s]        [ 21%]
+2026-07-29T23:58:10.4687670Z test_torch.py::TestTorch::test_upsample_nearest1d_meta PASSED [0.5206s]  [ 22%]
+2026-07-29T23:58:10.4688793Z test_torch.py::TestTorch::test_upsample_nearest2d_meta SKIPPED [0.4066s] ('Expected out tensor to have dtype torch.f[32 chars]tead' != 'RuntimeError when making fake tensor call[1256 chars]o"\n'
+2026-07-29T23:58:10.4689897Z - Expected out tensor to have dtype torch.float32 but got torch.float64 instead
+2026-07-29T23:58:10.4690469Z + RuntimeError when making fake tensor call
+2026-07-29T23:58:10.4692009Z +   Explanation: Dynamo failed to run FX node with fake tensors: call_function <built-in function upsample_nearest2d>(*(FakeTensor(..., device='meta', size=(4, 3, 8, 8)), (16, 16)), **{'out': FakeTensor(..., device='meta', size=(4, 3, 16, 16), dtype=torch.float64)}): got RuntimeError('Expected out tensor to have dtype torch.float32 but got torch.float64 instead')
+2026-07-29T23:58:10.4694394Z +   Hint: Your code may result in an error when running in eager. Please double check that your code doesn't contain a similar error when actually running eager/uncompiled. You can do this by removing the `torch.compile` call, or by using `torch.compiler.set_stance("force_eager")`. 
+2026-07-29T23:58:10.4695655Z + 
+2026-07-29T23:58:10.4695978Z +   Developer debug context: 
+2026-07-29T23:58:10.4696326Z + 
+2026-07-29T23:58:10.4696965Z +  For more details about this graph break, please visit: https://meta-pytorch.github.io/compile-graph-break-site/gb/gb4315.html
+2026-07-29T23:58:10.4697860Z + 
+2026-07-29T23:58:10.4698145Z + from user code:
+2026-07-29T23:58:10.4698556Z +    File "/__w/pytorch/pytorch/test/test_torch.py", line 9131, in <lambda>
+2026-07-29T23:58:10.4699187Z +     RuntimeError, lambda: torch._C._nn.upsample_nearest2d(x, (16, 16), out=out),
+2026-07-29T23:58:10.4699752Z +                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4700156Z + 
+2026-07-29T23:58:10.4700924Z + Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS="+dynamo"
+2026-07-29T23:58:10.4701781Z + 
+2026-07-29T23:58:10.4702423Z  : To accept the new output, re-run test with envvar EXPECTTEST_ACCEPT=1 (we recommend staging/committing your changes before doing this)
+2026-07-29T23:58:10.4703070Z 
+2026-07-29T23:58:10.4703379Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4704046Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorch.test_upsample_nearest2d_meta
+2026-07-29T23:58:10.4704558Z 
+2026-07-29T23:58:10.4705061Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0) [ 22%]
+2026-07-29T23:58:10.4705756Z test_torch.py::TestTorch::test_var_neg_dim PASSED [0.1328s]              [ 22%]
+2026-07-29T23:58:10.4706574Z test_torch.py::TestTorch::test_warn_types PASSED [0.0738s]               [ 22%]
+2026-07-29T23:58:10.4707327Z test_torch.py::TestTorch::test_wildcard_import PASSED [0.0431s]          [ 22%]
+2026-07-29T23:58:10.4708133Z test_torch.py::TestTorchDeviceTypeCPU::test__local_scalar_dense_with_empty_tensor_cpu PASSED [0.1070s] [ 22%]
+2026-07-29T23:58:10.4709001Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_complex128 PASSED [0.3472s] [ 22%]
+2026-07-29T23:58:10.4709787Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_complex64 PASSED [0.3309s] [ 22%]
+2026-07-29T23:58:10.4710551Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_float32 PASSED [0.3247s] [ 22%]
+2026-07-29T23:58:10.4711309Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_float64 PASSED [0.3257s] [ 22%]
+2026-07-29T23:58:10.4712062Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_int16 PASSED [0.2770s] [ 23%]
+2026-07-29T23:58:10.4712807Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_int32 PASSED [0.2742s] [ 23%]
+2026-07-29T23:58:10.4713554Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_int64 PASSED [0.2759s] [ 23%]
+2026-07-29T23:58:10.4714297Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_int8 PASSED [0.2686s] [ 23%]
+2026-07-29T23:58:10.4715037Z test_torch.py::TestTorchDeviceTypeCPU::test_addcdiv_cpu_uint8 PASSED [0.2739s] [ 23%]
+2026-07-29T23:58:10.4715946Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_cuda_errors_with_cpu_scalars_cpu SKIPPED [0.0461s] (Only runs on cuda) [ 23%]
+2026-07-29T23:58:10.4716944Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_complex128 PASSED [0.1827s] [ 23%]
+2026-07-29T23:58:10.4717874Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_complex64 PASSED [0.1796s] [ 23%]
+2026-07-29T23:58:10.4718800Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_float32 PASSED [0.1744s] [ 23%]
+2026-07-29T23:58:10.4719721Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_float64 PASSED [0.1741s] [ 23%]
+2026-07-29T23:58:10.4720636Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_int16 PASSED [0.1748s] [ 24%]
+2026-07-29T23:58:10.4721535Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_int32 PASSED [0.1745s] [ 24%]
+2026-07-29T23:58:10.4722428Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_int64 PASSED [0.1723s] [ 24%]
+2026-07-29T23:58:10.4723319Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_int8 PASSED [0.1740s] [ 24%]
+2026-07-29T23:58:10.4724216Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_False_cpu_uint8 PASSED [0.1742s] [ 24%]
+2026-07-29T23:58:10.4725297Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_complex128 PASSED [0.1753s] [ 24%]
+2026-07-29T23:58:10.4726224Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_complex64 PASSED [0.1755s] [ 24%]
+2026-07-29T23:58:10.4727145Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_float32 PASSED [0.1750s] [ 24%]
+2026-07-29T23:58:10.4728044Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_float64 PASSED [0.1745s] [ 24%]
+2026-07-29T23:58:10.4728962Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_int16 PASSED [0.7642s] [ 24%]
+2026-07-29T23:58:10.4729852Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_int32 PASSED [0.1746s] [ 25%]
+2026-07-29T23:58:10.4730740Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_int64 PASSED [0.1742s] [ 25%]
+2026-07-29T23:58:10.4731642Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_int8 PASSED [0.1732s] [ 25%]
+2026-07-29T23:58:10.4732542Z test_torch.py::TestTorchDeviceTypeCPU::test_addcmul_use_cpu_scalar_True_cpu_uint8 PASSED [0.1742s] [ 25%]
+2026-07-29T23:58:10.4733580Z test_torch.py::TestTorchDeviceTypeCPU::test_assertRaisesRegex_ignore_msg_non_native_device_cpu PASSED [0.1492s] [ 25%]
+2026-07-29T23:58:10.4734887Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_edge_cases_cpu_float16 SKIPPED [0.0432s] (test is slow; run with PYTORCH_TEST_WITH_SLOW to enable test) [ 25%]
+2026-07-29T23:58:10.4736227Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_edge_cases_cpu_float32 SKIPPED [0.0440s] (test is slow; run with PYTORCH_TEST_WITH_SLOW to enable test) [ 25%]
+2026-07-29T23:58:10.4737522Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_edge_cases_cpu_float64 SKIPPED [0.0438s] (test is slow; run with PYTORCH_TEST_WITH_SLOW to enable test) [ 25%]
+2026-07-29T23:58:10.4738738Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_mem_overlap_cpu SKIPPED [0.0443s] (test doesn't currently work with dynamo) [ 25%]
+2026-07-29T23:58:10.4739706Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_p_cpu_bfloat16 PASSED [0.1091s] [ 25%]
+2026-07-29T23:58:10.4740503Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_p_cpu_float16 PASSED [0.1064s] [ 26%]
+2026-07-29T23:58:10.4741297Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_p_cpu_float32 PASSED [0.1060s] [ 26%]
+2026-07-29T23:58:10.4742076Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_p_cpu_float64 PASSED [0.1058s] [ 26%]
+2026-07-29T23:58:10.4742873Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_bool PASSED [0.2068s] [ 26%]
+2026-07-29T23:58:10.4743693Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_float16 PASSED [0.2010s] [ 26%]
+2026-07-29T23:58:10.4744517Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_float32 PASSED [0.1988s] [ 26%]
+2026-07-29T23:58:10.4745355Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_float64 PASSED [0.1980s] [ 26%]
+2026-07-29T23:58:10.4746164Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_int16 PASSED [0.1979s] [ 26%]
+2026-07-29T23:58:10.4746955Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_int32 PASSED [0.1987s] [ 26%]
+2026-07-29T23:58:10.4747836Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_int64 PASSED [0.2000s] [ 26%]
+2026-07-29T23:58:10.4748621Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_int8 PASSED [0.1997s] [ 27%]
+2026-07-29T23:58:10.4749525Z test_torch.py::TestTorchDeviceTypeCPU::test_bernoulli_self_cpu_uint8 PASSED [0.2041s] [ 27%]
+2026-07-29T23:58:10.4750314Z test_torch.py::TestTorchDeviceTypeCPU::test_bfloat16_neg_abs_cpu PASSED [0.2477s] [ 27%]
+2026-07-29T23:58:10.4751114Z test_torch.py::TestTorchDeviceTypeCPU::test_bool_tensor_value_change_cpu PASSED [0.1391s] [ 27%]
+2026-07-29T23:58:10.4751903Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_add_cpu PASSED [0.6663s] [ 27%]
+2026-07-29T23:58:10.4752959Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_addcdiv_cpu PASSED [0.9499s] [ 27%]
+2026-07-29T23:58:10.4753749Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_addcmul_cpu PASSED [0.9033s] [ 27%]
+2026-07-29T23:58:10.4755655Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_atan2_cpu SKIPPED [0.0394s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 27%]
+2026-07-29T23:58:10.4757532Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_copy_cpu PASSED [0.4101s] [ 27%]
+2026-07-29T23:58:10.4758298Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_dist_cpu PASSED [0.4876s] [ 27%]
+2026-07-29T23:58:10.4759069Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_div_cpu PASSED [0.6222s] [ 28%]
+2026-07-29T23:58:10.4761109Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_eq_cpu SKIPPED [0.0393s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4764103Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_fmod_cpu SKIPPED [0.0388s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4767058Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_ge_cpu SKIPPED [0.0390s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4769985Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_gt_cpu SKIPPED [0.0398s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4772899Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_le_cpu SKIPPED [0.0392s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4774777Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_lerp_cpu PASSED [0.6163s] [ 28%]
+2026-07-29T23:58:10.4776676Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_lt_cpu SKIPPED [0.0392s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 28%]
+2026-07-29T23:58:10.4778540Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_map2_cpu PASSED [1.0043s] [ 28%]
+2026-07-29T23:58:10.4779319Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_map_cpu PASSED [0.7813s] [ 28%]
+2026-07-29T23:58:10.4780136Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_masked_fill_cpu PASSED [1.2900s] [ 28%]
+2026-07-29T23:58:10.4780991Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_masked_scatter_cpu PASSED [0.7090s] [ 29%]
+2026-07-29T23:58:10.4782003Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_masked_select_cpu PASSED [0.5283s] [ 29%]
+2026-07-29T23:58:10.4782814Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_max_cpu PASSED [0.4903s] [ 29%]
+2026-07-29T23:58:10.4783594Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_min_cpu PASSED [0.4966s] [ 29%]
+2026-07-29T23:58:10.4784369Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_mul_cpu PASSED [0.6440s] [ 29%]
+2026-07-29T23:58:10.4786263Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_ne_cpu SKIPPED [0.0416s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 29%]
+2026-07-29T23:58:10.4789306Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_pow_cpu SKIPPED [0.0411s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 29%]
+2026-07-29T23:58:10.4792431Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_remainder_cpu SKIPPED [0.0420s] (Test is disabled because an issue exists disabling it: https://github.com/pytorch/pytorch/issues/191283 for platform(s) dynamo. If you're seeing this on your local machine and would like to enable this test, please make sure CI is not set and you are not using the flag --import-disabled-tests.) [ 29%]
+2026-07-29T23:58:10.4794337Z test_torch.py::TestTorchDeviceTypeCPU::test_broadcast_fn_sub_cpu PASSED [0.6497s] [ 29%]
+2026-07-29T23:58:10.4795133Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_bool PASSED [0.1944s] [ 29%]
+2026-07-29T23:58:10.4795969Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_complex128 PASSED [0.1920s] [ 30%]
+2026-07-29T23:58:10.4796822Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_complex64 PASSED [0.1881s] [ 30%]
+2026-07-29T23:58:10.4797651Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_float32 PASSED [0.1875s] [ 30%]
+2026-07-29T23:58:10.4798480Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_float64 PASSED [0.1918s] [ 30%]
+2026-07-29T23:58:10.4799287Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_int16 PASSED [0.1873s] [ 30%]
+2026-07-29T23:58:10.4800089Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_int32 PASSED [0.1857s] [ 30%]
+2026-07-29T23:58:10.4800894Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_int64 PASSED [0.1868s] [ 30%]
+2026-07-29T23:58:10.4801697Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_int8 PASSED [0.1859s] [ 30%]
+2026-07-29T23:58:10.4802491Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_uint16 PASSED [0.1862s] [ 30%]
+2026-07-29T23:58:10.4803304Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_uint32 PASSED [0.1879s] [ 30%]
+2026-07-29T23:58:10.4804108Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_uint64 PASSED [0.1886s] [ 31%]
+2026-07-29T23:58:10.4804920Z test_torch.py::TestTorchDeviceTypeCPU::test_bytes_to_scalar_cpu_uint8 PASSED [0.1896s] [ 31%]
+2026-07-29T23:58:10.4805697Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_cpu_bfloat16 PASSED [0.3509s] [ 31%]
+2026-07-29T23:58:10.4806476Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_cpu_float16 PASSED [0.3399s] [ 31%]
+2026-07-29T23:58:10.4807229Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_cpu_float32 PASSED [0.3408s] [ 31%]
+2026-07-29T23:58:10.4807984Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_cpu_float64 PASSED [0.3304s] [ 31%]
+2026-07-29T23:58:10.4808844Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_kstest_cpu_bfloat16 ('RERUN', {'yellow': True}) [3.9191s] [ 31%]
+2026-07-29T23:58:10.4809994Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_kstest_cpu_bfloat16 ('RERUN', {'yellow': True}) [2.9136s] [ 31%]
+2026-07-29T23:58:10.4810882Z test_torch.py::TestTorchDeviceTypeCPU::test_cauchy_kstest_cpu_bfloat16 FAILED [3.6635s] [ 31%]
+2026-07-29T23:58:10.4811383Z 
+2026-07-29T23:58:10.4811566Z ==================================== RERUNS ====================================
+2026-07-29T23:58:10.4812082Z ____________ TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16 ____________
+2026-07-29T23:58:10.4812539Z Traceback (most recent call last):
+2026-07-29T23:58:10.4813301Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 105, in inner
+2026-07-29T23:58:10.4814002Z     return gm(*args)
+2026-07-29T23:58:10.4814684Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.4815414Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.4815831Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4816504Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.4817171Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.4818050Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/_lazy_graph_module.py", line 142, in _lazy_forward
+2026-07-29T23:58:10.4818774Z     return self(*args, **kwargs)
+2026-07-29T23:58:10.4819457Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 1006, in call_wrapped
+2026-07-29T23:58:10.4820184Z     return self._wrapped_call(self, *args, **kwargs)
+2026-07-29T23:58:10.4820638Z            ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4821315Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 513, in __call__
+2026-07-29T23:58:10.4821941Z     raise e
+2026-07-29T23:58:10.4822522Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 499, in __call__
+2026-07-29T23:58:10.4823283Z     return super(self.cls, obj).__call__(*args, **kwargs)  # type: ignore[misc]
+2026-07-29T23:58:10.4823833Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4824582Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.4825307Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.4825706Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4826387Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.4827068Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.4827614Z   File "<eval_with_key>.1875", line 17, in forward
+2026-07-29T23:58:10.4828176Z     wrapped_sub = torch__dynamo_utils_wrapped_sub(1, l_cond0_);  l_cond0_ = None
+2026-07-29T23:58:10.4828996Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/utils.py", line 4785, in __call__
+2026-07-29T23:58:10.4829655Z     out = self.op(*args)
+2026-07-29T23:58:10.4830248Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 91, in f
+2026-07-29T23:58:10.4830873Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.4831525Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 338, in <lambda>
+2026-07-29T23:58:10.4832317Z     vars()[rvar] = create_method(lambda self, other, fn=fn: fn(other, self), rvar)
+2026-07-29T23:58:10.4832905Z                                                             ~~^^^^^^^^^^^^^
+2026-07-29T23:58:10.4833654Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_normalizations.py", line 316, in wrapped
+2026-07-29T23:58:10.4834376Z     result: object = func(*norm_args, **norm_kwds)
+2026-07-29T23:58:10.4834811Z                      ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4835659Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ufuncs.py", line 105, in wrapped
+2026-07-29T23:58:10.4836311Z     result = torch_func(x1, x2)
+2026-07-29T23:58:10.4837108Z RuntimeError: Subtraction, the `-` operator, with a bool tensor is not supported. If you are trying to invert a mask, use the `~` or `logical_not()` operator instead.
+2026-07-29T23:58:10.4837836Z 
+2026-07-29T23:58:10.4838167Z The above exception was the direct cause of the following exception:
+2026-07-29T23:58:10.4838551Z 
+2026-07-29T23:58:10.4838775Z Traceback (most recent call last):
+2026-07-29T23:58:10.4839326Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 2445, in test_cauchy_kstest
+2026-07-29T23:58:10.4839983Z     res = stats.kstest(t.cpu().to(torch.double), 'cauchy', args=(median, sigma))
+2026-07-29T23:58:10.4840877Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 515, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.4841692Z     samples, sentinel = _masked_arrays_2_sentinel_arrays(samples)
+2026-07-29T23:58:10.4842662Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 579, in torch_dynamo_resume_in_axis_nan_policy_wrapper_at_515
+2026-07-29T23:58:10.4843490Z     res = hypotest_fun_out(*samples, **kwds)
+2026-07-29T23:58:10.4844317Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.4844963Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.4845602Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 8458, in kstest
+2026-07-29T23:58:10.4846344Z     return ks_1samp(xvals, cdf, args=args, alternative=alternative,
+2026-07-29T23:58:10.4846838Z                     method=method, _no_deco=True)
+2026-07-29T23:58:10.4847603Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 423, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.4848331Z     return hypotest_fun_in(*args, **kwds)
+2026-07-29T23:58:10.4849007Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.4849779Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.4850427Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7780, in ks_1samp
+2026-07-29T23:58:10.4851085Z     cdfvals = cdf(x, *args)
+2026-07-29T23:58:10.4851843Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7796, in torch_dynamo_resume_in_ks_1samp_at_7780
+2026-07-29T23:58:10.4852636Z     Dplus, dplus_location = _compute_dplus(cdfvals, x)
+2026-07-29T23:58:10.4853463Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7797, in torch_dynamo_resume_in_ks_1samp_at_7796
+2026-07-29T23:58:10.4854263Z     Dminus, dminus_location = _compute_dminus(cdfvals, x)
+2026-07-29T23:58:10.4855144Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7798, in torch_dynamo_resume_in_ks_1samp_at_7797
+2026-07-29T23:58:10.4855901Z     if Dplus > Dminus:
+2026-07-29T23:58:10.4856642Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7810, in torch_dynamo_resume_in_ks_1samp_at_7798
+2026-07-29T23:58:10.4857426Z     prob = distributions.kstwo.sf(D, N)
+2026-07-29T23:58:10.4858143Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2229, in sf
+2026-07-29T23:58:10.4858841Z     _a, _b = self._get_support(*args)
+2026-07-29T23:58:10.4859682Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2231, in torch_dynamo_resume_in_sf_at_2229
+2026-07-29T23:58:10.4860528Z     x = np.asarray((x - loc)/scale, dtype=dtyp)
+2026-07-29T23:58:10.4861414Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2230, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.4862593Z     dtyp = np.promote_types(x.dtype, np.float64)
+2026-07-29T23:58:10.4863478Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.4864331Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.4865241Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2233
+2026-07-29T23:58:10.4866101Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.4866826Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/eval_frame.py", line 1530, in _fn
+2026-07-29T23:58:10.4867549Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.4868191Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 107, in inner
+2026-07-29T23:58:10.4868973Z     raise torch._dynamo.exc.TorchDynamoException(
+2026-07-29T23:58:10.4869523Z         "Unexpected exception when running generated GraphModule"
+2026-07-29T23:58:10.4869993Z     ) from e
+2026-07-29T23:58:10.4870538Z torch._dynamo.exc.TorchDynamoException: Unexpected exception when running generated GraphModule
+2026-07-29T23:58:10.4871072Z 
+2026-07-29T23:58:10.4871315Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.4872184Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16
+2026-07-29T23:58:10.4872681Z 
+2026-07-29T23:58:10.4872910Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0
+2026-07-29T23:58:10.4873442Z ----------------------------- Captured stderr call -----------------------------
+2026-07-29T23:58:10.4875243Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_axis_nan_policy.py:433'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4876849Z 
+2026-07-29T23:58:10.4876948Z This call originates from:
+2026-07-29T23:58:10.4877588Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 433, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.4878247Z     if not is_numpy(array_namespace(temp)):
+2026-07-29T23:58:10.4878559Z            ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4878753Z 
+2026-07-29T23:58:10.4878861Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4880517Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:196'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4882182Z 
+2026-07-29T23:58:10.4882283Z This call originates from:
+2026-07-29T23:58:10.4882818Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 196, in _asarray
+2026-07-29T23:58:10.4883356Z     if is_numpy(xp):
+2026-07-29T23:58:10.4883574Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.4883705Z 
+2026-07-29T23:58:10.4883816Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4885694Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4887357Z 
+2026-07-29T23:58:10.4887588Z This call originates from:
+2026-07-29T23:58:10.4888564Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_523
+2026-07-29T23:58:10.4889375Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.4889762Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.4889955Z 
+2026-07-29T23:58:10.4931724Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4933474Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4935119Z 
+2026-07-29T23:58:10.4935254Z This call originates from:
+2026-07-29T23:58:10.4936046Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_525
+2026-07-29T23:58:10.4936870Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.4937270Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.4937491Z 
+2026-07-29T23:58:10.4937644Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4939576Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:286'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4941250Z 
+2026-07-29T23:58:10.4941466Z This call originates from:
+2026-07-29T23:58:10.4942233Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 286, in is_array_api_obj
+2026-07-29T23:58:10.4943038Z     or _is_array_api_cls(cast(Hashable, type(x)))
+2026-07-29T23:58:10.4943482Z        ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4943776Z 
+2026-07-29T23:58:10.4943975Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4945712Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:294'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4947418Z 
+2026-07-29T23:58:10.4947643Z This call originates from:
+2026-07-29T23:58:10.4948401Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 294, in _is_array_api_cls
+2026-07-29T23:58:10.4949188Z     _issubclass_fast(cls, "numpy", "ndarray")
+2026-07-29T23:58:10.4949742Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4950039Z 
+2026-07-29T23:58:10.4950284Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4952030Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:122'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.4953653Z 
+2026-07-29T23:58:10.4953788Z This call originates from:
+2026-07-29T23:58:10.4954554Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 122, in is_numpy_array
+2026-07-29T23:58:10.4955349Z     _issubclass_fast(cls, "numpy", "ndarray")
+2026-07-29T23:58:10.4955764Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4956057Z 
+2026-07-29T23:58:10.4956295Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.4957077Z ____________ TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16 ____________
+2026-07-29T23:58:10.4957631Z Traceback (most recent call last):
+2026-07-29T23:58:10.4958327Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 105, in inner
+2026-07-29T23:58:10.4959024Z     return gm(*args)
+2026-07-29T23:58:10.4959724Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.4960461Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.4960875Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4961563Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.4962248Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.4962964Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/_lazy_graph_module.py", line 142, in _lazy_forward
+2026-07-29T23:58:10.4963656Z     return self(*args, **kwargs)
+2026-07-29T23:58:10.4964324Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 1006, in call_wrapped
+2026-07-29T23:58:10.4965042Z     return self._wrapped_call(self, *args, **kwargs)
+2026-07-29T23:58:10.4965486Z            ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4966362Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 513, in __call__
+2026-07-29T23:58:10.4967032Z     raise e
+2026-07-29T23:58:10.4967618Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 499, in __call__
+2026-07-29T23:58:10.4968401Z     return super(self.cls, obj).__call__(*args, **kwargs)  # type: ignore[misc]
+2026-07-29T23:58:10.4968948Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4969719Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.4970457Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.4970863Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4971555Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.4972266Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.4972723Z   File "<eval_with_key>.1924", line 17, in forward
+2026-07-29T23:58:10.4973320Z     wrapped_sub = torch__dynamo_utils_wrapped_sub(1, l_cond0_);  l_cond0_ = None
+2026-07-29T23:58:10.4974137Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/utils.py", line 4785, in __call__
+2026-07-29T23:58:10.4974802Z     out = self.op(*args)
+2026-07-29T23:58:10.4975406Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 91, in f
+2026-07-29T23:58:10.4976037Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.4976681Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 338, in <lambda>
+2026-07-29T23:58:10.4977494Z     vars()[rvar] = create_method(lambda self, other, fn=fn: fn(other, self), rvar)
+2026-07-29T23:58:10.4978069Z                                                             ~~^^^^^^^^^^^^^
+2026-07-29T23:58:10.4978779Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_normalizations.py", line 316, in wrapped
+2026-07-29T23:58:10.4979466Z     result: object = func(*norm_args, **norm_kwds)
+2026-07-29T23:58:10.4979890Z                      ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.4980527Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ufuncs.py", line 105, in wrapped
+2026-07-29T23:58:10.4981174Z     result = torch_func(x1, x2)
+2026-07-29T23:58:10.4982003Z RuntimeError: Subtraction, the `-` operator, with a bool tensor is not supported. If you are trying to invert a mask, use the `~` or `logical_not()` operator instead.
+2026-07-29T23:58:10.4982772Z 
+2026-07-29T23:58:10.4983056Z The above exception was the direct cause of the following exception:
+2026-07-29T23:58:10.4983562Z 
+2026-07-29T23:58:10.4983676Z Traceback (most recent call last):
+2026-07-29T23:58:10.4984151Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 2445, in test_cauchy_kstest
+2026-07-29T23:58:10.4984735Z     res = stats.kstest(t.cpu().to(torch.double), 'cauchy', args=(median, sigma))
+2026-07-29T23:58:10.4985536Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 515, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.4986260Z     samples, sentinel = _masked_arrays_2_sentinel_arrays(samples)
+2026-07-29T23:58:10.4987129Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 579, in torch_dynamo_resume_in_axis_nan_policy_wrapper_at_515
+2026-07-29T23:58:10.4987989Z     res = hypotest_fun_out(*samples, **kwds)
+2026-07-29T23:58:10.4988550Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.4989081Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.4989609Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 8458, in kstest
+2026-07-29T23:58:10.4990247Z     return ks_1samp(xvals, cdf, args=args, alternative=alternative,
+2026-07-29T23:58:10.4990656Z                     method=method, _no_deco=True)
+2026-07-29T23:58:10.4991488Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 423, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.4992147Z     return hypotest_fun_in(*args, **kwds)
+2026-07-29T23:58:10.4992705Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.4993226Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.4993765Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7780, in ks_1samp
+2026-07-29T23:58:10.4994310Z     cdfvals = cdf(x, *args)
+2026-07-29T23:58:10.4994967Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7796, in torch_dynamo_resume_in_ks_1samp_at_7780
+2026-07-29T23:58:10.4995684Z     Dplus, dplus_location = _compute_dplus(cdfvals, x)
+2026-07-29T23:58:10.4996422Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7797, in torch_dynamo_resume_in_ks_1samp_at_7796
+2026-07-29T23:58:10.4997146Z     Dminus, dminus_location = _compute_dminus(cdfvals, x)
+2026-07-29T23:58:10.4998225Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7798, in torch_dynamo_resume_in_ks_1samp_at_7797
+2026-07-29T23:58:10.4998887Z     if Dplus > Dminus:
+2026-07-29T23:58:10.4999534Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7810, in torch_dynamo_resume_in_ks_1samp_at_7798
+2026-07-29T23:58:10.5000205Z     prob = distributions.kstwo.sf(D, N)
+2026-07-29T23:58:10.5000803Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2229, in sf
+2026-07-29T23:58:10.5001397Z     _a, _b = self._get_support(*args)
+2026-07-29T23:58:10.5002115Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2231, in torch_dynamo_resume_in_sf_at_2229
+2026-07-29T23:58:10.5003007Z     x = np.asarray((x - loc)/scale, dtype=dtyp)
+2026-07-29T23:58:10.5003787Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2230, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.5004648Z     dtyp = np.promote_types(x.dtype, np.float64)
+2026-07-29T23:58:10.5005548Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.5006415Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.5007282Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2233
+2026-07-29T23:58:10.5008321Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.5009055Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/eval_frame.py", line 1530, in _fn
+2026-07-29T23:58:10.5009709Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.5010365Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 107, in inner
+2026-07-29T23:58:10.5011135Z     raise torch._dynamo.exc.TorchDynamoException(
+2026-07-29T23:58:10.5011658Z         "Unexpected exception when running generated GraphModule"
+2026-07-29T23:58:10.5012115Z     ) from e
+2026-07-29T23:58:10.5012648Z torch._dynamo.exc.TorchDynamoException: Unexpected exception when running generated GraphModule
+2026-07-29T23:58:10.5013185Z 
+2026-07-29T23:58:10.5013504Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.5014254Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16
+2026-07-29T23:58:10.5014840Z 
+2026-07-29T23:58:10.5015104Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0
+2026-07-29T23:58:10.5015634Z ----------------------------- Captured stderr call -----------------------------
+2026-07-29T23:58:10.5017680Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_axis_nan_policy.py:433'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5019394Z 
+2026-07-29T23:58:10.5019549Z This call originates from:
+2026-07-29T23:58:10.5020191Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 433, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.5020853Z     if not is_numpy(array_namespace(temp)):
+2026-07-29T23:58:10.5021169Z            ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5021364Z 
+2026-07-29T23:58:10.5021474Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5023132Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:196'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5024691Z 
+2026-07-29T23:58:10.5024793Z This call originates from:
+2026-07-29T23:58:10.5025323Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 196, in _asarray
+2026-07-29T23:58:10.5025867Z     if is_numpy(xp):
+2026-07-29T23:58:10.5026089Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5026222Z 
+2026-07-29T23:58:10.5026333Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5028085Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5029648Z 
+2026-07-29T23:58:10.5029749Z This call originates from:
+2026-07-29T23:58:10.5030432Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_523
+2026-07-29T23:58:10.5031137Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.5031439Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5031573Z 
+2026-07-29T23:58:10.5031684Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5033543Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5035379Z 
+2026-07-29T23:58:10.5035505Z This call originates from:
+2026-07-29T23:58:10.5036290Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_525
+2026-07-29T23:58:10.5037101Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.5037501Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5037722Z 
+2026-07-29T23:58:10.5037966Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5039714Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:286'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5041366Z 
+2026-07-29T23:58:10.5041567Z This call originates from:
+2026-07-29T23:58:10.5042436Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 286, in is_array_api_obj
+2026-07-29T23:58:10.5043257Z     or _is_array_api_cls(cast(Hashable, type(x)))
+2026-07-29T23:58:10.5043675Z        ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5043968Z 
+2026-07-29T23:58:10.5044203Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5045967Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:294'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5047629Z 
+2026-07-29T23:58:10.5047761Z This call originates from:
+2026-07-29T23:58:10.5048423Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 294, in _is_array_api_cls
+2026-07-29T23:58:10.5049233Z     _issubclass_fast(cls, "numpy", "ndarray")
+2026-07-29T23:58:10.5049820Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5050117Z 
+2026-07-29T23:58:10.5050358Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5052082Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:122'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5053730Z 
+2026-07-29T23:58:10.5053964Z This call originates from:
+2026-07-29T23:58:10.5054722Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 122, in is_numpy_array
+2026-07-29T23:58:10.5055508Z     _issubclass_fast(cls, "numpy", "ndarray")
+2026-07-29T23:58:10.5055915Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5056177Z 
+2026-07-29T23:58:10.5056324Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5056818Z ------------------------------ Captured log call -------------------------------
+2026-07-29T23:58:10.5058001Z ERROR    fbscribelogger:__init__.py:355 send_messages: err <ClientResponse(https://graph.facebook.com/scribe_logs?structured=true&access_token=***) [400 Bad Request]>
+2026-07-29T23:58:10.5068938Z <CIMultiDictProxy('debug-link': 'https://www.meta.com/debug/?mid=fbd81c80b60dcfceb52b1223b7744fea', 'error-mid': 'fbd81c80b60dcfceb52b1223b7744fea', 'Vary': 'Origin', 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json; charset=UTF-8', 'WWW-Authenticate': 'OAuth "Facebook Platform" "invalid_token" "Invalid OAuth access token - Cannot parse access token"', 'Strict-Transport-Security': 'max-age=15552000; preload', 'Pragma': 'no-cache', 'Cache-Control': 'no-store', 'Expires': 'Sat, 01 Jan 2000 00:00:00 GMT', 'x-fb-request-id': 'Aj5MiVCCrpU2fOlye0ZcJJy', 'x-fb-trace-id': 'E0MJu+rVYyZ', 'x-fb-rev': '1044104838', 'X-FB-Debug': 'SWtV0t3rzBUiyd7jVj90UZgtu44M06R4jr6SXteGW7plvP0iWnk5TW0sYH57M9bL7pXOb8vtnGtRQHm9I2ylfQ==', 'Date': 'Wed, 29 Jul 2026 23:57:30 GMT', 'Proxy-Status': 'http_request_error; e_proxy="AcRD-ix9ENY1Ve6T2kQLRNnoBU78CpAzOo57Q7I7wjHgTJy5QwCT8kzMoaa8TQrK9bVw5CEkvLX2hBHt6kE"; e_fb_twtaskhandle="AcRSdTzN4iVs6BKUjb4MvsMw67qFZLVvBPBrFt-2P_fYPv98onnx7HfEZLR6czUBZtoljAh7c7-Sd7TXdUiyFI2o04weokn0UerknUpDa-zfIA"; e_upip="AcQ7bDLZOnemhtQn6xF1illa5XnyoHR_AYl3nOhbdiuQl-WWrt70nNN9QcymCZYs-1mk6qW1kR2_KcAIHMvMNwiREOJPEu0MrZZ1U-12CbQ"; e_fb_zone="AcQkwb-srDk69yl2g_UN4tspDDynfJhyck9FYrp6-QrTQrUSJOy-vL15ff032yWR"; e_clientaddr="AcTz0PErMEG4CbEfweqjFiVhSPblshNeraDF3fMAr-GCLkhxjO392osd9Y6MGNE_S6MatfLNl2uPkEPAu6g5lY3e67MXjpVKppTd4E8lU_MzZfG4Pg"; e_fb_vipaddr="AcQ4uHfOAwG1INj1pP0myr0jal6EAgaHpkUEWFrvNSR5VkFSjIbhqlPocnvfF9Uq-txDYrZ92M93ukCww3y-qhIhXOLBdL5NL2w", http_request_error; e_proxy="AcRSxPRp9-BnIq-bKrj0lSy37KgVJoC7p1yEqkuy4GM2JHl-Q8TOhqLB1dzo6psxheeeJAR-Fvb8ChQ"; e_fb_twtaskhandle="AcQNmTkEdP0fi_Xlxbzpk_UtvzWJJYDaQ36yIXIJHBdu2N5Qvd0FLZ2G2lzgTWJMrlnNRae7F2U_qyD7dNtGWGi5YBybVuXzP5xh"; e_upip="AcQxVUd9b-KdcuxvZZ1f7BTaxXBDTz3Blm7qY-Z7eoIMXeK_NaBvZTD3Xe55j13HHepZep5c8-nm1wrkzuCtS3yJTPunDMo9lNs"; e_fb_zone="AcSbARcDUWrNfYXJbaxWv39erI1fIvl2BwGWlY_QrEi4cW5biHPKjs5iff9q2w"; e_clientaddr="AcR_cgCLP6FYoda7dbL88nQpENmcWNJ7SiuJdI3rAGmhgtMeQ6Pfo7CD31YGw3x0drN5d6UzfUBxFBjptPFD0XrvWInpNyZd2RWeJy8"; e_fb_vipaddr="AcSA4zyzEdu4xPKJMvFE94H5rry3kn9ICGjJK8lOU5S7agaauXSHzIVy58xAheyx1TRr1oa083-rBxKHsTqPDXOpxmW7aNV32Q"', 'X-FB-Connection-Quality': 'EXCELLENT; q=0.9, rtt=8, rtx=0, c=10, mss=1380, tbw=3475, tp=-1, tpl=-1, uplat=59, ullat=0', 'Alt-Svc': 'h3=":443"; ma=86400', 'Connection': 'keep-alive', 'Content-Length': '152')>
+2026-07-29T23:58:10.5079335Z =================================== FAILURES ===================================
+#=MATCH=# 2026-07-29T23:58:10.5079942Z ____________ ‹TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16› ____________
+2026-07-29T23:58:10.5080473Z Traceback (most recent call last):
+2026-07-29T23:58:10.5081173Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 105, in inner
+2026-07-29T23:58:10.5081856Z     return gm(*args)
+2026-07-29T23:58:10.5082551Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.5083267Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.5083640Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5084308Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.5084987Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.5085671Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/_lazy_graph_module.py", line 142, in _lazy_forward
+2026-07-29T23:58:10.5086344Z     return self(*args, **kwargs)
+2026-07-29T23:58:10.5087002Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 1006, in call_wrapped
+2026-07-29T23:58:10.5087749Z     return self._wrapped_call(self, *args, **kwargs)
+2026-07-29T23:58:10.5088185Z            ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5088835Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 513, in __call__
+2026-07-29T23:58:10.5089452Z     raise e
+2026-07-29T23:58:10.5090013Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/fx/graph_module.py", line 499, in __call__
+2026-07-29T23:58:10.5090795Z     return super(self.cls, obj).__call__(*args, **kwargs)  # type: ignore[misc]
+2026-07-29T23:58:10.5091537Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5092324Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1780, in _wrapped_call_impl
+2026-07-29T23:58:10.5093055Z     return self._call_impl(*args, **kwargs)
+2026-07-29T23:58:10.5093487Z            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5094224Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/nn/modules/module.py", line 1791, in _call_impl
+2026-07-29T23:58:10.5094916Z     return forward_call(*args, **kwargs)
+2026-07-29T23:58:10.5095380Z   File "<eval_with_key>.1973", line 17, in forward
+2026-07-29T23:58:10.5095950Z     wrapped_sub = torch__dynamo_utils_wrapped_sub(1, l_cond0_);  l_cond0_ = None
+2026-07-29T23:58:10.5096816Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/utils.py", line 4785, in __call__
+2026-07-29T23:58:10.5097480Z     out = self.op(*args)
+2026-07-29T23:58:10.5098091Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 91, in f
+2026-07-29T23:58:10.5098718Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.5099371Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ndarray.py", line 338, in <lambda>
+2026-07-29T23:58:10.5100377Z     vars()[rvar] = create_method(lambda self, other, fn=fn: fn(other, self), rvar)
+2026-07-29T23:58:10.5100991Z                                                             ~~^^^^^^^^^^^^^
+2026-07-29T23:58:10.5101739Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_normalizations.py", line 316, in wrapped
+2026-07-29T23:58:10.5102438Z     result: object = func(*norm_args, **norm_kwds)
+2026-07-29T23:58:10.5102860Z                      ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5103515Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_numpy/_ufuncs.py", line 105, in wrapped
+2026-07-29T23:58:10.5104148Z     result = torch_func(x1, x2)
+2026-07-29T23:58:10.5104986Z RuntimeError: Subtraction, the `-` operator, with a bool tensor is not supported. If you are trying to invert a mask, use the `~` or `logical_not()` operator instead.
+2026-07-29T23:58:10.5105736Z 
+2026-07-29T23:58:10.5106026Z The above exception was the direct cause of the following exception:
+2026-07-29T23:58:10.5106341Z 
+2026-07-29T23:58:10.5106458Z Traceback (most recent call last):
+2026-07-29T23:58:10.5106936Z   File "/__w/pytorch/pytorch/test/test_torch.py", line 2445, in test_cauchy_kstest
+2026-07-29T23:58:10.5107600Z     res = stats.kstest(t.cpu().to(torch.double), 'cauchy', args=(median, sigma))
+2026-07-29T23:58:10.5108404Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 515, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.5109125Z     samples, sentinel = _masked_arrays_2_sentinel_arrays(samples)
+2026-07-29T23:58:10.5109990Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 579, in torch_dynamo_resume_in_axis_nan_policy_wrapper_at_515
+2026-07-29T23:58:10.5110745Z     res = hypotest_fun_out(*samples, **kwds)
+2026-07-29T23:58:10.5111304Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.5111830Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.5112363Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 8458, in kstest
+2026-07-29T23:58:10.5112999Z     return ks_1samp(xvals, cdf, args=args, alternative=alternative,
+2026-07-29T23:58:10.5113411Z                     method=method, _no_deco=True)
+2026-07-29T23:58:10.5114087Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 423, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.5114733Z     return hypotest_fun_in(*args, **kwds)
+2026-07-29T23:58:10.5115280Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_util.py", line 1006, in wrapper
+2026-07-29T23:58:10.5116010Z     return fun(*args, **kwargs)
+2026-07-29T23:58:10.5116566Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7780, in ks_1samp
+2026-07-29T23:58:10.5117115Z     cdfvals = cdf(x, *args)
+2026-07-29T23:58:10.5117773Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7796, in torch_dynamo_resume_in_ks_1samp_at_7780
+2026-07-29T23:58:10.5118485Z     Dplus, dplus_location = _compute_dplus(cdfvals, x)
+2026-07-29T23:58:10.5119230Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7797, in torch_dynamo_resume_in_ks_1samp_at_7796
+2026-07-29T23:58:10.5119942Z     Dminus, dminus_location = _compute_dminus(cdfvals, x)
+2026-07-29T23:58:10.5120695Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7798, in torch_dynamo_resume_in_ks_1samp_at_7797
+2026-07-29T23:58:10.5121344Z     if Dplus > Dminus:
+2026-07-29T23:58:10.5121978Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_stats_py.py", line 7810, in torch_dynamo_resume_in_ks_1samp_at_7798
+2026-07-29T23:58:10.5122657Z     prob = distributions.kstwo.sf(D, N)
+2026-07-29T23:58:10.5123260Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2229, in sf
+2026-07-29T23:58:10.5123846Z     _a, _b = self._get_support(*args)
+2026-07-29T23:58:10.5124695Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2231, in torch_dynamo_resume_in_sf_at_2229
+2026-07-29T23:58:10.5125440Z     x = np.asarray((x - loc)/scale, dtype=dtyp)
+2026-07-29T23:58:10.5126198Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2230, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.5126929Z     dtyp = np.promote_types(x.dtype, np.float64)
+2026-07-29T23:58:10.5128021Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2230
+2026-07-29T23:58:10.5128787Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.5129568Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_distn_infrastructure.py", line 2233, in torch_dynamo_resume_in_sf_at_2233
+2026-07-29T23:58:10.5130318Z     cond1 = self._open_support_mask(x, *args) & (scale > 0)
+2026-07-29T23:58:10.5130935Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/eval_frame.py", line 1530, in _fn
+2026-07-29T23:58:10.5131481Z     return fn(*args, **kwargs)
+2026-07-29T23:58:10.5132041Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/backends/debugging.py", line 107, in inner
+2026-07-29T23:58:10.5132698Z     raise torch._dynamo.exc.TorchDynamoException(
+2026-07-29T23:58:10.5133120Z         "Unexpected exception when running generated GraphModule"
+2026-07-29T23:58:10.5133489Z     ) from e
+2026-07-29T23:58:10.5133927Z torch._dynamo.exc.TorchDynamoException: Unexpected exception when running generated GraphModule
+2026-07-29T23:58:10.5134373Z 
+2026-07-29T23:58:10.5134555Z To execute this test, run the following from the base repo dir:
+2026-07-29T23:58:10.5135203Z     PYTORCH_TEST_WITH_DYNAMO=1 python test/test_torch.py TestTorchDeviceTypeCPU.test_cauchy_kstest_cpu_bfloat16
+2026-07-29T23:58:10.5135683Z 
+2026-07-29T23:58:10.5135910Z This message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0
+2026-07-29T23:58:10.5136449Z ----------------------------- Captured stderr call -----------------------------
+2026-07-29T23:58:10.5138443Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_axis_nan_policy.py:433'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5140336Z 
+2026-07-29T23:58:10.5140503Z This call originates from:
+2026-07-29T23:58:10.5141151Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/stats/_axis_nan_policy.py", line 433, in axis_nan_policy_wrapper
+2026-07-29T23:58:10.5141808Z     if not is_numpy(array_namespace(temp)):
+2026-07-29T23:58:10.5142122Z            ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5142316Z 
+2026-07-29T23:58:10.5142434Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5144087Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:196'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5145643Z 
+2026-07-29T23:58:10.5145744Z This call originates from:
+2026-07-29T23:58:10.5146279Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 196, in _asarray
+2026-07-29T23:58:10.5146820Z     if is_numpy(xp):
+2026-07-29T23:58:10.5147046Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5147174Z 
+2026-07-29T23:58:10.5147364Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5149175Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5150869Z 
+2026-07-29T23:58:10.5150975Z This call originates from:
+2026-07-29T23:58:10.5151668Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_523
+2026-07-29T23:58:10.5152379Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.5152685Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5152816Z 
+2026-07-29T23:58:10.5152929Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5154590Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_array_api.py:529'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5156146Z 
+2026-07-29T23:58:10.5156249Z This call originates from:
+2026-07-29T23:58:10.5156929Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/_array_api.py", line 529, in torch_dynamo_resume_in_xp_result_type_at_525
+2026-07-29T23:58:10.5157626Z     if is_numpy(xp) and xp.__version__ < '2.0':
+2026-07-29T23:58:10.5157933Z        ~~~~~~~~^^^^
+2026-07-29T23:58:10.5158309Z 
+2026-07-29T23:58:10.5158442Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5160210Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:286'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5161861Z 
+2026-07-29T23:58:10.5162095Z This call originates from:
+2026-07-29T23:58:10.5162861Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 286, in is_array_api_obj
+2026-07-29T23:58:10.5163664Z     or _is_array_api_cls(cast(Hashable, type(x)))
+2026-07-29T23:58:10.5164105Z        ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5164410Z 
+2026-07-29T23:58:10.5164656Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5166690Z /opt/python-3.14-venv/lib/python3.14/site-packages/torch/_dynamo/variables/functions.py:2682: UserWarning: Dynamo detected a call to a `functools.lru_cache`-wrapped function at '_helpers.py:294'. Dynamo ignores the cache wrapper and directly traces the wrapped function. Silent incorrectness is only a *potential* risk, not something we have observed. Enable TORCH_LOGS=+dynamo for a DEBUG stack trace.
+2026-07-29T23:58:10.5168352Z 
+2026-07-29T23:58:10.5168477Z This call originates from:
+2026-07-29T23:58:10.5169147Z   File "/opt/python-3.14-venv/lib/python3.14/site-packages/scipy/_lib/array_api_compat/common/_helpers.py", line 294, in _is_array_api_cls
+2026-07-29T23:58:10.5169983Z     _issubclass_fast(cls, "numpy", "ndarray")
+2026-07-29T23:58:10.5170318Z     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-07-29T23:58:10.5170629Z 
+2026-07-29T23:58:10.5170856Z   torch._dynamo.utils.warn_once(msg)
+2026-07-29T23:58:10.5171225Z /opt/python-3.14-ve
+2026-07-29T23:58:10.5175170Z ##[error]Process completed with exit code 1.
+2026-07-29T23:58:10.5289439Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-29T23:58:10.5615081Z ##[group]Run cat test/**/*_toprint.log || true

@@ -119,8 +119,8 @@ pub async fn make_query(
     error_line: &usize,
     num_lines: usize,
 ) -> Option<SerializedMatch> {
-    let model_id_primary = String::from("anthropic.claude-haiku-4-5-20251001-v1:0");
-    let model_id_secondary = String::from("anthropic.claude-sonnet-4-6");
+    let model_id_primary = String::from("us.anthropic.claude-haiku-4-5-20251001-v1:0");
+    let model_id_secondary = String::from("us.anthropic.claude-sonnet-4-6");
     let line_numbers = vec![*error_line];
 
     let log_snippet = get_snippets(log, line_numbers, num_lines / 2, num_lines + 1);
@@ -175,12 +175,12 @@ mod test {
         let log_content = fs::read_to_string("fixtures/error_log1.txt");
         let log = Log::new(log_content.unwrap());
         // Define the error line and number of lines for the snippet
-        let error_line = "<error_line>##[error]Process completed with exit code 1.</error_line>";
+        let error_line = "<error_line>OSError: We couldn't connect to 'https://huggingface.co' to load this file, couldn't find it in the cached files and it looks like t5-small is not the path to a directory containing a file named config.json.</error_line>";
         let (_, validation_result) = validate_output_in_log(error_line, &log);
         // Assert is error_line
         assert_eq!(
             validation_result,
-            Some("##[error]Process completed with exit code 1.".to_string())
+            Some("OSError: We couldn't connect to 'https://huggingface.co' to load this file, couldn't find it in the cached files and it looks like t5-small is not the path to a directory containing a file named config.json.".to_string())
         );
     }
 

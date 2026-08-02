@@ -1,0 +1,62 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30387636235/job/90370824564
+2026-07-28T22:57:41.4429190Z   Using cached 0.10.4.zip
+2026-07-28T22:57:41.4834580Z   Installing build dependencies: started
+2026-07-28T22:57:41.8563400Z   Installing build dependencies: finished with status 'done'
+2026-07-28T22:57:41.8568180Z   Getting requirements to build wheel: started
+2026-07-28T22:57:42.0731370Z   Getting requirements to build wheel: finished with status 'done'
+2026-07-28T22:57:42.0741270Z   Preparing metadata (pyproject.toml): started
+2026-07-28T22:57:42.1859160Z   Preparing metadata (pyproject.toml): finished with status 'done'
+2026-07-28T22:57:42.1885580Z Requirement already satisfied: packaging>=20.9 in /Users/runner/work/_temp/venv-3.14t/lib/python3.14t/site-packages (from delocate==0.10.4) (26.2)
+2026-07-28T22:57:42.1897140Z Requirement already satisfied: typing_extensions in /Users/runner/work/_temp/venv-3.14t/lib/python3.14t/site-packages (from delocate==0.10.4) (4.16.0)
+2026-07-28T22:57:42.1898200Z Building wheels for collected packages: delocate
+2026-07-28T22:57:42.1904850Z   Building wheel for delocate (pyproject.toml): started
+2026-07-28T22:57:42.3580040Z   Building wheel for delocate (pyproject.toml): finished with status 'done'
+2026-07-28T22:57:42.3589640Z   Created wheel for delocate: filename=delocate-0.10.4-py3-none-any.whl size=143088 sha256=f7e01036085c78b4fb84c850ac98c984d32ba218b7af3c5e1ce45b1a53d7c639
+2026-07-28T22:57:42.3590640Z   Stored in directory: /private/var/folders/8j/sfr9qqcj73j4p6nhwcfpr0th0000gn/T/pip-ephem-wheel-cache-k48yy0q1/wheels/cf/ec/1d/5354b0b23d096d586213fe2d7776ccb2de1fcd10ee78a88795
+2026-07-28T22:57:42.3608720Z Successfully built delocate
+2026-07-28T22:57:42.3789120Z Installing collected packages: delocate
+2026-07-28T22:57:42.4533520Z Successfully installed delocate-0.10.4
+2026-07-28T23:09:20.9943870Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_python.dylib from @rpath/libtorch_cpu.dylib to @loader_path/libtorch_cpu.dylib
+2026-07-28T23:09:21.1009530Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch.dylib from @rpath/libtorch_cpu.dylib to @loader_path/libtorch_cpu.dylib
+2026-07-28T23:09:21.1464570Z INFO:delocate.delocating:Modifying install name in torch/lib/libshm.dylib from @rpath/libtorch_cpu.dylib to @loader_path/libtorch_cpu.dylib
+2026-07-28T23:09:21.1880990Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_python.dylib from @rpath/libshm.dylib to @loader_path/libshm.dylib
+2026-07-28T23:09:21.2862370Z INFO:delocate.delocating:Modifying install name in torch/bin/torch_shm_manager from @rpath/libshm.dylib to @loader_path/../lib/libshm.dylib
+2026-07-28T23:09:21.3356690Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_cpu.dylib from @rpath/libomp.dylib to @loader_path/libomp.dylib
+2026-07-28T23:09:22.2835340Z INFO:delocate.delocating:Modifying install name in torch/_C.cpython-314t-darwin.so from @rpath/libtorch_python.dylib to @loader_path/lib/libtorch_python.dylib
+2026-07-28T23:09:22.3333040Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_python.dylib from @rpath/libc10.dylib to @loader_path/libc10.dylib
+2026-07-28T23:09:22.4402300Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch.dylib from @rpath/libc10.dylib to @loader_path/libc10.dylib
+2026-07-28T23:09:22.4897410Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_cpu.dylib from @rpath/libc10.dylib to @loader_path/libc10.dylib
+2026-07-28T23:09:23.2639250Z INFO:delocate.delocating:Modifying install name in torch/lib/libshm.dylib from @rpath/libc10.dylib to @loader_path/libc10.dylib
+2026-07-28T23:09:23.3156300Z INFO:delocate.delocating:Modifying install name in torch/bin/torch_shm_manager from @rpath/libc10.dylib to @loader_path/../lib/libc10.dylib
+2026-07-28T23:09:23.3601680Z INFO:delocate.delocating:Modifying install name in torch/lib/libtorch_python.dylib from @rpath/libtorch.dylib to @loader_path/libtorch.dylib
+#=MATCH=# 2026-07-28T23:09:28.2898610Z ‹##[error]The operation was canceled.›
+2026-07-28T23:09:28.2993230Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-28T23:09:28.2994180Z ##[group]Run actions/upload-artifact@v4.4.0
+2026-07-28T23:09:28.2994360Z with:
+2026-07-28T23:09:28.2994480Z   name: wheel-py3_10-cpu
+2026-07-28T23:09:28.2994620Z   retention-days: 14
+2026-07-28T23:09:28.2994770Z   if-no-files-found: error
+2026-07-28T23:09:28.2995010Z   path: /Users/runner/work/_temp/artifacts/wheel-py3_10-cpu
+2026-07-28T23:09:28.2995280Z   compression-level: 6
+2026-07-28T23:09:28.2995430Z   overwrite: false
+2026-07-28T23:09:28.2995560Z   include-hidden-files: false
+2026-07-28T23:09:28.2995700Z env:
+2026-07-28T23:09:28.2995890Z   ALPINE_IMAGE: 308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine
+2026-07-28T23:09:28.2996170Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-28T23:09:28.2996350Z   BUILD_ENVIRONMENT: macos-arm64-binary-wheel
+2026-07-28T23:09:28.2998460Z   GITHUB_TOKEN: ***
+2026-07-28T23:09:28.2998600Z   PR_NUMBER: 
+2026-07-28T23:09:28.2999540Z   SKIP_ALL_TESTS: 1
+2026-07-28T23:09:28.2999700Z   PYTORCH_ROOT: /Users/runner/work/pytorch/pytorch
+2026-07-28T23:09:28.2999900Z   PACKAGE_TYPE: wheel
+2026-07-28T23:09:28.3000030Z   DESIRED_CUDA: cpu
+2026-07-28T23:09:28.3000160Z   GPU_ARCH_TYPE: cpu
+2026-07-28T23:09:28.3000330Z   DESIRED_PYTHONS: 3.10 3.11 3.12 3.13 3.14 3.14t 3.15 3.15t
+2026-07-28T23:09:28.3001620Z   PYTORCH_EXTRA_INSTALL_REQUIREMENTS: cuda-toolkit[nvrtc,cudart,cupti,cufft,curand,cusolver,cusparse,cublas,cufile,nvjitlink,nvtx]==13.0.3; platform_system == 'Linux' | cuda-bindings>=13.0.3,<14; platform_system == 'Linux' and python_version < '3.15' | nvidia-cudnn-cu13==9.24.0.43; platform_system == 'Linux' | nvidia-cusparselt-cu13==0.8.1; platform_system == 'Linux' | nvidia-nccl-cu13==2.30.7; platform_system == 'Linux' | nvidia-nvshmem-cu13==3.4.5; platform_system == 'Linux'
+2026-07-28T23:09:28.3002890Z   BINARY_ENV_FILE: /Users/runner/work/_temp/env
+2026-07-28T23:09:28.3003130Z   UV_PYTHON_INSTALL_DIR: /Users/runner/work/_temp/uv-python-dir
+2026-07-28T23:09:28.3003400Z   UV_CACHE_DIR: /Users/runner/work/_temp/setup-uv-cache
+2026-07-28T23:09:28.3003600Z ##[endgroup]
+2026-07-28T23:09:28.5831540Z (node:19678) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-28T23:09:28.5832160Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-28T23:09:28.5864450Z With the provided path, there will be 1 file uploaded

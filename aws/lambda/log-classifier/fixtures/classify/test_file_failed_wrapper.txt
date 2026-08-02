@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90693594831
+2026-07-29T20:03:27.2734217Z Running test_cuda 1/1 ... [2026-07-29 20:03:27.204228][7732.556005635]
+2026-07-29T20:03:27.2734632Z SCRIBE_GRAPHQL_ACCESS_TOKEN is NOT set
+2026-07-29T20:03:27.2735723Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'test_cuda.py', '-m', '(serial)', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-29 20:03:27.204580]
+2026-07-29T20:03:32.7623829Z 
+2026-07-29T20:03:32.7624452Z PRINTING LOG FILE of test_cuda 1/1 (test/test-reports/test_cuda_1.1_2d3796d4cc177c38_.log)
+2026-07-29T20:03:32.7625033Z Traceback (most recent call last):
+2026-07-29T20:03:32.7633371Z   File "/__w/pytorch/pytorch/test/test_cuda.py", line 204, in <module>
+2026-07-29T20:03:32.7633847Z     class TestCuda(TestCase):
+2026-07-29T20:03:32.7634284Z   File "/__w/pytorch/pytorch/test/test_cuda.py", line 5475, in TestCuda
+2026-07-29T20:03:32.7634821Z     torch.cuda.get_allocator_backend() != "native" or EXPANDABLE_SEGMENTS,
+2026-07-29T20:03:32.7635594Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/cuda/memory.py", line 1298, in get_allocator_backend
+2026-07-29T20:03:32.7636230Z     return torch._C._cuda_getAllocatorBackend()
+2026-07-29T20:03:32.7636710Z AttributeError: module 'torch._C' has no attribute '_cuda_getAllocatorBackend'
+2026-07-29T20:03:32.7637156Z Got exit code 1
+2026-07-29T20:03:32.7637659Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
+2026-07-29T20:03:32.7638151Z 
+2026-07-29T20:03:32.7638455Z FINISHED PRINTING LOG FILE of test_cuda 1/1 (test/test-reports/test_cuda_1.1_2d3796d4cc177c38_.log)
+2026-07-29T20:03:32.7638873Z 
+2026-07-29T20:03:32.7639102Z Finished test_cuda 1/1 ... [2026-07-29 20:03:32.728684][7738.080461011], took 0.09min
+2026-07-29T20:03:33.9832158Z test_cuda 1/1 failed!
+2026-07-29T20:03:33.9832478Z Emitting td_test_failure_stats_v2
+2026-07-29T20:03:34.9999017Z /__w/pytorch/pytorch/tools/stats/upload_metrics.py:156: UserWarning: Error uploading metric td_test_failure_stats_v2 to DynamoDB: Unable to locate credentials
+2026-07-29T20:03:34.9999917Z   warn(f"Error uploading metric {metric_name} to DynamoDB: {e}")
+2026-07-29T20:03:35.0000318Z Traceback (most recent call last):
+2026-07-29T20:03:35.0000796Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2411, in <module>
+2026-07-29T20:03:35.0001194Z     main()
+2026-07-29T20:03:35.0001719Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2362, in main
+2026-07-29T20:03:35.0002114Z     run_tests(
+2026-07-29T20:03:35.0002474Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2198, in run_tests
+2026-07-29T20:03:35.0002986Z     raise RuntimeError(failure.message + keep_going_message)
+#=MATCH=# 2026-07-29T20:03:35.0003363Z RuntimeError: ‹test_cuda› 1/1 failed!
+2026-07-29T20:03:35.0003561Z 
+2026-07-29T20:03:35.0003736Z Failed to upload artifacts: Unable to locate credentials
+2026-07-29T20:03:35.0004108Z Uploading artifacts took 1.13 seconds
+2026-07-29T20:03:35.0005251Z Writing 1 documents to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1785355413_93ea2e748b8811f184577a603438f1ca
+2026-07-29T20:03:35.0006149Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
+2026-07-29T20:03:35.0006737Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.
+2026-07-29T20:03:35.6099253Z 
+2026-07-29T20:03:35.6099605Z real	0m12.676s
+2026-07-29T20:03:35.6099864Z user	0m8.876s
+2026-07-29T20:03:35.6100073Z sys	0m2.201s
+2026-07-29T20:03:35.6100722Z + sccache_epilogue
+2026-07-29T20:03:35.6101015Z + echo '::group::Sccache Compilation Log'
+2026-07-29T20:03:35.6101424Z + echo '=================== sccache compilation log ==================='
+2026-07-29T20:03:35.6102020Z + python /__w/pytorch/pytorch/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-29T20:03:35.6102748Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-29T20:03:35.6103274Z + sccache --show-stats
+2026-07-29T20:03:35.6103526Z + sccache --stop-server
+2026-07-29T20:03:35.6103780Z + echo ::endgroup::
+2026-07-29T20:03:35.6104261Z ##[group]Sccache Compilation Log
+2026-07-29T20:03:35.6104600Z =================== sccache compilation log ===================
+2026-07-29T20:03:35.6105435Z storage write check failed: PermissionDenied (permanent) at write => S3Error { code: "AccessDenied", message: "Access Denied", resource: "", request_id: "HY59SN15T3P72PQA" }
+2026-07-29T20:03:35.6106290Z 
+2026-07-29T20:03:35.6106306Z 
+2026-07-29T20:03:35.6106312Z 
+2026-07-29T20:03:35.6106399Z Context:
+2026-07-29T20:03:35.6106517Z 
+2026-07-29T20:03:35.6106839Z    uri: https://s3.us-east-1.amazonaws.com/ossci-compiler-cache-circleci-v2/.sccache_check
+2026-07-29T20:03:35.6107245Z 
+2026-07-29T20:03:35.6108507Z    response: Parts { status: 403, version: HTTP/1.1, headers: {"x-amz-request-id": "HY59SN15T3P72PQA", "x-amz-id-2": "Ohrb6uiTXrPk7TrNydNdXpIKR9qr7pntpuqkisFjpuW8LKq4liiO7iNgvoS1q/Ft1YI9/T1KSNI=", "content-type": "application/xml", "transfer-encoding": "chunked", "date": "Wed, 29 Jul 2026 20:02:39 GMT", "connection": "close", "server": "AmazonS3"} }
+2026-07-29T20:03:35.6109921Z 

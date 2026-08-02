@@ -709,6 +709,47 @@ def autorevert_advisor_verdicts_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def runner_fleet_count_adapter(table, bucket, key):
+    # Column order must match clickhouse_db_schema/misc.runner_fleet_count/
+    # schema.sql (minus `_meta`, which general_adapter appends via `SELECT *,
+    # (bucket, key)`). JSONEachRow maps by field name.
+    # NB: no timezone literal here -- general_adapter wraps this schema in single
+    # quotes, so an inner 'UTC' would break the s3() SQL. Timestamps are UTC
+    # wall-clock strings; the table column carries the UTC tz.
+    schema = """
+    `time_stamp` DateTime64(0),
+    `org` String,
+    `label` String,
+    `total_count` UInt32,
+    `online_count` UInt32,
+    `busy_count` UInt32
+    """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
+
+def greenlight_pr_state_adapter(table, bucket, key):
+    # Column order must match the misc.greenlight_pr_state table's ordinary
+    # columns (minus `_meta`, which general_adapter appends via `SELECT *,
+    # (bucket, key)`). JSONEachRow maps by field name. LowCardinality(String)
+    # table columns are read as plain String here; ClickHouse widens on insert.
+    # NB: no timezone literal here -- general_adapter wraps this schema in single
+    # quotes, so an inner 'UTC' would break the s3() SQL. `version` is a UTC
+    # wall-clock string with millisecond precision.
+    schema = """
+    `repo` String,
+    `pr_number` Int64,
+    `head_sha` String,
+    `status` String,
+    `reason` String,
+    `eval_hash` String,
+    `message` String,
+    `eval_job` String,
+    `agent_job` String,
+    `version` DateTime64(3)
+    """
+    general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -734,6 +775,8 @@ SUPPORTED_PATHS = {
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
     "test_jsons_while_running": "tests.all_test_runs",
+    "runner_fleet_count": "misc.runner_fleet_count",
+    "greenlight_pr_state": "misc.greenlight_pr_state",
 }
 
 OBJECT_CONVERTER = {
@@ -760,6 +803,8 @@ OBJECT_CONVERTER = {
     "misc.claude_code_usage": claude_code_usage_adapter,
     "misc.autorevert_advisor_verdicts": autorevert_advisor_verdicts_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
+    "misc.runner_fleet_count": runner_fleet_count_adapter,
+    "misc.greenlight_pr_state": greenlight_pr_state_adapter,
 }
 
 

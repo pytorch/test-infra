@@ -1,0 +1,42 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30500434211/job/90740529815
+2026-07-30T00:30:04.0050685Z XGLMForCausalLM                     PASS
+2026-07-30T00:30:04.0050998Z XLNetLMHeadModel                    PASS
+2026-07-30T00:30:04.0051304Z YituTechConvBert                    PASS
+2026-07-30T00:30:04.2058483Z + python benchmarks/dynamo/check_graph_breaks.py --actual /__w/pytorch/pytorch/test/test-reports/inference_huggingface.csv --expected benchmarks/dynamo/ci_expected_accuracy/dynamic_cpu_max_autotune_inductor_amp_freezing_huggingface_inference.csv
+2026-07-30T00:30:04.4083732Z + validation_status=1
+2026-07-30T00:30:04.4084010Z + return 1
+2026-07-30T00:30:04.4084220Z + sccache_epilogue
+2026-07-30T00:30:04.4084512Z + echo '::group::Sccache Compilation Log'
+2026-07-30T00:30:04.4084913Z + echo '=================== sccache compilation log ==================='
+2026-07-30T00:30:04.4085503Z + python /__w/pytorch/pytorch/.ci/pytorch/print_sccache_log.py /var/lib/jenkins/sccache_error.log
+2026-07-30T00:30:04.4086226Z + echo '=========== If your build fails, please take a look at the log above for possible reasons ==========='
+2026-07-30T00:30:04.4086750Z + sccache --show-stats
+2026-07-30T00:30:04.4087444Z + sccache --stop-server
+2026-07-30T00:30:04.4087690Z + echo ::endgroup::
+2026-07-30T00:30:04.4087946Z AlbertForMaskedLM                   PASS
+2026-07-30T00:30:04.4088262Z AllenaiLongformerBase               PASS
+2026-07-30T00:30:04.4088578Z BartForCausalLM                     PASS
+2026-07-30T00:30:04.4088880Z BertForMaskedLM                     PASS
+2026-07-30T00:30:04.4089209Z BlenderbotForCausalLM               EAGER_FAILED
+2026-07-30T00:30:04.4089560Z DistilBertForMaskedLM               PASS
+#=MATCH=# 2026-07-30T00:30:04.4089971Z ‹DistillGPT2›                         ‹FAIL:               graph_breaks›=4, expected=2
+2026-07-30T00:30:04.4090394Z ElectraForCausalLM                  PASS
+2026-07-30T00:30:04.4090720Z GPT2ForSequenceClassification       PASS
+2026-07-30T00:30:04.4091037Z GoogleFnet                          PASS
+2026-07-30T00:30:04.4091340Z LayoutLMForMaskedLM                 PASS
+2026-07-30T00:30:04.4091659Z M2M100ForConditionalGeneration      PASS
+2026-07-30T00:30:04.4091981Z MBartForCausalLM                    PASS
+2026-07-30T00:30:04.4092305Z MT5ForConditionalGeneration         PASS
+2026-07-30T00:30:04.4092631Z MegatronBertForCausalLM             PASS
+2026-07-30T00:30:04.4092950Z MobileBertForMaskedLM               PASS
+2026-07-30T00:30:04.4093258Z OPTForCausalLM                      PASS
+2026-07-30T00:30:04.4093567Z PLBartForCausalLM                   PASS
+2026-07-30T00:30:04.4093878Z PegasusForCausalLM                  PASS
+2026-07-30T00:30:04.4094189Z RobertaForCausalLM                  PASS
+2026-07-30T00:30:04.4094507Z T5ForConditionalGeneration          PASS
+2026-07-30T00:30:04.4094821Z T5Small                             PASS
+2026-07-30T00:30:04.4095122Z TrOCRForCausalLM                    PASS
+2026-07-30T00:30:04.4095457Z XGLMForCausalLM                     PASS_BUT_FLAKY
+2026-07-30T00:30:04.4095807Z XLNetLMHeadModel                    PASS
+2026-07-30T00:30:04.4096116Z YituTechConvBert                    PASS
+2026-07-30T00:30:04.4096324Z 

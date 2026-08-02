@@ -60,7 +60,7 @@ on:
         default: ""
         type: string
       ref:
-        description: 'Reference to checkout, defaults to "nightly"'
+        description: 'Reference to checkout, defaults to the commit that triggered the workflow (github.sha)'
         default: ""
         type: string
       test-infra-repository:
@@ -199,7 +199,10 @@ jobs:
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
-          ref: ${{ inputs.ref || github.ref }}
+          # Leave this empty when the caller doesn't pin a ref. Checkout then
+          # defaults to github.ref *and* github.sha, so the job can't drift onto
+          # commits that landed after the run was triggered
+          ref: ${{ inputs.ref }}
           single-branch: ${{ inputs.single-branch }}
           additional-fetch-refs: ${{ inputs.additional-fetch-refs }}
           path: ${{ inputs.repository || github.repository }}

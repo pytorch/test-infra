@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/89613393154
+2026-07-24T23:52:19.0581532Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-24T23:52:19.0582690Z Executing ['/opt/python-3.11-venv/bin/python', '-bb', 'inductor/test_lookup_table.py', '-m', '(not serial)', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 23:52:19.024632]
+2026-07-24T23:52:21.8966064Z 
+2026-07-24T23:52:21.8967032Z inductor/test_layout_optim 1/1 was successful, full logs can be found in artifacts with path test/test-reports/inductor.test_layout_optim_1.1_01539d86cdf3ed87_.log
+2026-07-24T23:52:21.8967732Z 
+2026-07-24T23:52:21.8968040Z Finished inductor/test_layout_optim 1/1 ... [2026-07-24 23:52:21.882797][1422.098855099], took 0.06min
+2026-07-24T23:52:22.9247104Z 
+2026-07-24T23:52:22.9247998Z inductor/test_lookup_table 1/1 was successful, full logs can be found in artifacts with path test/test-reports/inductor.test_lookup_table_1.1_e4d459aef29a09ec_.log
+2026-07-24T23:52:22.9248691Z 
+2026-07-24T23:52:22.9249016Z Finished inductor/test_lookup_table 1/1 ... [2026-07-24 23:52:22.844681][1423.060738776], took 0.06min
+2026-07-24T23:52:23.7338112Z Running inductor/test_loop_ordering 1/1 ... [2026-07-24 23:52:23.617962][1423.834017107]
+2026-07-24T23:52:23.7338630Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-24T23:52:23.7339774Z Executing ['/opt/python-3.11-venv/bin/python', '-bb', 'inductor/test_loop_ordering.py', '-m', '(not serial)', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 23:52:23.618324]
+2026-07-24T23:52:24.7466900Z Running inductor/test_low_contention_collectives 1/1 ... [2026-07-24 23:52:24.610053][1424.826108414]
+2026-07-24T23:52:24.7467465Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-24T23:52:24.7469147Z Executing ['/opt/python-3.11-venv/bin/python', '-bb', 'inductor/test_low_contention_collectives.py', '-m', '(not serial)', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 23:52:24.610395]
+2026-07-24T23:52:27.3763383Z 
+2026-07-24T23:52:27.3764285Z inductor/test_loop_ordering 1/1 was successful, full logs can be found in artifacts with path test/test-reports/inductor.test_loop_ordering_1.1_55e76aa7a01ebc10_.log
+2026-07-24T23:52:27.3765024Z 
+2026-07-24T23:52:27.3765328Z Finished inductor/test_loop_ordering 1/1 ... [2026-07-24 23:52:27.206431][1427.422488581], took 0.06min
+2026-07-24T23:52:28.5906350Z 
+2026-07-24T23:52:28.5907347Z inductor/test_low_contention_collectives 1/1 was successful, full logs can be found in artifacts with path test/test-reports/inductor.test_low_contention_collectives_1.1_300ce3befd08ed34_.log
+2026-07-24T23:52:28.5908637Z Running 1 items in this shard: test/inductor/test_low_contention_collectives.py::TestLowContentionCollectives::test_skip_overlap_check
+2026-07-24T23:52:28.5909211Z 
+2026-07-24T23:52:28.5909598Z Finished inductor/test_low_contention_collectives 1/1 ... [2026-07-24 23:52:28.480904][1428.696960965], took 0.06min
+2026-07-24T23:52:28.9952003Z Parsing testcases for test report: /__w/pytorch/pytorch/test/test-reports/python-pytest/inductor.test_low_contention_collectives/inductor.test_low_contention_collectives-b373f2e59a702f36.xml
+2026-07-24T23:52:29.1968726Z Running inductor/test_mem_estimation 1/1 ... [2026-07-24 23:52:29.078735][1429.294790585]
+2026-07-24T23:52:29.1969269Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-24T23:52:29.1970509Z Executing ['/opt/python-3.11-venv/bin/python', '-bb', 'inductor/test_mem_estimation.py', '-m', '(not serial)', '--shard-id=1', '--num-shards=1', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-24 23:52:29.079141]
+2026-07-24T23:52:29.3824005Z 
+2026-07-24T23:52:29.3824297Z [runner-container-hooks] FATAL: received SIGINT
+#=MATCH=# 2026-07-24T23:52:29.3844964Z ##[error]‹received SIGINT›
+2026-07-24T23:52:29.4083284Z ##[error][OSDC] Step cancelled by GitHub Actions (received SIGINT). This typically means matrix fail-fast, a manual cancel, a workflow concurrency override, or a run-level cancellation — NOT an OSDC infrastructure failure. Check the workflow-run page for the actual cause; the in-pod subprocess is terminated by the hook so post-cleanup steps can run.
+2026-07-24T23:52:29.4228495Z ##[error]Executing the custom container implementation failed. Please contact your self hosted runner administrator.
+2026-07-24T23:52:29.4294296Z ##[group]Run cat test/**/*_toprint.log || true
+2026-07-24T23:52:29.4295080Z [36;1mcat test/**/*_toprint.log || true[0m
+2026-07-24T23:52:29.4295618Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-07-24T23:52:29.4295925Z env:
+2026-07-24T23:52:29.4296119Z   GIT_DEFAULT_BRANCH: main
+2026-07-24T23:52:29.4296371Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-24T23:52:29.4296625Z   AWS_REGION: us-east-1
+2026-07-24T23:52:29.4296911Z   AWS_ACCESS_KEY_ID: ***
+2026-07-24T23:52:29.4297249Z   AWS_SECRET_ACCESS_KEY: ***
+2026-07-24T23:52:29.4302552Z   AWS_SESSION_TOKEN: ***
+2026-07-24T23:52:29.4302976Z   UV_PYTHON_INSTALL_DIR: /var/lib/jenkins/.local/share/uv/python
+2026-07-24T23:52:29.4303342Z   UV_PYTHON: 3.12
+2026-07-24T23:52:29.4303554Z   TRANSFORMERS_OFFLINE: 1
+2026-07-24T23:52:29.4303794Z   HF_DATASETS_OFFLINE: 1
+2026-07-24T23:52:29.4304014Z ##[endgroup]
+2026-07-24T23:52:29.4320889Z ##[group]Run '/home/runner/hook-extensions/wrapper.js'
+2026-07-24T23:52:29.4321907Z shell: /home/runner/externals/node20/bin/node {0}
+2026-07-24T23:52:29.4322216Z ##[endgroup]
+2026-07-24T23:52:31.1839289Z Test results will be stored in test-reports/python-pytest/inductor.test_fused_attention/inductor.test_fused_attention-0148e68b4a7d6ce7.xml
+2026-07-24T23:52:31.1840087Z ============================= test session starts ==============================
+2026-07-24T23:52:31.1840656Z platform linux -- Python 3.11.15, pytest-7.3.2, pluggy-1.6.0 -- /opt/python-3.11-venv/bin/python
+2026-07-24T23:52:31.1841156Z cachedir: .pytest_cache
+2026-07-24T23:52:31.1841739Z hypothesis profile 'pytorch_ci' -> database=None, max_examples=50, derandomize=True, suppress_health_check=[HealthCheck.too_slow]
+2026-07-24T23:52:31.1842379Z rootdir: /__w/pytorch/pytorch
+2026-07-24T23:52:31.1842643Z configfile: pytest.ini
+2026-07-24T23:52:31.1843247Z plugins: hypothesis-6.56.4, cpp-2.3.0, flakefinder-1.1.0, rerunfailures-14.0, subtests-0.13.1, xdist-3.3.1, xdoctest-1.3.0, typeguard-4.3.0
+2026-07-24T23:52:31.1843946Z collecting ... collected 57 items

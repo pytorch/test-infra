@@ -1,0 +1,62 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90495256966
+2026-07-29T06:05:07.9536130Z ##[endgroup]
+2026-07-29T06:05:10.2742702Z Collecting pyyaml==6.0.2
+2026-07-29T06:05:10.2757518Z   Using cached PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.1 kB)
+2026-07-29T06:05:10.2779111Z Using cached PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (751 kB)
+2026-07-29T06:05:10.3797165Z Installing collected packages: pyyaml
+2026-07-29T06:05:10.4316445Z Successfully installed pyyaml-6.0.2
+2026-07-29T06:05:10.4766446Z ##[group]Run set -ex
+2026-07-29T06:05:10.4766748Z [36;1mset -ex[0m
+2026-07-29T06:05:10.4767126Z [36;1mpython3 .github/scripts/trymerge.py --check-mergeability "${PR_NUM}"[0m
+2026-07-29T06:05:10.4813794Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-07-29T06:05:10.4814140Z env:
+2026-07-29T06:05:10.4814415Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:10.4814889Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib/pkgconfig
+2026-07-29T06:05:10.4815345Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:10.4815738Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:10.4816130Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:10.4816748Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib
+2026-07-29T06:05:10.4819490Z   GITHUB_TOKEN: ***
+2026-07-29T06:05:10.4819962Z   PR_NUM: 191446
+2026-07-29T06:05:10.4820180Z ##[endgroup]
+2026-07-29T06:05:10.4887279Z + python3 .github/scripts/trymerge.py --check-mergeability 191446
+2026-07-29T06:05:11.2290728Z Traceback (most recent call last):
+2026-07-29T06:05:11.2300118Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2683, in <module>
+2026-07-29T06:05:11.2301132Z     main()
+2026-07-29T06:05:11.2301852Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 2617, in main
+2026-07-29T06:05:11.2302771Z     get_ghstack_prs(repo, pr)  # raises error if out of sync
+2026-07-29T06:05:11.2303684Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 729, in get_ghstack_prs
+2026-07-29T06:05:11.2304639Z     entire_stack = _revlist_to_prs(repo, pr, reversed(rev_list), skip_func)
+2026-07-29T06:05:11.2305624Z   File "/home/runner/work/pytorch/pytorch/.github/scripts/trymerge.py", line 686, in _revlist_to_prs
+2026-07-29T06:05:11.2306408Z     raise RuntimeError(
+#=MATCH=# 2026-07-29T06:05:11.2307784Z RuntimeError: ‹Found an unexpected number of PRs mentioned in commit› b31482580e65c6aa970dfbd7485cc40ae5610e14: 0.  This is probably because you are using an old version of ghstack.  Please update ghstack and resubmit your PRs
+2026-07-29T06:05:11.2434696Z ##[error]Process completed with exit code 1.
+2026-07-29T06:05:11.2488694Z ##[group]Run {
+2026-07-29T06:05:11.2488954Z [36;1m{[0m
+2026-07-29T06:05:11.2489219Z [36;1m  echo "# PR $PR_NUM is not mergeable into main"[0m
+2026-07-29T06:05:11.2489755Z [36;1m  echo "To debug, run the diagnostic workflow:"[0m
+2026-07-29T06:05:11.2490311Z [36;1m  echo "https://github.com/pytorch/test-infra/actions/workflows/pr-dependencies-check.yml"[0m
+2026-07-29T06:05:11.2490825Z [36;1m} >> "$GITHUB_STEP_SUMMARY"[0m
+2026-07-29T06:05:11.2535830Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-07-29T06:05:11.2536190Z env:
+2026-07-29T06:05:11.2536473Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:11.2536914Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib/pkgconfig
+2026-07-29T06:05:11.2537352Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:11.2537743Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:11.2538170Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.20/x64
+2026-07-29T06:05:11.2538562Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.20/x64/lib
+2026-07-29T06:05:11.2538891Z   PR_NUM: 191446
+2026-07-29T06:05:11.2539110Z ##[endgroup]
+2026-07-29T06:05:11.2742493Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T06:05:11.2743746Z Post job cleanup.
+2026-07-29T06:05:11.3557224Z [command]/usr/bin/git version
+2026-07-29T06:05:11.3594913Z git version 2.54.0
+2026-07-29T06:05:11.3624515Z Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/9181f3b2-de53-421c-9ceb-d1b007cce6e9/.gitconfig'
+2026-07-29T06:05:11.3633401Z Temporarily overriding HOME='/home/runner/work/_temp/9181f3b2-de53-421c-9ceb-d1b007cce6e9' before making global git config changes
+2026-07-29T06:05:11.3634840Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-29T06:05:11.3639096Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/pytorch/pytorch
+2026-07-29T06:05:11.3675416Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-29T06:05:11.3709315Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-29T06:05:11.3972187Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-29T06:05:11.3998311Z http.https://github.com/.extraheader
+2026-07-29T06:05:11.4008721Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader

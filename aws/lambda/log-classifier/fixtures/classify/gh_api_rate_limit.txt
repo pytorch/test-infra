@@ -1,0 +1,6 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30387633773/job/90388195062
+{
+#=MATCH=# 	"message": "‹API rate limit exceeded› for user ID 133916390. If you reach out to GitHub Support for help, please include the request ID 93C2:95E39:1954C51:58FD1F0:6A693F59 and timestamp 2026-07-28 23:46:33 UTC. For more on scraping GitHub and how it may affect your rights, please review our Terms of Service (https:\/\/docs.github.com\/en\/site-policy\/github-terms\/github-terms-of-service)",
+	"documentation_url": "https://docs.github.com/en/rest/using-the-rest-api/getting-started-with-the-rest-api#rate-limiting",
+	"status": "403"
+}

@@ -28,6 +28,18 @@ on:
         description: 'Claude settings JSON'
         type: string
         default: '{"alwaysThinkingEnabled": true}'
+      show_full_output:
+        description: 'PUBLIC: Show complete Claude messages and tool output in the job log'
+        type: boolean
+        default: false
+      upload_execution_log:
+        description: 'PUBLIC: Upload the execution log after Claude exits; hard timeouts may leave no file'
+        type: boolean
+        default: false
+      execution_log_s3_prefix:
+        description: 'Prefix for Claude execution logs in the public S3 bucket'
+        type: string
+        default: 'review-logs/claude-code'
       setup_script:
         description: 'Shell commands to run before Claude (e.g. install lintrunner)'
         type: string
@@ -185,6 +197,7 @@ jobs:
           use_bedrock: "true"
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
+          show_full_output: ${{ inputs.show_full_output }}
         env:
           APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
@@ -193,3 +206,33 @@ jobs:
       - name: Upload usage metrics
         if: always()
         uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
+
+      - name: Upload Claude execution log
+        if: always() && inputs.upload_execution_log
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: bash
+        env:
+          EXECUTION_FILE: ${{ runner.temp }}/claude-execution-output.json
+          ENTITY_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || 0 }}
+          TRIGGER_ID: ${{ github.event.comment.id || github.event.issue.id || github.run_id }}
+          S3_PREFIX: ${{ inputs.execution_log_s3_prefix }}
+        run: |
+          if [ ! -f "$EXECUTION_FILE" ]; then
+            echo "Claude execution log not found: $EXECUTION_FILE"
+            exit 0
+          fi
+          if [ "$ENTITY_NUMBER" = "0" ]; then
+            echo "No issue or pull request number available; skipping execution log upload"
+            exit 0
+          fi
+
+          BASE_KEY="${S3_PREFIX}/${GITHUB_REPOSITORY}/${ENTITY_NUMBER}"
+          MENTION_KEY="${BASE_KEY}/${TRIGGER_ID}.json"
+          RUN_KEY="${BASE_KEY}/runs/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}.json"
+
+          aws s3 cp "$EXECUTION_FILE" "s3://ossci-raw-job-status/${MENTION_KEY}"
+          aws s3 cp "$EXECUTION_FILE" "s3://ossci-raw-job-status/${RUN_KEY}"
+
+          echo "Uploaded mention log: s3://ossci-raw-job-status/${MENTION_KEY}"
+          echo "Uploaded run log: s3://ossci-raw-job-status/${RUN_KEY}"

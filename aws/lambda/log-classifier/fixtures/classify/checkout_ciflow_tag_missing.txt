@@ -1,0 +1,70 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90482586125
+2026-07-29T04:35:58.8546573Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-07-29T04:35:58.8547694Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-07-29T04:35:58.8548585Z hint:
+2026-07-29T04:35:58.8549067Z hint: 	git branch -m <name>
+2026-07-29T04:35:58.8549620Z hint:
+2026-07-29T04:35:58.8550333Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-07-29T04:35:58.8551736Z Initialized empty Git repository in /home/runner/work/pytorch/pytorch/.git/
+2026-07-29T04:35:58.8553746Z [command]/usr/bin/git remote add origin https://github.com/pytorch/pytorch
+2026-07-29T04:35:58.8586586Z ##[endgroup]
+2026-07-29T04:35:58.8587517Z ##[group]Disabling automatic garbage collection
+2026-07-29T04:35:58.8590315Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-29T04:35:58.8614334Z ##[endgroup]
+2026-07-29T04:35:58.8614904Z ##[group]Setting up auth
+2026-07-29T04:35:58.8615761Z Removing SSH command configuration
+2026-07-29T04:35:58.8621151Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-29T04:35:58.8647986Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-29T04:35:59.0713407Z Removing HTTP extra header
+2026-07-29T04:35:59.0718444Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-29T04:35:59.0745839Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-29T04:35:59.0928655Z Removing includeIf entries pointing to credentials config files
+2026-07-29T04:35:59.0934161Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-29T04:35:59.0961281Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-29T04:35:59.1153918Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-29T04:35:59.1185815Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/pytorch/pytorch/.git.path /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:35:59.1211782Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/pytorch/pytorch/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:35:59.1273788Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:35:59.1312394Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:35:59.1335939Z ##[endgroup]
+2026-07-29T04:35:59.1336944Z ##[group]Fetching the repository
+2026-07-29T04:35:59.1344849Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +refs/tags/ciflow/b200/190903:refs/tags/ciflow/b200/190903
+2026-07-29T04:35:59.6896036Z ##[error]fatal: couldn't find remote ref refs/tags/ciflow/b200/190903
+2026-07-29T04:35:59.6903342Z The process '/usr/bin/git' failed with exit code 128
+2026-07-29T04:35:59.6903958Z Waiting 10 seconds before trying again
+2026-07-29T04:36:09.6914096Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +refs/tags/ciflow/b200/190903:refs/tags/ciflow/b200/190903
+2026-07-29T04:36:10.0689596Z ##[error]fatal: couldn't find remote ref refs/tags/ciflow/b200/190903
+2026-07-29T04:36:10.0701435Z The process '/usr/bin/git' failed with exit code 128
+2026-07-29T04:36:28.0743565Z Waiting 18 seconds before trying again
+2026-07-29T04:36:28.0744884Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +refs/tags/ciflow/b200/190903:refs/tags/ciflow/b200/190903
+#=MATCH=# 2026-07-29T04:36:28.4540735Z ##[error]fatal: ‹couldn't find remote ref› refs/tags/ciflow/b200/190903
+2026-07-29T04:36:28.4585558Z ##[error]The process '/usr/bin/git' failed with exit code 128
+2026-07-29T04:36:28.4811820Z Post job cleanup.
+2026-07-29T04:36:28.5551314Z [command]/usr/bin/git version
+2026-07-29T04:36:28.5583240Z git version 2.54.0
+2026-07-29T04:36:28.5615717Z Temporarily overriding HOME='/home/runner/work/_temp/26b8d1b2-f5f7-4474-8ff7-a9e4c8ff9b18' before making global git config changes
+2026-07-29T04:36:28.5616836Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-29T04:36:28.5621287Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/pytorch/pytorch
+2026-07-29T04:36:28.5651427Z Removing SSH command configuration
+2026-07-29T04:36:28.5657551Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-29T04:36:28.5714584Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-29T04:36:28.5907179Z Removing HTTP extra header
+2026-07-29T04:36:28.5912158Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-29T04:36:28.5943529Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-29T04:36:28.6135977Z Removing includeIf entries pointing to credentials config files
+2026-07-29T04:36:28.6143047Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-29T04:36:28.6164434Z includeif.gitdir:/home/runner/work/pytorch/pytorch/.git.path
+2026-07-29T04:36:28.6165148Z includeif.gitdir:/home/runner/work/pytorch/pytorch/.git/worktrees/*.path
+2026-07-29T04:36:28.6165783Z includeif.gitdir:/github/workspace/.git.path
+2026-07-29T04:36:28.6166271Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-07-29T04:36:28.6178719Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/pytorch/pytorch/.git.path
+2026-07-29T04:36:28.6193206Z /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6202870Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/pytorch/pytorch/.git.path /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6233524Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/pytorch/pytorch/.git/worktrees/*.path
+2026-07-29T04:36:28.6254907Z /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6263948Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/pytorch/pytorch/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6389167Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-07-29T04:36:28.6412179Z /github/runner_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6419077Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config
+2026-07-29T04:36:28.6448256Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-07-29T04:36:28.6467523Z /github/runner_temp/git-credentials-5feecffd-d1ed-4188-8a32-d687a7475054.config

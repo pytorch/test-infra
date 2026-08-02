@@ -1,0 +1,62 @@
+#=SOURCE=# https://github.com/pytorch/pytorch/actions/runs/30540671637/job/90870335107
+2026-07-30T12:54:28.4650791Z PASS: benchmark ('aotdispatcher_partitioner_cpu', 'compile_time_instruction_count') pass, actual result 9293524465 +0.67% is within expected 9232000000 ±10.00%
+2026-07-30T12:54:28.4651428Z 
+2026-07-30T12:54:28.4652107Z PASS: benchmark ('aotdispatcher_partitioner_cpu2', 'compile_time_instruction_count') pass, actual result 2214950764 +2.83% is within expected 2154000000 ±10.00%
+2026-07-30T12:54:28.4652745Z 
+2026-07-30T12:54:28.4653731Z PASS: benchmark ('aotdispatcher_training_nosubclass_cpu', 'compile_time_instruction_count') pass, actual result 3510023415 +0.60% is within expected 3489000000 ±10.00%
+2026-07-30T12:54:28.4654408Z 
+2026-07-30T12:54:28.4655100Z PASS: benchmark ('aotdispatcher_training_subclass_cpu', 'compile_time_instruction_count') pass, actual result 9162142058 +0.06% is within expected 9157000000 ±10.00%
+2026-07-30T12:54:28.4655762Z 
+2026-07-30T12:54:28.4656392Z PASS: benchmark ('mm_loop_inductor_gpu', 'compile_time_instruction_count') pass, actual result 5283991543 +1.58% is within expected 5202000000 ±10.00%
+2026-07-30T12:54:28.4656980Z 
+2026-07-30T12:54:28.4657633Z PASS: benchmark ('mm_loop_inductor_dynamic_gpu', 'compile_time_instruction_count') pass, actual result 10844562468 +1.64% is within expected 10670000000 ±10.00%
+2026-07-30T12:54:28.4658255Z 
+2026-07-30T12:54:28.4658895Z PASS: benchmark ('basic_NestedModule_eager', 'compile_time_instruction_count') pass, actual result 5631502741 +1.80% is within expected 5532000000 ±10.00%
+2026-07-30T12:54:28.4659502Z 
+2026-07-30T12:54:28.4660126Z PASS: benchmark ('basic_InlineMod_eager', 'compile_time_instruction_count') pass, actual result 7937995474 -0.33% is within expected 7964000000 ±10.00%
+2026-07-30T12:54:28.4660723Z 
+2026-07-30T12:54:28.4661253Z PASS: benchmark ('dtensor_dispatch_detach', 'instruction_count') pass, actual result 60329 +5.38% is within expected 57250 ±10.00%
+2026-07-30T12:54:28.4661784Z 
+2026-07-30T12:54:28.4662351Z PASS: benchmark ('dtensor_dispatch_to_from_local', 'instruction_count') pass, actual result 208510 +5.41% is within expected 197800 ±10.00%
+2026-07-30T12:54:28.4662908Z 
+2026-07-30T12:54:28.4663564Z PASS: benchmark ('dtensor_dispatch_collectives', 'instruction_count') pass, actual result 35182579 +8.22% is within expected 32510000 ±10.00%
+2026-07-30T12:54:28.4664127Z 
+2026-07-30T12:54:28.4664891Z PASS: benchmark ('dtensor_dispatch_add_backward', 'instruction_count') pass, actual result 396096 +6.51% is within expected 371900 ±10.00%
+2026-07-30T12:54:28.4665462Z 
+2026-07-30T12:54:28.4666072Z PASS: benchmark ('dtensor_dispatch_inplace', 'instruction_count') pass, actual result 63606 +6.26% is within expected 59860 ±10.00%
+2026-07-30T12:54:28.4666601Z 
+2026-07-30T12:54:28.4667126Z PASS: benchmark ('dtensor_dispatch_view', 'instruction_count') pass, actual result 70374 +5.22% is within expected 66880 ±10.00%
+2026-07-30T12:54:28.4667637Z 
+2026-07-30T12:54:28.4668186Z PASS: benchmark ('dtensor_dispatch_random', 'instruction_count') pass, actual result 620581 +4.69% is within expected 592800 ±10.00%
+2026-07-30T12:54:28.4668716Z 
+2026-07-30T12:54:28.4670032Z REGRESSION: benchmark ('dtensor_dispatch_custom_handler', 'instruction_count') failed, actual result 39636 is 10.19% higher than expected 35970 ±+10.00% if this is an expected regression, please update the expected results.
+2026-07-30T12:54:28.4670905Z 
+2026-07-30T12:54:28.4671166Z please update all results that changed significantly, and not only the failed ones
+2026-07-30T12:54:28.4672123Z PASS: benchmark ('nn_module_guard_eval', 'instruction_count') pass, actual result 82579 -1.35% is within expected 83710 ±10.00%
+2026-07-30T12:54:28.4672634Z 
+2026-07-30T12:54:28.4673198Z PASS: benchmark ('nn_module_guard_eval_dynamic', 'instruction_count') pass, actual result 114934 -1.17% is within expected 116300 ±10.00%
+2026-07-30T12:54:28.4673744Z 
+2026-07-30T12:54:28.4674361Z PASS: benchmark ('autograd_function_apply_13_in_2_out_no_save', 'instruction_count') pass, actual result 31737 +0.35% is within expected 31627 ±10.00%
+2026-07-30T12:54:28.4675157Z 
+2026-07-30T12:54:28.4675564Z MISSING REGRESSION TEST: benchmark ('disable_overhead', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4676077Z 
+2026-07-30T12:54:28.4676502Z MISSING REGRESSION TEST: benchmark ('float_args', 'compile_time_instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4677033Z 
+2026-07-30T12:54:28.4677558Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4678105Z 
+2026-07-30T12:54:28.4678598Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_inference_mode', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4679197Z 
+2026-07-30T12:54:28.4679684Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_requires_grad', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4680288Z 
+2026-07-30T12:54:28.4680811Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_requires_grad_backward', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4681443Z 
+2026-07-30T12:54:28.4681904Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_dynamic', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4682478Z 
+2026-07-30T12:54:28.4683005Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_inference_mode_dynamic', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4683638Z 
+2026-07-30T12:54:28.4684152Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_requires_grad_dynamic', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4684779Z 
+2026-07-30T12:54:28.4685331Z MISSING REGRESSION TEST: benchmark ('runtime_overhead_inductor_requires_grad_backward_dynamic', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4685995Z 
+#=MATCH=# 2026-07-30T12:54:28.4686428Z ‹MISSING REGRESSION TEST›: benchmark ('runtime_overhead_eager_cpu', 'instruction_count') does not have a regression test enabled for it.
+2026-07-30T12:54:28.4686974Z 

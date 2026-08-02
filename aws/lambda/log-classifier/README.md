@@ -37,6 +37,13 @@ You can edit `fixtures/request.json` to test different inputs.
 **Note that this will write to S3!** You can pass a different value for
 `ShouldWriteS3` if you don't want to do that.
 
+## Classification regression fixtures
+
+`fixtures/classify/*.txt` snapshot the classifier's verdict on real CI logs, so a
+ruleset or engine change that moves a match fails `cargo test`. See
+[`fixtures/classify/FIXTURES.md`](fixtures/classify/FIXTURES.md) for the marker
+format and how to add a fixture from a failing job with `pull_fixture.py`.
+
 ## Lambda deployment
 
 The lambda is deployed from main (see:

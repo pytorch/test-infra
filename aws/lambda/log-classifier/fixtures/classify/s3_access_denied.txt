@@ -1,0 +1,52 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/90550893925
+2026-07-29T13:21:17.4579702Z   name: artifact
+2026-07-29T13:21:17.4580821Z   region: us-east-1
+2026-07-29T13:21:17.4581835Z env:
+2026-07-29T13:21:17.4582812Z   GIT_DEFAULT_BRANCH: main
+2026-07-29T13:21:17.4584416Z   RUNNER_ARTIFACT_DIR: /home/jenkins/actions-runner-7/_work/_temp/artifacts
+2026-07-29T13:21:17.4586467Z   RUNNER_TEST_RESULTS_DIR: /home/jenkins/actions-runner-7/_work/_temp/test-results
+2026-07-29T13:21:17.4588489Z   RUNNER_DOCS_DIR: /home/jenkins/actions-runner-7/_work/_temp/docs
+2026-07-29T13:21:17.4590378Z   GPU_FLAG: --device=/dev/mem --device=/dev/dri --group-add video --group-add 109
+2026-07-29T13:21:17.4592115Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T13:21:17.4593304Z   AWS_REGION: us-east-1
+2026-07-29T13:21:17.4594647Z   AWS_ACCESS_KEY_ID: ***
+2026-07-29T13:21:17.4596051Z   AWS_SECRET_ACCESS_KEY: ***
+2026-07-29T13:21:17.4611996Z   AWS_SESSION_TOKEN: ***
+2026-07-29T13:21:17.4613348Z   UV_PYTHON_INSTALL_DIR: /home/jenkins/.local/share/uv/python
+2026-07-29T13:21:17.4614875Z   UV_PYTHON: 3.12
+2026-07-29T13:21:17.4616543Z   CONTAINER_NAME: f0a34d61a12fda3e98094c55dbe8d4625d1ff7baa12c2a96786392cb5cf6a3f9
+2026-07-29T13:21:17.4618299Z ##[endgroup]
+2026-07-29T13:21:17.7982621Z NOTE: s3-prefix specified, ignoring name parameter
+2026-07-29T13:21:17.7984785Z With the provided path, there will be 1 file uploaded
+2026-07-29T13:21:17.7986940Z Uploading to s3 prefix: pytorch/pytorch/30442391378/1/artifact
+2026-07-29T13:21:17.7991283Z Starting upload of logs-test-default-5-12-linux.idc.xpu_90550893925.zip
+2026-07-29T13:21:17.8004017Z (node:2870904) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-07-29T13:21:17.8008227Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-29T13:21:18.3953553Z ##[error]Error uploading logs-test-default-5-12-linux.idc.xpu_90550893925.zip
+2026-07-29T13:21:18.3956367Z Finished upload of logs-test-default-5-12-linux.idc.xpu_90550893925.zip
+#=MATCH=# 2026-07-29T13:21:18.3967675Z ##[error]User: arn:aws:sts::308535385114:assumed-role/gha_workflow_s3_and_ecr_read_only/gha-ecr-login is not authorized to perform: ‹s3:PutObject› on resource: "arn:aws:s3:::gha-artifacts/pytorch/pytorch/30442391378/1/artifact/logs-test-default-5-12-linux.idc.xpu_90550893925.zip" because no identity-based policy allows the s3:PutObject action
+2026-07-29T13:21:18.4297572Z ##[end-action id=__self_3.s3-upload-logs;outcome=failure;conclusion=success;duration_ms=984]
+2026-07-29T13:21:18.4305268Z ##[start-action display=Store Debug Artifacts on S3;id=__self_3.s3-upload-debug]
+2026-07-29T13:21:18.4420905Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-29T13:21:18.4425429Z ##[group]Run seemethere/upload-artifact-s3@v5
+2026-07-29T13:21:18.4426726Z with:
+2026-07-29T13:21:18.4427841Z   s3-bucket: gha-artifacts
+2026-07-29T13:21:18.4429139Z   s3-prefix: pytorch/pytorch/30442391378/1/artifact
+
+2026-07-29T13:21:18.4430575Z   retention-days: 14
+2026-07-29T13:21:18.4431670Z   if-no-files-found: ignore
+2026-07-29T13:21:18.4432794Z   path: debug-*.zip
+2026-07-29T13:21:18.4433899Z   name: artifact
+2026-07-29T13:21:18.4434904Z   region: us-east-1
+2026-07-29T13:21:18.4435980Z env:
+2026-07-29T13:21:18.4437072Z   GIT_DEFAULT_BRANCH: main
+2026-07-29T13:21:18.4438667Z   RUNNER_ARTIFACT_DIR: /home/jenkins/actions-runner-7/_work/_temp/artifacts
+2026-07-29T13:21:18.4440711Z   RUNNER_TEST_RESULTS_DIR: /home/jenkins/actions-runner-7/_work/_temp/test-results
+2026-07-29T13:21:18.4442638Z   RUNNER_DOCS_DIR: /home/jenkins/actions-runner-7/_work/_temp/docs
+2026-07-29T13:21:18.4444661Z   GPU_FLAG: --device=/dev/mem --device=/dev/dri --group-add video --group-add 109
+2026-07-29T13:21:18.4446624Z   AWS_DEFAULT_REGION: us-east-1
+2026-07-29T13:21:18.4447896Z   AWS_REGION: us-east-1
+2026-07-29T13:21:18.4449168Z   AWS_ACCESS_KEY_ID: ***
+2026-07-29T13:21:18.4450666Z   AWS_SECRET_ACCESS_KEY: ***
+2026-07-29T13:21:18.4466323Z   AWS_SESSION_TOKEN: ***
+2026-07-29T13:21:18.4467666Z   UV_PYTHON_INSTALL_DIR: /home/jenkins/.local/share/uv/python

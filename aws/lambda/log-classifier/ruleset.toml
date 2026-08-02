@@ -16,9 +16,19 @@
 #     For example, for the failure 'FAIL [10.2s]: test_foo', 'test_foo' is a
 #     good capture group, as it filters out test timings which might be
 #     variable.
+# NB: check_forward_backward_compatibility.py emits this through a logging
+# formatter that prepends '[WARNING <timestamp> <file>:<line>] ', so the
+# message no longer starts at column 0. Keep the capture group to just the
+# stable sentence so captures stay groupable (no timestamps).
 [[rule]]
 name = 'Operator backwards compatibility'
-pattern = '^The PR is introducing backward incompatible changes to the operator library.'
+pattern = '^(?:\[WARNING [^\]]+\] )?(The PR is introducing backward incompatible changes to the operator library\.)'
+
+# Emitted by test_forward_backward_compatibility() in pytorch's .ci/pytorch/test.sh
+# when the torchscript model load checks fail.
+[[rule]]
+name = 'Forward/backward compatibility check failed'
+pattern = '^(?:FC|BC) check failed: .*'
 
 [[rule]]
 name = 'Failed graph_break_registry check'
@@ -27,6 +37,14 @@ pattern = '^Found the unimplemented_v2 or unimplemented_v2_with_warning calls be
 [[rule]]
 name = 'Lintrunner failure'
 pattern = '^>>> Lint for.*'
+
+# lintrunner's linter tool itself crashed ("General linter failure"), distinct
+# from a per-file lint violation above. Capture the linter code so CLANGTIDY vs
+# RUFF etc. group separately; otherwise only the far-away "##[error]Linter
+# failed" GHA-error catch-all fires and loses which linter died.
+[[rule]]
+name = 'Lintrunner general linter failure'
+pattern = '^\s*Error \((\w+)\) Linter failed$'
 
 [[rule]]
 name = 'GHA timeout'
@@ -56,6 +74,13 @@ pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 name = 'bazel build failure'
 pattern = '^Target //:\w+ failed to build'
 
+# pip/build backend failed to build a wheel (e.g. torchcomms). Capture the package
+# name; without this the line is unmatched (the bazel-specific ERROR rule requires
+# bazel keywords).
+[[rule]]
+name = 'pip wheel build failure'
+pattern = '^\s*ERROR: Failed building wheel for (\S+)'
+
 [[rule]]
 name = 'gtest failure'
 pattern = '(^\[  FAILED  \].*) \(\d+'
@@ -84,6 +109,14 @@ pattern = '^ERROR: (.*(?:bazel|WORKSPACE|target).*)'
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
+# Emitted by run_test.py when a test file's class forgets to subclass
+# common_utils.TestCase; the real cause, but it prints early and the generic
+# "distributed/... failed!" run_test.py wrapper line would otherwise win.
+# Capture just the class name so it groups across runs.
+[[rule]]
+name = 'Test class does not extend TestCase'
+pattern = '''^(\S+) - failed\. This test class should extend from .*TestCase but it doesn't\.'''
+
 [[rule]]
 name = 'Python unittest failure'
 pattern = '^FAILED CONSISTENTLY: (.*)$'
@@ -99,6 +132,25 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 [[rule]]
 name = 'pytest failure'
 pattern = '^(?:FAILED|SUBFAIL) (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+
+# The per-test header pytest prints under "==== FAILURES ====" (and "== RERUNS
+# ==") -- the line immediately above the traceback for that test. Used when the
+# run printed no "short test summary info" section, so the rule above can't fire:
+# without it the winner is often a benign PytestUnraisableExceptionWarning
+# traceback raised in some *passing* test's __del__, hundreds of lines earlier.
+#
+# Anchoring here rather than on pytest's verbose progress line ("test_x.py::T::t
+# FAILED [3.66s] [ 31%]") is deliberate: the matched line number is what feeds the
+# +-250-line window the Bedrock summarizer sees (main.rs), and the progress line
+# sits wherever the test happened to run in the stream -- potentially thousands of
+# lines above the traceback in a full run. This header is always adjacent to it.
+# RERUNS is printed before FAILURES, and evaluate_rule takes each rule's *last*
+# match, so the final (real) FAILURES entry wins over the rerun copies.
+# NB the capture is pytest's "Class.test" header form, not the "file.py::Class::test"
+# id used by the rule above, so the two shapes group separately.
+[[rule]]
+name = 'pytest failure'
+pattern = '^_{4,} (\S+\.\S+) _{4,}$'
 
 [[rule]]
 name = 'Python unittest error'
@@ -116,9 +168,13 @@ pattern = '^The following tests failed consistently: \[(.*)\]$'
 name = 'xla cpp test failure'
 pattern = 'Build completed, \d+ test FAILED, \d+ total actions'
 
+# Inductor benchmark per-model result. Group 1 is the model; keep group 2 to the
+# stable failure KIND (e.g. "FAIL:  graph_breaks") and let the trailing "=N,
+# expected=N" counts fall outside the capture so a model's regression doesn't
+# scatter by count.
 [[rule]]
 name = 'inductor model failure'
-pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
+pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|infra_error|0\.0000|(?:FAIL|IMPROVED): +[a-z_]+).*$'
 
 [[rule]]
 name = 'NVIDIA installation failure'
@@ -184,9 +240,19 @@ pattern = '^ERROR: AddressSanitizer'
 name = 'undefined reference linker error'
 pattern = 'undefined reference to .*'
 
+# run_test.py reports a test file killed by a signal as
+# "<file> <shard>/<n> failed! Received signal: SIGBUS" (test/run_test.py, the
+# `message += f" Received signal: {signal_name}"` branch). NB the emitter writes
+# a lowercase "signal"; this rule previously required "Received Signal:" and so
+# could never fire, leaving crashes (SIGBUS/SIGIOT/SIGSEGV) to fall through to
+# the generic "<file> N/N failed!" wrapper below and be reported as ordinary
+# test failures. Capture the file AND the signal so a crash is distinguishable
+# from a plain failure and an uptick in one signal is visible. Filtered runs
+# render as "test_ops, not (TestA or TestB) 3/8 failed! ..." and deliberately
+# do not match -- they fall through to the wrapper exactly as they do today.
 [[rule]]
 name = "Python Test SIG Code"
-pattern = '^.*(Received Signal: SIG.*)'
+pattern = '^(\S+)(?: \d+/\d+)? failed! [Rr]eceived [Ss]ignal: (SIG\w+)'
 
 [[rule]]
 name = 'Library not loaded'
@@ -200,13 +266,72 @@ pattern = '^##\[error\]Response status code does not indicate success: .*$'
 name = 'Python Test timeout (KeyboardInterrupt)'
 pattern = '!+ KeyboardInterrupt !+'
 
+# run_test.py killed a test that exceeded its wall-clock limit (exit 124 means a
+# genuinely unkillable hang: wait_for_process SIGINTs first and returns the
+# child's real exit code if it dies gracefully). Without these the job falls
+# through to the generic "<file> N/N failed!" wrapper below, which mislabels a
+# timeout as an ordinary test failure.
+#
+# Three shapes, most specific first, per pytorch/pytorch#191754:
+#   1. "TIMED OUT: <nodeid>"                     a test was in flight; best signal
+#   2. "... returning 124 (<file> <shard>/<n>)"  hang during import/collection
+#   3. "... returning 124"                       pre-#191754 code and release
+#                                                branches; keep indefinitely
+# 1 and 2 are mutually exclusive for a given timeout ("a test was running" vs
+# "nothing started"). Before #191754 only shape 3 existed, so every timeout in
+# the fleet shared one group key and a single hanging test was invisible.
+[[rule]]
+name = 'Test file timeout'
+pattern = '^TIMED OUT: (\S+)'
+
+# NB the shard is deliberately left OUT of the capture: the same file hanging on
+# shard 3/8 and 5/8 is one problem and should aggregate into one group.
+[[rule]]
+name = 'Test file timeout'
+pattern = '^Command took >\d+min, returning 124 \((\S+)'
+
+[[rule]]
+name = 'Test file timeout'
+pattern = '^Command took >\d+min, returning 124'
+
+# A test file that blew up at import/collection time, before any test ran. The
+# only other evidence is run_test.py's "<file> N/N failed!" summary below, which
+# names the file but not the cause -- so a dev sees "test_ops 3/4 failed!" when
+# the truth is e.g. an unresolved merge-conflict marker committed into
+# common_methods_invocations.py, breaking every file that imports it. Observed:
+# 16 of 16 sampled wrapper-only PR failures were collection failures with a real
+# exception line sitting right there in the log.
+#
+# These must sit ABOVE the wrapper to beat it. Only SyntaxError/AssertionError
+# are promoted, not the generic Python exception rules further down: the wrapper
+# line itself can read "RuntimeError: test_ops 3/4 failed!", so demoting the
+# wrapper under 'Python RuntimeError' would capture that whole line instead and
+# make grouping strictly worse. Neither exception below can match the wrapper.
+[[rule]]
+name = 'Python SyntaxError'
+pattern = '^\s*SyntaxError: .*'
+
+[[rule]]
+name = 'Python AssertionError'
+pattern = '^AssertionError: .*'
+
+# run_test.py's per-file summary ("<file> <shard>/<nshards> failed!", sometimes
+# with a RuntimeError: prefix). Capture just the file so the shard index and the
+# optional prefix don't scatter the same file across groups.
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '(?:RuntimeError: )?.*test.* failed!'
+pattern = '^(?:RuntimeError: )?(\S*test\S*)(?: \d+/\d+)? failed!'
 
 [[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
+
+# Same failure surfaced as the torch.OutOfMemoryError class rather than
+# RuntimeError; the rule above (and the generic Python-error rules) miss it.
+# Capture the stable phrase, dropping the per-run GiB/GPU numbers.
+[[rule]]
+name = 'CUDA out of memory (torch.OutOfMemoryError)'
+pattern = '^torch\.OutOfMemoryError: (CUDA out of memory)\.'
 
 [[rule]]
 name = 'Python AttributeError'
@@ -227,6 +352,33 @@ pattern = '^\s*(test.*) errored - num_retries_left:'
 [[rule]]
 name = 'pr_time_benchmarks regression'
 pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
+
+# ghstack/merge infra errors that otherwise fall into the generic Python
+# RuntimeError rule below, which bakes the per-run PR number / revision sha /
+# branch name into the whole-line capture (every occurrence its own group).
+# Capture the stable phrase instead.
+[[rule]]
+name = 'ghstack PR out of sync'
+pattern = '^RuntimeError: PR \d+ (is out of sync with the corresponding revision)'
+
+[[rule]]
+name = 'ghstack git command failed'
+pattern = '^RuntimeError: Command `git .*(cherry-pick|diff|rebase|merge|apply).*` returned non-zero exit code'
+
+# filter_test_configs.py refuses CI on a too-deep ghstack; a plain INFO line (no
+# ##[error]) that otherwise leaves the job — and ~23 fanned-out jobs per stack —
+# classified as nothing. Drop the PR number from the capture.
+[[rule]]
+name = 'ghstack too deep - refusing to run CI'
+pattern = '^PR #\d+ (sits on top of >=\d+ ghstack entries; refusing to run CI)'
+
+# trymerge's mergeability check on a PR whose ghstack commits carry no PR
+# reference (submitted with an old ghstack). Same problem as the rules above: the
+# generic Python RuntimeError rule captures the whole line, baking in the per-run
+# commit sha so every occurrence lands in its own group.
+[[rule]]
+name = 'ghstack old version - unexpected PR count in commit'
+pattern = '^RuntimeError: (Found an unexpected number of PRs mentioned in commit) [0-9a-f]+'
 
 [[rule]]
 name = 'Python RuntimeError'
@@ -277,6 +429,26 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 name = 'Docker error'
 pattern = '^docker: Error.*'
 
+# `uv python install/find` couldn't fetch download-metadata.json (runner DNS /
+# network failure); the URL carries the uv version, so capture only the stable
+# phrase. Without this the real cause is unclassified and a benign CMake
+# feature-probe "ninja: build stopped" (Build error) wins instead -- so this must
+# sit above the ninja rules below.
+[[rule]]
+name = 'uv python download metadata fetch failed'
+pattern = '''^error: (Error while fetching remote python downloads json) from '.*'$'''
+
+# ninja's per-edge failure marker, printed immediately before the failing command
+# and its error output -- so surfacing it lands the real cause in the context
+# window regardless of error type (compile error, missing tool, linker). Match the
+# modern `[code=N]` form (ninja-specific, so no floating-string overmatch) and
+# capture just the exit code (127=command not found, 1=command failed, ...) so the
+# group key stays stable instead of the variable target path. More specific error
+# rules above still win; the "ninja: build stopped" rollup below is the last resort.
+[[rule]]
+name = 'ninja build step failed'
+pattern = '^FAILED: \[(code=\d+)\]'
+
 [[rule]]
 name = 'Build error'
 pattern = 'ninja: build stopped: subcommand failed'
@@ -305,6 +477,13 @@ pattern = 'IMPROVED:\s+graph_breaks='
 name = 'npm error'
 pattern = '^npm ERR! code .*'
 
+# pr-sanity-check.sh fails a too-large PR with this message and then just exits
+# 1 (the exit-code line is stripped as boilerplate), so without this rule the job
+# classifies as nothing. Capture drops the variable LOC count to stay groupable.
+[[rule]]
+name = 'PR exceeds maximum size'
+pattern = '^Your PR is \d+ (LOC which is more than the \d+ maximum)$'
+
 [[rule]]
 name = 'No release notes label'
 pattern = '^# This PR needs a `release notes:` label.*'
@@ -314,13 +493,75 @@ name = 'ghstack merge check error'
 pattern = '^Mergeability Error: .*'
 
 [[rule]]
-name = 'OSDC step script failure'
-pattern = '\[OSDC\] Step script exited.*'
+name = 'New modules are not documented correctly'
+pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'
+
+# A small utility job (runner-determinator, collect_env, …) whose only output is a
+# GitHub REST API 403 body: the API rate limit was hit. User ID / request ID vary
+# per run, so capture just the stable phrase; otherwise these classify as nothing.
+[[rule]]
+name = 'GitHub API rate limit exceeded'
+pattern = '(API rate limit exceeded) for user ID \d+'
+
+# Runner-side infra failure: the pod backing a self-hosted runner never came
+# online. Only the "-<rand>-runner-<rand>-workflow" suffix of the pod name is
+# random; the prefix is the runner pool (mt-l-x86iavx512-8-64, lf-l-arm64g4-16-62,
+# ...), which is exactly what you need to see a single sick pool. Capturing only
+# the phase tail is useless on its own: in a week of main it was
+# "Pending: backoff timeout" for 39 of 39 pod failures, i.e. one group for ~15%
+# of all red jobs, while 90% of them were in fact one pool (x86iavx512-8-64).
+# Capture pool + phase. The general form below stays as a fallback so a pod name
+# that doesn't fit this shape still classifies rather than falling through to
+# the GHA-error catch-all.
+[[rule]]
+name = 'Runner pod failed to come online'
+pattern = '^##\[error\]Error: pod failed to come online with error: Error: Pod (.+)-\w+-runner-\w+-workflow is unhealthy with phase status (.*)$'
+
+[[rule]]
+name = 'Runner pod failed to come online'
+pattern = '^##\[error\]Error: pod failed to come online with error:.*is unhealthy with phase status (.*)$'
+
+# A downstream job couldn't fetch a build artifact because the upstream build
+# failed to produce it. The artifact name (py version / cuda / arch) varies per
+# job, so without this the generic GHA-error fallback captures the whole line and
+# every occurrence lands in its own group. Capture only the stable prefix so all
+# of these aggregate together.
+[[rule]]
+name = 'Artifact download failure'
+pattern = '^##\[error\](Unable to download artifact\(s\): Artifact not found) for name:'
+
+# GitHub couldn't fetch a repo/action tarball from codeload; the URL carries a
+# commit hash, so the generic fallback scatters every occurrence. Capture the
+# stable phrase only.
+[[rule]]
+name = 'Action archive download failure'
+pattern = '''^##\[error\](Failed to download archive) '.*' after \d+ attempts'''
+
+# S3 authorization failure on artifact upload; the ARN, resource path and job-id'd
+# object key all vary per run, so capture only the denied action (e.g. s3:PutObject).
+[[rule]]
+name = 'S3 access denied'
+pattern = '^##\[error\]User: .* is not authorized to perform: (s3:\w+)'
+
+# aws-actions/configure-aws-credentials could not obtain credentials (OIDC /
+# id-token permission misconfig). Everything AWS-shaped downstream then fails, and
+# the *last* ##[error] in the log is one of those symptoms -- a continue-on-error
+# upload-artifact-s3 step emitting "Missing credentials in config" ~2000 lines
+# later -- so the GHA-error catch-all below blames the symptom, not the cause.
+# Capture the provider phrase only so it stays groupable.
+[[rule]]
+name = 'AWS credentials could not be loaded'
+pattern = '^##\[error\]Credentials could not be loaded, please check your action inputs: (.*)'
+
+# actions/checkout could not fetch the ref it was asked for; for a ciflow tag this
+# means the tag was deleted (or never pushed) before the job started. The ref name
+# carries a PR number so it must stay out of the capture. Without this rule the
+# catch-all below picks the *later* "The process '/usr/bin/git' failed with exit
+# code 128" wrapper and the actual cause is lost.
+[[rule]]
+name = 'git checkout ref not found'
+pattern = '''^##\[error\]fatal: (couldn't find remote ref) refs/.*'''
 
 [[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
-
-[[rule]]
-name = 'New modules are not documented correctly'
-pattern = 'You added the following module\(s\) to the PyTorch namespace .* but they'

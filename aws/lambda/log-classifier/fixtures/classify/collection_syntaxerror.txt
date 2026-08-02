@@ -1,0 +1,72 @@
+#=SOURCE=# https://ossci-raw-job-status.s3.amazonaws.com/log/91108734172
+2026-07-31T08:26:25.9246348Z     test_meta 2/3
+2026-07-31T08:26:25.9246559Z     test_decomp 2/3
+2026-07-31T08:26:25.9246771Z     test_decomp 3/3
+2026-07-31T08:26:25.9247012Z     inductor/test_extension_backend 1/1
+2026-07-31T08:26:25.9247308Z     test_dataloader 1/1
+2026-07-31T08:26:25.9247555Z     inductor/test_fp8 1/1
+2026-07-31T08:26:25.9247826Z     functorch/test_eager_transforms 1/1
+2026-07-31T08:26:25.9248127Z     test_serialization 1/1
+2026-07-31T08:26:25.9248380Z     test_type_hints 1/1
+2026-07-31T08:26:25.9248613Z     test_modules 1/1
+2026-07-31T08:26:25.9248869Z     inductor/test_fused_attention 1/1
+2026-07-31T08:26:25.9249149Z     test_indexing 1/1
+2026-07-31T08:26:25.9249394Z     profiler/test_profiler 1/1
+2026-07-31T08:26:25.9249673Z     inductor/test_cpu_repro 1/4
+2026-07-31T08:26:25.9249954Z     inductor/test_memory_planning 1/1
+2026-07-31T08:26:25.9250619Z     inductor/test_cpu_select_algorithm 13/14
+2026-07-31T08:26:25.9250936Z     test_complex 1/1
+2026-07-31T08:26:25.9251612Z Downloading https://ossci-metrics.s3.amazonaws.com/disabled-tests-condensed.json to /__w/pytorch/pytorch/test/.pytorch-disabled-tests.json
+2026-07-31T08:26:25.9252329Z Ignoring disabled issues:  ['']
+2026-07-31T08:26:25.9252927Z     test_pytree 1/1
+2026-07-31T08:26:25.9253266Z     test_numpy_interop 1/1
+2026-07-31T08:26:25.9253625Z     dynamo/test_aot_autograd_cache 1/1
+2026-07-31T08:26:25.9254071Z     inductor/test_torchinductor_codegen_dynamic_shapes 1/2
+2026-07-31T08:26:25.9254519Z     test_matmul_cuda 1/1
+2026-07-31T08:26:25.9254859Z Name: excluded (est. time: 8.74min)
+2026-07-31T08:26:25.9255708Z   Serial tests (0):
+2026-07-31T08:26:25.9256024Z   Parallel tests (9):
+2026-07-31T08:26:25.9256566Z     inductor/test_cpu_cpp_wrapper 2/5
+2026-07-31T08:26:25.9256970Z     inductor/test_best_config 1/1
+2026-07-31T08:26:25.9257333Z     functorch/test_ac 1/1
+2026-07-31T08:26:25.9257660Z     inductor/test_origami 1/1
+2026-07-31T08:26:25.9258003Z     dynamo/test_cudagraphs 1/1
+2026-07-31T08:26:25.9258369Z     inductor/test_gpu_select_algorithm 1/1
+2026-07-31T08:26:25.9258765Z     inductor/test_online_softmax 1/1
+2026-07-31T08:26:25.9259137Z     inductor/test_triton_syntax 1/1
+2026-07-31T08:26:25.9259495Z     xpu/test_lstm 1/1
+2026-07-31T08:26:25.9259893Z Running test_ops 3/4 ... [2026-07-31 08:26:25.825971][357.972723913]
+2026-07-31T08:26:25.9260365Z SCRIBE_GRAPHQL_ACCESS_TOKEN is set
+2026-07-31T08:26:25.9261491Z Executing ['/opt/python-3.10-venv/bin/python', '-bb', 'test_ops.py', '-m', '(serial)', '--shard-id=3', '--num-shards=4', '-v', '-vv', '-rfEX', '-p', 'no:xdist', '--use-pytest', '-x', '--reruns=2', '--import-slow-tests', '--import-disabled-tests'] ... [2026-07-31 08:26:25.826286]
+2026-07-31T08:26:29.1775562Z 
+2026-07-31T08:26:29.1776158Z PRINTING LOG FILE of test_ops 3/4 (test/test-reports/test_ops_3.4_6ab23480de8d95f1_.log)
+2026-07-31T08:26:29.1776682Z Traceback (most recent call last):
+2026-07-31T08:26:29.1784420Z   File "/__w/pytorch/pytorch/test/test_ops.py", line 49, in <module>
+2026-07-31T08:26:29.1785014Z     from torch.testing._internal.common_methods_invocations import (
+2026-07-31T08:26:29.1785863Z   File "/opt/python-3.10-venv/lib/python3.10/site-packages/torch/testing/_internal/common_methods_invocations.py", line 15375
+2026-07-31T08:26:29.1786648Z     >>>>>>> 597be33c510 (Add more cases in test_ops.py)
+2026-07-31T08:26:29.1786963Z               ^
+#=MATCH=# 2026-07-31T08:26:29.1787192Z ‹SyntaxError: invalid decimal literal›
+2026-07-31T08:26:29.1787468Z Got exit code 1
+2026-07-31T08:26:29.1787967Z No stepcurrent file found. Either pytest didn't get to run (e.g. import error) or file got deleted (contact dev infra)
+2026-07-31T08:26:29.1788483Z 
+2026-07-31T08:26:29.1788789Z FINISHED PRINTING LOG FILE of test_ops 3/4 (test/test-reports/test_ops_3.4_6ab23480de8d95f1_.log)
+2026-07-31T08:26:29.1789204Z 
+2026-07-31T08:26:29.1789423Z Finished test_ops 3/4 ... [2026-07-31 08:26:28.995908][361.142659597], took 0.05min
+2026-07-31T08:26:29.3815328Z test_ops 3/4 failed!
+2026-07-31T08:26:29.3815645Z Emitting td_test_failure_stats_v2
+2026-07-31T08:26:29.3815952Z Traceback (most recent call last):
+2026-07-31T08:26:29.3816421Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2411, in <module>
+2026-07-31T08:26:29.3816811Z     main()
+2026-07-31T08:26:29.3817124Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2362, in main
+2026-07-31T08:26:29.3817487Z     run_tests(
+2026-07-31T08:26:29.3817828Z   File "/__w/pytorch/pytorch/test/run_test.py", line 2198, in run_tests
+2026-07-31T08:26:29.3818339Z     raise RuntimeError(failure.message + keep_going_message)
+2026-07-31T08:26:29.3818743Z RuntimeError: test_ops 3/4 failed!
+2026-07-31T08:26:29.3818936Z 
+2026-07-31T08:26:29.3819214Z Tip: You can keep running tests even on failure by passing --keep-going to run_test.py.
+2026-07-31T08:26:29.3819798Z If running on CI, add the 'keep-going' label to your PR and rerun your jobs.
+2026-07-31T08:26:29.3820221Z Uploading logs for 91108734172 to S3
+2026-07-31T08:26:29.3820513Z Uploading artifacts took 0.26 seconds
+2026-07-31T08:26:29.3821167Z Writing 1 documents to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1785486389_875566c48cb911f1856de267e01d4c68
+2026-07-31T08:26:29.3822223Z Done! Finish writing document to S3 ossci-raw-job-status/ossci_uploaded_metrics/td_test_failure_stats_v2_1785486389_875566c48cb911f1856de267e01d4c68 
