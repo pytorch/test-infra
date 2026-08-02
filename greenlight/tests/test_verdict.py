@@ -17,6 +17,7 @@ _HASH = "a" * 64
 _BOT = "greenlight-app[bot]"
 _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
+_EMIT_ID = "e" * 32
 
 
 class _Recorder:
@@ -158,7 +159,14 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
         captured["token"] = token
         return gh
 
-    verdict.run(req, make_config(github_token="tok"), build_github=build_github, emit=emit, now=lambda: _FIXED)
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=build_github,
+        emit=emit,
+        now=lambda: _FIXED,
+        new_emit_id=lambda: _EMIT_ID,
+    )
 
     assert captured["token"] == "tok"
     assert gh.get_repo_names == ["pytorch/pytorch"]
@@ -175,6 +183,8 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
         "eval_job": "",
         "agent_job": "",
         "version": _VERSION,
+        "run_id": 0,
+        "emit_id": _EMIT_ID,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}.json.gz"
     event, body = pr.created_reviews[0]
@@ -212,10 +222,45 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
         "eval_job",
         "agent_job",
         "version",
+        "run_id",
+        "emit_id",
     ]
     assert isinstance(obj["pr_number"], int)
     assert isinstance(obj["version"], str)
     assert obj["version"] == _VERSION
+
+
+@pytest.mark.parametrize(("run_id", "expected"), [(123, 123), (None, 0)])
+def test_emit_payload_stores_run_id_coercing_none_to_zero(make_config, run_id, expected):
+    # A JSON null into the Int64 run_id column would fail the replicator, so None becomes 0.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", status="CANCELLED", run_id=run_id)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    assert _decode(emit.row_gzip)["run_id"] == expected
+
+
+def test_two_emits_get_distinct_emit_ids(make_config):
+    rows: list[dict[str, object]] = []
+
+    def collect(row_gzip: bytes, key: str) -> None:
+        rows.append(_decode(row_gzip))
+
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", status="CANCELLED", run_id=5)
+    for _ in range(2):
+        verdict.run(
+            req,
+            make_config(github_token="tok"),
+            build_github=_boom_build_github,
+            emit=collect,
+            now=lambda: _FIXED,
+        )
+
+    first, second = (str(row["emit_id"]) for row in rows)
+    assert first != second
+    assert len(first) == len(second) == 32
 
 
 def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_path):
@@ -357,7 +402,14 @@ def test_marker_cancelled_emits_payload_only(make_config):
     emit = _FakeEmit(rec)
     req = VerdictRequest(repo="pytorch/pytorch", pr_number=9, head_sha="h", status="CANCELLED")
 
-    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=_boom_build_github,
+        emit=emit,
+        now=lambda: _FIXED,
+        new_emit_id=lambda: _EMIT_ID,
+    )
 
     assert rec.events == ["emit"]
     assert _decode(emit.row_gzip) == {
@@ -371,6 +423,8 @@ def test_marker_cancelled_emits_payload_only(make_config):
         "eval_job": "",
         "agent_job": "",
         "version": _VERSION,
+        "run_id": 0,
+        "emit_id": _EMIT_ID,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}.json.gz"
 
@@ -394,7 +448,14 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
     emit = _FakeEmit(rec)
     req = VerdictRequest(repo="pytorch/pytorch", pr_number=11, head_sha="h", status="AI_REVIEW_STARTED")
 
-    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=_boom_build_github,
+        emit=emit,
+        now=lambda: _FIXED,
+        new_emit_id=lambda: _EMIT_ID,
+    )
 
     assert rec.events == ["emit"]
     assert _decode(emit.row_gzip) == {
@@ -408,6 +469,8 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
         "eval_job": "",
         "agent_job": "",
         "version": _VERSION,
+        "run_id": 0,
+        "emit_id": _EMIT_ID,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}.json.gz"
 

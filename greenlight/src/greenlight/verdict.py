@@ -26,6 +26,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -188,8 +189,12 @@ def _emit_payload(
     *,
     now: Callable[[], datetime],
     emit: Callable[[bytes, str], None],
+    new_emit_id: Callable[[], str],
 ) -> str:
     version = now().replace(tzinfo=None).isoformat(sep=" ", timespec="milliseconds")
+    # emit_id is a fresh per-emit UUID whose only job is to make the ClickHouse sort key
+    # (repo, pr_number, run_id, emit_id) unique so the ReplacingMergeTree never collapses a
+    # row; it is storage-only and never read back.
     row = {
         "repo": request.repo,
         "pr_number": request.pr_number,
@@ -201,6 +206,8 @@ def _emit_payload(
         "eval_job": request.eval_job_url,
         "agent_job": request.agent_job_url,
         "version": version,
+        "run_id": request.run_id or 0,
+        "emit_id": new_emit_id(),
     }
     line = json.dumps(row, separators=(",", ":"), ensure_ascii=False) + "\n"
     key = _object_key(request.repo, request.pr_number, version)
@@ -258,11 +265,12 @@ def _run_marker(
     build_github: Callable[[str], VerdictClient],
     emit: Callable[[bytes, str], None],
     now: Callable[[], datetime],
+    new_emit_id: Callable[[], str],
 ) -> None:
     if request.dry_run:
         logger.info("[dry-run] would emit %s marker payload for %s#%d", status, request.repo, request.pr_number)
         return
-    key = _emit_payload(request, status, "", "", now=now, emit=emit)
+    key = _emit_payload(request, status, "", "", now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s marker payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     if not request.bot_login:
         return
@@ -280,6 +288,7 @@ def _run_full(
     build_github: Callable[[str], VerdictClient],
     emit: Callable[[bytes, str], None],
     now: Callable[[], datetime],
+    new_emit_id: Callable[[], str],
 ) -> None:
     # --dry-run stays fully offline: no token, no GitHub fetch, no payload written.
     if request.dry_run:
@@ -296,7 +305,7 @@ def _run_full(
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
-    key = _emit_payload(request, status, reason, message, now=now, emit=emit)
+    key = _emit_payload(request, status, reason, message, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
     body = comment_format.verdict_body(status, reason, message, job_url, request.run_id)
@@ -322,10 +331,11 @@ def run(
     build_github: Callable[[str], VerdictClient] = github_client.build_client,
     emit: Callable[[bytes, str], None] = _default_emit,
     now: Callable[[], datetime] = _utcnow,
+    new_emit_id: Callable[[], str] = lambda: uuid.uuid4().hex,
 ) -> None:
     status, reason, message = _resolve_verdict(request)
     if status in _MARKER_STATUSES:
-        _run_marker(request, config, status, build_github=build_github, emit=emit, now=now)
+        _run_marker(request, config, status, build_github=build_github, emit=emit, now=now, new_emit_id=new_emit_id)
         return
     _validate_reason(reason)
     _validate_message(message)
@@ -344,4 +354,5 @@ def run(
         build_github=build_github,
         emit=emit,
         now=now,
+        new_emit_id=new_emit_id,
     )

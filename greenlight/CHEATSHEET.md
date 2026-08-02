@@ -158,12 +158,24 @@ automated DDL), so @clee2000 or @huydhn apply them manually:
 - `001_create_misc_greenlight_pr_state.sql` — create the table
 - `002_alter_greenlight_pr_state_version_default.sql` — set the `version` DEFAULT
 - `003_alter_greenlight_pr_state_add_meta.sql` — add the `_meta` column the replicator needs
+- `004_*.sql` — one in-place `ALTER` that adds the `run_id` and `emit_id` columns and
+  extends the sort key to `(repo, pr_number, run_id, emit_id)`, keeping the
+  `SharedReplacingMergeTree` engine (no new table, backfill, or `EXCHANGE`)
+
+The table is append-only-equivalent: the `SharedReplacingMergeTree` never collapses a row
+because the sort key `(repo, pr_number, run_id, emit_id)` ends in a per-emit UUID (`emit_id`),
+so every verdict emit is retained as history. greenlight selects the authoritative row per PR
+at read time by highest `run_id`, then latest `version` (`state.read_latest_states`) —
+race-proof, so a superseded slower dispatch that finishes with a later `version` still loses to
+the newer dispatch's higher `run_id`. Applying `004` and deploying the clickhouse-replicator-s3
+Lambda adapter (which gains the matching `run_id` and `emit_id` columns) is a lockstep go-live:
+a schema skew between them drops rows.
 
 The `verdict` subcommand does NOT write ClickHouse directly: it emits a gzipped JSON row
 that the record workflow uploads to `s3://gha-artifacts/greenlight_pr_state/`, and the
 clickhouse-replicator-s3 path ingests it into the table. greenlight reads ClickHouse via
-`clickhouse_client.connect()` — the `review` scan looks up each PR's latest state here, by
-`(repo, pr_number)` — using the standard `CLICKHOUSE_*` connection variables
+`clickhouse_client.connect()` — the `review` scan looks up each PR's authoritative state
+here, by `(repo, pr_number)` — using the standard `CLICKHOUSE_*` connection variables
 (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
 `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). The review-side fingerprint
 computation is wired; only the land-time verifier that reads this table back at land time

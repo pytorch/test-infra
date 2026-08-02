@@ -1,3 +1,9 @@
+-- NOTE: 004 supersedes the read guidance below. The sort key now ends in a
+-- per-emit emit_id, so rows no longer collapse (the table is append-only); read
+-- the authoritative latest row per PR with ORDER BY pr_number, run_id DESC,
+-- version DESC LIMIT 1 BY pr_number -- NOT FINAL/argMax. The CREATE TABLE below
+-- remains the base DDL applied to the live table.
+--
 -- greenlight per-PR evaluation state, collapsed to one latest row per PR.
 --
 -- SharedReplacingMergeTree keyed on ORDER BY (repo, pr_number) keeps a single row

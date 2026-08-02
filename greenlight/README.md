@@ -122,6 +122,18 @@ dismiss greenlight's prior approval and comment. `verdict` is a one-shot call fo
 privileged CI job and never writes ClickHouse directly. The service reads ClickHouse via
 `clickhouse_client.connect()` for both the review scan and its other SELECTs.
 
+`misc.greenlight_pr_state` is append-only-equivalent: it keeps its `SharedReplacingMergeTree`
+engine, but no verdict emit is ever collapsed because the sort key
+`(repo, pr_number, run_id, emit_id)` ends in a per-emit UUID (`emit_id`) that no two rows
+share. greenlight picks the authoritative row per PR at read time by highest `run_id`, then
+latest `version` (`state.read_latest_states`). Ordering by `run_id` before `version` is
+race-proof — a superseded slower dispatch that finishes with a later `version` still loses to
+the newer dispatch's higher `run_id`. Each emitted row carries those `run_id` and `emit_id`
+columns, added by a single in-place `ALTER` (`greenlight/sql/004`) that also extends the sort
+key — no new table, backfill, or `EXCHANGE`. At go-live that DDL and the
+clickhouse-replicator-s3 Lambda adapter must land together, since a schema skew between them
+drops rows.
+
 Not built yet: only the land-time verifier — the pytorchbot side that reads
 `misc.greenlight_pr_state` back at land time. The review-side scan, fingerprint, state
 read, and dispatch are all wired; nothing consumes the recorded state at land time yet.

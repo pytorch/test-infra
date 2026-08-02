@@ -1,10 +1,15 @@
-"""Read the latest recorded per-PR greenlight state from ClickHouse.
+"""Read the authoritative per-PR greenlight state from ClickHouse.
 
-The scanner is read-only: it observes the latest ``misc.greenlight_pr_state`` row per PR
-to decide whether to dispatch a review. Writes go through the S3 -> replicator path (see
-``verdict``), never a direct INSERT. Because ``SharedReplacingMergeTree`` collapse is
-asynchronous, this reads with ``FINAL`` so a plain SELECT cannot observe a stale,
-not-yet-collapsed duplicate row for a PR.
+The scanner is read-only: it observes the authoritative ``misc.greenlight_pr_state`` row
+per PR to decide whether to dispatch a review. Writes go through the S3 -> replicator path
+(see ``verdict``), never a direct INSERT. The table keeps every emit as history: the
+``SharedReplacingMergeTree`` never collapses rows because the sort key
+``(repo, pr_number, run_id, emit_id)`` ends in a per-emit-unique ``emit_id``. So the
+authoritative row per PR is selected at read
+time: ``ORDER BY pr_number, run_id DESC, version DESC LIMIT 1 BY pr_number`` keeps the
+highest ``run_id`` and, within that run, the latest ``version``. Ordering by ``run_id``
+ahead of ``version`` is race-proof: a superseded slower dispatch that happens to finish
+with a later ``version`` still loses to the newer dispatch's higher ``run_id``.
 """
 
 from __future__ import annotations
@@ -23,10 +28,9 @@ if TYPE_CHECKING:
 
 __all__ = ["PRState", "read_latest_states"]
 
-_QUERY = (
-    "SELECT pr_number, status, eval_hash, head_sha, version FROM misc.greenlight_pr_state FINAL WHERE repo = %(repo)s"
-)
+_QUERY = "SELECT pr_number, status, eval_hash, head_sha, version FROM misc.greenlight_pr_state WHERE repo = %(repo)s"
 _PR_FILTER = " AND pr_number IN %(pr_numbers)s"
+_ORDER_LIMIT = " ORDER BY pr_number, run_id DESC, version DESC LIMIT 1 BY pr_number"
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +70,7 @@ def read_latest_states(
     if pr_numbers is not None:
         query += _PR_FILTER
         params["pr_numbers"] = tuple(pr_numbers)
+    query += _ORDER_LIMIT
     client = connect()
     try:
         result = client.query(query, parameters=params)

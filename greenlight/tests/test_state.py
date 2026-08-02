@@ -65,16 +65,23 @@ def _row(pr_number: int, status: str, eval_hash: str, head_sha: str, version: da
     }
 
 
-def test_query_uses_final_and_repo_filter_without_pr_filter():
+def test_query_selects_highest_run_id_then_version_and_drops_final():
     client = _FakeClient([])
     connect, _ = _connect_seam(client)
 
     state.read_latest_states(_REPO, connect=connect)
 
     query, params = client.queries[0]
-    assert "FINAL" in query
+    # run_id DESC before version DESC is the race-proof rule: a superseded slower run that
+    # finishes with a later version still loses to the newer run's higher run_id. version DESC
+    # only breaks ties within one run (a terminal LAND over that run's earlier AI_REVIEW_STARTED)
+    # and decides among legacy run_id=0 rows. The append-only table never collapses, so there
+    # is no FINAL.
+    assert "FINAL" not in query
     assert "FROM misc.greenlight_pr_state" in query
     assert "repo = %(repo)s" in query
+    assert "ORDER BY pr_number, run_id DESC, version DESC" in query
+    assert "LIMIT 1 BY pr_number" in query
     assert "pr_number IN" not in query
     assert params == {"repo": _REPO}
 
@@ -88,6 +95,29 @@ def test_pr_filter_and_tuple_param_applied_only_when_pr_numbers_given():
     query, params = client.queries[0]
     assert "pr_number IN %(pr_numbers)s" in query
     assert params == {"repo": _REPO, "pr_numbers": (7, 9)}
+    # The IN filter must sit between the WHERE and the ORDER BY/LIMIT selection clause.
+    assert query.index("pr_number IN") < query.index("ORDER BY")
+    assert query.rstrip().endswith("LIMIT 1 BY pr_number")
+
+
+@pytest.mark.parametrize(
+    ("status", "version"),
+    [
+        # ClickHouse has already applied ORDER BY run_id DESC, version DESC + LIMIT 1 BY
+        # pr_number, so it returns exactly the one authoritative row per PR; the fake echoes it
+        # back. Each id names the scenario that makes that row the winner.
+        pytest.param("LAND", _V1, id="race-newer-run_id-wins-despite-earlier-version"),
+        pytest.param("LAND", _V2, id="within-run-land-beats-earlier-ai_review_started"),
+        pytest.param("NO_LAND", _V1, id="legacy-run_id-zero-decided-by-version"),
+    ],
+)
+def test_authoritative_row_maps_to_prstate(status, version):
+    client = _FakeClient([_row(7, status, "a" * 64, "sha7", version)])
+    connect, _ = _connect_seam(client)
+
+    result = state.read_latest_states(_REPO, [7], connect=connect)
+
+    assert result == {7: PRState(pr_number=7, status=status, eval_hash="a" * 64, head_sha="sha7", version=version)}
 
 
 def test_maps_single_row_to_prstate_including_datetime():
