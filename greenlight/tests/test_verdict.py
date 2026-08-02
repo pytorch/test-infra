@@ -307,7 +307,7 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert "```" in body
 
 
-def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_path):
+def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_path, caplog):
     rec = _Recorder()
     emit = _FakeEmit(rec)
     pr = _FakePR("h", rec, reviews=[_FakeReview(1, "alice", "APPROVED", rec)])
@@ -315,12 +315,14 @@ def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_pat
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
     req = VerdictRequest(repo="r", pr_number=1, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
 
-    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["emit", "comment"]
     assert pr.comments[0].startswith(comment_format.COMMENT_MARKER)
     assert f"**{comment_format.NO_LAND_HEADLINE}**" in pr.comments[0]
     assert "reason: `unclear_intent`" in pr.comments[0]
+    assert any("no prior greenlight approval to dismiss" in record.getMessage() for record in caplog.records)
 
 
 def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
@@ -777,6 +779,59 @@ def test_land_without_bot_login_raises(make_config, tmp_path):
         verdict.run(
             req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
         )
+
+
+@pytest.mark.parametrize("good", ["greenlight-app[bot]", "pytorch-greenlight[bot]", "a[bot]"])
+def test_terminal_accepts_app_shaped_bot_login(make_config, tmp_path, good):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=good)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "comment"]
+
+
+@pytest.mark.parametrize("bad", ["[bot]", "greenlight", "greenlight-app"])
+def test_terminal_rejects_malformed_bot_login_shape(make_config, tmp_path, bad):
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="scope_too_large", message="m")
+    req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=bad)
+
+    with pytest.raises(ValueError, match="must be a GitHub App login"):
+        verdict.run(
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
+        )
+
+
+def test_bot_login_empty_and_malformed_raise_distinct_messages(make_config, tmp_path):
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="m")
+
+    def run_with(login: str) -> None:
+        req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=login)
+        verdict.run(
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
+        )
+
+    with pytest.raises(ValueError, match="requires --bot-login") as empty_err:
+        run_with("")
+    with pytest.raises(ValueError, match="must be a GitHub App login") as malformed_err:
+        run_with("[bot]")
+
+    assert str(empty_err.value) != str(malformed_err.value)
+
+
+@pytest.mark.parametrize("bot_login", ["", "[bot]", "greenlight"])
+def test_marker_status_ignores_bot_login_shape(make_config, bot_login):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="r", pr_number=9, head_sha="h", status="CANCELLED", bot_login=bot_login)
+
+    verdict.run(req, make_config(github_token=None), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit"]
 
 
 def test_full_invalid_eval_hash_rejected_before_github(make_config, tmp_path):
