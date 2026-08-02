@@ -18,6 +18,7 @@ from greenlight.constants import (
     TARGET_REPO,
 )
 from greenlight.github_client import OpenPR
+from greenlight.guards import IterationTimeout
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
@@ -545,6 +546,122 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
     assert [number for number, *_ in dispatched] == [2]
     assert "skipping PR #1" in caplog.text
     assert "skipping PR #3" in caplog.text
+
+
+def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
+    attempted: list[int] = []
+
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        attempted.append(number)
+        if number == 2:
+            raise RuntimeError("dispatch boom")
+
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"failed to dispatch 1 PR\(s\): \[2\]"),
+    ):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            read_state=lambda _repo, _numbers: {},
+            dispatch=boom_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR2's dispatch raises but is isolated: every candidate's dispatch is still attempted, and the
+    # failure only surfaces as the aggregate RuntimeError once the whole batch has been processed.
+    assert attempted == [1, 2, 3]
+    assert "failed to dispatch review for PR #2" in caplog.text
+    assert any(record.exc_info is not None for record in caplog.records)
+
+
+def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
+    attempted: list[int] = []
+
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        attempted.append(number)
+        raise RuntimeError(f"dispatch boom {number}")
+
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"failed to dispatch 3 PR\(s\): \[1, 2, 3\]"),
+    ):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            read_state=lambda _repo, _numbers: {},
+            dispatch=boom_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # Even when every dispatch raises, all three are attempted and collected into the single
+    # aggregate RuntimeError -- one bad PR never stalls the rest.
+    assert attempted == [1, 2, 3]
+
+
+def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
+    attempted: list[int] = []
+
+    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        attempted.append(number)
+        if number == 1:
+            raise IterationTimeout("iteration exceeded")
+
+    with pytest.raises(IterationTimeout):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            read_state=lambda _repo, _numbers: {},
+            dispatch=timeout_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # IterationTimeout is the soft per-iteration control signal, not a dispatch failure: it must
+    # propagate immediately past the bare-Exception arm, halting the loop so PR2 and PR3 are never
+    # attempted and PR1 is never collected as a dispatch failure.
+    assert attempted == [1]
+
+
+def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog):
+    attempted: list[int] = []
+
+    def boom_fingerprint(_client, number, _authorized):
+        if number == 1:
+            raise RuntimeError("fingerprint boom")
+        return (f"headsha{number}", _HASH_A)
+
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        attempted.append(number)
+        if number == 2:
+            raise RuntimeError("dispatch boom")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=boom_fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=boom_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1 fails fingerprinting and PR2 fails dispatch: a single end-of-scan RuntimeError surfaces
+    # both failure classes distinctly, and healthy PR3 still dispatches.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [1]" in message
+    assert "failed to dispatch 1 PR(s): [2]" in message
+    assert attempted == [2, 3]
 
 
 def test_scan_larger_than_worker_pool_fingerprints_every_pr(make_config):

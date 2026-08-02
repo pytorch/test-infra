@@ -22,6 +22,7 @@ from greenlight import dispatch as dispatch_module
 from greenlight import github_client, state
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.decision import Decision, decide
+from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -126,14 +127,23 @@ def _dispatch_pending(
     ref: str,
     max_dispatches: int | None,
     dispatch: Callable[[Github, int, str, str, str], None],
-) -> None:
+) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
+    dispatch_failed: list[int] = []
     for candidate in ordered[:limit]:
-        dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref)
+        try:
+            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref)
+        except IterationTimeout:
+            raise
+        except Exception as exc:
+            logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
+            dispatch_failed.append(candidate.pr_number)
+            continue
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
     for candidate in ordered[limit:]:
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
+    return dispatch_failed
 
 
 def _evaluate_pr(
@@ -302,6 +312,11 @@ def run(
                 failed=failed,
                 force=force,
             )
-        _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
-        if failed:
-            raise RuntimeError(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
+        dispatch_failed = _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
+        if failed or dispatch_failed:
+            errors: list[str] = []
+            if failed:
+                errors.append(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
+            if dispatch_failed:
+                errors.append(f"failed to dispatch {len(dispatch_failed)} PR(s): {sorted(dispatch_failed)}")
+            raise RuntimeError("; ".join(errors))
