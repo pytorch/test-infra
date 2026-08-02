@@ -5,12 +5,16 @@ on:
     paths:
       - .github/workflows/greenlight-tests.yml
       - greenlight/**
+      - .claude/hooks/greenlight/**
+      - .claude/skills/greenlight-review/**
   push:
     branches:
       - main
     paths:
       - .github/workflows/greenlight-tests.yml
       - greenlight/**
+      - .claude/hooks/greenlight/**
+      - .claude/skills/greenlight-review/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

@@ -54,8 +54,10 @@ logger = logging.getLogger(__name__)
 _FULL_STATUSES = TERMINAL_STATUSES
 _MARKER_STATUSES = RETRY_STATUSES | IN_FLIGHT_STATUSES
 
-# Canonical verdict reason codes. The ci-artifacts JSON schema and reviewer SKILL mirror
-# this set byte-for-byte; any change here must update them in lockstep.
+# Canonical verdict reason codes. Three files mirror this set byte-for-byte:
+# .claude/hooks/greenlight/verdict-schema.json, .claude/hooks/greenlight/validate-on-stop.sh,
+# and .claude/skills/greenlight-review/SKILL.md; agreement is enforced by
+# greenlight/tests/test_reason_enum_sync.py.
 ALLOWED_REASONS: frozenset[str] = frozenset(
     {
         "clean",

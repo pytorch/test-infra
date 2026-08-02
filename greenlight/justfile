@@ -50,7 +50,7 @@ lint:
     _run "ruff format" ruff format --check .
     _run "yamllint" uv run yamllint .
     _run "taplo check" taplo check
-    _run "shellcheck" shellcheck scripts/*.sh
+    _run "shellcheck" shellcheck --rcfile .shellcheckrc scripts/*.sh ../.claude/hooks/greenlight/*.sh
     _run "shfmt" shfmt -d -i 2 -ci scripts
     _run "markdownlint" markdownlint-cli2 "**/*.md" "#.venv"
 
