@@ -59,7 +59,12 @@ defaults:
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: mt-l-x86iavx512-16-32
+    # OSDC ARC (kubernetes-novolume) has no host execution mode: steps run in this
+    # container, which is the pod that receives the runner's CPU/memory. The base image
+    # supplies node (for JS actions) + git; mise-action installs Python 3.14, uv, and just.
+    container:
+      image: node:20-bookworm
     # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
     # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
     # Actions: write and Pull requests: read so the minted token can dispatch the

@@ -40,7 +40,12 @@ concurrency:
 jobs:
   announce_start:
     environment: greenlight-record
-    runs-on: ubuntu-latest
+    runs-on: mt-l-x86iavx512-16-32
+    # OSDC ARC (kubernetes-novolume) has no host execution mode: steps run in this
+    # container, which is the pod that receives the runner's CPU/memory. The base image
+    # supplies node (JS actions) + git; setup-python/uv and the tools step add the rest.
+    container:
+      image: node:20-bookworm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -56,6 +61,11 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           fetch-depth: 1
+
+      - name: Install container CLI tools
+        uses: ./.github/actions/greenlight-container-tools
+        with:
+          awscli: "true"
 
       - name: Set up Python 3.14
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
@@ -105,7 +115,9 @@ jobs:
 
   review:
     environment: bedrock
-    runs-on: ubuntu-latest
+    runs-on: mt-l-x86iavx512-16-32
+    container:
+      image: node:20-bookworm
     timeout-minutes: 40
     permissions:
       contents: read
@@ -124,6 +136,12 @@ jobs:
           ref: ${{ github.event.inputs.head_sha }}
           path: pytorch
           fetch-depth: 1
+
+      - name: Install container CLI tools
+        uses: ./.github/actions/greenlight-container-tools
+        with:
+          gh: "true"
+          jq: "true"
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
@@ -271,7 +289,9 @@ jobs:
   record:
     needs: [announce_start, review]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: mt-l-x86iavx512-16-32
+    container:
+      image: node:20-bookworm
     timeout-minutes: 15
     # Protected environment holding the Green Light App key (provision before first run):
     #   GREENLIGHT_APP_ID and GREENLIGHT_APP_PRIVATE_KEY. These live on this environment
@@ -292,6 +312,12 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           fetch-depth: 1
+
+      - name: Install container CLI tools
+        uses: ./.github/actions/greenlight-container-tools
+        with:
+          awscli: "true"
+          jq: "true"
 
       - name: Set up Python 3.14
         # greenlight pins requires-python >=3.14 with uv python-preference=only-system,
