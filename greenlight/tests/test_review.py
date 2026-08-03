@@ -45,7 +45,13 @@ _OLD = _NOW - timedelta(days=2)
 _NEW = _NOW - timedelta(hours=1)
 
 
-def _open_pr(number: int, *, head_sha: str | None = None, updated_at: datetime | None = None) -> OpenPR:
+def _open_pr(
+    number: int,
+    *,
+    head_sha: str | None = None,
+    updated_at: datetime | None = None,
+    labels: tuple[str, ...] = (),
+) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
         number=number,
@@ -54,6 +60,7 @@ def _open_pr(number: int, *, head_sha: str | None = None, updated_at: datetime |
         url=f"https://example.test/{number}",
         head_sha=head_sha or f"headsha{number}",
         updated_at=updated_at,
+        labels=labels,
     )
 
 
@@ -371,6 +378,82 @@ def test_recency_window_exactly_at_edge_is_out_of_window(make_config):
     # as out-of-window, so this never-reviewed PR is pruned rather than fingerprinted.
     assert scan.fingerprinted == []
     assert scan.dispatched == []
+
+
+def test_stale_label_in_window_never_reviewed_is_skipped(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Stale",))],
+            fingerprints={1: ("headsha1", _HASH_A)},
+        )
+
+    # The stale bot bumps updated_at when it applies "Stale", so this PR is inside the window yet
+    # abandoned. The label prunes it -- never fingerprinted, never dispatched.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "skipping PR #1: Stale label (never reviewed)" in caplog.text
+
+
+def test_stale_label_in_window_terminal_is_skipped(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Stale",))],
+            fingerprints={1: ("headsha1", _HASH_A)},
+            states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        )
+
+    # Stale-labeled and terminal (decided): its eval_hash cannot have changed, so the label prunes it
+    # without fingerprinting just as the never-reviewed case does -- but the skip log carries the
+    # recorded status, exercising the detail = recorded.status branch for a Stale-labeled PR.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert f"skipping PR #1: Stale label ({STATUS_LAND})" in caplog.text
+
+
+@pytest.mark.parametrize("status", [STATUS_AI_REVIEW_STARTED, STATUS_CANCELLED, STATUS_FAILED])
+def test_stale_label_nonterminal_state_is_still_processed(make_config, status):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Stale",))],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, status, _HASH_A, _STALE)},
+    )
+
+    # A non-terminal ledger state (in-flight / retry) survives the Stale label exactly as it survives
+    # the recency window: the PR is re-checked so decide can re-dispatch it on timeout/retry.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+@pytest.mark.parametrize("label", ["enhancement", "stale", "STALE"])
+def test_non_stale_label_in_window_is_not_skipped(make_config, label):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=(label,))],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    # Control: only the exact case-sensitive "Stale" prunes. Any other label -- including the
+    # lowercase/uppercase variants -- leaves an in-window never-reviewed PR fingerprinted.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_stale_label_pr_target_is_exempt(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        listed=[_open_pr(5, updated_at=_OLD, labels=("Stale",))],
+        fingerprints={5: ("headsha5", _HASH_A)},
+    )
+
+    # A single --pr target bypasses listing entirely (listed_calls == 0), so the Stale label -- which
+    # only ever comes from the listing -- can never suppress a manual recheck.
+    assert scan.listed_calls == 0
+    assert scan.fingerprinted == [5]
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
 def test_max_caps_only_dispatches(make_config):

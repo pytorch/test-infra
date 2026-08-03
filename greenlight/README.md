@@ -26,9 +26,11 @@ trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
 their last review. A PR whose `updated_at` is older than
-`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) is skipped without fingerprinting unless
-it has an in-flight or retry-eligible (cancelled/failed) review to re-check. An in-flight review — one marked
-`AI_REVIEW_STARTED` — is left alone until the `--timeout-minutes` re-dispatch window elapses.
+`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries the `Stale` label, is
+skipped without fingerprinting unless it has an in-flight or retry-eligible (cancelled/failed)
+review to re-check; an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. An
+in-flight review — one marked `AI_REVIEW_STARTED` — is left alone until the `--timeout-minutes`
+re-dispatch window elapses.
 The listing scan also skips a PR a human has already decided — approved by a merge-authorized
 login (any `approved_by` in `pytorch/pytorch`'s `merge_rules.yaml`, taken across all rules
 regardless of the PR's changed paths, bots excluded) or with changes requested by any non-bot
@@ -152,8 +154,9 @@ from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fin
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
 PRs that are new or changed. PRs whose `updated_at` is older than the review window
-(`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24) are skipped without fingerprinting
-unless a review is in-flight or retry-eligible (cancelled/failed). PRs a human has already decided
+(`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
+skipped without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed);
+an explicit `@greenlight recheck` (the `--pr` path) reviews such a PR regardless. PRs a human has already decided
 — approved by a merge-authorized login (bots excluded) or with changes requested by any non-bot
 reviewer — are also skipped without fingerprinting, and no state is written, so the scan resumes
 if that changes. An `AI_REVIEW_STARTED` marker is treated as an

@@ -11,8 +11,9 @@ loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
   for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A PR whose
-  `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) is skipped
-  without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed). A PR a
+  `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries
+  the `Stale` label, is skipped without fingerprinting unless a review is in-flight or retry-eligible
+  (cancelled/failed); an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. A PR a
   human has already decided — approved by a `merge_rules.yaml` approver (bots excluded) or with
   changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
   and no state is written, so the scan resumes if that changes. Needs
@@ -113,10 +114,11 @@ logs the resolved `Config`.
 The end-to-end flow, per trusted-author PR:
 
 1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`) — unless
-   the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24)
-   and it has no in-flight or retry-eligible (cancelled/failed) review, or a human has already
-   decided it (approved by a `merge_rules.yaml` approver with bots excluded, or changes requested
-   by any non-bot reviewer), in which case it is skipped without fingerprinting.
+   the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) or it
+   carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,
+   or a human has already decided it (approved by a `merge_rules.yaml` approver with bots excluded,
+   or changes requested by any non-bot reviewer), in which case it is skipped without fingerprinting
+   (an explicit `@greenlight recheck` via `--pr` reviews it regardless).
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow

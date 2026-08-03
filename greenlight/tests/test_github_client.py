@@ -15,6 +15,11 @@ class _FakeUser:
         self.login = login
 
 
+class _FakeLabel:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
 class _FakePull:
     def __init__(
         self,
@@ -24,6 +29,7 @@ class _FakePull:
         html_url: str,
         head_sha: str = "head-sha",
         updated_at: datetime | None = None,
+        labels: list[str] | None = None,
     ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
@@ -31,6 +37,7 @@ class _FakePull:
         self.html_url = html_url
         self.head = _FakeBase(head_sha)
         self.updated_at = updated_at
+        self.labels = [_FakeLabel(name) for name in (labels or [])]
 
 
 class _FakeRepo:
@@ -174,8 +181,19 @@ def test_list_open_prs_by_authors_maps_pull_fields():
             url="https://github.com/pytorch/pytorch/pull/42",
             head_sha="abc123",
             updated_at=datetime(2026, 7, 30, 9, 0, 0),
+            labels=(),
         )
     ]
+
+
+def test_list_open_prs_by_authors_maps_labels():
+    client = _client_with_pulls([_FakePull(1, "alice", "fix", "https://example.test/1", labels=["Stale", "ci-no-td"])])
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
+
+    # Each label's name is carried onto OpenPR.labels in listing order, read from the get_pulls
+    # payload with no extra API call.
+    assert prs[0].labels == ("Stale", "ci-no-td")
 
 
 def test_list_open_prs_by_authors_normalizes_tz_aware_updated_at():

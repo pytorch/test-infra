@@ -25,6 +25,10 @@ if TYPE_CHECKING:
         @property
         def login(self) -> str | None: ...
 
+    class _Label(Protocol):
+        @property
+        def name(self) -> str: ...
+
     class _PullRequest(Protocol):
         @property
         def number(self) -> int: ...
@@ -38,6 +42,8 @@ if TYPE_CHECKING:
         def head(self) -> _PRBase: ...
         @property
         def updated_at(self) -> datetime | None: ...
+        @property
+        def labels(self) -> Iterable[_Label]: ...
 
     class _Repo(Protocol):
         def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
@@ -142,6 +148,7 @@ class OpenPR:
     url: str
     head_sha: str
     updated_at: datetime | None
+    labels: tuple[str, ...] = ()
 
 
 # Pin the request timeout so a future PyGithub default change can't let
@@ -175,6 +182,7 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
                     url=pr.html_url,
                     head_sha=pr.head.sha,
                     updated_at=naive_utc(updated_at) if updated_at is not None else None,
+                    labels=tuple(label.name for label in pr.labels),
                 )
             )
     return sorted(prs, key=lambda p: p.number)

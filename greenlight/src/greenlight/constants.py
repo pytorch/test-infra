@@ -15,6 +15,10 @@ IN_FLIGHT_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_STARTED})
 RETRY_STATUSES: frozenset[str] = frozenset({STATUS_CANCELLED, STATUS_FAILED})
 VERDICT_STATUSES: frozenset[str] = TERMINAL_STATUSES | IN_FLIGHT_STATUSES | RETRY_STATUSES
 
+# GitHub labels are case-sensitive; the pytorch stale bot uses the exact name "Stale".
+STALE_LABEL = "Stale"
+EXCLUDED_LABELS: frozenset[str] = frozenset({STALE_LABEL})
+
 S3_KEY_PREFIX = "greenlight_pr_state"
 EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")

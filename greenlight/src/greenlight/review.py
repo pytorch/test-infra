@@ -24,7 +24,13 @@ from typing import TYPE_CHECKING
 
 from greenlight import dispatch as dispatch_module
 from greenlight import github_client, scan_runner, state
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO, TERMINAL_STATUSES
+from greenlight.constants import (
+    DEFAULT_DISPATCH_REF,
+    DEFAULT_TIMEOUT_MINUTES,
+    EXCLUDED_LABELS,
+    TARGET_REPO,
+    TERMINAL_STATUSES,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -102,15 +108,22 @@ def _close_client(client: Github) -> None:
 
 def _candidate_numbers(
     client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]
-) -> tuple[list[int], dict[int, datetime | None]]:
+) -> tuple[list[int], dict[int, datetime | None], frozenset[int]]:
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}
+        return [pr], {}, frozenset()
     open_prs = fetch(client)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
         logger.info("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-    return [open_pr.number for open_pr in open_prs], {open_pr.number: open_pr.updated_at for open_pr in open_prs}
+    stale_labeled_numbers = frozenset(
+        open_pr.number for open_pr in open_prs if not EXCLUDED_LABELS.isdisjoint(open_pr.labels)
+    )
+    return (
+        [open_pr.number for open_pr in open_prs],
+        {open_pr.number: open_pr.updated_at for open_pr in open_prs},
+        stale_labeled_numbers,
+    )
 
 
 def _within_recency_window(updated_at: datetime | None, now: datetime, window: timedelta) -> bool:
@@ -124,28 +137,37 @@ def _recency_filter(
     pr_numbers: Sequence[int],
     updated_at_by_number: dict[int, datetime | None],
     states: dict[int, PRState],
+    stale_labeled_numbers: frozenset[int],
     *,
     now: datetime,
     window: timedelta,
 ) -> list[int]:
-    """Drop stale PRs the scan can safely leave alone this iteration.
+    """Drop PRs the scan can safely leave alone this iteration.
 
-    A PR is kept when it was updated within ``window`` OR its recorded state is non-terminal
-    (in-flight or retry-eligible), so ``decide`` can still re-dispatch it on timeout/retry. A
-    stale PR is skipped without fingerprinting when it is terminal (its eval_hash cannot have
-    changed) or never reviewed (an untouched PR outside the window is not worth a first review).
+    A PR is kept when it was updated within ``window`` AND is not ``Stale``-labeled, OR its
+    recorded state is non-terminal (in-flight or retry-eligible), so ``decide`` can still
+    re-dispatch it on timeout/retry. A PR is skipped without fingerprinting when it is stale or
+    ``Stale``-labeled and either terminal (its eval_hash cannot have changed) or never reviewed
+    (an untouched PR is not worth a first review). The ``Stale`` label matters because the pytorch
+    stale bot bumps ``updated_at`` when it applies the label, which would otherwise drag an
+    abandoned never-reviewed PR back into the window.
     """
     kept: list[int] = []
     for number in pr_numbers:
-        if _within_recency_window(updated_at_by_number.get(number), now, window):
+        active = _within_recency_window(updated_at_by_number.get(number), now, window)
+        stale_labeled = number in stale_labeled_numbers
+        if active and not stale_labeled:
             kept.append(number)
             continue
         recorded = states.get(number)
-        if recorded is None or recorded.status in TERMINAL_STATUSES:
-            detail = recorded.status if recorded is not None else "never reviewed"
-            logger.info("skipping stale PR #%d: no recent activity (%s)", number, detail)
+        if recorded is not None and recorded.status not in TERMINAL_STATUSES:
+            kept.append(number)
             continue
-        kept.append(number)
+        detail = recorded.status if recorded is not None else "never reviewed"
+        if stale_labeled:
+            logger.info("skipping PR #%d: Stale label (%s)", number, detail)
+        else:
+            logger.info("skipping stale PR #%d: no recent activity (%s)", number, detail)
     return kept
 
 
@@ -199,7 +221,7 @@ def run(
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        pr_numbers, updated_at_by_number = _candidate_numbers(client, pr=pr, fetch=fetch)
+        pr_numbers, updated_at_by_number, stale_labeled_numbers = _candidate_numbers(client, pr=pr, fetch=fetch)
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
         timeout = timedelta(minutes=timeout_minutes)
@@ -213,6 +235,7 @@ def run(
                 pr_numbers,
                 updated_at_by_number,
                 states,
+                stale_labeled_numbers,
                 now=evaluated_at,
                 window=timedelta(hours=config.review_window_hours),
             )
