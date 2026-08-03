@@ -1,0 +1,57 @@
+name: Greenlight container tools
+description: >-
+  Installs CLI tools that the GitHub-hosted ubuntu image ships by default but a
+  minimal container base image does not (jq, AWS CLI v2, GitHub CLI). Only the
+  tools a job requests are installed. Assumes a Debian/Ubuntu base running as root.
+
+inputs:
+  jq:
+    description: Install jq
+    default: "false"
+  awscli:
+    description: Install AWS CLI v2
+    default: "false"
+  gh:
+    description: Install the GitHub CLI (gh)
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install apt packages
+      shell: bash
+      env:
+        INSTALL_JQ: ${{ inputs.jq }}
+        INSTALL_AWSCLI: ${{ inputs.awscli }}
+      run: |
+        set -euo pipefail
+        pkgs=(ca-certificates curl)
+        if [ "$INSTALL_JQ" = "true" ]; then pkgs+=(jq); fi
+        if [ "$INSTALL_AWSCLI" = "true" ]; then pkgs+=(unzip); fi
+        apt-get update
+        apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+    - name: Install GitHub CLI
+      if: ${{ inputs.gh == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        install -d -m 755 /etc/apt/keyrings
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+          -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        arch="$(dpkg --print-architecture)"
+        echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+          > /etc/apt/sources.list.d/github-cli.list
+        apt-get update
+        apt-get install -y --no-install-recommends gh
+
+    - name: Install AWS CLI v2
+      if: ${{ inputs.awscli == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip
+        unzip -q /tmp/awscliv2.zip -d /tmp
+        /tmp/aws/install
+        rm -rf /tmp/awscliv2.zip /tmp/aws
