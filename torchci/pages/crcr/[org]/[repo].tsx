@@ -610,6 +610,7 @@ function CrcrMatrix({
     [matrix]
   );
   const prInfoMap = usePrInfo(upstreamRepo, prNumbers);
+  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
 
   if (error) {
     return (
@@ -637,8 +638,6 @@ function CrcrMatrix({
       </>
     );
   }
-
-  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
 
   return (
     <>
