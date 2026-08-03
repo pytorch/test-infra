@@ -1,10 +1,141 @@
-name: Green Light Review
+name: Green Light Scan
+
+# Manually runs the greenlight scanner (`just review`): lists open pytorch/pytorch PRs
+# from trusted authors and dispatches greenlight-pr-review.yml for each new or changed
+# PR. Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
 
 on:
   workflow_dispatch:
+    inputs:
+      pr:
+        description: "Single pytorch/pytorch PR number to scan (empty = all trusted authors)"
+        required: false
+        default: ""
+        type: string
+      requester:
+        description: "Login that requested this review (@greenlight recheck); must be a trusted author"
+        required: false
+        default: ""
+        type: string
+      max:
+        description: "Max dispatches this run (empty = no cap)"
+        required: false
+        default: ""
+        type: string
+      ref:
+        description: "Ref of greenlight-pr-review.yml to dispatch"
+        required: false
+        default: "main"
+        type: string
+      timeout_minutes:
+        description: "In-flight / re-dispatch timeout (minutes)"
+        required: false
+        default: "45"
+        type: string
+      log_level:
+        description: "Log verbosity"
+        required: false
+        default: "INFO"
+        type: choice
+        options:
+          - DEBUG
+          - INFO
+          - WARNING
+          - ERROR
+
+# Singleton: only one scan runs at a time, and a new dispatch waits rather than
+# cancelling an in-flight scan (which could leave dispatch bookkeeping half-done).
+concurrency:
+  group: ${{ github.workflow }}-singleton
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    working-directory: greenlight
 
 jobs:
-  noop:
+  scan:
     runs-on: ubuntu-latest
+    # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
+    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
+    # Actions: write and Pull requests: read so the minted token can dispatch the
+    # reviewer workflow and read PRs across pytorch/pytorch and pytorch/test-infra.
+    environment: greenlight-record
     steps:
-      - run: echo "stub"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea  # v4.2.1
+        with:
+          working_directory: greenlight
+
+      # Least privilege: the listing scan only reads PRs, so it mints a pull-requests:read token.
+      # The --pr recheck may post a refusal comment, so it mints pull-requests:write instead.
+      # Exactly one of these runs per invocation (keyed on whether a PR number was given); both
+      # keep actions:write to dispatch the reviewer workflow.
+      - name: Mint Green Light app token (read-only listing scan)
+        id: app-token-ro
+        if: inputs.pr == ''
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: pytorch,test-infra
+          permission-pull-requests: read
+          permission-actions: write
+          permission-contents: read
+          permission-members: read
+
+      - name: Mint Green Light app token (recheck, can comment)
+        id: app-token-rw
+        if: inputs.pr != ''
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: pytorch,test-infra
+          permission-pull-requests: write
+          permission-actions: write
+          permission-contents: read
+          permission-members: read
+
+      - name: Sync dependencies
+        run: just setup
+
+      # The scan PUTs an AI_REVIEW_DISPATCHED state row to S3 via boto3 the instant it fires the
+      # reviewer workflow, so it needs the same OIDC role/arc the reviewer and record jobs use.
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
+
+      - name: Scan and dispatch
+        env:
+          # Whichever token step ran (exactly one does): read-only for the listing scan,
+          # pull-requests:write for a --pr recheck so it can post a refusal comment.
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token-ro.outputs.token || steps.app-token-rw.outputs.token }}
+          # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment. Only the
+          # write token step exposes app-slug, so this is empty on the read-only listing scan.
+          BOT_LOGIN: ${{ steps.app-token-rw.outputs.app-slug && format('{0}[bot]', steps.app-token-rw.outputs.app-slug) || '' }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          IN_PR: ${{ inputs.pr }}
+          IN_REQUESTER: ${{ inputs.requester }}
+          IN_MAX: ${{ inputs.max }}
+          IN_REF: ${{ inputs.ref }}
+          IN_TIMEOUT: ${{ inputs.timeout_minutes }}
+          IN_LOG_LEVEL: ${{ inputs.log_level }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); fi
+          if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
+          if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
+          args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")
+          just review "${args[@]}"

@@ -1,0 +1,97 @@
+[project]
+name = "greenlight"
+version = "0.0.0"
+description = "CLI-invoked periodic iteration service, daemon-capable."
+requires-python = ">=3.14,<3.15"
+dependencies = ["pygithub>=2.6.1", "clickhouse-connect>=0.10", "pyyaml>=6", "boto3>=1.34"]
+
+[project.scripts]
+greenlight = "greenlight.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/greenlight"]
+
+[dependency-groups]
+dev = ["ruff", "mypy", "pytest", "pytest-cov", "pytest-xdist", "yamllint", "types-PyYAML"]
+
+[tool.uv]
+python-preference = "only-system"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "RUF",
+  "S",
+  "T20",
+  "PIE",
+  "C4",
+  "PT",
+  "RSE",
+  "RET",
+  "TCH",
+  "ARG",
+  "ERA",
+]
+ignore = ["RET504"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "ARG", "PT011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["greenlight"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short -q"
+markers = ["slow: slow tests"]
+
+[tool.coverage.run]
+source = ["greenlight"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 97
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests"]
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# boto3/botocore ship no inline types and their stubs are separate packages; the S3 put_object
+# call is typed at the seam via a local Protocol and the client Config is a plain data object, so
+# these module imports can be treated as untyped.
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.config"]
+ignore_missing_imports = true

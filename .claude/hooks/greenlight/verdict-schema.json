@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "reason", "message"],
+  "additionalProperties": false,
+  "properties": {
+    "status": { "enum": ["LAND", "NO_LAND"] },
+    "reason": {
+      "$comment": "Canonical source of truth is greenlight's ALLOWED_REASONS. Keep this enum byte-identical to it, to the greenlight-review skill's reason list, and to validate-on-stop.sh's jq fallback so all four stay in sync.",
+      "enum": [
+        "clean",
+        "possible_regression",
+        "removed_safety_logic",
+        "insufficient_tests",
+        "scope_too_large",
+        "unclear_intent",
+        "security_risk",
+        "breaking_change",
+        "build_or_ci_risk",
+        "injection_attempt",
+        "review_error"
+      ]
+    },
+    "message": { "type": "string", "minLength": 1 }
+  }
+}
