@@ -228,18 +228,6 @@
       "linux"
     ]
   ],
-  "test_compiled_autograd_attribution (__main__.StructuredTraceTest)": [
-    "156921",
-    "https://github.com/pytorch/pytorch/issues/156921",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -753,17 +741,6 @@
     "189221",
     "https://github.com/pytorch/pytorch/issues/189221",
     [
-      "rocm"
-    ]
-  ],
-  "test_nested_graph_break_in_loop (__main__.NestedGraphBreakTests)": [
-    "179687",
-    "https://github.com/pytorch/pytorch/issues/179687",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
       "rocm"
     ]
   ],
