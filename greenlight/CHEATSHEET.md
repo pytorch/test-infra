@@ -39,10 +39,12 @@ pytest, yamllint) into `.venv`.
 ```bash
 just review                          # one scan + dispatch iteration, then exit
 just run <args>                      # pass arbitrary args to the greenlight CLI (review is a shortcut)
-just review --pr 123                 # restrict the scan to PR #123
+just review --pr 123                 # scan only PR #123 (its author must be trusted)
+just review --pr 123 --requester alice  # recheck PR #123 for alice (author and alice must be trusted)
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
+just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
 ```
 
 `just review` scans the trusted authors' open PRs and, for each PR that is new or changed
@@ -62,6 +64,13 @@ That 45 is above the reviewer workflow's own ~37-40 min budget, so with the defa
 scanner lets a running review finish (or time out and record a verdict) before it
 re-dispatches, rather than cancelling and restarting one that is still running; lower
 `--timeout-minutes` in the deployment if you need a stuck review reclaimed sooner.
+
+`@greenlight recheck` on a `pytorch/pytorch` PR (via the separately deployed trigger) dispatches
+`greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`. The scan
+is the sole authorizer: `--pr` refuses unless PR N's author is trusted, and `--requester` refuses
+unless the commenter is trusted too (case-insensitive; a refusal is a clean exit 0). The local-only
+`--allow-untrusted-author` skips the target-author check for iteration and is never a workflow
+input. The command is not yet advertised in the PR status comment.
 
 Daemon mode loops the phase on an interval:
 

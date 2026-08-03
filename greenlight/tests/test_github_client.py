@@ -263,6 +263,48 @@ def test_list_open_prs_by_authors_propagates_errors():
         github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
 
 
+class _FakeAuthorPull:
+    def __init__(self, user: _FakeUser | None) -> None:
+        self.user = user
+
+
+class _FakeAuthorRepo:
+    def __init__(self, pull: _FakeAuthorPull) -> None:
+        self._pull = pull
+        self.get_pull_numbers: list[int] = []
+
+    def get_pull(self, number: int) -> _FakeAuthorPull:
+        self.get_pull_numbers.append(number)
+        return self._pull
+
+
+class _FakeAuthorClient:
+    def __init__(self, repo: _FakeAuthorRepo) -> None:
+        self._repo = repo
+        self.get_repo_names: list[str] = []
+
+    def get_repo(self, full_name_or_id: str) -> _FakeAuthorRepo:
+        self.get_repo_names.append(full_name_or_id)
+        return self._repo
+
+
+def test_get_pr_author_returns_login():
+    repo = _FakeAuthorRepo(_FakeAuthorPull(_FakeUser("albanD")))
+    client = _FakeAuthorClient(repo)
+
+    author = github_client.get_pr_author(client, "pytorch/pytorch", 42)
+
+    assert author == "albanD"
+    assert client.get_repo_names == ["pytorch/pytorch"]
+    assert repo.get_pull_numbers == [42]
+
+
+def test_get_pr_author_returns_none_when_user_missing():
+    client = _FakeAuthorClient(_FakeAuthorRepo(_FakeAuthorPull(None)))
+
+    assert github_client.get_pr_author(client, "pytorch/pytorch", 7) is None
+
+
 def test_build_client_returns_github_instance_with_per_page_100():
     client = github_client.build_client("x")
 

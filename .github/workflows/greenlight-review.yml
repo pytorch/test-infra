@@ -12,6 +12,11 @@ on:
         required: false
         default: ""
         type: string
+      requester:
+        description: "Login that requested this review (@greenlight recheck); must be a trusted author"
+        required: false
+        default: ""
+        type: string
       max:
         description: "Max dispatches this run (empty = no cap)"
         required: false
@@ -86,6 +91,7 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           IN_PR: ${{ inputs.pr }}
+          IN_REQUESTER: ${{ inputs.requester }}
           IN_MAX: ${{ inputs.max }}
           IN_REF: ${{ inputs.ref }}
           IN_TIMEOUT: ${{ inputs.timeout_minutes }}
@@ -94,6 +100,7 @@ jobs:
           set -euo pipefail
           args=()
           if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); fi
+          if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
           if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
           args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")
           just review "${args[@]}"

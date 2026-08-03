@@ -46,7 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     review_parser.add_argument(
-        "--pr", type=int, default=None, help="scan only this PR number, bypassing the trusted-author listing"
+        "--pr",
+        type=int,
+        default=None,
+        help="scan only this PR number (skips the listing; the PR's author must still be trusted)",
     )
     review_parser.add_argument(
         "--max",
@@ -65,6 +68,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="re-dispatch even if already reviewed; requires --pr, not allowed with --loop",
+    )
+    review_parser.add_argument(
+        "--requester",
+        default=None,
+        help="login that requested this review (@greenlight recheck); must be a trusted author or the run refuses",
+    )
+    review_parser.add_argument(
+        "--allow-untrusted-author",
+        action="store_true",
+        help="LOCAL USE ONLY: skip the --pr target-author trusted check (never exposed as a workflow input)",
     )
 
     verdict_parser = subparsers.add_parser(
@@ -203,6 +216,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         ref=args.ref,
         timeout_minutes=args.timeout_minutes,
         force=args.force,
+        requester=args.requester,
+        allow_untrusted_author=args.allow_untrusted_author,
         resolve_authorized=authorized_cache.get,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

@@ -67,6 +67,7 @@ class _Scan:
     listed_calls: int
     resolver_calls: int
     authorized_seen: list[frozenset[str]]
+    author_fetched: list[int]
 
 
 def _run_scan(
@@ -82,6 +83,9 @@ def _run_scan(
     force: bool = False,
     authorized: frozenset[str] = _AUTHORIZED,
     now: datetime = _NOW,
+    requester: str | None = None,
+    allow_untrusted_author: bool = False,
+    author: str | None = "albanD",
     config_kwargs: dict[str, object] | None = None,
 ) -> _Scan:
     states = states or {}
@@ -91,6 +95,7 @@ def _run_scan(
     listed_calls: list[int] = []
     resolver_calls: list[int] = []
     authorized_seen: list[frozenset[str]] = []
+    author_fetched: list[int] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
@@ -113,6 +118,10 @@ def _run_scan(
         resolver_calls.append(1)
         return authorized
 
+    def fake_fetch_author(_client, number):
+        author_fetched.append(number)
+        return author
+
     review.run(
         make_config(github_token="t", **(config_kwargs or {})),
         pr=pr,
@@ -120,15 +129,20 @@ def _run_scan(
         ref=ref,
         timeout_minutes=timeout_minutes,
         force=force,
+        requester=requester,
+        allow_untrusted_author=allow_untrusted_author,
         build_github=lambda _token: _CLIENT,
         fetch=fake_fetch,
+        fetch_author=fake_fetch_author,
         fingerprint=fake_fingerprint,
         read_state=fake_read_state,
         dispatch=fake_dispatch,
         resolve_authorized=fake_resolve_authorized,
         now=lambda: now,
     )
-    return _Scan(dispatched, read_calls, fingerprinted, len(listed_calls), len(resolver_calls), authorized_seen)
+    return _Scan(
+        dispatched, read_calls, fingerprinted, len(listed_calls), len(resolver_calls), authorized_seen, author_fetched
+    )
 
 
 def test_never_reviewed_dispatches(make_config):
@@ -478,6 +492,155 @@ def test_pr_decided_still_skips(make_config):
     assert scan.listed_calls == 0
 
 
+def test_pr_untrusted_target_author_is_refused(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            author="mallory",
+        )
+
+    # --pr on an untrusted-author PR with no requester (the scan/local path): the target-author gate
+    # still applies -- the PR is looked up, refused, and never fingerprinted or dispatched.
+    assert scan.author_fetched == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    # A refused --pr does zero merge-rules work: resolve_authorized runs only after the gate.
+    assert scan.resolver_calls == 0
+    assert "refusing --pr 5" in caplog.text
+
+
+def test_pr_target_author_none_is_refused(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            author=None,
+        )
+
+    # A PR whose author cannot be resolved (ghost/deleted user) is untrusted by definition: refused.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert scan.resolver_calls == 0
+    assert "refusing --pr 5" in caplog.text
+
+
+def test_requester_untrusted_is_refused_before_any_fetch(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester="mallory",
+            author="albanD",
+        )
+
+    # An untrusted requester is rejected before any network work: the target author is never even
+    # looked up, and nothing is fingerprinted or dispatched.
+    assert scan.author_fetched == []
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    # An untrusted requester is refused before the ExitStack, so no merge-rules work happens either.
+    assert scan.resolver_calls == 0
+    assert "refusing review: requester 'mallory'" in caplog.text
+
+
+def test_requester_and_target_trusted_proceeds(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester="huydhn",
+            author="albanD",
+        )
+
+    # Both gates pass: the recheck proceeds (never-reviewed PR dispatches) and the requester is
+    # logged for audit.
+    assert scan.author_fetched == [5]
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert "review requested by trusted author huydhn" in caplog.text
+
+
+def test_requester_trusted_matched_case_insensitively(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        requester="ALBAND",
+    )
+
+    # GitHub logins are case-insensitive, so a trusted requester in any case passes the gate.
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_allow_untrusted_author_bypasses_target_check(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="mallory",
+        allow_untrusted_author=True,
+    )
+
+    # The local override skips the target-author check entirely: the PR is not even looked up, and
+    # the otherwise-untrusted author is fingerprinted and dispatched.
+    assert scan.author_fetched == []
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_allow_untrusted_author_does_not_bypass_requester_check(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester="mallory",
+            author="mallory",
+            allow_untrusted_author=True,
+        )
+
+    # The override covers ONLY the target-author check; an untrusted requester is still refused.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "refusing review: requester 'mallory'" in caplog.text
+
+
+def test_trusted_requester_does_not_bypass_untrusted_target_author(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester="huydhn",
+            author="mallory",
+        )
+
+    # The core recheck-abuse guard: a TRUSTED requester must NOT bypass the target-author gate. PR 5's
+    # untrusted author is still looked up and refused -- no fingerprint, no dispatch, no merge-rules
+    # work -- so a trusted requester can never get an arbitrary (untrusted-author) PR reviewed/approved.
+    assert scan.author_fetched == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert scan.resolver_calls == 0
+    assert "refusing --pr 5" in caplog.text
+
+
+def test_pr_target_author_matched_case_insensitively(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        requester="huydhn",
+        author="ALBAND",
+    )
+
+    # The target-author gate case-folds too: an uppercase trusted author passes and the PR proceeds.
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
 def test_force_dispatches_decided_pr_via_fingerprint_all(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         scan = _run_scan(
@@ -532,6 +695,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             force=True,
             build_github=lambda _token: _CLIENT,
             fetch=lambda _client: [],
+            fetch_author=lambda _client, _number: "albanD",
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             dispatch=fake_dispatch,
@@ -1075,6 +1239,25 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
     assert captured["authors"] == review.TRUSTED_AUTHORS
+
+
+def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_get_pr_author(client, repo, pr_number):
+        captured["client"] = client
+        captured["repo"] = repo
+        captured["pr_number"] = pr_number
+        return "albanD"
+
+    monkeypatch.setattr(github_client, "get_pr_author", fake_get_pr_author)
+
+    result = review._default_fetch_author(_CLIENT, 7)
+
+    assert result == "albanD"
+    assert captured["client"] is _CLIENT
+    assert captured["repo"] == TARGET_REPO
+    assert captured["pr_number"] == 7
 
 
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):

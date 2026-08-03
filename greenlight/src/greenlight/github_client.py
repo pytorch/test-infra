@@ -80,6 +80,16 @@ if TYPE_CHECKING:
     class _ScanRepo(Protocol):
         def get_pull(self, number: int) -> _FingerprintPR: ...
 
+    class _AuthorPR(Protocol):
+        @property
+        def user(self) -> _PRUser | None: ...
+
+    class _AuthorRepo(Protocol):
+        def get_pull(self, number: int) -> _AuthorPR: ...
+
+    class _AuthorClient(Protocol):
+        def get_repo(self, full_name_or_id: str) -> _AuthorRepo: ...
+
     class _VerdictReview(Protocol):
         @property
         def id(self) -> int: ...
@@ -165,6 +175,18 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
                 )
             )
     return sorted(prs, key=lambda p: p.number)
+
+
+def get_pr_author(client: _AuthorClient, repo: str, number: int) -> str | None:
+    """Return the login of a single PR's author, or None if it has no resolvable user.
+
+    Used by the ``--pr`` scan path to gate on the target PR's author: unlike the listing path
+    (already filtered to trusted authors), ``--pr`` names an arbitrary PR, so the caller must
+    verify its author before fingerprinting or dispatching a review.
+    """
+    pr = client.get_repo(repo).get_pull(number)
+    user = pr.user
+    return user.login if user is not None else None
 
 
 def _actor_login(

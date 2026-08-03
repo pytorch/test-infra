@@ -107,6 +107,8 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "ref": "main",
         "timeout_minutes": 45,
         "force": False,
+        "requester": None,
+        "allow_untrusted_author": False,
     }
 
 
@@ -504,6 +506,15 @@ def test_review_parser_scan_flag_defaults():
     assert args.ref == DEFAULT_DISPATCH_REF
     assert args.timeout_minutes == DEFAULT_TIMEOUT_MINUTES
     assert args.force is False
+    assert args.requester is None
+    assert args.allow_untrusted_author is False
+
+
+def test_review_parser_parses_requester_and_allow_untrusted_author():
+    parser = cli.build_parser()
+    args = parser.parse_args(["review", "--pr", "5", "--requester", "albanD", "--allow-untrusted-author"])
+    assert args.requester == "albanD"
+    assert args.allow_untrusted_author is True
 
 
 def test_main_review_binds_scan_flags_into_run(monkeypatch):
@@ -523,6 +534,8 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "ref": "release/2.9",
         "timeout_minutes": 60,
         "force": False,
+        "requester": None,
+        "allow_untrusted_author": False,
     }
 
 
@@ -541,6 +554,8 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "ref": DEFAULT_DISPATCH_REF,
         "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
         "force": False,
+        "requester": None,
+        "allow_untrusted_author": False,
     }
 
 
@@ -579,6 +594,28 @@ def test_main_review_force_binds_into_run(monkeypatch):
         "ref": DEFAULT_DISPATCH_REF,
         "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
         "force": True,
+        "requester": None,
+        "allow_untrusted_author": False,
+    }
+
+
+def test_main_review_binds_requester_and_override_into_run(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5", "--requester", "albanD", "--allow-untrusted-author"])
+
+    assert rc == EXIT_OK
+    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
+        "pr": 5,
+        "max_dispatches": None,
+        "ref": DEFAULT_DISPATCH_REF,
+        "timeout_minutes": DEFAULT_TIMEOUT_MINUTES,
+        "force": False,
+        "requester": "albanD",
+        "allow_untrusted_author": True,
     }
 
 

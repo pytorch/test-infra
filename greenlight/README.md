@@ -37,10 +37,12 @@ just run review                      # scan + dispatch once, then exit
 just review                          # convenience alias for `just run review`
 just run review --loop               # scan + dispatch forever as a daemon
 just run review --loop --interval 30 # daemon, 30s between iterations
-just run review --pr 123             # restrict the scan to PR #123
+just run review --pr 123             # scan only PR #123 (its author must be trusted)
+just run review --pr 123 --requester alice  # recheck PR #123 for alice (author and alice must be trusted)
 just run review --max 5              # cap this iteration at 5 dispatches
 just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
 just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 45)
+just run review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
 ```
 
 `review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan that finds at least one
@@ -52,6 +54,31 @@ budget, so with the default the scanner lets a running review finish (or time ou
 record a verdict) before it re-dispatches, rather than cancelling and restarting one that
 is still running. Lower `--timeout-minutes` in the deployment if you need a stuck review
 reclaimed sooner.
+
+### Rechecking a PR (`@greenlight recheck`)
+
+A trusted author can re-trigger a review by commenting `@greenlight recheck` on a
+`pytorch/pytorch` PR. A thin `pytorch/pytorch` workflow (deployed separately) dispatches
+`greenlight-review.yml` with the PR number and the commenter's login, and the scan re-checks
+that one PR through the `--pr` path.
+
+The scan is the single source of authorization and enforces two gates against the trusted-author
+set (`review.TRUSTED_AUTHORS`), matched case-insensitively:
+
+- **Target-author gate** — `--pr N` looks up PR `N`'s author and refuses (no fingerprint, no
+  dispatch, no review) unless that author is trusted. Unlike the listing scan, `--pr` names an
+  arbitrary PR, so this gate is what stops an arbitrary PR from being reviewed or approved on request.
+- **Requester gate** — `--requester <login>`, when given, additionally requires `<login>` to be
+  trusted; an untrusted requester is refused before any network work, and the requester is logged
+  for audit.
+
+A refusal is a clean no-op (exit 0), not a failure. `--allow-untrusted-author` is a **local-only**
+flag that skips the target-author gate for iteration; it is deliberately not exposed as a
+`greenlight-review.yml` input, is unreachable from the comment/dispatch path, and never affects the
+requester gate.
+
+The user-facing `@greenlight recheck` hint is not yet advertised in the PR status comment; that
+is added once the `pytorch/pytorch` trigger is deployed.
 
 ### Recording a verdict
 

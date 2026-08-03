@@ -46,6 +46,15 @@ TRUSTED_AUTHORS: set[str] = {
     "jeanschmidt",  # Jean Schmidt
 }
 
+# Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
+# GitHub logins are case-insensitive, so gate on the lowercased login against this derived set.
+_TRUSTED_LOWER: frozenset[str] = frozenset(author.lower() for author in TRUSTED_AUTHORS)
+
+
+def _is_trusted(login: str | None) -> bool:
+    return login is not None and login.lower() in _TRUSTED_LOWER
+
+
 _FINGERPRINT_WORKERS = 8
 
 # Never-reviewed candidates sort ahead of every recorded one; this stands in for their
@@ -62,6 +71,10 @@ def _utcnow() -> datetime:
 
 def _default_fetch(client: Github) -> list[OpenPR]:
     return github_client.list_open_prs_by_authors(client, TARGET_REPO, TRUSTED_AUTHORS)
+
+
+def _default_fetch_author(client: Github, pr_number: int) -> str | None:
+    return github_client.get_pr_author(client, TARGET_REPO, pr_number)
 
 
 def _default_fingerprint(client: Github, pr_number: int, authorized_logins: frozenset[str]) -> tuple[str, str]:
@@ -289,8 +302,11 @@ def run(
     ref: str = DEFAULT_DISPATCH_REF,
     timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES,
     force: bool = False,
+    requester: str | None = None,
+    allow_untrusted_author: bool = False,
     build_github: Callable[[str], Github] = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
+    fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
     fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]] = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
@@ -302,13 +318,29 @@ def run(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
-    # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
-    authorized_logins = resolve_authorized()
-    logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
+    # Requester gate (recheck path): an untrusted requester is rejected before any network work,
+    # so a spammed @greenlight recheck from an untrusted login costs nothing. A policy refusal is
+    # not a failure -- return cleanly rather than raising (no non-zero exit, no daemon backoff).
+    if requester is not None:
+        if not _is_trusted(requester):
+            logger.warning("refusing review: requester %r is not a trusted author", requester)
+            return
+        logger.info("review requested by trusted author %s", requester)
     with contextlib.ExitStack() as clients:
         client = build_github(token)
         clients.callback(_close_client, client)
+        # Target-author gate: the listing path is already trusted-only, but --pr names an arbitrary
+        # PR, so its author MUST be trusted too or greenlight would review/approve any PR on request.
+        # allow_untrusted_author bypasses ONLY this check (local iteration; never a workflow input).
+        if pr is not None and not allow_untrusted_author:
+            author = fetch_author(client, pr)
+            if not _is_trusted(author):
+                logger.warning("refusing --pr %d: author %r is not a trusted author", pr, author)
+                return
+        # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
+        # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
+        authorized_logins = resolve_authorized()
+        logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
         pr_numbers, updated_at_by_number = _candidate_numbers(client, pr=pr, fetch=fetch)
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
