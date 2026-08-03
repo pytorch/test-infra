@@ -37,6 +37,12 @@ concurrency:
   group: greenlight-pr-review-${{ github.event.inputs.pr_number }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    # Container base (node:20-bookworm) defaults run steps to dash, which rejects
+    # `set -o pipefail`; force bash so the existing bash-syntax steps keep working.
+    shell: bash
+
 jobs:
   announce_start:
     environment: greenlight-record

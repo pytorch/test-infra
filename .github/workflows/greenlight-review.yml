@@ -56,6 +56,9 @@ permissions:
 defaults:
   run:
     working-directory: greenlight
+    # Container base (node:20-bookworm) defaults run steps to dash, which rejects
+    # `set -o pipefail`; force bash so the existing bash-syntax steps keep working.
+    shell: bash
 
 jobs:
   scan:
