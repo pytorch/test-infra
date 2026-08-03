@@ -102,9 +102,9 @@ function StatCard({
 
 function SummaryCards({ stats }: { stats: SummaryStats }) {
   const passColor =
-    stats.pass_rate >= 0.95
+    stats.pass_rate >= 1.0
       ? "#2e7d32"
-      : stats.pass_rate >= 0.8
+      : stats.pass_rate >= 0.9
       ? "#ed6c02"
       : "#d32f2f";
 
