@@ -25,7 +25,9 @@ trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
-their last review. A PR whose `updated_at` is older than
+their last review. Draft PRs are dropped from the listing scan entirely — never fingerprinted or
+dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still reviews a draft.
+A PR whose `updated_at` is older than
 `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries the `Stale` label, is
 skipped without fingerprinting unless it has an in-flight or retry-eligible (cancelled/failed)
 review to re-check; an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. An
@@ -153,7 +155,9 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-PRs that are new or changed. PRs whose `updated_at` is older than the review window
+PRs that are new or changed. Draft PRs are dropped from the listing scan entirely — never
+fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
+reviews a draft. PRs whose `updated_at` is older than the review window
 (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
 skipped without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed);
 an explicit `@greenlight recheck` (the `--pr` path) reviews such a PR regardless. PRs a human has already decided

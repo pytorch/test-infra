@@ -10,7 +10,9 @@ loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
 - `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
   for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
-  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A PR whose
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. Draft PRs are
+  dropped from the listing scan entirely — never fingerprinted or dispatched — though an explicit
+  `@greenlight recheck` (the `--pr` path) still reviews a draft. A PR whose
   `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries
   the `Stale` label, is skipped without fingerprinting unless a review is in-flight or retry-eligible
   (cancelled/failed); an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. A PR a
@@ -113,7 +115,9 @@ logs the resolved `Config`.
 
 The end-to-end flow, per trusted-author PR:
 
-1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`) — unless
+1. `review` scans the open PRs, dropping any draft PR from the listing outright — never
+   fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. For
+   each remaining PR it computes its fingerprint (`eval_hash`) — unless
    the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) or it
    carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,
    or a human has already decided it (approved by a `merge_rules.yaml` approver with bots excluded,

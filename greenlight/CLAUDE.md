@@ -52,7 +52,8 @@ PyTorch Green Light has one unit of work — the `review` phase:
   `pytorch/pytorch` (the trusted-author set is the match rule); for each PR it computes the
   fingerprint (`eval_hash`), reads the PR's latest state from `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
-  for new or changed PRs, skipping any PR untouched beyond `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`
+  for new or changed PRs, dropping draft PRs outright (never fingerprinted or dispatched by the
+  listing scan), and skipping any PR untouched beyond `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`
   (default 24) or carrying the `Stale` label that has no in-flight or retry-eligible
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
   has already decided (approved by a `merge_rules.yaml` approver, bots excluded, or changes
