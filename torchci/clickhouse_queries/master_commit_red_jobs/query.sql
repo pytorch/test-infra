@@ -45,10 +45,10 @@ WITH all_jobs AS (
       AND j.name NOT LIKE '%filter%'
       AND j.name LIKE '%/%'
       -- Normal mode ({unstableOnly}=0): exclude unstable jobs, keep the requested
-      -- workflows. Unstable mode ({unstableOnly}=1): the dedicated "unstable"
-      -- workflow, plus any job marked unstable (including scheduled/nightly);
-      -- workflowNames is unused in that mode. Both modes drop workflow_run-chained
-      -- jobs via the shared line below.
+      -- workflows. Unstable mode ({unstableOnly}=1): the union of the "unstable"
+      -- workflow and jobs whose name carries the runtime unstable marker;
+      -- workflowNames is unused there. Both modes drop workflow_run-chained jobs
+      -- via the shared line below.
       AND (
             (
               {unstableOnly: UInt8} = 0

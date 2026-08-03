@@ -574,16 +574,14 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           {/*
-            Unstable jobs to watch: union of the dedicated "unstable" workflow and
-            any job marked unstable on main (any trigger; workflow_run-chained jobs
-            excluded). Same query as the other panels with unstableOnly=1, which
-            flips its unstable filter; workflowNames is unused in that mode.
+            Unstable jobs to watch: the union of unstable.yml and jobs whose name
+            carries the runtime unstable marker.
           */}
           <GroupReliabilityPanel
             title={"Unstable jobs"}
             subtitle={
-              UNSTABLE_WORKFLOWS.join(", ") +
-              " workflow + main jobs marked unstable"
+              UNSTABLE_WORKFLOWS.map((w) => `${w}.yml`).join(", ") +
+              " + jobs tagged unstable at runtime"
             }
             queryName={queryName}
             queryParams={{ unstableOnly: 1, ...queryParams }}
