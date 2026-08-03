@@ -27,6 +27,11 @@ NO_LAND_HEADLINE = "PR requires human review"
 REVIEWING_HEADLINE = "Green Light review in progress"
 INCOMPLETE_HEADLINE = "Green Light review did not complete"
 
+# A distinct marker from COMMENT_MARKER so a recheck refusal is upserted into its own comment and
+# can never overwrite (or be overwritten by) a LAND/NO_LAND verdict comment on the same PR.
+RECHECK_REFUSAL_MARKER = "<!-- greenlight-recheck-refusal -->"
+RECHECK_REFUSAL_HEADLINE = "Green Light will not re-review this PR"
+
 
 def defang(text: str) -> str:
     """Render untrusted model text safe to post to GitHub.
@@ -101,3 +106,23 @@ def marker_body(status: str, job_url: str, run_id: int | None) -> str:
     # The only remaining marker statuses are the retry outcomes (CANCELLED / FAILED); their
     # lowercased name is the human-readable reason shown in the "did not complete" comment.
     return incomplete_body(status.lower(), job_url, run_id)
+
+
+def recheck_changes_requested_body(detail: str) -> str:
+    """Body for a manual ``@greenlight recheck`` refused because a human requested changes.
+
+    ``detail`` is the ``ReviewSkip.detail`` naming the requester; it is a GitHub login (safe
+    charset) rendered inside backticks, so no defanging is needed. Carries no job URL or run
+    stamp -- a refusal is not tied to a review run.
+    """
+    return "\n".join(
+        [
+            RECHECK_REFUSAL_MARKER,
+            f"**{RECHECK_REFUSAL_HEADLINE}**",
+            "",
+            "Green Light does not re-review a PR while a reviewer's requested changes stand; it "
+            "reconsiders once the reviewer dismisses or resolves that review, not on the next push.",
+            "",
+            f"reason: `{detail}`",
+        ]
+    )

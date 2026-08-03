@@ -27,6 +27,16 @@ DEFAULT_TIMEOUT_MINUTES = 45
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 
+# A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. Both the verdict
+# writer and the scan's recheck-refusal poster author-scope their comment writes to this login,
+# so it must be App-shaped or a copied marker in a third party's comment could be hijacked.
+BOT_LOGIN_SUFFIX = "[bot]"
+
+
+def is_app_login(value: str) -> bool:
+    """True when ``value`` is a GitHub App login of the form ``<slug>[bot]`` with a non-empty slug."""
+    return value.endswith(BOT_LOGIN_SUFFIX) and len(value) > len(BOT_LOGIN_SUFFIX)
+
 
 def validate_eval_hash(value: str) -> None:
     if not EVAL_HASH_RE.fullmatch(value):

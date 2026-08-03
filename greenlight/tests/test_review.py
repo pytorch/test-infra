@@ -8,7 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import github_client, review
+from greenlight import github_client, review, scan_runner
+from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
@@ -20,6 +21,7 @@ from greenlight.constants import (
 )
 from greenlight.github_client import OpenPR
 from greenlight.guards import IterationTimeout
+from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
@@ -68,12 +70,14 @@ class _Scan:
     resolver_calls: int
     authorized_seen: list[frozenset[str]]
     author_fetched: list[int]
+    skip_on_approval_seen: list[bool]
+    refusals: list[tuple[int, str, str, str]]
 
 
 def _run_scan(
     make_config: Callable[..., Config],
     *,
-    fingerprints: dict[int, tuple[str, str]],
+    fingerprints: dict[int, tuple[str, str] | ReviewSkip],
     listed: Sequence[OpenPR] = (),
     states: dict[int, PRState] | None = None,
     pr: int | None = None,
@@ -86,6 +90,7 @@ def _run_scan(
     requester: str | None = None,
     allow_untrusted_author: bool = False,
     author: str | None = "albanD",
+    bot_login: str = "",
     config_kwargs: dict[str, object] | None = None,
 ) -> _Scan:
     states = states or {}
@@ -96,14 +101,17 @@ def _run_scan(
     resolver_calls: list[int] = []
     authorized_seen: list[frozenset[str]] = []
     author_fetched: list[int] = []
+    skip_on_approval_seen: list[bool] = []
+    refusals: list[tuple[int, str, str, str]] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
         return list(listed)
 
-    def fake_fingerprint(_client, number, authorized_logins):
+    def fake_fingerprint(_client, number, authorized_logins, skip_on_approval):
         fingerprinted.append(number)
         authorized_seen.append(authorized_logins)
+        skip_on_approval_seen.append(skip_on_approval)
         return fingerprints[number]
 
     def fake_read_state(repo, numbers):
@@ -122,6 +130,13 @@ def _run_scan(
         author_fetched.append(number)
         return author
 
+    def fake_get_pr(_client, _repo, number):
+        # The comment upsert is faked, so the "PR" object need only carry its number back.
+        return number
+
+    def fake_upsert(pr, *, marker, body, author_login, run_id=None):
+        refusals.append((pr, marker, body, author_login))
+
     review.run(
         make_config(github_token="t", **(config_kwargs or {})),
         pr=pr,
@@ -131,17 +146,28 @@ def _run_scan(
         force=force,
         requester=requester,
         allow_untrusted_author=allow_untrusted_author,
+        bot_login=bot_login,
         build_github=lambda _token: _CLIENT,
         fetch=fake_fetch,
         fetch_author=fake_fetch_author,
         fingerprint=fake_fingerprint,
         read_state=fake_read_state,
         dispatch=fake_dispatch,
+        get_pr=fake_get_pr,
+        upsert_comment=fake_upsert,
         resolve_authorized=fake_resolve_authorized,
         now=lambda: now,
     )
     return _Scan(
-        dispatched, read_calls, fingerprinted, len(listed_calls), len(resolver_calls), authorized_seen, author_fetched
+        dispatched,
+        read_calls,
+        fingerprinted,
+        len(listed_calls),
+        len(resolver_calls),
+        authorized_seen,
+        author_fetched,
+        skip_on_approval_seen,
+        refusals,
     )
 
 
@@ -440,7 +466,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
     numbers = list(range(1, 30))
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, number, _authorized):
+    def boom_fingerprint(_client, number, _authorized, _skip):
         if number == 3:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
@@ -679,7 +705,7 @@ def test_force_dispatches_decided_pr_via_until_dispatchable(make_config, caplog)
 def test_force_fingerprint_failure_still_raises(make_config, caplog):
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, _number, _authorized):
+    def boom_fingerprint(_client, _number, _authorized, _skip):
         raise RuntimeError("fingerprint boom")
 
     def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
@@ -778,7 +804,7 @@ def test_no_candidates_dispatches_nothing(make_config):
 def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number, _authorized):
+    def boom_fingerprint(_client, number, _authorized, _skip):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
@@ -812,7 +838,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
 def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number, _authorized):
+    def boom_fingerprint(_client, number, _authorized, _skip):
         if number in (1, 3):
             raise RuntimeError(f"fingerprint boom {number}")
         return (f"headsha{number}", _HASH_A)
@@ -859,7 +885,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=boom_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
@@ -888,7 +914,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=boom_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
@@ -913,7 +939,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=timeout_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
@@ -929,7 +955,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
 def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_fingerprint(_client, number, _authorized):
+    def boom_fingerprint(_client, number, _authorized, _skip):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
@@ -981,7 +1007,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
     barrier = threading.Barrier(k, timeout=5)
     dispatched: list[int] = []
 
-    def barrier_fingerprint(_client, number, _authorized):
+    def barrier_fingerprint(_client, number, _authorized, _skip):
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
@@ -1020,7 +1046,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
     seen: dict[int, object] = {}
 
-    def recording_fingerprint(client, number, _authorized):
+    def recording_fingerprint(client, number, _authorized, _skip):
         seen[number] = client
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
@@ -1072,7 +1098,7 @@ def test_run_closes_main_and_worker_clients(make_config):
         make_config(github_token="t"),
         build_github=factory,
         fetch=lambda _client: [_open_pr(1), _open_pr(2)],
-        fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+        fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         dispatch=lambda *_args: None,
         resolve_authorized=lambda: _AUTHORIZED,
@@ -1104,11 +1130,11 @@ def test_fingerprint_task_returns_client_on_exception():
     client = cast("Github", object())
     pool.put(client)
 
-    def boom(_client, _number, _authorized):
+    def boom(_client, _number, _authorized, _skip):
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        review._fingerprint_task(boom, pool, 1, _AUTHORIZED)
+        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True)
 
     # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
     # with more PRs than workers drains the pool and queue.get blocks the scan forever.
@@ -1126,7 +1152,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             make_config(github_token="t"),
             build_github=lambda _token: cast("Github", client),
             fetch=boom_fetch,
-            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=lambda *_args: None,
             resolve_authorized=lambda: _AUTHORIZED,
@@ -1199,7 +1225,7 @@ def test_run_cold_authorized_failure_propagates(make_config):
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
             fetch=lambda _client: [_open_pr(1)],
-            fingerprint=lambda _client, number, _authorized: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             dispatch=lambda *_args: None,
             resolve_authorized=boom_resolve,
@@ -1263,25 +1289,132 @@ def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):
     captured: dict[str, object] = {}
 
-    def fake_fingerprint_pr(client, repo, pr_number, *, authorized_logins):
+    def fake_fingerprint_pr(client, repo, pr_number, *, authorized_logins, allow_skip, skip_on_approval):
         captured["client"] = client
         captured["repo"] = repo
         captured["pr_number"] = pr_number
         captured["authorized_logins"] = authorized_logins
+        captured["allow_skip"] = allow_skip
+        captured["skip_on_approval"] = skip_on_approval
         return ("headsha", _HASH_A)
 
     monkeypatch.setattr(github_client, "fingerprint_pr", fake_fingerprint_pr)
 
-    result = review._default_fingerprint(_CLIENT, 7, _AUTHORIZED)
+    result = review._default_fingerprint(_CLIENT, 7, _AUTHORIZED, True)
 
     assert result == ("headsha", _HASH_A)
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
     assert captured["pr_number"] == 7
     assert captured["authorized_logins"] is _AUTHORIZED
+    # allow_skip is always True; skip_on_approval is forwarded verbatim from the caller.
+    assert captured["allow_skip"] is True
+    assert captured["skip_on_approval"] is True
 
 
 def test_utcnow_is_naive_utc():
     now = review._utcnow()
 
     assert now.tzinfo is None
+
+
+def test_scan_changes_requested_is_dropped_no_dispatch(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[_open_pr(1)],
+            fingerprints={1: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
+        )
+
+    # A human-decided PR short-circuits on the listing scan: dropped, never dispatched, and no
+    # refusal comment (the listing path drops silently). It is not a failure, so run() does not raise.
+    assert scan.dispatched == []
+    assert scan.refusals == []
+    assert scan.skip_on_approval_seen == [True]
+    assert "PR #1: SKIP (changes_requested): changes requested by bob" in caplog.text
+
+
+def test_scan_human_approved_is_dropped_no_dispatch(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ReviewSkip(HUMAN_APPROVED, "approved by alice")},
+    )
+
+    # On the listing scan an authorized-human approval also short-circuits: dropped, no dispatch.
+    assert scan.dispatched == []
+    assert scan.refusals == []
+
+
+def test_scan_skip_alongside_healthy_pr_does_not_raise(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ReviewSkip(HUMAN_APPROVED, "approved by alice"), 2: ("headsha2", _HASH_A)},
+    )
+
+    # Regression: a ReviewSkip must never be counted as a failure. PR1 is dropped and PR2 still
+    # dispatches; run() returning normally (a _Scan, not a raise) proves the skip was not in `failed`.
+    assert [number for number, *_ in scan.dispatched] == [2]
+    assert scan.refusals == []
+
+
+def test_scan_skip_on_approval_is_true_on_listing_path(make_config):
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)})
+
+    # The listing scan passes skip_on_approval=True so an approval can short-circuit it.
+    assert scan.skip_on_approval_seen == [True]
+
+
+def test_pr_changes_requested_refuses_with_comment(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
+            bot_login="greenlight-app[bot]",
+        )
+
+    # On the --pr recheck a changes-requested review is refused, not dispatched: no dispatch, and a
+    # single refusal comment authored as the bot, carrying the distinct refusal marker and the detail.
+    assert scan.dispatched == []
+    assert scan.skip_on_approval_seen == [False]
+    assert len(scan.refusals) == 1
+    pr_number, marker, body, author_login = scan.refusals[0]
+    assert pr_number == 5
+    assert marker == RECHECK_REFUSAL_MARKER
+    assert author_login == "greenlight-app[bot]"
+    assert body.startswith(RECHECK_REFUSAL_MARKER)
+    assert "changes requested by bob" in body
+    assert "posted recheck refusal for PR #5" in caplog.text
+
+
+def test_pr_approval_is_not_skipped_and_dispatches(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # The --pr recheck passes skip_on_approval=False, so an approval never short-circuits it: the PR
+    # is fingerprinted to a real (head_sha, eval_hash) and dispatched, and no refusal is posted.
+    assert scan.skip_on_approval_seen == [False]
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert scan.refusals == []
+
+
+def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_config, caplog):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
+            bot_login="",
+        )
+
+    # A refusal needs the bot login to author-scope the comment; with none set the post is skipped
+    # with an error rather than crashing the scan, and nothing is dispatched.
+    assert scan.dispatched == []
+    assert scan.refusals == []
+    assert "BOT_LOGIN is required to post" in caplog.text

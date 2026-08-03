@@ -12,7 +12,10 @@ loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A PR whose
   `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) is skipped
-  without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed). Needs
+  without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed). A PR a
+  human has already decided — approved by a `merge_rules.yaml` approver (bots excluded) or with
+  changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
+  and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
   (`CLICKHOUSE_*`).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
@@ -70,7 +73,10 @@ re-dispatches, rather than cancelling and restarting one that is still running; 
 is the sole authorizer: `--pr` refuses unless PR N's author is trusted, and `--requester` refuses
 unless the commenter is trusted too (case-insensitive; a refusal is a clean exit 0). The local-only
 `--allow-untrusted-author` skips the target-author check for iteration and is never a workflow
-input. The command is not yet advertised in the PR status comment.
+input. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
+has a changes-requested review it does not review but posts a single comment that it will not
+re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or
+resolves that review. The command is not yet advertised in the PR status comment.
 
 Daemon mode loops the phase on an interval:
 
@@ -108,7 +114,9 @@ The end-to-end flow, per trusted-author PR:
 
 1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`) — unless
    the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24)
-   and it has no in-flight or retry-eligible (cancelled/failed) review, in which case it is skipped without fingerprinting.
+   and it has no in-flight or retry-eligible (cancelled/failed) review, or a human has already
+   decided it (approved by a `merge_rules.yaml` approver with bots excluded, or changes requested
+   by any non-bot reviewer), in which case it is skipped without fingerprinting.
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow

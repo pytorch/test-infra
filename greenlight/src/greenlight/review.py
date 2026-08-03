@@ -6,6 +6,12 @@ dispatch a review, skip it, or wait. State is re-read from ClickHouse every scan
 one-shot and ``--loop`` paths behave identically -- nothing is remembered in memory
 between scans. All GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword
 seams so the loop is testable without any of them.
+
+The fingerprint step can also short-circuit: when a human has already decided a PR (an
+approval from a merge-authorized login, or changes requested by anyone), the scan skips
+its fingerprint and dispatch. On the listing path an approval or changes-requested skips;
+on the ``--pr`` recheck path an approval is ignored (reviewed anyway) and changes-requested
+is refused with a comment instead of a dispatch.
 """
 
 from __future__ import annotations
@@ -13,25 +19,22 @@ from __future__ import annotations
 import contextlib
 import logging
 import queue
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from greenlight import dispatch as dispatch_module
-from greenlight import github_client, state
+from greenlight import github_client, scan_runner, state
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO, TERMINAL_STATUSES
-from greenlight.decision import Decision, decide
-from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-    from concurrent.futures import Future
 
     from github import Github
 
     from greenlight.config import Config
-    from greenlight.github_client import OpenPR
+    from greenlight.github_client import OpenPR, VerdictPR
+    from greenlight.review_gate import ReviewSkip
+    from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
 
 logger = logging.getLogger(__name__)
@@ -57,10 +60,6 @@ def _is_trusted(login: str | None) -> bool:
 
 _FINGERPRINT_WORKERS = 8
 
-# Never-reviewed candidates sort ahead of every recorded one; this stands in for their
-# absent version so the sort key stays a homogeneous (bool, datetime) tuple.
-_MIN_VERSION = datetime.min
-
 
 def _utcnow() -> datetime:
     # Naive UTC to match the version column: state.read_latest_states normalizes every
@@ -77,21 +76,19 @@ def _default_fetch_author(client: Github, pr_number: int) -> str | None:
     return github_client.get_pr_author(client, TARGET_REPO, pr_number)
 
 
-def _default_fingerprint(client: Github, pr_number: int, authorized_logins: frozenset[str]) -> tuple[str, str]:
-    return github_client.fingerprint_pr(client, TARGET_REPO, pr_number, authorized_logins=authorized_logins)
-
-
-def _fingerprint_task(
-    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
-    client_pool: queue.Queue[Github],
-    number: int,
-    authorized_logins: frozenset[str],
-) -> tuple[str, str]:
-    client = client_pool.get()
-    try:
-        return fingerprint(client, number, authorized_logins)
-    finally:
-        client_pool.put(client)
+def _default_fingerprint(
+    client: Github, pr_number: int, authorized_logins: frozenset[str], skip_on_approval: bool
+) -> tuple[str, str] | ReviewSkip:
+    # allow_skip is unconditional: a human-decided PR always short-circuits the fingerprint.
+    # skip_on_approval varies by path so an approval skips the listing but never the recheck.
+    return github_client.fingerprint_pr(
+        client,
+        TARGET_REPO,
+        pr_number,
+        authorized_logins=authorized_logins,
+        allow_skip=True,
+        skip_on_approval=skip_on_approval,
+    )
 
 
 def _close_client(client: Github) -> None:
@@ -101,25 +98,6 @@ def _close_client(client: Github) -> None:
             close()
         except Exception:
             logger.exception("failed to close GitHub client")
-
-
-@dataclass(frozen=True, slots=True)
-class _Candidate:
-    pr_number: int
-    head_sha: str
-    eval_hash: str
-    state: PRState | None
-    reason: str
-
-
-def _staleness_key_for_state(recorded: PRState | None) -> tuple[bool, datetime]:
-    if recorded is None:
-        return (False, _MIN_VERSION)
-    return (True, recorded.version)
-
-
-def _staleness_key(candidate: _Candidate) -> tuple[bool, datetime]:
-    return _staleness_key_for_state(candidate.state)
 
 
 def _candidate_numbers(
@@ -171,129 +149,6 @@ def _recency_filter(
     return kept
 
 
-def _dispatch_pending(
-    client: Github,
-    pending: list[_Candidate],
-    *,
-    ref: str,
-    max_dispatches: int | None,
-    dispatch: Callable[[Github, int, str, str, str], None],
-) -> list[int]:
-    ordered = sorted(pending, key=_staleness_key)
-    limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
-    dispatch_failed: list[int] = []
-    for candidate in ordered[:limit]:
-        try:
-            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref)
-        except IterationTimeout:
-            raise
-        except Exception as exc:
-            logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
-            dispatch_failed.append(candidate.pr_number)
-            continue
-        logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
-    for candidate in ordered[limit:]:
-        logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
-    return dispatch_failed
-
-
-def _evaluate_pr(
-    number: int,
-    future: Future[tuple[str, str]],
-    states: dict[int, PRState],
-    *,
-    now: datetime,
-    timeout: timedelta,
-    failed: list[int],
-    force: bool,
-) -> _Candidate | None:
-    try:
-        head_sha, eval_hash = future.result()
-        recorded = states.get(number)
-        if force:
-            logger.info("PR #%d: DISPATCH (forced)", number)
-            return _Candidate(number, head_sha, eval_hash, recorded, "forced")
-        outcome = decide(
-            current_eval_hash=eval_hash,
-            latest_status=recorded.status if recorded is not None else None,
-            latest_eval_hash=recorded.eval_hash if recorded is not None else None,
-            latest_version=recorded.version if recorded is not None else None,
-            now=now,
-            timeout=timeout,
-        )
-        logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
-        if outcome.action is Decision.DISPATCH:
-            return _Candidate(number, head_sha, eval_hash, recorded, outcome.reason)
-        return None
-    except Exception:
-        logger.exception("skipping PR #%d: failed to evaluate", number)
-        failed.append(number)
-        return None
-
-
-def _fingerprint_all(
-    pr_numbers: Sequence[int],
-    states: dict[int, PRState],
-    *,
-    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
-    client_pool: queue.Queue[Github],
-    worker_count: int,
-    authorized_logins: frozenset[str],
-    now: datetime,
-    timeout: timedelta,
-    failed: list[int],
-    force: bool,
-) -> list[_Candidate]:
-    futures: dict[int, Future[tuple[str, str]]] = {}
-    if worker_count:
-        with ThreadPoolExecutor(max_workers=worker_count) as pool:
-            futures = {
-                number: pool.submit(_fingerprint_task, fingerprint, client_pool, number, authorized_logins)
-                for number in pr_numbers
-            }
-    pending: list[_Candidate] = []
-    for number in pr_numbers:
-        candidate = _evaluate_pr(number, futures[number], states, now=now, timeout=timeout, failed=failed, force=force)
-        if candidate is not None:
-            pending.append(candidate)
-    return pending
-
-
-def _fingerprint_until_dispatchable(
-    pr_numbers: Sequence[int],
-    states: dict[int, PRState],
-    *,
-    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]],
-    client_pool: queue.Queue[Github],
-    worker_count: int,
-    authorized_logins: frozenset[str],
-    limit: int,
-    now: datetime,
-    timeout: timedelta,
-    failed: list[int],
-    force: bool,
-) -> list[_Candidate]:
-    ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
-    pending: list[_Candidate] = []
-    if worker_count:
-        with ThreadPoolExecutor(max_workers=worker_count) as pool:
-            for start in range(0, len(ranked), worker_count):
-                if len(pending) >= limit:
-                    break
-                batch = ranked[start : start + worker_count]
-                futures = {
-                    number: pool.submit(_fingerprint_task, fingerprint, client_pool, number, authorized_logins)
-                    for number in batch
-                }
-                for number in batch:
-                    candidate = _evaluate_pr(
-                        number, futures[number], states, now=now, timeout=timeout, failed=failed, force=force
-                    )
-                    if candidate is not None:
-                        pending.append(candidate)
-    return pending
-
-
 def run(
     config: Config,
     *,
@@ -304,12 +159,15 @@ def run(
     force: bool = False,
     requester: str | None = None,
     allow_untrusted_author: bool = False,
+    bot_login: str = "",
     build_github: Callable[[str], Github] = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
     fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
-    fingerprint: Callable[[Github, int, frozenset[str]], tuple[str, str]] = _default_fingerprint,
+    fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
+    get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
+    upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
     resolve_authorized: Callable[[], frozenset[str]],
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
@@ -345,6 +203,9 @@ def run(
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
         timeout = timedelta(minutes=timeout_minutes)
+        # A human approval skips only the listing scan; on --pr the recheck reviews anyway (an
+        # approval must never suppress a manual recheck). Changes-requested still skips on both.
+        skip_on_approval = pr is None
         if pr is None:
             # A single --pr target is always evaluated; the recency window only prunes the
             # listed scan, where a stale untouched PR would waste a fingerprint.
@@ -358,6 +219,7 @@ def run(
         else:
             fingerprint_numbers = pr_numbers
         failed: list[int] = []
+        skips: list[tuple[int, ReviewSkip]] = []
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
@@ -368,33 +230,46 @@ def run(
             clients.callback(_close_client, worker_client)
             client_pool.put(worker_client)
         if max_dispatches is None:
-            pending = _fingerprint_all(
+            pending = scan_runner._fingerprint_all(
                 fingerprint_numbers,
                 states,
                 fingerprint=fingerprint,
                 client_pool=client_pool,
                 worker_count=worker_count,
                 authorized_logins=authorized_logins,
+                skip_on_approval=skip_on_approval,
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                skips=skips,
                 force=force,
             )
         else:
-            pending = _fingerprint_until_dispatchable(
+            pending = scan_runner._fingerprint_until_dispatchable(
                 fingerprint_numbers,
                 states,
                 fingerprint=fingerprint,
                 client_pool=client_pool,
                 worker_count=worker_count,
                 authorized_logins=authorized_logins,
+                skip_on_approval=skip_on_approval,
                 limit=max(0, max_dispatches),
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                skips=skips,
                 force=force,
             )
-        dispatch_failed = _dispatch_pending(client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch)
+        dispatch_failed = scan_runner._dispatch_pending(
+            client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch
+        )
+        # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
+        # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),
+        # so this can never comment on a listing-scan approval.
+        if pr is not None:
+            scan_runner.post_refusals(
+                client, TARGET_REPO, skips, bot_login=bot_login, get_pr=get_pr, upsert_comment=upsert_comment
+            )
         if failed or dispatch_failed:
             errors: list[str] = []
             if failed:

@@ -16,10 +16,11 @@ def _no_real_watchdog_exit(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clean_greenlight_env(monkeypatch):
-    """Remove any PYTORCH_GREENLIGHT_* env vars so tests are isolated from the real environment."""
+    """Remove greenlight env vars so tests are isolated from the real environment."""
     for key in list(os.environ):
         if key.startswith("PYTORCH_GREENLIGHT_"):
             monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("BOT_LOGIN", raising=False)
 
 
 @pytest.fixture(autouse=True)

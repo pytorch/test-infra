@@ -109,6 +109,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "force": False,
         "requester": None,
         "allow_untrusted_author": False,
+        "bot_login": "",
     }
 
 
@@ -536,6 +537,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "force": False,
         "requester": None,
         "allow_untrusted_author": False,
+        "bot_login": "",
     }
 
 
@@ -556,6 +558,7 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "force": False,
         "requester": None,
         "allow_untrusted_author": False,
+        "bot_login": "",
     }
 
 
@@ -596,6 +599,7 @@ def test_main_review_force_binds_into_run(monkeypatch):
         "force": True,
         "requester": None,
         "allow_untrusted_author": False,
+        "bot_login": "",
     }
 
 
@@ -616,7 +620,66 @@ def test_main_review_binds_requester_and_override_into_run(monkeypatch):
         "force": False,
         "requester": "albanD",
         "allow_untrusted_author": True,
+        "bot_login": "",
     }
+
+
+def test_main_review_binds_bot_login_from_env(monkeypatch):
+    monkeypatch.setenv("BOT_LOGIN", "greenlight-app[bot]")
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5"])
+
+    assert rc == EXIT_OK
+    # The App bot login from BOT_LOGIN is threaded into the bound scan for the refusal comment.
+    assert review_mock.call_args.kwargs["bot_login"] == "greenlight-app[bot]"
+
+
+@pytest.mark.parametrize("raw", ["greenlight-app[bot]", "  greenlight-app[bot]  "])
+def test_main_review_bot_login_is_stripped(raw, monkeypatch):
+    monkeypatch.setenv("BOT_LOGIN", raw)
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5"])
+
+    assert rc == EXIT_OK
+    assert review_mock.call_args.kwargs["bot_login"] == "greenlight-app[bot]"
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_main_review_blank_bot_login_binds_empty(blank, monkeypatch):
+    monkeypatch.setenv("BOT_LOGIN", blank)
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["review", "--pr", "5"])
+
+    assert rc == EXIT_OK
+    # An empty BOT_LOGIN is allowed (listing scan); the empty value is handled downstream.
+    assert review_mock.call_args.kwargs["bot_login"] == ""
+
+
+@pytest.mark.parametrize("bad", ["greenlight", "greenlight-app", "[bot]"])
+def test_main_review_malformed_bot_login_is_usage_error(bad, monkeypatch):
+    monkeypatch.setenv("BOT_LOGIN", bad)
+    run_mock = Mock()
+    monkeypatch.setattr(review, "run", run_mock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["review", "--pr", "5"])
+
+    # A set-but-not-App-shaped BOT_LOGIN is a config error: reject before running the scan.
+    assert excinfo.value.code == 2
+    run_mock.assert_not_called()
 
 
 def test_build_authz_client_requires_token():

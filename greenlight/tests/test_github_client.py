@@ -6,7 +6,8 @@ from github import Github
 from greenlight import github_client
 from greenlight.constants import EVAL_HASH_RE
 from greenlight.github_client import OpenPR
-from greenlight.pr_hash import HumanEvent, compute_pr_hash
+from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash
+from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 
 
 class _FakeUser:
@@ -84,10 +85,11 @@ class _FakeComment:
 
 
 class _FakeReview:
-    def __init__(self, id: int, user: _FakeActor | None, body: str) -> None:
+    def __init__(self, id: int, user: _FakeActor | None, body: str, state: str = "COMMENTED") -> None:
         self.id = id
         self.user = user
         self.body = body
+        self.state = state
 
 
 class _FakeBase:
@@ -103,18 +105,27 @@ class _FakePR:
         reviews: list[_FakeReview],
         head_sha: str = "head-sha",
     ) -> None:
-        self.head = _FakeBase(head_sha)
+        self._head_sha = head_sha
         self._issue_comments = issue_comments
         self._review_comments = review_comments
         self._reviews = reviews
+        self.calls: list[str] = []
+
+    @property
+    def head(self) -> _FakeBase:
+        self.calls.append("head")
+        return _FakeBase(self._head_sha)
 
     def get_issue_comments(self) -> list[_FakeComment]:
+        self.calls.append("get_issue_comments")
         return self._issue_comments
 
     def get_review_comments(self) -> list[_FakeComment]:
+        self.calls.append("get_review_comments")
         return self._review_comments
 
     def get_reviews(self) -> list[_FakeReview]:
+        self.calls.append("get_reviews")
         return self._reviews
 
 
@@ -320,6 +331,18 @@ def test_build_client_pins_request_timeout():
     assert requester.__dict__["_Requester__timeout"] == 15
 
 
+def _build_fp(
+    pr: _FakePR,
+    *,
+    self_login: str | None = None,
+    authorized_logins: frozenset[str] | None = None,
+) -> PRFingerprint:
+    """Build a fingerprint from ``pr``, materializing its reviews as ``fingerprint_pr`` does."""
+    return github_client.build_pr_fingerprint(
+        pr, reviews=pr.get_reviews(), self_login=self_login, authorized_logins=authorized_logins
+    )
+
+
 def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_denylist():
     pr = _FakePR(
         issue_comments=[
@@ -338,7 +361,7 @@ def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_deny
         head_sha="head-sha-123",
     )
 
-    fingerprint = github_client.build_pr_fingerprint(pr)
+    fingerprint = _build_fp(pr)
 
     assert fingerprint.head_sha == "head-sha-123"
     assert fingerprint.human_events == (
@@ -355,7 +378,7 @@ def test_build_pr_fingerprint_excludes_self_login():
         reviews=[_FakeReview(2, _FakeActor("jeanschmidt", "User"), "self review")],
     )
 
-    fingerprint = github_client.build_pr_fingerprint(pr, self_login="jeanschmidt")
+    fingerprint = _build_fp(pr, self_login="jeanschmidt")
 
     assert fingerprint.human_events == ()
 
@@ -367,7 +390,7 @@ def test_build_pr_fingerprint_keeps_others_when_self_login_does_not_match():
         reviews=[],
     )
 
-    fingerprint = github_client.build_pr_fingerprint(pr, self_login="jeanschmidt")
+    fingerprint = _build_fp(pr, self_login="jeanschmidt")
 
     assert fingerprint.human_events == (HumanEvent(id=1, body="note"),)
 
@@ -375,7 +398,7 @@ def test_build_pr_fingerprint_keeps_others_when_self_login_does_not_match():
 def test_build_pr_fingerprint_with_no_activity_returns_empty_human_events():
     pr = _FakePR(issue_comments=[], review_comments=[], reviews=[])
 
-    fingerprint = github_client.build_pr_fingerprint(pr)
+    fingerprint = _build_fp(pr)
 
     assert fingerprint.human_events == ()
 
@@ -391,7 +414,7 @@ def test_build_pr_fingerprint_keeps_only_authorized_humans():
         reviews=[_FakeReview(5, _FakeActor("eve", "User"), "unauthorized review")],
     )
 
-    fingerprint = github_client.build_pr_fingerprint(pr, authorized_logins=frozenset({"alice", "bob"}))
+    fingerprint = _build_fp(pr, authorized_logins=frozenset({"alice", "bob"}))
 
     # Only authorized humans survive, matched case-insensitively (BOB -> bob); the unauthorized
     # humans and the bot are all dropped.
@@ -412,7 +435,7 @@ def test_build_pr_fingerprint_none_authorized_keeps_all_non_bot_humans():
     )
 
     # None (the default) applies no authorization filter: every non-bot human is kept.
-    assert github_client.build_pr_fingerprint(pr).human_events == (
+    assert _build_fp(pr).human_events == (
         HumanEvent(id=1, body="keep"),
         HumanEvent(id=2, body="also keep"),
     )
@@ -426,7 +449,7 @@ def test_build_pr_fingerprint_empty_authorized_drops_every_comment():
     )
 
     # An empty (but not None) set authorizes nobody, so no human comment feeds the hash.
-    assert github_client.build_pr_fingerprint(pr, authorized_logins=frozenset()).human_events == ()
+    assert _build_fp(pr, authorized_logins=frozenset()).human_events == ()
 
 
 def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
@@ -441,9 +464,7 @@ def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
 
     # greenlight is in the authorized set yet still excluded as self_login: authorization must not
     # bypass the self-exclusion approval-bypass guard.
-    fingerprint = github_client.build_pr_fingerprint(
-        pr, self_login="greenlight", authorized_logins=frozenset({"alice", "greenlight"})
-    )
+    fingerprint = _build_fp(pr, self_login="greenlight", authorized_logins=frozenset({"alice", "greenlight"}))
 
     assert fingerprint.human_events == (HumanEvent(id=1, body="authorized other"),)
 
@@ -460,15 +481,15 @@ def test_fingerprint_pr_threads_authorized_logins():
     )
     client = _FakeScanClient(_FakeScanRepo(pr))
 
-    head_sha, eval_hash = github_client.fingerprint_pr(
-        client, "pytorch/pytorch", 3, authorized_logins=frozenset({"alice"})
-    )
+    result = github_client.fingerprint_pr(client, "pytorch/pytorch", 3, authorized_logins=frozenset({"alice"}))
+    assert not isinstance(result, ReviewSkip)
+    head_sha, eval_hash = result
 
     assert head_sha == "deadbeef"
     # Equals the hash of the fingerprint built with the SAME filter (set threaded through), and
     # differs from the unfiltered hash (mallory would otherwise be included).
-    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr, authorized_logins=frozenset({"alice"})))
-    assert eval_hash != compute_pr_hash(github_client.build_pr_fingerprint(pr))
+    assert eval_hash == compute_pr_hash(_build_fp(pr, authorized_logins=frozenset({"alice"})))
+    assert eval_hash != compute_pr_hash(_build_fp(pr))
 
 
 def _golden_pr() -> _FakePR:
@@ -500,7 +521,8 @@ def test_build_pr_fingerprint_golden_hash_scheme_v5():
     PR-field mapping. Uses the default scheme_version (5); a future
     HASH_SCHEME_VERSION bump regenerates this literal.
     """
-    fingerprint = github_client.build_pr_fingerprint(_golden_pr(), self_login="greenlight")
+    pr = _golden_pr()
+    fingerprint = _build_fp(pr, self_login="greenlight")
 
     assert fingerprint.human_events == (
         HumanEvent(id=1, body="please fix"),
@@ -518,7 +540,7 @@ def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str 
         reviews=[_FakeReview(2, _FakeActor(null_login, "User"), "ghost review")],
     )
 
-    fingerprint = github_client.build_pr_fingerprint(pr, self_login=self_login)
+    fingerprint = _build_fp(pr, self_login=self_login)
 
     assert fingerprint.human_events == ()
 
@@ -533,11 +555,13 @@ def test_fingerprint_pr_returns_head_sha_and_eval_hash():
     repo = _FakeScanRepo(pr)
     client = _FakeScanClient(repo)
 
-    head_sha, eval_hash = github_client.fingerprint_pr(client, "pytorch/pytorch", 99)
+    result = github_client.fingerprint_pr(client, "pytorch/pytorch", 99)
+    assert not isinstance(result, ReviewSkip)
+    head_sha, eval_hash = result
 
     assert head_sha == "deadbeef"
     assert EVAL_HASH_RE.fullmatch(eval_hash)
-    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr))
+    assert eval_hash == compute_pr_hash(_build_fp(pr))
     assert client.get_repo_names == ["pytorch/pytorch"]
     assert repo.get_pull_numbers == [99]
 
@@ -546,11 +570,13 @@ def test_fingerprint_pr_hashes_golden_fixture():
     pr = _golden_pr()
     client = _FakeScanClient(_FakeScanRepo(pr))
 
-    head_sha, eval_hash = github_client.fingerprint_pr(client, "pytorch/pytorch", 7)
+    result = github_client.fingerprint_pr(client, "pytorch/pytorch", 7)
+    assert not isinstance(result, ReviewSkip)
+    head_sha, eval_hash = result
 
     assert head_sha == "head-sha"
     assert EVAL_HASH_RE.fullmatch(eval_hash)
-    assert eval_hash == compute_pr_hash(github_client.build_pr_fingerprint(pr))
+    assert eval_hash == compute_pr_hash(_build_fp(pr))
 
 
 def test_fingerprint_pr_rejects_non_hex_hash(monkeypatch):
@@ -560,6 +586,115 @@ def test_fingerprint_pr_rejects_non_hex_hash(monkeypatch):
 
     with pytest.raises(ValueError, match="64 lowercase hex"):
         github_client.fingerprint_pr(client, "pytorch/pytorch", 1)
+
+
+def test_fingerprint_pr_skips_on_human_approval_without_fetching_comments():
+    pr = _FakePR(
+        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "must not be read")],
+        review_comments=[_FakeComment(2, _FakeActor("bob", "User"), "must not be read")],
+        reviews=[_FakeReview(3, _FakeActor("alice", "User"), "lgtm", state="APPROVED")],
+    )
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    result = github_client.fingerprint_pr(
+        client,
+        "pytorch/pytorch",
+        5,
+        authorized_logins=frozenset({"alice"}),
+        allow_skip=True,
+        skip_on_approval=True,
+    )
+
+    assert result == ReviewSkip(HUMAN_APPROVED, "approved by alice")
+    # Only the one reviews call is spent: no comments fetched, no head read.
+    assert pr.calls == ["get_reviews"]
+
+
+def test_fingerprint_pr_skips_on_changes_requested_without_fetching_comments():
+    pr = _FakePR(
+        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "must not be read")],
+        review_comments=[],
+        reviews=[_FakeReview(2, _FakeActor("bob", "User"), "please change", state="CHANGES_REQUESTED")],
+    )
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    result = github_client.fingerprint_pr(
+        client,
+        "pytorch/pytorch",
+        6,
+        authorized_logins=frozenset(),
+        allow_skip=True,
+        skip_on_approval=False,
+    )
+
+    # Changes-requested short-circuits even when approval-skip is off.
+    assert result == ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")
+    assert pr.calls == ["get_reviews"]
+
+
+def test_fingerprint_pr_allow_skip_false_never_skips_even_when_approved():
+    pr = _FakePR(
+        issue_comments=[],
+        review_comments=[],
+        reviews=[_FakeReview(1, _FakeActor("alice", "User"), "lgtm", state="APPROVED")],
+        head_sha="deadbeef",
+    )
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    result = github_client.fingerprint_pr(
+        client,
+        "pytorch/pytorch",
+        7,
+        authorized_logins=frozenset({"alice"}),
+        allow_skip=False,
+        skip_on_approval=True,
+    )
+
+    assert not isinstance(result, ReviewSkip)
+    head_sha, eval_hash = result
+    assert head_sha == "deadbeef"
+    assert EVAL_HASH_RE.fullmatch(eval_hash)
+    assert "get_issue_comments" in pr.calls
+    assert "get_review_comments" in pr.calls
+
+
+def test_fingerprint_pr_allow_skip_no_decision_builds_fingerprint_fetching_reviews_once():
+    pr = _FakePR(
+        issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "just a note")],
+        review_comments=[],
+        reviews=[_FakeReview(2, _FakeActor("bob", "User"), "just commenting", state="COMMENTED")],
+        head_sha="cafe",
+    )
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    result = github_client.fingerprint_pr(
+        client,
+        "pytorch/pytorch",
+        8,
+        authorized_logins=frozenset({"alice", "bob"}),
+        allow_skip=True,
+        skip_on_approval=True,
+    )
+
+    assert not isinstance(result, ReviewSkip)
+    # Reviews are materialized once and reused by the fingerprint builder, never re-fetched.
+    assert pr.calls.count("get_reviews") == 1
+    assert "get_issue_comments" in pr.calls
+    assert "get_review_comments" in pr.calls
+
+
+def test_fingerprint_pr_hash_is_byte_identical_to_pre_skip_scheme():
+    """Characterization: a non-skipped PR's eval_hash equals the pre-refactor digest.
+
+    Pins the digest produced before reviews were threaded through build_pr_fingerprint,
+    proving the fingerprint payload is unchanged for PRs that are still fingerprinted.
+    """
+    pr = _golden_pr()
+    client = _FakeScanClient(_FakeScanRepo(pr))
+
+    result = github_client.fingerprint_pr(client, "pytorch/pytorch", 9)
+
+    assert result == ("head-sha", "bcf6a1d21566873cd1da85fa724bd1e9996e213b869ed28544751c7e4e06a0f4")
 
 
 class _FakeVerdictReview:

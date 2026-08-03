@@ -70,8 +70,13 @@ jobs:
         with:
           working_directory: greenlight
 
-      - name: Mint Green Light app token
-        id: app-token
+      # Least privilege: the listing scan only reads PRs, so it mints a pull-requests:read token.
+      # The --pr recheck may post a refusal comment, so it mints pull-requests:write instead.
+      # Exactly one of these runs per invocation (keyed on whether a PR number was given); both
+      # keep actions:write to dispatch the reviewer workflow.
+      - name: Mint Green Light app token (read-only listing scan)
+        id: app-token-ro
+        if: inputs.pr == ''
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
@@ -81,12 +86,29 @@ jobs:
           permission-pull-requests: read
           permission-actions: write
 
+      - name: Mint Green Light app token (recheck, can comment)
+        id: app-token-rw
+        if: inputs.pr != ''
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: pytorch,test-infra
+          permission-pull-requests: write
+          permission-actions: write
+
       - name: Sync dependencies
         run: just setup
 
       - name: Scan and dispatch
         env:
-          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Whichever token step ran (exactly one does): read-only for the listing scan,
+          # pull-requests:write for a --pr recheck so it can post a refusal comment.
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token-ro.outputs.token || steps.app-token-rw.outputs.token }}
+          # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment. Only the
+          # write token step exposes app-slug, so this is empty on the read-only listing scan.
+          BOT_LOGIN: ${{ steps.app-token-rw.outputs.app-slug && format('{0}[bot]', steps.app-token-rw.outputs.app-slug) || '' }}
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}

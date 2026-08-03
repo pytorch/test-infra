@@ -6,12 +6,19 @@ import argparse
 import dataclasses
 import functools
 import logging
+import os
 import sys
 from typing import TYPE_CHECKING
 
 from greenlight import github_client, merge_authz, review, verdict
 from greenlight.config import Config
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
+from greenlight.constants import (
+    BOT_LOGIN_SUFFIX,
+    DEFAULT_DISPATCH_REF,
+    DEFAULT_TIMEOUT_MINUTES,
+    TARGET_REPO,
+    is_app_login,
+)
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
@@ -203,6 +210,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--force requires --pr")
     if args.force and args.loop:
         parser.error("--force cannot be combined with --loop")
+    # The bot login is the App's <slug>[bot] account, supplied via BOT_LOGIN (empty on the
+    # read-only listing scan, set only on the write-capable --pr recheck). It author-scopes the
+    # recheck-refusal comment; when set it must be App-shaped, or a copied marker in a third
+    # party's comment could be hijacked. An empty value is allowed and handled downstream.
+    bot_login = os.environ.get("BOT_LOGIN", "").strip()
+    if bot_login and not is_app_login(bot_login):
+        parser.error(
+            f"BOT_LOGIN must be a GitHub App login of the form <app-slug>{BOT_LOGIN_SUFFIX}, got {bot_login!r}"
+        )
     # One cache for the whole process: bound into the partial here (not per iteration), so a
     # --loop daemon refetches merge_rules at most once per TTL across all its scans.
     authorized_cache = merge_authz.AuthorizedLoginsCache(
@@ -218,6 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         force=args.force,
         requester=args.requester,
         allow_untrusted_author=args.allow_untrusted_author,
+        bot_login=bot_login,
         resolve_authorized=authorized_cache.get,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

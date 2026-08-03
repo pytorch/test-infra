@@ -54,8 +54,6 @@ logger = logging.getLogger(__name__)
 _FULL_STATUSES = TERMINAL_STATUSES
 _MARKER_STATUSES = RETRY_STATUSES | IN_FLIGHT_STATUSES
 
-_BOT_LOGIN_SUFFIX = "[bot]"
-
 # Canonical verdict reason codes. Three files mirror this set byte-for-byte:
 # .claude/hooks/greenlight/verdict-schema.json, .claude/hooks/greenlight/validate-on-stop.sh,
 # and .claude/skills/greenlight-review/SKILL.md; agreement is enforced by
@@ -351,11 +349,9 @@ def run(
             "LAND/NO_LAND requires --bot-login (author-scopes the verdict comment upsert; "
             "NO_LAND also dismisses prior greenlight approvals)"
         )
-    if status in TERMINAL_STATUSES and not (
-        request.bot_login.endswith(_BOT_LOGIN_SUFFIX) and len(request.bot_login) > len(_BOT_LOGIN_SUFFIX)
-    ):
+    if status in TERMINAL_STATUSES and not constants.is_app_login(request.bot_login):
         raise ValueError(
-            f"LAND/NO_LAND --bot-login must be a GitHub App login of the form <app-slug>{_BOT_LOGIN_SUFFIX}, "
+            f"LAND/NO_LAND --bot-login must be a GitHub App login of the form <app-slug>{constants.BOT_LOGIN_SUFFIX}, "
             f"got {request.bot_login!r}"
         )
     _run_full(

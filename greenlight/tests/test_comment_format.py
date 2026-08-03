@@ -92,3 +92,25 @@ def test_marker_body_incomplete_uses_lowercased_status_as_reason():
 
     assert f"**{comment_format.INCOMPLETE_HEADLINE}**" in body
     assert "reason: `cancelled`" in body
+
+
+def test_recheck_changes_requested_body_has_marker_headline_and_detail():
+    body = comment_format.recheck_changes_requested_body("changes requested by octocat")
+
+    assert body.startswith(comment_format.RECHECK_REFUSAL_MARKER)
+    assert f"**{comment_format.RECHECK_REFUSAL_HEADLINE}**" in body
+    assert "changes requested by octocat" in body
+    # A refusal is not tied to a review run, so it carries no job link or run stamp.
+    assert "[Inference job]" not in body
+    assert "greenlight-run" not in body
+    # A CHANGES_REQUESTED review persists across pushes until the reviewer dismisses/resolves it,
+    # so the body must not claim the next push resumes review automatically.
+    assert "not on the next push" in body
+    assert "reviewed automatically" not in body
+
+
+def test_recheck_refusal_marker_is_distinct_from_verdict_marker():
+    # A refusal must live in its own comment, never overwriting a LAND/NO_LAND verdict comment.
+    assert comment_format.RECHECK_REFUSAL_MARKER != comment_format.COMMENT_MARKER
+    body = comment_format.recheck_changes_requested_body("changes requested by octocat")
+    assert comment_format.COMMENT_MARKER not in body

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from greenlight import constants
 from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
+from greenlight.review_gate import ReviewSkip, human_review_skip_reason
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
@@ -65,6 +66,8 @@ if TYPE_CHECKING:
         def user(self) -> _PRActor | None: ...
         @property
         def body(self) -> str: ...
+        @property
+        def state(self) -> str: ...
 
     class _PRBase(Protocol):
         @property
@@ -217,9 +220,17 @@ def _actor_login(
 
 
 def build_pr_fingerprint(
-    pr: _FingerprintPR, *, self_login: str | None = None, authorized_logins: frozenset[str] | None = None
+    pr: _FingerprintPR,
+    *,
+    reviews: Iterable[_PRReview],
+    self_login: str | None = None,
+    authorized_logins: frozenset[str] | None = None,
 ) -> PRFingerprint:
     """Build the deterministic fingerprint for a PR.
+
+    ``reviews`` is the caller-materialized ``pr.get_reviews()`` list, threaded in so the
+    reviews are fetched exactly once per fingerprint; issue comments and review comments are
+    still fetched here.
 
     ``self_login`` MUST be exactly the greenlight bot account and identical on the
     writer and the verifier: the login passed here has its own events dropped, so a
@@ -245,7 +256,7 @@ def build_pr_fingerprint(
             continue
         human_events.append(HumanEvent(id=review_comment.id, body=review_comment.body))
 
-    for review in pr.get_reviews():
+    for review in reviews:
         if _actor_login(review.user, self_login, authorized_logins) is None:
             continue
         human_events.append(HumanEvent(id=review.id, body=review.body))
@@ -257,17 +268,31 @@ def build_pr_fingerprint(
 
 
 def fingerprint_pr(
-    client: ScanClient, repo: str, pr_number: int, *, authorized_logins: frozenset[str] | None = None
-) -> tuple[str, str]:
-    """Fetch the PR and return its ``(head_sha, eval_hash)``.
+    client: ScanClient,
+    repo: str,
+    pr_number: int,
+    *,
+    authorized_logins: frozenset[str] | None = None,
+    allow_skip: bool = False,
+    skip_on_approval: bool = False,
+) -> tuple[str, str] | ReviewSkip:
+    """Return the PR's ``(head_sha, eval_hash)``, or a ``ReviewSkip`` when it is human-decided.
 
-    Beyond the pull fetch this costs ~3 paginated GitHub calls: ``build_pr_fingerprint``
-    reads issue comments, review comments, and reviews. ``authorized_logins`` is the
-    merge-authorized comment filter threaded into ``build_pr_fingerprint``.
+    Reviews are materialized once. When ``allow_skip`` is set and a human has already
+    decided the PR (``human_review_skip_reason``), that ``ReviewSkip`` is returned before
+    reading ``head_sha`` or fetching comments -- so a skip costs only the one reviews call.
+    Otherwise the full fingerprint is built (issue comments, review comments, and the same
+    reviews list), costing ~3 paginated calls. ``authorized_logins`` is the merge-authorized
+    filter threaded into both the skip check and ``build_pr_fingerprint``.
     """
     pr = client.get_repo(repo).get_pull(pr_number)
+    reviews = list(pr.get_reviews())
+    if allow_skip:
+        skip = human_review_skip_reason(reviews, authorized_logins or frozenset(), skip_on_approval=skip_on_approval)
+        if skip is not None:
+            return skip
     head_sha = pr.head.sha
-    eval_hash = compute_pr_hash(build_pr_fingerprint(pr, authorized_logins=authorized_logins))
+    eval_hash = compute_pr_hash(build_pr_fingerprint(pr, reviews=reviews, authorized_logins=authorized_logins))
     constants.validate_eval_hash(eval_hash)
     return head_sha, eval_hash
 
