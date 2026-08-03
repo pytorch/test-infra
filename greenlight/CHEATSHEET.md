@@ -10,7 +10,9 @@ loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
 - `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
   for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
-  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. Needs
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A PR whose
+  `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) is skipped
+  without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed). Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
   (`CLICKHOUSE_*`).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
@@ -86,6 +88,7 @@ and `--lock-path` override the matching env vars, and `review` adds the scan fla
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard timeout (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
+| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed) |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
@@ -94,7 +97,9 @@ logs the resolved `Config`.
 
 The end-to-end flow, per trusted-author PR:
 
-1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`).
+1. `review` scans the open PRs, and for each computes its fingerprint (`eval_hash`) — unless
+   the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24)
+   and it has no in-flight or retry-eligible (cancelled/failed) review, in which case it is skipped without fingerprinting.
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow

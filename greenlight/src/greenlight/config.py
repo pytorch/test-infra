@@ -16,10 +16,16 @@ _DEFAULT_MAX_RUNTIME_SECONDS = 600.0
 _DEFAULT_BACKOFF_BASE_SECONDS = 1.0
 _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 _DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
+_DEFAULT_REVIEW_WINDOW_HOURS = 24.0
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
 _MAX_SECONDS = 2_592_000.0
+
+# The review window is a recency comparison, never fed to setitimer/Event.wait, so it has
+# no overflow ceiling; this cap only rejects a fat-fingered value while allowing any
+# realistic horizon.
+_MAX_REVIEW_WINDOW_HOURS = 8760.0
 
 _POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds", "merge_rules_ttl_seconds")
 _NON_NEGATIVE_FIELDS = ("max_runtime_seconds",)
@@ -46,11 +52,11 @@ def _read_float(env: Mapping[str, str], key: str, default: float) -> float:
         raise ValueError(f"{key} must be a number, got {raw!r}") from exc
 
 
-def _validate_bound(name: str, value: float, *, allow_zero: bool) -> None:
+def _validate_bound(name: str, value: float, *, allow_zero: bool, max_value: float = _MAX_SECONDS) -> None:
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite, got {value}")
-    if value > _MAX_SECONDS:
-        raise ValueError(f"{name} must not exceed {_MAX_SECONDS:.0f} seconds, got {value}")
+    if value > max_value:
+        raise ValueError(f"{name} must not exceed {max_value:.0f}, got {value}")
     if allow_zero:
         if value < 0:
             raise ValueError(f"{name} must not be negative, got {value}")
@@ -67,6 +73,7 @@ class Config:
     backoff_base_seconds: float = _DEFAULT_BACKOFF_BASE_SECONDS
     backoff_max_seconds: float = _DEFAULT_BACKOFF_MAX_SECONDS
     merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
+    review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
     github_token: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -80,6 +87,9 @@ class Config:
         for name in _NON_NEGATIVE_FIELDS:
             value = getattr(self, name)
             _validate_bound(name, value, allow_zero=True)
+        _validate_bound(
+            "review_window_hours", self.review_window_hours, allow_zero=False, max_value=_MAX_REVIEW_WINDOW_HOURS
+        )
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -99,6 +109,9 @@ class Config:
             ),
             merge_rules_ttl_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", _DEFAULT_MERGE_RULES_TTL_SECONDS
+            ),
+            review_window_hours=_read_float(
+                source, "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", _DEFAULT_REVIEW_WINDOW_HOURS
             ),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
         )

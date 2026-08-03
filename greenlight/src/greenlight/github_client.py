@@ -12,9 +12,11 @@ from typing import TYPE_CHECKING, Protocol
 
 from greenlight import constants
 from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
+from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     from github import Github
 
@@ -33,6 +35,8 @@ if TYPE_CHECKING:
         def html_url(self) -> str: ...
         @property
         def head(self) -> _PRBase: ...
+        @property
+        def updated_at(self) -> datetime | None: ...
 
     class _Repo(Protocol):
         def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
@@ -67,8 +71,6 @@ if TYPE_CHECKING:
         def sha(self) -> str: ...
 
     class _FingerprintPR(Protocol):
-        @property
-        def base(self) -> _PRBase: ...
         @property
         def head(self) -> _PRBase: ...
         def get_issue_comments(self) -> Iterable[_PRComment]: ...
@@ -126,6 +128,7 @@ class OpenPR:
     title: str
     url: str
     head_sha: str
+    updated_at: datetime | None
 
 
 # Pin the request timeout so a future PyGithub default change can't let
@@ -149,6 +152,7 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
             continue
         login = user.login
         if login and login.lower() in trusted:
+            updated_at = pr.updated_at
             prs.append(
                 OpenPR(
                     repo=repo,
@@ -157,6 +161,7 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
                     title=pr.title,
                     url=pr.html_url,
                     head_sha=pr.head.sha,
+                    updated_at=naive_utc(updated_at) if updated_at is not None else None,
                 )
             )
     return sorted(prs, key=lambda p: p.number)
@@ -202,10 +207,10 @@ def build_pr_fingerprint(
     (see ``merge_authz``); ``None`` keeps every non-bot, non-self human. The writer and
     the verifier MUST pass the identically-resolved set or their digests diverge.
 
-    Coverage: the fingerprint covers ``base_sha``, ``head_sha``, and the ``id`` and
-    ``body`` of non-bot, non-self human events (issue comments, review comments, and
-    reviews). It deliberately EXCLUDES the changed files, event kind/author/state/
-    timestamp, and the PR title/body.
+    Coverage: the fingerprint covers ``head_sha`` and the ``id`` and ``body`` of
+    non-bot, non-self human events (issue comments, review comments, and reviews). It
+    deliberately EXCLUDES the changed files, event kind/author/state/timestamp, and the
+    PR title/body.
     """
     human_events: list[HumanEvent] = []
     for comment in pr.get_issue_comments():
@@ -224,7 +229,6 @@ def build_pr_fingerprint(
         human_events.append(HumanEvent(id=review.id, body=review.body))
 
     return PRFingerprint(
-        base_sha=pr.base.sha,
         head_sha=pr.head.sha,
         human_events=tuple(human_events),
     )

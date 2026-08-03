@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from clickhouse_connect.driver.client import Client
 
-__all__ = ["PRState", "read_latest_states"]
+__all__ = ["PRState", "naive_utc", "read_latest_states"]
 
 _QUERY = "SELECT pr_number, status, eval_hash, head_sha, version FROM misc.greenlight_pr_state WHERE repo = %(repo)s"
 _PR_FILTER = " AND pr_number IN %(pr_numbers)s"
@@ -42,7 +42,7 @@ class PRState:
     version: datetime
 
 
-def _naive_utc(value: datetime) -> datetime:
+def naive_utc(value: datetime) -> datetime:
     # clickhouse-connect returns tz-aware DateTime64 when the effective ClickHouse server
     # timezone is non-UTC; decision._aged_out subtracts a naive ``now`` and would raise on
     # a tz-aware operand. Normalize to naive UTC so version is server-timezone-independent.
@@ -82,7 +82,7 @@ def read_latest_states(
             status=row["status"],
             eval_hash=row["eval_hash"],
             head_sha=row["head_sha"],
-            version=_naive_utc(row["version"]),
+            version=naive_utc(row["version"]),
         )
         for row in result.named_results()
     }

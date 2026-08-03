@@ -12,7 +12,6 @@ from greenlight.pr_hash import (
 
 def _fingerprint(
     *,
-    base_sha: str = "abc123",
     head_sha: str = "def456",
     human_events: tuple[HumanEvent, ...] | None = None,
     scheme_version: int = HASH_SCHEME_VERSION,
@@ -25,7 +24,7 @@ def _fingerprint(
             HumanEvent(id=1, body="hi"),
         )
     )
-    return PRFingerprint(base_sha=base_sha, head_sha=head_sha, human_events=events, scheme_version=scheme_version)
+    return PRFingerprint(head_sha=head_sha, human_events=events, scheme_version=scheme_version)
 
 
 def test_compute_pr_hash_is_deterministic_for_same_input():
@@ -37,7 +36,6 @@ def test_compute_pr_hash_is_deterministic_for_same_input():
 def test_compute_pr_hash_ignores_human_events_order():
     fp = _fingerprint()
     reordered = PRFingerprint(
-        base_sha=fp.base_sha,
         head_sha=fp.head_sha,
         human_events=tuple(reversed(fp.human_events)),
         scheme_version=fp.scheme_version,
@@ -55,13 +53,6 @@ def test_compute_pr_hash_same_id_human_events_are_order_independent_when_body_di
     assert compute_pr_hash(order_1) == compute_pr_hash(order_2)
 
 
-def test_compute_pr_hash_changes_with_base_sha():
-    fp = _fingerprint()
-    other = _fingerprint(base_sha="different-sha")
-
-    assert compute_pr_hash(fp) != compute_pr_hash(other)
-
-
 def test_compute_pr_hash_changes_with_head_sha():
     fp = _fingerprint()
     other = _fingerprint(head_sha="different-head-sha")
@@ -73,7 +64,6 @@ def test_compute_pr_hash_changes_when_human_event_added():
     fp = _fingerprint()
     extra_event = HumanEvent(id=3, body="nit")
     other = PRFingerprint(
-        base_sha=fp.base_sha,
         head_sha=fp.head_sha,
         human_events=(*fp.human_events, extra_event),
         scheme_version=fp.scheme_version,
@@ -96,9 +86,7 @@ def test_compute_pr_hash_changes_with_human_event_id():
 def test_compute_pr_hash_changes_with_human_event_body():
     fp = _fingerprint()
     edited = tuple(HumanEvent(id=e.id, body="EDITED") if e.id == 1 else e for e in fp.human_events)
-    other = PRFingerprint(
-        base_sha=fp.base_sha, head_sha=fp.head_sha, human_events=edited, scheme_version=fp.scheme_version
-    )
+    other = PRFingerprint(head_sha=fp.head_sha, human_events=edited, scheme_version=fp.scheme_version)
 
     assert compute_pr_hash(fp) != compute_pr_hash(other)
 
@@ -127,26 +115,25 @@ def test_compute_pr_hash_handles_lone_surrogate_in_body_without_raising():
     assert compute_pr_hash(fp) == digest
 
 
-def test_compute_pr_hash_golden_scheme_v4():
-    """Golden digest pinning scheme v4 (SHA-256).
+def test_compute_pr_hash_golden_scheme_v5():
+    """Golden digest pinning scheme v5 (SHA-256).
 
     Any change to the payload, its canonicalization, or the hash algorithm breaks
     this on purpose; regenerate the literal only alongside a HASH_SCHEME_VERSION bump.
     """
     fp = PRFingerprint(
-        base_sha="abc123",
         head_sha="def456",
         human_events=(
             HumanEvent(id=2, body="lgtm"),
             HumanEvent(id=1, body="hi"),
         ),
-        scheme_version=4,
+        scheme_version=5,
     )
 
-    assert compute_pr_hash(fp) == "7aafb42b947f4d63210cb7970641638c47be5bd0cef6814fafa9bdc57176c5f5"
+    assert compute_pr_hash(fp) == "f93158fd3d91a5458181ba78ff6f5d96abc6a00b0b668115ef113833d533b66c"
 
 
-def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v4():
+def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v5():
     """Golden that pins the payload sort KEY (``key=_canonical``), not just the algorithm.
 
     The fixture is crafted so canonical (sorted-dict-key) ordering diverges from a
@@ -156,24 +143,23 @@ def test_compute_pr_hash_golden_pins_canonical_sort_key_scheme_v4():
     breaks this digest.
     """
     fp = PRFingerprint(
-        base_sha="abc123",
         head_sha="def456",
         human_events=(
             HumanEvent(id=1, body="z"),
             HumanEvent(id=2, body="a"),
         ),
-        scheme_version=4,
+        scheme_version=5,
     )
 
-    assert compute_pr_hash(fp) == "181b902bdd8bd20067df4cf5011ce276121d6b5a34d40e121e1a4f8158af2ec5"
+    assert compute_pr_hash(fp) == "1301c1364eff060bfb8b94f3252e8256637279b8c48be6638f502b06db24922d"
 
 
 def test_hash_scheme_version_is_pinned():
-    assert HASH_SCHEME_VERSION == 4
+    assert HASH_SCHEME_VERSION == 5
 
 
 def test_pr_fingerprint_scheme_version_defaults_to_current_scheme():
-    fp = PRFingerprint(base_sha="abc", head_sha="def", human_events=())
+    fp = PRFingerprint(head_sha="def", human_events=())
 
     assert fp.scheme_version == HASH_SCHEME_VERSION
 

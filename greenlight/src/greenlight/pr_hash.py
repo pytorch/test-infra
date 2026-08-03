@@ -25,7 +25,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-HASH_SCHEME_VERSION = 4
+HASH_SCHEME_VERSION = 5
 
 BOT_LOGINS: frozenset[str] = frozenset(
     {
@@ -64,7 +64,6 @@ class HumanEvent:
 
 @dataclass(frozen=True, slots=True)
 class PRFingerprint:
-    base_sha: str
     head_sha: str
     human_events: tuple[HumanEvent, ...]
     scheme_version: int = HASH_SCHEME_VERSION
@@ -77,7 +76,6 @@ def _canonical(item: dict[str, Any]) -> str:
 def compute_pr_hash(fingerprint: PRFingerprint) -> str:
     payload = {
         "scheme_version": fingerprint.scheme_version,
-        "base_sha": fingerprint.base_sha,
         "head_sha": fingerprint.head_sha,
         "human_events": sorted((asdict(e) for e in fingerprint.human_events), key=_canonical),
     }

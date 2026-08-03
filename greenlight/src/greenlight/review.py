@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from greenlight import dispatch as dispatch_module
 from greenlight import github_client, state
-from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO, TERMINAL_STATUSES
 from greenlight.decision import Decision, decide
 from greenlight.guards import IterationTimeout
 
@@ -109,15 +109,53 @@ def _staleness_key(candidate: _Candidate) -> tuple[bool, datetime]:
     return _staleness_key_for_state(candidate.state)
 
 
-def _candidate_numbers(client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]) -> list[int]:
+def _candidate_numbers(
+    client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]
+) -> tuple[list[int], dict[int, datetime | None]]:
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr]
+        return [pr], {}
     open_prs = fetch(client)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
         logger.info("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-    return [open_pr.number for open_pr in open_prs]
+    return [open_pr.number for open_pr in open_prs], {open_pr.number: open_pr.updated_at for open_pr in open_prs}
+
+
+def _within_recency_window(updated_at: datetime | None, now: datetime, window: timedelta) -> bool:
+    # A missing updated_at is never treated as stale: absence must not hide recent activity.
+    if updated_at is None:
+        return True
+    return now - updated_at < window
+
+
+def _recency_filter(
+    pr_numbers: Sequence[int],
+    updated_at_by_number: dict[int, datetime | None],
+    states: dict[int, PRState],
+    *,
+    now: datetime,
+    window: timedelta,
+) -> list[int]:
+    """Drop stale PRs the scan can safely leave alone this iteration.
+
+    A PR is kept when it was updated within ``window`` OR its recorded state is non-terminal
+    (in-flight or retry-eligible), so ``decide`` can still re-dispatch it on timeout/retry. A
+    stale PR is skipped without fingerprinting when it is terminal (its eval_hash cannot have
+    changed) or never reviewed (an untouched PR outside the window is not worth a first review).
+    """
+    kept: list[int] = []
+    for number in pr_numbers:
+        if _within_recency_window(updated_at_by_number.get(number), now, window):
+            kept.append(number)
+            continue
+        recorded = states.get(number)
+        if recorded is None or recorded.status in TERMINAL_STATUSES:
+            detail = recorded.status if recorded is not None else "never reviewed"
+            logger.info("skipping stale PR #%d: no recent activity (%s)", number, detail)
+            continue
+        kept.append(number)
+    return kept
 
 
 def _dispatch_pending(
@@ -271,12 +309,24 @@ def run(
     with contextlib.ExitStack() as clients:
         client = build_github(token)
         clients.callback(_close_client, client)
-        pr_numbers = _candidate_numbers(client, pr=pr, fetch=fetch)
+        pr_numbers, updated_at_by_number = _candidate_numbers(client, pr=pr, fetch=fetch)
         states = read_state(TARGET_REPO, pr_numbers)
-        timeout = timedelta(minutes=timeout_minutes)
         evaluated_at = now()
+        timeout = timedelta(minutes=timeout_minutes)
+        if pr is None:
+            # A single --pr target is always evaluated; the recency window only prunes the
+            # listed scan, where a stale untouched PR would waste a fingerprint.
+            fingerprint_numbers = _recency_filter(
+                pr_numbers,
+                updated_at_by_number,
+                states,
+                now=evaluated_at,
+                window=timedelta(hours=config.review_window_hours),
+            )
+        else:
+            fingerprint_numbers = pr_numbers
         failed: list[int] = []
-        worker_count = min(_FINGERPRINT_WORKERS, len(pr_numbers))
+        worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
         # and guarantees no two running tasks ever share one.
@@ -287,7 +337,7 @@ def run(
             client_pool.put(worker_client)
         if max_dispatches is None:
             pending = _fingerprint_all(
-                pr_numbers,
+                fingerprint_numbers,
                 states,
                 fingerprint=fingerprint,
                 client_pool=client_pool,
@@ -300,7 +350,7 @@ def run(
             )
         else:
             pending = _fingerprint_until_dispatchable(
-                pr_numbers,
+                fingerprint_numbers,
                 states,
                 fingerprint=fingerprint,
                 client_pool=client_pool,

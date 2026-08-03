@@ -14,6 +14,7 @@ from greenlight.constants import (
     DEFAULT_TIMEOUT_MINUTES,
     STATUS_AI_REVIEW_STARTED,
     STATUS_CANCELLED,
+    STATUS_FAILED,
     STATUS_LAND,
     TARGET_REPO,
 )
@@ -42,7 +43,7 @@ _OLD = _NOW - timedelta(days=2)
 _NEW = _NOW - timedelta(hours=1)
 
 
-def _open_pr(number: int, *, head_sha: str | None = None) -> OpenPR:
+def _open_pr(number: int, *, head_sha: str | None = None, updated_at: datetime | None = None) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
         number=number,
@@ -50,6 +51,7 @@ def _open_pr(number: int, *, head_sha: str | None = None) -> OpenPR:
         title=f"fix {number}",
         url=f"https://example.test/{number}",
         head_sha=head_sha or f"headsha{number}",
+        updated_at=updated_at,
     )
 
 
@@ -80,6 +82,7 @@ def _run_scan(
     force: bool = False,
     authorized: frozenset[str] = _AUTHORIZED,
     now: datetime = _NOW,
+    config_kwargs: dict[str, object] | None = None,
 ) -> _Scan:
     states = states or {}
     dispatched: list[tuple[int, str, str, str]] = []
@@ -111,7 +114,7 @@ def _run_scan(
         return authorized
 
     review.run(
-        make_config(github_token="t"),
+        make_config(github_token="t", **(config_kwargs or {})),
         pr=pr,
         max_dispatches=max_dispatches,
         ref=ref,
@@ -200,6 +203,134 @@ def test_retry_aged_dispatches(make_config):
     )
 
     assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_in_window_pr_is_processed(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    # Updated within the 24h window: fingerprinted and dispatched (never reviewed).
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_out_of_window_never_reviewed_is_skipped(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_OLD)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    # Stale and never reviewed: pruned before fingerprinting -- the whole point of the window.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    # State is still read for the full candidate set before the window prunes it.
+    assert scan.read_calls == [(TARGET_REPO, [1])]
+
+
+def test_recency_window_out_of_window_terminal_is_skipped(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_OLD)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _OLD)},
+    )
+
+    # Stale and terminal (decided): its hash cannot have changed, so skip without fingerprinting.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+@pytest.mark.parametrize("status", [STATUS_AI_REVIEW_STARTED, STATUS_CANCELLED, STATUS_FAILED])
+def test_recency_window_out_of_window_nonterminal_is_still_processed(make_config, status):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_OLD)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, status, _HASH_A, _STALE)},
+    )
+
+    # The guard: a non-terminal ledger state (in-flight / retry) is re-checked even when stale, so
+    # the aged version lets decide re-dispatch it (timed_out / retry) -- the window never hides it.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_updated_at_none_is_processed(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=None)],
+        fingerprints={1: ("headsha1b", _HASH_B)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _OLD)},
+    )
+
+    # A missing updated_at is never treated as stale: the PR is fingerprinted, and the changed hash
+    # re-dispatches it. Were None wrongly treated as out-of-window, this terminal PR would be skipped.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1b", _HASH_B, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_pr_target_is_exempt(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        states={5: _state(5, STATUS_LAND, _HASH_A, _OLD)},
+    )
+
+    # A single --pr target bypasses the window entirely: it is always fingerprinted and evaluated
+    # (here it only SKIPs because decide finds the hash unchanged, not because of the window).
+    assert scan.fingerprinted == [5]
+    assert scan.dispatched == []
+
+
+def test_recency_window_mixed_batch_prunes_only_stale_skippable(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW), _open_pr(2, updated_at=_OLD), _open_pr(3, updated_at=_OLD)],
+        fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A), 3: ("h3", _HASH_A)},
+        states={2: _state(2, STATUS_LAND, _HASH_A, _OLD)},
+    )
+
+    # read_state covers all three candidates before the window prunes any. PR1 (in-window) is
+    # processed and dispatched; PR2 (stale terminal) and PR3 (stale never-reviewed) are pruned.
+    assert scan.read_calls == [(TARGET_REPO, [1, 2, 3])]
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "h1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_config_value_drives_cutoff(make_config):
+    recent = _NOW - timedelta(minutes=30)
+    old = _NOW - timedelta(hours=2)
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=recent), _open_pr(2, updated_at=old)],
+        fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A)},
+        config_kwargs={"review_window_hours": 1.0},
+    )
+
+    # With the window shrunk to 1h, the 30-min-old PR1 is kept but the 2h-old PR2 is pruned. At the
+    # 24h default both would be kept, so this proves the config value -- not a hardcoded 24h -- is
+    # the cutoff that drives the filter.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "h1", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+def test_recency_window_exactly_at_edge_is_out_of_window(make_config):
+    at_edge = _NOW - timedelta(hours=24)
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=at_edge)],
+        fingerprints={1: ("h1", _HASH_A)},
+    )
+
+    # updated_at exactly window-old: now - updated_at == window, and the strict `<` treats the edge
+    # as out-of-window, so this never-reviewed PR is pruned rather than fingerprinted.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
 
 
 def test_max_caps_only_dispatches(make_config):

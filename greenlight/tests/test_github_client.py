@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from github import Github
 
@@ -13,12 +15,21 @@ class _FakeUser:
 
 
 class _FakePull:
-    def __init__(self, number: int, login: str | None, title: str, html_url: str, head_sha: str = "head-sha") -> None:
+    def __init__(
+        self,
+        number: int,
+        login: str | None,
+        title: str,
+        html_url: str,
+        head_sha: str = "head-sha",
+        updated_at: datetime | None = None,
+    ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
         self.title = title
         self.html_url = html_url
         self.head = _FakeBase(head_sha)
+        self.updated_at = updated_at
 
 
 class _FakeRepo:
@@ -87,13 +98,11 @@ class _FakeBase:
 class _FakePR:
     def __init__(
         self,
-        base_sha: str,
         issue_comments: list[_FakeComment],
         review_comments: list[_FakeComment],
         reviews: list[_FakeReview],
         head_sha: str = "head-sha",
     ) -> None:
-        self.base = _FakeBase(base_sha)
         self.head = _FakeBase(head_sha)
         self._issue_comments = issue_comments
         self._review_comments = review_comments
@@ -133,7 +142,12 @@ def test_list_open_prs_by_authors_maps_pull_fields():
     client = _client_with_pulls(
         [
             _FakePull(
-                42, "jeanschmidt", "fix flaky test", "https://github.com/pytorch/pytorch/pull/42", head_sha="abc123"
+                42,
+                "jeanschmidt",
+                "fix flaky test",
+                "https://github.com/pytorch/pytorch/pull/42",
+                head_sha="abc123",
+                updated_at=datetime(2026, 7, 30, 9, 0, 0),
             )
         ]
     )
@@ -148,8 +162,30 @@ def test_list_open_prs_by_authors_maps_pull_fields():
             title="fix flaky test",
             url="https://github.com/pytorch/pytorch/pull/42",
             head_sha="abc123",
+            updated_at=datetime(2026, 7, 30, 9, 0, 0),
         )
     ]
+
+
+def test_list_open_prs_by_authors_normalizes_tz_aware_updated_at():
+    client = _client_with_pulls(
+        [_FakePull(1, "alice", "fix", "https://example.test/1", updated_at=datetime(2026, 7, 30, 9, 0, 0, tzinfo=UTC))]
+    )
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
+
+    # A tz-aware updated_at is normalized to naive UTC (via state.naive_utc) so it can be
+    # compared against the naive scan clock without raising.
+    assert prs[0].updated_at == datetime(2026, 7, 30, 9, 0, 0)
+    assert prs[0].updated_at.tzinfo is None
+
+
+def test_list_open_prs_by_authors_updated_at_none_stays_none():
+    client = _client_with_pulls([_FakePull(1, "alice", "fix", "https://example.test/1", updated_at=None)])
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
+
+    assert prs[0].updated_at is None
 
 
 def test_list_open_prs_by_authors_returns_only_trusted_in_one_traversal():
@@ -244,7 +280,6 @@ def test_build_client_pins_request_timeout():
 
 def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_denylist():
     pr = _FakePR(
-        base_sha="base-sha-123",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
             _FakeComment(2, _FakeActor("ci-bot", "Bot"), "build failed"),
@@ -263,7 +298,6 @@ def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_deny
 
     fingerprint = github_client.build_pr_fingerprint(pr)
 
-    assert fingerprint.base_sha == "base-sha-123"
     assert fingerprint.head_sha == "head-sha-123"
     assert fingerprint.human_events == (
         HumanEvent(id=1, body="please fix"),
@@ -274,7 +308,6 @@ def test_build_pr_fingerprint_maps_shas_and_filters_bots_by_type_suffix_and_deny
 
 def test_build_pr_fingerprint_excludes_self_login():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[_FakeComment(1, _FakeActor("jeanschmidt", "User"), "self note")],
         review_comments=[],
         reviews=[_FakeReview(2, _FakeActor("jeanschmidt", "User"), "self review")],
@@ -287,7 +320,6 @@ def test_build_pr_fingerprint_excludes_self_login():
 
 def test_build_pr_fingerprint_keeps_others_when_self_login_does_not_match():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "note")],
         review_comments=[],
         reviews=[],
@@ -299,7 +331,7 @@ def test_build_pr_fingerprint_keeps_others_when_self_login_does_not_match():
 
 
 def test_build_pr_fingerprint_with_no_activity_returns_empty_human_events():
-    pr = _FakePR(base_sha="sha", issue_comments=[], review_comments=[], reviews=[])
+    pr = _FakePR(issue_comments=[], review_comments=[], reviews=[])
 
     fingerprint = github_client.build_pr_fingerprint(pr)
 
@@ -308,7 +340,6 @@ def test_build_pr_fingerprint_with_no_activity_returns_empty_human_events():
 
 def test_build_pr_fingerprint_keeps_only_authorized_humans():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "authorized"),
             _FakeComment(2, _FakeActor("mallory", "User"), "unauthorized"),
@@ -330,7 +361,6 @@ def test_build_pr_fingerprint_keeps_only_authorized_humans():
 
 def test_build_pr_fingerprint_none_authorized_keeps_all_non_bot_humans():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "keep"),
             _FakeComment(2, _FakeActor("mallory", "User"), "also keep"),
@@ -348,7 +378,6 @@ def test_build_pr_fingerprint_none_authorized_keeps_all_non_bot_humans():
 
 def test_build_pr_fingerprint_empty_authorized_drops_every_comment():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[_FakeComment(1, _FakeActor("alice", "User"), "note")],
         review_comments=[],
         reviews=[],
@@ -360,7 +389,6 @@ def test_build_pr_fingerprint_empty_authorized_drops_every_comment():
 
 def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "authorized other"),
             _FakeComment(2, _FakeActor("greenlight", "User"), "authorized self"),
@@ -380,7 +408,6 @@ def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
 
 def test_fingerprint_pr_threads_authorized_logins():
     pr = _FakePR(
-        base_sha="base",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "authorized"),
             _FakeComment(2, _FakeActor("mallory", "User"), "unauthorized"),
@@ -409,7 +436,6 @@ def _golden_pr() -> _FakePR:
     None-user, and a human review; only the two humans (alice, carol) survive.
     """
     return _FakePR(
-        base_sha="golden-base-sha",
         issue_comments=[
             _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
             _FakeComment(2, _FakeActor("dependabot", "User"), "bump dep"),
@@ -425,11 +451,11 @@ def _golden_pr() -> _FakePR:
     )
 
 
-def test_build_pr_fingerprint_golden_hash_scheme_v4():
-    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v4 digest.
+def test_build_pr_fingerprint_golden_hash_scheme_v5():
+    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v5 digest.
 
     Guards against drift in is_bot / BOT_LOGINS / self_login exclusion and the
-    PR-field mapping. Uses the default scheme_version (4); a future
+    PR-field mapping. Uses the default scheme_version (5); a future
     HASH_SCHEME_VERSION bump regenerates this literal.
     """
     fingerprint = github_client.build_pr_fingerprint(_golden_pr(), self_login="greenlight")
@@ -438,14 +464,13 @@ def test_build_pr_fingerprint_golden_hash_scheme_v4():
         HumanEvent(id=1, body="please fix"),
         HumanEvent(id=6, body="lgtm"),
     )
-    assert compute_pr_hash(fingerprint) == "21bf49e1deed3d5591d82cf45c03e398dcdfbde8816ee7b87d37907a7178c120"
+    assert compute_pr_hash(fingerprint) == "9d0506bd3e887a00d858f49e653cab9f913f185674a475582706cc83fcae70d4"
 
 
 @pytest.mark.parametrize("null_login", [None, ""])
 @pytest.mark.parametrize("self_login", [None, "greenlight"])
 def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str | None, self_login: str | None) -> None:
     pr = _FakePR(
-        base_sha="sha",
         issue_comments=[_FakeComment(1, _FakeActor(null_login, "User"), "ghost note")],
         review_comments=[],
         reviews=[_FakeReview(2, _FakeActor(null_login, "User"), "ghost review")],
@@ -458,7 +483,6 @@ def test_build_pr_fingerprint_excludes_actor_with_missing_login(null_login: str 
 
 def test_fingerprint_pr_returns_head_sha_and_eval_hash():
     pr = _FakePR(
-        base_sha="base-sha",
         issue_comments=[],
         review_comments=[],
         reviews=[],
@@ -488,7 +512,7 @@ def test_fingerprint_pr_hashes_golden_fixture():
 
 
 def test_fingerprint_pr_rejects_non_hex_hash(monkeypatch):
-    pr = _FakePR(base_sha="sha", issue_comments=[], review_comments=[], reviews=[])
+    pr = _FakePR(issue_comments=[], review_comments=[], reviews=[])
     client = _FakeScanClient(_FakeScanRepo(pr))
     monkeypatch.setattr(github_client, "compute_pr_hash", lambda _fingerprint: "not-a-64-hex-digest")
 

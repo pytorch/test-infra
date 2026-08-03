@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from greenlight.config import _MAX_SECONDS, Config
+from greenlight.config import _MAX_REVIEW_WINDOW_HOURS, _MAX_SECONDS, Config
 
 NUMERIC_VARS = [
     ("PYTORCH_GREENLIGHT_INTERVAL_SECONDS", "interval_seconds"),
@@ -10,6 +10,7 @@ NUMERIC_VARS = [
     ("PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS", "backoff_base_seconds"),
     ("PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", "backoff_max_seconds"),
     ("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "merge_rules_ttl_seconds"),
+    ("PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", "review_window_hours"),
 ]
 
 POSITIVE_VARS = [
@@ -17,6 +18,7 @@ POSITIVE_VARS = [
     ("PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS", "backoff_base_seconds"),
     ("PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", "backoff_max_seconds"),
     ("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "merge_rules_ttl_seconds"),
+    ("PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", "review_window_hours"),
 ]
 
 BLANK_VALUES = ["", "   ", "\t", "\n"]
@@ -31,6 +33,7 @@ def test_defaults_when_env_empty():
     assert cfg.backoff_base_seconds == 1.0
     assert cfg.backoff_max_seconds == 60.0
     assert cfg.merge_rules_ttl_seconds == 600.0
+    assert cfg.review_window_hours == 24.0
     assert cfg.github_token is None
     assert cfg == Config()
 
@@ -44,6 +47,7 @@ def test_direct_construction_defaults():
     assert cfg.backoff_base_seconds == 1.0
     assert cfg.backoff_max_seconds == 60.0
     assert cfg.merge_rules_ttl_seconds == 600.0
+    assert cfg.review_window_hours == 24.0
     assert cfg.github_token is None
 
 
@@ -56,6 +60,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS": "2",
         "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS": "45",
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
+        "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
     }
     cfg = Config.from_env(env)
@@ -66,6 +71,7 @@ def test_from_env_parses_all_vars():
     assert cfg.backoff_base_seconds == 2.0
     assert cfg.backoff_max_seconds == 45.0
     assert cfg.merge_rules_ttl_seconds == 900.0
+    assert cfg.review_window_hours == 48.0
     assert cfg.github_token == "ghp_abc123"
 
 
@@ -155,6 +161,13 @@ def test_value_above_max_raises_naming_field(var, field):
 def test_max_seconds_boundary_is_accepted():
     assert Config(interval_seconds=_MAX_SECONDS).interval_seconds == _MAX_SECONDS
     assert Config(max_runtime_seconds=_MAX_SECONDS).max_runtime_seconds == _MAX_SECONDS
+
+
+def test_review_window_hours_has_its_own_cap_distinct_from_seconds():
+    # The window is bounded in hours by its own cap, not the setitimer-driven _MAX_SECONDS.
+    assert Config(review_window_hours=_MAX_REVIEW_WINDOW_HOURS).review_window_hours == _MAX_REVIEW_WINDOW_HOURS
+    with pytest.raises(ValueError, match="review_window_hours"):
+        Config(review_window_hours=_MAX_REVIEW_WINDOW_HOURS + 1.0)
 
 
 @pytest.mark.parametrize(("var", "field"), NUMERIC_VARS)

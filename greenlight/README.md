@@ -25,8 +25,11 @@ trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
-their last review. An in-flight review — one marked `AI_REVIEW_STARTED` — is left alone
-until the `--timeout-minutes` re-dispatch window elapses. `verdict` records a single
+their last review. A PR whose `updated_at` is older than
+`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) is skipped without fingerprinting unless
+it has an in-flight or retry-eligible (cancelled/failed) review to re-check. An in-flight review — one marked
+`AI_REVIEW_STARTED` — is left alone until the `--timeout-minutes` re-dispatch window elapses.
+`verdict` records a single
 PR-review verdict and acts on the PR (see below).
 
 ```bash
@@ -89,6 +92,7 @@ Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long a resolved `merge_rules.yaml` authorized-login set is cached before refetch |
+| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
 
 `review` additionally reads ClickHouse — any scan that finds at least one trusted-author
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -108,9 +112,11 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-PRs that are new or changed. An `AI_REVIEW_STARTED` marker is treated as an in-flight
-review and left alone until the `--timeout-minutes` window (default 45) elapses. `review`
-requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan with at least one PR reads
+PRs that are new or changed. PRs whose `updated_at` is older than the review window
+(`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24) are skipped without fingerprinting
+unless a review is in-flight or retry-eligible (cancelled/failed). An `AI_REVIEW_STARTED` marker is treated as an
+in-flight review and left alone until the `--timeout-minutes` window (default 45) elapses.
+`review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan with at least one PR reads
 ClickHouse (`CLICKHOUSE_*`).
 
 Also works: the reviewer workflow's `announce_start` job emits the `AI_REVIEW_STARTED`
