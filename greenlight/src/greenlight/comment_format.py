@@ -103,8 +103,10 @@ def incomplete_body(reason: str, job_url: str, run_id: int | None) -> str:
 def marker_body(status: str, job_url: str, run_id: int | None) -> str:
     if status == STATUS_AI_REVIEW_STARTED:
         return reviewing_body(job_url, run_id)
-    # The only remaining marker statuses are the retry outcomes (CANCELLED / FAILED); their
-    # lowercased name is the human-readable reason shown in the "did not complete" comment.
+    # AI_REVIEW_STARTED is handled above and AI_REVIEW_DISPATCHED is scan-only (never reaches the
+    # verdict CLI), so the only marker statuses left here are the retry outcomes (CANCELLED /
+    # FAILED); their lowercased name is the human-readable reason shown in the "did not complete"
+    # comment.
     return incomplete_body(status.lower(), job_url, run_id)
 
 

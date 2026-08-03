@@ -23,19 +23,17 @@ or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse di
 
 from __future__ import annotations
 
-import gzip
 import json
 import logging
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import comment_format, constants, github_client
+from greenlight import comment_format, constants, github_client, state_emit
 from greenlight.constants import (
     IN_FLIGHT_STATUSES,
     RETRY_STATUSES,
-    S3_KEY_PREFIX,
+    SCAN_ONLY_STATUSES,
     STATUS_LAND,
     TERMINAL_STATUSES,
     VERDICT_STATUSES,
@@ -52,7 +50,10 @@ __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
 logger = logging.getLogger(__name__)
 
 _FULL_STATUSES = TERMINAL_STATUSES
-_MARKER_STATUSES = RETRY_STATUSES | IN_FLIGHT_STATUSES
+# Marker statuses the verdict CLI accepts: the retry outcomes plus AI_REVIEW_STARTED, minus the
+# scan-only AI_REVIEW_DISPATCHED (which lives in IN_FLIGHT_STATUSES for decide() but is never
+# emitted through this command).
+_MARKER_STATUSES = (RETRY_STATUSES | IN_FLIGHT_STATUSES) - SCAN_ONLY_STATUSES
 
 # Canonical verdict reason codes. Three files mirror this set byte-for-byte:
 # .claude/hooks/greenlight/verdict-schema.json, .claude/hooks/greenlight/validate-on-stop.sh,
@@ -178,11 +179,6 @@ def _validate_message(message: str) -> None:
         raise ValueError("a non-empty message is required for a LAND/NO_LAND verdict")
 
 
-def _object_key(repo: str, pr_number: int, version: str) -> str:
-    compact = version.replace("-", "").replace(":", "").replace(" ", "T").replace(".", "_")
-    return f"{S3_KEY_PREFIX}/{repo}/{pr_number}/{compact}.json.gz"
-
-
 def _emit_payload(
     request: VerdictRequest,
     status: str,
@@ -193,28 +189,23 @@ def _emit_payload(
     emit: Callable[[bytes, str], None],
     new_emit_id: Callable[[], str],
 ) -> str:
-    version = now().replace(tzinfo=None).isoformat(sep=" ", timespec="milliseconds")
-    # emit_id is a fresh per-emit UUID whose only job is to make the ClickHouse sort key
-    # (repo, pr_number, run_id, emit_id) unique so the ReplacingMergeTree never collapses a
-    # row; it is storage-only and never read back.
-    row = {
-        "repo": request.repo,
-        "pr_number": request.pr_number,
-        "head_sha": request.head_sha,
-        "status": status,
-        "reason": reason,
-        "eval_hash": request.eval_hash,
-        "message": message,
-        "eval_job": request.eval_job_url,
-        "agent_job": request.agent_job_url,
-        "version": version,
-        "run_id": request.run_id or 0,
-        "emit_id": new_emit_id(),
-    }
-    line = json.dumps(row, separators=(",", ":"), ensure_ascii=False) + "\n"
-    key = _object_key(request.repo, request.pr_number, version)
-    emit(gzip.compress(line.encode("utf-8"), mtime=0), key)
-    return key
+    # run_id is optional on the request but a non-null Int64 in the row; None -> 0 (a JSON null
+    # would fail the replicator). The row schema and object key live in state_emit.
+    return state_emit.emit_row(
+        repo=request.repo,
+        pr_number=request.pr_number,
+        head_sha=request.head_sha,
+        status=status,
+        reason=reason,
+        eval_hash=request.eval_hash,
+        message=message,
+        eval_job=request.eval_job_url,
+        agent_job=request.agent_job_url,
+        run_id=request.run_id or 0,
+        now=now,
+        emit=emit,
+        new_emit_id=new_emit_id,
+    )
 
 
 def _default_emit(row_gzip: bytes, key: str) -> None:
@@ -335,7 +326,7 @@ def run(
     build_github: Callable[[str], VerdictClient] = github_client.build_client,
     emit: Callable[[bytes, str], None] = _default_emit,
     now: Callable[[], datetime] = _utcnow,
-    new_emit_id: Callable[[], str] = lambda: uuid.uuid4().hex,
+    new_emit_id: Callable[[], str] = state_emit.default_emit_id,
 ) -> None:
     status, reason, message = _resolve_verdict(request)
     if status in _MARKER_STATUSES:

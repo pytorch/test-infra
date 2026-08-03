@@ -186,7 +186,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
         "run_id": 0,
         "emit_id": _EMIT_ID,
     }
-    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}.json.gz"
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
     assert body == verdict._LAND_REVIEW_BODY == ""
@@ -230,6 +230,32 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     assert obj["version"] == _VERSION
 
 
+def test_verdict_emitted_row_is_byte_stable(make_config):
+    # Golden characterization: the verdict emit path (now routed through state_emit.emit_row)
+    # MUST keep producing this exact JSONEachRow line -- field order, separators, values, and the
+    # trailing newline are the positional S3 -> ClickHouse replicator contract.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="pytorch/pytorch", pr_number=9, head_sha="h", status="CANCELLED")
+
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=_boom_build_github,
+        emit=emit,
+        now=lambda: _FIXED,
+        new_emit_id=lambda: _EMIT_ID,
+    )
+
+    assert emit.row_gzip is not None
+    raw = gzip.decompress(emit.row_gzip).decode("utf-8")
+    assert raw == (
+        '{"repo":"pytorch/pytorch","pr_number":9,"head_sha":"h","status":"CANCELLED",'
+        '"reason":"","eval_hash":"","message":"","eval_job":"","agent_job":"",'
+        f'"version":"{_VERSION}","run_id":0,"emit_id":"{_EMIT_ID}"}}\n'
+    )
+
+
 @pytest.mark.parametrize(("run_id", "expected"), [(123, 123), (None, 0)])
 def test_emit_payload_stores_run_id_coercing_none_to_zero(make_config, run_id, expected):
     # A JSON null into the Int64 run_id column would fail the replicator, so None becomes 0.
@@ -263,6 +289,15 @@ def test_two_emits_get_distinct_emit_ids(make_config):
     assert len(first) == len(second) == 32
 
 
+def test_verdict_run_rejects_scan_only_dispatched_status(make_config):
+    # AI_REVIEW_DISPATCHED is scan-only (written via state_emit's S3 path). The verdict CLI must
+    # reject it outright -- emitting neither a row nor the misleading "did not complete" comment.
+    req = VerdictRequest(repo="r", pr_number=1, head_sha="h", status="AI_REVIEW_DISPATCHED")
+    with pytest.raises(ValueError, match="unknown verdict status 'AI_REVIEW_DISPATCHED'"):
+        verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit)
+    assert "AI_REVIEW_DISPATCHED" not in verdict.VERDICT_STATUSES
+
+
 def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
@@ -294,7 +329,7 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert payload["status"] == "NO_LAND"
     assert payload["reason"] == "scope_too_large"
     assert payload["eval_job"] == "https://eval-run"
-    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}.json.gz"
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}-{payload['emit_id']}.json.gz"
     # The upserted comment is defanged: marker + headline + <details> why, @ neutralized, fenced.
     body = pr.comments[0]
     assert body.startswith(comment_format.COMMENT_MARKER)
@@ -428,7 +463,7 @@ def test_marker_cancelled_emits_payload_only(make_config):
         "run_id": 0,
         "emit_id": _EMIT_ID,
     }
-    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}.json.gz"
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 
 
 def test_marker_failed_stores_eval_hash_verbatim_without_validation(make_config):
@@ -474,7 +509,7 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
         "run_id": 0,
         "emit_id": _EMIT_ID,
     }
-    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}.json.gz"
+    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 
 
 def test_marker_ai_review_started_with_bot_login_emits_row_then_upserts_reviewing_comment(make_config):
@@ -870,13 +905,6 @@ def test_emit_errors_are_not_swallowed(make_config, tmp_path):
         )
 
     assert pr.created_reviews == []  # emit failed before the post
-
-
-def test_object_key_scheme():
-    assert (
-        verdict._object_key("owner/name", 42, "2026-07-30 12:00:00.123")
-        == "greenlight_pr_state/owner/name/42/20260730T120000_123.json.gz"
-    )
 
 
 def test_utcnow_is_timezone_aware_utc():

@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from greenlight import dispatch as dispatch_module
-from greenlight import github_client, scan_runner, state
+from greenlight import github_client, scan_runner, state, state_emit
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
@@ -188,6 +188,7 @@ def run(
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
+    emit_dispatched: Callable[..., None] = state_emit.emit_ai_review_dispatched,
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
     resolve_authorized: Callable[[], frozenset[str]],
@@ -284,7 +285,7 @@ def run(
                 force=force,
             )
         dispatch_failed = scan_runner._dispatch_pending(
-            client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch
+            client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch, emit_dispatched=emit_dispatched
         )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),

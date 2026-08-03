@@ -6,8 +6,10 @@ import pytest
 
 from greenlight import scan_runner
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
+from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
+from greenlight.state import PRState
 
 if TYPE_CHECKING:
     from concurrent.futures import Future
@@ -174,3 +176,133 @@ def test_evaluate_pr_iteration_timeout_propagates():
 
     assert failed == []
     assert skips == []
+
+
+_EVAL_HASH = "a" * 64
+
+
+def _pr_state(number: int, run_id: int) -> PRState:
+    return PRState(
+        pr_number=number,
+        status="LAND",
+        eval_hash=_EVAL_HASH,
+        head_sha=f"rec{number}",
+        version=datetime(2026, 1, 1),
+        run_id=run_id,
+    )
+
+
+def _candidate(number: int, *, run_id: int | None) -> scan_runner._Candidate:
+    # run_id is None to model a never-reviewed PR (state None); an int models a recorded prior run.
+    recorded = None if run_id is None else _pr_state(number, run_id)
+    return scan_runner._Candidate(
+        pr_number=number,
+        head_sha=f"headsha{number}",
+        eval_hash=_EVAL_HASH,
+        state=recorded,
+        reason="never_reviewed" if run_id is None else "changed",
+    )
+
+
+def test_dispatch_pending_emits_marker_with_next_run_id():
+    dispatched: list[int] = []
+    emitted: list[dict[str, object]] = []
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    def emit(**kwargs):
+        emitted.append(kwargs)
+
+    pending = [_candidate(1, run_id=None), _candidate(2, run_id=4), _candidate(3, run_id=0)]
+    failed = scan_runner._dispatch_pending(
+        _CLIENT, pending, ref="main", max_dispatches=None, dispatch=dispatch, emit_dispatched=emit
+    )
+
+    # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
+    # both base at run_id 1; a prior run 4 supersedes with run_id 5.
+    assert failed == []
+    assert sorted(dispatched) == [1, 2, 3]
+    assert {call["pr_number"]: call["run_id"] for call in emitted} == {1: 1, 2: 5, 3: 1}
+    for call in emitted:
+        assert call["repo"] == TARGET_REPO
+        assert call["eval_hash"] == _EVAL_HASH
+    assert {call["head_sha"] for call in emitted} == {"headsha1", "headsha2", "headsha3"}
+
+
+def test_dispatch_pending_does_not_emit_when_dispatch_fails():
+    emitted: list[dict[str, object]] = []
+
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        raise RuntimeError(f"dispatch boom {number}")
+
+    def emit(**kwargs):
+        emitted.append(kwargs)
+
+    failed = scan_runner._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=2)],
+        ref="main",
+        max_dispatches=None,
+        dispatch=boom_dispatch,
+        emit_dispatched=emit,
+    )
+
+    # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it.
+    assert failed == [1]
+    assert emitted == []
+
+
+def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
+    dispatched: list[int] = []
+    emitted: list[int] = []
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    def boom_emit(*, pr_number, **_kwargs):
+        if pr_number == 1:
+            raise RuntimeError("emit boom")
+        emitted.append(pr_number)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        failed = scan_runner._dispatch_pending(
+            _CLIENT,
+            [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+            ref="main",
+            max_dispatches=None,
+            dispatch=dispatch,
+            emit_dispatched=boom_emit,
+        )
+
+    # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
+    # is not counted as failed, and the remaining PR2 still dispatches and emits.
+    assert failed == []
+    assert dispatched == [1, 2]
+    assert emitted == [2]
+    assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
+    assert any(record.exc_info is not None for record in caplog.records)
+
+
+def test_dispatch_pending_emit_iteration_timeout_propagates():
+    dispatched: list[int] = []
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    def timeout_emit(**_kwargs):
+        raise IterationTimeout("iteration exceeded")
+
+    # IterationTimeout from the marker emit is the per-iteration watchdog signal: it must propagate
+    # past the swallow arm, halting the loop so PR2 is never reached.
+    with pytest.raises(IterationTimeout):
+        scan_runner._dispatch_pending(
+            _CLIENT,
+            [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+            ref="main",
+            max_dispatches=None,
+            dispatch=dispatch,
+            emit_dispatched=timeout_emit,
+        )
+
+    assert dispatched == [1]

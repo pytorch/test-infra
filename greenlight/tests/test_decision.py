@@ -59,29 +59,55 @@ def test_terminal_changed_hash_dispatches_changed(status):
     assert _decide(status, latest=HASH_A, current=HASH_B) == Outcome(Decision.DISPATCH, "changed")
 
 
-def test_in_flight_changed_hash_dispatches_changed():
-    outcome = _decide(constants.STATUS_AI_REVIEW_STARTED, latest=HASH_A, current=HASH_B, version=FRESH)
+# Both in-flight statuses (a queued AI_REVIEW_DISPATCHED and a running AI_REVIEW_STARTED) MUST
+# take the identical decide() branch; every in-flight case is parametrized over both.
+IN_FLIGHT = [constants.STATUS_AI_REVIEW_STARTED, constants.STATUS_AI_REVIEW_DISPATCHED]
+
+
+@pytest.mark.parametrize("status", IN_FLIGHT)
+def test_in_flight_changed_hash_dispatches_changed(status):
+    outcome = _decide(status, latest=HASH_A, current=HASH_B, version=FRESH)
     assert outcome == Outcome(Decision.DISPATCH, "changed")
 
 
-def test_in_flight_same_hash_within_timeout_waits():
-    outcome = _decide(constants.STATUS_AI_REVIEW_STARTED, version=FRESH)
+@pytest.mark.parametrize("status", IN_FLIGHT)
+def test_in_flight_same_hash_within_timeout_waits(status):
+    outcome = _decide(status, version=FRESH)
     assert outcome == Outcome(Decision.WAIT, "in_flight")
 
 
-def test_in_flight_same_hash_at_timeout_boundary_dispatches_timed_out():
-    outcome = _decide(constants.STATUS_AI_REVIEW_STARTED, version=AT_BOUNDARY)
+@pytest.mark.parametrize("status", IN_FLIGHT)
+def test_in_flight_same_hash_at_timeout_boundary_dispatches_timed_out(status):
+    outcome = _decide(status, version=AT_BOUNDARY)
     assert outcome == Outcome(Decision.DISPATCH, "timed_out")
 
 
-def test_in_flight_same_hash_past_timeout_dispatches_timed_out():
-    outcome = _decide(constants.STATUS_AI_REVIEW_STARTED, version=STALE)
+@pytest.mark.parametrize("status", IN_FLIGHT)
+def test_in_flight_same_hash_past_timeout_dispatches_timed_out(status):
+    outcome = _decide(status, version=STALE)
     assert outcome == Outcome(Decision.DISPATCH, "timed_out")
 
 
-def test_in_flight_missing_version_dispatches_timed_out():
-    outcome = _decide(constants.STATUS_AI_REVIEW_STARTED, version=None)
+@pytest.mark.parametrize("status", IN_FLIGHT)
+def test_in_flight_missing_version_dispatches_timed_out(status):
+    outcome = _decide(status, version=None)
     assert outcome == Outcome(Decision.DISPATCH, "timed_out")
+
+
+@pytest.mark.parametrize(
+    ("latest", "current", "version"),
+    [
+        (HASH_A, HASH_B, FRESH),  # changed
+        (HASH_A, HASH_A, FRESH),  # in_flight
+        (HASH_A, HASH_A, AT_BOUNDARY),  # timed_out at boundary
+        (HASH_A, HASH_A, STALE),  # timed_out past window
+        (HASH_A, HASH_A, None),  # timed_out missing version
+    ],
+)
+def test_ai_review_dispatched_decides_identically_to_ai_review_started(latest, current, version):
+    started = _decide(constants.STATUS_AI_REVIEW_STARTED, latest=latest, current=current, version=version)
+    dispatched = _decide(constants.STATUS_AI_REVIEW_DISPATCHED, latest=latest, current=current, version=version)
+    assert dispatched == started
 
 
 @pytest.mark.parametrize("status", [constants.STATUS_CANCELLED, constants.STATUS_FAILED])

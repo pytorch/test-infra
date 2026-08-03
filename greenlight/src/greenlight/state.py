@@ -28,7 +28,9 @@ if TYPE_CHECKING:
 
 __all__ = ["PRState", "naive_utc", "read_latest_states"]
 
-_QUERY = "SELECT pr_number, status, eval_hash, head_sha, version FROM misc.greenlight_pr_state WHERE repo = %(repo)s"
+_QUERY = (
+    "SELECT pr_number, status, eval_hash, head_sha, version, run_id FROM misc.greenlight_pr_state WHERE repo = %(repo)s"
+)
 _PR_FILTER = " AND pr_number IN %(pr_numbers)s"
 _ORDER_LIMIT = " ORDER BY pr_number, run_id DESC, version DESC LIMIT 1 BY pr_number"
 
@@ -40,6 +42,7 @@ class PRState:
     eval_hash: str
     head_sha: str
     version: datetime
+    run_id: int
 
 
 def naive_utc(value: datetime) -> datetime:
@@ -83,6 +86,7 @@ def read_latest_states(
             eval_hash=row["eval_hash"],
             head_sha=row["head_sha"],
             version=naive_utc(row["version"]),
+            run_id=int(row["run_id"]),
         )
         for row in result.named_results()
     }

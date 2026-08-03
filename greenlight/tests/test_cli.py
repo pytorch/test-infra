@@ -407,6 +407,13 @@ def test_verdict_parser_rejects_unknown_status():
         parser.parse_args(["verdict", "--pr", "5", "--head-sha", "abc", "--status", "MAYBE"])
 
 
+def test_verdict_parser_rejects_scan_only_dispatched_status():
+    # AI_REVIEW_DISPATCHED is scan-only, so it must not be an accepted --status choice.
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["verdict", "--pr", "5", "--head-sha", "abc", "--status", "AI_REVIEW_DISPATCHED"])
+
+
 def test_main_verdict_dispatches_and_builds_request(monkeypatch):
     captured: dict[str, object] = {}
 

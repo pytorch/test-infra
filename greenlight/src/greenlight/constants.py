@@ -9,16 +9,24 @@ STATUS_NO_LAND = "NO_LAND"
 STATUS_CANCELLED = "CANCELLED"
 STATUS_FAILED = "FAILED"
 STATUS_AI_REVIEW_STARTED = "AI_REVIEW_STARTED"
+STATUS_AI_REVIEW_DISPATCHED = "AI_REVIEW_DISPATCHED"
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({STATUS_LAND, STATUS_NO_LAND})
-IN_FLIGHT_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_STARTED})
+IN_FLIGHT_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_STARTED, STATUS_AI_REVIEW_DISPATCHED})
 RETRY_STATUSES: frozenset[str] = frozenset({STATUS_CANCELLED, STATUS_FAILED})
-VERDICT_STATUSES: frozenset[str] = TERMINAL_STATUSES | IN_FLIGHT_STATUSES | RETRY_STATUSES
+# AI_REVIEW_DISPATCHED is written only by the scan (via state_emit's direct S3 emit) and must stay
+# in IN_FLIGHT_STATUSES so decide() treats a queued run as in-flight; but it is never an accepted
+# verdict status, so it is subtracted out of the emittable set the verdict CLI validates against.
+SCAN_ONLY_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_DISPATCHED})
+VERDICT_STATUSES: frozenset[str] = (TERMINAL_STATUSES | IN_FLIGHT_STATUSES | RETRY_STATUSES) - SCAN_ONLY_STATUSES
 
 # GitHub labels are case-sensitive; the pytorch stale bot uses the exact name "Stale".
 STALE_LABEL = "Stale"
 EXCLUDED_LABELS: frozenset[str] = frozenset({STALE_LABEL})
 
+# The reviewer and record workflows already write greenlight state rows to this bucket via
+# ``aws s3 cp``; the scan's direct boto3 upload targets the same bucket, single-sourced here.
+S3_BUCKET = "gha-artifacts"
 S3_KEY_PREFIX = "greenlight_pr_state"
 EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")

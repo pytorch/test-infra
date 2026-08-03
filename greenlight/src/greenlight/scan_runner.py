@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from greenlight import comment_format
+from greenlight import comment_format, constants
 from greenlight.decision import Decision, decide
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
@@ -199,6 +199,30 @@ def _fingerprint_until_dispatchable(
     return pending
 
 
+def _emit_dispatch_marker(candidate: _Candidate, emit_dispatched: Callable[..., None]) -> None:
+    # run_id is prior_run_id + 1 so this AI_REVIEW_DISPATCHED row supersedes the PR's prior row,
+    # while the reviewer run's own later, higher github.run_id supersedes it in turn once that run
+    # starts. A None state (never-reviewed PR) has no prior run, so it bases at 0 -> run_id 1.
+    # The workflow was already fired, so an emit failure is logged and swallowed: a missing marker
+    # self-heals (next scan re-dispatches, the reviewer's per-PR concurrency group cancels the dup),
+    # and must not fail the scan or block dispatching the remaining candidates.
+    prior_run_id = candidate.state.run_id if candidate.state else 0
+    try:
+        emit_dispatched(
+            repo=constants.TARGET_REPO,
+            pr_number=candidate.pr_number,
+            head_sha=candidate.head_sha,
+            eval_hash=candidate.eval_hash,
+            run_id=prior_run_id + 1,
+        )
+    except IterationTimeout:
+        raise
+    except Exception as exc:
+        logger.error(
+            "failed to emit AI_REVIEW_DISPATCHED marker for PR #%d: %s", candidate.pr_number, exc, exc_info=True
+        )
+
+
 def _dispatch_pending(
     client: Github,
     pending: list[_Candidate],
@@ -206,6 +230,7 @@ def _dispatch_pending(
     ref: str,
     max_dispatches: int | None,
     dispatch: Callable[[Github, int, str, str, str], None],
+    emit_dispatched: Callable[..., None],
 ) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
@@ -220,6 +245,7 @@ def _dispatch_pending(
             dispatch_failed.append(candidate.pr_number)
             continue
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
+        _emit_dispatch_marker(candidate, emit_dispatched)
     for candidate in ordered[limit:]:
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
     return dispatch_failed

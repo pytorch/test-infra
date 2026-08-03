@@ -30,7 +30,7 @@ on:
       timeout_minutes:
         description: "In-flight / re-dispatch timeout (minutes)"
         required: false
-        default: "30"
+        default: "45"
         type: string
       log_level:
         description: "Log verbosity"
@@ -51,6 +51,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 defaults:
   run:
@@ -104,6 +105,14 @@ jobs:
 
       - name: Sync dependencies
         run: just setup
+
+      # The scan PUTs an AI_REVIEW_DISPATCHED state row to S3 via boto3 the instant it fires the
+      # reviewer workflow, so it needs the same OIDC role/arc the reviewer and record jobs use.
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/arc
+          aws-region: us-east-1
 
       - name: Scan and dispatch
         env:

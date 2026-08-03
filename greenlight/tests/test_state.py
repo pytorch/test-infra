@@ -55,13 +55,16 @@ def _connect_seam(client: _FakeClient) -> tuple[Callable[[], Client], dict[str, 
     return _connect, calls
 
 
-def _row(pr_number: int, status: str, eval_hash: str, head_sha: str, version: datetime) -> dict[str, object]:
+def _row(
+    pr_number: int, status: str, eval_hash: str, head_sha: str, version: datetime, run_id: int = 0
+) -> dict[str, object]:
     return {
         "pr_number": pr_number,
         "status": status,
         "eval_hash": eval_hash,
         "head_sha": head_sha,
         "version": version,
+        "run_id": run_id,
     }
 
 
@@ -78,7 +81,7 @@ def test_query_selects_highest_run_id_then_version_and_drops_final():
     # and decides among legacy run_id=0 rows. The append-only table never collapses, so there
     # is no FINAL.
     assert "FINAL" not in query
-    assert "FROM misc.greenlight_pr_state" in query
+    assert "run_id FROM misc.greenlight_pr_state" in query
     assert "repo = %(repo)s" in query
     assert "ORDER BY pr_number, run_id DESC, version DESC" in query
     assert "LIMIT 1 BY pr_number" in query
@@ -101,33 +104,39 @@ def test_pr_filter_and_tuple_param_applied_only_when_pr_numbers_given():
 
 
 @pytest.mark.parametrize(
-    ("status", "version"),
+    ("status", "version", "run_id"),
     [
         # ClickHouse has already applied ORDER BY run_id DESC, version DESC + LIMIT 1 BY
         # pr_number, so it returns exactly the one authoritative row per PR; the fake echoes it
-        # back. Each id names the scenario that makes that row the winner.
-        pytest.param("LAND", _V1, id="race-newer-run_id-wins-despite-earlier-version"),
-        pytest.param("LAND", _V2, id="within-run-land-beats-earlier-ai_review_started"),
-        pytest.param("NO_LAND", _V1, id="legacy-run_id-zero-decided-by-version"),
+        # back. Each id names the scenario that makes that row the winner. A legacy pre-004 part
+        # reads run_id = 0.
+        pytest.param("LAND", _V1, 42, id="race-newer-run_id-wins-despite-earlier-version"),
+        pytest.param("LAND", _V2, 42, id="within-run-land-beats-earlier-ai_review_started"),
+        pytest.param("NO_LAND", _V1, 0, id="legacy-run_id-zero-decided-by-version"),
     ],
 )
-def test_authoritative_row_maps_to_prstate(status, version):
-    client = _FakeClient([_row(7, status, "a" * 64, "sha7", version)])
+def test_authoritative_row_maps_to_prstate(status, version, run_id):
+    client = _FakeClient([_row(7, status, "a" * 64, "sha7", version, run_id)])
     connect, _ = _connect_seam(client)
 
     result = state.read_latest_states(_REPO, [7], connect=connect)
 
-    assert result == {7: PRState(pr_number=7, status=status, eval_hash="a" * 64, head_sha="sha7", version=version)}
+    assert result == {
+        7: PRState(pr_number=7, status=status, eval_hash="a" * 64, head_sha="sha7", version=version, run_id=run_id)
+    }
 
 
 def test_maps_single_row_to_prstate_including_datetime():
-    client = _FakeClient([_row(7, "LAND", "a" * 64, "deadbeef", _V1)])
+    client = _FakeClient([_row(7, "LAND", "a" * 64, "deadbeef", _V1, 5)])
     connect, _ = _connect_seam(client)
 
     result = state.read_latest_states(_REPO, connect=connect)
 
-    assert result == {7: PRState(pr_number=7, status="LAND", eval_hash="a" * 64, head_sha="deadbeef", version=_V1)}
+    assert result == {
+        7: PRState(pr_number=7, status="LAND", eval_hash="a" * 64, head_sha="deadbeef", version=_V1, run_id=5)
+    }
     assert result[7].version == _V1
+    assert result[7].run_id == 5
 
 
 def test_tz_aware_version_is_stripped_to_naive_utc():
@@ -144,8 +153,8 @@ def test_tz_aware_version_is_stripped_to_naive_utc():
 
 def test_multiple_prs_map_by_pr_number():
     rows = [
-        _row(7, "LAND", "a" * 64, "sha7", _V1),
-        _row(11, "AI_REVIEW_STARTED", "b" * 64, "sha11", _V2),
+        _row(7, "LAND", "a" * 64, "sha7", _V1, 100),
+        _row(11, "AI_REVIEW_STARTED", "b" * 64, "sha11", _V2, 101),
     ]
     client = _FakeClient(rows)
     connect, _ = _connect_seam(client)
@@ -153,9 +162,11 @@ def test_multiple_prs_map_by_pr_number():
     result = state.read_latest_states(_REPO, [7, 11], connect=connect)
 
     assert set(result) == {7, 11}
-    assert result[7] == PRState(pr_number=7, status="LAND", eval_hash="a" * 64, head_sha="sha7", version=_V1)
+    assert result[7] == PRState(
+        pr_number=7, status="LAND", eval_hash="a" * 64, head_sha="sha7", version=_V1, run_id=100
+    )
     assert result[11] == PRState(
-        pr_number=11, status="AI_REVIEW_STARTED", eval_hash="b" * 64, head_sha="sha11", version=_V2
+        pr_number=11, status="AI_REVIEW_STARTED", eval_hash="b" * 64, head_sha="sha11", version=_V2, run_id=101
     )
 
 
@@ -195,7 +206,7 @@ def test_query_error_propagates_and_closes_connection():
 
 
 def test_prstate_is_frozen():
-    st = PRState(pr_number=1, status="LAND", eval_hash="a" * 64, head_sha="sha", version=_V1)
+    st = PRState(pr_number=1, status="LAND", eval_hash="a" * 64, head_sha="sha", version=_V1, run_id=3)
 
     with pytest.raises(dataclasses.FrozenInstanceError):
         st.status = "NO_LAND"  # type: ignore[misc]

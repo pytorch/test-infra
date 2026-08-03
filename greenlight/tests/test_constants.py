@@ -9,27 +9,50 @@ def test_status_string_values():
     assert constants.STATUS_CANCELLED == "CANCELLED"
     assert constants.STATUS_FAILED == "FAILED"
     assert constants.STATUS_AI_REVIEW_STARTED == "AI_REVIEW_STARTED"
+    assert constants.STATUS_AI_REVIEW_DISPATCHED == "AI_REVIEW_DISPATCHED"
 
 
-def test_verdict_statuses_is_exactly_the_five_statuses():
-    assert sorted(constants.VERDICT_STATUSES) == ["AI_REVIEW_STARTED", "CANCELLED", "FAILED", "LAND", "NO_LAND"]
+def test_verdict_statuses_excludes_scan_only_dispatched():
+    # VERDICT_STATUSES is the emittable set the verdict CLI validates against; the scan-only
+    # AI_REVIEW_DISPATCHED must not appear here (it would post a misleading "did not complete").
+    assert sorted(constants.VERDICT_STATUSES) == [
+        "AI_REVIEW_STARTED",
+        "CANCELLED",
+        "FAILED",
+        "LAND",
+        "NO_LAND",
+    ]
+    assert constants.STATUS_AI_REVIEW_DISPATCHED not in constants.VERDICT_STATUSES
+
+
+def test_scan_only_statuses_is_dispatched_and_stays_in_flight_for_decide():
+    assert sorted(constants.SCAN_ONLY_STATUSES) == ["AI_REVIEW_DISPATCHED"]
+    # decide() must still treat a queued dispatch as in-flight, so it stays in IN_FLIGHT_STATUSES.
+    assert constants.SCAN_ONLY_STATUSES <= constants.IN_FLIGHT_STATUSES
+    assert constants.STATUS_AI_REVIEW_DISPATCHED in constants.IN_FLIGHT_STATUSES
 
 
 def test_scanner_groupings_membership():
     assert sorted(constants.TERMINAL_STATUSES) == ["LAND", "NO_LAND"]
-    assert sorted(constants.IN_FLIGHT_STATUSES) == ["AI_REVIEW_STARTED"]
+    assert sorted(constants.IN_FLIGHT_STATUSES) == ["AI_REVIEW_DISPATCHED", "AI_REVIEW_STARTED"]
     assert sorted(constants.RETRY_STATUSES) == ["CANCELLED", "FAILED"]
 
 
 def test_scanner_groupings_partition_verdict_statuses():
+    # The three decide() groupings are pairwise disjoint; minus the scan-only status they are
+    # exactly the emittable verdict statuses.
     union = constants.TERMINAL_STATUSES | constants.IN_FLIGHT_STATUSES | constants.RETRY_STATUSES
-    assert union == constants.VERDICT_STATUSES
     total = len(constants.TERMINAL_STATUSES) + len(constants.IN_FLIGHT_STATUSES) + len(constants.RETRY_STATUSES)
-    assert total == len(constants.VERDICT_STATUSES)
+    assert total == len(union)
+    assert union - constants.SCAN_ONLY_STATUSES == constants.VERDICT_STATUSES
 
 
 def test_s3_key_prefix_value():
     assert constants.S3_KEY_PREFIX == "greenlight_pr_state"
+
+
+def test_s3_bucket_value():
+    assert constants.S3_BUCKET == "gha-artifacts"
 
 
 def test_eval_hash_re_matches_64_lowercase_hex():

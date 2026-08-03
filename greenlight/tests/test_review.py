@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import github_client, review, scan_runner
+from greenlight import github_client, review, scan_runner, state_emit
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -64,8 +64,18 @@ def _open_pr(
     )
 
 
-def _state(number: int, status: str, eval_hash: str, version: datetime) -> PRState:
-    return PRState(pr_number=number, status=status, eval_hash=eval_hash, head_sha=f"rec{number}", version=version)
+def _state(number: int, status: str, eval_hash: str, version: datetime, run_id: int = 0) -> PRState:
+    return PRState(
+        pr_number=number, status=status, eval_hash=eval_hash, head_sha=f"rec{number}", version=version, run_id=run_id
+    )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_s3_upload(monkeypatch):
+    # review.run's default emit_dispatched seam PUTs the AI_REVIEW_DISPATCHED row to S3 via boto3;
+    # its default arg is bound at import, so neutralise the deeper upload so no test can touch AWS.
+    # Tests asserting the marker inject their own emit_dispatched seam and never reach this.
+    monkeypatch.setattr(state_emit, "_default_upload", lambda _row, _key: None)
 
 
 @dataclass
@@ -79,6 +89,7 @@ class _Scan:
     author_fetched: list[int]
     skip_on_approval_seen: list[bool]
     refusals: list[tuple[int, str, str, str]]
+    emitted: list[tuple[str, int, str, str, int]]
 
 
 def _run_scan(
@@ -110,6 +121,7 @@ def _run_scan(
     author_fetched: list[int] = []
     skip_on_approval_seen: list[bool] = []
     refusals: list[tuple[int, str, str, str]] = []
+    emitted: list[tuple[str, int, str, str, int]] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
@@ -144,6 +156,9 @@ def _run_scan(
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
         refusals.append((pr, marker, body, author_login))
 
+    def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id):
+        emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
+
     review.run(
         make_config(github_token="t", **(config_kwargs or {})),
         pr=pr,
@@ -160,6 +175,7 @@ def _run_scan(
         fingerprint=fake_fingerprint,
         read_state=fake_read_state,
         dispatch=fake_dispatch,
+        emit_dispatched=fake_emit,
         get_pr=fake_get_pr,
         upsert_comment=fake_upsert,
         resolve_authorized=fake_resolve_authorized,
@@ -175,6 +191,7 @@ def _run_scan(
         author_fetched,
         skip_on_approval_seen,
         refusals,
+        emitted,
     )
 
 
@@ -184,6 +201,41 @@ def test_never_reviewed_dispatches(make_config):
     assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
     assert scan.fingerprinted == [1]
     assert scan.read_calls == [(TARGET_REPO, [1])]
+
+
+def test_dispatch_emits_dispatched_marker_never_reviewed(make_config):
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)})
+
+    # review.run threads emit_dispatched to the dispatch loop: a never-reviewed PR emits one marker
+    # (run_id 1) carrying the same repo/head_sha/eval_hash the dispatch used.
+    assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert scan.emitted == [(TARGET_REPO, 1, "headsha1", _HASH_A, 1)]
+
+
+def test_dispatch_emits_dispatched_marker_supersedes_prior_run(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_B)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW, run_id=7)},
+    )
+
+    # A changed-hash re-dispatch supersedes the PR's prior terminal row (run_id 7) with run_id 8.
+    assert scan.dispatched == [(1, "headsha1", _HASH_B, DEFAULT_DISPATCH_REF)]
+    assert scan.emitted == [(TARGET_REPO, 1, "headsha1", _HASH_B, 8)]
+
+
+def test_skip_does_not_emit_dispatched_marker(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+    )
+
+    # A decided PR with an unchanged hash is neither dispatched nor marked in-flight.
+    assert scan.dispatched == []
+    assert scan.emitted == []
 
 
 def test_decided_same_hash_skips(make_config):
