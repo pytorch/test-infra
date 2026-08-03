@@ -573,13 +573,20 @@ export default function Page() {
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          {/*
+            Unstable jobs to watch: union of the dedicated "unstable" workflow and
+            any job marked unstable on main (any trigger; workflow_run-chained jobs
+            excluded). Same query as the other panels with unstableOnly=1, which
+            flips its unstable filter; workflowNames is unused in that mode.
+          */}
           <GroupReliabilityPanel
             title={"Unstable jobs"}
+            subtitle={
+              UNSTABLE_WORKFLOWS.join(", ") +
+              " workflow + main jobs marked unstable"
+            }
             queryName={queryName}
-            queryParams={{
-              workflowNames: UNSTABLE_WORKFLOWS,
-              ...queryParams,
-            }}
+            queryParams={{ unstableOnly: 1, ...queryParams }}
             metricName={metricName}
             metricHeaderName={metricHeaderName}
             filter={filter}

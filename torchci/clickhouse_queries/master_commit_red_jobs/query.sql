@@ -1,4 +1,6 @@
 -- This query is used to show failures on https://hud.pytorch.org/reliability/pytorch/pytorch
+-- {unstableOnly}=0 backs the workflow-scoped panels; {unstableOnly}=1 backs the
+-- "Unstable jobs" panel (see the WHERE branch below).
 WITH all_jobs AS (
     SELECT
         p.head_commit. 'timestamp' AS time,
@@ -41,9 +43,27 @@ WITH all_jobs AS (
       AND j.name != 'generate-test-matrix'
       AND j.name NOT LIKE '%rerun_disabled_tests%'
       AND j.name NOT LIKE '%filter%'
-      AND j.name NOT LIKE '%unstable%'
       AND j.name LIKE '%/%'
-      AND has({workflowNames: Array(String) }, lower(j.workflow_name))
+      -- Normal mode ({unstableOnly}=0): exclude unstable jobs, keep the requested
+      -- workflows. Unstable mode ({unstableOnly}=1): the dedicated "unstable"
+      -- workflow, plus any job marked unstable (including scheduled/nightly);
+      -- workflowNames is unused in that mode. Both modes drop workflow_run-chained
+      -- jobs via the shared line below.
+      AND (
+            (
+              {unstableOnly: UInt8} = 0
+              AND j.name NOT LIKE '%unstable%'
+              AND has({workflowNames: Array(String) }, lower(j.workflow_name))
+            )
+            OR
+            (
+              {unstableOnly: UInt8} = 1
+              AND (
+                    lower(j.workflow_name) = 'unstable'
+                    OR j.name LIKE '%unstable%'
+                  )
+            )
+          )
       AND j.workflow_event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
       AND p.ref = 'refs/heads/main'
       AND p.repository. 'owner'.'name' = 'pytorch'
