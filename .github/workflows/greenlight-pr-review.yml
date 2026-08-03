@@ -46,7 +46,7 @@ defaults:
 jobs:
   announce_start:
     environment: greenlight-record
-    runs-on: mt-l-x86iavx512-16-32
+    runs-on: mt-l-x86iavx512-8-64
     # OSDC ARC (kubernetes-novolume) has no host execution mode: steps run in this
     # container, which is the pod that receives the runner's CPU/memory. The base image
     # supplies node (JS actions) + git; setup-python/uv and the tools step add the rest.
@@ -68,10 +68,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install container CLI tools
-        uses: ./.github/actions/greenlight-container-tools
-        with:
-          awscli: "true"
+      - name: Install AWS CLI v2
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl unzip
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          /tmp/aws/install
+          rm -rf /tmp/awscliv2.zip /tmp/aws
 
       - name: Set up Python 3.14
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
@@ -121,7 +126,7 @@ jobs:
 
   review:
     environment: bedrock
-    runs-on: mt-l-x86iavx512-16-32
+    runs-on: mt-l-x86iavx512-8-64
     container:
       image: node:20-bookworm
     timeout-minutes: 40
@@ -143,11 +148,19 @@ jobs:
           path: pytorch
           fetch-depth: 1
 
-      - name: Install container CLI tools
-        uses: ./.github/actions/greenlight-container-tools
-        with:
-          gh: "true"
-          jq: "true"
+      - name: Install gh and jq
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg jq
+          install -d -m 755 /etc/apt/keyrings
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+            -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+            > /etc/apt/sources.list.d/github-cli.list
+          apt-get update
+          apt-get install -y --no-install-recommends gh
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
@@ -295,7 +308,7 @@ jobs:
   record:
     needs: [announce_start, review]
     if: ${{ always() }}
-    runs-on: mt-l-x86iavx512-16-32
+    runs-on: mt-l-x86iavx512-8-64
     container:
       image: node:20-bookworm
     timeout-minutes: 15
@@ -319,11 +332,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install container CLI tools
-        uses: ./.github/actions/greenlight-container-tools
-        with:
-          awscli: "true"
-          jq: "true"
+      - name: Install AWS CLI v2 and jq
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl unzip jq
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          /tmp/aws/install
+          rm -rf /tmp/awscliv2.zip /tmp/aws
 
       - name: Set up Python 3.14
         # greenlight pins requires-python >=3.14 with uv python-preference=only-system,
