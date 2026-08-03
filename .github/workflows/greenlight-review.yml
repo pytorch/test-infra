@@ -85,6 +85,8 @@ jobs:
           repositories: pytorch,test-infra
           permission-pull-requests: read
           permission-actions: write
+          permission-contents: read
+          permission-members: read
 
       - name: Mint Green Light app token (recheck, can comment)
         id: app-token-rw
@@ -97,6 +99,8 @@ jobs:
           repositories: pytorch,test-infra
           permission-pull-requests: write
           permission-actions: write
+          permission-contents: read
+          permission-members: read
 
       - name: Sync dependencies
         run: just setup
