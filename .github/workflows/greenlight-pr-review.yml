@@ -223,6 +223,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           use_bedrock: "true"
           show_full_output: "true"
+          # The scan dispatches this as the pytorchgreenlight App bot, which
+          # claude-code-action blocks unless allowlisted. Scope to our bot only:
+          # "*" would let any external App trigger reviews on this public repo.
+          allowed_bots: "pytorchgreenlight[bot]"
           claude_args: >-
             --model global.anthropic.claude-opus-5
             --effort high

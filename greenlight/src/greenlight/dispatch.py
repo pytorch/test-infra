@@ -13,7 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 
 from greenlight import constants
-from greenlight.constants import DEFAULT_DISPATCH_REF, DISPATCH_REPO, WORKFLOW_FILE
+from greenlight.constants import DEFAULT_DISPATCH_REF, DISPATCH_REPO, TARGET_REPO, WORKFLOW_FILE
 
 if TYPE_CHECKING:
 
@@ -59,6 +59,6 @@ def dispatch_review(
     dispatched = workflow.create_dispatch(ref, inputs=inputs, throw=True)
     if not dispatched:
         raise RuntimeError(
-            f"workflow_dispatch for {WORKFLOW_FILE} on {DISPATCH_REPO}@{ref} (PR #{pr_number}) returned failure"
+            f"dispatch of {WORKFLOW_FILE} ({DISPATCH_REPO}@{ref}) to review {TARGET_REPO}#{pr_number} returned failure"
         )
-    logger.info("dispatched %s on %s@%s for PR #%d", WORKFLOW_FILE, DISPATCH_REPO, ref, pr_number)
+    logger.info("dispatched %s (%s@%s) to review %s#%d", WORKFLOW_FILE, DISPATCH_REPO, ref, TARGET_REPO, pr_number)
