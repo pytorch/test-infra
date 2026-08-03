@@ -526,6 +526,14 @@
       "macos"
     ]
   ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186867",
+    "https://github.com/pytorch/pytorch/issues/186867",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
     "191159",
     "https://github.com/pytorch/pytorch/issues/191159",
@@ -1335,13 +1343,6 @@
     "https://github.com/pytorch/pytorch/issues/180195",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_dot_decomposes_bmm_cuda (__main__.GPUTests)": [
-    "189711",
-    "https://github.com/pytorch/pytorch/issues/189711",
-    [
-      "rocm"
     ]
   ],
   "test_vmap_grad_cpu (__main__.TestComposabilityCPU)": [
