@@ -30,6 +30,7 @@ class _FakePull:
         head_sha: str = "head-sha",
         updated_at: datetime | None = None,
         labels: list[str] | None = None,
+        draft: bool = False,
     ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
@@ -38,6 +39,7 @@ class _FakePull:
         self.head = _FakeBase(head_sha)
         self.updated_at = updated_at
         self.labels = [_FakeLabel(name) for name in (labels or [])]
+        self.draft = draft
 
 
 class _FakeRepo:
@@ -254,6 +256,20 @@ def test_list_open_prs_by_authors_skips_pulls_with_no_user():
         [
             _FakePull(1, None, "ghost author PR", "https://example.test/1"),
             _FakePull(2, "alice", "alice's fix", "https://example.test/2"),
+        ]
+    )
+
+    prs = github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
+
+    assert [pr.number for pr in prs] == [2]
+    assert [pr.author for pr in prs] == ["alice"]
+
+
+def test_list_open_prs_by_authors_skips_draft_pulls():
+    client = _client_with_pulls(
+        [
+            _FakePull(1, "alice", "draft in progress", "https://example.test/1", draft=True),
+            _FakePull(2, "alice", "ready for review", "https://example.test/2", draft=False),
         ]
     )
 

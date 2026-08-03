@@ -44,6 +44,8 @@ if TYPE_CHECKING:
         def updated_at(self) -> datetime | None: ...
         @property
         def labels(self) -> Iterable[_Label]: ...
+        @property
+        def draft(self) -> bool: ...
 
     class _Repo(Protocol):
         def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
@@ -172,6 +174,8 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
             continue
         login = user.login
         if login and login.lower() in trusted:
+            if pr.draft:
+                continue
             updated_at = pr.updated_at
             prs.append(
                 OpenPR(
