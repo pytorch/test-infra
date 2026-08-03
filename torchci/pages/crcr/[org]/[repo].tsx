@@ -58,7 +58,7 @@ interface SummaryStats {
   total_prs: number;
   avg_queue_time_s: number | null;
   avg_exec_time_s: number | null;
-  flaky_jobs: number;
+  timeout_rate: number;
 }
 
 // ---- Summary Stat Cards ----
@@ -149,10 +149,16 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
           sub="start to completion"
         />
         <StatCard
-          label="Flaky Jobs"
-          value={stats.flaky_jobs}
-          sub="same job: pass + fail across attempts"
-          color={stats.flaky_jobs > 0 ? "#ed6c02" : undefined}
+          label="Timeout Rate"
+          value={`${(stats.timeout_rate * 100).toFixed(1)}%`}
+          sub={`${stats.timed_out} timed out / ${stats.total_jobs} jobs`}
+          color={
+            stats.timeout_rate >= 0.1
+              ? "#d32f2f"
+              : stats.timeout_rate > 0
+              ? "#ed6c02"
+              : undefined
+          }
         />
       </Box>
     </Stack>
