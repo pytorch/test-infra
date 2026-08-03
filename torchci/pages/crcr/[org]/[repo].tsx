@@ -193,8 +193,7 @@ const conclusionCssColor: Record<string, string> = {
 };
 
 function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
-  const conclusion =
-    job.status === "completed" ? job.conclusion : job.status;
+  const conclusion = job.status === "completed" ? job.conclusion : job.status;
   const lines = [
     `Job: ${job.job_name}`,
     `Status: ${conclusion}`,
@@ -671,8 +670,7 @@ function CrcrMatrix({
                     e.stopPropagation();
                     setPinnedId({
                       sha: undefined,
-                      name:
-                        pinnedId.name === col.name ? undefined : col.name,
+                      name: pinnedId.name === col.name ? undefined : col.name,
                     });
                   }}
                 >
@@ -685,9 +683,7 @@ function CrcrMatrix({
                   >
                     <span
                       className={
-                        pinnedId.name === col.name
-                          ? hudStyles.highlight
-                          : ""
+                        pinnedId.name === col.name ? hudStyles.highlight : ""
                       }
                     >
                       {col.name}
@@ -707,9 +703,7 @@ function CrcrMatrix({
                   : commitTitle;
 
               const isRowHighlighted = pinnedId.sha === row.sha;
-              const rowClass = isRowHighlighted
-                ? hudStyles.highlight
-                : "";
+              const rowClass = isRowHighlighted ? hudStyles.highlight : "";
 
               return (
                 <tr
@@ -778,9 +772,7 @@ function CrcrMatrix({
                   </td>
                   {columns.map((col) => {
                     const colHighlight =
-                      pinnedId.name === col.name
-                        ? hudStyles.highlight
-                        : "";
+                      pinnedId.name === col.name ? hudStyles.highlight : "";
                     if (col.type === "group" && col.members) {
                       const groupJobs = col.members
                         .map((m) => row.jobs.get(m))
@@ -816,11 +808,7 @@ function CrcrMatrix({
                           textAlign: "center",
                         }}
                       >
-                        {job ? (
-                          <JobCell job={job} sha={row.sha} />
-                        ) : (
-                          "–"
-                        )}
+                        {job ? <JobCell job={job} sha={row.sha} /> : "–"}
                       </td>
                     );
                   })}
@@ -956,10 +944,10 @@ export default function CrcrBackendPage() {
             )}
 
             <Typography variant="body2" color="text.secondary">
-              Rows = PyTorch PRs (50 per page), columns = downstream CI
-              jobs. Click a cell to pin its tooltip, click a column header
-              to highlight the column, or click a row to highlight it.
-              Press Escape to dismiss.
+              Rows = PyTorch PRs (50 per page), columns = downstream CI jobs.
+              Click a cell to pin its tooltip, click a column header to
+              highlight the column, or click a row to highlight it. Press Escape
+              to dismiss.
             </Typography>
 
             <CrcrMatrix
