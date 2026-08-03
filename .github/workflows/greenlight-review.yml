@@ -1,4 +1,4 @@
-name: Green Light Review Scan
+name: Green Light Scan
 
 # Manually runs the greenlight scanner (`just review`): lists open pytorch/pytorch PRs
 # from trusted authors and dispatches greenlight-pr-review.yml for each new or changed
