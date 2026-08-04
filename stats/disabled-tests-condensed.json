@@ -703,6 +703,20 @@
       "rocm"
     ]
   ],
+  "test_memory_aware_partition_count (__main__.TestPartitionedScatterOpt)": [
+    "192011",
+    "https://github.com/pytorch/pytorch/issues/192011",
+    [
+      "xpu"
+    ]
+  ],
+  "test_memory_budget_shared_across_scatters (__main__.TestPartitionedScatterOpt)": [
+    "192012",
+    "https://github.com/pytorch/pytorch/issues/192012",
+    [
+      "xpu"
+    ]
+  ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
     "153460",
     "https://github.com/pytorch/pytorch/issues/153460",
