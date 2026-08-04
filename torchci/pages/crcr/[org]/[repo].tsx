@@ -675,11 +675,10 @@ function CrcrMatrix({
                   }}
                 >
                   <div
-                    className={
-                      col.type === "group"
-                        ? hudStyles.jobHeaderNameBold
-                        : hudStyles.jobHeaderName
-                    }
+                    className={hudStyles.jobHeaderName}
+                    style={{
+                      fontWeight: col.type === "group" ? 700 : 400,
+                    }}
                   >
                     <span
                       className={
