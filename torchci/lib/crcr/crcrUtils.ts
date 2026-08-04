@@ -120,7 +120,7 @@ export function extractDynamoRecord(
     downstream_repo: trusted.verified_repo,
     upstream_repo: upstreamRepo,
     pr_number: pr?.number ?? 0,
-    pytorch_head_sha: pr?.head?.sha ?? "",
+    pytorch_head_sha: pr?.head?.sha ?? cb.payload?.head_sha ?? cb.delivery_id ?? "",
     delivery_id: cb.delivery_id,
     workflow_run_url: wf.url ?? "",
     workflow_name: wf.name,

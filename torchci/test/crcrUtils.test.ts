@@ -175,7 +175,25 @@ describe("extractDynamoRecord", () => {
       })
     );
     expect(record.pr_number).toBe(0);
-    expect(record.pytorch_head_sha).toBe("");
+    expect(record.pytorch_head_sha).toBe("delivery-abc-123");
+  });
+
+  test("uses payload.head_sha for nightly callbacks", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        callback: {
+          event_type: "nightly",
+          delivery_id: "abc123def456",
+          payload: {
+            repository: { full_name: "pytorch/pytorch" },
+            head_sha: "abc123def456",
+          },
+        },
+      })
+    );
+    expect(record.pytorch_head_sha).toBe("abc123def456");
+    expect(record.pr_number).toBe(0);
+    expect(record.event_type).toBe("nightly");
   });
 
   // --- completed status ---
