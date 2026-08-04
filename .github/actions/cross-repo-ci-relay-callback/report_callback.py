@@ -99,7 +99,7 @@ def build_payload() -> str:
         "job_name": os.environ["JOB_NAME"],
         "check_run_id": check_run_id,
         "run_id": str(os.environ["RUN_ID"]),
-        "started_at": None if status == "completed" else current_time,
+        "started_at": current_time if is_self_report else (None if status == "completed" else current_time),
         "completed_at": None if status == "in_progress" else current_time,
     }
 
