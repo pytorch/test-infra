@@ -195,7 +195,7 @@ jobs:
         run: |
           # If the default execution path is followed then we should get a wheel in the dist/ folder
           # attempt to just grab whatever is in there and scoop it all up
-          if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+          if compgen -G "dist/*.whl" >/dev/null; then
             mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
           fi
           if [[ -d "artifacts-to-be-uploaded" ]]; then
