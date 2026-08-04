@@ -1156,7 +1156,9 @@ describe("auto-label-bot: labeler.yml config", () => {
     return nock("https://api.github.com")
       .delete((uri) =>
         uri.includes(
-          `/repos/${repoFullName}/issues/${prNumber}/labels/${encodeURIComponent(label)}`
+          `/repos/${repoFullName}/issues/${prNumber}/labels/${encodeURIComponent(
+            label
+          )}`
         )
       )
       .reply(200);
@@ -1440,9 +1442,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     );
     utils.mockConfig("labeler.yml", config, repoFullName);
     utils.mockHasApprovedWorkflowRun(repoFullName);
-    mockBotLabelTimeline(repoFullName, prNumber, [
-      { name: "ciflow/inductor" },
-    ]);
+    mockBotLabelTimeline(repoFullName, prNumber, [{ name: "ciflow/inductor" }]);
     const removeScope = mockRemoveLabel(
       "ciflow/inductor",
       repoFullName,

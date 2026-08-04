@@ -152,9 +152,9 @@ describe("labelerConfigUtils", () => {
     });
 
     test("removes draft:true label when PR is not draft", () => {
-      expect(getDraftGatedLabelsToRemove(config, ["torch/a.py"], false)).toEqual(
-        ["draft-only"]
-      );
+      expect(
+        getDraftGatedLabelsToRemove(config, ["torch/a.py"], false)
+      ).toEqual(["draft-only"]);
     });
 
     test("skips legacy array rules", () => {
