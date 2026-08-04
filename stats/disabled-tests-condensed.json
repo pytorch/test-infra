@@ -653,13 +653,6 @@
       "win"
     ]
   ],
-  "test_maml_omniglot_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "108994",
-    "https://github.com/pytorch/pytorch/issues/108994",
-    [
-      "dynamo"
-    ]
-  ],
   "test_maml_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180555",
     "https://github.com/pytorch/pytorch/issues/180555",
@@ -1219,15 +1212,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
-    "182418",
-    "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
