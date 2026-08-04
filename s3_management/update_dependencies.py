@@ -758,6 +758,28 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "pycparser": [{"project": "vllm"}],
 }
 
+# Preview CPython ABI tags whose wheels are not yet published on PyPI. e.g.
+# numpy has no cp315 wheel on PyPI, so pip on Python 3.15 would fall back to a
+# source build and fail. The scientific-python nightly wheelhouse does publish
+# them, so we merge those links into our (otherwise PyPI-mirrored) numpy index.
+PREVIEW_PYTHON_TAGS = ("cp315",)
+
+# Restrict the preview-wheel injection to numpy on the nightly and test channels
+# only. Nothing else is touched.
+PREVIEW_WHEEL_INJECT_PACKAGES = {"numpy"}
+PREVIEW_WHEEL_INJECT_PREFIXES = {"whl/nightly", "whl/test"}
+
+# Upstream source of preview numpy wheels (scientific-python nightly wheelhouse).
+PREVIEW_NUMPY_INDEX_URL = (
+    "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/numpy/"
+)
+# Host used to absolutize the relative hrefs served by that index.
+PREVIEW_NUMPY_INDEX_BASE = "https://pypi.anaconda.org"
+# Only merge wheels from this numpy release line. Matches the final release and
+# its pre-releases (e.g. 2.6.0, 2.6.0.dev0, 2.6.0rc1) but not other lines such
+# as 2.7.0.dev0.
+PREVIEW_NUMPY_VERSION = "2.6.0"
+
 
 def is_nvidia_package(pkg_name: str) -> bool:
     """Check if a package is from NVIDIA and should use pypi.nvidia.com"""
@@ -877,6 +899,84 @@ def upload_index_html(
         )
 
 
+def normalize_pkg_name(name: str) -> str:
+    """PEP 503 normalisation: lowercase, collapse ``[-_.]+`` to ``_``."""
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def fetch_preview_numpy_anchors() -> List[tuple[str, str]]:
+    """Fetch preview-CPython numpy wheel links from the upstream nightly index.
+
+    PyPI does not publish cp315 numpy wheels, but the scientific-python nightly
+    wheelhouse does. Returns ``(filename, anchor_html)`` pairs for each wheel
+    whose ABI tag is in :data:`PREVIEW_PYTHON_TAGS`, with the href absolutized
+    so it stays valid when the index is copied into subdirectories. Returns an
+    empty list if the index cannot be fetched or has no preview wheels.
+    """
+    try:
+        html = download(PREVIEW_NUMPY_INDEX_URL).decode("utf-8", errors="ignore")
+    except Exception as e:
+        print(f"WARNING: could not fetch {PREVIEW_NUMPY_INDEX_URL}: {e}")
+        return []
+
+    # numpy-<version>-<pytag>-<abitag>-<plat>.whl -> version is the 2nd field.
+    version_re = re.compile(rf"^{re.escape(PREVIEW_NUMPY_VERSION)}(\D|$)")
+
+    anchors: List[tuple[str, str]] = []
+    for href, name in re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', html):
+        filename = name.strip()
+        if not filename.endswith(".whl"):
+            continue
+        if not any(f"-{tag}-" in filename for tag in PREVIEW_PYTHON_TAGS):
+            continue
+        parts = filename.split("-")
+        if len(parts) < 2 or not version_re.match(parts[1]):
+            continue
+        # Absolutize the href against the upstream host.
+        if href.startswith("//"):
+            url = f"https:{href}"
+        elif href.startswith(("http://", "https://")):
+            url = href
+        else:
+            url = f"{PREVIEW_NUMPY_INDEX_BASE}/{href.lstrip('/')}"
+        anchors.append((filename, f'    <a href="{url}">{filename}</a><br/>'))
+    return anchors
+
+
+def append_preview_numpy_wheels(html: str, pkg_name: str, prefix: str) -> str:
+    """Merge upstream preview-CPython numpy wheel links into *html*.
+
+    The PyPI simple index does not list preview-CPython (e.g. cp315) wheels, so
+    we merge the links published on the scientific-python nightly wheelhouse for
+    any that are not already present.
+
+    Limited to numpy on the nightly and test channels; a no-op otherwise.
+    """
+    if (
+        normalize_pkg_name(pkg_name) not in PREVIEW_WHEEL_INJECT_PACKAGES
+        or prefix not in PREVIEW_WHEEL_INJECT_PREFIXES
+    ):
+        return html
+
+    additions = [
+        anchor
+        for filename, anchor in fetch_preview_numpy_anchors()
+        if filename not in html
+    ]
+
+    if not additions:
+        return html
+
+    print(
+        f"INFO: Merging {len(additions)} preview numpy wheel link(s) "
+        f"for {pkg_name} under {prefix}"
+    )
+    block = "\n".join(additions)
+    if "</body>" in html:
+        return html.replace("</body>", f"{block}\n  </body>", 1)
+    return f"{html}\n{block}\n"
+
+
 def upload_package_using_simple_index(
     pkg_name: str,
     prefix: str,
@@ -901,6 +1001,10 @@ def upload_package_using_simple_index(
     except Exception as e:
         print(f"Error fetching package {pkg_name}: {e}")
         return
+
+    # PyPI does not host preview-CPython (e.g. cp315) wheels; merge in the links
+    # published on the scientific-python nightly wheelhouse so pip can resolve them.
+    raw_html = append_preview_numpy_wheels(raw_html, pkg_name, prefix)
 
     # Upload modified index.html with absolute links
     upload_index_html(pkg_name, prefix, raw_html, source_url, dry_run=dry_run)
