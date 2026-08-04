@@ -1,4 +1,12 @@
 {
+  "test_64bit_binops (__main__.TestLargeTensors)": [
+    "190665",
+    "https://github.com/pytorch/pytorch/issues/190665",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
@@ -695,6 +703,15 @@
       "xpu"
     ]
   ],
+  "test_mempool_ctx_multithread (__main__.TestMemPool)": [
+    "153460",
+    "https://github.com/pytorch/pytorch/issues/153460",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_mempool_tensor_factory (__main__.NVSHMEMSymmetricMemoryTest)": [
     "190497",
     "https://github.com/pytorch/pytorch/issues/190497",
@@ -786,14 +803,6 @@
     "189986",
     "https://github.com/pytorch/pytorch/issues/189986",
     [
-      "rocm"
-    ]
-  ],
-  "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
-    "84886",
-    "https://github.com/pytorch/pytorch/issues/84886",
-    [
-      "linux",
       "rocm"
     ]
   ],
