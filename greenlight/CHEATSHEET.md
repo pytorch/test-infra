@@ -129,10 +129,13 @@ The end-to-end flow, per trusted-author PR:
    (`greenlight-pr-review.yml` on `pytorch/test-infra`).
 4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
    the next scan sees the review as in-flight and does not re-dispatch it.
-5. The workflow reviews the PR and records its verdict through `verdict`, which emits a
-   row to `s3://gha-artifacts/greenlight_pr_state/` (ingested into
-   `misc.greenlight_pr_state`) and, for `LAND`/`NO_LAND`, approves or
-   dismisses-and-comments on the PR.
+5. Before the model runs, the workflow sanitizes the untrusted `./pytorch` checkout —
+   stripping in-repo AI-assistant instruction files and restoring only trusted pytorch `main`
+   skills, with a deny-root detector that fails the review if any instruction file loads from
+   `./pytorch` (see the README's "Reviewer checkout sanitizing"). It then reviews the PR and
+   records its verdict through `verdict`, which emits a row to
+   `s3://gha-artifacts/greenlight_pr_state/` (ingested into `misc.greenlight_pr_state`) and,
+   for `LAND`/`NO_LAND`, approves or dismisses-and-comments on the PR.
 
 Only the land-time verifier — the pytorchbot side that reads the recorded state back at
 land time — is not built yet.

@@ -12,6 +12,7 @@ exclude_patterns = [
     's3_management/**',
     'tools/**',
     'greenlight/**',
+    '.claude/hooks/greenlight/**',
 ]
 command = [
     'python3',
@@ -96,6 +97,7 @@ exclude_patterns = [
     "tools/stronghold/src/api/types.py",
     "tools/stronghold/tests/api/test_ast_param_types.py",
     "greenlight/**",
+    ".claude/hooks/greenlight/**",
 ]
 command = [
     'python3',
@@ -114,7 +116,7 @@ command = [
 [[linter]]
 code = 'NOQA'
 include_patterns = ['**/*.py', '**/*.pyi']
-exclude_patterns = ['greenlight/**']
+exclude_patterns = ['greenlight/**', '.claude/hooks/greenlight/**']
 command = [
     'python3',
     'tools/linter/adapters/grep_linter.py',
@@ -312,6 +314,7 @@ include_patterns = [
 ]
 exclude_patterns = [
     'greenlight/**',
+    '.claude/hooks/greenlight/**',
 ]
 command = [
     'python3',
@@ -365,6 +368,7 @@ exclude_patterns = [
     'aws/lambda/whl_metadata_upload_pep658/**',
     'tools/**',
     'greenlight/**',
+    '.claude/hooks/greenlight/**',
 ]
 command = [
     'python3',
