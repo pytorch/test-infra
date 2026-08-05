@@ -592,6 +592,34 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "target": "cu132",
         },
     ],
+    "rocm": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-core": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-libraries": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1010": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1011": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1012": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1030": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1031": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1032": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1033": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1034": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1035": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1036": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1100": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1101": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1102": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1103": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1150": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1151": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1152": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1153": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1200": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1201": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx1250": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx908": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx90a": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx942": [{"project": "torch_rocm", "target": "rocm7.14"}],
+    "rocm-sdk-device-gfx950": [{"project": "torch_rocm", "target": "rocm7.14"}],
     "arpeggio": [{"project": "triton"}],
     "caliper-reader": [{"project": "triton"}],
     "contourpy": [{"project": "triton"}],
@@ -786,12 +814,19 @@ def is_nvidia_package(pkg_name: str) -> bool:
     return pkg_name.startswith("nvidia-") or pkg_name.startswith("cuda-")
 
 
+def is_amd_package(pkg_name: str) -> bool:
+    """Check if a package is from AMD and should use repo.amd.com"""
+    name = pkg_name.lower()
+    return "rocm" in name or "amd" in name
+
+
 def get_package_source_url(pkg_name: str) -> str:
     """Get the source URL for a package based on its type"""
     if is_nvidia_package(pkg_name):
         return f"https://pypi.nvidia.com/{pkg_name}/"
-    else:
-        return f"https://pypi.org/simple/{pkg_name}/"
+    if is_amd_package(pkg_name):
+        return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
+    return f"https://pypi.org/simple/{pkg_name}/"
 
 
 def download(url: str) -> bytes:
@@ -989,11 +1024,14 @@ def upload_package_using_simple_index(
     Works for both NVIDIA and non-NVIDIA packages.
     """
     source_url = get_package_source_url(pkg_name)
-    is_nvidia = is_nvidia_package(pkg_name)
+    if is_nvidia_package(pkg_name):
+        source_label = "NVIDIA"
+    elif is_amd_package(pkg_name):
+        source_label = "AMD"
+    else:
+        source_label = "PyPI"
 
-    print(
-        f"Processing {pkg_name} using {'NVIDIA' if is_nvidia else 'PyPI'} Simple Index: {source_url}"
-    )
+    print(f"Processing {pkg_name} using {source_label} Simple Index: {source_url}")
 
     # Parse the index and get raw HTML
     try:
@@ -1025,20 +1063,26 @@ def get_packages_for_target(target: str) -> List[str]:
     Get packages from PACKAGES_PER_PROJECT that should be initialized for a target.
 
     Returns packages where:
-    - project is "torch" AND
+    - project is "torch" (or "torch_rocm" for ROCm targets) AND
     - either no target is specified (universal packages like filelock, numpy)
     - or the target matches the specified target
     - nvidia/cuda packages are only included for CUDA targets (cu*)
+    - amd/rocm packages are only included for ROCm targets (rocm*)
     """
     is_cuda_target = target.startswith("cu")
+    is_rocm_target = target.startswith("rocm")
+    allowed_projects = ("torch", "torch_rocm") if is_rocm_target else ("torch",)
     packages = []
     for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
         # Skip nvidia/cuda packages for non-CUDA targets
         if not is_cuda_target and is_nvidia_package(pkg_name):
             continue
+        # Skip amd/rocm packages for non-ROCm targets
+        if not is_rocm_target and is_amd_package(pkg_name):
+            continue
 
         for config in pkg_configs:
-            if config.get("project") != "torch":
+            if config.get("project") not in allowed_projects:
                 continue
             pkg_target = config.get("target", "")
             # Include if no target specified (universal) or target matches
