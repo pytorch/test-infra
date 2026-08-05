@@ -184,9 +184,7 @@ function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
     const successes = completed.filter(
       (j) => j.conclusion === "success"
     ).length;
-    const failures = completed.filter(
-      (j) => j.conclusion === "failure"
-    ).length;
+    const failures = completed.filter((j) => j.conclusion === "failure").length;
     const timedOut = completed.filter(
       (j) => j.conclusion === "timed_out"
     ).length;
@@ -1067,10 +1065,7 @@ function CrcrNightlyMatrix({
               const commitTitle =
                 commit?.title || `nightly (${row.sha.substring(0, 12)})`;
               return (
-                <tr
-                  key={row.sha}
-                  style={{ borderBottom: "1px solid #30363d" }}
-                >
+                <tr key={row.sha} style={{ borderBottom: "1px solid #30363d" }}>
                   <td style={cellStyle}>
                     <LocalTimeDisplay timestamp={row.latestTime} />
                   </td>
