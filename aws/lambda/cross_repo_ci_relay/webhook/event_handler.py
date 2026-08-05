@@ -152,7 +152,7 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
         return {"ok": True, "created_check_runs": []}
 
     pr = payload.get("pull_request") or {}
-    pr_number = str(pr.get("number", ""))
+    pr_number = str(pr.get("number") or "")
     head_sha = (pr.get("head") or {}).get("sha", "")
     if not pr_number or not head_sha:
         return {"ignored": True, "reason": "missing pr context"}
@@ -205,13 +205,12 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
                     status=job_status,
                     conclusion=(job_conclusion if job_status == "completed" else None),
                     details_url=details_url,
-                    external_id=str(run_id),
+                    external_id=f"{run_id}:{pr_number}" if pr_number else str(run_id),
                     output=gh_helper.build_check_run_output(
                         job_status,
                         job_conclusion,
                         details_url,
                         downstream_repo,
-                        pr_number,
                     ),
                 )
                 created.append(f"{downstream_repo}/{job_name}")
@@ -267,7 +266,7 @@ def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
     """
     check_run = payload.get("check_run") or {}
     name = check_run.get("name", "")
-    run_id = check_run.get("external_id") or ""
+    run_id = (check_run.get("external_id") or "").split(":")[0]
     downstream_repo = _downstream_repo_from_check_run(name)
     if not downstream_repo or not run_id:
         return {"ignored": True, "reason": "not a crcr check run"}
@@ -350,7 +349,7 @@ def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
     rerun: list[str] = []
     for check_run in check_runs:
         downstream_repo = _downstream_repo_from_check_run(check_run.get("name", ""))
-        run_id = check_run.get("external_id") or ""
+        run_id = (check_run.get("external_id") or "").split(":")[0]
         if not downstream_repo or not run_id:
             continue
         if (downstream_repo, run_id) in seen:

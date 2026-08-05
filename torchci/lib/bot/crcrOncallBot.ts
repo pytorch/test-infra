@@ -83,10 +83,10 @@ export default function crcrOncallBot(app: Probot): void {
     let prNumbers: number[] = [];
     if (checkRun.pull_requests && checkRun.pull_requests.length > 0) {
       prNumbers = checkRun.pull_requests.map((pr) => pr.number);
-    } else if (checkRun.output?.summary) {
-      const match = checkRun.output.summary.match(/for PR (\d+)/);
-      if (match) {
-        prNumbers = [parseInt(match[1], 10)];
+    } else if (checkRun.external_id) {
+      const parts = checkRun.external_id.split(":");
+      if (parts.length === 2 && parts[1]) {
+        prNumbers = [parseInt(parts[1], 10)];
       }
     }
 

@@ -216,7 +216,7 @@ def _create_upstream_check_run(
     Best-effort: a GitHub failure must not fail the callback.
     """
     output = gh_helper.build_check_run_output(
-        status, conclusion, details_url, verified_repo, pr_number
+        status, conclusion, details_url, verified_repo
     )
     try:
         upstream_token = gh_helper.get_repo_access_token(
@@ -234,7 +234,7 @@ def _create_upstream_check_run(
             details_url=details_url,
             # Store the downstream run_id so a check-run rerequest can re-run
             # the failed jobs of that workflow run.
-            external_id=str(run_id),
+            external_id=f"{run_id}:{pr_number}" if pr_number else str(run_id),
             output=output,
         )
         logger.info(
@@ -370,7 +370,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     if repo_level.value >= AllowlistLevel.L3.value:
         pr_field = (body.get("payload") or {}).get("pull_request") or {}
         head_sha = (pr_field.get("head") or {}).get("sha", "")
-        pr_number = str(pr_field.get("number", ""))
+        pr_number = str(pr_field.get("number") or "")
         if head_sha:
             conclusion = (body.get("workflow") or {}).get("conclusion")
             details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"

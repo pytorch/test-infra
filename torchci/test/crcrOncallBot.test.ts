@@ -176,23 +176,20 @@ L3:
     });
   });
 
-  test("does not comment when output has no PR number", async () => {
-    // output.summary exists but regex doesn't match (no PR number
-    // after "for PR"), so the bot returns early without any API call.
+  test("does not comment when external_id has no PR number", async () => {
+    // external_id carries bare run_id (no ":" separator) when pr_number
+    // is unavailable — the bot returns early without any API call.
     await probot.receive({
       name: "check_run" as any,
       payload: checkRunPayload({
         pull_requests: [],
-        output: {
-          title: "In progress",
-          summary: "intel/torch-xpu-ops workflow for PR : https://example.com",
-        },
+        external_id: "12345",
       }) as any,
       id: "8",
     });
   });
 
-  test("posts comment when output contains PR number for cross-fork PR", async () => {
+  test("posts comment when external_id contains PR number for cross-fork PR", async () => {
     const scope = nock("https://api.github.com")
       .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
       .reply(200, [])
@@ -212,10 +209,7 @@ L3:
       name: "check_run" as any,
       payload: checkRunPayload({
         pull_requests: [], // empty — simulates cross-fork PR
-        output: {
-          title: "Failure",
-          summary: `intel/torch-xpu-ops workflow for PR ${PR_NUMBER}: https://example.com`,
-        },
+        external_id: `12345:${PR_NUMBER}`,
       }) as any,
       id: "10",
     });

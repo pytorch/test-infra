@@ -191,7 +191,7 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.assertEqual(kw["head_sha"], "abc123")
         self.assertEqual(kw["status"], "in_progress")
         self.assertIsNone(kw["conclusion"])
-        self.assertEqual(kw["external_id"], "99999")  # run_id
+        self.assertEqual(kw["external_id"], "99999:42")  # run_id:pr_number
 
     def test_scenario2_backfills_every_job_not_just_one(self):
         """Multi-job workflow: a mid-run label backfills a check run for EVERY
@@ -215,7 +215,7 @@ class TestPrLabeledHandler(unittest.TestCase):
             c.kwargs["external_id"]
             for c in self.mock_gh.create_check_run.call_args_list
         }
-        self.assertEqual(external_ids, {"99999"})  # run_id
+        self.assertEqual(external_ids, {"99999:42"})  # run_id:pr_number
 
     def test_scenario3_completed_job_creates_completed_check_run(self):
         """Scenario 3: label arrives after workflow completed → create completed CR directly."""
