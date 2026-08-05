@@ -2,6 +2,7 @@ import os
 import re
 import time
 from typing import Dict, List
+from urllib.parse import urljoin
 
 import boto3  # type: ignore[import-untyped]
 
@@ -836,13 +837,16 @@ def download(url: str) -> bytes:
         return conn.read()
 
 
-def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
+def replace_relative_links_with_absolute(
+    html: str, base_url: str, resolve_relative_paths: bool = False
+) -> str:
     """
     Replace all relative links in HTML with absolute links.
 
     Args:
         html: HTML content as string
         base_url: Base URL to prepend to relative links
+        resolve_relative_paths: Resolve "../" segments against base_url (ROCm only)
 
     Returns:
         Modified HTML with absolute links
@@ -863,6 +867,10 @@ def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
             or url.startswith("//")
         ):
             return full_match
+
+        # ROCm wheels sit flat in whl-multi-arch/, so AMD hrefs are "../<wheel>.whl"
+        if resolve_relative_paths:
+            return f'href="{urljoin(base_url, url)}"'
 
         # Remove leading ./ or /
         url = url.lstrip("./")
@@ -902,7 +910,9 @@ def upload_index_html(
 ) -> None:
     """Upload modified index.html to S3 and R2 with absolute links"""
     # Replace relative links with absolute links
-    modified_html = replace_relative_links_with_absolute(html, base_url)
+    modified_html = replace_relative_links_with_absolute(
+        html, base_url, resolve_relative_paths=is_amd_package(pkg_name)
+    )
 
     index_key = f"{prefix}/{pkg_name}/index.html"
 
