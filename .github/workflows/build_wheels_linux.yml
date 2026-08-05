@@ -301,12 +301,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
-        # Skip the smoke test for Python 3.15 / 3.15t: the wheel builds fine, but
-        # the smoke test installs the wheel which pulls required runtime deps
-        # (e.g. pillow, a hard torchvision dependency) that have no cp315 wheels
-        # yet and fail to build from sdist. Re-enable once the ecosystem ships
-        # cp315 wheels.
-        if: ${{ inputs.run-smoke-test && ! startsWith(matrix.python_version, '3.15') }}
+        if: ${{ inputs.run-smoke-test }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -317,7 +312,15 @@ jobs:
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
-          ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          # numpy does not publish cp315 wheels on PyPI yet; they are available on
+          # download.pytorch.org as a pre-release. For 3.15 / 3.15t resolve runtime
+          # deps from there and allow pre-releases. Other versions use PyPI as before.
+          if [[ "${{ startsWith(matrix.python_version, '3.15') }}" == "true" ]]; then
+            ${CONDA_RUN} pip install --pre "${{ inputs.repository }}/dist/$WHEEL_NAME" \
+              --index-url "https://download.pytorch.org/whl/${CHANNEL}/${CU_VERSION}"
+          else
+            ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          fi
           # Checking that we have a pinned version of torch in our dependency tree
           (
             pushd "${RUNNER_TEMP}"

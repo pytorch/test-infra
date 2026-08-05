@@ -30,6 +30,7 @@ on:
           - triton
           - torchtune
           - torch_xpu
+          - torch_rocm
           - vllm
       target:
         description: 'Target to create (e.g., rocm7.2, cu130) - only for create-target mode'

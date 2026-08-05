@@ -79,6 +79,7 @@ export interface CrcrWorkflowJobRecord {
   failed_tests?: number;
   skipped_tests?: number;
   downstream_repo_level?: string;
+  event_type?: string;
   artifact_url?: string;
   environment?: string;
 }
@@ -119,7 +120,8 @@ export function extractDynamoRecord(
     downstream_repo: trusted.verified_repo,
     upstream_repo: upstreamRepo,
     pr_number: pr?.number ?? 0,
-    pytorch_head_sha: pr?.head?.sha ?? "",
+    pytorch_head_sha:
+      pr?.head?.sha ?? cb.payload?.head_sha ?? cb.delivery_id ?? "",
     delivery_id: cb.delivery_id,
     workflow_run_url: wf.url ?? "",
     workflow_name: wf.name,
@@ -131,6 +133,10 @@ export function extractDynamoRecord(
 
   if (trusted.downstream_repo_level) {
     record.downstream_repo_level = trusted.downstream_repo_level;
+  }
+
+  if (cb.event_type) {
+    record.event_type = cb.event_type;
   }
 
   // Only set timing metrics when the relay provides a non-null value.

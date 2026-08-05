@@ -151,9 +151,10 @@ runs:
           # and rejects a malformed cert in the Windows machine cert store,
           # breaking ssl.create_default_context() with "[ASN1: NOT_ENOUGH_DATA]"
           # at smoke-test time. See https://github.com/pytorch/pytorch/pull/186846
-          # The 3.15 cases below clear this: the 3.15 beta requires openssl>=3.5.7,
-          # and 3.15 is Linux-only with its smoke test skipped, so the Windows
-          # regression does not apply.
+          # The 3.15 cases below clear this because the 3.15 beta requires
+          # openssl>=3.5.7, so the 3.5.6 pin is unsatisfiable there. NOTE: 3.15
+          # is no longer Linux-only, so Windows 3.15 builds are exposed to the
+          # ASN.1 regression above until openssl ships a fix.
           export OPENSSL_PIN="openssl=3.5.6"
 
           # shellcheck disable=SC2153

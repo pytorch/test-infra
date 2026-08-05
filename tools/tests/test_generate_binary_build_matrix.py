@@ -129,7 +129,6 @@ class GenerateBuildMatrixTest(TestCase):
     def _test_channel_python_versions(
         self,
         operating_system: str,
-        include_preview: str = "disable",
         channel: str = "test",
     ) -> set:
         out = generate_build_matrix(
@@ -145,46 +144,42 @@ class GenerateBuildMatrixTest(TestCase):
             "disable",
             "false",
             None,
-            include_preview,
         )
         return {entry["python_version"] for entry in out["include"]}
 
-    def test_preview_python_versions_opt_in(self):
-        # 3.15 / 3.15t are validated on Linux x86/aarch64 and macOS arm64 for the
-        # nightly and test channels when explicitly opted in.
+    def test_python_3_15_enabled_by_default(self):
+        # 3.15 / 3.15t are in the default matrix for the nightly and test
+        # channels, on every operating system.
         for channel in ("nightly", "test"):
-            for operating_system in ("linux", "linux-aarch64", "macos-arm64"):
+            for operating_system in (
+                "linux",
+                "linux-aarch64",
+                "windows",
+                "macos-arm64",
+            ):
                 versions = self._test_channel_python_versions(
-                    operating_system, include_preview="enable", channel=channel
+                    operating_system, channel=channel
                 )
                 self.assertIn("3.15", versions)
                 self.assertIn("3.15t", versions)
 
-    def test_preview_python_versions_off_by_default(self):
-        # Without opt-in the shared default is unchanged (e.g. torchvision builds).
-        for operating_system in ("linux", "linux-aarch64"):
-            versions = self._test_channel_python_versions(operating_system)
+    def test_python_3_15_excluded_on_release_channel(self):
+        # 3.15 is still a CPython pre-release, so it must stay out of the
+        # release matrix and off the getting-started page.
+        for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
+            versions = self._test_channel_python_versions(
+                operating_system, channel="release"
+            )
             self.assertNotIn("3.15", versions)
             self.assertNotIn("3.15t", versions)
 
-    def test_preview_python_versions_excluded_on_windows(self):
-        # Windows must not pick up the preview versions even when opted in.
-        versions = self._test_channel_python_versions(
-            "windows", include_preview="enable"
-        )
+    def test_python_3_15_excluded_on_windows_arm64(self):
+        # windows-arm64 pins its own short version list.
+        versions = self._test_channel_python_versions("windows-arm64")
         self.assertNotIn("3.15", versions)
         self.assertNotIn("3.15t", versions)
 
-    def test_preview_python_versions_excluded_on_release_channel(self):
-        # Preview versions are defined for the nightly and test channels only,
-        # never for the release channel.
-        versions = self._test_channel_python_versions(
-            "linux", include_preview="enable", channel="release"
-        )
-        self.assertNotIn("3.15", versions)
-        self.assertNotIn("3.15t", versions)
-
-    def test_torch_only_install_command_for_preview_arches(self):
+    def test_torch_only_install_command_for_torch_only_arches(self):
         out = generate_build_matrix(
             "wheel",
             "linux",
@@ -198,7 +193,6 @@ class GenerateBuildMatrixTest(TestCase):
             "disable",
             "false",
             None,
-            "enable",
         )
         for entry in out["include"]:
             if entry["python_version"] in ("3.15", "3.15t"):
