@@ -209,6 +209,31 @@ jobs:
           binary-matrix: ${{ inputs.binary-matrix }}
           target-os: "linux"
 
+      # Refresh run (PR labeled 'ci-refresh-hf-cache'): point HF at writable
+      # ${RUNNER_TEMP} and download fresh, overriding the read-only /mnt/hf_cache
+      # mount; the sync step below pushes it back to S3. Otherwise leave the mount.
+      - name: Resolve HF cache mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ci-refresh-hf-cache') }}" == "true" ]]; then
+            {
+              echo "HF_CACHE_REFRESH=1"
+              echo "TRANSFORMERS_OFFLINE=0"
+              echo "HF_DATASETS_OFFLINE=0"
+              echo "HF_HOME=${RUNNER_TEMP}/hf_cache"
+              echo "HF_DATASETS_CACHE=${RUNNER_TEMP}/hf_datasets"
+            } >> "${GITHUB_ENV}"
+            mkdir -p "${RUNNER_TEMP}/hf_cache" "${RUNNER_TEMP}/hf_datasets"
+            # datasets writes lock/arrow files even for seeded datasets, so warm the
+            # writable dir from the read-only mount (matches pytorch's _linux-test.yml).
+            if [[ -d /mnt/hf_cache/datasets ]]; then
+              cp -a /mnt/hf_cache/datasets/. "${RUNNER_TEMP}/hf_datasets/" 2>/dev/null || true
+            fi
+          else
+            echo "HF_CACHE_REFRESH=0" >> "${GITHUB_ENV}"
+          fi
+
       - name: Run script
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository || github.repository }}
@@ -296,3 +321,44 @@ jobs:
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
           # Overwrite doc previews for the same PR
           overwrite: true
+
+      # HF cache refresh runs LAST: it swaps the job's AWS creds to the write role,
+      # so it must come after every step that relies on role/arc (artifact/doc uploads).
+      # The write role's trust policy gates on the calling repo, so unapproved repos
+      # just fail auth here and the sync step is skipped rather than running with
+      # leftover creds.
+      - name: Authenticate to refresh the HF cache in S3
+        id: hf-cache-auth
+        if: ${{ always() && env.HF_CACHE_REFRESH == '1' }}
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_hf-cache-write
+          aws-region: us-east-1
+
+      - name: Refresh the HF cache in S3
+        if: ${{ always() && env.HF_CACHE_REFRESH == '1' && steps.hf-cache-auth.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -x
+          # HF_CACHE_S3_BUCKET/REGION are injected by the OSDC hf-cache module.
+          if [[ -z "${HF_CACHE_S3_BUCKET:-}" || -z "${HF_CACHE_S3_REGION:-}" ]]; then
+            echo "HF_CACHE_S3_BUCKET/REGION unset (not an hf-cache runner) - skipping sync"
+            exit 0
+          fi
+          # The job image may not ship the AWS CLI; fall back to a throwaway venv.
+          AWS=aws
+          if ! command -v aws >/dev/null 2>&1; then
+            python3 -m venv /tmp/awscli-venv
+            /tmp/awscli-venv/bin/pip install --quiet awscli==1.45.39
+            AWS=/tmp/awscli-venv/bin/aws
+          fi
+          if [[ -d "${RUNNER_TEMP}/hf_cache/hub" ]]; then
+            "${AWS}" s3 sync "${RUNNER_TEMP}/hf_cache/hub" "s3://${HF_CACHE_S3_BUCKET}/hub" \
+              --region "${HF_CACHE_S3_REGION}" --no-progress
+          fi
+          if [[ -d "${RUNNER_TEMP}/hf_datasets" ]]; then
+            "${AWS}" s3 sync "${RUNNER_TEMP}/hf_datasets" "s3://${HF_CACHE_S3_BUCKET}/datasets" \
+              --region "${HF_CACHE_S3_REGION}" --no-progress
+          fi
