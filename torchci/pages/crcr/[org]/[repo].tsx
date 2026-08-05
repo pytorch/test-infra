@@ -9,7 +9,6 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -22,7 +21,6 @@ import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
   createContext,
-  type CSSProperties,
   useCallback,
   useContext,
   useEffect,
@@ -438,7 +436,8 @@ function buildMatrix(data: CrcrJobRow[]): {
 
   const jobNames = Array.from(jobNamesSet).sort();
   const rows = Array.from(prMap.values()).sort(
-    (a, b) => b.prNumber - a.prNumber
+    (a, b) =>
+      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
   );
   return { jobNames, rows };
 }
@@ -553,15 +552,6 @@ function usePrInfo(
     return map;
   }, [data]);
 }
-
-// ---- Table Styles (aligned with main HUD hud.module.css) ----
-
-const cellStyle: CSSProperties = {
-  padding: "2px 4px",
-  whiteSpace: "nowrap",
-  fontSize: "0.85em",
-  verticalAlign: "top",
-};
 
 // ---- PR Matrix Table ----
 
@@ -696,10 +686,6 @@ function CrcrMatrix({
             {matrix.rows.map((row) => {
               const pr = prInfoMap.get(row.prNumber);
               const commitTitle = pr?.title ?? `PR #${row.prNumber}`;
-              const truncatedTitle =
-                commitTitle.length > 50
-                  ? commitTitle.slice(0, 47) + "..."
-                  : commitTitle;
 
               const isRowHighlighted = pinnedId.sha === row.sha;
               const rowClass = isRowHighlighted ? hudStyles.highlight : "";
@@ -734,15 +720,14 @@ function CrcrMatrix({
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <div className={hudStyles.jobMetadataTruncated}>
-                      <Tooltip title={commitTitle}>
-                        <a
-                          href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {truncatedTitle}
-                        </a>
-                      </Tooltip>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={commitTitle}
+                      >
+                        {commitTitle}
+                      </a>
                     </div>
                   </td>
                   <td className={hudStyles.jobMetadata}>
@@ -779,11 +764,8 @@ function CrcrMatrix({
                       return (
                         <td
                           key={col.name}
-                          className={colHighlight}
-                          style={{
-                            ...cellStyle,
-                            textAlign: "center",
-                          }}
+                          className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                          style={{ textAlign: "center" }}
                         >
                           {groupJobs.length > 0 ? (
                             <GroupedJobCell
@@ -801,11 +783,8 @@ function CrcrMatrix({
                     return (
                       <td
                         key={col.name}
-                        className={colHighlight}
-                        style={{
-                          ...cellStyle,
-                          textAlign: "center",
-                        }}
+                        className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                        style={{ textAlign: "center" }}
                       >
                         {job ? <JobCell job={job} sha={row.sha} /> : "–"}
                       </td>
