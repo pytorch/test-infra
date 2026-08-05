@@ -1,6 +1,6 @@
 name: Green Light Scan
 
-# Manually runs the greenlight scanner (`just review`): lists open pytorch/pytorch PRs
+# Manually runs the greenlight scanner (`greenlight review`): lists open pytorch/pytorch PRs
 # from trusted authors and dispatches greenlight-pr-review.yml for each new or changed
 # PR. Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
 
@@ -138,4 +138,4 @@ jobs:
           if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
           if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
           args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")
-          just review "${args[@]}"
+          mise exec -- uv run greenlight review "${args[@]}"

@@ -2,6 +2,7 @@
 # https://just.systems/
 
 set shell := ["mise", "exec", "--", "bash", "-euo", "pipefail", "-c"]
+set positional-arguments
 
 # Show available recipes
 default:
@@ -13,11 +14,11 @@ setup:
 
 # Run the greenlight CLI
 run *args:
-    uv run greenlight {{args}}
+    uv run greenlight "$@"
 
 # Scan open PRs from trusted authors in pytorch/pytorch; dispatch the reviewer workflow for new/changed PRs
 review *args:
-    uv run greenlight review {{args}}
+    uv run greenlight review "$@"
 
 # Type-check source and tests, plus the greenlight-owned detector hook
 typecheck:
