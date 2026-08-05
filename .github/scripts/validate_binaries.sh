@@ -215,11 +215,23 @@ test_cuda_device() {
     fi
 }
 
-# Cleanup conda environment
+# Cleanup the environment created for this run.
+#
+# ENV_NAME is a conda env name on the conda path but a venv *directory* on the
+# uv path, so `conda env remove -n` would fail with EnvironmentLocationNotFound
+# and, under `set -e`, fail the whole job after the tests had already passed.
 cleanup_conda_env() {
     if [[ ${TARGET_OS} != linux* ]]; then
-        conda deactivate
-        conda env remove -n "${ENV_NAME}"
+        if [[ ${USING_UV_VENV} == 'yes' ]]; then
+            # `deactivate` is a function defined by the venv activate script.
+            if declare -F deactivate > /dev/null; then
+                deactivate
+            fi
+            rm -rf "${ENV_NAME}"
+        else
+            conda deactivate
+            conda env remove -n "${ENV_NAME}"
+        fi
     fi
 }
 
@@ -316,7 +328,9 @@ fi
 # the matching 3.15.0b1 interpreter with uv (from python-build-standalone)
 # instead of conda. A --seed venv provides pip so the rest of the flow (pip3
 # install, smoke tests) is unchanged.
+USING_UV_VENV="no"
 if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+    USING_UV_VENV="yes"
     UV_PYTHON="3.15.0b1"
     if [[ ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
         UV_PYTHON="3.15.0b1+freethreaded"
@@ -324,7 +338,12 @@ if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" 
     curl -LsSf https://astral.sh/uv/install.sh | sh
     source "${HOME}/.local/bin/env"
     uv venv --seed --python "${UV_PYTHON}" "${ENV_NAME}"
-    source "${ENV_NAME}/bin/activate"
+    # uv lays the venv out the platform way: Scripts/ on Windows, bin/ elsewhere.
+    if [[ ${TARGET_OS} == 'windows' ]]; then
+        source "${ENV_NAME}/Scripts/activate"
+    else
+        source "${ENV_NAME}/bin/activate"
+    fi
 else
     update_conda
     get_python_config
@@ -334,7 +353,11 @@ fi
 
 # Save original PATH for macos-arm64 workaround
 export OLD_PATH=${PATH}
-if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
+# This promotes the *conda* env's bin to the front of PATH. On the uv path there
+# is no conda env to promote: CONDA_PREFIX still points at base (python 3.14),
+# so prepending it shadows the venv's python3/pip3 and the run would install and
+# validate the wrong interpreter instead of 3.15.
+if [[ ${TARGET_OS} == 'macos-arm64' && ${USING_UV_VENV} == 'no' ]]; then
     export PATH="${CONDA_PREFIX}/bin:${PATH}"
 fi
 
