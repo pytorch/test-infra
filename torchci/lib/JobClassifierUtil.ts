@@ -9,12 +9,15 @@ type RepoViableStrictBlockingJobsMap = {
 
 // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
 export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
+  // Patterns match the workflow-name segment (before the first " / "), so
+  // "trunk" does not match "trunk-tagging" / "trunk-rocm-sandbox". "(L4)" is a
+  // config-token match, not a workflow name.
   "pytorch/pytorch": [
-    /pull/i,
-    /trunk/i,
-    /lint/i,
-    /linux-aarch64/i,
-    /docs-build/i,
+    /^pull($| \/)/i,
+    /^trunk($| \/)/i,
+    /^lint($| \/)/i,
+    /^linux-aarch64($| \/)/i,
+    /^docs-build($| \/)/i,
     /\(L4\)/,
   ],
 };
