@@ -127,12 +127,12 @@
     "",
     ""
   ],
-  "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
+  "trunk-rocm-sandbox / linux-noble-rocm-py3.12-mi300 / test": [
     "jithunnair-amd",
     "167849",
     "https://github.com/pytorch/pytorch/issues/167849",
     "trunk-rocm-sandbox",
-    "linux-jammy-rocm-py3.10",
+    "linux-noble-rocm-py3.12-mi300",
     "test"
   ]
 }
