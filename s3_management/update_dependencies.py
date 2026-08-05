@@ -1031,9 +1031,7 @@ def upload_package_using_simple_index(
     else:
         source_label = "PyPI"
 
-    print(
-        f"Processing {pkg_name} using {source_label} Simple Index: {source_url}"
-    )
+    print(f"Processing {pkg_name} using {source_label} Simple Index: {source_url}")
 
     # Parse the index and get raw HTML
     try:
