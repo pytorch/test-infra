@@ -1,4 +1,12 @@
 {
-  "repo": "String",
-  "days": "UInt64"
+  "params": {
+    "repo": "String",
+    "days": "UInt64"
+  },
+  "tests": [
+    {
+      "repo": "<company>/<repo>",
+      "days": "7"
+    }
+  ]
 }
