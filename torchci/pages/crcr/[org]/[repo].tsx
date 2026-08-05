@@ -410,17 +410,19 @@ function buildMatrix(data: CrcrJobRow[]): {
   const prMap = new Map<number, MatrixRow>();
 
   for (const job of data) {
+    const prNum = job.pr_number ?? 0;
+    if (prNum <= 0) continue;
     jobNamesSet.add(job.job_name);
-    let row = prMap.get(job.pr_number);
+    let row = prMap.get(prNum);
     if (!row) {
       row = {
-        prNumber: job.pr_number,
+        prNumber: prNum,
         sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         latestTime: job.started_at,
         jobs: new Map(),
       };
-      prMap.set(job.pr_number, row);
+      prMap.set(prNum, row);
     }
     // Track latest started_at for this PR
     if (job.started_at > row.latestTime) {
