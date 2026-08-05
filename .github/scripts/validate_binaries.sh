@@ -28,7 +28,7 @@ get_python_config() {
             CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
             ;;
         # Note: 3.15 / 3.15t are intentionally absent here. They are provisioned
-        # via uv (CPython 3.15.0b1) in the interpreter-setup branch below and
+        # via uv (CPython 3.15.0b4) in the interpreter-setup branch below and
         # never reach the conda create path that reads CONDA_EXTRA_PARAM.
         *)
             PYTHON_V=${MATRIX_PYTHON_VERSION}
@@ -321,19 +321,24 @@ fi
 
 # Setup the Python environment.
 #
-# Python 3.15 is still pre-release. The cp315/cp315t wheels are built against
-# CPython 3.15.0b1 (see pytorch .ci/docker/common/install_cpython.sh), but
-# conda-forge only ships 3.15.0a8 -- the pre-release ABI differs, so installing
-# the wheel under the conda interpreter segfaults on "import torch". Provision
-# the matching 3.15.0b1 interpreter with uv (from python-build-standalone)
+# Python 3.15 is still pre-release, and conda-forge's default channel does not
+# carry it, so provision the interpreter with uv (from python-build-standalone)
 # instead of conda. A --seed venv provides pip so the rest of the flow (pip3
 # install, smoke tests) is unchanged.
+#
+# Pin b4, NOT b1: `import torch` segfaults under the 3.15.0b1 build. The crash is
+# pybind11 3.0.4's gil_scoped_acquire teardown in python_tracer::init(), reached
+# from torch._C._autograd_init():
+#     THPAutograd_initExtension -> python_tracer::init()
+#       -> ~gil_scoped_acquire() -> dec_ref() -> PyThreadState_Clear -> SIGSEGV
+# Verified with the cp315 nightly on both interpreters: b1 segfaults, b4 imports
+# and runs (matmul/autograd, and 3.15t with the GIL genuinely disabled).
 USING_UV_VENV="no"
 if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
     USING_UV_VENV="yes"
-    UV_PYTHON="3.15.0b1"
+    UV_PYTHON="3.15.0b4"
     if [[ ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
-        UV_PYTHON="3.15.0b1+freethreaded"
+        UV_PYTHON="3.15.0b4+freethreaded"
     fi
     curl -LsSf https://astral.sh/uv/install.sh | sh
     source "${HOME}/.local/bin/env"
