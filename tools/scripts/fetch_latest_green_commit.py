@@ -114,7 +114,8 @@ def is_green(
 ) -> Tuple[bool, str]:
     workflow_checks = get_commit_results(commit, results)
 
-    regex = {check: False for check in requires}
+    # Skip empty entries; fullmatch("") never matches a real workflow name.
+    regex = {check: False for check in requires if check}
 
     for check in workflow_checks:
         jobName = check["name"]
@@ -125,7 +126,9 @@ def is_green(
         workflow_name = check["workflowName"]
         conclusion = check["conclusion"]
         for required_check in regex:
-            if re.match(required_check, workflow_name, flags=re.IGNORECASE):
+            # Full match: "pull" won't also match "pull-test-sandbox".
+            # Explicit regex still works (e.g. "^Apple$").
+            if re.fullmatch(required_check, workflow_name, flags=re.IGNORECASE):
                 if conclusion not in ["success", "skipped"]:
                     return (
                         False,
