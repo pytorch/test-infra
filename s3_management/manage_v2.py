@@ -548,6 +548,37 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "mkl",
         "pyelftools",
         "pyzes",
+        # torch_rocm packages, mirrored from repo.amd.com by
+        # update_dependencies.py (see PACKAGES_PER_PROJECT entries with
+        # project "torch_rocm"). Keep the two lists in sync.
+        "rocm",
+        "rocm-sdk-core",
+        "rocm-sdk-libraries",
+        "rocm-sdk-device-gfx1010",
+        "rocm-sdk-device-gfx1011",
+        "rocm-sdk-device-gfx1012",
+        "rocm-sdk-device-gfx1030",
+        "rocm-sdk-device-gfx1031",
+        "rocm-sdk-device-gfx1032",
+        "rocm-sdk-device-gfx1033",
+        "rocm-sdk-device-gfx1034",
+        "rocm-sdk-device-gfx1035",
+        "rocm-sdk-device-gfx1036",
+        "rocm-sdk-device-gfx1100",
+        "rocm-sdk-device-gfx1101",
+        "rocm-sdk-device-gfx1102",
+        "rocm-sdk-device-gfx1103",
+        "rocm-sdk-device-gfx1150",
+        "rocm-sdk-device-gfx1151",
+        "rocm-sdk-device-gfx1152",
+        "rocm-sdk-device-gfx1153",
+        "rocm-sdk-device-gfx1200",
+        "rocm-sdk-device-gfx1201",
+        "rocm-sdk-device-gfx1250",
+        "rocm-sdk-device-gfx908",
+        "rocm-sdk-device-gfx90a",
+        "rocm-sdk-device-gfx942",
+        "rocm-sdk-device-gfx950",
     ]
 }
 

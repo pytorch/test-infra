@@ -1,0 +1,48 @@
+name: greenlight
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/greenlight-tests.yml
+      - .github/workflows/greenlight-pr-review.yml
+      - greenlight/**
+      - .claude/hooks/greenlight/**
+      - .claude/skills/greenlight-review/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/greenlight-tests.yml
+      - .github/workflows/greenlight-pr-review.yml
+      - greenlight/**
+      - .claude/hooks/greenlight/**
+      - .claude/skills/greenlight-review/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: greenlight
+
+jobs:
+  gates:
+    name: lint, type-check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          working_directory: greenlight
+      - name: Sync dependencies
+        run: just setup
+      - name: Lint
+        run: just lint
+      - name: Type-check
+        run: just typecheck
+      - name: Test
+        run: just test

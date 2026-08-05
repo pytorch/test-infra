@@ -82,6 +82,32 @@ describe("extractDynamoRecord", () => {
     expect(record.downstream_repo_level).toBeUndefined();
   });
 
+  test("sets event_type from callback payload", () => {
+    const record = extractDynamoRecord(makePayload());
+    expect(record.event_type).toBe("workflow_job");
+  });
+
+  test("sets event_type for nightly callback", () => {
+    const record = extractDynamoRecord(
+      makePayload({ callback: { event_type: "nightly" } })
+    );
+    expect(record.event_type).toBe("nightly");
+  });
+
+  test("sets event_type for periodic callback", () => {
+    const record = extractDynamoRecord(
+      makePayload({ callback: { event_type: "periodic" } })
+    );
+    expect(record.event_type).toBe("periodic");
+  });
+
+  test("omits event_type when empty", () => {
+    const record = extractDynamoRecord(
+      makePayload({ callback: { event_type: "" } })
+    );
+    expect(record.event_type).toBeUndefined();
+  });
+
   test("sets queue_time from ci_metrics when non-null", () => {
     const record = extractDynamoRecord(makePayload());
     expect(record.queue_time).toBe(12.5);
@@ -149,7 +175,25 @@ describe("extractDynamoRecord", () => {
       })
     );
     expect(record.pr_number).toBe(0);
-    expect(record.pytorch_head_sha).toBe("");
+    expect(record.pytorch_head_sha).toBe("delivery-abc-123");
+  });
+
+  test("uses payload.head_sha for nightly callbacks", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        callback: {
+          event_type: "nightly",
+          delivery_id: "abc123def456",
+          payload: {
+            repository: { full_name: "pytorch/pytorch" },
+            head_sha: "abc123def456",
+          },
+        },
+      })
+    );
+    expect(record.pytorch_head_sha).toBe("abc123def456");
+    expect(record.pr_number).toBe(0);
+    expect(record.event_type).toBe("nightly");
   });
 
   // --- completed status ---
