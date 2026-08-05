@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/greenlight-tests.yml
+      - .github/workflows/greenlight-pr-review.yml
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**
@@ -12,6 +13,7 @@ on:
       - main
     paths:
       - .github/workflows/greenlight-tests.yml
+      - .github/workflows/greenlight-pr-review.yml
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**

@@ -147,6 +147,45 @@ iteration in both one-shot and `--loop` mode. In `--loop` mode, SIGTERM/SIGINT a
 observed only between iterations, so the per-iteration timeout is what interrupts a
 hung run.
 
+## Reviewer checkout sanitizing
+
+The reviewer workflow (`greenlight-pr-review.yml`) checks the PR's `pytorch/pytorch` tree
+out under `./pytorch`, which is untrusted: a PR could plant AI-assistant instruction files
+that Claude Code auto-loads as steering — its own `CLAUDE.md`, `CLAUDE.local.md`, and
+`.claude/rules`, plus defense-in-depth `AGENTS.md`, `.cursorrules`, and
+`.github/copilot-instructions.md` — and thereby override the reviewer's task. Two layers,
+both before the model runs and neither ever `continue-on-error`, close this off:
+
+- **Sanitize, restore skills only** — `sanitize-untrusted-checkout.sh` strips every such
+  instruction file from `./pytorch`, then restores only `.claude/skills/` from a separate
+  sparse checkout of trusted pytorch `main`. The model then runs with none of the PR's
+  steering loadable, so it judges pytorch PRs code-only and does not auto-load pytorch's own
+  `CLAUDE.md` conventions as context. A PR's edits to these files still appear in the reviewed
+  diff (`/tmp/greenlight-pr.diff`, produced by `gh api` compare) and are reviewed as data. The
+  forbidden-name set is single-sourced in the script and must be re-verified on any
+  `claude-code-action` / Claude Code CLI bump (last verified CLI 2.1.169 / action v1.0.141).
+- **Deny-root runtime detector** — `assert-loaded-instructions.py` reads the manifest an
+  `InstructionsLoaded` hook records plus a `SessionStart` sentinel, and fails the review job
+  if any instruction file loaded from under `./pytorch`, or if the hooks never ran. It runs
+  `if: always()` before any verdict handoff, so a poisoned-but-successful model run is still
+  caught; because `record` gates LAND/NO_LAND on `review` success, a failed review records
+  only a FAILED marker, never a LAND.
+
+Both scripts live at `.claude/hooks/greenlight/`, alongside the reviewer's existing
+`restrict-write.sh` (write-path guard) and `validate-on-stop.sh` (verdict-schema guard).
+
+The detector depends on the hooks firing, so the first live dispatch must confirm the
+`SessionStart` and `InstructionsLoaded` hooks actually fire under the pinned
+`claude-code-action` — the detector fails closed if they do not, surfacing a misfire as a
+failed review rather than a silent gap.
+
+This control does not close a separate, higher-severity gap: the model keeps unrestricted
+`Read`, and its verdict `message` is not secret-scrubbed — defanging only neutralizes
+formatting and @-mentions on the posted comment, and the row stored to
+`misc.greenlight_pr_state` keeps the message verbatim — so a data-injection payload in the
+diff or tree could still coax the model to read a credential and emit it in the verdict.
+Constraining `Read` and scrubbing the published message remain open.
+
 ## Current status
 
 Works today: the CLI runs the `review` phase once (cron-like) or as a `--loop` daemon,

@@ -51,6 +51,11 @@ ignore = ["RET504"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106", "ARG", "PT011"]
+# The detector hook lives outside this project root; ruff anchors per-file-ignore globs to the
+# config directory, so the path is written relative to it (a bare "**/..." glob would never
+# match a sibling tree). T20: the detector is a standalone CLI that prints to stdout/stderr by
+# design.
+"../.claude/hooks/greenlight/*.py" = ["T20"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["greenlight"]

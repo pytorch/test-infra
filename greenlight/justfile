@@ -19,9 +19,10 @@ run *args:
 review *args:
     uv run greenlight review {{args}}
 
-# Type-check source and tests
+# Type-check source and tests, plus the greenlight-owned detector hook
 typecheck:
     uv run mypy
+    uv run mypy ../.claude/hooks/greenlight/assert-loaded-instructions.py
 
 # Run the test suite with coverage
 test:
@@ -46,8 +47,8 @@ lint:
         fi
     }
 
-    _run "ruff check" ruff check .
-    _run "ruff format" ruff format --check .
+    _run "ruff check" ruff check --config pyproject.toml . ../.claude/hooks/greenlight/
+    _run "ruff format" ruff format --check --config pyproject.toml . ../.claude/hooks/greenlight/
     _run "yamllint" uv run yamllint .
     _run "taplo check" taplo check
     _run "shellcheck" shellcheck --rcfile .shellcheckrc scripts/*.sh ../.claude/hooks/greenlight/*.sh
