@@ -1019,11 +1019,12 @@ export default function CrcrBackendPage() {
 
   const repoFullName = org && repo ? `${org}/${repo}` : "";
 
-  const summaryUrl = repoFullName
-    ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
-        JSON.stringify({ repo: repoFullName, days: String(days) })
-      )}`
-    : null;
+  const summaryUrl =
+    repoFullName && !isNightly
+      ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
+          JSON.stringify({ repo: repoFullName, days: String(days) })
+        )}`
+      : null;
   const { data: summaryData } = useSWR<SummaryStats[]>(
     summaryUrl,
     fetcherHandleError,
