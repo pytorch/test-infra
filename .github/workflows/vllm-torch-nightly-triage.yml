@@ -29,6 +29,11 @@ on:
 jobs:
   triage:
     runs-on: ubuntu-24.04
+    # BUILDKITE_CI_READ_ONLY is an environment secret, so the job must declare the
+    # environment to see it. Repo-level secrets (CLICKHOUSE_HUD_USER_*) resolve
+    # regardless. root-cause uses environment: bedrock instead -- a job gets one
+    # environment, and the two jobs need different ones.
+    environment: vllm-triage
     permissions:
       contents: read
     outputs:
