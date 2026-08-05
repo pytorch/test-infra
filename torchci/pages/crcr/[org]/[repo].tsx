@@ -1028,118 +1028,118 @@ function CrcrNightlyMatrix({
       <NightlySummaryCards data={data} />
       <div style={{ overflowX: "auto" }}>
         <table
-        style={{
-          borderCollapse: "collapse",
-          fontSize: "0.85rem",
-          width: "100%",
-        }}
-      >
-        <colgroup>
-          <col style={{ width: 80 }} />
-          <col style={{ width: 60 }} />
-          <col style={{ width: 340 }} />
-          {columns.map((col) => (
-            <col key={col.name} style={{ width: 18 }} />
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
-            <th style={headerBaseStyle}>Time</th>
-            <th style={headerBaseStyle}>SHA</th>
-            <th style={headerBaseStyle}>Commit</th>
+          style={{
+            borderCollapse: "collapse",
+            fontSize: "0.85rem",
+            width: "100%",
+          }}
+        >
+          <colgroup>
+            <col style={{ width: 80 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 340 }} />
             {columns.map((col) => (
-              <th key={col.name} style={jobHeaderStyle}>
-                <div
-                  style={{
-                    ...jobHeaderNameStyle,
-                    fontWeight: col.type === "group" ? 700 : 400,
-                  }}
-                >
-                  {col.name}
-                </div>
-              </th>
+              <col key={col.name} style={{ width: 18 }} />
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.rows.map((row) => {
-            const commit = commitInfoMap.get(row.sha);
-            const commitTitle =
-              commit?.title || `nightly (${row.sha.substring(0, 12)})`;
-            return (
-              <tr
-                key={row.sha}
-                style={{ borderBottom: "1px solid #30363d" }}
-              >
-                <td style={cellStyle}>
-                  <LocalTimeDisplay timestamp={row.latestTime} />
-                </td>
-                <td style={cellStyle}>
-                  <a
-                    href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "#58a6ff", textDecoration: "none" }}
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={headerBaseStyle}>Time</th>
+              <th style={headerBaseStyle}>SHA</th>
+              <th style={headerBaseStyle}>Commit</th>
+              {columns.map((col) => (
+                <th key={col.name} style={jobHeaderStyle}>
+                  <div
+                    style={{
+                      ...jobHeaderNameStyle,
+                      fontWeight: col.type === "group" ? 700 : 400,
+                    }}
                   >
-                    {row.sha.substring(0, 7)}
-                  </a>
-                </td>
-                <td style={{ ...cellStyle, maxWidth: 340 }}>
-                  <Tooltip title={commitTitle}>
+                    {col.name}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.rows.map((row) => {
+              const commit = commitInfoMap.get(row.sha);
+              const commitTitle =
+                commit?.title || `nightly (${row.sha.substring(0, 12)})`;
+              return (
+                <tr
+                  key={row.sha}
+                  style={{ borderBottom: "1px solid #30363d" }}
+                >
+                  <td style={cellStyle}>
+                    <LocalTimeDisplay timestamp={row.latestTime} />
+                  </td>
+                  <td style={cellStyle}>
                     <a
                       href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{
-                        color: "#58a6ff",
-                        textDecoration: "none",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        display: "block",
-                      }}
+                      style={{ color: "#58a6ff", textDecoration: "none" }}
                     >
-                      {commitTitle}
+                      {row.sha.substring(0, 7)}
                     </a>
-                  </Tooltip>
-                </td>
-                {columns.map((col) => {
-                  if (col.type === "group" && col.members) {
-                    const groupJobs = col.members
-                      .map((m) => row.jobs.get(m))
-                      .filter((j): j is CrcrJobRow => j != null);
+                  </td>
+                  <td style={{ ...cellStyle, maxWidth: 340 }}>
+                    <Tooltip title={commitTitle}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#58a6ff",
+                          textDecoration: "none",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
+                      >
+                        {commitTitle}
+                      </a>
+                    </Tooltip>
+                  </td>
+                  {columns.map((col) => {
+                    if (col.type === "group" && col.members) {
+                      const groupJobs = col.members
+                        .map((m) => row.jobs.get(m))
+                        .filter((j): j is CrcrJobRow => j != null);
+                      return (
+                        <td
+                          key={col.name}
+                          style={{ ...cellStyle, textAlign: "center" }}
+                        >
+                          {groupJobs.length > 0 ? (
+                            <GroupedJobCell
+                              jobs={groupJobs}
+                              groupName={col.name}
+                            />
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                      );
+                    }
+                    const job = row.jobs.get(col.name);
                     return (
                       <td
                         key={col.name}
                         style={{ ...cellStyle, textAlign: "center" }}
                       >
-                        {groupJobs.length > 0 ? (
-                          <GroupedJobCell
-                            jobs={groupJobs}
-                            groupName={col.name}
-                          />
-                        ) : (
-                          "–"
-                        )}
+                        {job ? <JobCell job={job} /> : "–"}
                       </td>
                     );
-                  }
-                  const job = row.jobs.get(col.name);
-                  return (
-                    <td
-                      key={col.name}
-                      style={{ ...cellStyle, textAlign: "center" }}
-                    >
-                      {job ? <JobCell job={job} /> : "–"}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }
@@ -1205,9 +1205,7 @@ export default function CrcrBackendPage() {
     );
   }
 
-  const pageTitle = isNightly
-    ? `${repoFullName} : nightly`
-    : repoFullName;
+  const pageTitle = isNightly ? `${repoFullName} : nightly` : repoFullName;
 
   return (
     <>
