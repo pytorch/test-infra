@@ -60,7 +60,10 @@ describe("isJobViableStrictBlocking", () => {
     ["some-random-job", false],
     [", mem_leak check", false],
     // "trunk" must not match differently-named workflows that share the prefix.
-    ["trunk-rocm-sandbox / linux-noble-rocm-py3.12-mi300 / test (default)", false],
+    [
+      "trunk-rocm-sandbox / linux-noble-rocm-py3.12-mi300 / test (default)",
+      false,
+    ],
     ["trunk-tagging / tag", false],
   ])("pytorch/pytorch %j -> %s", (jobName, expected) => {
     expect(isJobViableStrictBlocking(jobName, "pytorch", "pytorch")).toBe(
