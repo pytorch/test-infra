@@ -178,6 +178,54 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
   );
 }
 
+function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
+  const stats = useMemo(() => {
+    const completed = data.filter((j) => j.status === "completed");
+    const successes = completed.filter(
+      (j) => j.conclusion === "success"
+    ).length;
+    const failures = completed.filter(
+      (j) => j.conclusion === "failure"
+    ).length;
+    const timedOut = completed.filter(
+      (j) => j.conclusion === "timed_out"
+    ).length;
+    const total = completed.length;
+    const passRate = total > 0 ? successes / total : 0;
+    const uniqueShas = new Set(data.map((j) => j.pytorch_head_sha)).size;
+    return { successes, failures, timedOut, total, passRate, uniqueShas };
+  }, [data]);
+
+  const passColor =
+    stats.passRate >= 1.0
+      ? "#2e7d32"
+      : stats.passRate >= 0.9
+      ? "#ed6c02"
+      : "#d32f2f";
+
+  return (
+    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+      <StatCard
+        label="Pass Rate"
+        value={`${(stats.passRate * 100).toFixed(1)}%`}
+        sub={`${stats.successes}/${stats.total} jobs`}
+        color={passColor}
+      />
+      <StatCard
+        label="Nightly Runs"
+        value={stats.uniqueShas}
+        sub="unique SHAs tested"
+      />
+      <StatCard
+        label="Failures"
+        value={stats.failures}
+        sub={stats.timedOut > 0 ? `+ ${stats.timedOut} timed out` : ""}
+        color={stats.failures > 0 ? "#d32f2f" : undefined}
+      />
+    </Box>
+  );
+}
+
 // ---- Job Cell (colored character, matching main HUD style) ----
 
 const conclusionCssColor: Record<string, string> = {
@@ -976,8 +1024,10 @@ function CrcrNightlyMatrix({
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table
+    <>
+      <NightlySummaryCards data={data} />
+      <div style={{ overflowX: "auto" }}>
+        <table
         style={{
           borderCollapse: "collapse",
           fontSize: "0.85rem",
@@ -1090,6 +1140,7 @@ function CrcrNightlyMatrix({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
