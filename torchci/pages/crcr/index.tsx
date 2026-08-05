@@ -350,7 +350,7 @@ function NightlyTable({ nightlyData }: { nightlyData: NightlyMetricsRow[] }) {
                 </TableCell>
                 <TableCell>
                   <NextLink
-                    href={`/crcr/${org}/${repo}`}
+                    href={`/crcr/${org}/${repo}?event=nightly`}
                     passHref
                     legacyBehavior
                   >

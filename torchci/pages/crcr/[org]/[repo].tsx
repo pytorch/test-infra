@@ -40,7 +40,7 @@ const CrcrPinnedContext = createContext<[Highlight, any]>([
 
 interface CrcrJobRow {
   upstream_repo: string;
-  pr_number: number;
+  pr_number?: number;
   pytorch_head_sha: string;
   workflow_name: string;
   job_name: string;
@@ -807,6 +807,205 @@ function CrcrMatrix({
   );
 }
 
+// ---- Nightly Matrix Table ----
+
+interface NightlyRow {
+  sha: string;
+  upstreamRepo: string;
+  latestTime: string;
+  jobs: Map<string, CrcrJobRow>;
+}
+
+function buildNightlyMatrix(data: CrcrJobRow[]): {
+  jobNames: string[];
+  rows: NightlyRow[];
+} {
+  const jobNamesSet = new Set<string>();
+  const shaMap = new Map<string, NightlyRow>();
+
+  for (const job of data) {
+    jobNamesSet.add(job.job_name);
+    const sha = job.pytorch_head_sha || "unknown";
+    let row = shaMap.get(sha);
+    if (!row) {
+      row = {
+        sha,
+        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
+        latestTime: job.started_at,
+        jobs: new Map(),
+      };
+      shaMap.set(sha, row);
+    }
+    if (job.started_at > row.latestTime) {
+      row.latestTime = job.started_at;
+    }
+    const existing = row.jobs.get(job.job_name);
+    if (!existing || job.run_attempt > existing.run_attempt) {
+      row.jobs.set(job.job_name, job);
+    }
+  }
+
+  const jobNames = Array.from(jobNamesSet).sort();
+  const rows = Array.from(shaMap.values()).sort(
+    (a, b) =>
+      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
+  );
+  return { jobNames, rows };
+}
+
+function CrcrNightlyMatrix({
+  repoFullName,
+  days,
+}: {
+  repoFullName: string;
+  days: number;
+}) {
+  const url = `/api/clickhouse/crcr_nightly_dashboard?parameters=${encodeURIComponent(
+    JSON.stringify({ repo: repoFullName, days: String(days) })
+  )}`;
+  const { data, error } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
+
+  const { matrix, columns } = useMemo(() => {
+    if (!data) return { matrix: null, columns: [] };
+    const full = buildNightlyMatrix(data);
+    return {
+      matrix: full,
+      columns: detectGroups(full.jobNames),
+    };
+  }, [data]);
+
+  if (error) {
+    return (
+      <Typography color="error">
+        Failed to load nightly dashboard: {error.message}
+      </Typography>
+    );
+  }
+  if (!data || !matrix) {
+    return <Skeleton variant="rectangular" height={400} />;
+  }
+  if (data.length === 0) {
+    return (
+      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+        No nightly results for {repoFullName} in the last {days} days.
+      </Typography>
+    );
+  }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table
+        style={{
+          borderCollapse: "collapse",
+          fontSize: "0.85rem",
+          width: "100%",
+        }}
+      >
+        <colgroup>
+          <col style={{ width: 80 }} />
+          <col style={{ width: 60 }} />
+          <col style={{ width: 340 }} />
+          {columns.map((col) => (
+            <col key={col.name} style={{ width: 18 }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={headerBaseStyle}>Time</th>
+            <th style={headerBaseStyle}>SHA</th>
+            <th style={headerBaseStyle}>Commit</th>
+            {columns.map((col) => (
+              <th key={col.name} style={jobHeaderStyle}>
+                <div
+                  style={{
+                    ...jobHeaderNameStyle,
+                    fontWeight: col.type === "group" ? 700 : 400,
+                  }}
+                >
+                  {col.name}
+                </div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.rows.map((row) => (
+            <tr
+              key={row.sha}
+              style={{ borderBottom: "1px solid #30363d" }}
+            >
+              <td style={cellStyle}>
+                <LocalTimeDisplay timestamp={row.latestTime} />
+              </td>
+              <td style={cellStyle}>
+                <a
+                  href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#58a6ff", textDecoration: "none" }}
+                >
+                  {row.sha.substring(0, 7)}
+                </a>
+              </td>
+              <td style={{ ...cellStyle, maxWidth: 340 }}>
+                <a
+                  href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`nightly release (${row.sha})`}
+                  style={{
+                    color: "#58a6ff",
+                    textDecoration: "none",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    display: "block",
+                  }}
+                >
+                  {`nightly release (${row.sha.substring(0, 20)}...)`}
+                </a>
+              </td>
+              {columns.map((col) => {
+                if (col.type === "group" && col.members) {
+                  const groupJobs = col.members
+                    .map((m) => row.jobs.get(m))
+                    .filter((j): j is CrcrJobRow => j != null);
+                  return (
+                    <td
+                      key={col.name}
+                      style={{ ...cellStyle, textAlign: "center" }}
+                    >
+                      {groupJobs.length > 0 ? (
+                        <GroupedJobCell
+                          jobs={groupJobs}
+                          groupName={col.name}
+                        />
+                      ) : (
+                        "–"
+                      )}
+                    </td>
+                  );
+                }
+                const job = row.jobs.get(col.name);
+                return (
+                  <td
+                    key={col.name}
+                    style={{ ...cellStyle, textAlign: "center" }}
+                  >
+                    {job ? <JobCell job={job} /> : "–"}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ---- Main Page ----
 
 export default function CrcrBackendPage() {
@@ -815,6 +1014,8 @@ export default function CrcrBackendPage() {
 
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
+  const eventType = (router.query.event as string) || "pr";
+  const isNightly = eventType === "nightly";
 
   const repoFullName = org && repo ? `${org}/${repo}` : "";
 
@@ -865,10 +1066,14 @@ export default function CrcrBackendPage() {
     );
   }
 
+  const pageTitle = isNightly
+    ? `${repoFullName} : nightly`
+    : repoFullName;
+
   return (
     <>
       <Head>
-        <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
+        <title>{pageTitle} — CRCR CI | PyTorch HUD</title>
       </Head>
       <CrcrPinnedContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <div onClick={handleGlobalClick}>
@@ -879,7 +1084,22 @@ export default function CrcrBackendPage() {
               alignItems="center"
             >
               <Stack spacing={0.5}>
-                <Typography variant="h4">{repoFullName}</Typography>
+                <Typography variant="h4">
+                  {repoFullName}
+                  {isNightly && (
+                    <Typography
+                      component="span"
+                      variant="h4"
+                      sx={{
+                        color: "text.secondary",
+                        fontWeight: 300,
+                        mx: 1,
+                      }}
+                    >
+                      : nightly
+                    </Typography>
+                  )}
+                </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <NextLink href="/crcr" passHref legacyBehavior>
                     <Link variant="body2" underline="hover">
@@ -915,25 +1135,32 @@ export default function CrcrBackendPage() {
               </Stack>
             </Box>
 
-            {stats ? (
-              <SummaryCards stats={stats} />
-            ) : (
-              <Skeleton variant="rectangular" height={140} />
+            {!isNightly && (
+              <>
+                {stats ? (
+                  <SummaryCards stats={stats} />
+                ) : (
+                  <Skeleton variant="rectangular" height={140} />
+                )}
+              </>
             )}
 
             <Typography variant="body2" color="text.secondary">
-              Rows = PyTorch PRs (50 per page), columns = downstream CI jobs.
-              Click a cell to pin its tooltip, click a column header to
-              highlight the column, or click a row to highlight it. Press Escape
-              to dismiss.
+              {isNightly
+                ? "Rows = nightly CI runs (one per SHA), columns = build & test stages. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."
+                : "Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."}
             </Typography>
 
-            <CrcrMatrix
-              repoFullName={repoFullName}
-              days={days}
-              page={page}
-              onPageChange={(p) => updateQuery({ page: p })}
-            />
+            {isNightly ? (
+              <CrcrNightlyMatrix repoFullName={repoFullName} days={days} />
+            ) : (
+              <CrcrMatrix
+                repoFullName={repoFullName}
+                days={days}
+                page={page}
+                onPageChange={(p) => updateQuery({ page: p })}
+              />
+            )}
           </Stack>
         </div>
       </CrcrPinnedContext.Provider>
