@@ -91,13 +91,6 @@
       "macos"
     ]
   ],
-  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
-    "188513",
-    "https://github.com/pytorch/pytorch/issues/188513",
-    [
-      "linux"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -1147,6 +1140,16 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
+    "123890",
+    "https://github.com/pytorch/pytorch/issues/123890",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
@@ -1173,13 +1176,6 @@
   "test_trace_return_dataclass_nested (__main__.TestFX)": [
     "181322",
     "https://github.com/pytorch/pytorch/issues/181322",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_trace_return_namedtuple (__main__.TestFX)": [
-    "176966",
-    "https://github.com/pytorch/pytorch/issues/176966",
     [
       "dynamo"
     ]
