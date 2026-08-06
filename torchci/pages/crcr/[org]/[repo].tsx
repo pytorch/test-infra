@@ -21,6 +21,7 @@ import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
+  CSSProperties,
   createContext,
   useCallback,
   useContext,
@@ -1113,6 +1114,7 @@ function CrcrNightlyMatrix({
                             <GroupedJobCell
                               jobs={groupJobs}
                               groupName={col.name}
+                              sha={row.sha}
                             />
                           ) : (
                             "–"
@@ -1126,7 +1128,7 @@ function CrcrNightlyMatrix({
                         key={col.name}
                         style={{ ...cellStyle, textAlign: "center" }}
                       >
-                        {job ? <JobCell job={job} /> : "–"}
+                        {job ? <JobCell job={job} sha={row.sha} /> : "–"}
                       </td>
                     );
                   })}
