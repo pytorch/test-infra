@@ -106,26 +106,30 @@ def find_latest_pair(
     if not nightlies:
         return None
 
-    target = nightlies[0]
-    candidates = [
-        b
-        for b in parsed
-        if b["title"].startswith(BASELINE_MSGS)
-        and b["commit"] == target["commit"]
-        and abs((b["created_at"] - target["created_at"]).total_seconds())
-        <= SIBLING_WINDOW_SECONDS
-    ]
-    if not candidates:
-        return None
-
-    # Prefer the closest in time; ties favour the plain nightly (same cron slot).
-    candidates.sort(
-        key=lambda b: (
-            abs((b["created_at"] - target["created_at"]).total_seconds()),
-            0 if b["title"].startswith(BASELINE_MSGS[0]) else 1,
+    # Walk newest-first rather than taking only nightlies[0]. Off-schedule
+    # torch-nightly builds happen (manual triggers land outside the 06:00 slot and
+    # have no sibling); stopping at the newest would let one of those mask the most
+    # recent genuinely comparable pair.
+    for target in nightlies:
+        candidates = [
+            b
+            for b in parsed
+            if b["title"].startswith(BASELINE_MSGS)
+            and b["commit"] == target["commit"]
+            and abs((b["created_at"] - target["created_at"]).total_seconds())
+            <= SIBLING_WINDOW_SECONDS
+        ]
+        if not candidates:
+            continue
+        # Prefer the closest in time; ties favour the plain nightly (same cron slot).
+        candidates.sort(
+            key=lambda b: (
+                abs((b["created_at"] - target["created_at"]).total_seconds()),
+                0 if b["title"].startswith(BASELINE_MSGS[0]) else 1,
+            )
         )
-    )
-    return target, candidates[0]
+        return target, candidates[0]
+    return None
 
 
 def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dict]]:
@@ -134,36 +138,65 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
     ``retried`` jobs are excluded: a retried attempt is superseded and counting it
     double-reports. ``soft_failed`` jobs are non-blocking by design.
     """
+    # Group by (name, shard), not name alone. Buildkite parallelism gives every
+    # shard the same job name, and the shards frequently disagree -- on one measured
+    # pair "Kernels Core Operation Test" was passed,passed,failed across 3 shards.
+    # Grouping by name alone and picking with any() is nondeterministic: the same
+    # immutable data yields a different verdict per run, and state, url and agent
+    # can each resolve from a different row. argMax over finished_at makes the pick
+    # deterministic (latest attempt wins) and keeps the fields mutually consistent.
     rows = _rows(
         client,
         """
         SELECT
             tupleElement(job, 'name') AS job_name,
-            anyIf(lowerUTF8(tupleElement(job, 'state')),
-                  toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_state,
-            anyIf(tupleElement(job, 'exit_status'),
-                  toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_exit,
-            anyIf(tupleElement(job, 'web_url'),
-                  toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_url,
-            anyIf(tupleElement(tupleElement(job, 'agent'), 'hostname'),
-                  toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_agent,
-            anyIf(lowerUTF8(tupleElement(job, 'state')),
-                  toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS base_state,
+            ifNull(tupleElement(job, 'parallel_group_index'), 0) AS shard,
+            argMaxIf(lowerUTF8(tupleElement(job, 'state')),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_state,
+            argMaxIf(tupleElement(job, 'exit_status'),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_exit,
+            argMaxIf(tupleElement(job, 'web_url'),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_url,
+            argMaxIf(tupleElement(tupleElement(job, 'agent'), 'hostname'),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS tn_agent,
+            argMaxIf(lowerUTF8(tupleElement(job, 'state')),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS base_state,
+            countIf(toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS in_tn,
             countIf(toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS in_base
         FROM vllm.vllm_buildkite_jobs FINAL
         WHERE toUInt32(tupleElement(build, 'number')) IN ({tn: UInt32}, {base: UInt32})
           AND tupleElement(job, 'soft_failed') = 0
           AND tupleElement(job, 'retried') = 0
           AND tupleElement(job, 'name') != ''
-        GROUP BY job_name
+        GROUP BY job_name, shard
         """,
         {"tn": tn_number, "base": base_number},
     )
 
     buckets: Dict[str, List[Dict]] = {"regressed": [], "both": [], "baseline_only": []}
-    for name, tn_state, tn_exit, tn_url, tn_agent, base_state, in_base in rows:
+    for (
+        name,
+        shard,
+        tn_state,
+        tn_exit,
+        tn_url,
+        tn_agent,
+        base_state,
+        in_tn,
+        in_base,
+    ) in rows:
+        if not in_tn:
+            # Only present in the baseline; nothing to say about torch nightly.
+            if base_state in BAD_STATES:
+                buckets["baseline_only"].append({"name": name, "state": base_state})
+            continue
         job = {
-            "name": name,
+            "name": name if shard in (0, None) else f"{name} [shard {shard}]",
             "state": tn_state,
             "exit_status": tn_exit,
             "url": tn_url,
@@ -171,13 +204,14 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
             "baseline_state": base_state,
         }
         tn_bad = tn_state in BAD_STATES
-        base_bad = base_state in BAD_STATES
-        if tn_bad and base_bad:
+        if tn_bad and base_state in BAD_STATES:
             buckets["both"].append(job)
-        elif tn_bad and in_base:
-            # Only comparable if the job actually ran in the baseline build.
+        elif tn_bad and base_state == "passed":
+            # A regression only means anything against a baseline that actually
+            # passed. "Present in the baseline" is not enough: cancelled, skipped
+            # and still-running baseline jobs would all score as torch regressions.
             buckets["regressed"].append(job)
-        elif base_bad and not tn_bad:
+        elif base_state in BAD_STATES and not tn_bad:
             buckets["baseline_only"].append(job)
     return buckets
 
