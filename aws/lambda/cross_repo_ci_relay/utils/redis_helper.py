@@ -164,7 +164,9 @@ def set_cached_ci_providers(
             _CI_PROVIDERS_CACHE_KEY,
         )
     except RedisError:
-        logger.exception("redis ci_providers cache write failed, continuing without cache")
+        logger.exception(
+            "redis ci_providers cache write failed, continuing without cache"
+        )
 
 
 def check_rate_limit(
