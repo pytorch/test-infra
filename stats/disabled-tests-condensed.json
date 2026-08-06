@@ -680,13 +680,6 @@
       "win"
     ]
   ],
-  "test_maml_regression_mechanism_make_functional_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "181156",
-    "https://github.com/pytorch/pytorch/issues/181156",
-    [
-      "dynamo"
-    ]
-  ],
   "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
     "190142",
     "https://github.com/pytorch/pytorch/issues/190142",
@@ -770,14 +763,6 @@
     "https://github.com/pytorch/pytorch/issues/189221",
     [
       "rocm"
-    ]
-  ],
-  "test_nonzero_above_uint32 (__main__.TestMPS)": [
-    "190880",
-    "https://github.com/pytorch/pytorch/issues/190880",
-    [
-      "mac",
-      "macos"
     ]
   ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
@@ -1067,18 +1052,6 @@
       "rocm"
     ]
   ],
-  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119576",
-    "https://github.com/pytorch/pytorch/issues/119576",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
     "119537",
     "https://github.com/pytorch/pytorch/issues/119537",
@@ -1153,15 +1126,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
-    "152632",
-    "https://github.com/pytorch/pytorch/issues/152632",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
