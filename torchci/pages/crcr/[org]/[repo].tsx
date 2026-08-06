@@ -9,19 +9,32 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
+import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
+import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
-import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import useSWR from "swr";
 
 import { fetcherHandleError } from "lib/GeneralUtils";
+
+const CrcrPinnedContext = createContext<[Highlight, any]>([
+  { sha: undefined, name: undefined },
+  null,
+]);
 
 // ---- Types ----
 
@@ -177,17 +190,9 @@ const conclusionCssColor: Record<string, string> = {
   neutral: "var(--color-grey, #8b949e)",
 };
 
-function JobCell({ job }: { job: CrcrJobRow }) {
-  const conclusion =
-    job.status === "completed"
-      ? job.conclusion
-      : job.status === "in_progress"
-      ? "pending"
-      : job.status;
-  const char = getConclusionChar(conclusion);
-  const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
-
-  const tooltipContent = [
+function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
+  const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const lines = [
     `Job: ${job.job_name}`,
     `Status: ${conclusion}`,
     job.run_attempt > 1 ? `Attempt: ${job.run_attempt}` : null,
@@ -200,18 +205,47 @@ function JobCell({ job }: { job: CrcrJobRow }) {
       ? `Tests: ${job.passed_tests}/${job.total_tests} passed`
       : null,
     job.queue_time != null ? `Queue: ${job.queue_time.toFixed(1)}s` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].filter(Boolean);
 
   return (
-    <Tooltip
-      title={<span style={{ whiteSpace: "pre-line" }}>{tooltipContent}</span>}
+    <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
+      {lines.join("\n")}
+      {job.workflow_run_url && (
+        <div style={{ marginTop: 4 }}>
+          <a
+            href={job.workflow_run_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--link-color, #58a6ff)" }}
+          >
+            Show log ›
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JobCell({ job, sha }: { job: CrcrJobRow; sha: string }) {
+  const conclusion =
+    job.status === "completed"
+      ? job.conclusion
+      : job.status === "in_progress"
+      ? "pending"
+      : job.status;
+  const char = getConclusionChar(conclusion);
+  const color = conclusionCssColor[conclusion] ?? "var(--color-grey, #8b949e)";
+  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
+
+  return (
+    <TooltipTarget
+      sha={sha}
+      name={job.job_name}
+      pinnedId={pinnedId}
+      setPinnedId={setPinnedId}
+      tooltipContent={<JobCellTooltipContent job={job} />}
     >
-      <a
-        href={job.workflow_run_url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <span
         style={{
           fontFamily: "monospace",
           fontWeight: "bold",
@@ -220,12 +254,12 @@ function JobCell({ job }: { job: CrcrJobRow }) {
           width: "14px",
           textAlign: "center",
           color,
-          textDecoration: "none",
+          cursor: "pointer",
         }}
       >
         {char}
-      </a>
-    </Tooltip>
+      </span>
+    </TooltipTarget>
   );
 }
 
@@ -284,10 +318,14 @@ function detectGroups(jobNames: string[]): ColumnDef[] {
 function GroupedJobCell({
   jobs,
   groupName,
+  sha,
 }: {
   jobs: CrcrJobRow[];
   groupName: string;
+  sha: string;
 }) {
+  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
+
   const worst = jobs.reduce(
     (w, j) => {
       const c = j.status === "completed" ? j.conclusion : j.status;
@@ -310,18 +348,41 @@ function GroupedJobCell({
   const color =
     conclusionCssColor[worst.conclusion] ?? "var(--color-grey, #8b949e)";
 
-  const tooltipLines = jobs.map((j) => {
-    const c = j.status === "completed" ? j.conclusion : j.status;
-    return `${j.job_name}: ${c}`;
-  });
+  const tooltipContent = (
+    <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+        {groupName} ({jobs.length} jobs)
+      </div>
+      {jobs.map((j) => {
+        const c = j.status === "completed" ? j.conclusion : j.status;
+        return (
+          <div key={j.job_name}>
+            {j.workflow_run_url ? (
+              <a
+                href={j.workflow_run_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--link-color, #58a6ff)" }}
+              >
+                {j.job_name}
+              </a>
+            ) : (
+              j.job_name
+            )}
+            : {c}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <Tooltip
-      title={
-        <span style={{ whiteSpace: "pre-line" }}>
-          {`${groupName} (${jobs.length} jobs)\n` + tooltipLines.join("\n")}
-        </span>
-      }
+    <TooltipTarget
+      sha={sha}
+      name={groupName}
+      pinnedId={pinnedId}
+      setPinnedId={setPinnedId}
+      tooltipContent={tooltipContent}
     >
       <span
         style={{
@@ -332,12 +393,12 @@ function GroupedJobCell({
           width: "14px",
           textAlign: "center",
           color,
-          cursor: "default",
+          cursor: "pointer",
         }}
       >
         {char}
       </span>
-    </Tooltip>
+    </TooltipTarget>
   );
 }
 
@@ -375,7 +436,8 @@ function buildMatrix(data: CrcrJobRow[]): {
 
   const jobNames = Array.from(jobNamesSet).sort();
   const rows = Array.from(prMap.values()).sort(
-    (a, b) => b.prNumber - a.prNumber
+    (a, b) =>
+      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
   );
   return { jobNames, rows };
 }
@@ -491,42 +553,6 @@ function usePrInfo(
   }, [data]);
 }
 
-// ---- Table Styles (matching main HUD) ----
-
-const headerBaseStyle: CSSProperties = {
-  fontFamily: "sans-serif",
-  fontSize: "0.75rem",
-  fontWeight: 600,
-  padding: "4px 6px",
-  whiteSpace: "nowrap",
-  textAlign: "left",
-  borderBottom: "1px solid #30363d",
-};
-
-const jobHeaderStyle: CSSProperties = {
-  fontFamily: "sans-serif",
-  height: 120,
-  whiteSpace: "nowrap",
-  padding: 0,
-  borderBottom: "1px solid #30363d",
-  position: "relative",
-};
-
-const jobHeaderNameStyle: CSSProperties = {
-  transform: "translate(5px, 45px) rotate(315deg)",
-  transformOrigin: "left bottom",
-  width: 12,
-  fontWeight: 400,
-  fontSize: "0.75em",
-};
-
-const cellStyle: CSSProperties = {
-  padding: "3px 6px",
-  whiteSpace: "nowrap",
-  fontSize: "0.8rem",
-  verticalAlign: "middle",
-};
-
 // ---- PR Matrix Table ----
 
 function CrcrMatrix({
@@ -573,6 +599,7 @@ function CrcrMatrix({
     [matrix]
   );
   const prInfoMap = usePrInfo(upstreamRepo, prNumbers);
+  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
 
   if (error) {
     return (
@@ -604,39 +631,52 @@ function CrcrMatrix({
   return (
     <>
       <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            borderCollapse: "collapse",
-            fontSize: "0.85rem",
-            width: "100%",
-          }}
-        >
+        <table className={hudStyles.hudTable}>
           <colgroup>
-            <col style={{ width: 80 }} />
-            <col style={{ width: 60 }} />
-            <col style={{ width: 280 }} />
-            <col style={{ width: 60 }} />
-            <col style={{ width: 100 }} />
+            <col className={hudStyles.colTime} />
+            <col className={hudStyles.colSha} />
+            <col className={hudStyles.colCommit} />
+            <col className={hudStyles.colPr} />
+            <col className={hudStyles.colAuthor} />
             {columns.map((col) => (
-              <col key={col.name} style={{ width: 18 }} />
+              <col key={col.name} className={hudStyles.colJob} />
             ))}
           </colgroup>
           <thead>
             <tr>
-              <th style={headerBaseStyle}>Time</th>
-              <th style={headerBaseStyle}>SHA</th>
-              <th style={headerBaseStyle}>Commit</th>
-              <th style={headerBaseStyle}>PR</th>
-              <th style={headerBaseStyle}>Author</th>
+              <th className={hudStyles.regularHeader}>Time</th>
+              <th className={hudStyles.regularHeader}>SHA</th>
+              <th className={hudStyles.regularHeader}>Commit</th>
+              <th className={hudStyles.regularHeader}>PR</th>
+              <th className={hudStyles.regularHeader}>Author</th>
               {columns.map((col) => (
-                <th key={col.name} style={jobHeaderStyle}>
+                <th
+                  key={col.name}
+                  className={`${hudStyles.jobHeader} ${
+                    pinnedId.name === col.name ? hudStyles.highlight : ""
+                  }`}
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPinnedId({
+                      sha: undefined,
+                      name: pinnedId.name === col.name ? undefined : col.name,
+                    });
+                  }}
+                >
                   <div
+                    className={hudStyles.jobHeaderName}
                     style={{
-                      ...jobHeaderNameStyle,
                       fontWeight: col.type === "group" ? 700 : 400,
                     }}
                   >
-                    {col.name}
+                    <span
+                      className={
+                        pinnedId.name === col.name ? hudStyles.highlight : ""
+                      }
+                    >
+                      {col.name}
+                    </span>
                   </div>
                 </th>
               ))}
@@ -646,72 +686,77 @@ function CrcrMatrix({
             {matrix.rows.map((row) => {
               const pr = prInfoMap.get(row.prNumber);
               const commitTitle = pr?.title ?? `PR #${row.prNumber}`;
-              const truncatedTitle =
-                commitTitle.length > 50
-                  ? commitTitle.slice(0, 47) + "..."
-                  : commitTitle;
+
+              const isRowHighlighted = pinnedId.sha === row.sha;
+              const rowClass = isRowHighlighted ? hudStyles.highlight : "";
+
               return (
                 <tr
                   key={row.prNumber}
-                  style={{ borderBottom: "1px solid #30363d" }}
+                  className={rowClass}
+                  onClick={(e) => {
+                    if (
+                      pinnedId.name !== undefined ||
+                      pinnedId.sha !== undefined
+                    ) {
+                      return;
+                    }
+                    e.stopPropagation();
+                    setPinnedId({ sha: row.sha, name: undefined });
+                  }}
+                  style={{ cursor: "pointer" }}
                 >
-                  <td style={cellStyle}>
+                  <td className={hudStyles.jobMetadata}>
                     <LocalTimeDisplay timestamp={row.latestTime} />
                   </td>
-                  <td style={cellStyle}>
+                  <td className={hudStyles.jobMetadata}>
                     <a
                       href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#58a6ff", textDecoration: "none" }}
                     >
                       {row.sha ? row.sha.substring(0, 7) : "–"}
                     </a>
                   </td>
-                  <td style={{ ...cellStyle, maxWidth: 280 }}>
-                    <Tooltip title={commitTitle}>
+                  <td className={hudStyles.jobMetadata}>
+                    <div className={hudStyles.jobMetadataTruncated}>
                       <a
                         href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          color: "#58a6ff",
-                          textDecoration: "none",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
+                        title={commitTitle}
                       >
-                        {truncatedTitle}
+                        {commitTitle}
                       </a>
-                    </Tooltip>
+                    </div>
                   </td>
-                  <td style={cellStyle}>
+                  <td className={hudStyles.jobMetadata}>
                     <a
                       href={`https://github.com/${row.upstreamRepo}/pull/${row.prNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#2f81f7", textDecoration: "none" }}
                     >
                       #{row.prNumber}
                     </a>
                   </td>
-                  <td style={cellStyle}>
-                    {pr?.author ? (
-                      <a
-                        href={`https://github.com/${pr.author}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "#8b949e", textDecoration: "none" }}
-                      >
-                        {pr.author}
-                      </a>
-                    ) : (
-                      "–"
-                    )}
+                  <td className={hudStyles.jobMetadata}>
+                    <div className={hudStyles.jobMetadataTruncatedAuthor}>
+                      {pr?.author ? (
+                        <a
+                          href={`https://github.com/${pr.author}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {pr.author}
+                        </a>
+                      ) : (
+                        "–"
+                      )}
+                    </div>
                   </td>
                   {columns.map((col) => {
+                    const colHighlight =
+                      pinnedId.name === col.name ? hudStyles.highlight : "";
                     if (col.type === "group" && col.members) {
                       const groupJobs = col.members
                         .map((m) => row.jobs.get(m))
@@ -719,12 +764,14 @@ function CrcrMatrix({
                       return (
                         <td
                           key={col.name}
-                          style={{ ...cellStyle, textAlign: "center" }}
+                          className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                          style={{ textAlign: "center" }}
                         >
                           {groupJobs.length > 0 ? (
                             <GroupedJobCell
                               jobs={groupJobs}
                               groupName={col.name}
+                              sha={row.sha}
                             />
                           ) : (
                             "–"
@@ -736,9 +783,10 @@ function CrcrMatrix({
                     return (
                       <td
                         key={col.name}
-                        style={{ ...cellStyle, textAlign: "center" }}
+                        className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                        style={{ textAlign: "center" }}
                       >
-                        {job ? <JobCell job={job} /> : "–"}
+                        {job ? <JobCell job={job} sha={row.sha} /> : "–"}
                       </td>
                     );
                   })}
@@ -782,6 +830,31 @@ export default function CrcrBackendPage() {
   );
   const stats = summaryData?.[0] ?? null;
 
+  const [pinnedTooltip, setPinnedTooltip] = useState<Highlight>({
+    sha: undefined,
+    name: undefined,
+  });
+
+  function handleGlobalClick() {
+    setPinnedTooltip({ sha: undefined, name: undefined });
+  }
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        setPinnedTooltip({ sha: undefined, name: undefined });
+      }
+    },
+    [setPinnedTooltip]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   if (!org || !repo) return null;
 
   function updateQuery(updates: Record<string, string | number>) {
@@ -797,63 +870,73 @@ export default function CrcrBackendPage() {
       <Head>
         <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
       </Head>
-      <Stack spacing={3} sx={{ p: 3, maxWidth: 1600, mx: "auto" }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Stack spacing={0.5}>
-            <Typography variant="h4">{repoFullName}</Typography>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <NextLink href="/crcr" passHref legacyBehavior>
-                <Link variant="body2" underline="hover">
-                  ← Back to CRCR Summary
-                </Link>
-              </NextLink>
-              <Link
-                href={`https://github.com/${repoFullName}`}
-                target="_blank"
-                rel="noopener"
-                variant="body2"
-                underline="hover"
-              >
-                GitHub ↗
-              </Link>
-            </Stack>
+      <CrcrPinnedContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
+        <div onClick={handleGlobalClick}>
+          <Stack spacing={3} sx={{ p: 3, maxWidth: 1600, mx: "auto" }}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Stack spacing={0.5}>
+                <Typography variant="h4">{repoFullName}</Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <NextLink href="/crcr" passHref legacyBehavior>
+                    <Link variant="body2" underline="hover">
+                      ← Back to CRCR Summary
+                    </Link>
+                  </NextLink>
+                  <Link
+                    href={`https://github.com/${repoFullName}`}
+                    target="_blank"
+                    rel="noopener"
+                    variant="body2"
+                    underline="hover"
+                  >
+                    GitHub ↗
+                  </Link>
+                </Stack>
+              </Stack>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel>Time Range</InputLabel>
+                  <Select
+                    value={days}
+                    label="Time Range"
+                    onChange={(e: SelectChangeEvent<number>) =>
+                      updateQuery({ days: Number(e.target.value), page: 1 })
+                    }
+                  >
+                    <MenuItem value={1}>Last 24h</MenuItem>
+                    <MenuItem value={7}>Last 7 days</MenuItem>
+                    <MenuItem value={30}>Last 30 days</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+
+            {stats ? (
+              <SummaryCards stats={stats} />
+            ) : (
+              <Skeleton variant="rectangular" height={140} />
+            )}
+
+            <Typography variant="body2" color="text.secondary">
+              Rows = PyTorch PRs (50 per page), columns = downstream CI jobs.
+              Click a cell to pin its tooltip, click a column header to
+              highlight the column, or click a row to highlight it. Press Escape
+              to dismiss.
+            </Typography>
+
+            <CrcrMatrix
+              repoFullName={repoFullName}
+              days={days}
+              page={page}
+              onPageChange={(p) => updateQuery({ page: p })}
+            />
           </Stack>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>Time Range</InputLabel>
-              <Select
-                value={days}
-                label="Time Range"
-                onChange={(e: SelectChangeEvent<number>) =>
-                  updateQuery({ days: Number(e.target.value), page: 1 })
-                }
-              >
-                <MenuItem value={1}>Last 24h</MenuItem>
-                <MenuItem value={7}>Last 7 days</MenuItem>
-                <MenuItem value={30}>Last 30 days</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-        </Box>
-
-        {stats ? (
-          <SummaryCards stats={stats} />
-        ) : (
-          <Skeleton variant="rectangular" height={140} />
-        )}
-
-        <Typography variant="body2" color="text.secondary">
-          Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click
-          a cell to open the workflow run.
-        </Typography>
-
-        <CrcrMatrix
-          repoFullName={repoFullName}
-          days={days}
-          page={page}
-          onPageChange={(p) => updateQuery({ page: p })}
-        />
-      </Stack>
+        </div>
+      </CrcrPinnedContext.Provider>
     </>
   );
 }
