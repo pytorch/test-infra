@@ -365,7 +365,7 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         )
 
         kw = self.mock_gh.create_check_run.call_args[1]
-        self.assertEqual(kw["external_id"], "99999")  # run_id from _body
+        self.assertEqual(kw["external_id"], "99999:42")  # run_id:pr_number
 
     def test_in_progress_callback_creates_check_run(self):
         self.mock_gh.create_check_run.return_value = 999

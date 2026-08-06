@@ -83,6 +83,7 @@ def _finalize_timed_out_check_run(
 
     pr_field = (body.get("payload") or {}).get("pull_request") or {}
     head_sha = (pr_field.get("head") or {}).get("sha", "")
+    pr_number = str(pr_field.get("number") or "")
     if not head_sha:
         return
 
@@ -117,7 +118,7 @@ def _finalize_timed_out_check_run(
             status="completed",
             conclusion="timed_out",
             details_url=details_url,
-            external_id=run_id,
+            external_id=f"{run_id}:{pr_number}" if pr_number else run_id,
             output=output,
         )
         logger.info(

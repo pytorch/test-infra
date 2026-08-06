@@ -80,27 +80,13 @@ export default function crcrOncallBot(app: Probot): void {
     }
 
     // Get the PRs this check run belongs to.
-    // checkRun.pull_requests is empty for cross-fork PRs (most pytorch
-    // contributions), so fall back to the commits API to resolve PRs
-    // from the head SHA — the same strategy used by the merge-blocking path.
     let prNumbers: number[] = [];
     if (checkRun.pull_requests && checkRun.pull_requests.length > 0) {
       prNumbers = checkRun.pull_requests.map((pr) => pr.number);
-    } else if (checkRun.head_sha) {
-      try {
-        const result =
-          await ctx.octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-            owner,
-            repo,
-            commit_sha: checkRun.head_sha,
-          });
-        prNumbers = result.data.map((pr: any) => pr.number);
-      } catch (err) {
-        ctx.log(
-          { err },
-          `crcrOncall: failed to resolve PRs for commit ${checkRun.head_sha}, skipping`
-        );
-        return;
+    } else if (checkRun.external_id) {
+      const parts = checkRun.external_id.split(":");
+      if (parts.length === 2 && parts[1]) {
+        prNumbers = [parseInt(parts[1], 10)];
       }
     }
 

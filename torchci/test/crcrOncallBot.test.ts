@@ -176,14 +176,44 @@ L3:
     });
   });
 
-  test("does not comment when no PR is associated", async () => {
+  test("does not comment when external_id has no PR number", async () => {
+    // external_id carries bare run_id (no ":" separator) when pr_number
+    // is unavailable — the bot returns early without any API call.
     await probot.receive({
       name: "check_run" as any,
       payload: checkRunPayload({
         pull_requests: [],
+        external_id: "12345",
       }) as any,
       id: "8",
     });
+  });
+
+  test("posts comment when external_id contains PR number for cross-fork PR", async () => {
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .reply(200, [])
+      .post(
+        `/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`,
+        (body: any) => {
+          expect(body.body).toContain(
+            "<!-- crcr-oncall:intel/torch-xpu-ops -->"
+          );
+          expect(body.body).toContain("@oncall_xpu");
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({
+      name: "check_run" as any,
+      payload: checkRunPayload({
+        pull_requests: [], // empty — simulates cross-fork PR
+        external_id: `12345:${PR_NUMBER}`,
+      }) as any,
+      id: "10",
+    });
+    handleScope(scope);
   });
 
   test("does nothing for unsupported org", async () => {
