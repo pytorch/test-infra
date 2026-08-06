@@ -339,6 +339,13 @@
       "dynamo"
     ]
   ],
+  "test_dataclass_mismatching_tensor_field_msg (__main__.TestAssertCloseContainer)": [
+    "192316",
+    "https://github.com/pytorch/pytorch/issues/192316",
+    [
+      "dynamo"
+    ]
+  ],
   "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
     "188234",
     "https://github.com/pytorch/pytorch/issues/188234",
@@ -1060,31 +1067,6 @@
       "rocm"
     ]
   ],
-  "test_source_multithreaded_complex_work_in_main_thread_True (__main__.TestProfiler)": [
-    "119536",
-    "https://github.com/pytorch/pytorch/issues/119536",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_source_multithreaded_multiple_preexisting_work_in_main_thread_False (__main__.TestProfiler)": [
-    "119526",
-    "https://github.com/pytorch/pytorch/issues/119526",
-    [
-      "asan",
-      "dynamo",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_source_multithreaded_multiple_preexisting_work_in_main_thread_True (__main__.TestProfiler)": [
     "119576",
     "https://github.com/pytorch/pytorch/issues/119576",
@@ -1277,13 +1259,6 @@
   "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
     "180195",
     "https://github.com/pytorch/pytorch/issues/180195",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_vmap_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180213",
-    "https://github.com/pytorch/pytorch/issues/180213",
     [
       "dynamo"
     ]
