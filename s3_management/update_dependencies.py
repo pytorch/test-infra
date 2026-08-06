@@ -88,6 +88,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "target": "cu132",
         },
         {
+            "project": "torch",
+            "target": "cu134",
+        },
+        {
             "project": "vllm",
         },
     ],
@@ -111,6 +115,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-cuda-nvrtc-cu12": [
@@ -142,6 +150,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cuda-runtime-cu12": [
         {
@@ -171,6 +183,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-cuda-cupti-cu12": [
@@ -202,6 +218,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cudnn-cu12": [
         {
@@ -231,6 +251,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-cublas-cu12": [
@@ -262,6 +286,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cufft-cu12": [
         {
@@ -291,6 +319,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-curand-cu12": [
@@ -322,6 +354,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cusolver-cu12": [
         {
@@ -351,6 +387,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-cusparse-cu12": [
@@ -382,6 +422,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cusparselt-cu12": [
         {
@@ -411,6 +455,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-nccl-cu12": [
@@ -442,6 +490,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-nvshmem-cu12": [
         {
@@ -471,6 +523,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-cuda-cccl-cu12": [
@@ -502,6 +558,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-nvtx-cu12": [
         {
@@ -531,6 +591,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "nvidia-nvjitlink-cu12": [
@@ -562,6 +626,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu132",
         },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
     ],
     "nvidia-cufile-cu12": [
         {
@@ -591,6 +659,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
         },
     ],
     "rocm": [{"project": "torch_rocm", "target": "rocm7.14"}],
