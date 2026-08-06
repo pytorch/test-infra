@@ -12,7 +12,6 @@ from urllib.parse import urlparse
 
 import jwt
 import yaml
-
 from utils.misc import HTTPException
 
 
