@@ -146,7 +146,9 @@ def get_cached_ci_providers(
             logger.info("ci_providers cache hit key=%s", _CI_PROVIDERS_CACHE_KEY)
         return cast(str | None, value)
     except RedisError:
-        logger.exception("redis ci_providers cache read failed, falling back to source")
+        logger.exception(
+            "redis ci_providers cache read failed, falling back to source"
+        )
         return None
 
 
@@ -164,7 +166,9 @@ def set_cached_ci_providers(
             _CI_PROVIDERS_CACHE_KEY,
         )
     except RedisError:
-        logger.exception("redis ci_providers cache write failed, continuing without cache")
+        logger.exception(
+            "redis ci_providers cache write failed, continuing without cache"
+        )
 
 
 def check_rate_limit(

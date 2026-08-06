@@ -102,7 +102,9 @@ def load_ci_providers(config) -> None:
 
     yaml_str = redis_helper.get_cached_ci_providers(config)
     if yaml_str is None:
-        logger.info("ci_providers cache miss - loading from %s", config.ci_providers_url)
+        logger.info(
+            "ci_providers cache miss - loading from %s", config.ci_providers_url
+        )
         yaml_str = _fetch_github_file(config.ci_providers_url)
         redis_helper.set_cached_ci_providers(config, yaml_str)
     raw = yaml.safe_load(yaml_str) or {}
