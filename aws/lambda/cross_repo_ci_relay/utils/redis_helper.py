@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 _ALLOWLIST_CACHE_KEY = "crcr:allowlist_yaml"
+_CI_PROVIDERS_CACHE_KEY = "crcr:ci_providers_yaml"
 _STATE_PREFIX = "crcr:state:"
 _RATE_LIMIT_PREFIX = "crcr:rate:"
 _IN_PROGRESS_ZSET = "crcr:in_progress"
@@ -131,6 +132,39 @@ def set_cached_yaml(
         )
     except RedisError:
         logger.exception("redis cache write failed, continuing without cache")
+
+
+def get_cached_ci_providers(
+    config: RelayConfig, client: redis_lib.Redis | None = None
+) -> str | None:
+    """Return cached CI providers YAML string, or None on cache miss."""
+    try:
+        if client is None:
+            client = create_client(config)
+        value = client.get(_CI_PROVIDERS_CACHE_KEY)
+        if value is not None:
+            logger.info("ci_providers cache hit key=%s", _CI_PROVIDERS_CACHE_KEY)
+        return cast(str | None, value)
+    except RedisError:
+        logger.exception("redis ci_providers cache read failed, falling back to source")
+        return None
+
+
+def set_cached_ci_providers(
+    config: RelayConfig, yaml_str: str, client: redis_lib.Redis | None = None
+) -> None:
+    """Cache CI providers YAML string with TTL."""
+    try:
+        if client is None:
+            client = create_client(config)
+        client.setex(_CI_PROVIDERS_CACHE_KEY, config.allowlist_ttl_seconds, yaml_str)
+        logger.info(
+            "ci_providers cached %d bytes key=%s",
+            len(yaml_str),
+            _CI_PROVIDERS_CACHE_KEY,
+        )
+    except RedisError:
+        logger.exception("redis ci_providers cache write failed, continuing without cache")
 
 
 def check_rate_limit(

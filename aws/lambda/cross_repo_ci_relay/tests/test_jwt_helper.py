@@ -6,7 +6,7 @@ from utils.jwt_helper import (
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
     GITHUB_ISSUER,
-    load_buildkite_repo_map,
+    load_ci_provider_mappings,
     verify_oidc_token,
 )
 from utils.misc import HTTPException
@@ -135,7 +135,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.mock_decode = self.patcher_decode.start()
 
         self._orig_map = BUILDKITE_REPO_MAP.copy()
-        load_buildkite_repo_map({"buildkite_repos": {"myorg/mypipeline": "myorg/myrepo"}})
+        load_ci_provider_mappings({"buildkite": {"myorg/mypipeline": "myorg/myrepo"}})
 
     def tearDown(self):
         self.patcher_detect.stop()
@@ -182,8 +182,8 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.assertEqual(self.mock_decode.call_args.kwargs["audience"], AUDIENCE)
 
 
-class TestLoadBuildkiteRepoMap(unittest.TestCase):
-    """Tests for loading Buildkite repo mappings from allowlist YAML."""
+class TestLoadCIProviderMappings(unittest.TestCase):
+    """Tests for loading CI provider repo mappings from ci_providers.yml."""
 
     def setUp(self):
         self._orig_map = BUILDKITE_REPO_MAP.copy()
@@ -192,25 +192,25 @@ class TestLoadBuildkiteRepoMap(unittest.TestCase):
         BUILDKITE_REPO_MAP.clear()
         BUILDKITE_REPO_MAP.update(self._orig_map)
 
-    def test_loads_valid_entries(self):
-        raw = {"buildkite_repos": {"vllm/ci": "vllm-project/vllm", "acme/build": "acme/repo"}}
-        load_buildkite_repo_map(raw)
+    def test_loads_valid_buildkite_entries(self):
+        raw = {"buildkite": {"vllm/ci": "vllm-project/vllm", "acme/build": "acme/repo"}}
+        load_ci_provider_mappings(raw)
         self.assertEqual(BUILDKITE_REPO_MAP[("vllm", "ci")], "vllm-project/vllm")
         self.assertEqual(BUILDKITE_REPO_MAP[("acme", "build")], "acme/repo")
 
-    def test_empty_section_clears_map(self):
+    def test_empty_config_clears_map(self):
         BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
-        load_buildkite_repo_map({})
+        load_ci_provider_mappings({})
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
-    def test_missing_section_clears_map(self):
+    def test_missing_buildkite_section_clears_map(self):
         BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
-        load_buildkite_repo_map({"L1": ["some/repo"]})
+        load_ci_provider_mappings({"gitlab": {"group/proj": "org/repo"}})
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
     def test_skips_invalid_entries(self):
-        raw = {"buildkite_repos": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"}}
-        load_buildkite_repo_map(raw)
+        raw = {"buildkite": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"}}
+        load_ci_provider_mappings(raw)
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
         self.assertEqual(BUILDKITE_REPO_MAP[("ok", "pipeline")], "ok/repo")
 

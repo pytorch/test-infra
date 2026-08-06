@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, Optional, Tuple
+from urllib.parse import urlparse
 
 import jwt
+import yaml
+
 from utils.misc import HTTPException
 
 
@@ -33,37 +36,77 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
 }
 
 # Runtime-populated mapping from Buildkite (org_slug, pipeline_slug) to the
-# GitHub-style "owner/repo" identity.  Loaded from the ``buildkite_repos``
-# section of the allowlist YAML so that adding a new Buildkite downstream
-# repo only requires a config file change — no Lambda redeployment.
+# GitHub-style "owner/repo" identity.  Loaded from the ci_providers.yml
+# config file so that adding a new downstream repo only requires a config
+# change — no Lambda redeployment.
 BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {}
 
 
-def load_buildkite_repo_map(allowlist_raw: dict) -> None:
-    """Populate ``BUILDKITE_REPO_MAP`` from the allowlist's ``buildkite_repos`` section.
+def load_ci_provider_mappings(raw: dict) -> None:
+    """Populate provider repo maps from parsed ci_providers.yml content.
 
-    Expected YAML format in the allowlist::
-
-        buildkite_repos:
-          vllm/ci: vllm-project/vllm
-          vllm/release: vllm-project/vllm
-
-    Keys are ``org_slug/pipeline_slug``, values are ``owner/repo``.
+    Currently supports ``buildkite``.  Adding a new provider means adding
+    a new section reader here and a corresponding ``_extract_repo_*``
+    function below.
     """
     BUILDKITE_REPO_MAP.clear()
-    section = allowlist_raw.get("buildkite_repos")
-    if not section or not isinstance(section, dict):
-        return
-    for bk_key, repo in section.items():
-        bk_key_str = str(bk_key).strip()
-        repo_str = str(repo).strip()
-        if "/" not in bk_key_str or "/" not in repo_str:
-            logger.warning("Skipping invalid buildkite_repos entry: %s -> %s", bk_key, repo)
-            continue
-        org, pipeline = bk_key_str.split("/", 1)
-        BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
+    bk_section = raw.get("buildkite")
+    if bk_section and isinstance(bk_section, dict):
+        for bk_key, repo in bk_section.items():
+            bk_key_str = str(bk_key).strip()
+            repo_str = str(repo).strip()
+            if "/" not in bk_key_str or "/" not in repo_str:
+                logger.warning(
+                    "Skipping invalid buildkite entry: %s -> %s", bk_key, repo
+                )
+                continue
+            org, pipeline = bk_key_str.split("/", 1)
+            BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
     if BUILDKITE_REPO_MAP:
-        logger.info("Loaded %d Buildkite repo mappings from allowlist", len(BUILDKITE_REPO_MAP))
+        logger.info(
+            "Loaded %d Buildkite repo mapping(s) from ci_providers",
+            len(BUILDKITE_REPO_MAP),
+        )
+
+
+def _fetch_github_file(url: str) -> str:
+    """Fetch a file from a GitHub blob URL without authentication."""
+    from utils import gh_helper
+
+    parsed = urlparse(url)
+    parts = [p for p in parsed.path.split("/") if p]
+    if (
+        parsed.scheme not in ("http", "https")
+        or parsed.netloc != "github.com"
+        or len(parts) < 5
+        or parts[2] != "blob"
+    ):
+        raise RuntimeError(
+            f"Invalid GitHub URL {url!r}. "
+            "Expected: https://github.com/<owner>/<repo>/blob/<ref>/<path>"
+        )
+    owner, repo, _blob, ref, *file_parts = parts
+    return gh_helper.get_repo_file(owner, repo, "/".join(file_parts), ref)
+
+
+def load_ci_providers(config) -> None:
+    """Load CI provider mappings from the configured URL, with Redis caching.
+
+    ``config`` is a ``RelayConfig`` instance (imported lazily to avoid
+    pulling heavy dependencies at module-import time during testing).
+    """
+    if not config.ci_providers_url:
+        return
+
+    from utils import redis_helper
+
+    yaml_str = redis_helper.get_cached_ci_providers(config)
+    if yaml_str is None:
+        logger.info("ci_providers cache miss - loading from %s", config.ci_providers_url)
+        yaml_str = _fetch_github_file(config.ci_providers_url)
+        redis_helper.set_cached_ci_providers(config, yaml_str)
+    raw = yaml.safe_load(yaml_str) or {}
+    load_ci_provider_mappings(raw)
 
 
 def _detect_issuer(token: str) -> Optional[str]:
