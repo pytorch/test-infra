@@ -123,12 +123,18 @@ jobs:
           name: vllm-torch-nightly-triage
           path: ${{ runner.temp }}/triage
 
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
+          aws-region: us-east-1
+          # Must outlive the whole model step; the role's default 1h session covers
+          # the 30-min model timeout plus setup.
+          role-duration-seconds: 3600
+
       - name: Root-cause analysis
         uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
         with:
-          # Passing github_token skips the action's OIDC app-token exchange, which
-          # requires a default-branch match and otherwise silently skips the agent.
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           use_bedrock: "true"
           show_full_output: "true"
           claude_args: >-
