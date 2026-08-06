@@ -100,9 +100,7 @@ def verify_oidc_token(token: str) -> dict:
 
         issuer = _detect_issuer(token)
         if issuer not in _jwks_clients:
-            raise HTTPException(
-                401, f"Unsupported OIDC issuer: {issuer}"
-            )
+            raise HTTPException(401, f"Unsupported OIDC issuer: {issuer}")
 
         client = _jwks_clients[issuer]
         signing_key = client.get_signing_key_from_jwt(token)
