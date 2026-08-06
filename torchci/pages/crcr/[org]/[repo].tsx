@@ -9,6 +9,7 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -20,6 +21,7 @@ import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
+  CSSProperties,
   createContext,
   useCallback,
   useContext,
@@ -40,7 +42,7 @@ const CrcrPinnedContext = createContext<[Highlight, any]>([
 
 interface CrcrJobRow {
   upstream_repo: string;
-  pr_number: number;
+  pr_number?: number;
   pytorch_head_sha: string;
   workflow_name: string;
   job_name: string;
@@ -175,6 +177,52 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
         />
       </Box>
     </Stack>
+  );
+}
+
+function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
+  const stats = useMemo(() => {
+    const completed = data.filter((j) => j.status === "completed");
+    const successes = completed.filter(
+      (j) => j.conclusion === "success"
+    ).length;
+    const failures = completed.filter((j) => j.conclusion === "failure").length;
+    const timedOut = completed.filter(
+      (j) => j.conclusion === "timed_out"
+    ).length;
+    const total = completed.length;
+    const passRate = total > 0 ? successes / total : 0;
+    const uniqueShas = new Set(data.map((j) => j.pytorch_head_sha)).size;
+    return { successes, failures, timedOut, total, passRate, uniqueShas };
+  }, [data]);
+
+  const passColor =
+    stats.passRate >= 1.0
+      ? "#2e7d32"
+      : stats.passRate >= 0.9
+      ? "#ed6c02"
+      : "#d32f2f";
+
+  return (
+    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+      <StatCard
+        label="Pass Rate"
+        value={`${(stats.passRate * 100).toFixed(1)}%`}
+        sub={`${stats.successes}/${stats.total} jobs`}
+        color={passColor}
+      />
+      <StatCard
+        label="Nightly Runs"
+        value={stats.uniqueShas}
+        sub="unique SHAs tested"
+      />
+      <StatCard
+        label="Failures"
+        value={stats.failures}
+        sub={stats.timedOut > 0 ? `+ ${stats.timedOut} timed out` : ""}
+        color={stats.failures > 0 ? "#d32f2f" : undefined}
+      />
+    </Box>
   );
 }
 
@@ -410,17 +458,19 @@ function buildMatrix(data: CrcrJobRow[]): {
   const prMap = new Map<number, MatrixRow>();
 
   for (const job of data) {
+    const prNum = job.pr_number ?? 0;
+    if (prNum <= 0) continue;
     jobNamesSet.add(job.job_name);
-    let row = prMap.get(job.pr_number);
+    let row = prMap.get(prNum);
     if (!row) {
       row = {
-        prNumber: job.pr_number,
+        prNumber: prNum,
         sha: job.pytorch_head_sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         latestTime: job.started_at,
         jobs: new Map(),
       };
-      prMap.set(job.pr_number, row);
+      prMap.set(prNum, row);
     }
     // Track latest started_at for this PR
     if (job.started_at > row.latestTime) {
@@ -553,6 +603,78 @@ function usePrInfo(
   }, [data]);
 }
 
+// ---- Commit Info Hook (for nightly view) ----
+
+interface CommitInfo {
+  sha: string;
+  title: string;
+  author: string;
+}
+
+function useCommitInfo(
+  upstreamRepo: string,
+  shas: string[]
+): Map<string, CommitInfo> {
+  const dedupedShas = useMemo(
+    () => Array.from(new Set(shas.filter(Boolean))).slice(0, 50),
+    [shas]
+  );
+  const url =
+    upstreamRepo && dedupedShas.length > 0
+      ? `/api/crcr/commit-info?repo=${encodeURIComponent(
+          upstreamRepo
+        )}&shas=${encodeURIComponent(dedupedShas.join(","))}`
+      : null;
+  const { data } = useSWR<CommitInfo[]>(url, fetcherHandleError, {
+    revalidateOnFocus: false,
+  });
+
+  return useMemo(() => {
+    const map = new Map<string, CommitInfo>();
+    if (data) {
+      for (const c of data) {
+        map.set(c.sha, c);
+      }
+    }
+    return map;
+  }, [data]);
+}
+
+// ---- Table Styles (matching main HUD) ----
+
+const headerBaseStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  padding: "4px 6px",
+  whiteSpace: "nowrap",
+  textAlign: "left",
+  borderBottom: "1px solid #30363d",
+};
+
+const jobHeaderStyle: CSSProperties = {
+  fontFamily: "sans-serif",
+  height: 120,
+  whiteSpace: "nowrap",
+  padding: 0,
+  borderBottom: "1px solid #30363d",
+  position: "relative",
+};
+
+const jobHeaderNameStyle: CSSProperties = {
+  transform: "translate(5px, 45px) rotate(315deg)",
+  transformOrigin: "left bottom",
+  width: 12,
+  fontWeight: 400,
+  fontSize: "0.75em",
+};
+
+const cellStyle: CSSProperties = {
+  padding: "3px 6px",
+  whiteSpace: "nowrap",
+  fontSize: "0.8rem",
+  verticalAlign: "middle",
+};
 // ---- PR Matrix Table ----
 
 function CrcrMatrix({
@@ -807,6 +929,219 @@ function CrcrMatrix({
   );
 }
 
+// ---- Nightly Matrix Table ----
+
+interface NightlyRow {
+  sha: string;
+  upstreamRepo: string;
+  latestTime: string;
+  jobs: Map<string, CrcrJobRow>;
+}
+
+function buildNightlyMatrix(data: CrcrJobRow[]): {
+  jobNames: string[];
+  rows: NightlyRow[];
+} {
+  const jobNamesSet = new Set<string>();
+  const shaMap = new Map<string, NightlyRow>();
+
+  for (const job of data) {
+    jobNamesSet.add(job.job_name);
+    const sha = job.pytorch_head_sha || "unknown";
+    let row = shaMap.get(sha);
+    if (!row) {
+      row = {
+        sha,
+        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
+        latestTime: job.started_at,
+        jobs: new Map(),
+      };
+      shaMap.set(sha, row);
+    }
+    if (job.started_at > row.latestTime) {
+      row.latestTime = job.started_at;
+    }
+    const existing = row.jobs.get(job.job_name);
+    if (!existing || job.run_attempt > existing.run_attempt) {
+      row.jobs.set(job.job_name, job);
+    }
+  }
+
+  const jobNames = Array.from(jobNamesSet).sort();
+  const rows = Array.from(shaMap.values()).sort(
+    (a, b) =>
+      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
+  );
+  return { jobNames, rows };
+}
+
+function CrcrNightlyMatrix({
+  repoFullName,
+  days,
+}: {
+  repoFullName: string;
+  days: number;
+}) {
+  const url = `/api/clickhouse/crcr_nightly_dashboard?parameters=${encodeURIComponent(
+    JSON.stringify({ repo: repoFullName, days: String(days) })
+  )}`;
+  const { data, error } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
+
+  const { matrix, columns } = useMemo(() => {
+    if (!data) return { matrix: null, columns: [] };
+    const full = buildNightlyMatrix(data);
+    return {
+      matrix: full,
+      columns: detectGroups(full.jobNames),
+    };
+  }, [data]);
+
+  const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
+  const nightlyShas = useMemo(
+    () => (matrix?.rows ?? []).map((r) => r.sha),
+    [matrix]
+  );
+  const commitInfoMap = useCommitInfo(upstreamRepo, nightlyShas);
+
+  if (error) {
+    return (
+      <Typography color="error">
+        Failed to load nightly dashboard: {error.message}
+      </Typography>
+    );
+  }
+  if (!data || !matrix) {
+    return <Skeleton variant="rectangular" height={400} />;
+  }
+  if (data.length === 0) {
+    return (
+      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+        No nightly results for {repoFullName} in the last {days} days.
+      </Typography>
+    );
+  }
+
+  return (
+    <>
+      <NightlySummaryCards data={data} />
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            borderCollapse: "collapse",
+            fontSize: "0.85rem",
+            width: "100%",
+          }}
+        >
+          <colgroup>
+            <col style={{ width: 80 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 340 }} />
+            {columns.map((col) => (
+              <col key={col.name} style={{ width: 18 }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={headerBaseStyle}>Time</th>
+              <th style={headerBaseStyle}>SHA</th>
+              <th style={headerBaseStyle}>Commit</th>
+              {columns.map((col) => (
+                <th key={col.name} style={jobHeaderStyle}>
+                  <div
+                    style={{
+                      ...jobHeaderNameStyle,
+                      fontWeight: col.type === "group" ? 700 : 400,
+                    }}
+                  >
+                    {col.name}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.rows.map((row) => {
+              const commit = commitInfoMap.get(row.sha);
+              const commitTitle =
+                commit?.title || `nightly (${row.sha.substring(0, 12)})`;
+              return (
+                <tr key={row.sha} style={{ borderBottom: "1px solid #30363d" }}>
+                  <td style={cellStyle}>
+                    <LocalTimeDisplay timestamp={row.latestTime} />
+                  </td>
+                  <td style={cellStyle}>
+                    <a
+                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#58a6ff", textDecoration: "none" }}
+                    >
+                      {row.sha.substring(0, 7)}
+                    </a>
+                  </td>
+                  <td style={{ ...cellStyle, maxWidth: 340 }}>
+                    <Tooltip title={commitTitle}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#58a6ff",
+                          textDecoration: "none",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
+                      >
+                        {commitTitle}
+                      </a>
+                    </Tooltip>
+                  </td>
+                  {columns.map((col) => {
+                    if (col.type === "group" && col.members) {
+                      const groupJobs = col.members
+                        .map((m) => row.jobs.get(m))
+                        .filter((j): j is CrcrJobRow => j != null);
+                      return (
+                        <td
+                          key={col.name}
+                          style={{ ...cellStyle, textAlign: "center" }}
+                        >
+                          {groupJobs.length > 0 ? (
+                            <GroupedJobCell
+                              jobs={groupJobs}
+                              groupName={col.name}
+                              sha={row.sha}
+                            />
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                      );
+                    }
+                    const job = row.jobs.get(col.name);
+                    return (
+                      <td
+                        key={col.name}
+                        style={{ ...cellStyle, textAlign: "center" }}
+                      >
+                        {job ? <JobCell job={job} sha={row.sha} /> : "–"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 // ---- Main Page ----
 
 export default function CrcrBackendPage() {
@@ -815,14 +1150,17 @@ export default function CrcrBackendPage() {
 
   const page = parseInt(router.query.page as string) || 1;
   const days = parseInt(router.query.days as string) || 7;
+  const eventType = (router.query.event as string) || "pr";
+  const isNightly = eventType === "nightly";
 
   const repoFullName = org && repo ? `${org}/${repo}` : "";
 
-  const summaryUrl = repoFullName
-    ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
-        JSON.stringify({ repo: repoFullName, days: String(days) })
-      )}`
-    : null;
+  const summaryUrl =
+    repoFullName && !isNightly
+      ? `/api/clickhouse/crcr_backend_summary?parameters=${encodeURIComponent(
+          JSON.stringify({ repo: repoFullName, days: String(days) })
+        )}`
+      : null;
   const { data: summaryData } = useSWR<SummaryStats[]>(
     summaryUrl,
     fetcherHandleError,
@@ -865,10 +1203,12 @@ export default function CrcrBackendPage() {
     );
   }
 
+  const pageTitle = isNightly ? `${repoFullName} : nightly` : repoFullName;
+
   return (
     <>
       <Head>
-        <title>{repoFullName} — CRCR CI | PyTorch HUD</title>
+        <title>{pageTitle} — CRCR CI | PyTorch HUD</title>
       </Head>
       <CrcrPinnedContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         <div onClick={handleGlobalClick}>
@@ -879,7 +1219,22 @@ export default function CrcrBackendPage() {
               alignItems="center"
             >
               <Stack spacing={0.5}>
-                <Typography variant="h4">{repoFullName}</Typography>
+                <Typography variant="h4">
+                  {repoFullName}
+                  {isNightly && (
+                    <Typography
+                      component="span"
+                      variant="h4"
+                      sx={{
+                        color: "text.secondary",
+                        fontWeight: 300,
+                        mx: 1,
+                      }}
+                    >
+                      : nightly
+                    </Typography>
+                  )}
+                </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <NextLink href="/crcr" passHref legacyBehavior>
                     <Link variant="body2" underline="hover">
@@ -915,25 +1270,32 @@ export default function CrcrBackendPage() {
               </Stack>
             </Box>
 
-            {stats ? (
-              <SummaryCards stats={stats} />
-            ) : (
-              <Skeleton variant="rectangular" height={140} />
+            {!isNightly && (
+              <>
+                {stats ? (
+                  <SummaryCards stats={stats} />
+                ) : (
+                  <Skeleton variant="rectangular" height={140} />
+                )}
+              </>
             )}
 
             <Typography variant="body2" color="text.secondary">
-              Rows = PyTorch PRs (50 per page), columns = downstream CI jobs.
-              Click a cell to pin its tooltip, click a column header to
-              highlight the column, or click a row to highlight it. Press Escape
-              to dismiss.
+              {isNightly
+                ? "Rows = nightly CI runs (one per SHA), columns = build & test stages. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."
+                : "Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."}
             </Typography>
 
-            <CrcrMatrix
-              repoFullName={repoFullName}
-              days={days}
-              page={page}
-              onPageChange={(p) => updateQuery({ page: p })}
-            />
+            {isNightly ? (
+              <CrcrNightlyMatrix repoFullName={repoFullName} days={days} />
+            ) : (
+              <CrcrMatrix
+                repoFullName={repoFullName}
+                days={days}
+                page={page}
+                onPageChange={(p) => updateQuery({ page: p })}
+              />
+            )}
           </Stack>
         </div>
       </CrcrPinnedContext.Provider>

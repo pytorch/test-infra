@@ -291,7 +291,13 @@ function L1Section({ repos }: { repos: AllowlistEntry[] }) {
   );
 }
 
-function NightlyTable({ nightlyData }: { nightlyData: NightlyMetricsRow[] }) {
+function NightlyTable({
+  nightlyData,
+  days,
+}: {
+  nightlyData: NightlyMetricsRow[];
+  days: number;
+}) {
   return (
     <TableContainer component={Paper} elevation={1}>
       <Table size="small">
@@ -350,7 +356,7 @@ function NightlyTable({ nightlyData }: { nightlyData: NightlyMetricsRow[] }) {
                 </TableCell>
                 <TableCell>
                   <NextLink
-                    href={`/crcr/${org}/${repo}`}
+                    href={`/crcr/${org}/${repo}?event=nightly&days=${days}`}
                     passHref
                     legacyBehavior
                   >
@@ -795,7 +801,7 @@ export default function CrcrSummaryPage() {
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
-                <NightlyTable nightlyData={nightlyData} />
+                <NightlyTable nightlyData={nightlyData} days={days} />
               </>
             ) : (
               <Paper
