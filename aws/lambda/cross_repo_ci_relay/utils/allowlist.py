@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 
 import yaml
 
-from . import gh_helper, redis_helper
+from . import gh_helper, jwt_helper, redis_helper
 from .config import RelayConfig
 
 
@@ -244,4 +244,6 @@ def load_allowlist(config: RelayConfig) -> AllowlistMap:
         logger.info("allowlist cache miss - loading from %s", config.allowlist_url)
         yaml_str = _fetch(config.allowlist_url)
         redis_helper.set_cached_yaml(config, yaml_str)
-    return AllowlistMap._parse(yaml.safe_load(yaml_str) or {})
+    raw = yaml.safe_load(yaml_str) or {}
+    jwt_helper.load_buildkite_repo_map(raw)
+    return AllowlistMap._parse(raw)

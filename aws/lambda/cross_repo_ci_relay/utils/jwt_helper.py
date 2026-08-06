@@ -32,14 +32,38 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
     issuer: jwt.PyJWKClient(cfg["jwks_uri"]) for issuer, cfg in _ISSUER_CONFIG.items()
 }
 
-# Static mapping from Buildkite (organization_slug, pipeline_slug) to the
-# GitHub-style "owner/repo" identity used throughout CRCR.  Buildkite OIDC
-# tokens carry org/pipeline slugs but no repository claim, so we need an
-# explicit map.  Add new entries here when onboarding a Buildkite-based
-# downstream repo.
-BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {
-    # ("org_slug", "pipeline_slug"): "owner/repo",
-}
+# Runtime-populated mapping from Buildkite (org_slug, pipeline_slug) to the
+# GitHub-style "owner/repo" identity.  Loaded from the ``buildkite_repos``
+# section of the allowlist YAML so that adding a new Buildkite downstream
+# repo only requires a config file change — no Lambda redeployment.
+BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {}
+
+
+def load_buildkite_repo_map(allowlist_raw: dict) -> None:
+    """Populate ``BUILDKITE_REPO_MAP`` from the allowlist's ``buildkite_repos`` section.
+
+    Expected YAML format in the allowlist::
+
+        buildkite_repos:
+          vllm/ci: vllm-project/vllm
+          vllm/release: vllm-project/vllm
+
+    Keys are ``org_slug/pipeline_slug``, values are ``owner/repo``.
+    """
+    BUILDKITE_REPO_MAP.clear()
+    section = allowlist_raw.get("buildkite_repos")
+    if not section or not isinstance(section, dict):
+        return
+    for bk_key, repo in section.items():
+        bk_key_str = str(bk_key).strip()
+        repo_str = str(repo).strip()
+        if "/" not in bk_key_str or "/" not in repo_str:
+            logger.warning("Skipping invalid buildkite_repos entry: %s -> %s", bk_key, repo)
+            continue
+        org, pipeline = bk_key_str.split("/", 1)
+        BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
+    if BUILDKITE_REPO_MAP:
+        logger.info("Loaded %d Buildkite repo mappings from allowlist", len(BUILDKITE_REPO_MAP))
 
 
 def _detect_issuer(token: str) -> Optional[str]:

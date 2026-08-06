@@ -6,6 +6,7 @@ from utils.jwt_helper import (
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
     GITHUB_ISSUER,
+    load_buildkite_repo_map,
     verify_oidc_token,
 )
 from utils.misc import HTTPException
@@ -134,7 +135,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.mock_decode = self.patcher_decode.start()
 
         self._orig_map = BUILDKITE_REPO_MAP.copy()
-        BUILDKITE_REPO_MAP[("myorg", "mypipeline")] = "myorg/myrepo"
+        load_buildkite_repo_map({"buildkite_repos": {"myorg/mypipeline": "myorg/myrepo"}})
 
     def tearDown(self):
         self.patcher_detect.stop()
@@ -179,6 +180,39 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         verify_oidc_token("bk.oidc.token")
 
         self.assertEqual(self.mock_decode.call_args.kwargs["audience"], AUDIENCE)
+
+
+class TestLoadBuildkiteRepoMap(unittest.TestCase):
+    """Tests for loading Buildkite repo mappings from allowlist YAML."""
+
+    def setUp(self):
+        self._orig_map = BUILDKITE_REPO_MAP.copy()
+
+    def tearDown(self):
+        BUILDKITE_REPO_MAP.clear()
+        BUILDKITE_REPO_MAP.update(self._orig_map)
+
+    def test_loads_valid_entries(self):
+        raw = {"buildkite_repos": {"vllm/ci": "vllm-project/vllm", "acme/build": "acme/repo"}}
+        load_buildkite_repo_map(raw)
+        self.assertEqual(BUILDKITE_REPO_MAP[("vllm", "ci")], "vllm-project/vllm")
+        self.assertEqual(BUILDKITE_REPO_MAP[("acme", "build")], "acme/repo")
+
+    def test_empty_section_clears_map(self):
+        BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
+        load_buildkite_repo_map({})
+        self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
+
+    def test_missing_section_clears_map(self):
+        BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
+        load_buildkite_repo_map({"L1": ["some/repo"]})
+        self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
+
+    def test_skips_invalid_entries(self):
+        raw = {"buildkite_repos": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"}}
+        load_buildkite_repo_map(raw)
+        self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
+        self.assertEqual(BUILDKITE_REPO_MAP[("ok", "pipeline")], "ok/repo")
 
 
 class TestUnsupportedIssuer(unittest.TestCase):
