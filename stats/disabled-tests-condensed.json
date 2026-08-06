@@ -91,6 +91,13 @@
       "macos"
     ]
   ],
+  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
+    "188513",
+    "https://github.com/pytorch/pytorch/issues/188513",
+    [
+      "linux"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -207,6 +214,14 @@
       "rocm"
     ]
   ],
+  "test_codegen_per_stream_alignment_copy_one_per_stream (__main__.TestUserStreamCompile)": [
+    "192283",
+    "https://github.com/pytorch/pytorch/issues/192283",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
@@ -315,6 +330,13 @@
     "https://github.com/pytorch/pytorch/issues/190010",
     [
       "linux"
+    ]
+  ],
+  "test_dataclass_custom_eq_respected (__main__.TestAssertCloseContainer)": [
+    "192282",
+    "https://github.com/pytorch/pytorch/issues/192282",
+    [
+      "dynamo"
     ]
   ],
   "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
@@ -544,6 +566,13 @@
     "https://github.com/pytorch/pytorch/issues/78068",
     [
       "linux"
+    ]
+  ],
+  "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
+    "192284",
+    "https://github.com/pytorch/pytorch/issues/192284",
+    [
+      "dynamo"
     ]
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
