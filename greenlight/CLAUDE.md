@@ -4,7 +4,7 @@ This file is the canonical project guidance for any coding agent operating in `g
 
 ## What This Is
 
-PyTorch Green Light is a Python 3.14 service invoked from the CLI. Its `review` phase
+PyTorch Green Light is a Python 3.13 service invoked from the CLI. Its `review` phase
 runs a single iteration and exits (cron-like), e.g. `just run review`. It can also run
 as a long-lived daemon with `--loop`, e.g. `just run review --loop`, which repeats the
 phase on an interval. The phase runs through the same one-shot and daemon execution
@@ -13,7 +13,7 @@ change to phase logic.
 
 ## Tooling
 
-- **mise** provisions every tool (python 3.14, uv, just, shellcheck, shfmt,
+- **mise** provisions every tool (python 3.13, uv, just, shellcheck, shfmt,
   taplo, markdownlint-cli2, node). `mise install` bootstraps everything.
 - **uv** owns the Python venv and dependencies, and runs the Python tools (ruff,
   mypy, pytest, yamllint).
@@ -88,6 +88,11 @@ best-effort SIGALRM per-iteration timeout, which fires only on the main thread a
 interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchdog that
 force-exits the process a grace period later, the real backstop for hangs the soft timeout
 cannot reach.
+
+In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda: it runs
+the one-shot path with no single-instance lock and both hang-guard layers off
+(`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
+relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead.
 
 ## Comments
 

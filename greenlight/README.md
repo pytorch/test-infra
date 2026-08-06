@@ -1,20 +1,22 @@
 # PyTorch Green Light
 
 A Python service that runs a periodic iteration from the CLI — a one-shot
-(cron-like) run by default, or a long-lived daemon with `--loop`.
+(cron-like) run by default, or a long-lived daemon with `--loop`. In production the
+scheduled scan runs as an AWS Lambda (`greenlight-scan`) on a 5-minute EventBridge
+schedule; the CLI one-shot and `--loop` daemon modes remain for local and other use.
 
 ## Requirements
 
 - **mise** — the only manual prerequisite. See <https://mise.jdx.dev>.
 
-Everything else (Python 3.14, uv, just, and the non-Python linters) is provided
+Everything else (Python 3.13, uv, just, and the non-Python linters) is provided
 by mise; `just setup` then installs the Python tools (ruff, mypy, pytest, yamllint).
 
 ## Setup
 
 ```bash
 mise trust      # trust greenlight/mise.toml on first use
-mise install    # install python 3.14, uv, just, and all tools
+mise install    # install python 3.13, uv, just, and all tools
 just setup      # uv sync -> create .venv with deps
 ```
 
@@ -147,6 +149,29 @@ iteration in both one-shot and `--loop` mode. In `--loop` mode, SIGTERM/SIGINT a
 observed only between iterations, so the per-iteration timeout is what interrupts a
 hung run.
 
+## Deployment
+
+In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in the
+`pytorch-gha-infra-2` account (`us-east-1`), triggered by an EventBridge `rate(5 minutes)`
+schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
+300 s timeout, and `reserved_concurrent_executions = 1`. It runs the same one-shot
+`execute_once` / `review.run` path as `greenlight review` — no scan-logic change — after minting a
+least-privilege GitHub App installation token in-process and reading the App PEM and ClickHouse
+password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The handler sets
+`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`, so it runs with no single-instance lock and both
+hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
+under the Lambda runtime); single-instance and hang-bounding come from
+`reserved_concurrent_executions = 1` and the Lambda function timeout instead.
+
+Shipping a new version is a manual four-step flow:
+
+1. `just package` builds `dist/greenlight-scan.zip` (linux x86_64 / cp313 wheels).
+2. The `greenlight-lambda-release.yml` workflow (test-infra, manual `workflow_dispatch`) builds
+   the zip and publishes a `greenlight-lambda-v<timestamp>` GitHub Release with it.
+3. An operator pins that release tag in `pytorch-gha-infra-2`'s `runners/common/Terrafile` (the
+   `greenlight-scan` entry).
+4. `terraform apply` in `runners/regions/us-east-1` rolls it out.
+
 ## Reviewer checkout sanitizing
 
 The reviewer workflow (`greenlight-pr-review.yml`) checks the PR's `pytorch/pytorch` tree
@@ -266,6 +291,7 @@ src/greenlight/
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
   cli.py           # CLI parsing (review + verdict subcommands), dispatch, exit codes
+  lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # scan trusted-author PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state

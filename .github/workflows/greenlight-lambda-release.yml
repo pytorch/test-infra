@@ -1,0 +1,56 @@
+name: greenlight-lambda-release
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: greenlight
+
+jobs:
+  release:
+    name: Build and publish greenlight lambda release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          working_directory: greenlight
+      - name: Sync dependencies
+        run: just setup
+      - name: Package lambda zip
+        run: just package
+      - name: Smoke-test the built zip imports on Python 3.13
+        # -S drops site-packages so imports resolve only from the extracted zip, not the
+        # project .venv that mise puts on sys.path; the test exercises the artifact itself.
+        run: |
+          set -euo pipefail
+          smoke_dir="$(mktemp -d)"
+          unzip -q dist/greenlight-scan.zip -d "${smoke_dir}"
+          PYTHONPATH="${smoke_dir}" mise exec -- python -S -c \
+            "import greenlight.lambda_handler, greenlight.cli, boto3, github, clickhouse_connect, yaml"
+      - name: Compute release tag
+        id: tag
+        run: |
+          echo "tag=greenlight-lambda-v$(date -u +'%Y%m%d-%H%M%S')" >> "${GITHUB_OUTPUT}"
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+        with:
+          artifacts: greenlight/dist/greenlight-scan.zip
+          tag: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+      - name: Report release tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "Published greenlight lambda release: ${TAG}"
+          {
+            echo "## Greenlight lambda release published"
+            echo ""
+            echo "Release tag: \`${TAG}\`"
+            echo ""
+            echo "Copy this tag into the pytorch-gha-infra-2 Terrafile to deploy."
+          } >> "${GITHUB_STEP_SUMMARY}"

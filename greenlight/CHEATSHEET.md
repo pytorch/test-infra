@@ -5,7 +5,9 @@ directory. `just` is the front-end for every workflow — run `just` or
 `just --list` to see all recipes.
 
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
-loops as a daemon with `--loop`. It also has a one-shot `verdict` subcommand:
+loops as a daemon with `--loop`; in production the scheduled scan runs as the `greenlight-scan`
+AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has a
+one-shot `verdict` subcommand:
 
 - `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
   for each, compute its fingerprint (`eval_hash`), read its latest state from
@@ -32,11 +34,11 @@ everything else.
 
 ```bash
 mise trust     # trust greenlight/mise.toml (first use only)
-mise install   # install python 3.14, uv, just, and the non-Python linters
+mise install   # install python 3.13, uv, just, and the non-Python linters
 just setup     # uv sync -> create .venv with the Python deps
 ```
 
-`mise install` provides python 3.14, uv, just, node, shellcheck, shfmt, taplo,
+`mise install` provides python 3.13, uv, just, node, shellcheck, shfmt, taplo,
 and markdownlint-cli2. `just setup` then installs the Python tools (ruff, mypy,
 pytest, yamllint) into `.venv`.
 
@@ -110,6 +112,19 @@ and `--lock-path` override the matching env vars, and `review` adds the scan fla
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
+
+## Package and deploy
+
+```bash
+just package   # build dist/greenlight-scan.zip (linux x86_64 / cp313 wheels) for the Lambda
+```
+
+In production the scheduled scan runs as the `greenlight-scan` AWS Lambda
+(`pytorch-gha-infra-2`, `us-east-1`, EventBridge `rate(5 minutes)`), not via the CLI or a GHA
+workflow. Ship a new build with `just package` -> run the `greenlight-lambda-release.yml`
+workflow (publishes a `greenlight-lambda-v<timestamp>` Release with the zip) -> pin that tag in
+the `pytorch-gha-infra-2` `runners/common/Terrafile` -> `terraform apply` in
+`runners/regions/us-east-1`.
 
 ## Simulate a run
 

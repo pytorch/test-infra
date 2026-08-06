@@ -54,7 +54,7 @@ lint:
     _run "taplo check" taplo check
     _run "shellcheck" shellcheck --rcfile .shellcheckrc scripts/*.sh ../.claude/hooks/greenlight/*.sh
     _run "shfmt" shfmt -d -i 2 -ci scripts
-    _run "markdownlint" markdownlint-cli2 "**/*.md" "#.venv"
+    _run "markdownlint" markdownlint-cli2 "**/*.md" "#.venv" "#build" "#dist"
 
     echo ""
     if [[ ${#FAILED[@]} -gt 0 ]]; then
@@ -73,7 +73,39 @@ lint-fix:
     ruff format .
     shfmt -w -i 2 -ci scripts
     taplo fmt
-    markdownlint-cli2 --fix "**/*.md" "#.venv" || true
+    markdownlint-cli2 --fix "**/*.md" "#.venv" "#build" "#dist" || true
+
+# Build the AWS Lambda deployment zip (dist/greenlight-scan.zip) with linux x86_64 / cp313 wheels
+package:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source scripts/mise-activate.sh
+
+    repo="$(pwd)"
+    build_dir="${repo}/build/lambda"
+    reqs="${repo}/build/requirements-lambda.txt"
+    zip_path="${repo}/dist/greenlight-scan.zip"
+
+    rm -rf "${build_dir}" "${zip_path}"
+    mkdir -p "${build_dir}" "${repo}/dist"
+
+    uv export --no-dev --no-emit-project --no-hashes --frozen --format requirements.txt -o "${reqs}"
+
+    uv run --with pip -- python -m pip install \
+        -r "${reqs}" \
+        -t "${build_dir}" \
+        --platform manylinux2014_x86_64 \
+        --platform manylinux_2_28_x86_64 \
+        --only-binary=:all: \
+        --python-version 3.13 \
+        --implementation cp
+
+    cp -a "${repo}/src/greenlight" "${build_dir}/greenlight"
+    find "${build_dir}" -name __pycache__ -type d -prune -exec rm -rf {} +
+
+    (cd "${build_dir}" && zip -q -r "${zip_path}" .)
+
+    echo "Built ${zip_path} ($(du -h "${zip_path}" | cut -f1))"
 
 # Remove caches, build artifacts, and the venv
 clean:

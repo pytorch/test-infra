@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, cast
