@@ -1,7 +1,31 @@
 SELECT
-    countIf(conclusion = 'success') AS successes,
-    countIf(conclusion = 'failure') AS failures,
-    countIf(conclusion = 'timed_out') AS timed_out,
+    countIf(
+        conclusion = 'success'
+        OR (
+            {repo: String} = 'pytorch/crcr-test'
+            AND (
+                (job_name LIKE '%xfail%' AND conclusion = 'failure')
+                OR (job_name LIKE '%xcancel%' AND conclusion = 'cancelled')
+                OR (job_name LIKE '%xtimeout%' AND conclusion = 'timed_out')
+            )
+        )
+    ) AS successes,
+    countIf(
+        conclusion = 'failure'
+        AND NOT (
+            {repo: String} = 'pytorch/crcr-test'
+            AND job_name LIKE '%xfail%'
+            AND conclusion = 'failure'
+        )
+    ) AS failures,
+    countIf(
+        conclusion = 'timed_out'
+        AND NOT (
+            {repo: String} = 'pytorch/crcr-test'
+            AND job_name LIKE '%xtimeout%'
+            AND conclusion = 'timed_out'
+        )
+    ) AS timed_out,
     count() AS total_jobs,
     if(total_jobs > 0, successes / total_jobs, 0) AS pass_rate,
     uniqExact(pr_number) AS total_prs,
