@@ -29,8 +29,7 @@ _ISSUER_CONFIG: Dict[str, dict] = {
 }
 
 _jwks_clients: Dict[str, jwt.PyJWKClient] = {
-    issuer: jwt.PyJWKClient(cfg["jwks_uri"])
-    for issuer, cfg in _ISSUER_CONFIG.items()
+    issuer: jwt.PyJWKClient(cfg["jwks_uri"]) for issuer, cfg in _ISSUER_CONFIG.items()
 }
 
 # Static mapping from Buildkite (organization_slug, pipeline_slug) to the

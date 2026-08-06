@@ -41,9 +41,7 @@ class TestVerifyGitHubOIDC(unittest.TestCase):
         self.mock_detect = self.patcher_detect.start()
         self.mock_detect.return_value = GITHUB_ISSUER
 
-        self.patcher_jwks = patch(
-            "utils.jwt_helper._jwks_clients"
-        )
+        self.patcher_jwks = patch("utils.jwt_helper._jwks_clients")
         self.mock_clients = self.patcher_jwks.start()
         self.mock_client = MagicMock()
         self.mock_client.get_signing_key_from_jwt.return_value = MagicMock(
@@ -71,12 +69,8 @@ class TestVerifyGitHubOIDC(unittest.TestCase):
 
         self.assertEqual(claims["repository"], "org/repo")
         self.mock_decode.assert_called_once()
-        self.assertEqual(
-            self.mock_decode.call_args.kwargs["audience"], AUDIENCE
-        )
-        self.assertEqual(
-            self.mock_decode.call_args.kwargs["issuer"], GITHUB_ISSUER
-        )
+        self.assertEqual(self.mock_decode.call_args.kwargs["audience"], AUDIENCE)
+        self.assertEqual(self.mock_decode.call_args.kwargs["issuer"], GITHUB_ISSUER)
 
     def test_wrong_audience_raises_401(self):
         import jwt as _jwt
@@ -124,9 +118,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.mock_detect = self.patcher_detect.start()
         self.mock_detect.return_value = BUILDKITE_ISSUER
 
-        self.patcher_jwks = patch(
-            "utils.jwt_helper._jwks_clients"
-        )
+        self.patcher_jwks = patch("utils.jwt_helper._jwks_clients")
         self.mock_clients = self.patcher_jwks.start()
         self.mock_client = MagicMock()
         self.mock_client.get_signing_key_from_jwt.return_value = MagicMock(
@@ -158,9 +150,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
 
         self.assertEqual(claims["repository"], "myorg/myrepo")
         self.mock_decode.assert_called_once()
-        self.assertEqual(
-            self.mock_decode.call_args.kwargs["issuer"], BUILDKITE_ISSUER
-        )
+        self.assertEqual(self.mock_decode.call_args.kwargs["issuer"], BUILDKITE_ISSUER)
 
     def test_unregistered_pipeline_raises_403(self):
         self.mock_decode.return_value = _fake_buildkite_claims(
@@ -172,17 +162,13 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.assertIn("not registered", ctx.exception.detail)
 
     def test_missing_org_slug_raises_401(self):
-        self.mock_decode.return_value = _fake_buildkite_claims(
-            organization_slug=""
-        )
+        self.mock_decode.return_value = _fake_buildkite_claims(organization_slug="")
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("bk.oidc.token")
         self.assertEqual(ctx.exception.status_code, 401)
 
     def test_missing_pipeline_slug_raises_401(self):
-        self.mock_decode.return_value = _fake_buildkite_claims(
-            pipeline_slug=""
-        )
+        self.mock_decode.return_value = _fake_buildkite_claims(pipeline_slug="")
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("bk.oidc.token")
         self.assertEqual(ctx.exception.status_code, 401)
@@ -192,9 +178,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
 
         verify_oidc_token("bk.oidc.token")
 
-        self.assertEqual(
-            self.mock_decode.call_args.kwargs["audience"], AUDIENCE
-        )
+        self.assertEqual(self.mock_decode.call_args.kwargs["audience"], AUDIENCE)
 
 
 class TestUnsupportedIssuer(unittest.TestCase):
