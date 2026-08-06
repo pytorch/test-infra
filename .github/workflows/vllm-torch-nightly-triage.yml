@@ -22,9 +22,17 @@ on:
         default: "14"
         type: string
   schedule:
-    # torch nightly fires 23:00 America/Los_Angeles Mon/Tue/Thu (06:00-07:00 UTC the
-    # next day depending on DST). Run well after the build has had time to finish.
-    - cron: 0 12 * * 2,3,5
+    # torch nightly fires 23:00 America/Los_Angeles Mon/Tue/Thu, landing 06:00 UTC
+    # Tue/Wed/Fri (07:00 in winter -- GH cron is UTC and does not follow DST).
+    # 18:00 UTC is 14:00 EDT / 13:00 EST.
+    #
+    # Builds take ~11h, but the tail is retries, not new signal: on 82455 all five
+    # of the last jobs to finish were retried 2-4 times and every one still ended
+    # failed. Only 15 of 323 jobs retry at all. So we do not wait for the build to
+    # reach a terminal state -- a job that has failed once with the same signature
+    # is enough to triage, and waiting for retries to exhaust just delays the
+    # report by hours without changing it.
+    - cron: 0 18 * * 2,3,5
 
 jobs:
   triage:
