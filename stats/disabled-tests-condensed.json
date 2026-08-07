@@ -519,6 +519,13 @@
       "linux"
     ]
   ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
+    "190883",
+    "https://github.com/pytorch/pytorch/issues/190883",
+    [
+      "linux"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
@@ -1055,6 +1062,13 @@
   "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
     "191746",
     "https://github.com/pytorch/pytorch/issues/191746",
+    [
+      "linux"
+    ]
+  ],
+  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "192461",
+    "https://github.com/pytorch/pytorch/issues/192461",
     [
       "linux"
     ]
