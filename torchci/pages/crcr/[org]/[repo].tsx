@@ -9,7 +9,6 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -1072,16 +1071,17 @@ function CrcrNightlyMatrix({
                       </a>
                     </span>
                   </td>
-                  <td className={hudStyles.jobMetadataTruncated}>
-                    <Tooltip title={commitTitle}>
+                  <td className={hudStyles.jobMetadata}>
+                    <div className={hudStyles.jobMetadataTruncated}>
                       <a
                         href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        title={commitTitle}
                       >
                         {commitTitle}
                       </a>
-                    </Tooltip>
+                    </div>
                   </td>
                   {columns.map((col) => {
                     const colHighlight =
