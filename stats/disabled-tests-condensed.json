@@ -519,13 +519,6 @@
       "linux"
     ]
   ],
-  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
-    "190883",
-    "https://github.com/pytorch/pytorch/issues/190883",
-    [
-      "linux"
-    ]
-  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
@@ -1052,19 +1045,6 @@
       "rocm"
     ]
   ],
-  "test_source_multithreaded_open_in_scope_work_in_main_thread_False (__main__.TestProfiler)": [
-    "119537",
-    "https://github.com/pytorch/pytorch/issues/119537",
-    [
-      "asan",
-      "dynamo",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1211,13 +1191,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_vjp_vjp_cpu (__main__.TestComposabilityCPU)": [
-    "180322",
-    "https://github.com/pytorch/pytorch/issues/180322",
-    [
-      "dynamo"
     ]
   ],
   "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
