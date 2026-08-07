@@ -40,9 +40,11 @@ function update_test_infra_branch() {
       if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' -e s#@main#@"${TEST_INFRA_BRANCH}"# $i;
         sed -i '' -e s#test-infra-ref:[[:space:]]main#"test-infra-ref: ${TEST_INFRA_BRANCH}"# $i;
+        sed -i '' -e "/^[[:space:]]*test-infra-ref:[[:space:]]*\$/,/type:/ s#default: \"main\"#default: \"${TEST_INFRA_BRANCH}\"#" $i;
       else
         sed -i -e s#@main#@"${TEST_INFRA_BRANCH}"# $i;
         sed -i -e s#test-infra-ref:[[:space:]]main#"test-infra-ref: ${TEST_INFRA_BRANCH}"# $i;
+        sed -i -e "/^[[:space:]]*test-infra-ref:[[:space:]]*\$/,/type:/ s#default: \"main\"#default: \"${TEST_INFRA_BRANCH}\"#" $i;
       fi
     done
 }
