@@ -89,6 +89,7 @@ jobs:
         if: steps.crcr.outputs.changed == 'true'
         working-directory: ci-infra
         run: |
+          set -euo pipefail
           python3 ../test-infra/.github/scripts/update_crcr_terrafile.py crcr/Terrafile "${{ steps.tag.outputs.tag }}"
           echo "--- crcr/Terrafile diff ---"
           git diff -- crcr/Terrafile
