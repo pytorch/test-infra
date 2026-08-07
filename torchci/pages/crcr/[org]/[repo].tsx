@@ -9,7 +9,6 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -21,7 +20,6 @@ import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
-  CSSProperties,
   createContext,
   useCallback,
   useContext,
@@ -238,8 +236,16 @@ const conclusionCssColor: Record<string, string> = {
   neutral: "var(--color-grey, #8b949e)",
 };
 
+function jobUrl(job: CrcrJobRow): string {
+  if (job.workflow_run_url && job.check_run_id) {
+    return `${job.workflow_run_url}/job/${job.check_run_id}`;
+  }
+  return job.workflow_run_url || "";
+}
+
 function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
   const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const url = jobUrl(job);
   const lines = [
     `Job: ${job.job_name}`,
     `Status: ${conclusion}`,
@@ -258,10 +264,10 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
   return (
     <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
       {lines.join("\n")}
-      {job.workflow_run_url && (
+      {url && (
         <div style={{ marginTop: 4 }}>
           <a
-            href={job.workflow_run_url}
+            href={url}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--link-color, #58a6ff)" }}
@@ -403,11 +409,12 @@ function GroupedJobCell({
       </div>
       {jobs.map((j) => {
         const c = j.status === "completed" ? j.conclusion : j.status;
+        const url = jobUrl(j);
         return (
           <div key={j.job_name}>
-            {j.workflow_run_url ? (
+            {url ? (
               <a
-                href={j.workflow_run_url}
+                href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "var(--link-color, #58a6ff)" }}
@@ -640,41 +647,6 @@ function useCommitInfo(
   }, [data]);
 }
 
-// ---- Table Styles (matching main HUD) ----
-
-const headerBaseStyle: CSSProperties = {
-  fontFamily: "sans-serif",
-  fontSize: "0.75rem",
-  fontWeight: 600,
-  padding: "4px 6px",
-  whiteSpace: "nowrap",
-  textAlign: "left",
-  borderBottom: "1px solid #30363d",
-};
-
-const jobHeaderStyle: CSSProperties = {
-  fontFamily: "sans-serif",
-  height: 120,
-  whiteSpace: "nowrap",
-  padding: 0,
-  borderBottom: "1px solid #30363d",
-  position: "relative",
-};
-
-const jobHeaderNameStyle: CSSProperties = {
-  transform: "translate(5px, 45px) rotate(315deg)",
-  transformOrigin: "left bottom",
-  width: 12,
-  fontWeight: 400,
-  fontSize: "0.75em",
-};
-
-const cellStyle: CSSProperties = {
-  padding: "3px 6px",
-  whiteSpace: "nowrap",
-  fontSize: "0.8rem",
-  verticalAlign: "middle",
-};
 // ---- PR Matrix Table ----
 
 function CrcrMatrix({
@@ -752,7 +724,7 @@ function CrcrMatrix({
 
   return (
     <>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
             <col className={hudStyles.colTime} />
@@ -774,9 +746,7 @@ function CrcrMatrix({
               {columns.map((col) => (
                 <th
                   key={col.name}
-                  className={`${hudStyles.jobHeader} ${
-                    pinnedId.name === col.name ? hudStyles.highlight : ""
-                  }`}
+                  className={hudStyles.jobHeader}
                   style={{ cursor: "pointer" }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -832,13 +802,15 @@ function CrcrMatrix({
                     <LocalTimeDisplay timestamp={row.latestTime} />
                   </td>
                   <td className={hudStyles.jobMetadata}>
-                    <a
-                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {row.sha ? row.sha.substring(0, 7) : "–"}
-                    </a>
+                    <span className={hudStyles.mono}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {row.sha ? row.sha.substring(0, 7) : "–"}
+                      </a>
+                    </span>
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <div className={hudStyles.jobMetadataTruncated}>
@@ -1004,6 +976,7 @@ function CrcrNightlyMatrix({
     [matrix]
   );
   const commitInfoMap = useCommitInfo(upstreamRepo, nightlyShas);
+  const [pinnedId, setPinnedId] = useContext(CrcrPinnedContext);
 
   if (error) {
     return (
@@ -1026,36 +999,47 @@ function CrcrNightlyMatrix({
   return (
     <>
       <NightlySummaryCards data={data} />
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            borderCollapse: "collapse",
-            fontSize: "0.85rem",
-            width: "100%",
-          }}
-        >
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
+        <table className={hudStyles.hudTable}>
           <colgroup>
-            <col style={{ width: 80 }} />
-            <col style={{ width: 60 }} />
-            <col style={{ width: 340 }} />
+            <col className={hudStyles.colTime} />
+            <col className={hudStyles.colSha} />
+            <col className={hudStyles.colCommit} />
             {columns.map((col) => (
-              <col key={col.name} style={{ width: 18 }} />
+              <col key={col.name} className={hudStyles.colJob} />
             ))}
           </colgroup>
           <thead>
             <tr>
-              <th style={headerBaseStyle}>Time</th>
-              <th style={headerBaseStyle}>SHA</th>
-              <th style={headerBaseStyle}>Commit</th>
+              <th className={hudStyles.regularHeader}>Time</th>
+              <th className={hudStyles.regularHeader}>SHA</th>
+              <th className={hudStyles.regularHeader}>Commit</th>
               {columns.map((col) => (
-                <th key={col.name} style={jobHeaderStyle}>
+                <th
+                  key={col.name}
+                  className={hudStyles.jobHeader}
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPinnedId({
+                      sha: undefined,
+                      name: pinnedId.name === col.name ? undefined : col.name,
+                    });
+                  }}
+                >
                   <div
+                    className={hudStyles.jobHeaderName}
                     style={{
-                      ...jobHeaderNameStyle,
                       fontWeight: col.type === "group" ? 700 : 400,
                     }}
                   >
-                    {col.name}
+                    <span
+                      className={
+                        pinnedId.name === col.name ? hudStyles.highlight : ""
+                      }
+                    >
+                      {col.name}
+                    </span>
                   </div>
                 </th>
               ))}
@@ -1066,41 +1050,53 @@ function CrcrNightlyMatrix({
               const commit = commitInfoMap.get(row.sha);
               const commitTitle =
                 commit?.title || `nightly (${row.sha.substring(0, 12)})`;
+              const isRowHighlighted = pinnedId.sha === row.sha;
+              const rowClass = isRowHighlighted ? hudStyles.highlight : "";
               return (
-                <tr key={row.sha} style={{ borderBottom: "1px solid #30363d" }}>
-                  <td style={cellStyle}>
+                <tr
+                  key={row.sha}
+                  className={rowClass}
+                  onClick={(e) => {
+                    if (
+                      pinnedId.name !== undefined ||
+                      pinnedId.sha !== undefined
+                    ) {
+                      return;
+                    }
+                    e.stopPropagation();
+                    setPinnedId({ sha: row.sha, name: undefined });
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td className={hudStyles.jobMetadata}>
                     <LocalTimeDisplay timestamp={row.latestTime} />
                   </td>
-                  <td style={cellStyle}>
-                    <a
-                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "#58a6ff", textDecoration: "none" }}
-                    >
-                      {row.sha.substring(0, 7)}
-                    </a>
-                  </td>
-                  <td style={{ ...cellStyle, maxWidth: 340 }}>
-                    <Tooltip title={commitTitle}>
+                  <td className={hudStyles.jobMetadata}>
+                    <span className={hudStyles.mono}>
                       <a
                         href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          color: "#58a6ff",
-                          textDecoration: "none",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
+                      >
+                        {row.sha.substring(0, 7)}
+                      </a>
+                    </span>
+                  </td>
+                  <td className={hudStyles.jobMetadata}>
+                    <div className={hudStyles.jobMetadataTruncated}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={commitTitle}
                       >
                         {commitTitle}
                       </a>
-                    </Tooltip>
+                    </div>
                   </td>
                   {columns.map((col) => {
+                    const colHighlight =
+                      pinnedId.name === col.name ? hudStyles.highlight : "";
                     if (col.type === "group" && col.members) {
                       const groupJobs = col.members
                         .map((m) => row.jobs.get(m))
@@ -1108,7 +1104,8 @@ function CrcrNightlyMatrix({
                       return (
                         <td
                           key={col.name}
-                          style={{ ...cellStyle, textAlign: "center" }}
+                          className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                          style={{ textAlign: "center" }}
                         >
                           {groupJobs.length > 0 ? (
                             <GroupedJobCell
@@ -1126,7 +1123,8 @@ function CrcrNightlyMatrix({
                     return (
                       <td
                         key={col.name}
-                        style={{ ...cellStyle, textAlign: "center" }}
+                        className={`${hudStyles.jobMetadata} ${colHighlight}`}
+                        style={{ textAlign: "center" }}
                       >
                         {job ? <JobCell job={job} sha={row.sha} /> : "–"}
                       </td>
