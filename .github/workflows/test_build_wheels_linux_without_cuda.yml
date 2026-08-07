@@ -42,6 +42,7 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      run-smoke-test: false
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
