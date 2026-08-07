@@ -1,0 +1,28 @@
+# CI Provider Configuration for CRCR OIDC
+#
+# Defines all supported CI providers: their OIDC issuer URLs, JWKS
+# endpoints, and (for providers without a native "repository" claim)
+# pipeline-to-repo identity mappings.
+#
+# The Lambda fetches this file at runtime (via CI_PROVIDERS_URL) and
+# caches it in Redis, so changes here take effect without redeployment.
+
+providers:
+  github:
+    issuer: https://token.actions.githubusercontent.com
+    jwks_uri: https://token.actions.githubusercontent.com/.well-known/jwks
+
+  buildkite:
+    issuer: https://agent.buildkite.com
+    jwks_uri: https://agent.buildkite.com/.well-known/jwks
+    # Pipeline-to-repo mapping (Buildkite OIDC has no "repository" claim)
+    repo_map:
+      # org_slug/pipeline_slug: owner/repo
+      # vllm/ci: vllm-project/vllm
+      # vllm/release: vllm-project/vllm
+
+  # gitlab:
+  #   issuer: https://gitlab.com
+  #   jwks_uri: https://gitlab.com/oauth/discovery/keys
+  #   repo_map:
+  #     group/project: owner/repo
