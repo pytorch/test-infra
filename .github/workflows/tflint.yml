@@ -38,6 +38,10 @@ jobs:
       run:
         tofu --version
 
+    - name: Verify lockfile integrity
+      working-directory: terraform-aws-github-runner
+      run: tofu init -backend=false -lockfile=readonly
+
     - name: "tflint"
       working-directory: terraform-aws-github-runner
       run: make tflint
