@@ -229,14 +229,6 @@
       "linux"
     ]
   ],
-  "test_col2im_uint32_overflow (__main__.TestMPS)": [
-    "187289",
-    "https://github.com/pytorch/pytorch/issues/187289",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
     "187202",
     "https://github.com/pytorch/pytorch/issues/187202",
@@ -1163,13 +1155,6 @@
   "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
     "190009",
     "https://github.com/pytorch/pytorch/issues/190009",
-    [
-      "rocm"
-    ]
-  ],
-  "test_triton_template_generated_code_caching_mm_plus_mm (__main__.TestMaxAutotuneAsyncPipelined)": [
-    "190989",
-    "https://github.com/pytorch/pytorch/issues/190989",
     [
       "rocm"
     ]
