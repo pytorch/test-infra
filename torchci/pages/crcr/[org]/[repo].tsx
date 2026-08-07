@@ -1013,8 +1013,7 @@ function CrcrNightlyMatrix({
                     e.stopPropagation();
                     setPinnedId({
                       sha: undefined,
-                      name:
-                        pinnedId.name === col.name ? undefined : col.name,
+                      name: pinnedId.name === col.name ? undefined : col.name,
                     });
                   }}
                 >
