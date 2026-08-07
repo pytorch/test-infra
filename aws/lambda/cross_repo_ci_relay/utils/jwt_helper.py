@@ -31,8 +31,7 @@ _DEFAULT_PROVIDERS: Dict[str, dict] = {
 }
 
 _jwks_clients: Dict[str, jwt.PyJWKClient] = {
-    iss: jwt.PyJWKClient(cfg["jwks_uri"])
-    for iss, cfg in _DEFAULT_PROVIDERS.items()
+    iss: jwt.PyJWKClient(cfg["jwks_uri"]) for iss, cfg in _DEFAULT_PROVIDERS.items()
 }
 
 # Mapping from provider name to its issuer URL, populated by config.

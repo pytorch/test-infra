@@ -221,9 +221,7 @@ class TestLoadCIProviderMappings(unittest.TestCase):
             _PROVIDER_ISSUERS["github"],
             "https://token.actions.githubusercontent.com",
         )
-        self.assertEqual(
-            _PROVIDER_ISSUERS["buildkite"], "https://agent.buildkite.com"
-        )
+        self.assertEqual(_PROVIDER_ISSUERS["buildkite"], "https://agent.buildkite.com")
 
     def test_providers_format_loads_repo_map(self):
         raw = {
@@ -255,7 +253,9 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         del _jwks_clients[new_issuer]
 
     def test_provider_missing_issuer_skipped(self):
-        raw = {"providers": {"bad": {"jwks_uri": "https://example.com/.well-known/jwks"}}}
+        raw = {
+            "providers": {"bad": {"jwks_uri": "https://example.com/.well-known/jwks"}}
+        }
         load_ci_provider_mappings(raw)
         self.assertNotIn("bad", _PROVIDER_ISSUERS)
 
@@ -270,7 +270,10 @@ class TestLoadCIProviderMappings(unittest.TestCase):
                 "buildkite": {
                     "issuer": "https://agent.buildkite.com",
                     "jwks_uri": "https://agent.buildkite.com/.well-known/jwks",
-                    "repo_map": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"},
+                    "repo_map": {
+                        "noslash": "vllm-project/vllm",
+                        "ok/pipeline": "ok/repo",
+                    },
                 },
             }
         }
