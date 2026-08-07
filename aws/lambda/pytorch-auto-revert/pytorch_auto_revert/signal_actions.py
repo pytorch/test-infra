@@ -4,7 +4,7 @@ import logging
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
@@ -146,23 +146,31 @@ class ActionLogger:
                 res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
                 return len(res.result_rows) > 0
 
-    def prior_advisor_exists(
+    def advisor_count_for_signal(
         self, *, repo: str, commit_sha: str, signal_key: str
-    ) -> bool:
-        """Return True if an advisor was already dispatched for this commit + signal."""
+    ) -> int:
+        """Return count of successfully-launched advisor dispatches for this commit + signal.
+
+        Counts only `failed = 0` rows: a failed workflow_dispatch POST is still
+        logged (failed=1, dry_run=0) but launches no advisor run and yields no
+        verdict, so counting it would permanently consume a quorum slot the
+        born-red path has no heuristic backstop to recover from.
+        """
         q = (
-            "SELECT 1 FROM misc.autorevert_events_v2 "
+            "SELECT count() FROM misc.autorevert_events_v2 "
             "WHERE repo = {repo:String} AND action = 'advisor' "
             "AND commit_sha = {sha:String} "
             "AND has(source_signal_keys, {key:String}) "
-            "AND dry_run = 0 LIMIT 1"
+            "AND dry_run = 0 AND failed = 0"
         )
         for attempt in RetryWithBackoff():
             with attempt:
                 res = CHCliFactory().client.query(
                     q, {"repo": repo, "sha": commit_sha, "key": signal_key}
                 )
-                return len(res.result_rows) > 0
+                if res.result_rows:
+                    return int(res.result_rows[0][0])
+                return 0
 
     def advisor_count_for_commit(
         self, *, repo: str, commit_sha: str, workflow: str
@@ -608,9 +616,12 @@ class SignalActionProcessor:
         dispatch_advisor: "DispatchAdvisor",
         ctx: RunContext,
     ) -> bool:
-        """Dispatch AI advisor workflow for a signal (shadow mode: fire-and-forget).
+        """Dispatch AI advisor workflow(s) for a signal (shadow mode: fire-and-forget).
 
-        Returns True if an event row was inserted (passed dedup).
+        Fires up to `dispatch_advisor.target_total` runs for the (suspect commit,
+        signal) pair, counting non-dry-run advisor rows already in the ledger so
+        the quorum converges idempotently across ticks. Returns True if at least
+        one event row was inserted.
         """
         from .utils import AdvisorAction
 
@@ -620,36 +631,56 @@ class SignalActionProcessor:
         commit_sha = dispatch_advisor.suspect_commit
         dry_run = not ctx.advisor_action.side_effects
 
-        if self._logger.prior_advisor_exists(
+        # Only fire the runs still missing for this (commit, signal). Counting
+        # non-dry-run rows makes this idempotent: once the target is met, later
+        # ticks fire nothing.
+        already_dispatched = self._logger.advisor_count_for_signal(
             repo=ctx.repo_full_name,
             commit_sha=commit_sha,
             signal_key=signal.key,
-        ):
+        )
+        to_fire = max(0, dispatch_advisor.target_total - already_dispatched)
+        if to_fire == 0:
             logging.info(
-                "[v2][action] advisor for sha %s key=%s: skipping existing",
+                "[v2][action] advisor for sha %s key=%s: target met (%d/%d), nothing to fire",
                 commit_sha[:8],
                 signal.key,
+                already_dispatched,
+                dispatch_advisor.target_total,
             )
             return False
 
-        # Cap: max 8 advisor dispatches per (workflow, commit) to limit cost
+        # Cap: max 8 advisor dispatches per (workflow, commit) to limit cost.
+        # Clamp the delta so the (commit, workflow) total never exceeds the cap.
         ADVISOR_CAP_PER_WORKFLOW_COMMIT = 8
-        count = self._logger.advisor_count_for_commit(
+        already_at_commit = self._logger.advisor_count_for_commit(
             repo=ctx.repo_full_name,
             commit_sha=commit_sha,
             workflow=signal.workflow_name,
         )
-        if count >= ADVISOR_CAP_PER_WORKFLOW_COMMIT:
+        if already_at_commit >= ADVISOR_CAP_PER_WORKFLOW_COMMIT:
             logging.info(
                 "[v2][action] advisor for sha %s wf=%s: cap reached (%d/%d)",
                 commit_sha[:8],
                 signal.workflow_name,
-                count,
+                already_at_commit,
                 ADVISOR_CAP_PER_WORKFLOW_COMMIT,
             )
             return False
+        remaining_cap = ADVISOR_CAP_PER_WORKFLOW_COMMIT - already_at_commit
+        if to_fire > remaining_cap:
+            logging.info(
+                "[v2][action] advisor for sha %s wf=%s: clamping dispatch %d->%d (already %d, cap %d)",
+                commit_sha[:8],
+                signal.workflow_name,
+                to_fire,
+                remaining_cap,
+                already_at_commit,
+                ADVISOR_CAP_PER_WORKFLOW_COMMIT,
+            )
+            to_fire = remaining_cap
 
-        # Find PR number for the suspect commit
+        # Find PR number for the suspect commit (shared across all runs)
         pr_number = 0
         try:
             result = self._find_pr_by_sha(commit_sha, ctx)
@@ -663,7 +694,7 @@ class SignalActionProcessor:
                 exc_info=True,
             )
 
-        # Build signal pattern JSON and write to /tmp for debugging
+        # Build signal pattern JSON (shared across all runs) and write to /tmp for debugging
         signal_pattern_json = self._build_signal_pattern_json(
             signal=signal,
             dispatch_advisor=dispatch_advisor,
@@ -688,54 +719,62 @@ class SignalActionProcessor:
                 exc_info=True,
             )
 
-        ok = True
-        notes = ""
-        if not dry_run:
-            try:
-                factory = GHClientFactory()
-                gh_client = factory.client
-                repo = gh_client.get_repo(ctx.repo_full_name)
-                workflow = repo.get_workflow("claude-autorevert-advisor.yml")
-                # /dispatches is non-idempotent — route the POST through dispatch_client
-                # (retry=0) so a 5xx from GitHub does not silently spawn duplicate runs.
-                proper_workflow_create_dispatch(
-                    workflow,
-                    ref="main",
-                    inputs={
-                        "suspect_commit": commit_sha,
-                        "pr_number": str(pr_number),
-                        "signal_pattern": signal_pattern_json,
-                    },
-                    requester=factory.dispatch_client.requester,
-                )
-            except Exception as exc:
-                ok = False
-                notes = f"dispatch error: {exc}"
-                logging.warning(  # noqa: G200
-                    "[v2][action] advisor dispatch failed for sha %s: %s",
-                    commit_sha[:8],
-                    str(exc),
-                )
+        # Each row needs a distinct ts: the ledger is a ReplacingMergeTree keyed
+        # (repo, commit_sha, action, ts) at second resolution, so same-second rows
+        # for one (commit, action) collapse into one and undercount the quorum.
+        # A per-run second offset off a single base keeps them distinct.
+        base_now = datetime.now(timezone.utc)
+        for i in range(to_fire):
+            ok = True
+            notes = ""
+            if not dry_run:
+                try:
+                    factory = GHClientFactory()
+                    gh_client = factory.client
+                    repo = gh_client.get_repo(ctx.repo_full_name)
+                    workflow = repo.get_workflow("claude-autorevert-advisor.yml")
+                    # /dispatches is non-idempotent — route the POST through dispatch_client
+                    # (retry=0) so a 5xx from GitHub does not silently spawn duplicate runs.
+                    proper_workflow_create_dispatch(
+                        workflow,
+                        ref="main",
+                        inputs={
+                            "suspect_commit": commit_sha,
+                            "pr_number": str(pr_number),
+                            "signal_pattern": signal_pattern_json,
+                        },
+                        requester=factory.dispatch_client.requester,
+                    )
+                except Exception as exc:
+                    ok = False
+                    notes = f"dispatch error: {exc}"
+                    logging.warning(  # noqa: G200
+                        "[v2][action] advisor dispatch failed for sha %s: %s",
+                        commit_sha[:8],
+                        str(exc),
+                    )
 
-        self._logger.insert_event(
-            repo=ctx.repo_full_name,
-            ts=ctx.ts,
-            action="advisor",
-            commit_sha=commit_sha,
-            workflows=[signal.workflow_name],
-            source_signal_keys=[signal.key],
-            dry_run=dry_run,
-            failed=not ok,
-            notes=notes,
-        )
-        logging.info(
-            "[v2][action] advisor for sha %s key=%s: %s",
-            commit_sha[:8],
-            signal.key,
-            "dispatched"
-            if (not dry_run and ok)
-            else ("failed" if not ok else "logged (dry_run)"),
-        )
+            self._logger.insert_event(
+                repo=ctx.repo_full_name,
+                ts=base_now + timedelta(seconds=i),
+                action="advisor",
+                commit_sha=commit_sha,
+                workflows=[signal.workflow_name],
+                source_signal_keys=[signal.key],
+                dry_run=dry_run,
+                failed=not ok,
+                notes=notes,
+            )
+            logging.info(
+                "[v2][action] advisor for sha %s key=%s (%d/%d): %s",
+                commit_sha[:8],
+                signal.key,
+                i + 1,
+                to_fire,
+                "dispatched"
+                if (not dry_run and ok)
+                else ("failed" if not ok else "logged (dry_run)"),
+            )
         return True
 
     @staticmethod
