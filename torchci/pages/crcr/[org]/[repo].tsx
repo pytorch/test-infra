@@ -654,7 +654,7 @@ const headerBaseStyle: CSSProperties = {
 
 const jobHeaderStyle: CSSProperties = {
   fontFamily: "sans-serif",
-  height: 120,
+  height: 260,
   whiteSpace: "nowrap",
   padding: 0,
   borderBottom: "1px solid #30363d",
@@ -662,7 +662,7 @@ const jobHeaderStyle: CSSProperties = {
 };
 
 const jobHeaderNameStyle: CSSProperties = {
-  transform: "translate(5px, 45px) rotate(315deg)",
+  transform: "translate(5px, 100px) rotate(315deg)",
   transformOrigin: "left bottom",
   width: 12,
   fontWeight: 400,
