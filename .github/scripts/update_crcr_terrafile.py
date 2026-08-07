@@ -7,6 +7,7 @@ Rewrites only the `tag:` line inside the `crcr:` block, leaving the
 Usage:
     update_crcr_terrafile.py <Terrafile> <new_tag>
 """
+
 import re
 import sys
 
@@ -24,11 +25,14 @@ def update(path: str, new_tag: str) -> bool:
     )
 
     def repl(m: re.Match) -> str:
-        return f"{m.group('block')}{m.group('indent')}tag: \"{new_tag}\"\n"
+        return f'{m.group("block")}{m.group("indent")}tag: "{new_tag}"\n'
 
     new_text, n = pattern.subn(repl, text, count=1)
     if n == 0:
-        print(f"ERROR: could not find a `crcr:` block with a quoted `tag:` line in {path}", file=sys.stderr)
+        print(
+            f"ERROR: could not find a `crcr:` block with a quoted `tag:` line in {path}",
+            file=sys.stderr,
+        )
         return False
 
     with open(path, "w") as f:
