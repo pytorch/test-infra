@@ -1,7 +1,9 @@
 """JWT utilities for the cross-repo CI relay.
 
-Supports multiple OIDC issuers (GitHub Actions, Buildkite) so downstream
-repos running on any supported CI can authenticate callbacks.
+Supports multiple OIDC issuers so downstream repos running on any
+supported CI can authenticate callbacks.  Provider configuration
+(issuer URLs, JWKS endpoints, repo mappings) is loaded from
+ci_providers.yml at runtime.
 """
 
 from __future__ import annotations
@@ -17,37 +19,84 @@ from utils.misc import HTTPException
 
 logger = logging.getLogger(__name__)
 
-GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
-BUILDKITE_ISSUER = "https://agent.buildkite.com"
 AUDIENCE = "pytorch-cross-repo-ci-relay"
 
-_ISSUER_CONFIG: Dict[str, dict] = {
-    GITHUB_ISSUER: {
-        "jwks_uri": f"{GITHUB_ISSUER}/.well-known/jwks",
-    },
-    BUILDKITE_ISSUER: {
-        "jwks_uri": f"{BUILDKITE_ISSUER}/.well-known/jwks",
-    },
+# Hardcoded defaults used when CI_PROVIDERS_URL is not configured.
+GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
+BUILDKITE_ISSUER = "https://agent.buildkite.com"
+
+_DEFAULT_PROVIDERS: Dict[str, dict] = {
+    GITHUB_ISSUER: {"jwks_uri": f"{GITHUB_ISSUER}/.well-known/jwks"},
+    BUILDKITE_ISSUER: {"jwks_uri": f"{BUILDKITE_ISSUER}/.well-known/jwks"},
 }
 
 _jwks_clients: Dict[str, jwt.PyJWKClient] = {
-    issuer: jwt.PyJWKClient(cfg["jwks_uri"]) for issuer, cfg in _ISSUER_CONFIG.items()
+    iss: jwt.PyJWKClient(cfg["jwks_uri"])
+    for iss, cfg in _DEFAULT_PROVIDERS.items()
 }
 
-# Runtime-populated mapping from Buildkite (org_slug, pipeline_slug) to the
-# GitHub-style "owner/repo" identity.  Loaded from the ci_providers.yml
-# config file so that adding a new downstream repo only requires a config
-# change — no Lambda redeployment.
+# Mapping from provider name to its issuer URL, populated by config.
+_PROVIDER_ISSUERS: Dict[str, str] = {
+    "github": GITHUB_ISSUER,
+    "buildkite": BUILDKITE_ISSUER,
+}
+
 BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {}
 
 
 def load_ci_provider_mappings(raw: dict) -> None:
-    """Populate provider repo maps from parsed ci_providers.yml content.
+    """Populate provider configs and repo maps from ci_providers.yml.
 
-    Currently supports ``buildkite``.  Adding a new provider means adding
-    a new section reader here and a corresponding ``_extract_repo_*``
-    function below.
+    The ``providers`` section defines issuer URLs, JWKS endpoints, and
+    optional repo mappings for each CI platform.  JWKS clients are
+    rebuilt whenever the config is reloaded.
     """
+    providers = raw.get("providers")
+    if not providers or not isinstance(providers, dict):
+        _load_legacy_buildkite(raw)
+        return
+
+    BUILDKITE_REPO_MAP.clear()
+    _PROVIDER_ISSUERS.clear()
+
+    for name, cfg in providers.items():
+        if not isinstance(cfg, dict):
+            continue
+        issuer = cfg.get("issuer")
+        jwks_uri = cfg.get("jwks_uri")
+        if not issuer or not jwks_uri:
+            logger.warning("Provider %s missing issuer or jwks_uri, skipping", name)
+            continue
+
+        _PROVIDER_ISSUERS[name] = issuer
+
+        if issuer not in _jwks_clients:
+            _jwks_clients[issuer] = jwt.PyJWKClient(jwks_uri)
+
+        repo_map = cfg.get("repo_map")
+        if name == "buildkite" and repo_map and isinstance(repo_map, dict):
+            for bk_key, repo in repo_map.items():
+                bk_key_str = str(bk_key).strip()
+                repo_str = str(repo).strip()
+                if "/" not in bk_key_str or "/" not in repo_str:
+                    logger.warning(
+                        "Skipping invalid buildkite entry: %s -> %s",
+                        bk_key,
+                        repo,
+                    )
+                    continue
+                org, pipeline = bk_key_str.split("/", 1)
+                BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
+
+    logger.info(
+        "Loaded %d provider(s), %d Buildkite mapping(s) from ci_providers",
+        len(_PROVIDER_ISSUERS),
+        len(BUILDKITE_REPO_MAP),
+    )
+
+
+def _load_legacy_buildkite(raw: dict) -> None:
+    """Backward compat: load flat buildkite section without providers key."""
     BUILDKITE_REPO_MAP.clear()
     bk_section = raw.get("buildkite")
     if bk_section and isinstance(bk_section, dict):
@@ -63,7 +112,7 @@ def load_ci_provider_mappings(raw: dict) -> None:
             BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
     if BUILDKITE_REPO_MAP:
         logger.info(
-            "Loaded %d Buildkite repo mapping(s) from ci_providers",
+            "Loaded %d Buildkite repo mapping(s) from ci_providers (legacy)",
             len(BUILDKITE_REPO_MAP),
         )
 
@@ -89,11 +138,7 @@ def _fetch_github_file(url: str) -> str:
 
 
 def load_ci_providers(config) -> None:
-    """Load CI provider mappings from the configured URL, with Redis caching.
-
-    ``config`` is a ``RelayConfig`` instance (imported lazily to avoid
-    pulling heavy dependencies at module-import time during testing).
-    """
+    """Load CI provider config from the configured URL, with Redis caching."""
     if not config.ci_providers_url:
         return
 
@@ -180,7 +225,9 @@ def verify_oidc_token(token: str) -> dict:
             audience=AUDIENCE,
         )
 
-        extractor = _REPO_EXTRACTORS[issuer]
+        extractor = _REPO_EXTRACTORS.get(issuer)
+        if not extractor:
+            raise HTTPException(401, f"No repo extractor for issuer: {issuer}")
         repo = extractor(claims)
         claims["repository"] = repo
 

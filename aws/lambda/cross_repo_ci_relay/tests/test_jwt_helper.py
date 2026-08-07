@@ -6,6 +6,8 @@ from utils.jwt_helper import (
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
     GITHUB_ISSUER,
+    _PROVIDER_ISSUERS,
+    _jwks_clients,
     load_ci_provider_mappings,
     verify_oidc_token,
 )
@@ -183,33 +185,95 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
 
 
 class TestLoadCIProviderMappings(unittest.TestCase):
-    """Tests for loading CI provider repo mappings from ci_providers.yml."""
+    """Tests for loading CI provider config from ci_providers.yml."""
 
     def setUp(self):
         self._orig_map = BUILDKITE_REPO_MAP.copy()
+        self._orig_issuers = _PROVIDER_ISSUERS.copy()
 
     def tearDown(self):
         BUILDKITE_REPO_MAP.clear()
         BUILDKITE_REPO_MAP.update(self._orig_map)
+        _PROVIDER_ISSUERS.clear()
+        _PROVIDER_ISSUERS.update(self._orig_issuers)
 
-    def test_loads_valid_buildkite_entries(self):
+    def test_legacy_flat_buildkite_entries(self):
         raw = {"buildkite": {"vllm/ci": "vllm-project/vllm", "acme/build": "acme/repo"}}
         load_ci_provider_mappings(raw)
         self.assertEqual(BUILDKITE_REPO_MAP[("vllm", "ci")], "vllm-project/vllm")
         self.assertEqual(BUILDKITE_REPO_MAP[("acme", "build")], "acme/repo")
+
+    def test_providers_format_loads_issuers(self):
+        raw = {
+            "providers": {
+                "github": {
+                    "issuer": "https://token.actions.githubusercontent.com",
+                    "jwks_uri": "https://token.actions.githubusercontent.com/.well-known/jwks",
+                },
+                "buildkite": {
+                    "issuer": "https://agent.buildkite.com",
+                    "jwks_uri": "https://agent.buildkite.com/.well-known/jwks",
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertEqual(
+            _PROVIDER_ISSUERS["github"],
+            "https://token.actions.githubusercontent.com",
+        )
+        self.assertEqual(
+            _PROVIDER_ISSUERS["buildkite"], "https://agent.buildkite.com"
+        )
+
+    def test_providers_format_loads_repo_map(self):
+        raw = {
+            "providers": {
+                "buildkite": {
+                    "issuer": "https://agent.buildkite.com",
+                    "jwks_uri": "https://agent.buildkite.com/.well-known/jwks",
+                    "repo_map": {"vllm/ci": "vllm-project/vllm"},
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertEqual(BUILDKITE_REPO_MAP[("vllm", "ci")], "vllm-project/vllm")
+
+    def test_providers_creates_jwks_client(self):
+        new_issuer = "https://custom-ci.example.com"
+        if new_issuer in _jwks_clients:
+            del _jwks_clients[new_issuer]
+        raw = {
+            "providers": {
+                "custom": {
+                    "issuer": new_issuer,
+                    "jwks_uri": f"{new_issuer}/.well-known/jwks",
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertIn(new_issuer, _jwks_clients)
+        del _jwks_clients[new_issuer]
+
+    def test_provider_missing_issuer_skipped(self):
+        raw = {"providers": {"bad": {"jwks_uri": "https://example.com/.well-known/jwks"}}}
+        load_ci_provider_mappings(raw)
+        self.assertNotIn("bad", _PROVIDER_ISSUERS)
 
     def test_empty_config_clears_map(self):
         BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
         load_ci_provider_mappings({})
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
-    def test_missing_buildkite_section_clears_map(self):
-        BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
-        load_ci_provider_mappings({"gitlab": {"group/proj": "org/repo"}})
-        self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
-
-    def test_skips_invalid_entries(self):
-        raw = {"buildkite": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"}}
+    def test_skips_invalid_repo_map_entries(self):
+        raw = {
+            "providers": {
+                "buildkite": {
+                    "issuer": "https://agent.buildkite.com",
+                    "jwks_uri": "https://agent.buildkite.com/.well-known/jwks",
+                    "repo_map": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"},
+                },
+            }
+        }
         load_ci_provider_mappings(raw)
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
         self.assertEqual(BUILDKITE_REPO_MAP[("ok", "pipeline")], "ok/repo")
