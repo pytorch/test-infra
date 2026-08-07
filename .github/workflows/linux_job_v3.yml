@@ -70,7 +70,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: ""
+        default: "main"
         type: string
       use-custom-docker-registry:
         description: "[Ignored on OSDC] Kept for compatibility with linux_job_v2.yml."
