@@ -2,7 +2,7 @@
 name = "greenlight"
 version = "0.0.0"
 description = "CLI-invoked periodic iteration service, daemon-capable."
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.13,<3.14"
 dependencies = ["pygithub>=2.6.1", "clickhouse-connect>=0.10", "pyyaml>=6", "boto3>=1.34"]
 
 [project.scripts]
@@ -23,7 +23,7 @@ python-preference = "only-system"
 
 [tool.ruff]
 line-length = 120
-target-version = "py314"
+target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -82,7 +82,7 @@ exclude_lines = [
 ]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.13"
 files = ["src", "tests"]
 mypy_path = "src"
 explicit_package_bases = true

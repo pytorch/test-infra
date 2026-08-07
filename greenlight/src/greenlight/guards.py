@@ -77,7 +77,7 @@ def iteration_timeout(seconds: float) -> Iterator[None]:
         try:
             signal.setitimer(signal.ITIMER_REAL, seconds)
             armed = True
-        except OverflowError, signal.ItimerError:
+        except (OverflowError, signal.ItimerError):
             logger.warning("cannot arm iteration timeout for %s seconds; running without it", seconds)
         yield
     finally:
