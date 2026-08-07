@@ -2,12 +2,12 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from utils.jwt_helper import (
+    _jwks_clients,
+    _PROVIDER_ISSUERS,
     AUDIENCE,
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
     GITHUB_ISSUER,
-    _PROVIDER_ISSUERS,
-    _jwks_clients,
     load_ci_provider_mappings,
     verify_oidc_token,
 )
