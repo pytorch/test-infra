@@ -1,0 +1,123 @@
+name: Update ci-infra crcr Terrafile
+
+# When a test-infra lambda release is published, check whether it contains
+# changes to the CRCR lambda code (aws/lambda/cross_repo_ci_relay/**). If so,
+# open a PR in pytorch/ci-infra that bumps the `tag` in crcr/Terrafile so the
+# deploy pulls the newly built cross-repo-ci-webhook.zip / cross-repo-ci-callback.zip.
+#
+# Not every release needs a bump: only releases that actually changed the CRCR
+# lambda code vs the previous lambda release trigger a PR.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "test-infra release tag to promote to ci-infra crcr/Terrafile"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  maybe-update-crcr-terrafile:
+    runs-on: ubuntu-latest
+    environment: trigger-nightly
+    steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$EVENT_TAG}"
+          # Only lambda release tags (vYYYYMMDD-HHMMSS) are eligible. Skips
+          # -custom tags (test builds) and unrelated releases (e.g. blast-cli-*).
+          if [[ ! "$TAG" =~ ^v[0-9]{8}-[0-9]{6}$ ]]; then
+            echo "Skipping non-lambda release tag: $TAG"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout test-infra at release tag
+        if: steps.tag.outputs.skip == 'false'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+          path: test-infra
+
+      # Detect whether THIS release changed the CRCR lambda code, by diffing
+      # against the previous lambda release tag. This encodes "only releases
+      # that modified crcr's aws lambda code need a bump" - releases that only
+      # touched other lambdas (autoscaler etc.) produce an empty diff and are
+      # skipped, even though a new tag/release was created for them.
+      - name: Detect CRCR lambda changes
+        id: crcr
+        if: steps.tag.outputs.skip == 'false'
+        working-directory: test-infra
+        env:
+          NEW_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # Previous lambda release tag: the newest vYYYYMMDD-HHMMSS tag that
+          # is strictly older than the release being processed (version-sorted
+          # descending, first entry strictly below NEW_TAG). Robust even when a
+          # newer release exists (e.g. manual workflow_dispatch with an older
+          # tag).
+          BASE_TAG="$(git tag --sort=-version:refname | grep -E '^v[0-9]{8}-[0-9]{6}$' | awk -v n="${NEW_TAG}" '$0 < n {print; exit}')"
+          if [ -z "$BASE_TAG" ]; then
+            echo "No previous lambda release tag found to compare against; skipping"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Comparing CRCR lambda code between $BASE_TAG and $NEW_TAG"
+          if git diff --name-only "$BASE_TAG" "$NEW_TAG" -- aws/lambda/cross_repo_ci_relay/ | grep -q .; then
+            echo "CRCR lambda code changed in this release; ci-infra Terrafile needs a bump"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No CRCR lambda changes in this release; no Terrafile update needed"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout ci-infra
+        if: steps.crcr.outputs.changed == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/ci-infra
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          ref: main
+          path: ci-infra
+          fetch-depth: 0
+
+      - name: Update crcr Terrafile tag
+        if: steps.crcr.outputs.changed == 'true'
+        working-directory: ci-infra
+        run: |
+          python3 ../test-infra/.github/scripts/update_crcr_terrafile.py crcr/Terrafile "${{ steps.tag.outputs.tag }}"
+          echo "--- crcr/Terrafile diff ---"
+          git diff -- crcr/Terrafile
+
+      - name: Create Pull Request
+        if: steps.crcr.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: ci-infra
+          base: main
+          branch: create-pull-request/update-crcr-terrafile-${{ steps.tag.outputs.tag }}
+          add-paths: crcr/Terrafile
+          commit-message: "Update crcr Terrafile to release ${{ steps.tag.outputs.tag }}"
+          title: "[CRCR] Update crcr Terrafile to release ${{ steps.tag.outputs.tag }}"
+          body: |
+            This PR is auto-generated by the `update-crcr-terrafile` workflow in [pytorch/test-infra](https://github.com/pytorch/test-infra).
+
+            test-infra release `${{ steps.tag.outputs.tag }}` contains changes to the CRCR (`aws/lambda/cross_repo_ci_relay`) Lambda code, so `crcr/Terrafile` is updated to reference the new release tag and pick up the freshly built `cross-repo-ci-webhook.zip` / `cross-repo-ci-callback.zip` assets.
+
+            cc: @fffrog @can-gaa-hou @atalman
+          labels: automated pr
