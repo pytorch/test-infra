@@ -25,7 +25,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_servicelab-ingestor-lambda
           aws-region: us-east-1
