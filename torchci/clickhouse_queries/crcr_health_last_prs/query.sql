@@ -16,8 +16,7 @@ WHERE
     AND status = 'completed'
     AND pr_number > 0
     AND pr_number IN (
-        SELECT
-            pr_number
+        SELECT pr_number
         FROM
             default.crcr_workflow_job FINAL
         WHERE
