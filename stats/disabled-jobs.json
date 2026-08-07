@@ -7,14 +7,6 @@
     "",
     ""
   ],
-  "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)": [
-    "pytorch-bot",
-    "164534",
-    "https://github.com/pytorch/pytorch/issues/164534",
-    "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)",
-    "",
-    ""
-  ],
   "deit_tiny_patch16_224.fb_in1k fail_accuracy on ROCm dynamic_inductor_timm_training": [
     "IvanKobzarev",
     "181362",
