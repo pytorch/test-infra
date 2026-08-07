@@ -1025,9 +1025,7 @@ function CrcrNightlyMatrix({
                   >
                     <span
                       className={
-                        pinnedId.name === col.name
-                          ? hudStyles.highlight
-                          : ""
+                        pinnedId.name === col.name ? hudStyles.highlight : ""
                       }
                     >
                       {col.name}
