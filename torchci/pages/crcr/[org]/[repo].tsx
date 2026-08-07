@@ -793,13 +793,15 @@ function CrcrMatrix({
                     <LocalTimeDisplay timestamp={row.latestTime} />
                   </td>
                   <td className={hudStyles.jobMetadata}>
-                    <a
-                      href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {row.sha ? row.sha.substring(0, 7) : "–"}
-                    </a>
+                    <span className={hudStyles.mono}>
+                      <a
+                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {row.sha ? row.sha.substring(0, 7) : "–"}
+                      </a>
+                    </span>
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <div className={hudStyles.jobMetadataTruncated}>
