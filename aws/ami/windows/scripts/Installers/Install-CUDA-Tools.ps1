@@ -38,6 +38,11 @@ Switch ($cudaVersion) {
     $toolkitInstaller = "cuda_13.2.1_windows.exe"
     $installerArgs = ""
   }
+  "13.4" {
+    $cudnn_subfolder="cudnn-windows-x86_64-9.20.0.48_cuda13-archive"
+    $toolkitInstaller = "cuda_13.4.0_windows_x86_64.exe"
+    $installerArgs = ""
+  }
 }
 
 
