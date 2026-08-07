@@ -46,6 +46,11 @@ def _require_key(mapping: dict[str, str], key: str, source: str) -> str:
     return mapping[key]
 
 
+def _require_clickhouse_host() -> None:
+    if not (os.environ.get("CLICKHOUSE_HOST") or os.environ.get("CLICKHOUSE_ENDPOINT")):
+        raise ValueError("CLICKHOUSE_HOST or CLICKHOUSE_ENDPOINT is required for the greenlight Lambda handler")
+
+
 def _load_secret(secret_store_name: str) -> dict[str, str]:
     import boto3  # lazy: keeps this module importable without the AWS SDK
 
@@ -74,6 +79,8 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     secret_store_name = _require_env("SECRET_STORE_NAME")
     app_id = _require_env("GITHUB_APP_ID")
     installation_id = int(_require_env("GITHUB_INSTALLATION_ID"))
+    _require_env("CLICKHOUSE_USERNAME")
+    _require_clickhouse_host()
 
     secret = _load_secret(secret_store_name)
     secret_source = f"secret {secret_store_name!r}"
@@ -86,6 +93,9 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     # SIGALRM soft timeout and the hard watchdog (whose os._exit would abort the runtime uncleanly).
     os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] = "0"
 
+    # No PYTORCH_GREENLIGHT_LOCK_PATH is set: Lambda's reserved_concurrent_executions = 1 already
+    # guarantees single-flight, so the in-process fcntl lock is intentionally absent and the
+    # EXIT_ALREADY_RUNNING branch below is only defensive/forward-compat.
     rc = cli.main(["review", "--ref", "main"])
     if rc == EXIT_OK:
         return {"status": "ok"}

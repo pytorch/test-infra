@@ -13,6 +13,8 @@ from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 _PEM = "-----BEGIN RSA PRIVATE KEY-----\nline-one\nline-two\n-----END RSA PRIVATE KEY-----\n"
 _PEM_B64 = base64.b64encode(_PEM.encode("utf-8")).decode("ascii")
 _CH_PASSWORD = "clickhouse-secret-pw"
+_CH_USERNAME = "greenlight-ro"
+_CH_HOST = "greenlight.clickhouse.cloud"
 _TOKEN = "ghs_minted_installation_token"
 _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
@@ -41,6 +43,9 @@ def fakes(monkeypatch):
     monkeypatch.setenv("SECRET_STORE_NAME", _SECRET_STORE)
     monkeypatch.setenv("GITHUB_APP_ID", _APP_ID)
     monkeypatch.setenv("GITHUB_INSTALLATION_ID", str(_INSTALLATION_ID))
+    monkeypatch.setenv("CLICKHOUSE_USERNAME", _CH_USERNAME)
+    monkeypatch.setenv("CLICKHOUSE_HOST", _CH_HOST)
+    monkeypatch.delenv("CLICKHOUSE_ENDPOINT", raising=False)
 
     secret_json = json.dumps({"GITHUB_APP_SECRET": _PEM_B64, "CLICKHOUSE_PASSWORD": _CH_PASSWORD})
     fake_boto3 = MagicMock()
@@ -122,6 +127,33 @@ def test_handler_missing_env_raises(monkeypatch, fakes, missing):
     with pytest.raises(ValueError, match=missing):
         lambda_handler.handler({}, object())
 
+    main_mock.assert_not_called()
+
+
+def test_handler_missing_clickhouse_username_raises(monkeypatch, fakes):
+    _fake_boto3, fake_github = fakes
+    monkeypatch.delenv("CLICKHOUSE_USERNAME", raising=False)
+    main_mock = Mock()
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    with pytest.raises(ValueError, match="CLICKHOUSE_USERNAME"):
+        lambda_handler.handler({}, object())
+
+    fake_github.GithubIntegration.assert_not_called()
+    main_mock.assert_not_called()
+
+
+def test_handler_missing_clickhouse_host_and_endpoint_raises(monkeypatch, fakes):
+    _fake_boto3, fake_github = fakes
+    monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
+    monkeypatch.delenv("CLICKHOUSE_ENDPOINT", raising=False)
+    main_mock = Mock()
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    with pytest.raises(ValueError, match="CLICKHOUSE_HOST or CLICKHOUSE_ENDPOINT"):
+        lambda_handler.handler({}, object())
+
+    fake_github.GithubIntegration.assert_not_called()
     main_mock.assert_not_called()
 
 
