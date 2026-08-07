@@ -236,8 +236,16 @@ const conclusionCssColor: Record<string, string> = {
   neutral: "var(--color-grey, #8b949e)",
 };
 
+function jobUrl(job: CrcrJobRow): string {
+  if (job.workflow_run_url && job.check_run_id) {
+    return `${job.workflow_run_url}/job/${job.check_run_id}`;
+  }
+  return job.workflow_run_url || "";
+}
+
 function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
   const conclusion = job.status === "completed" ? job.conclusion : job.status;
+  const url = jobUrl(job);
   const lines = [
     `Job: ${job.job_name}`,
     `Status: ${conclusion}`,
@@ -256,10 +264,10 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
   return (
     <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
       {lines.join("\n")}
-      {job.workflow_run_url && (
+      {url && (
         <div style={{ marginTop: 4 }}>
           <a
-            href={job.workflow_run_url}
+            href={url}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--link-color, #58a6ff)" }}
@@ -401,11 +409,12 @@ function GroupedJobCell({
       </div>
       {jobs.map((j) => {
         const c = j.status === "completed" ? j.conclusion : j.status;
+        const url = jobUrl(j);
         return (
           <div key={j.job_name}>
-            {j.workflow_run_url ? (
+            {url ? (
               <a
-                href={j.workflow_run_url}
+                href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "var(--link-color, #58a6ff)" }}
