@@ -752,7 +752,7 @@ function CrcrMatrix({
 
   return (
     <>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
             <col className={hudStyles.colTime} />
@@ -1026,7 +1026,7 @@ function CrcrNightlyMatrix({
   return (
     <>
       <NightlySummaryCards data={data} />
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table
           style={{
             borderCollapse: "collapse",
