@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["actions"],
+  "additionalProperties": false,
+  "properties": {
+    "actions": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "repo", "title", "summary", "labels", "details"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "create" },
+              "repo": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "summary": { "type": "string", "minLength": 1 },
+              "labels": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "minItems": 1
+              },
+              "details": { "type": "string", "minLength": 1 }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "repo", "issue_number", "details"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "update" },
+              "repo": { "type": "string", "minLength": 1 },
+              "issue_number": { "type": "integer", "minimum": 1 },
+              "summary": { "type": "string", "minLength": 1 },
+              "details": { "type": "string", "minLength": 1 },
+              "comment": { "type": "string", "minLength": 1 }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "repo", "issue_number", "comment"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "close" },
+              "repo": { "type": "string", "minLength": 1 },
+              "issue_number": { "type": "integer", "minimum": 1 },
+              "comment": { "type": "string", "minLength": 1 }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "repo", "issue_number", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "noop" },
+              "repo": { "type": "string", "minLength": 1 },
+              "issue_number": { "type": "integer", "minimum": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
