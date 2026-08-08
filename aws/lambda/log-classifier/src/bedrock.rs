@@ -17,6 +17,12 @@ use tracing::{error, warn};
 
 static AWS_BEDROCK_RULE_NAME: &str = "AWS Bedrock";
 
+/// The model asked first, and the one asked only when the first gives an answer
+/// that is not usable. Named constants because the model id ends up in the
+/// emitted rule name, so tests assert against these rather than a copy.
+static MODEL_ID_PRIMARY: &str = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+static MODEL_ID_SECONDARY: &str = "us.anthropic.claude-sonnet-4-6";
+
 /// Upper bound on the whole rendered prompt handed to Bedrock, in bytes.
 ///
 /// `num_lines` on its own does not bound the payload: 500 lines of verbose CI
@@ -127,12 +133,17 @@ enum Attempt {
     CallFailed,
 }
 
-async fn query_model(log: &Log, input_text: &String, model_name: &String) -> Attempt {
+async fn query_model(
+    client: &aws_sdk_bedrockruntime::Client,
+    log: &Log,
+    input_text: &str,
+    model_name: &str,
+) -> Attempt {
     // A Bedrock failure must not take the whole invocation down with it:
     // `handle()` has already computed a ruleset verdict by this point and still
     // has to write it to DynamoDB, so anything that goes wrong here degrades to
     // "no LLM refinement" rather than panicking and discarding that verdict.
-    let response = match make_bedrock_call(input_text, model_name).await {
+    let response = match make_bedrock_call(client, input_text, model_name).await {
         Ok(response) => response,
         Err(err) => {
             // Logged at error level, not swallowed: this used to be a panic,
@@ -183,18 +194,30 @@ pub async fn make_query(
     error_line: &usize,
     num_lines: usize,
 ) -> Option<SerializedMatch> {
-    let model_id_primary = String::from("us.anthropic.claude-haiku-4-5-20251001-v1:0");
-    let model_id_secondary = String::from("us.anthropic.claude-sonnet-4-6");
+    let input_text = snippet_for_query(log, error_line, num_lines)?;
 
-    // Budget the rendered prompt, not just the snippet: the template is
-    // substituted around the snippet before the call.
-    let budget = MAX_PROMPT_BYTES.saturating_sub(FIND_ERROR_LINE_PROMPT.len());
-    let input_text = snippet_around(log, *error_line, num_lines, budget)?;
+    // Built once here rather than per call inside `make_bedrock_call`, so the
+    // primary and the secondary share it -- and so the fallthrough below can be
+    // driven by a replayed client in tests.
+    let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
+    let client = aws_sdk_bedrockruntime::Client::new(&config);
 
-    match query_model(log, &input_text, &model_id_primary).await {
+    refine_with_models(&client, log, &input_text).await
+}
+
+/// The two-model fallthrough, split out from client construction so that tests
+/// can drive the whole `Attempt` state machine against a replayed Bedrock
+/// client -- which model gets asked, whether the secondary is tried at all, and
+/// what goes on the wire.
+async fn refine_with_models(
+    client: &aws_sdk_bedrockruntime::Client,
+    log: &Log,
+    input_text: &str,
+) -> Option<SerializedMatch> {
+    match query_model(client, log, input_text, MODEL_ID_PRIMARY).await {
         Attempt::Refined(r) => Some(r),
         Attempt::CallFailed => None,
-        Attempt::Unusable => match query_model(log, &input_text, &model_id_secondary).await {
+        Attempt::Unusable => match query_model(client, log, input_text, MODEL_ID_SECONDARY).await {
             Attempt::Refined(r) => Some(r),
             Attempt::Unusable | Attempt::CallFailed => None,
         },
@@ -316,21 +339,39 @@ fn render_prompt(snippet: &str) -> String {
     FIND_ERROR_LINE_PROMPT.replace("{{LOG_SNIPPET}}", snippet)
 }
 
+/// How many bytes of log the snippet may spend: the prompt ceiling less the
+/// template that gets wrapped around it. A function rather than an expression
+/// at the call site so the tests bound the same number production does.
+fn snippet_budget() -> usize {
+    MAX_PROMPT_BYTES.saturating_sub(FIND_ERROR_LINE_PROMPT.len())
+}
+
+/// The snippet `make_query` will send, budget already applied. Named so that a
+/// test can assert the bound `make_query` itself uses -- `make_query` builds a
+/// real Bedrock client, so it cannot be driven over a replayed transport.
+fn snippet_for_query(log: &Log, error_line: &usize, num_lines: usize) -> Option<String> {
+    snippet_around(log, *error_line, num_lines, snippet_budget())
+}
+
 async fn make_bedrock_call(
-    input_text: &String,
+    client: &aws_sdk_bedrockruntime::Client,
+    input_text: &str,
     model_id: &str,
 ) -> Result<ConverseOutput, SdkError<ConverseError, Response>> {
-    let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
-    let client = aws_sdk_bedrockruntime::Client::new(&config);
     let prompt = render_prompt(input_text);
 
     let content_block = ContentBlock::Text(prompt);
 
-    let prompt_message = Message::builder()
-        .content(content_block)
-        .role(User)
-        .build()
-        .unwrap();
+    // The last `unwrap` on this path. It cannot fail today -- both required
+    // fields are set right here -- but "cannot fail" is a property of generated
+    // code that an SDK bump can change, and the point of this change is that a
+    // Bedrock hiccup never costs the DynamoDB write. A construction failure is
+    // reported as one, and `query_model` degrades to `CallFailed` like any
+    // other.
+    let prompt_message = match Message::builder().content(content_block).role(User).build() {
+        Ok(message) => message,
+        Err(err) => return Err(SdkError::construction_failure(err)),
+    };
 
     let response = client
         .converse()
@@ -728,7 +769,7 @@ mod test {
         // that says `ValidationException: prompt is too long` cannot come back.
         const WIDTH: usize = 500;
         let log = log_of(2_000, WIDTH);
-        let budget = MAX_PROMPT_BYTES.saturating_sub(FIND_ERROR_LINE_PROMPT.len());
+        let budget = snippet_budget();
         let snippet = snippet_around(&log, 1_000, 500, budget).unwrap();
 
         // The BYTE bound is what binds here, not the line bound: the full
@@ -860,27 +901,390 @@ mod test {
         // highest key. That is the second panic this change removed, and the
         // only `make_query` path reachable without a Bedrock client.
         //
-        // Scope, honestly: this asserts the return value. It does not prove no
-        // Bedrock call was attempted -- `snippet_around`'s `?` is what
-        // short-circuits, and proving that needs client injection, which
-        // `make_bedrock_call` does not currently allow.
+        // This asserts the return value, and that it is reached without ever
+        // constructing a Bedrock client: `snippet_around`'s `?` short-circuits
+        // ahead of `refine_with_models`. The `Attempt` state machine past that
+        // point is covered against a replayed client below.
         let log = log_of(10, 20);
         assert!(make_query(&log, &999, 500).await.is_none());
     }
 
-    // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
-    // #[tokio::test]
-    // async fn test_make_query() {
-    //     // Read the input log file
-    //     let log_content = fs::read_to_string("fixtures/error_log1.txt")
-    //         .expect("FIXTURES/error_log1.txt should exist!");
-    //     let log = Log::new(log_content);
-    //     // Define the error line and number of lines for the snippet
-    //     let error_line = 4047;
-    //     let num_lines = 200;
+    // ---- The LLM path, against a replayed Bedrock -------------------------
+    //
+    // Everything above stops at the edge of the network. These drive the real
+    // SDK client -- its own request serialization and response parsing -- over
+    // a fake transport, which is the only way to assert the two things the
+    // incident was actually about: that a Bedrock failure cannot take the
+    // invocation down, and that what goes on the wire respects the budget.
+    //
+    // The transport is a hand-rolled `HttpConnector` rather than smithy's
+    // `StaticReplayClient`, which lives behind a `test-util` feature that would
+    // add a dependency tree to a lambda crate for ~40 lines of queue.
 
-    //     // Call the make_query function
-    //     let query_result = make_query(&log, &error_line, num_lines).await;
-    //     panic!("The query result is | {:#?}", query_result.unwrap());
-    // }
+    use aws_sdk_bedrockruntime::config::{Credentials, Region};
+    use aws_smithy_runtime_api::client::http::{
+        http_client_fn, HttpConnector, HttpConnectorFuture, SharedHttpConnector,
+    };
+    use aws_smithy_runtime_api::client::orchestrator::{HttpRequest, HttpResponse};
+    use aws_smithy_runtime_api::http::StatusCode;
+    use aws_smithy_types::body::SdkBody;
+    use std::collections::VecDeque;
+    use std::sync::{Arc, Mutex};
+
+    /// One request the classifier actually put on the wire.
+    #[derive(Debug, Clone)]
+    struct Sent {
+        /// Carries the model id -- Converse addresses the model by URI path,
+        /// not in the body, so this is the only evidence of WHICH model was
+        /// asked.
+        uri: String,
+        body: String,
+    }
+
+    impl Sent {
+        /// Whether this request was addressed to `model_id`. The id is
+        /// percent-encoded into the path, so match on the encoded form.
+        fn went_to(&self, model_id: &str) -> bool {
+            self.uri.contains(&model_id.replace(':', "%3A"))
+        }
+    }
+
+    /// Hands back canned HTTP responses in order and records what was sent.
+    #[derive(Debug, Clone)]
+    struct ReplayBedrock {
+        queued: Arc<Mutex<VecDeque<(u16, String)>>>,
+        sent: Arc<Mutex<Vec<Sent>>>,
+    }
+
+    impl ReplayBedrock {
+        fn new(responses: Vec<(u16, String)>) -> Self {
+            Self {
+                queued: Arc::new(Mutex::new(responses.into_iter().collect())),
+                sent: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        /// The requests that actually left, in order.
+        fn sent(&self) -> Vec<Sent> {
+            self.sent.lock().unwrap().clone()
+        }
+    }
+
+    impl HttpConnector for ReplayBedrock {
+        fn call(&self, request: HttpRequest) -> HttpConnectorFuture {
+            // `expect` rather than a default: a streaming body would record as
+            // empty and quietly weaken every assertion made on it below.
+            let body = String::from_utf8_lossy(
+                request
+                    .body()
+                    .bytes()
+                    .expect("a Converse request body is buffered, not streaming"),
+            )
+            .into_owned();
+            self.sent.lock().unwrap().push(Sent {
+                uri: request.uri().to_string(),
+                body,
+            });
+
+            let (status, payload) = self
+                .queued
+                .lock()
+                .unwrap()
+                .pop_front()
+                // A call the test did not plan for is the failure being looked
+                // for (e.g. a secondary attempt after `CallFailed`), so say so
+                // rather than returning something plausible.
+                .expect("bedrock was called more times than the test queued responses for");
+
+            HttpConnectorFuture::ready(Ok(HttpResponse::new(
+                StatusCode::try_from(status).unwrap(),
+                SdkBody::from(payload),
+            )))
+        }
+    }
+
+    /// A real `aws_sdk_bedrockruntime::Client` wired to a replayed transport.
+    ///
+    /// Retries are disabled so that the recorded request count means "attempts
+    /// the classifier chose to make" rather than "attempts the SDK made".
+    fn replay_bedrock(
+        responses: Vec<(u16, String)>,
+    ) -> (aws_sdk_bedrockruntime::Client, ReplayBedrock) {
+        let replay = ReplayBedrock::new(responses);
+        let transport = replay.clone();
+        let config = aws_sdk_bedrockruntime::Config::builder()
+            .behavior_version(BehaviorVersion::latest())
+            .region(Region::new("us-east-1"))
+            .credentials_provider(Credentials::new("ak", "sk", None, None, "test"))
+            .retry_config(aws_sdk_bedrockruntime::config::retry::RetryConfig::disabled())
+            .http_client(http_client_fn(move |_, _| {
+                SharedHttpConnector::new(transport.clone())
+            }))
+            .build();
+        (aws_sdk_bedrockruntime::Client::from_conf(config), replay)
+    }
+
+    /// A 200 carrying `text` as the assistant's single content block.
+    fn answers(text: &str) -> (u16, String) {
+        (
+            200,
+            serde_json::json!({
+                "output": {"message": {"role": "assistant", "content": [{"text": text}]}},
+                "stopReason": "end_turn"
+            })
+            .to_string(),
+        )
+    }
+
+    /// The incident's own error: Bedrock refusing an over-long prompt.
+    fn prompt_too_long() -> (u16, String) {
+        (
+            400,
+            serde_json::json!({
+                "__type": "ValidationException",
+                "message": "Input is too long for requested model."
+            })
+            .to_string(),
+        )
+    }
+
+    /// Digs the prompt back out of a recorded Converse request body.
+    fn prompt_sent(request_body: &str) -> String {
+        let parsed: serde_json::Value = serde_json::from_str(request_body).unwrap();
+        parsed["messages"][0]["content"][0]["text"]
+            .as_str()
+            .expect("a Converse request carries one text content block")
+            .to_string()
+    }
+
+    #[tokio::test]
+    async fn a_bedrock_failure_yields_no_refinement_instead_of_panicking() {
+        // THE regression test for this PR. Before it, the `.unwrap()` chain in
+        // `query_model` panicked on any `Err` from Bedrock, which unwound out of
+        // `handle()` before it could write the ruleset verdict to DynamoDB --
+        // so a Bedrock hiccup cost the classification entirely, not just the
+        // LLM refinement of it.
+        let log = log_of(10, 20);
+        let (client, replay) = replay_bedrock(vec![prompt_too_long()]);
+
+        let refined = refine_with_models(&client, &log, "a snippet").await;
+
+        assert!(refined.is_none());
+        // ...and the secondary was NOT tried: `CallFailed` deliberately ends the
+        // path, because a second multi-second round trip on an already-failing
+        // call risks the Lambda deadline that the DynamoDB write needs.
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].went_to(MODEL_ID_PRIMARY));
+    }
+
+    #[tokio::test]
+    async fn a_bedrock_server_error_also_degrades_quietly() {
+        // The other half of `CallFailed`: an outage or throttle rather than a
+        // rejected prompt. Same contract -- no panic, no secondary.
+        let log = log_of(10, 20);
+        let (client, replay) = replay_bedrock(vec![(
+            500,
+            r#"{"__type":"InternalServerException","message":"oops"}"#.to_string(),
+        )]);
+
+        assert!(refine_with_models(&client, &log, "a snippet")
+            .await
+            .is_none());
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].went_to(MODEL_ID_PRIMARY));
+    }
+
+    #[tokio::test]
+    async fn a_usable_primary_answer_is_returned_without_asking_the_secondary() {
+        let log = log_of(10, 0);
+        let target = anchor_text(4, 0);
+        let (client, replay) =
+            replay_bedrock(vec![answers(&format!("<error_line>{target}</error_line>"))]);
+
+        let refined = refine_with_models(&client, &log, "a snippet")
+            .await
+            .expect("a line that exists in the log is a usable answer");
+
+        assert_eq!(refined.line, target);
+        assert_eq!(refined.line_num, 4);
+        assert_eq!(
+            refined.rule,
+            format!("{AWS_BEDROCK_RULE_NAME} {MODEL_ID_PRIMARY}")
+        );
+        // The rule name above is built from the model argument; this is the
+        // independent check that the request really went to that model.
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].went_to(MODEL_ID_PRIMARY));
+    }
+
+    #[tokio::test]
+    async fn an_unusable_primary_answer_falls_through_to_the_secondary() {
+        // `Unusable` is the case the second model exists for: the call worked,
+        // the model just named a line that is not in the log.
+        let log = log_of(10, 0);
+        let target = anchor_text(7, 0);
+        let (client, replay) = replay_bedrock(vec![
+            answers("<error_line>a line that is not in the log</error_line>"),
+            answers(&format!("<error_line>{target}</error_line>")),
+        ]);
+
+        let refined = refine_with_models(&client, &log, "a snippet")
+            .await
+            .expect("the secondary's answer is usable");
+
+        assert_eq!(refined.line, target);
+        // The emitted rule names the model that actually answered.
+        assert_eq!(
+            refined.rule,
+            format!("{AWS_BEDROCK_RULE_NAME} {MODEL_ID_SECONDARY}")
+        );
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 2);
+        // The primary really was asked first and the secondary second -- the
+        // model is addressed by URI, so the rule name alone would not show a
+        // fallthrough that asked the same model twice. The negative half keeps
+        // `went_to` honest: a predicate that matched anything would satisfy the
+        // positive assertions alone.
+        assert!(sent[0].went_to(MODEL_ID_PRIMARY));
+        assert!(!sent[0].went_to(MODEL_ID_SECONDARY));
+        assert!(sent[1].went_to(MODEL_ID_SECONDARY));
+        assert!(!sent[1].went_to(MODEL_ID_PRIMARY));
+        // Both models were asked the same question.
+        assert_eq!(prompt_sent(&sent[0].body), prompt_sent(&sent[1].body));
+    }
+
+    #[tokio::test]
+    async fn both_models_unusable_yields_no_refinement() {
+        let log = log_of(10, 20);
+        let (client, replay) = replay_bedrock(vec![
+            answers("<error_line>not in the log</error_line>"),
+            answers("no tags at all"),
+        ]);
+
+        assert!(refine_with_models(&client, &log, "a snippet")
+            .await
+            .is_none());
+        assert_eq!(replay.sent().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_secondary_that_fails_after_an_unusable_primary_still_degrades() {
+        let log = log_of(10, 20);
+        let (client, replay) = replay_bedrock(vec![
+            answers("<error_line>not in the log</error_line>"),
+            prompt_too_long(),
+        ]);
+
+        assert!(refine_with_models(&client, &log, "a snippet")
+            .await
+            .is_none());
+        assert_eq!(replay.sent().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn an_empty_response_body_is_unusable_rather_than_a_panic() {
+        // `response_text` is unit-tested against hand-built types above; this
+        // drives the same case through the SDK's real deserializer, which is
+        // what the old `.output.unwrap().as_message().unwrap()` chain sat on.
+        let log = log_of(10, 0);
+        let target = anchor_text(2, 0);
+        let (client, replay) = replay_bedrock(vec![
+            (200, r#"{"stopReason":"end_turn"}"#.to_string()),
+            answers(&format!("<error_line>{target}</error_line>")),
+        ]);
+
+        let refined = refine_with_models(&client, &log, "a snippet").await;
+
+        // A response with no `output` at all is an answer we cannot use, so the
+        // secondary gets its turn -- not a panic, and not a silent give-up.
+        assert_eq!(refined.map(|r| r.line), Some(target));
+        assert_eq!(replay.sent().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn the_prompt_that_reaches_bedrock_stays_within_the_byte_budget() {
+        // `rendered_prompt_stays_within_max_prompt_bytes` asserts this against
+        // `render_prompt`. This asserts it against the bytes that actually go
+        // out through the SDK -- the measurement Bedrock's
+        // `ValidationException: prompt is too long` was made against.
+        const WIDTH: usize = 4_000;
+        let log = log_of(2_000, WIDTH); // ~8 MB, ~80x the budget
+        let snippet = snippet_around(&log, 1_000, 500, snippet_budget()).unwrap();
+
+        // Neither model can place this answer, so both get asked -- which is
+        // what we want here: the bound has to hold on the secondary's prompt
+        // too, not just the primary's.
+        let (client, replay) = replay_bedrock(vec![
+            answers("<error_line>not in the log</error_line>"),
+            answers("<error_line>not in the log</error_line>"),
+        ]);
+        let _ = refine_with_models(&client, &log, &snippet).await;
+
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 2);
+        for Sent { body, .. } in &sent {
+            let prompt = prompt_sent(body);
+            assert!(
+                prompt.len() <= MAX_PROMPT_BYTES,
+                "prompt on the wire was {} bytes, over the {MAX_PROMPT_BYTES}-byte budget",
+                prompt.len()
+            );
+            // ...and the budget is being spent, not collapsed to nothing -- a
+            // bug that zeroed it would otherwise pass the bound above trivially.
+            assert!(
+                prompt.len() > MAX_PROMPT_BYTES / 2,
+                "prompt on the wire was only {} bytes; the budget collapsed",
+                prompt.len()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn the_prompt_on_the_wire_is_the_rendered_template_around_the_snippet() {
+        // Pins the substitution itself: the snippet reaches Bedrock wrapped in
+        // the template, exactly once, not raw and not doubled.
+        let log = log_of(10, 0);
+        let (client, replay) = replay_bedrock(vec![
+            answers("<error_line>not in the log</error_line>"),
+            answers("<error_line>not in the log</error_line>"),
+        ]);
+
+        let _ = refine_with_models(&client, &log, "THE-SNIPPET").await;
+
+        let sent = replay.sent();
+        assert_eq!(sent.len(), 2);
+        // An independent oracle, not just `render_prompt` compared to itself:
+        // a `render_prompt` that regressed to returning the snippet unchanged
+        // would satisfy an `assert_eq!(prompt, render_prompt(..))` and every
+        // placeholder check, so pin the surrounding template explicitly.
+        let (before, after) = FIND_ERROR_LINE_PROMPT
+            .split_once("{{LOG_SNIPPET}}")
+            .expect("the template carries the placeholder");
+        for Sent { body, .. } in &sent {
+            let prompt = prompt_sent(body);
+            assert_eq!(prompt, format!("{before}THE-SNIPPET{after}"));
+            assert!(prompt.len() > "THE-SNIPPET".len());
+            // Substituted exactly once -- `str::replace` would happily do it
+            // twice if the template ever grew a second placeholder, and the
+            // budget subtracts the template only once.
+            assert_eq!(prompt.matches("THE-SNIPPET").count(), 1);
+            assert!(!prompt.contains("{{LOG_SNIPPET}}"));
+        }
+    }
+
+    #[tokio::test]
+    async fn make_query_bounds_the_snippet_with_the_prompt_budget() {
+        // `the_prompt_that_reaches_bedrock_stays_within_the_byte_budget` hands
+        // `refine_with_models` a snippet the TEST bounded. This is the missing
+        // half: that `make_query` -- which builds its own client, so it cannot
+        // be driven over the replay transport -- applies that same bound itself.
+        let log = log_of(2_000, 4_000); // ~8 MB, ~80x the budget
+        let snippet = snippet_for_query(&log, &1_000, 500).expect("the anchor is in the log");
+
+        assert!(render_prompt(&snippet).len() <= MAX_PROMPT_BYTES);
+        assert!(snippet.len() > MAX_PROMPT_BYTES / 2, "the budget collapsed");
+    }
 }
