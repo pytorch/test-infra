@@ -36,6 +36,13 @@
       "rocm"
     ]
   ],
+  "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
+    "192616",
+    "https://github.com/pytorch/pytorch/issues/192616",
+    [
+      "rocm"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
