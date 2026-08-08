@@ -41,7 +41,7 @@
     "d3": "^7.9.0",
     "dayjs": "^1.11.3",
     "dayjs-plugin-utc": "^0.1.2",
-    "echarts": "^5.5.1",
+    "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.2",
     "eslint-plugin-unused-imports": "^3.2.0",
     "jaro-winkler-typescript": "^1.0.1",
