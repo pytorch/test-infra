@@ -329,7 +329,7 @@ jobs:
 
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
-        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
+        uses: ./test-infra/.github/actions/upload-artifact-s3
         if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
         with:
           retention-days: 14
@@ -339,7 +339,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Upload documentation to S3 (if any)
-        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
+        uses: ./test-infra/.github/actions/upload-artifact-s3
         if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
         with:
           retention-days: 14
