@@ -65,8 +65,13 @@ fn validate_output_in_log(ai_output: &str, log: &Log) -> (usize, Option<String>)
 
     // If no error line is extracted from AI output, return None
     let error_line = match extracted_error_line {
-        Some(line) => line,
-        None => return (0, None),
+        // An empty answer is not an answer. `Log::new` keeps blank lines, so an
+        // empty (or whitespace-only, since the content is trimmed) tag pair
+        // would otherwise "match" the first blank line in the log, and
+        // `handle()` would replace a perfectly good ruleset verdict with a
+        // match whose line is the empty string.
+        Some(line) if !line.is_empty() => line,
+        _ => return (0, None),
     };
 
     // Search for the extracted error line in the log
@@ -303,13 +308,21 @@ fn truncate_on_char_boundary(text: &str, max_bytes: usize) -> String {
     text[..cut].to_string()
 }
 
+/// Renders the prompt that actually goes on the wire. Extracted so that the
+/// byte budget can be asserted against the real rendering rather than against a
+/// copy of it in a test -- the budget in `make_query` bounds the *snippet*, but
+/// the limit Bedrock enforces is on the rendered prompt.
+fn render_prompt(snippet: &str) -> String {
+    FIND_ERROR_LINE_PROMPT.replace("{{LOG_SNIPPET}}", snippet)
+}
+
 async fn make_bedrock_call(
     input_text: &String,
     model_id: &str,
 ) -> Result<ConverseOutput, SdkError<ConverseError, Response>> {
     let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
     let client = aws_sdk_bedrockruntime::Client::new(&config);
-    let prompt = FIND_ERROR_LINE_PROMPT.replace("{{LOG_SNIPPET}}", input_text);
+    let prompt = render_prompt(input_text);
 
     let content_block = ContentBlock::Text(prompt);
 
@@ -672,6 +685,187 @@ mod test {
             response_text(&response),
             Some("<error_line>boom</error_line>".to_string())
         );
+    }
+
+    // ---- The byte budget itself -------------------------------------------
+    //
+    // `make_query` budgets the SNIPPET, but the limit Bedrock enforces is on
+    // the RENDERED prompt. Nothing above connects the two.
+
+    #[test]
+    fn prompt_template_has_exactly_one_snippet_placeholder() {
+        // `make_bedrock_call` renders with `str::replace`, which substitutes
+        // EVERY occurrence, while `make_query` subtracts the template length
+        // exactly once. A second placeholder would silently send the snippet
+        // twice and blow the budget with no error anywhere.
+        assert_eq!(FIND_ERROR_LINE_PROMPT.matches("{{LOG_SNIPPET}}").count(), 1);
+    }
+
+    #[test]
+    fn prompt_template_leaves_a_usable_snippet_budget() {
+        // The budget is a `saturating_sub`. If the template ever grew toward
+        // MAX_PROMPT_BYTES the budget would silently shrink -- at the limit to
+        // 0, so every snippet becomes the empty string and the LLM path keeps
+        // paying for calls that can never say anything, quietly and with no
+        // error metric. Pin a floor that means something rather than a ratio:
+        // 64 KiB is comfortably more log than the 500-line window usually is.
+        const MIN_SNIPPET_BYTES: usize = 64 * 1024;
+        assert!(
+            FIND_ERROR_LINE_PROMPT.len() + MIN_SNIPPET_BYTES <= MAX_PROMPT_BYTES,
+            "a {}-byte template leaves only {} bytes for the log, under the \
+             {MIN_SNIPPET_BYTES}-byte floor",
+            FIND_ERROR_LINE_PROMPT.len(),
+            MAX_PROMPT_BYTES.saturating_sub(FIND_ERROR_LINE_PROMPT.len()),
+        );
+    }
+
+    #[test]
+    fn rendered_prompt_stays_within_max_prompt_bytes() {
+        // The end-to-end property: run the exact arithmetic `make_query` runs,
+        // on a log far too big for the budget, and measure what actually goes
+        // on the wire -- through `render_prompt`, the same function
+        // `make_bedrock_call` uses, not a copy of it. This is the assertion
+        // that says `ValidationException: prompt is too long` cannot come back.
+        const WIDTH: usize = 500;
+        let log = log_of(2_000, WIDTH);
+        let budget = MAX_PROMPT_BYTES.saturating_sub(FIND_ERROR_LINE_PROMPT.len());
+        let snippet = snippet_around(&log, 1_000, 500, budget).unwrap();
+
+        // The BYTE bound is what binds here, not the line bound: the full
+        // num_lines=500 window is 501 lines of 501 bytes, ~251 KB. Pin the
+        // exact number of lines the budget admits -- `<= budget` alone would
+        // also hold for a degenerate empty snippet.
+        let cost_per_line = WIDTH + 1;
+        assert_eq!(snippet.lines().count(), budget / cost_per_line);
+        assert!(
+            snippet.lines().count() < 501,
+            "the line bound must not be the binding one"
+        );
+        // ...and the snippet really fills the budget: less than one line spare.
+        assert!(budget - snippet.len() < cost_per_line);
+
+        let rendered = render_prompt(&snippet);
+        assert!(
+            rendered.len() <= MAX_PROMPT_BYTES,
+            "rendered prompt is {} bytes, over the {MAX_PROMPT_BYTES}-byte budget",
+            rendered.len()
+        );
+    }
+
+    #[test]
+    fn snippet_window_matches_the_get_snippets_window_it_replaced() {
+        // The byte bound is the intended change; the LINE window is meant to be
+        // the same one `get_snippets` produced at the call site this replaced
+        // (`min_context_padding = num_lines / 2`, `max_chunk_size =
+        // num_lines + 1`). With the byte bound lifted the two must agree
+        // exactly, including at the clipped ends -- otherwise this quietly
+        // narrows the context that #8391 deliberately widened.
+        let dense = log_of(400, 20);
+
+        // Preprocessing drops lines, so keys are sparse and the highest key
+        // exceeds `lines.len()` -- the case where a dense numeric walk and a
+        // key walk diverge. `get_snippets` clamps its window to the highest
+        // KEY, so the two must still agree.
+        let mut sparse = log_of(400, 20);
+        for n in (2..=400).step_by(3) {
+            sparse.lines.remove(&n);
+        }
+        assert!(sparse.lines.len() < 400);
+        assert_eq!(sparse.lines.keys().next_back(), Some(&400));
+
+        let num_lines = 100;
+        for (label, log) in [("dense", &dense), ("sparse", &sparse)] {
+            for anchor in [1, 3, 51, 199, 351, 400] {
+                if !log.lines.contains_key(&anchor) {
+                    continue;
+                }
+                let old =
+                    crate::engine::get_snippets(log, vec![anchor], num_lines / 2, num_lines + 1);
+                assert_eq!(old.len(), 1, "{label} anchor {anchor}");
+                let new = snippet_around(log, anchor, num_lines, usize::MAX).unwrap();
+                assert_eq!(
+                    new, old[0],
+                    "{label}: window differs from get_snippets at {anchor}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn snippet_returns_none_for_line_zero_rather_than_panicking() {
+        // Line numbers are 1-indexed, so 0 is never a key. The early return is
+        // what keeps 0 out of `range(lo..error_line)`, which panics on
+        // start > end once `lo` is clamped up to 1.
+        let log = log_of(10, 20);
+        assert_eq!(snippet_around(&log, 0, 500, 10_000), None);
+    }
+
+    // ---- truncate_on_char_boundary ----------------------------------------
+
+    #[test]
+    fn truncate_on_char_boundary_is_a_noop_at_or_under_the_limit() {
+        assert_eq!(truncate_on_char_boundary("héllo", 100), "héllo");
+        assert_eq!(truncate_on_char_boundary("héllo", "héllo".len()), "héllo");
+    }
+
+    #[test]
+    fn truncate_on_char_boundary_backs_off_a_whole_character() {
+        // 'é' is two bytes, so a cut at byte 2 splits it and must back off to
+        // byte 1. Slicing a `str` off a boundary panics rather than erroring.
+        assert_eq!(truncate_on_char_boundary("aéb", 2), "a");
+        assert_eq!(truncate_on_char_boundary("aéb", 3), "aé");
+        // A budget smaller than the first character yields "", not a panic.
+        assert_eq!(truncate_on_char_boundary("é", 1), "");
+    }
+
+    // ---- validate_output_in_log: the line NUMBER --------------------------
+    //
+    // Every pre-existing test discards this value with `_`, but it is what
+    // `SerializedMatch.line_num` carries and what HUD / Dr. CI highlight.
+
+    #[test]
+    fn validate_output_reports_the_line_number_of_the_match() {
+        let log = log_of(10, 0);
+        let (line_num, validation) =
+            validate_output_in_log("<error_line>line 7</error_line>", &log);
+        assert_eq!(line_num, 7);
+        assert_eq!(validation, Some("line 7".to_string()));
+    }
+
+    #[test]
+    fn validate_output_rejects_an_empty_error_line() {
+        // A model that emits the tags with nothing between them would otherwise
+        // "match" the first blank line in the log -- `Log::new` keeps blank
+        // lines -- and `handle()` would then REPLACE the ruleset verdict with a
+        // match whose line is the empty string, which reads on HUD as "the
+        // classifier had nothing to say". An empty answer must fall through.
+        let log = Log::new("first\n\nthird\n".to_string());
+        assert_eq!(log.lines.get(&2).map(String::as_str), Some(""));
+
+        let (line_num, validation) = validate_output_in_log("<error_line></error_line>", &log);
+        assert_eq!(validation, None);
+        assert_eq!(line_num, 0);
+
+        // Whitespace-only is the same case: the content is trimmed first.
+        let (_, whitespace) = validate_output_in_log("<error_line>   </error_line>", &log);
+        assert_eq!(whitespace, None);
+    }
+
+    // ---- make_query -------------------------------------------------------
+
+    #[tokio::test]
+    async fn make_query_returns_none_when_the_line_is_not_in_the_log() {
+        // Under the old `get_snippets` call this was a PANIC, not a None:
+        // `get_line_number_chunks` panics outright on a line number past the
+        // highest key. That is the second panic this change removed, and the
+        // only `make_query` path reachable without a Bedrock client.
+        //
+        // Scope, honestly: this asserts the return value. It does not prove no
+        // Bedrock call was attempted -- `snippet_around`'s `?` is what
+        // short-circuits, and proving that needs client injection, which
+        // `make_bedrock_call` does not currently allow.
+        let log = log_of(10, 20);
+        assert!(make_query(&log, &999, 500).await.is_none());
     }
 
     // // Actually use the llm. Uncomment and you should hopefully see a reasonable output.
