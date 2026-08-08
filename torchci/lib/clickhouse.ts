@@ -4,11 +4,19 @@
 // deploy.
 import { createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import { v4 as uuidv4 } from "uuid";
 // Import itself to ensure that mocks can be applied, see
 // https://stackoverflow.com/questions/51900413/jest-mock-function-doesnt-work-while-it-was-called-in-the-other-function
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
 import * as thisModule from "./clickhouse";
+
+// Route ClickHouse traffic through an HTTP(S) proxy when one is configured (e.g. local
+// dev behind the x2p agent proxy). No-op in production where no proxy env is set.
+function proxyAgent() {
+  const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy;
+  return proxy ? new HttpsProxyAgent(proxy) : undefined;
+}
 
 export function getClickhouseClient() {
   return createClient({
@@ -16,6 +24,7 @@ export function getClickhouseClient() {
     username: process.env.CLICKHOUSE_HUD_USER_USERNAME ?? "default",
     password: process.env.CLICKHOUSE_HUD_USER_PASSWORD ?? "",
     request_timeout: 180_000, // 3 mins
+    http_agent: proxyAgent(),
   });
 }
 //
