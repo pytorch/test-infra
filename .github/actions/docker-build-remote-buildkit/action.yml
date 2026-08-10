@@ -46,8 +46,12 @@ inputs:
       based on the runner's architecture.
     default: ''
   connect-attempts:
-    description: How many times to retry a connection-phase failure before giving up.
-    default: '40'
+    description: >
+      How many times to retry a connection-phase failure before giving up. The default of 480 at
+      the default 15s delay waits roughly two hours for a builder, which covers a fully cold or
+      saturated pool (one build per builder pod, so a burst queues). Bound the real ceiling with
+      the job's `timeout-minutes`, not by lowering this.
+    default: '480'
   connect-delay:
     description: Seconds to wait between connection-phase retries.
     default: '15'

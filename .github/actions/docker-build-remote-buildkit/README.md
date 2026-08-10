@@ -29,8 +29,10 @@ retries only *connection-phase* failures (`waiting for connection`, `failed to d
 `context deadline exceeded`, `server preface`, …). Once BuildKit has started the build, a failure is
 a real build error and is never retried.
 
-Each builder pod serves one build at a time (HAProxy `maxconn 1`), which is why the retry loop
-matters during a burst; tune it with `connect-attempts` / `connect-delay`.
+Each builder pod serves one build at a time (HAProxy `maxconn 1`), so during a burst your build
+queues behind the pool scaling up. The retry loop defaults to `connect-attempts: 480` at
+`connect-delay: 15`, i.e. it will wait roughly two hours for a builder. Bound how long a job is
+actually willing to wait with its own `timeout-minutes` rather than by lowering the attempts.
 
 ## Notes
 

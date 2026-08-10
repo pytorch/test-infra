@@ -27,7 +27,9 @@ docker buildx create --name remote-buildkit --driver remote --use "${buildkit_ad
 log="$(mktemp)"
 trap 'rm -f "${log}"' EXIT
 
-attempts="${REMOTE_BUILDKIT_CONNECT_ATTEMPTS:-40}"
+# 480 x 15s ~= 2h of waiting for a builder, which covers a fully cold or
+# saturated pool. Bound the real ceiling with the job's timeout-minutes.
+attempts="${REMOTE_BUILDKIT_CONNECT_ATTEMPTS:-480}"
 delay="${REMOTE_BUILDKIT_CONNECT_DELAY:-15}"
 for attempt in $(seq 1 "${attempts}"); do
   set +e
