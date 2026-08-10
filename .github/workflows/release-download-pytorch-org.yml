@@ -58,7 +58,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-            set -ex
+            set -exo pipefail
             cd release
             # Install requirements
             pip install awscli==1.32.18
@@ -97,8 +97,26 @@ jobs:
               export PACKAGE_INCLUDE_SUFFIX="-*"
             fi
 
+            # Tee the transfer output so the next step can list what moved.
             # shellcheck disable=SC2086
-            promote_s3 ${PACKAGE} whl "${!version}"
+            promote_s3 ${PACKAGE} whl "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+
+      # always(): a promotion that dies partway through is exactly when you want to
+      # know which files already made it to prod.
+      - name: Summarize promoted files
+        if: always()
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
+        run: |
+            set -euo pipefail
+            source ./release/release_versions.sh
+            version="${PACKAGE^^}_VERSION"
+            ./release/summarize_promoted_files.sh \
+              "${RUNNER_TEMP}/promote.log" \
+              "${PACKAGE} ${!version} - promoted to download.pytorch.org" \
+              "${DRY_RUN}"
 
       - name: Recompute SHA256 on whl/ (prod) for promoted package
         if: ${{ inputs.dryrun == 'disabled' }}

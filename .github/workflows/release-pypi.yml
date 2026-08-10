@@ -53,17 +53,37 @@ jobs:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
         run: |
-            set -ex
+            set -exo pipefail
 
             # Init release versions variables
             source ./release/release_versions.sh
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
             mkdir dist/
+            # Only stdout is teed; --debug goes to stderr and stays in the job log.
             # shellcheck disable=SC2086
-            aws s3 sync "s3://pytorch-backup/${PACKAGE}-${!version}-pypi-staging/" dist/ --debug
+            aws s3 sync "s3://pytorch-backup/${PACKAGE}-${!version}-pypi-staging/" dist/ --debug \
+              | tee -a "${RUNNER_TEMP}/download.log"
       - name: Display structure of downloaded files
         run: ls -R dist/
+
+      # Runs before the publish step, so the title says what will be published
+      # rather than asserting that it was.
+      - name: Summarize files to publish
+        if: always()
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
+        run: |
+            set -euo pipefail
+            source ./release/release_versions.sh
+            version="${PACKAGE^^}_VERSION"
+            ./release/summarize_promoted_files.sh \
+              "${RUNNER_TEMP}/download.log" \
+              "${PACKAGE} ${!version} - files to publish to PyPI" \
+              "${DRY_RUN}"
+
       - name: Publish package to PyPI
         if: ${{ inputs.dryrun == 'disabled' }}
         uses: pypa/gh-action-pypi-publish@release/v1
