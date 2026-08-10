@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import comment_format, constants, github_client, state_emit
+from greenlight import comment_format, constants, github_client, redact, state_emit
 from greenlight.constants import (
     IN_FLIGHT_STATUSES,
     RETRY_STATUSES,
@@ -332,6 +332,9 @@ def run(
     if status in _MARKER_STATUSES:
         _run_marker(request, config, status, build_github=build_github, emit=emit, now=now, new_emit_id=new_emit_id)
         return
+    # Single scrub point: the model message fans out to the ClickHouse row (_emit_payload) and the
+    # GitHub comment (verdict_body/defang) below, so redact secrets here to cover both sinks once.
+    message = redact.scrub_secrets(message)
     _validate_reason(reason)
     _validate_message(message)
     _validate_eval_hash(request.eval_hash)

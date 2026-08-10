@@ -198,6 +198,26 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert "LGTM" in comment
 
 
+def test_full_land_scrubs_secret_in_both_row_and_comment(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    secret = "ghp_0123456789abcdefghijABCDEFGHIJ0123456789"
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message=f"LGTM token {secret}")
+    req = VerdictRequest(repo="r", pr_number=30, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # Both sinks receive the scrubbed message: the ClickHouse row and the GitHub comment.
+    payload = _decode(emit.row_gzip)
+    assert payload["message"] == "LGTM token [REDACTED]"
+    assert secret not in str(payload["message"])
+    body = pr.comments[0]
+    assert "[REDACTED]" in body
+    assert secret not in body
+
+
 def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
@@ -310,7 +330,13 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     ]
     pr = _FakePR("headsha", rec, reviews=reviews)
     gh = _FakeGithub(_FakeRepo(pr))
-    vf = _write_verdict(tmp_path, status="NO_LAND", reason="scope_too_large", message="@pytorchbot please split")
+    secret = "ghp_0123456789abcdefghijABCDEFGHIJ0123456789"
+    vf = _write_verdict(
+        tmp_path,
+        status="NO_LAND",
+        reason="scope_too_large",
+        message=f"@pytorchbot please split; token {secret}",
+    )
     req = VerdictRequest(
         repo="pytorch/pytorch",
         pr_number=8,
@@ -326,8 +352,10 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert rec.events == ["emit", "dismiss:1", "comment"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     payload = _decode(emit.row_gzip)
-    # The FULL, un-defanged message is stored in the emitted payload.
-    assert payload["message"] == "@pytorchbot please split"
+    # The stored message is scrubbed of secrets but otherwise verbatim -- not @-defanged like the
+    # comment; the row keeps the readable text with only the credential replaced.
+    assert payload["message"] == "@pytorchbot please split; token [REDACTED]"
+    assert secret not in str(payload["message"])
     assert payload["status"] == "NO_LAND"
     assert payload["reason"] == "scope_too_large"
     assert payload["eval_job"] == "https://eval-run"
@@ -342,6 +370,9 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert "pytorchbot" in body
     assert comment_format._ZERO_WIDTH_SPACE in body
     assert "```" in body
+    # The comment path also receives the scrubbed text: the secret never reaches GitHub.
+    assert "[REDACTED]" in body
+    assert secret not in body
 
 
 def test_full_no_land_without_prior_approval_still_comments(make_config, tmp_path, caplog):
