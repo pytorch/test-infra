@@ -35,7 +35,7 @@ runs:
       run: |
         set -eux
 
-        uv venv "${RUNNER_TEMP}/benchmark-upload-venv"
+        uv venv --clear "${RUNNER_TEMP}/benchmark-upload-venv"
 
         export VIRTUAL_ENV="${RUNNER_TEMP}/benchmark-upload-venv"
         echo "VIRTUAL_ENV=${RUNNER_TEMP}/benchmark-upload-venv" >> $GITHUB_ENV
