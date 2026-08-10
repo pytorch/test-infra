@@ -276,7 +276,9 @@ class TestErrorLinesParsing(unittest.TestCase):
         parsed_log = parse_log(log)
         pytest_result = parsed_log.pytest_results[0]
         self.assertEqual(len(pytest_result.test_failures), 1)
-        self.assertEqual(pytest_result.test_failures[0].test_id, "tests/test_x.py::test_y")
+        self.assertEqual(
+            pytest_result.test_failures[0].test_id, "tests/test_x.py::test_y"
+        )
 
 
 class TestExpectedFailureCount(unittest.TestCase):
@@ -362,14 +364,18 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
 
         session_one = parsed_log.pytest_results[0]
         self.assertEqual(len(session_one.test_failures), 1)
-        self.assertEqual(session_one.test_failures[0].test_id, "tests/test_a.py::test_one")
+        self.assertEqual(
+            session_one.test_failures[0].test_id, "tests/test_a.py::test_one"
+        )
         self.assertEqual(session_one.test_failures[0].exception_class, "ValueError")
         self.assertIn("bad", session_one.test_failures[0].exception_chain)
         self.assertEqual(session_one.expected_test_failure_count, 1)
 
         session_two = parsed_log.pytest_results[1]
         self.assertEqual(len(session_two.test_failures), 2)
-        self.assertEqual(session_two.test_failures[0].test_id, "tests/test_b.py::test_two")
+        self.assertEqual(
+            session_two.test_failures[0].test_id, "tests/test_b.py::test_two"
+        )
         self.assertEqual(session_two.test_failures[0].exception_class, "TypeError")
         self.assertIn("wrong", session_two.test_failures[0].exception_chain)
         self.assertEqual(
@@ -410,7 +416,9 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
 
         session_one = parsed_log.pytest_results[0]
         self.assertEqual(len(session_one.test_failures), 1)
-        self.assertEqual(session_one.test_failures[0].test_id, "tests/test_a.py::test_one")
+        self.assertEqual(
+            session_one.test_failures[0].test_id, "tests/test_a.py::test_one"
+        )
 
         session_two = parsed_log.pytest_results[1]
         self.assertEqual(len(session_two.test_failures), 0)
@@ -463,6 +471,7 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
             if pytest_result.test_failures:
                 failing_session = pytest_result
         self.assertIsNotNone(failing_session)
+        assert failing_session is not None
         self.assertEqual(len(failing_session.test_failures), 2)
         self.assertEqual(failing_session.expected_test_failure_count, 2)
         self.assertIn("2 failed", failing_session.pytest_summary)
@@ -496,6 +505,7 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
             if pytest_result.test_failures:
                 failing_session = pytest_result
         self.assertIsNotNone(failing_session)
+        assert failing_session is not None
         self.assertEqual(len(failing_session.test_failures), 2)
         self.assertEqual(failing_session.expected_test_failure_count, 2)
 
@@ -510,7 +520,9 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
         self.assertIn("RuntimeError: Engine core initialization failed", body)
 
         kernel_dispatch = failing_session.test_failures[1]
-        self.assertEqual(kernel_dispatch.test_id, "test_engine.py::test_kernel_dispatch")
+        self.assertEqual(
+            kernel_dispatch.test_id, "test_engine.py::test_kernel_dispatch"
+        )
         self.assertEqual(kernel_dispatch.exception_class, "RuntimeError")
         self.assertIn(
             "Engine core initialization failed", kernel_dispatch.exception_chain
@@ -628,7 +640,8 @@ class TestCustomRunnerSummaryIgnored(unittest.TestCase):
         self.assertEqual(session.expected_test_failure_count, 1)
         self.assertEqual(len(session.test_failures), 1)
         self.assertEqual(
-            session.test_failures[0].test_id, "tests/test_moe.py::test_moe_layer[param-3]"
+            session.test_failures[0].test_id,
+            "tests/test_moe.py::test_moe_layer[param-3]",
         )
 
     def test_multiple_custom_summaries_before_real(self) -> None:

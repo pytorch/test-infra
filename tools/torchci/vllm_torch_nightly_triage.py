@@ -33,7 +33,6 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
-
 from torchci.vllm_log_parser import parse_log, strip_markers
 
 
