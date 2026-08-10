@@ -38,8 +38,8 @@ actually willing to wait with its own `timeout-minutes` rather than by lowering 
 
 - **Push, don't load.** There is no local daemon, so `--load` has nothing to load into. `push: false`
   builds and discards the image.
-- **Remote BuildKit is per-arch.** `platforms` defaults to the runner's own architecture; to build
-  for another platform you need a runner (and builder) of that architecture.
+- **Remote BuildKit is per-arch**, so the build always targets the runner's own architecture. To
+  build for another platform, run the job on a runner of that architecture.
 - BuildKit allows roughly 120 minutes per build — keep the job's `timeout-minutes` above that for
   large images.
 

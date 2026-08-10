@@ -8,14 +8,10 @@
 # Adapted from pytorch/pytorch .github/scripts/build_with_remote_buildkit.sh.
 set -euo pipefail
 
-if [[ -n "${REMOTE_BUILDKIT_ADDR:-}" ]]; then
-  buildkit_addr="${REMOTE_BUILDKIT_ADDR}"
-else
-  case "$(uname -m)" in
-    aarch64|arm64) buildkit_addr="tcp://buildkitd-arm64.buildkit:1234" ;;
-    *)             buildkit_addr="tcp://buildkitd-amd64.buildkit:1234" ;;
-  esac
-fi
+case "$(uname -m)" in
+  aarch64|arm64) buildkit_addr="tcp://buildkitd-arm64.buildkit:1234" ;;
+  *)             buildkit_addr="tcp://buildkitd-amd64.buildkit:1234" ;;
+esac
 
 # Bare `create` on purpose: `docker buildx create --bootstrap` and
 # docker/setup-buildx-action both run `buildx inspect --bootstrap`, whose ~20s
