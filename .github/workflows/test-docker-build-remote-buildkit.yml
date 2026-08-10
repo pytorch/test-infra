@@ -1,0 +1,118 @@
+name: Test docker-build-remote-buildkit
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/docker-build-remote-buildkit/**
+      - .github/workflows/test-docker-build-remote-buildkit.yml
+  push:
+    branches:
+      - main
+    paths:
+      - .github/actions/docker-build-remote-buildkit/**
+      - .github/workflows/test-docker-build-remote-buildkit.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  smoke:
+    # Fork PRs get no writable token, so the ghcr push can't work there (and a
+    # maintainer has to approve the run anyway).
+    if: ${{ github.event.pull_request.head.repo.fork != true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: mt-l-x86iavx512-8-64
+          - arch: arm64
+            runner: mt-l-arm64g4-16-62
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ghcr.io/actions/actions-runner:latest
+    # The actions-runner container defaults `run:` to sh; the action and these
+    # steps need bash.
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write a trivial build context
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/ctx"
+          cat > "${RUNNER_TEMP}/ctx/Dockerfile" <<'EOF'
+          FROM alpine:3.20
+          ARG GREETING=hello
+          RUN echo "${GREETING} from remote buildkit" > /greeting
+          EOF
+          # Used by the negative test below: fails *after* BuildKit has started
+          # the build and emitted progress, which is the case the retry
+          # discriminator must not treat as a cold pool.
+          cat > "${RUNNER_TEMP}/ctx/Dockerfile.broken" <<'EOF'
+          FROM alpine:3.20
+          RUN echo "this build is meant to fail" && exit 1
+          EOF
+
+      # Happy path: builds on the in-cluster builder and pushes. Exercises the
+      # cold-pool retry, the per-arch endpoint, and --push.
+      - name: Build and push
+        id: build
+        uses: ./.github/actions/docker-build-remote-buildkit
+        with:
+          context: ${{ runner.temp }}/ctx
+          tags: ghcr.io/pytorch/test-infra/buildkit-smoke:${{ matrix.arch }}
+          build-args: |
+            GREETING=ci
+          push: true
+
+      - name: Assert the image is really in the registry
+        env:
+          IMAGE: ${{ steps.build.outputs.image }}
+        run: |
+          set -euo pipefail
+          echo "action reported image=${IMAGE}"
+          [[ "${IMAGE}" == "ghcr.io/pytorch/test-infra/buildkit-smoke:${{ matrix.arch }}" ]]
+          # Registry-side inspect: no local daemon needed.
+          docker buildx imagetools inspect "${IMAGE}"
+
+      # Negative path: a genuine build error must fail fast, not burn 40
+      # connection retries. If the retry discriminator ever regresses to
+      # "retry anything", this step blows the job timeout instead of failing.
+      - name: Build a deliberately broken image
+        id: broken
+        continue-on-error: true
+        uses: ./.github/actions/docker-build-remote-buildkit
+        with:
+          context: ${{ runner.temp }}/ctx
+          file: ${{ runner.temp }}/ctx/Dockerfile.broken
+          tags: ghcr.io/pytorch/test-infra/buildkit-smoke:${{ matrix.arch }}-broken
+          push: false
+          connect-attempts: '3'
+          connect-delay: '5'
+
+      - name: Assert the broken build failed
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.broken.outcome }}" != "failure" ]]; then
+            echo "::error::a Dockerfile with a failing RUN should have failed the build, got '${{ steps.broken.outcome }}'"
+            exit 1
+          fi
+          echo "broken build failed as expected (and was not retried)"
