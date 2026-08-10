@@ -72,3 +72,25 @@ def test_cuda_variables_cuda_windows_wheels(gpu_arch_version):
         f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
+
+
+@pytest.mark.parametrize("sanitized_version", ["13.0", "13.2", "13.4"])
+@pytest.mark.parametrize("platform", ["linux", "linux-aarch64"])
+def test_cuda_arch_list_cuda13_excludes_removed_arches(sanitized_version, platform):
+    # CUDA 13 removed sm_50/sm_60; requesting them makes nvcc fail with
+    # "Unsupported gpu architecture 'compute_50'".
+    arch_list = get_cuda_arch_list(sanitized_version, platform=platform)
+    assert "5.0" not in arch_list
+    assert "6.0" not in arch_list
+
+
+@pytest.mark.parametrize("sanitized_version", ["13.0", "13.2", "13.4"])
+def test_cuda_arch_list_cuda13(sanitized_version):
+    assert (
+        get_cuda_arch_list(sanitized_version, platform="linux")
+        == "7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    )
+    assert (
+        get_cuda_arch_list(sanitized_version, platform="linux-aarch64")
+        == "8.0;9.0;10.0;11.0;12.0+PTX"
+    )
