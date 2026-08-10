@@ -46,7 +46,7 @@ jobs:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
         run: |
-            set -ex
+            set -exo pipefail
             cd release/pypi
 
             # Default Version to promote
@@ -66,10 +66,12 @@ jobs:
               local promote_version
               promote_version=$2
               echo "=-=-=-= Promoting ${package_name}'s v${promote_version} to pypi staging' =-=-=-="
+              # Tee every platform's transfers into one log so the summary step can
+              # list them all together.
               (
                   set -x
                   PACKAGE_VERSION="${promote_version}" PACKAGE_NAME="${package_name}" DRY_RUN="${DRY_RUN}" bash ./upload_pypi_to_staging.sh
-              )
+              ) 2>&1 | tee -a "${RUNNER_TEMP}/stage.log"
               echo
             }
 
@@ -118,3 +120,20 @@ jobs:
               # shellcheck disable=SC2086
               PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                      upload_pypi_to_staging ${PACKAGE} "${!version}"
             fi
+
+      # always(): staging fans out over several platforms, so a mid-run failure
+      # still leaves a partial set in the staging bucket worth listing.
+      - name: Summarize staged files
+        if: always()
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
+        run: |
+            set -euo pipefail
+            source ./release/release_versions.sh
+            version="${PACKAGE^^}_VERSION"
+            ./release/summarize_promoted_files.sh \
+              "${RUNNER_TEMP}/stage.log" \
+              "${PACKAGE} ${!version} - staged for PyPI" \
+              "${DRY_RUN}"
