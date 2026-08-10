@@ -2,17 +2,39 @@ import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import { CommitData } from "./types";
 
+// Preview deployments authenticate as their own GitHub App, so a preview can
+// never act as the production bot. Falls back to the production pair when the
+// preview one is not configured, to keep existing previews working.
+function getAppCredentials(): { appId: string; privateKey: string } {
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  const appId = (isPreview && process.env.PREVIEW_APP_ID) || process.env.APP_ID;
+  const encodedPrivateKey =
+    (isPreview && process.env.PREVIEW_PRIVATE_KEY) || process.env.PRIVATE_KEY;
+
+  if (!appId || !encodedPrivateKey) {
+    const names = isPreview
+      ? "PREVIEW_APP_ID and PREVIEW_PRIVATE_KEY"
+      : "APP_ID and PRIVATE_KEY";
+    throw new Error(`Missing GitHub App credentials: ${names} are not set.`);
+  }
+
+  // Both variables hold the base64 of the whole .pem file, not the PEM text.
+  return {
+    appId,
+    privateKey: Buffer.from(encodedPrivateKey, "base64").toString(),
+  };
+}
+
 // Retrieve an Octokit instance authenticated as PyTorchBot's installation on
 // the given repo.
 export async function getOctokit(
   owner: string,
   repo: string
 ): Promise<Octokit> {
-  let privateKey = process.env.PRIVATE_KEY as string;
-  privateKey = Buffer.from(privateKey, "base64").toString();
+  const { appId, privateKey } = getAppCredentials();
 
   const app = new App({
-    appId: process.env.APP_ID!,
+    appId,
     privateKey,
   });
 
@@ -32,7 +54,7 @@ export async function getOctokit(
   return new Octokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: process.env.APP_ID,
+      appId,
       privateKey,
       installationId: installation.data.id,
     },
