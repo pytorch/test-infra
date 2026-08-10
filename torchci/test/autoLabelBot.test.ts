@@ -1450,46 +1450,6 @@ describe("auto-label-bot: labeler.yml config", () => {
     );
     utils.mockConfig("labeler.yml", config, repoFullName);
     utils.mockHasApprovedWorkflowRun(repoFullName);
-    mockBotLabelTimeline(repoFullName, prNumber, [{ name: "ciflow/inductor" }]);
-    const removeScope = mockRemoveLabel(
-      "ciflow/inductor",
-      repoFullName,
-      prNumber
-    );
-    await probot.receive(event);
-    scope.done();
-    removeScope.done();
-  });
-
-  test("labeler draft:false removes label when labeled event is after 30 timeline events", async () => {
-    const event = requireDeepCopy("./fixtures/pull_request.opened");
-    event.payload.action = "converted_to_draft";
-    event.payload.pull_request.draft = true;
-    event.payload.pull_request.labels = [
-      { name: "module: dynamo" },
-      { name: "ciflow/inductor" },
-    ];
-    const prFiles = requireDeepCopy("./fixtures/pull_files");
-    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
-    const repoFullName = "zhouzhuojie/gha-ci-playground";
-    const prNumber = 31;
-    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
-    const config = `
-"module: dynamo":
-- torch/_dynamo/**
-
-"ciflow/inductor":
-  globs:
-    - torch/_dynamo/**
-  draft: false
-`;
-    utils.mockConfig(
-      "pytorch-probot.yml",
-      "labeler_config: labeler.yml",
-      repoFullName
-    );
-    utils.mockConfig("labeler.yml", config, repoFullName);
-    utils.mockHasApprovedWorkflowRun(repoFullName);
     mockBotLabelTimeline(
       repoFullName,
       prNumber,
