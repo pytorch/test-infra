@@ -73,9 +73,13 @@ jobs:
 
       # Happy path: builds on the in-cluster builder and pushes. Exercises the
       # cold-pool retry, the per-arch endpoint, and --push.
+      # Relative `uses: ./…` does NOT work here: the ARC k8s hook copies the
+      # workspace into the job container, so the runner process never sees the
+      # checkout and can't resolve a local action. Reference it by full path.
+      # TODO: flip the ref to @main when this PR lands.
       - name: Build and push
         id: build
-        uses: ./.github/actions/docker-build-remote-buildkit
+        uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@osdc-remote-buildkit-action
         with:
           context: ${{ runner.temp }}/ctx
           tags: ghcr.io/pytorch/test-infra/buildkit-smoke:${{ matrix.arch }}
@@ -99,7 +103,7 @@ jobs:
       - name: Build a deliberately broken image
         id: broken
         continue-on-error: true
-        uses: ./.github/actions/docker-build-remote-buildkit
+        uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@osdc-remote-buildkit-action
         with:
           context: ${{ runner.temp }}/ctx
           file: ${{ runner.temp }}/ctx/Dockerfile.broken
