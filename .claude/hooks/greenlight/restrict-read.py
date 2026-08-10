@@ -6,10 +6,15 @@ OIDC credentials in /proc/self/environ or $GITHUB_ENV and the scoped checkout to
 ./pytorch/.git/config. This is deny-by-default: a target is allowed only when its
 os.path.realpath (symlinks and '..' resolved, because the ./pytorch tree is attacker-
 controlled) lands under an allowed root with an os.sep boundary, and never when the resolved
-path carries a .git component. exit 2 blocks with a stderr reason; exit 0 defers to the normal
-permission flow. Depends only on the standard library so it runs under the CI system python3,
-and fails closed on ANY error: claude-code-action treats every non-2 exit as non-blocking, so
-main() converts any unexpected exception into a blocking exit 2.
+path carries a .git component. exit 2 blocks with a stderr reason; exit 0 allows — silently deferring to the normal
+permission flow, except a path-less Glob/Grep, which exits 0 with an "allow" decision that
+rewrites the search path (see below). Read and an explicit Glob/Grep path stay deny-by-default; a path-less
+Glob/Grep is not denied but rewritten to search ./pytorch via an exit-0
+hookSpecificOutput.updatedInput "allow" decision. That rewrite relies on the reviewer CLI
+honoring updatedInput; a CLI that ignored it would fall back to a workspace-root search.
+Depends only on the standard library so it runs under the CI system python3, and fails closed
+on ANY error: claude-code-action treats every non-2 exit as non-blocking, so main() converts
+any unexpected exception into a blocking exit 2.
 """
 
 from __future__ import annotations
@@ -33,9 +38,13 @@ def _scratch_prefix() -> str:
     return os.path.realpath("/tmp") + os.sep + _SCRATCH_BASENAME_PREFIX  # noqa: S108
 
 
+def _pytorch_dir(workspace: str) -> str:
+    return os.path.join(workspace, "pytorch")
+
+
 def _allowed_roots(workspace: str) -> list[str]:
     roots = [
-        os.path.join(workspace, "pytorch"),
+        _pytorch_dir(workspace),
         os.path.join(workspace, ".claude", "skills"),
         os.path.join(workspace, ".claude", "hooks"),
     ]
@@ -88,10 +97,29 @@ def _check_read(tool_input: dict[str, object], workspace: str) -> int:
     return _check_target(file_path, workspace)
 
 
+def _allow_with_default_path(tool_input: dict[str, object], workspace: str) -> int:
+    # updatedInput replaces the ENTIRE tool input, so copy every original field and set
+    # 'path' last (an attacker-supplied empty/junk path cannot survive). Absolute, not
+    # CWD-relative, so the search root is pinned to ./pytorch regardless of the tool's
+    # working directory and matches the pytorch allowed root by construction.
+    updated = dict(tool_input)
+    updated["path"] = _pytorch_dir(workspace)
+    decision = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "permissionDecisionReason": "path-less Glob/Grep defaulted to ./pytorch",
+            "updatedInput": updated,
+        }
+    }
+    print(json.dumps(decision))
+    return 0
+
+
 def _check_search_path(tool_input: dict[str, object], workspace: str) -> int:
     path = tool_input.get("path")
     if not isinstance(path, str) or not path:
-        return _deny(f"read blocked: reads are confined to {_ALLOWED_DESC}; pass an explicit path under ./pytorch.")
+        return _allow_with_default_path(tool_input, workspace)
     denied = _reject_dotdot("path", path)
     if denied:
         return denied

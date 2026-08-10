@@ -4,8 +4,9 @@ The hook is a standalone script outside the greenlight package, so it is exercis
 subprocess under the same interpreter (the way claude-code-action invokes it) rather than
 imported. Deny-by-default: a Read/Glob/Grep target is allowed only when its os.path.realpath
 lands under $GITHUB_WORKSPACE/pytorch, .claude/skills, .claude/hooks, or the /tmp/greenlight-*
-scratch prefix, and never when it carries a .git component or a '..'. exit 0 allows, exit 2
-blocks. Living outside the greenlight package, these tests do not affect --cov=greenlight.
+scratch prefix, and never when it carries a .git component or a '..'. A path-less Glob/Grep is
+not denied but rewritten to default path=./pytorch. exit 0 allows, exit 2 blocks. Living
+outside the greenlight package, these tests do not affect --cov=greenlight.
 """
 
 import json
@@ -150,18 +151,81 @@ def test_read_missing_file_path_denied(tmp_path):
     assert result.returncode == 2
 
 
-def test_glob_without_path_denied(tmp_path):
+def test_glob_without_path_defaults_to_pytorch(tmp_path):
     ws = _workspace(tmp_path)
     result = _run(_event("Glob", pattern="**/*.py"), workspace=ws)
-    assert result.returncode == 2
-    assert "explicit path" in result.stderr
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["permissionDecision"] == "allow"
+    assert output["updatedInput"]["path"] == os.path.join(str(ws), "pytorch")
+    assert output["updatedInput"]["pattern"] == "**/*.py"
 
 
-def test_grep_without_path_denied(tmp_path):
+def test_grep_without_path_defaults_to_pytorch(tmp_path):
     ws = _workspace(tmp_path)
     result = _run(_event("Grep", pattern="def "), workspace=ws)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["updatedInput"]["path"] == os.path.join(str(ws), "pytorch")
+    assert output["updatedInput"]["pattern"] == "def "
+
+
+def test_grep_empty_path_defaults_to_pytorch(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Grep", pattern="def ", path=""), workspace=ws)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["updatedInput"]["path"] == os.path.join(str(ws), "pytorch")
+
+
+def test_search_default_preserves_fields_and_overrides_supplied_path(tmp_path):
+    ws = _workspace(tmp_path)
+    event: dict[str, object] = {
+        "tool_name": "Grep",
+        "tool_input": {"pattern": "x", "path": "", "output_mode": "content", "-n": True},
+    }
+    result = _run(event, workspace=ws)
+    assert result.returncode == 0, result.stderr
+    updated = json.loads(result.stdout)["hookSpecificOutput"]["updatedInput"]
+    assert updated["path"] == os.path.join(str(ws), "pytorch")
+    assert updated["output_mode"] == "content"
+    assert updated["-n"] is True
+    assert updated["pattern"] == "x"
+
+
+def test_glob_without_path_dotdot_pattern_denied(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Glob", pattern="../*.py"), workspace=ws)
     assert result.returncode == 2
-    assert "explicit path" in result.stderr
+    assert ".." in result.stderr
+
+
+def test_glob_without_path_absolute_pattern_denied(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Glob", pattern="/etc/*"), workspace=ws)
+    assert result.returncode == 2
+    assert "absolute" in result.stderr
+
+
+def test_grep_without_path_absolute_glob_denied(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Grep", pattern="x", glob="/etc/*"), workspace=ws)
+    assert result.returncode == 2
+    assert "absolute" in result.stderr
+
+
+def test_grep_without_path_dotdot_glob_denied(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Grep", pattern="x", glob="../*"), workspace=ws)
+    assert result.returncode == 2
+    assert ".." in result.stderr
+
+
+def test_explicit_path_allow_emits_no_stdout(tmp_path):
+    ws = _workspace(tmp_path)
+    result = _run(_event("Glob", path=str(ws / "pytorch"), pattern="**/*.py"), workspace=ws)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == ""
 
 
 def test_glob_pattern_with_dotdot_denied(tmp_path):
