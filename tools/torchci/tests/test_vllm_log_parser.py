@@ -1,4 +1,4 @@
-"""Tests for clean_logs against real Buildkite log fixtures.
+"""Tests for parse_log/strip_markers against real Buildkite log fixtures.
 
 Log fixtures are tails (~100 lines) from real Buildkite job logs.
 raw_log_snippet.bin has ANSI + BKT markers for strip testing.
@@ -100,7 +100,7 @@ class TestCleanLog(unittest.TestCase):
             for failure in pytest_result.test_failures:
                 all_failures.append(failure)
         self.assertEqual(len(all_failures), 1)
-        self.assertEqual(all_failures[0].exception_class, "ImportError")
+        self.assertEqual(all_failures[0].pytest_exception_class, "ImportError")
         self.assertIn("nixl_ep_cpp", all_failures[0].exception_chain)
 
     def test_nixl_import_summary(self) -> None:
@@ -130,7 +130,7 @@ class TestCleanLog(unittest.TestCase):
                 all_failures.append(failure)
         self.assertEqual(len(all_failures), 50)
         for failure in all_failures:
-            self.assertTrue(failure.exception_class)
+            self.assertTrue(failure.pytest_exception_class)
 
     def test_engine_sentinel_and_direct_failures(self) -> None:
         """Engine tail: some tests have CUDA driver error directly, sentinels
@@ -155,7 +155,7 @@ class TestCleanLog(unittest.TestCase):
         log_dynamo_regression = read_fixture_text("log_dynamo_regression.txt")
         parsed_log = parse_log(log_dynamo_regression)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "RuntimeError")
+        self.assertEqual(failure.pytest_exception_class, "RuntimeError")
         self.assertIn("Test subprocess", failure.exception_chain)
         self.assertIn("RuntimeError", failure.exception_chain)
         self.assertIn("Server exited unexpectedly", failure.exception_chain)
@@ -168,14 +168,14 @@ class TestExpandedExceptionSuffixes(unittest.TestCase):
         log = "FAILED tests/test_runner.py::test_spawn - SystemExit: 1\n= 1 failed in 5.00s ="
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "SystemExit")
+        self.assertEqual(failure.pytest_exception_class, "SystemExit")
         self.assertIn("1", failure.exception_chain)
 
     def test_keyboard_interrupt(self) -> None:
         log = "FAILED tests/test_server.py::test_startup - KeyboardInterrupt: \n= 1 failed in 30.00s ="
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "KeyboardInterrupt")
+        self.assertEqual(failure.pytest_exception_class, "KeyboardInterrupt")
 
     def test_exception_group(self) -> None:
         log = (
@@ -184,7 +184,7 @@ class TestExpandedExceptionSuffixes(unittest.TestCase):
         )
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "ExceptionGroup")
+        self.assertEqual(failure.pytest_exception_class, "ExceptionGroup")
 
     def test_warning_as_error(self) -> None:
         log = (
@@ -193,13 +193,13 @@ class TestExpandedExceptionSuffixes(unittest.TestCase):
         )
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "DeprecationWarning")
+        self.assertEqual(failure.pytest_exception_class, "DeprecationWarning")
 
     def test_stop_iteration(self) -> None:
         log = "FAILED tests/test_gen.py::test_iter - StopIteration: \n= 1 failed in 0.50s ="
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "StopIteration")
+        self.assertEqual(failure.pytest_exception_class, "StopIteration")
 
     def test_dotted_torch_exception(self) -> None:
         log = (
@@ -208,31 +208,7 @@ class TestExpandedExceptionSuffixes(unittest.TestCase):
         )
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "torch.cuda.OutOfMemoryError")
-
-    def test_body_keyboard_interrupt_in_chain(self) -> None:
-        log = (
-            "E   KeyboardInterrupt: timeout\n"
-            "FAILED tests/test_server.py::test_hang - RuntimeError: "
-            "Engine core initialization failed. See root cause above.\n"
-            "= 1 failed in 60.00s ="
-        )
-        parsed_log = parse_log(log)
-        failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertIn("KeyboardInterrupt: timeout", failure.exception_chain)
-
-    def test_body_exception_group_in_chain(self) -> None:
-        log = (
-            "E   BaseExceptionGroup: errors (3 sub-exceptions)\n"
-            "FAILED tests/test_tasks.py::test_concurrent - RuntimeError: "
-            "Engine core initialization failed. See root cause above.\n"
-            "= 1 failed in 5.00s ="
-        )
-        parsed_log = parse_log(log)
-        failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertIn(
-            "BaseExceptionGroup: errors (3 sub-exceptions)", failure.exception_chain
-        )
+        self.assertEqual(failure.pytest_exception_class, "torch.cuda.OutOfMemoryError")
 
 
 class TestErrorLinesParsing(unittest.TestCase):
@@ -243,14 +219,14 @@ class TestErrorLinesParsing(unittest.TestCase):
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
         self.assertEqual(failure.test_id, "tests/test_foo.py")
-        self.assertEqual(failure.exception_class, "SyntaxError")
+        self.assertEqual(failure.pytest_exception_class, "SyntaxError")
 
     def test_error_with_nodeid(self) -> None:
         log = "ERROR tests/test_db.py::test_query - ConnectionRefusedError: [Errno 111]\n= 1 error in 1.00s ="
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
         self.assertEqual(failure.test_id, "tests/test_db.py::test_query")
-        self.assertEqual(failure.exception_class, "ConnectionRefusedError")
+        self.assertEqual(failure.pytest_exception_class, "ConnectionRefusedError")
 
     def test_error_and_failed_together(self) -> None:
         log = (
@@ -262,9 +238,11 @@ class TestErrorLinesParsing(unittest.TestCase):
         pytest_result = parsed_log.pytest_results[0]
         self.assertEqual(len(pytest_result.test_failures), 2)
         by_id = {failure.test_id: failure for failure in pytest_result.test_failures}
-        self.assertEqual(by_id["tests/conftest.py"].exception_class, "ImportError")
         self.assertEqual(
-            by_id["tests/test_bar.py::test_baz"].exception_class, "ValueError"
+            by_id["tests/conftest.py"].pytest_exception_class, "ImportError"
+        )
+        self.assertEqual(
+            by_id["tests/test_bar.py::test_baz"].pytest_exception_class, "ValueError"
         )
 
     def test_error_does_not_match_log_noise(self) -> None:
@@ -321,12 +299,35 @@ class TestExpectedFailureCount(unittest.TestCase):
         parsed_log = parse_log(log)
         self.assertEqual(len(parsed_log.pytest_results), 0)
 
-    def test_mismatch_raises(self) -> None:
+    def test_mismatch_does_not_raise_and_records_counts(self) -> None:
+        # A summary count that disagrees with the parsed failures must not raise:
+        # both counts stay readable (expected_test_failure_count vs the actual
+        # test_failures length) so a consumer can detect the mismatch itself.
         log = (
             "FAILED tests/test_a.py::test_one - ValueError: bad\n= 3 failed in 1.00s ="
         )
-        with self.assertRaises(AssertionError):
-            parse_log(log)
+        parsed_log = parse_log(log)
+        pytest_result = parsed_log.pytest_results[0]
+        self.assertEqual(pytest_result.expected_test_failure_count, 3)
+        self.assertEqual(len(pytest_result.test_failures), 1)
+
+    def test_mismatch_does_not_discard_later_sessions(self) -> None:
+        # A mismatched session must degrade to itself, not lose a well-formed
+        # session that follows it in the same log.
+        log = (
+            "FAILED tests/test_a.py::test_one - ValueError: bad\n"
+            "= 3 failed in 1.00s =\n"
+            "FAILED tests/test_b.py::test_two - TypeError: wrong\n"
+            "= 1 failed in 2.00s ="
+        )
+        parsed_log = parse_log(log)
+        self.assertEqual(len(parsed_log.pytest_results), 2)
+        good_session = parsed_log.pytest_results[1]
+        self.assertEqual(good_session.expected_test_failure_count, 1)
+        self.assertEqual(len(good_session.test_failures), 1)
+        self.assertEqual(
+            good_session.test_failures[0].test_id, "tests/test_b.py::test_two"
+        )
 
     def test_real_fixture_counts_match(self) -> None:
         log_cuda_init_fail = read_fixture_text("log_cudagraph_cuda_init_fail.txt")
@@ -367,7 +368,9 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
         self.assertEqual(
             session_one.test_failures[0].test_id, "tests/test_a.py::test_one"
         )
-        self.assertEqual(session_one.test_failures[0].exception_class, "ValueError")
+        self.assertEqual(
+            session_one.test_failures[0].pytest_exception_class, "ValueError"
+        )
         self.assertIn("bad", session_one.test_failures[0].exception_chain)
         self.assertEqual(session_one.expected_test_failure_count, 1)
 
@@ -376,12 +379,16 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
         self.assertEqual(
             session_two.test_failures[0].test_id, "tests/test_b.py::test_two"
         )
-        self.assertEqual(session_two.test_failures[0].exception_class, "TypeError")
+        self.assertEqual(
+            session_two.test_failures[0].pytest_exception_class, "TypeError"
+        )
         self.assertIn("wrong", session_two.test_failures[0].exception_chain)
         self.assertEqual(
             session_two.test_failures[1].test_id, "tests/test_b.py::test_three"
         )
-        self.assertEqual(session_two.test_failures[1].exception_class, "KeyError")
+        self.assertEqual(
+            session_two.test_failures[1].pytest_exception_class, "KeyError"
+        )
         self.assertIn("missing", session_two.test_failures[1].exception_chain)
         self.assertEqual(session_two.expected_test_failure_count, 2)
 
@@ -440,18 +447,18 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
             sentinel_one.test_id,
             "v1/cudagraph/test_cudagraph_mode.py::test_backend_and_cudagraph_mode_combo[FA2-FULL-True]",
         )
-        self.assertEqual(sentinel_one.exception_class, "RuntimeError")
+        self.assertEqual(sentinel_one.pytest_exception_class, "RuntimeError")
         self.assertIn("Engine core initialization failed", sentinel_one.exception_chain)
-        chain_text = sentinel_one.exception_chain
-        self.assertIn("ValueError", chain_text)
-        self.assertIn("Memory of devices", chain_text)
+        # The chain is scoped to this test's own section: the real root cause
+        # (a ValueError in another test's failure) is not merged in here.
+        self.assertNotIn("Memory of devices", sentinel_one.exception_chain)
 
         direct_one = failing_session.test_failures[2]
         self.assertEqual(
             direct_one.test_id,
             "v1/cudagraph/test_cudagraph_mode.py::test_cudagraph_compilation_combo[FA2-FULL-3-True]",
         )
-        self.assertEqual(direct_one.exception_class, "ValueError")
+        self.assertEqual(direct_one.pytest_exception_class, "ValueError")
         self.assertIn("Memory of devices", direct_one.exception_chain)
 
         passing_session = parsed_log.pytest_results[1]
@@ -481,7 +488,7 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
             scaling_failure.test_id,
             "distributed/test_elastic_ep.py::test_elastic_ep_scaling",
         )
-        self.assertEqual(scaling_failure.exception_class, "AssertionError")
+        self.assertEqual(scaling_failure.pytest_exception_class, "AssertionError")
         self.assertIn("assert False", scaling_failure.exception_chain)
 
         uneven_failure = failing_session.test_failures[1]
@@ -489,8 +496,12 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
             uneven_failure.test_id,
             "distributed/test_elastic_ep.py::test_elastic_ep_scaling_uneven",
         )
-        self.assertEqual(uneven_failure.exception_class, "AssertionError")
-        self.assertIn("assert False", uneven_failure.exception_chain)
+        self.assertEqual(uneven_failure.pytest_exception_class, "AssertionError")
+        self.assertIn(
+            "GSM8K accuracy 0.000 is below expected threshold",
+            uneven_failure.exception_chain,
+        )
+        self.assertNotIn("assert False", uneven_failure.exception_chain)
 
     def test_multi_root_cause_sentinels_end_to_end(self) -> None:
         """Two sentinel tests with different root causes — each chain is
@@ -511,7 +522,7 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
 
         model_loading = failing_session.test_failures[0]
         self.assertEqual(model_loading.test_id, "test_engine.py::test_model_loading")
-        self.assertEqual(model_loading.exception_class, "RuntimeError")
+        self.assertEqual(model_loading.pytest_exception_class, "RuntimeError")
         self.assertIn(
             "Engine core initialization failed", model_loading.exception_chain
         )
@@ -523,7 +534,7 @@ class TestMultipleSessionsGrouping(unittest.TestCase):
         self.assertEqual(
             kernel_dispatch.test_id, "test_engine.py::test_kernel_dispatch"
         )
-        self.assertEqual(kernel_dispatch.exception_class, "RuntimeError")
+        self.assertEqual(kernel_dispatch.pytest_exception_class, "RuntimeError")
         self.assertIn(
             "Engine core initialization failed", kernel_dispatch.exception_chain
         )
@@ -685,9 +696,10 @@ class TestSectionBodyCapture(unittest.TestCase):
         self.assertIn("This error most often comes from", failure.exception_chain)
         self.assertIn("expected size 3072==2880", failure.exception_chain)
 
-    def test_bare_assert_backfills_class_from_file_ref(self) -> None:
-        """Bare FAILED line + section body with no EXCEPTION_RE match
-        backfills exception_class from the file reference line."""
+    def test_bare_failed_line_leaves_class_empty(self) -> None:
+        """A bare FAILED line (no class on pytest's summary line) leaves
+        pytest_exception_class empty -- the class is not inferred from the
+        section footer -- while exception_chain still carries the traceback."""
         log = (
             "=================================== FAILURES ===================================\n"
             "_________________ test_check_padding _________________\n"
@@ -705,8 +717,9 @@ class TestSectionBodyCapture(unittest.TestCase):
         )
         parsed_log = parse_log(log)
         failure = parsed_log.pytest_results[0].test_failures[0]
-        self.assertEqual(failure.exception_class, "AssertionError")
+        self.assertEqual(failure.pytest_exception_class, "")
         self.assertIn("assert False", failure.exception_chain)
+        self.assertIn("AssertionError", failure.exception_chain)
 
     def test_no_section_body_uses_fallback(self) -> None:
         """Without FAILURES section headers, chain falls back to body exceptions."""

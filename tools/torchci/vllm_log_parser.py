@@ -1,10 +1,10 @@
 """Parse vLLM Buildkite job logs into structured failure signatures.
 
-Vendored from the vllm-pytorch-ci-triage package (clean_logs + the dataclasses it
-needs). Strips ANSI escape codes and BKT timestamp markers, then extracts per-test
-signatures: test id, exception class/message, and the raw section body from pytest's
-FAILURES block. Extraction is position-independent -- a failure far from the end of
-a huge log is still captured.
+Vendored from the vllm-pytorch-ci-triage package (parse_log/strip_markers + the
+dataclasses they need). Strips ANSI escape codes and BKT timestamp markers, then
+extracts per-test signatures: test id, exception class/message, and the raw section
+body from pytest's FAILURES block. Extraction is position-independent -- a failure
+far from the end of a huge log is still captured.
 """
 
 import re
@@ -16,8 +16,11 @@ class FailedTest:
     """A single failed test with its exception signature."""
 
     test_id: str
-    exception_class: str = ""
-    exception_chain: str = ""
+    pytest_exception_class: str = (
+        ""  # The exception class pytest named on its inline FAILED/ERROR summary line.
+    )
+    exception_chain: str = ""  # This test's own FAILURES section body
+    inline_message: str = ""
     test_is_infra: bool = False
 
 
@@ -52,21 +55,16 @@ SUMMARY_FAILED_COUNT_RE = re.compile(r"(\d+)\s+failed")
 SUMMARY_ERROR_COUNT_RE = re.compile(r"(\d+)\s+error")
 TEST_SECTION_HEADER_RE = re.compile(r"_{1,}\s+(.+?)\s+_{1,}")
 
-_EXC_SUFFIX = r"(?:Error|Exception|Failure|Failed|Exit|Interrupt|Group|Iteration)"
-_EXC_SUFFIX_FULL = (
-    r"(?:Error|Exception|Failure|Failed|Warning|Exit|Interrupt|Group|Iteration)"
-)
-EXCEPTION_RE = re.compile(
-    r"(?:^|\s)(?:E\s+)?(\w+(?:\.\w+)*" + _EXC_SUFFIX + r")"
-    r":\s*(.*)"
-)
+# The inline path trusts pytest: the text after " - " on a FAILED/ERROR line is
+# ExceptionInfo.exconly() output -- "{ExcClass}: {message}". The message is
+# optional: exconly() emits a bare class name when the exception has no message.
 FAILED_INLINE_EXC_RE = re.compile(
-    r"(?:FAILED|ERROR)\s+(.+?)\s+-\s+(\w+(?:\.\w+)*" + _EXC_SUFFIX_FULL + r")"
-    r":\s*(.*)"
+    r"(?:FAILED|ERROR)\s+(.+?)\s+-\s+"
+    r"([A-Za-z_][\w.]*(?:::[\w.]+)*)"
+    r"(?::\s*(.*))?"
 )
 FAILED_INLINE_ASSERT_RE = re.compile(r"(?:FAILED|ERROR)\s+(.+?)\s+-\s+(assert\s+.*)")
 
-FILE_REF_EXC_RE = re.compile(r"^\S+:\d+: (\w+(?:\.\w+)*)$", re.MULTILINE)
 INFRA_PATTERNS = [
     re.compile(r"nvidia-container-cli", re.IGNORECASE),
     re.compile(r"CUDA driver initialization failed", re.IGNORECASE),
@@ -116,58 +114,56 @@ def parse_log(text: str) -> ParsedLog:
 
     for pytest_result in extraction.pytest_results:
         for failure in pytest_result.test_failures:
-            had_inline = bool(failure.exception_class)
-            inline_message = extraction.inline_messages.get(id(failure), "")
-
+            # Both fields hold only what pytest scoped to this specific test:
+            #   - pytest_exception_class: the class pytest named on the inline
+            #     FAILED/ERROR summary line (set at construction); empty otherwise.
+            #   - exception_chain: this test's own FAILURES section body.
             section_body = _get_section_body(failure.test_id, extraction.section_bodies)
-
-            if not failure.exception_class:
-                raw = _get_raw_section_exceptions(
-                    failure.test_id, extraction.section_exceptions
-                )
-                if raw:
-                    failure.exception_class = raw[0][0]
-                elif section_body:
-                    matches = FILE_REF_EXC_RE.findall(section_body)
-                    if matches:
-                        failure.exception_class = matches[-1]
-                elif extraction.body_exceptions:
-                    failure.exception_class = extraction.body_exceptions[0][0]
             if section_body is not None:
                 failure.exception_chain = section_body
-            elif failure.exception_class:
-                inline = f"{failure.exception_class}: {inline_message}"
-                all_body = [f"{c}: {m}" for c, m, _ in extraction.body_exceptions]
-                parts = (
-                    [inline] + all_body
-                    if had_inline and all_body
-                    else (all_body if all_body else [inline])
+            elif failure.pytest_exception_class:
+                failure.exception_chain = (
+                    f"{failure.pytest_exception_class}: {failure.inline_message}"
                 )
-                failure.exception_chain = "\n".join(parts)
         for failure in pytest_result.test_failures:
             failure.test_is_infra = _matches_infra(failure.exception_chain)
 
     return ParsedLog(pytest_results=extraction.pytest_results)
 
 
+def _normalize_test_id(test_id: str) -> str:
+    """Reduce a test id to the node pytest names its FAILURES section by.
+
+    ``distributed/test_elastic_ep.py::test_scaling_uneven`` -> ``test_scaling_uneven``
+    ``suite.py::TestClass::test_method`` -> ``TestClass.test_method`` (pytest joins the
+    class and method with a dot in the section header).
+    """
+    _, separator, node = test_id.partition(".py::")
+    node = node if separator else test_id
+    return node.replace("::", ".")
+
+
+def _match_section_name(test_id: str, section_names: list[str]) -> str | None:
+    """Resolve which FAILURES section belongs to a test id.
+
+    Both the section header and the ``FAILED`` line come from the same pytest run, so
+    the header names the test's node exactly. Matching exactly (not by substring) keeps
+    a test whose name prefixes another's (``test_scaling`` vs ``test_scaling_uneven``)
+    from stealing its section.
+    """
+    node = _normalize_test_id(test_id)
+    for section_name in section_names:
+        if section_name == node:
+            return section_name
+    return None
+
+
 def _get_section_body(
     test_id: str,
     section_bodies: dict[str, str],
 ) -> str | None:
-    for section_name, body in section_bodies.items():
-        if section_name in test_id:
-            return body
-    return None
-
-
-def _get_raw_section_exceptions(
-    test_id: str,
-    section_exceptions: dict[str, list[tuple[str, str, int]]],
-) -> list[tuple[str, str, int]] | None:
-    for section_name, exceptions in section_exceptions.items():
-        if section_name in test_id:
-            return exceptions
-    return None
+    section_name = _match_section_name(test_id, list(section_bodies))
+    return section_bodies[section_name] if section_name is not None else None
 
 
 class _ExtractionResult:
@@ -175,14 +171,11 @@ class _ExtractionResult:
 
     def __init__(self) -> None:
         self.pytest_results: list[PytestResult] = []
-        self.body_exceptions: list[tuple[str, str, int]] = []
-        self.section_exceptions: dict[str, list[tuple[str, str, int]]] = {}
         self.section_bodies: dict[str, str] = {}
-        self.inline_messages: dict[int, str] = {}
 
 
 def _extract_pytest_failures(lines: list[str]) -> _ExtractionResult:
-    """Scan lines, extract pytest sessions, body exceptions, and section bodies."""
+    """Scan lines, extract pytest sessions and per-test FAILURES section bodies."""
     result = _ExtractionResult()
     current_failures: list[FailedTest] = []
     current_section: str = ""
@@ -209,48 +202,37 @@ def _extract_pytest_failures(lines: list[str]) -> _ExtractionResult:
             current_section = ""
             section_start = -1
 
-        inline_exc_match = FAILED_INLINE_EXC_RE.search(stripped)
+        # Assert first: the permissive inline regex would otherwise capture
+        # "assert" as the class from a rewritten-assertion "- assert x == y" line.
+        assert_match = FAILED_INLINE_ASSERT_RE.search(stripped)
+        inline_exc_match = (
+            None if assert_match else FAILED_INLINE_EXC_RE.search(stripped)
+        )
         if inline_exc_match:
             failed_test = FailedTest(
                 test_id=inline_exc_match.group(1),
-                exception_class=inline_exc_match.group(2),
+                pytest_exception_class=inline_exc_match.group(2),
+                inline_message=(inline_exc_match.group(3) or "").strip(),
             )
-            result.inline_messages[id(failed_test)] = inline_exc_match.group(3).strip()
+            current_failures.append(failed_test)
+        elif assert_match:
+            failed_test = FailedTest(
+                test_id=assert_match.group(1),
+                pytest_exception_class="AssertionError",
+                inline_message=assert_match.group(2).strip(),
+            )
             current_failures.append(failed_test)
         else:
-            assert_match = FAILED_INLINE_ASSERT_RE.search(stripped)
-            if assert_match:
+            bare_failed_match = FAILED_TEST_RE.search(stripped)
+            if bare_failed_match:
                 failed_test = FailedTest(
-                    test_id=assert_match.group(1),
-                    exception_class="AssertionError",
+                    test_id=bare_failed_match.group(1),
                 )
-                result.inline_messages[id(failed_test)] = assert_match.group(2).strip()
                 current_failures.append(failed_test)
-            else:
-                bare_failed_match = FAILED_TEST_RE.search(stripped)
-                if bare_failed_match:
-                    failed_test = FailedTest(
-                        test_id=bare_failed_match.group(1),
-                    )
-                    current_failures.append(failed_test)
-
-            exception_match = EXCEPTION_RE.search(stripped)
-            if exception_match:
-                exc_class = exception_match.group(1)
-                exc_message = exception_match.group(2).strip()
-
-                result.body_exceptions.append((exc_class, exc_message, line_index))
-
-                if current_section:
-                    if current_section not in result.section_exceptions:
-                        result.section_exceptions[current_section] = []
-                    result.section_exceptions[current_section].append(
-                        (exc_class, exc_message, line_index)
-                    )
 
         if PYTEST_SUMMARY_RE.search(stripped):
+            # Record the summary's count.
             expected_count = _parse_summary_count(line.strip())
-            assert expected_count == len(current_failures)
             result.pytest_results.append(
                 PytestResult(
                     test_failures=current_failures,

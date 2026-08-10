@@ -329,7 +329,7 @@ def _render_cluster_artifact(
         sections = [header, f"# parsed {len(test_failures)} failing test(s)\n"]
         for failure in test_failures:
             sections.append(f"## {failure.test_id}")
-            sections.append(f"exception_class: {failure.exception_class}")
+            sections.append(f"pytest_exception_class: {failure.pytest_exception_class}")
             sections.append(f"test_is_infra: {failure.test_is_infra}")
             sections.append("")
             sections.append(failure.exception_chain)

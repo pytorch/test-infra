@@ -76,100 +76,98 @@ torch-nightly build as its own baseline.
 
 ---
 
-## Step 2: Pull and Parse the builds
+## Step 2: Parse and compare (runs upstream — not you)
 
-```bash
-python -m vllm_pytorch_ci_triage.pipeline <build_number> \
-    --main-builds N,... [--output-dir DIR]
-```
+In the scheduled workflow this has already run before you start. The
+`torchci.vllm_torch_nightly_triage` job (on the runner, holding the ClickHouse and
+Buildkite secrets) does discovery, the job-level A/B, and log parsing, then writes the
+files you read in Step 3 — `report.md`, `report.json`, `cluster-logs/*.log`. You have
+no ClickHouse or Buildkite access and do not run this step yourself.
 
+How it decides regressions (job-level A/B over ClickHouse job metadata): it pairs the
+newest `Full CI run torch nightly` build with its same-commit, same-slot
+`Full CI run - nightly` / `- daily` baseline, then buckets each job:
 
-`--main-builds` is the comma-separated list of main baseline build numbers to
-diff against (there is no auto-discovery — pick recent Full CI runs). Output is
-`agent_input.json` in `--output-dir` (default: cwd).
+- `regressed` — fails on torch nightly, passes on the baseline.
+- `both` — fails on both (pre-existing, not torch).
+- `baseline_only` — fails only on the baseline.
+
+Only `regressed` clusters get a log fetched, parsed, and written to `cluster-logs/`.
 
 ---
 
-## Step 3: Read parsed logs
+## Step 3: Read the cluster logs
 
-The input file is too large to read directly. Load it with `load_failures`:
+You do not run the parser or fetch anything — Step 2 already produced the files. Your
+tools are `Read`, `Glob`, `Grep`, `Write`; there is no Python execution and no
+Buildkite / ClickHouse access. Read what is on disk in the triage input dir:
 
-```python
-from vllm_pytorch_ci_triage.output_object import load_failures
+- `report.md` — the A/B summary and the regressed clusters (see Step 5).
+- `report.json` — the same, structured: `torch_nightly_build`, `baseline_build`,
+  `commit`, and the `regressed` / `both` job lists.
+- `cluster-logs/*.log` — one representative log per regressed cluster, ANSI-stripped.T
+   This is your primary root-cause material.
 
-jobs = load_failures("<input_file>")
+### Cluster-log artifact format
+
+Every file opens with a header:
+
+```
+# cluster: <cluster key>
+# job: <job name>
+# url: <buildkite job url>
+# state: <state> exit_status: <n>
 ```
 
-This gives typed `JobFailure` objects — `job.log.pytest_results[*].test_failures[*]`
-with `.test_id`, `.exception_class`, `.exception_chain`, `.main_exception_chains`.
+**Parsed form** — pytest failures were extracted. The header is followed by
+`# parsed N failing test(s)` and one block per test:
 
-Do NOT parse the input file multiple times.
+```
+## tests/kernels/test_deepgemm.py::test_gemm
+exception_class: RuntimeError
+test_is_infra: false
 
-### Input schema
-
-The pipeline sends a JSON list of serialized `JobFailure` objects. Each has:
-
-```json
-{
-  "job_name": "Kernels DeepGEMM Test (H100)",
-  "job_id": "uuid",
-  "exit_status": 1,
-  "web_url": "https://buildkite.com/...",
-  "build_number": 77837,
-  "log": {
-    "pytest_results": [{
-      "test_failures": [{
-        "test_id": "tests/kernels/test_deepgemm.py::test_gemm",
-        "exception_class": "RuntimeError",
-        "exception_chain": "def test_gemm():\n>       run_gemm()\n\nE       RuntimeError: CUDA driver init failed\n\ntest_deepgemm.py:42: RuntimeError",
-        "test_is_infra": false,
-        "main_exception_chains": []
-      }],
-      "pytest_summary": "1 failed",
-      "expected_test_failure_count": 1
-    }],
-    "error_excerpt": "",
-    "job_is_infra": false,
-  }
-}
+def test_gemm():
+>       run_gemm()
+E       RuntimeError: CUDA driver init failed
+test_deepgemm.py:42: RuntimeError
 ```
 
-Key fields:
-- `test_id` — pytest node ID
-- `exception_class` — exception type from the FAILED line
-- `exception_chain` — the **raw section body** from pytest's FAILURES output: the full
-  traceback text between `___` section headers, including source lines, `E` error lines,
-  file references, and chained exception connectors. This is the primary content for
-  root cause analysis.
-- `main_exception_chains` — when present (non-empty list), the same test failed on main
-  with the same `exception_class` but a different `exception_chain`. Contains the
-  main-side chains. Compare PR vs main chains to decide if this is genuinely new.
-- `test_is_infra` — per-test infra tag, set on each entry in `test_failures` from its
-  `exception_chain` (e.g. `Free memory … less than desired`, `exit status 137`). This is
-  the flag to read for a **pytest** failure.
-- `job_is_infra` — job/log-level infra tag, set **only on non-pytest failures** (empty
-  `pytest_results`, from `error_excerpt`). For a pytest job it is always `false` — do not
-  rely on it there; read the per-test `test_is_infra` instead.
+- `## <test_id>` — pytest node ID.
+- `exception_class` — exception type from the FAILURES section.
+- `test_is_infra` — per-test transient-infra tag (CUDA-init, `exit status 137`,
+  `Free memory … less than desired`, …).
+- Everything after the blank line is the **raw section body** (the traceback): source
+  lines, `E` error lines, file refs, chained-exception connectors. This is the
+  `exception_chain` Step 6 refers to — your primary content for root cause.
 
-**Infra tags are not filtered out.** A NEW infra-tagged test still appears in the input so
-you can auto-restart it (Step 4); it is not silently dropped, and it is not a regression to
-file. Route `test_is_infra`/`job_is_infra` failures to rerun, not to an issue.
+**Fallback form** — no pytest failures were parsed (a build/crash before pytest ran,
+an empty parse, or the parser raising). The header is followed by:
 
-### Non-pytest failures
+```
+# parse_fallback: true (raw tail; scan upward for the real error)
+# parse_error: <message>        # only present if the parser raised
+# job_is_infra: <bool>
+# showing last <k> of <n> lines
 
-Some `JobFailure` objects have `log.pytest_results = []` and `log.error_excerpt`
-populated instead. These are build failures, segfaults, or environment crashes that
-occurred before pytest ran (e.g. Docker image build failure, compilation error,
-import-time segfault). The `error_excerpt` field contains the full marker-stripped
-log text from the Buildkite job.
+<the last k lines of the cleaned log>
+```
 
-Identify them by: `pytest_results` is empty, `error_excerpt` is non-empty.
+- `job_is_infra` — the fallback's job-level equivalent of `test_is_infra`.
+- The tail is the end of the whole cleaned log; the real error is usually a few lines
+  above the bottom. Scan **upward** past wrappers like
+  `Engine core initialization failed. See root cause above.` — that line is never the
+  root cause.
 
-Each non-pytest failure contributes one `GroupMember` with
-`test_id="[build failure] <job_name>"` since there is no pytest node ID.
+A fallback file is the old "non-pytest failure" case: Docker image build failure,
+compile error, import-time segfault. It has no pytest node ID — refer to it by its
+cluster / job name, and treat it as novel (baseline comparison already happened at the
+job level in Step 2).
 
-Non-pytest failures bypass baseline comparison — they are always treated as novel.
-Analyze the `error_excerpt` text to identify the root cause.
+**Infra is not a torch regression.** A cluster whose failures are all
+`test_is_infra: true` (or `job_is_infra: true`) is still present in the input; do not
+root-cause it as a regression — call it out as infra. (The cron agent files nothing and
+reruns nothing; job retry is the manual hand-run path in Step 4.)
 
 ### Step 4 — Auto-restart transient-infra failures (do this automatically; do NOT file)
 
@@ -213,24 +211,18 @@ transient-infra signature dominates two consecutive runs, escalate: recommend a 
 on a healthy fleet rather than another round of same-build retries.
 
 
-## Step 5: Triage near-misses
+## Step 5: NEW vs pre-existing
 
-Rate `new_failure_confidence` (1-5) per member as you decide. If a failure scores
-5 despite the near-miss, move it to step 6.
+Classification is decided **upstream** by the torch-nightly vs same-commit-baseline
+A/B. Each job is already bucketed in the report:
 
-For scale definitions, see [CONFIDENCE.md](CONFIDENCE.md).
+- `regressed` — fails on torch nightly, passes on the baseline → new, torch-attributable.
+- `both` — fails on both → `PRE_EXISTING`, not torch. No root-cause analysis needed.
+- `baseline_only` — fails only on the baseline → ignore.
 
-If `main_exception_chains` is empty, it is a new failure, rate `new_failure_confidence` as 5.
-
-Otherwise `main_exception_chains` is populated. This means the pipeline found the
-same test failing on main with the same exception class but a different traceback.
-
-Compare the PR `exception_chain` against each entry in `main_exception_chains`:
-- Cosmetic difference (address, tensor shape, line number, timing value) → `PRE_EXISTING`
-- Substantive difference (different error path, operation, module) → genuinely new
-
-All PRE_EXISTING failures go into a single group with classification `PRE_EXISTING`.
-No root cause analysis needed — they are not new regressions.
+Rate `new_failure_confidence` (1-5) per group from its bucket plus the infra /
+agent-concentration evidence in the report. For scale definitions, see
+[CONFIDENCE.md](CONFIDENCE.md).
 
 ## Step 6: Group remaining failures by root cause
 
@@ -434,11 +426,11 @@ The comment is for human-readable status tracking by the release manager; keep i
 
 ## Gotchas the parser does NOT catch
 
-The pipeline filters soft-fails, `waiting_failed`, never-ran jobs, marker/timestamp noise, and tags transient-infra signatures. The following are **not** filtered — you must apply them yourself when reading `agent_input.json`:
+The parser filters soft-fails, `waiting_failed`, never-ran jobs, marker/timestamp noise, and tags transient-infra signatures. The following are **not** filtered — apply them yourself when reading the `cluster-logs/*.log` files:
 
 - **PyPI vs test channel:** `ERROR: No matching distribution found for torch==2.12.0` isn't infra — the release isn't on PyPI yet. It arrives as a non-pytest failure (treated as novel). Tell the user; don't file a bug.
 - **`Python-only Installation` job has multiple unrelated failure modes:** (a) torch not on PyPI — expected, skip. (b) `metadata is still not available after N attempts` / `precompiled wheel for commit X is available` — vLLM's own precompiled-wheel infra hiccup, not torch. Both arrive as non-pytest failures (treated as novel) → ignore.
-- **An infra-killed main job is not a baseline.** A main-build job hit by `exit 125` / `nvidia-container-cli` (or otherwise never running the test) still counts as "job ran" for baseline purposes, so a PR failure with no matching main test gets classified `NEW` — a false positive. When the *main* daily/nightly builds also have many B200 jobs killed by infra, do NOT trust `main_exception_chains` being empty. "Test PR fails this job, main appears not to" is **inconclusive** — main never ran the test. Ask the user (or release manager) to retry the corresponding main nightly job before drafting a new umbrella issue. Filing without that baseline produced a wrongful issue (#182549, retracted 2026-05-05).
+- **An infra-killed baseline job is not a baseline.** The A/B buckets trust the baseline job's state. A baseline job hit by `exit 125` / `nvidia-container-cli` (or otherwise never running the tests) still lands in `BAD_STATES`, so the same job failing on torch nightly is bucketed `both` (pre-existing) — **masking a real regression** rather than surfacing it. (The failing baseline was infra, not the same test.) When the baseline build has many B200 jobs killed by infra, do NOT trust a `both` verdict on those jobs; the pair is **inconclusive** because the baseline never ran the test. Ask the user (or release manager) to retry the corresponding baseline job before concluding anything. The inverse mistake — treating a broken baseline as if the test passed there — produced a wrongful issue (#182549, retracted 2026-05-05).
 - **Compile-on vs `--enforce-eager` CI gap:** fake-kernel / Inductor stride bugs only surface when compile is on. Many gpt-oss CI lanes (`tests/evals/gpt_oss/test_gpqa_correctness.py`, `--enforce-eager` parametrizations) bypass torch.compile entirely and never trace the fake kernel. If a custom-op stride mismatch only shows up on the torch-bump test PR, the bug almost certainly exists on main too — vLLM CI is just hiding it. When closing such an issue, mention this gap so vLLM can add coverage.
 - **`Dockerfile.cpu` seeds `requirements/test/cpu.in` from `requirements/test/cuda.in`** (literal `COPY ... cuda.in cpu.in`), so the top-line `--extra-index-url https://download.pytorch.org/whl/test/cu130` carries over to the CPU build. Combined with `uv pip compile --torch-backend cpu` (which forces stable cpu channel), torch 2.12 wheels go missing. Fix: sed-rewrite the index-url to `whl/test/cpu` AND drop `--torch-backend cpu`.
 - **`uv --torch-backend <name>` overrides extra-index-url for torch.** Only stable channels (`cpu`, `cu128`, etc.) are presets — there is no `test-cpu` preset. To pin torch to the test channel, use `--extra-index-url` explicitly (or `UV_EXTRA_INDEX_URL` env) and *don't* pass `--torch-backend`.
