@@ -731,13 +731,6 @@
       "rocm"
     ]
   ],
-  "test_mixed_mm (__main__.TestPatternMatcher)": [
-    "145192",
-    "https://github.com/pytorch/pytorch/issues/145192",
-    [
-      "rocm"
-    ]
-  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
@@ -1129,13 +1122,6 @@
       "rocm"
     ]
   ],
-  "test_trace_return_dataclass (__main__.TestFX)": [
-    "190612",
-    "https://github.com/pytorch/pytorch/issues/190612",
-    [
-      "dynamo"
-    ]
-  ],
   "test_trace_return_dataclass_nested (__main__.TestFX)": [
     "181322",
     "https://github.com/pytorch/pytorch/issues/181322",
@@ -1197,13 +1183,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_vjp_vmap_cpu (__main__.TestComposabilityCPU)": [
-    "180195",
-    "https://github.com/pytorch/pytorch/issues/180195",
-    [
-      "dynamo"
     ]
   ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
