@@ -1,8 +1,8 @@
 import { Context, Probot } from "probot";
 import {
   addLabelErrComment,
-  BOT_AUTHORS,
   hasRequiredLabels,
+  isBotAuthor,
 } from "./checkLabelsUtils";
 import {
   getDraftGatedLabelsToRemove,
@@ -370,8 +370,8 @@ async function getBotAppliedLabels(
   }
   const botApplied = new Set<string>();
   for (const label of labelNames) {
-    const actor = lastLabeledBy.get(label)?.toLowerCase() ?? "";
-    if (actor.endsWith("[bot]") || BOT_AUTHORS.includes(actor)) {
+    const actor = lastLabeledBy.get(label) ?? "";
+    if (isBotAuthor(actor)) {
       botApplied.add(label);
     }
   }
