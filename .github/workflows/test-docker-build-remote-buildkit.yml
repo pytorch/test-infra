@@ -23,8 +23,7 @@ permissions:
 
 jobs:
   smoke:
-    # Fork PRs get no writable token, so the ghcr push can't work there (and a
-    # maintainer has to approve the run anyway).
+    # Fork PRs get no writable token, so the ghcr push can't work there.
     if: ${{ github.event.pull_request.head.repo.fork != true }}
     strategy:
       fail-fast: false
