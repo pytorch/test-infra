@@ -1150,9 +1150,7 @@ describe("auto-label-bot: labeler.yml config", () => {
     }));
     const events = [...leadingEvents, ...labelEvents];
     nock("https://api.github.com")
-      .get(
-        `/repos/${repoFullName}/issues/${prNumber}/timeline?per_page=100`
-      )
+      .get(`/repos/${repoFullName}/issues/${prNumber}/timeline?per_page=100`)
       .reply(200, events);
   }
 
