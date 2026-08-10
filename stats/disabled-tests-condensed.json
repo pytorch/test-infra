@@ -553,6 +553,13 @@
       "macos"
     ]
   ],
+  "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
+    "192735",
+    "https://github.com/pytorch/pytorch/issues/192735",
+    [
+      "rocm"
+    ]
+  ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
     "191159",
     "https://github.com/pytorch/pytorch/issues/191159",
@@ -1125,6 +1132,13 @@
   "test_trace_return_dataclass_nested (__main__.TestFX)": [
     "181322",
     "https://github.com/pytorch/pytorch/issues/181322",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_trace_return_namedtuple (__main__.TestFX)": [
+    "176966",
+    "https://github.com/pytorch/pytorch/issues/176966",
     [
       "dynamo"
     ]
