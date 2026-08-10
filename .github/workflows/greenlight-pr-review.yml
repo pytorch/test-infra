@@ -124,6 +124,10 @@ jobs:
           ref: ${{ github.event.inputs.head_sha }}
           path: pytorch
           fetch-depth: 1
+          # No later step runs authenticated git against ./pytorch (the diff is fetched via
+          # gh api), so the scoped checkout token must not be persisted into
+          # ./pytorch/.git/config where the untrusted reviewer model could read it.
+          persist-credentials: false
 
       - name: Checkout trusted pytorch main skills (sparse)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -167,6 +171,42 @@ jobs:
             "repos/pytorch/pytorch/compare/${base_ref}...${HEAD_SHA}" \
             >/tmp/greenlight-pr.diff
           echo "Diff bytes: $(wc -c </tmp/greenlight-pr.diff)"
+
+      - name: Decline oversized diffs
+        id: sizecheck
+        env:
+          MAX_DIFF_LINES: ${{ vars.PYTORCH_GREENLIGHT_MAX_DIFF_LINES || '2000' }}
+          MAX_DIFF_BYTES: ${{ vars.PYTORCH_GREENLIGHT_MAX_DIFF_BYTES || '500000' }}
+        run: |
+          set -euo pipefail
+          # Line count is the primary gate: the model reads only ~2000 lines of the diff, so a
+          # longer change could be landed on an unread remainder. Bytes is a backstop for a diff
+          # that is short on lines but huge (e.g. minified / very long lines). On either breach,
+          # decline deterministically: drop the canned NO_LAND verdict in place and skip the model.
+          # Validate the thresholds first: a non-integer makes `[ -gt ]` error inside the `if`,
+          # which under `set -e` does NOT abort but falls through to else -> gate silently disabled.
+          case "$MAX_DIFF_LINES" in
+            '' | *[!0-9]*)
+              echo "invalid MAX_DIFF_LINES: '$MAX_DIFF_LINES' (expected a non-negative integer)" >&2
+              exit 1
+              ;;
+          esac
+          case "$MAX_DIFF_BYTES" in
+            '' | *[!0-9]*)
+              echo "invalid MAX_DIFF_BYTES: '$MAX_DIFF_BYTES' (expected a non-negative integer)" >&2
+              exit 1
+              ;;
+          esac
+          lines=$(wc -l </tmp/greenlight-pr.diff)
+          bytes=$(wc -c </tmp/greenlight-pr.diff)
+          if [ "$lines" -gt "$MAX_DIFF_LINES" ] || [ "$bytes" -gt "$MAX_DIFF_BYTES" ]; then
+            echo "Diff is $lines lines / $bytes bytes (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes); declining automatically."
+            cp "$GITHUB_WORKSPACE/.claude/hooks/greenlight/too-large-verdict.json" /tmp/greenlight-verdict.json
+            echo "too_large=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "Diff is $lines lines / $bytes bytes (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes); proceeding with review."
+            echo "too_large=false" >>"$GITHUB_OUTPUT"
+          fi
 
       - name: Collect PR metadata
         continue-on-error: true
@@ -229,6 +269,15 @@ jobs:
                       "command": ".claude/hooks/greenlight/restrict-write.sh"
                     }
                   ]
+                },
+                {
+                  "matcher": "Read|Glob|Grep",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": "python3 .claude/hooks/greenlight/restrict-read.py"
+                    }
+                  ]
                 }
               ],
               "Stop": [
@@ -267,6 +316,7 @@ jobs:
           EOF
 
       - name: Run Green Light review
+        if: steps.sizecheck.outputs.too_large != 'true'
         timeout-minutes: 37
         uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707  # v1.0.141
         with:
@@ -315,7 +365,10 @@ jobs:
         # handoff to record (the upload defaults to success() and is skipped when
         # this step fails). Uses system python3 (present on ubuntu-latest); the
         # script is stdlib-only.
-        if: always()
+        # too_large short-circuit skips the model, so its manifest/sentinel never appear; run this
+        # detector only when the model actually ran, else the fail-closed sentinel check would abort
+        # the deterministic decline path.
+        if: always() && steps.sizecheck.outputs.too_large != 'true'
         run: python3 .claude/hooks/greenlight/assert-loaded-instructions.py --manifest "$RUNNER_TEMP/loaded_instructions.jsonl" --sentinel "$RUNNER_TEMP/hooks_ran.sentinel" --untrusted-root "$GITHUB_WORKSPACE/pytorch"
 
       - name: Upload verdict artifact

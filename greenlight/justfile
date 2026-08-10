@@ -20,10 +20,11 @@ run *args:
 review *args:
     uv run greenlight review "$@"
 
-# Type-check source and tests, plus the greenlight-owned detector hook
+# Type-check source and tests, plus the greenlight-owned hooks
 typecheck:
     uv run mypy
     uv run mypy ../.claude/hooks/greenlight/assert-loaded-instructions.py
+    uv run mypy ../.claude/hooks/greenlight/restrict-read.py
 
 # Run the test suite with coverage
 test:

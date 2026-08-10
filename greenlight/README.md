@@ -107,8 +107,9 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. Then,
 for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves; `NO_LAND` dismisses greenlight's
 own prior approval and comments). `CANCELLED` and `FAILED` markers only emit the row. The
-model's message is defanged before it is posted to GitHub, while the full message is stored
-verbatim in the emitted row.
+model's message is secret-scrubbed at a single point before it fans out to both the emitted
+row and the posted comment; the comment is additionally defanged to neutralize formatting and
+@-mentions.
 
 ```bash
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
@@ -197,19 +198,30 @@ both before the model runs and neither ever `continue-on-error`, close this off:
   only a FAILED marker, never a LAND.
 
 Both scripts live at `.claude/hooks/greenlight/`, alongside the reviewer's existing
-`restrict-write.sh` (write-path guard) and `validate-on-stop.sh` (verdict-schema guard).
+`restrict-read.py` (read-path guard), `restrict-write.sh` (write-path guard), and
+`validate-on-stop.sh` (verdict-schema guard).
 
 The detector depends on the hooks firing, so the first live dispatch must confirm the
 `SessionStart` and `InstructionsLoaded` hooks actually fire under the pinned
 `claude-code-action` — the detector fails closed if they do not, surfacing a misfire as a
 failed review rather than a silent gap.
 
-This control does not close a separate, higher-severity gap: the model keeps unrestricted
-`Read`, and its verdict `message` is not secret-scrubbed — defanging only neutralizes
-formatting and @-mentions on the posted comment, and the row stored to
-`misc.greenlight_pr_state` keeps the message verbatim — so a data-injection payload in the
-diff or tree could still coax the model to read a credential and emit it in the verdict.
-Constraining `Read` and scrubbing the published message remain open.
+Two further controls narrow the residual data-exfiltration gap — a data-injection payload in
+the diff or tree coaxing the model to read a credential and emit it in the verdict — though
+both are best-effort defense-in-depth, not guarantees:
+
+- **Read confinement** — a `restrict-read.py` PreToolUse hook confines the model's
+  `Read`/`Glob`/`Grep` by `os.path.realpath` to `./pytorch`, the trusted `.claude/skills` and
+  `.claude/hooks`, and the `/tmp/greenlight-*` scratch files, denying everything else (the OIDC
+  credentials under `/proc`, the `$GITHUB_ENV` file, `./pytorch/.git`). `persist-credentials: false`
+  on the `./pytorch` checkout additionally keeps the scoped token out of `./pytorch/.git/config`.
+- **Message scrubbing** — the verdict `message` is secret-scrubbed at a single fan-out point
+  before it reaches both the posted comment and the `misc.greenlight_pr_state` row (the comment
+  is additionally defanged for formatting and @-mentions).
+
+An oversized diff is also declined before the model runs: the reviewer gates on line count (the
+model's ~2000-line read window) with a byte-size backstop, emitting a `scope_too_large` NO_LAND
+rather than reviewing a change it cannot read in full.
 
 ## Current status
 
