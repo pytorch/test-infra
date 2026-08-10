@@ -356,10 +356,14 @@ async function getBotAppliedLabels(
     return new Set();
   }
   const lastLabeledBy = new Map<string, string>();
-  const events = await context.octokit.issues.listEventsForTimeline(
-    context.repo({ issue_number: issueNumber })
+  const events = await context.octokit.paginate(
+    context.octokit.issues.listEventsForTimeline,
+    context.repo({
+      issue_number: issueNumber,
+      per_page: 100,
+    })
   );
-  for (const event of events.data) {
+  for (const event of events) {
     if (event.event === "labeled" && event.label?.name) {
       lastLabeledBy.set(event.label.name, event.actor?.login ?? "");
     }
