@@ -3,16 +3,24 @@
 -- One row per time bucket of per-bucket COUNTS (not rates) feeding a stacked bar; the front-end
 -- derives every percentage from these raw counts. A "logical job outcome" is one (commit, workflow,
 -- job-shard) collapsed across every run_attempt / restart run_id: green if it ever succeeded and
--- never failed, red if it ever failed (green + red = total_runs). Every red is classified as exactly
--- one of real (confirmed regression) / infra_flake / test_flake / unknown, so
--- real + infra_flake + test_flake + unknown = red. Flakes are split into test_flake vs infra_flake
--- by the log-classifier rule (has_test_rule).
+-- never failed, red if it ever failed (green + red = total_runs). Every red is assigned to exactly
+-- ONE of five mutually-exclusive categories, so
+-- infra_flake + test_flake + unclassified + real_regression + sustained_infra = red:
+--   real_regression  advisor said related/revert, OR a persistent hard-red run whose failure is a test rule.
+--   sustained_infra  a persistent hard-red run whose failure is NOT a test rule (infra broke for >= 2 commits).
+--   test_flake       intermittent flake on a test rule (retry-green, green->red->green, advisor/annotation flake).
+--   infra_flake      intermittent flake on a non-test rule (same signals).
+--   unclassified     an isolated single-commit hard-red with no retry, no green->red->green, no persistence,
+--                    and no advisor/annotation signal.
+-- Persistence is the key discriminator: a hard-red (failed, no retry-green at this commit) is "persistent"
+-- when the SAME job is also hard-red at the immediately previous OR next trunk commit; a hard-red with a
+-- clean green on BOTH neighbors is an isolated green->red->green flake. real_regression / sustained_infra
+-- are NOT gated on later recovery, so an ongoing (still-red) break still counts.
 --
 -- Trunk filter: jobs whose head_sha is a real push to refs/heads/main for the repo param (join to
 -- default.push, which also yields the commit push timestamp used for bucketing + adjacency).
--- The trunk_commits .. final_jobs classification is the same logic used by flaky_trunk_jobs;
--- flaky_trunk_runner_labels reuses that classification but diverges downstream to carry per-job
--- runner-label arrays.
+-- The trunk_commits .. final_jobs classification chain is identical across flaky_trunk_timeseries,
+-- flaky_trunk_jobs and flaky_trunk_runner_labels.
 WITH
 trunk_commits AS (
     SELECT
@@ -107,6 +115,7 @@ job_signals AS (
         toUInt8(c.has_success AND NOT c.has_failure) AS is_green,
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_success AND c.has_failure) AS retry_green,
+        toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
         c.has_test_rule AS has_test_rule,
         toUInt8(c.ann_flake OR ifNull(aa.advisor_flake, 0) = 1) AS ext_flake,
         toUInt8(c.ann_real OR ifNull(aa.advisor_real, 0) = 1) AS ext_real
@@ -121,11 +130,16 @@ final_jobs AS (
         commit_time,
         is_green,
         is_red,
-        is_flake,
-        multiIf(is_red = 0, 0, is_flake = 1, 0, ext_real = 1, 1, 0) AS is_real,
-        multiIf(is_red = 0, 0, is_flake = 1, 0, ext_real = 1, 0, 1) AS is_unknown,
-        toUInt8(is_flake = 1 AND has_test_rule = 1) AS is_test_flake,
-        toUInt8(is_flake = 1 AND has_test_rule = 0) AS is_infra_flake
+        -- Exactly one category per logical red, in precedence order (0 = not red):
+        --   1 real_regression, 2 sustained_infra, 3 test_flake, 4 infra_flake, 5 unclassified.
+        multiIf(
+            is_red = 0, 0,
+            ext_real = 1 OR (persistent = 1 AND has_test_rule = 1), 1,
+            persistent = 1 AND has_test_rule = 0, 2,
+            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 1, 3,
+            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 0, 4,
+            5
+        ) AS category
     FROM (
         SELECT
             workflow_name,
@@ -134,17 +148,14 @@ final_jobs AS (
             commit_time,
             is_green,
             is_red,
+            retry_green,
             has_test_rule,
+            ext_flake,
             ext_real,
-            -- flake wins ties over real: retry-green, adjacent green->red->green, advisor or annotation flake
-            toUInt8(
-                is_red = 1
-                AND (
-                    retry_green = 1
-                    OR ext_flake = 1
-                    OR (lagInFrame(is_green) OVER w = 1 AND leadInFrame(is_green) OVER w = 1)
-                )
-            ) AS is_flake
+            -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
+            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent,
+            -- grg_flake: isolated hard-red with a clean green on BOTH adjacent trunk commits.
+            toUInt8(hard_red = 1 AND lagInFrame(is_green) OVER w = 1 AND leadInFrame(is_green) OVER w = 1) AS grg_flake
         FROM job_signals
         WINDOW w AS (
             PARTITION BY workflow_name, cons_name
@@ -157,10 +168,11 @@ SELECT
     toDateTime(DATE_TRUNC({granularity: String}, commit_time)) AS bucket,
     countIf(is_green = 1 OR is_red = 1) AS total_runs,
     countIf(is_red = 1) AS red,
-    countIf(is_real = 1) AS real,
-    countIf(is_infra_flake = 1) AS infra_flake,
-    countIf(is_test_flake = 1) AS test_flake,
-    countIf(is_unknown = 1) AS unknown
+    countIf(category = 4) AS infra_flake,
+    countIf(category = 3) AS test_flake,
+    countIf(category = 5) AS unclassified,
+    countIf(category = 1) AS real_regression,
+    countIf(category = 2) AS sustained_infra
 FROM final_jobs
 GROUP BY bucket
 ORDER BY bucket

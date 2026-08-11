@@ -14,9 +14,9 @@ import {
 } from "./common";
 dayjs.extend(utc);
 
-// Percentages auto-scale to the data (scale: true) instead of being pinned to
-// 0-100%, so a low single-digit flake rate is still readable.
-const AUTO_SCALE_PCT_AXIS: EChartsOption = { yAxis: { scale: true } };
+// Bars start at zero so low rates are not visually truncated; the max still
+// auto-scales to the data, so single-digit percentages stay readable.
+const PCT_AXIS_FROM_ZERO: EChartsOption = { yAxis: { min: 0 } };
 
 function FlakyTrunkGraph({
   startTime,
@@ -24,12 +24,14 @@ function FlakyTrunkGraph({
   granularity,
   denominator,
   onBucketClick,
+  autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
   granularity: Granularity;
   denominator: DenominatorKey;
   onBucketClick: (_bucketStart: dayjs.Dayjs) => void;
+  autoRefresh: boolean;
 }) {
   // Stable across denominator changes so echarts-for-react (which disposes the
   // chart when onEvents is not deep-equal) does a smooth update instead of a
@@ -84,13 +86,13 @@ function FlakyTrunkGraph({
       yAxisFieldName={"pct"}
       yAxisLabel={"% flaky"}
       yAxisRenderer={percentFormatter}
-      additionalOptions={AUTO_SCALE_PCT_AXIS}
+      additionalOptions={PCT_AXIS_FROM_ZERO}
       chartType={"stacked_bar"}
       sort_by={"name"}
       dataReader={dataReader}
       timeFieldDisplayFormat={"M/D (UTC)"}
       useUTC={true}
-      auto_refresh={false}
+      auto_refresh={autoRefresh}
       onEvents={onEvents}
     />
   );

@@ -2,14 +2,17 @@
 --
 -- One row per runner label. Each trunk logical job outcome (one (commit, workflow, job-shard)
 -- collapsed across every run_attempt / restart run_id) is attributed to the runner label(s) it ran
--- on. A label's red / infra_flake counts only include jobs that FAILED on that label. flake_rate is
--- the label's infra-flake rate over all jobs it ran. works_elsewhere_pct — share of a label's
+-- on. A label's red / infra_flake / sustained_infra counts only include jobs that FAILED on that
+-- label. infra_flake = intermittent infra flakiness on the label; sustained_infra = persistent infra
+-- breaks (the label was hard-red for >= 2 consecutive trunk commits). flake_rate is the label's
+-- intermittent infra-flake rate over all jobs it ran. works_elsewhere_pct — share of a label's
 -- infra-flake jobs that succeeded on a DIFFERENT label — is the pool-fault discriminator (high =
 -- the label/pool is the problem, not the job).
 --
--- flake = infra_flake only here (test flakes are job faults, not pool faults). The classification
--- chain (trunk_commits .. is_infra_flake) is the same logic used by flaky_trunk_timeseries and
--- flaky_trunk_jobs; this query additionally carries the per-job set of pass/fail runner labels.
+-- flake_rate counts infra_flake only (intermittent); test flakes are job faults, not pool faults, and
+-- sustained_infra is reported as its own column. The classification chain (trunk_commits .. category)
+-- is the same logic used by flaky_trunk_timeseries and flaky_trunk_jobs; this query additionally
+-- carries the per-job set of pass/fail runner labels.
 WITH
 trunk_commits AS (
     SELECT
@@ -22,6 +25,9 @@ trunk_commits AS (
       AND tupleElement(head_commit, 'timestamp') < {stopTime: DateTime64(3)}
     GROUP BY head_sha
 ),
+-- Latest AI advisor verdict per (trunk commit, normalized job). signal_key comes in two shapes:
+-- 'dr_ci_<workflow> / <job>' (Dr.CI / PR-side) and, for trunk autorevert, a bare (already
+-- normalized) '<job>' optionally suffixed ' [test]'. Both are reduced to the normalized job name.
 advisor_agg AS (
     SELECT
         head_sha,
@@ -106,6 +112,7 @@ job_signals AS (
         toUInt8(c.has_success AND NOT c.has_failure) AS is_green,
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_success AND c.has_failure) AS retry_green,
+        toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
         c.has_test_rule AS has_test_rule,
         toUInt8(c.ann_flake OR ifNull(aa.advisor_flake, 0) = 1) AS ext_flake,
         toUInt8(c.ann_real OR ifNull(aa.advisor_real, 0) = 1) AS ext_real
@@ -118,22 +125,30 @@ final_jobs AS (
         fail_labels,
         success_labels,
         is_red,
-        toUInt8(is_flake = 1 AND has_test_rule = 0) AS is_infra_flake
+        -- Exactly one category per logical red, in precedence order (0 = not red):
+        --   1 real_regression, 2 sustained_infra, 3 test_flake, 4 infra_flake, 5 unclassified.
+        multiIf(
+            is_red = 0, 0,
+            ext_real = 1 OR (persistent = 1 AND has_test_rule = 1), 1,
+            persistent = 1 AND has_test_rule = 0, 2,
+            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 1, 3,
+            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 0, 4,
+            5
+        ) AS category
     FROM (
         SELECT
             norm_name,
             fail_labels,
             success_labels,
             is_red,
+            retry_green,
             has_test_rule,
-            toUInt8(
-                is_red = 1
-                AND (
-                    retry_green = 1
-                    OR ext_flake = 1
-                    OR (lagInFrame(is_green) OVER w = 1 AND leadInFrame(is_green) OVER w = 1)
-                )
-            ) AS is_flake
+            ext_flake,
+            ext_real,
+            -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
+            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent,
+            -- grg_flake: isolated hard-red with a clean green on BOTH adjacent trunk commits.
+            toUInt8(hard_red = 1 AND lagInFrame(is_green) OVER w = 1 AND leadInFrame(is_green) OVER w = 1) AS grg_flake
         FROM job_signals
         WINDOW w AS (
             PARTITION BY workflow_name, cons_name
@@ -149,7 +164,7 @@ per_label AS (
         success_labels,
         norm_name,
         is_red,
-        is_infra_flake
+        category
     FROM final_jobs
 ),
 agg AS (
@@ -157,9 +172,10 @@ agg AS (
         label,
         count() AS total_runs,
         countIf(has(fail_labels, label) AND is_red = 1) AS red,
-        countIf(has(fail_labels, label) AND is_infra_flake = 1) AS infra_flake,
-        countIf(has(fail_labels, label) AND is_infra_flake = 1 AND arrayExists(x -> x != label, success_labels)) AS infra_flake_elsewhere_green,
-        uniqExactIf(norm_name, has(fail_labels, label) AND is_infra_flake = 1) AS distinct_jobs_hit
+        countIf(has(fail_labels, label) AND category = 4) AS infra_flake,
+        countIf(has(fail_labels, label) AND category = 2) AS sustained_infra,
+        countIf(has(fail_labels, label) AND category = 4 AND arrayExists(x -> x != label, success_labels)) AS infra_flake_elsewhere_green,
+        uniqExactIf(norm_name, has(fail_labels, label) AND category = 4) AS distinct_jobs_hit
     FROM per_label
     GROUP BY label
     HAVING total_runs >= {minRuns: Int32}
@@ -169,6 +185,7 @@ SELECT
     total_runs,
     red,
     infra_flake,
+    sustained_infra,
     round(if(total_runs = 0, 0, infra_flake / total_runs), 4) AS flake_rate,
     -- Wilson score 95% lower bound (z = 1.96) on infra_flake / total_runs
     round(if(total_runs = 0, 0,

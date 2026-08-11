@@ -4,6 +4,7 @@ import FlakyTrunkControls from "components/flakyTrunk/FlakyTrunkControls";
 import FlakyTrunkGraph from "components/flakyTrunk/FlakyTrunkGraph";
 import FlakyTrunkHelp from "components/flakyTrunk/FlakyTrunkHelp";
 import FlakyTrunkTable from "components/flakyTrunk/FlakyTrunkTable";
+import FlakyTrunkTiles from "components/flakyTrunk/FlakyTrunkTiles";
 import {
   BucketRange,
   CLICKHOUSE_TIME_FORMAT,
@@ -29,9 +30,10 @@ const GRAPH_HEIGHT = 420;
 const TABLE_HEIGHT = 560;
 
 const PAGE_DESCRIPTION =
-  "Trunk (main) only. 'Flaky' = a red confirmed by retry-green, " +
-  "green→red→green, or the autorevert advisor; reds that are neither " +
-  "confirmed-flaky nor a confirmed regression are shown as 'unknown'.";
+  "Trunk (main) only. The graph shows flakiness (infra flake, job flake, " +
+  "unclassified); persistent breaks — real regressions and sustained infra " +
+  "outages — are summarized in the tiles above the graph. See 'How to read " +
+  "this' for definitions.";
 
 export default function Page() {
   const router = useRouter();
@@ -193,13 +195,23 @@ export default function Page() {
         setMinRuns={setMinRuns}
       />
 
-      <Box sx={{ height: GRAPH_HEIGHT, mt: 3 }}>
+      <Box sx={{ mt: 3 }}>
+        <FlakyTrunkTiles
+          startTime={windowStart}
+          stopTime={windowStop}
+          granularity={granularity}
+          autoRefresh={autoRefresh}
+        />
+      </Box>
+
+      <Box sx={{ height: GRAPH_HEIGHT, mt: 1 }}>
         <FlakyTrunkGraph
           startTime={windowStart}
           stopTime={windowStop}
           granularity={granularity}
           denominator={denominator}
           onBucketClick={onBucketClick}
+          autoRefresh={autoRefresh}
         />
       </Box>
 

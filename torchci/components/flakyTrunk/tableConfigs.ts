@@ -24,7 +24,12 @@ const COL_DESC = {
   testFlake:
     "Failures caused by the job's own test/CI unreliability (not a real bug).",
   infraFlake: "Failures caused by the machine/runner/infra (not the code).",
-  unknown: "Failures we couldn't confidently attribute to infra or test.",
+  unclassified:
+    "An isolated one-off red we couldn't attribute to flake, regression, or infra outage.",
+  realRegression:
+    "Persistent break (red across consecutive commits) with a test/code failure — a genuine regression.",
+  sustainedInfra:
+    "Persistent break caused by infra (not code) — e.g. a fleet/config outage spanning many commits.",
   worksElsewhere:
     "Of this label's infra-flakes, how often the same job passed on a different label. High = likely this pool's fault, not the job's.",
 };
@@ -39,11 +44,11 @@ const JOBS_TABLE: FlakyTrunkTableConfig = {
     numCol("total_runs", "Runs"),
     numCol("green", "Green"),
     numCol("red", "Red"),
-    numCol("flake", "Flake"),
-    numCol("test_flake", "Test flake", COL_DESC.testFlake),
     numCol("infra_flake", "Infra flake", COL_DESC.infraFlake),
-    numCol("real", "Real"),
-    numCol("unknown", "Unknown", COL_DESC.unknown),
+    numCol("test_flake", "Test flake", COL_DESC.testFlake),
+    numCol("unclassified", "Unclassified", COL_DESC.unclassified),
+    numCol("real_regression", "Real regression", COL_DESC.realRegression),
+    numCol("sustained_infra", "Sustained infra", COL_DESC.sustainedInfra),
     pctCol("flake_rate", "Flakiness rate", COL_DESC.jobsFlakeRate),
     pctCol("flake_rate_wilson_lb", "Wilson LB", COL_DESC.wilson),
     pctCol("pct_reds_flake", "% reds flaky", COL_DESC.pctRedsFlake),
@@ -60,6 +65,7 @@ const LABELS_TABLE: FlakyTrunkTableConfig = {
     numCol("total_runs", "Runs"),
     numCol("red", "Red"),
     numCol("infra_flake", "Infra flake", COL_DESC.infraFlake),
+    numCol("sustained_infra", "Sustained infra", COL_DESC.sustainedInfra),
     pctCol("flake_rate", "Infra-flake rate", COL_DESC.labelsFlakeRate),
     pctCol("flake_rate_wilson_lb", "Wilson LB", COL_DESC.wilson),
     pctCol("works_elsewhere_pct", "Works elsewhere", COL_DESC.worksElsewhere),

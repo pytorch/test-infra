@@ -5,6 +5,8 @@ import dayjs from "dayjs";
 export const FLAKY_TRUNK_REPO = "pytorch/pytorch";
 
 export const DEFAULT_TIME_RANGE = 30;
+// The presets offered by TimeRangePicker (days), plus -1 for a custom range.
+export const ALLOWED_TIME_RANGES = [1, 3, 7, 14, 30, 90, 180, 365, -1];
 export const DEFAULT_GRANULARITY: Granularity = "day";
 export const DEFAULT_MIN_RUNS = 20;
 export const DEFAULT_DENOMINATOR: DenominatorKey = "jobs";
@@ -19,8 +21,9 @@ export const CLICKHOUSE_TIME_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSS";
 export type DenominatorKey = "jobs" | "reds";
 
 // A single stacked-bar slice: the count column in flaky_trunk_timeseries and its
-// series label. The three slices partition (red - real): every red that is not a
-// confirmed regression is an infra flake, a test flake, or still unclassified.
+// series label. The graph plots flakiness only; the persistent-break categories
+// (real_regression, sustained_infra) live in the tiles, so in "% of reds" mode
+// these three slices intentionally do not stack to 100%.
 export interface FlakeSlice {
   key: string;
   label: string;
@@ -29,7 +32,19 @@ export interface FlakeSlice {
 export const FLAKE_SLICES: FlakeSlice[] = [
   { key: "infra_flake", label: "Infra flakiness" },
   { key: "test_flake", label: "Job flakiness" },
-  { key: "unknown", label: "Unclassified" },
+  { key: "unclassified", label: "Unclassified" },
+];
+
+// Whole-window stat tiles: each sums its count column across the timeseries
+// buckets and is shown alongside its share of all reds (Σkey / Σred).
+export interface TileConfig {
+  key: string;
+  label: string;
+}
+
+export const TILE_CONFIGS: TileConfig[] = [
+  { key: "real_regression", label: "Real regressions" },
+  { key: "sustained_infra", label: "Sustained infra outages" },
 ];
 
 // The denominator each slice count is divided by to get its plotted percentage.
@@ -48,6 +63,25 @@ export function getDenominatorOption(value: DenominatorKey): DenominatorOption {
   return (
     DENOMINATOR_OPTIONS.find((d) => d.value === value) ?? DENOMINATOR_OPTIONS[0]
   );
+}
+
+// Must reproduce the exact SWR key TimeSeriesPanel builds for the graph — it
+// stringifies { ...queryParams, granularity } and the graph passes queryParams
+// { startTime, stopTime, repo } in this order — so the tiles' fetch and the
+// graph's fetch share one request instead of hitting the query twice.
+export function flakyTrunkTimeseriesUrl(
+  startTime: string,
+  stopTime: string,
+  granularity: string
+): string {
+  return `/api/clickhouse/flaky_trunk_timeseries?parameters=${encodeURIComponent(
+    JSON.stringify({
+      startTime,
+      stopTime,
+      repo: FLAKY_TRUNK_REPO,
+      granularity,
+    })
+  )}`;
 }
 
 // A [start, end) time bucket selected by clicking a bar. end is exclusive.
@@ -81,7 +115,7 @@ export function parseTimeRange(value: unknown, fallback: number): number {
     return fallback;
   }
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return ALLOWED_TIME_RANGES.includes(parsed) ? parsed : fallback;
 }
 
 export function parseDate(value: unknown, fallback: dayjs.Dayjs): dayjs.Dayjs {

@@ -32,55 +32,60 @@ export default function FlakyTrunkHelp() {
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
-            {
-              "Every trunk job run passes or fails. Each failure is sorted into: "
-            }
-            <Term>infra flake</Term>
-            {" (the machine/runner broke — not the code), "}
-            <Term>job flake</Term>
-            {" (the test itself is unreliable — CI quality, not a real bug), "}
-            <Term>unclassified</Term>
-            {" (a failure we couldn't confidently attribute), or "}
-            <Term>real regression</Term>
-            {
-              " (an actual code bug — excluded from every flakiness number here)."
-            }
+            {"Every trunk job run passes or fails. Each failure is one of:"}
+          </Typography>
+
+          <Box component="ul" sx={{ m: 0, pl: 3 }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <Term>Infra flake</Term>
+              {" — the machine/runner broke intermittently (a retry passed, or " +
+                "it was green right before and after). Not the code."}
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <Term>Job flake</Term>
+              {" — the test itself is intermittently unreliable (CI quality). " +
+                "Not a real bug."}
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <Term>Real regression</Term>
+              {" — a persistent break: the job stayed red across consecutive " +
+                "commits and the failure is a test/code failure. A genuine code break."}
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <Term>Sustained infra outage</Term>
+              {" — a persistent break caused by infra (not code) — e.g. a " +
+                "fleet/config outage lasting many commits."}
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <Term>Unclassified</Term>
+              {
+                " — an isolated one-off red we can't yet attribute (~a few % of reds)."
+              }
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            {"The GRAPH shows flakiness only (Infra flake / Job flake / " +
+              "Unclassified). Real regressions and sustained infra outages are " +
+              "shown as the tiles above it, not on the graph — so in " +
+              '"% of reds" mode the bars don\'t fill 100%; the remainder is ' +
+              "exactly those tiles."}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
             <Term>Flakiness rate</Term>
-            {' = flakes ÷ (passes + flakes). "When the code was fine, how often ' +
-              'did this flake?" It leaves real bugs and unclassified failures out ' +
-              "of the denominator, so it measures how unreliable the signal itself is."}
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
+            {" = flakes ÷ (passes + flakes) — when the code was fine, how often " +
+              "this flaked (jobs table). "}
             <Term>% of jobs that are flaky</Term>
-            {' (the graph\'s "% of all jobs" mode) = flakes ÷ all runs. Same top ' +
-              "number, divided by everything that ran — total flaky volume/impact, " +
-              "not intrinsic unreliability. A rarely-run job can have a high " +
-              "flakiness rate but a tiny % of all jobs."}
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
+            {' (graph "% of all jobs") = flakes ÷ all runs. '}
             <Term>% of reds that are flaky</Term>
-            {" = flakes ÷ all failures. \"When it's red, how often is that a false " +
-              'alarm vs a real problem?"'}
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
+            {" = flakes ÷ all failures. "}
             <Term>Wilson LB</Term>
-            {" (Wilson lower bound) = a confidence-adjusted flakiness rate. A job " +
-              "that flaked 1 of 2 runs looks 50% flaky, but 2 runs prove nothing — " +
-              "Wilson LB discounts small samples, so a steady 4% over 10,000 runs " +
-              "ranks above a noisy 50% over 2. The tables sort by this."}
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
+            {" = a confidence-adjusted flakiness rate that discounts small " +
+              "samples; the tables sort by it. "}
             <Term>works elsewhere</Term>
-            {" (instance-labels table only) = of this label's infra-flakes, how " +
-              "often the same job passed on a different label. High → likely this " +
-              "runner pool's fault, not the job's."}
+            {" (labels) = of this label's infra-flakes, how often the same job " +
+              "passed on a different label — high = likely this pool's fault."}
           </Typography>
         </Stack>
       </AccordionDetails>
