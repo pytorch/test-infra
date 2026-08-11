@@ -87,6 +87,14 @@
     "linux-jammy-rocm-py3.10-mi200",
     "test"
   ],
+  "rocm-navi31 / linux-jammy-rocm-py3.10-navi31 / test (default)": [
+    "bobrenjc93",
+    "193008",
+    "https://github.com/pytorch/pytorch/issues/193008",
+    "rocm-navi31",
+    "linux-jammy-rocm-py3.10-navi31",
+    "test (default)"
+  ],
   "rocm-nightly / linux-noble-rocm-nightly-py3.12-gfx942 / test (default)": [
     "jithunnair-amd",
     "181647",
