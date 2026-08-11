@@ -29,7 +29,7 @@ import argparse
 import json
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
@@ -55,6 +55,13 @@ BAD_STATES = ("failed", "timed_out")
 # cluster keeps a single root cause from looking like N independent regressions.
 _SHARD_SUFFIX = re.compile(r"\s+\d+$")
 _PAREN_QUALIFIER = re.compile(r"\s*\([^)]*\)\s*$")
+
+
+# torch nightly wheels are versioned 2.<minor>.0.dev<YYYYMMDD>+cu<nnn>. Only some
+# jobs install torch verbosely enough to print it, and the line is in the install
+# preamble that the log tail drops -- so this is scanned against the full body, and
+# the caller must treat "not found" as normal rather than exceptional.
+_TORCH_VERSION = re.compile(r"\b(2\.\d+\.\d+\.dev\d{8}(?:\+cu\d+)?)\b")
 
 
 def cluster_key(job_name: str) -> str:
@@ -351,7 +358,11 @@ def _render_cluster_artifact(
 
 
 def fetch_cluster_logs(
-    buckets: Dict[str, List[Dict]], logs_dir: str, token: str, tail_lines: int
+    buckets: Dict[str, List[Dict]],
+    logs_dir: str,
+    token: str,
+    tail_lines: int,
+    torch_versions: Optional[List[str]] = None,
 ) -> List[str]:
     """Download one representative log per cluster, cleaned and tail-trimmed.
 
@@ -401,6 +412,11 @@ def fetch_cluster_logs(
             print(f"skip {key}: {exc}", file=sys.stderr)
             continue
 
+        if torch_versions is not None:
+            found = _TORCH_VERSION.search(body)
+            if found:
+                torch_versions.append(found.group(1))
+
         artifact = _render_cluster_artifact(body, key, rep, tail_lines)
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)[:80]
         dest = pathlib_dir / f"{safe}.log"
@@ -443,21 +459,9 @@ def main() -> int:
     else:
         print(report)
 
-    if args.json_output:
-        with open(args.json_output, "w") as f:
-            json.dump(
-                {
-                    "torch_nightly_build": tn["number"],
-                    "baseline_build": base["number"],
-                    "commit": tn["commit"],
-                    "regressed": buckets["regressed"],
-                    "both": buckets["both"],
-                },
-                f,
-                indent=2,
-                default=str,
-            )
-
+    # Logs are fetched before the JSON is written: the torch version is only
+    # observable in a log body, and report.json is what carries it downstream.
+    torch_versions: List[str] = []
     if args.logs_dir and buckets["regressed"]:
         import os as _os
 
@@ -470,9 +474,42 @@ def main() -> int:
             print("BUILDKITE_TOKEN unset; skipping log fetch", file=sys.stderr)
         else:
             written = fetch_cluster_logs(
-                buckets, args.logs_dir, token, args.log_tail_lines
+                buckets, args.logs_dir, token, args.log_tail_lines, torch_versions
             )
             print(f"fetched {len(written)} cluster log(s)", file=sys.stderr)
+
+    # Most common wins: a stray version from some other wheel in one log should not
+    # outvote the torch build the rest of the jobs installed.
+    torch_version = ""
+    if torch_versions:
+        torch_version = Counter(torch_versions).most_common(1)[0][0]
+        print(
+            f"detected torch {torch_version} "
+            f"({len(torch_versions)} log(s) reported a version)",
+            file=sys.stderr,
+        )
+    else:
+        print("no torch version found in fetched logs", file=sys.stderr)
+    torch_version_minor = (
+        ".".join(torch_version.split(".")[:2]) if torch_version else ""
+    )
+
+    if args.json_output:
+        with open(args.json_output, "w") as f:
+            json.dump(
+                {
+                    "torch_nightly_build": tn["number"],
+                    "baseline_build": base["number"],
+                    "commit": tn["commit"],
+                    "torch_version": torch_version,
+                    "torch_version_minor": torch_version_minor,
+                    "regressed": buckets["regressed"],
+                    "both": buckets["both"],
+                },
+                f,
+                indent=2,
+                default=str,
+            )
     return 0
 
 
