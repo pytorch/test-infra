@@ -112,6 +112,18 @@ class TestVerifyGitHubOIDC(unittest.TestCase):
             verify_oidc_token("token.no.repo")
         self.assertEqual(ctx.exception.status_code, 401)
 
+    def test_cross_issuer_token_rejected(self):
+        """A GitHub-signed token asserting iss=buildkite must be rejected."""
+        self.mock_detect.return_value = GITHUB_ISSUER
+        self.mock_decode.return_value = {
+            "iss": BUILDKITE_ISSUER,
+            "repository": "org/repo",
+        }
+        with self.assertRaises(HTTPException) as ctx:
+            verify_oidc_token("cross.issuer.token")
+        self.assertEqual(ctx.exception.status_code, 401)
+        self.assertIn("Issuer mismatch", ctx.exception.detail)
+
 
 class TestVerifyBuildkiteOIDC(unittest.TestCase):
     """Tests for Buildkite OIDC tokens."""

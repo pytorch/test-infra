@@ -211,21 +211,29 @@ def verify_oidc_token(token: str) -> dict:
         if token.lower().startswith("bearer "):
             token = token[7:].strip()
 
-        issuer = _detect_issuer(token)
-        if issuer not in _jwks_clients:
-            raise HTTPException(401, f"Unsupported OIDC issuer: {issuer}")
+        detected_issuer = _detect_issuer(token)
+        if detected_issuer not in _jwks_clients:
+            raise HTTPException(401, f"Unsupported OIDC issuer: {detected_issuer}")
 
-        client = _jwks_clients[issuer]
+        client = _jwks_clients[detected_issuer]
         signing_key = client.get_signing_key_from_jwt(token)
         claims = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
-            issuer=issuer,
+            issuer=detected_issuer,
             audience=AUDIENCE,
         )
 
-        extractor = _REPO_EXTRACTORS[issuer]
+        verified_issuer = claims.get("iss", "")
+        if verified_issuer != detected_issuer:
+            raise HTTPException(
+                401,
+                f"Issuer mismatch: token claims '{verified_issuer}' "
+                f"but was routed as '{detected_issuer}'",
+            )
+
+        extractor = _REPO_EXTRACTORS[detected_issuer]
         repo = extractor(claims)
         claims["repository"] = repo
 
