@@ -8,10 +8,19 @@ description: >
   so downstream jobs can depend on it with `needs:`.
 
 inputs:
+  command:
+    description: >
+      A build command to run on the remote builder instead of assembling a `docker buildx build`
+      invocation — a repo build script or make target, for example. When set, the buildx inputs
+      below (tags, context, file, build-args, labels, target, push, cache-from, cache-to) are
+      ignored and the `image` output is not set. The command is responsible for its own tags and
+      for `--push`; note there is no local daemon, so `--load` cannot work.
+    default: ''
   tags:
     description: >
       Newline- or comma-separated list of image tags, e.g. ghcr.io/pytorch/my-image:abc123.
-    required: true
+      Required unless `command` is set.
+    default: ''
   context:
     description: Build context path.
     default: .
@@ -51,7 +60,9 @@ inputs:
 
 outputs:
   image:
-    description: The first tag passed in, for convenience when wiring up downstream jobs.
+    description: >
+      The first tag passed in, for convenience when wiring up downstream jobs. Empty in command
+      mode.
     value: ${{ steps.build.outputs.image }}
 
 runs:
@@ -61,6 +72,7 @@ runs:
       id: build
       shell: bash
       env:
+        COMMAND: ${{ inputs.command }}
         TAGS: ${{ inputs.tags }}
         CONTEXT: ${{ inputs.context }}
         FILE: ${{ inputs.file }}
@@ -74,6 +86,12 @@ runs:
         REMOTE_BUILDKIT_CONNECT_DELAY: ${{ inputs.connect-delay }}
       run: |
         set -euo pipefail
+
+        # Command mode: hand the whole thing to the helper, which registers the
+        # builder and retries only connection-phase failures.
+        if [[ -n "${COMMAND}" ]]; then
+          exec bash "${GITHUB_ACTION_PATH}/build_with_remote_buildkit.sh" bash -c "${COMMAND}"
+        fi
 
         args=()
 

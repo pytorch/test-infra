@@ -96,6 +96,17 @@ jobs:
           # Registry-side inspect: no local daemon needed.
           docker buildx imagetools inspect "${IMAGE}"
 
+      # Command mode: the action should hand an arbitrary build command to the
+      # helper, which is how repo build scripts drive it.
+      - name: Build via command mode
+        uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@osdc-remote-buildkit-action
+        with:
+          command: >-
+            docker buildx build
+            --build-arg GREETING=command-mode
+            -f ${{ runner.temp }}/ctx/Dockerfile
+            ${{ runner.temp }}/ctx
+
       # Negative path: a genuine build error must fail fast, not burn 40
       # connection retries. If the retry discriminator ever regresses to
       # "retry anything", this step blows the job timeout instead of failing.

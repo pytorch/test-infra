@@ -20,6 +20,22 @@ against it.
 The step blocks until the image has been pushed, so a job that builds an image and a job that
 consumes it can be ordered with a plain `needs:` — no polling for the tag to appear.
 
+## Wrapping your own build script
+
+Builds driven by a script or make target — as pytorch/pytorch's image builds are — pass the whole
+command instead of the buildx inputs:
+
+```yaml
+- uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@main
+  env:
+    REMOTE_BUILDKIT: 1        # if your script keys off it, as .ci/docker/build.sh does
+  with:
+    command: .ci/docker/manywheel/build.sh manylinux2_28-builder:cpu -t my-tag
+```
+
+The command owns its tags and its `--push`; the action only registers the builder and applies the
+retry. `--load` still cannot work, since there is no local daemon.
+
 ## Why not `docker/setup-buildx-action`
 
 Both `docker/setup-buildx-action` and `docker buildx create --bootstrap` run
