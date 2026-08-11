@@ -166,6 +166,13 @@
       "linux"
     ]
   ],
+  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
+    "180023",
+    "https://github.com/pytorch/pytorch/issues/180023",
+    [
+      "rocm"
+    ]
+  ],
   "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
     "187202",
     "https://github.com/pytorch/pytorch/issues/187202",
@@ -393,8 +400,8 @@
     ]
   ],
   "test_flattened_submesh_no_getattr_compile_on_one_rank (__main__.TestDTensorCompileWithCompiledAutograd)": [
-    "192994",
-    "https://github.com/pytorch/pytorch/issues/192994",
+    "193002",
+    "https://github.com/pytorch/pytorch/issues/193002",
     [
       "xpu"
     ]
@@ -963,6 +970,15 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
     ]
   ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
