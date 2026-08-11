@@ -275,13 +275,6 @@
       "dynamo"
     ]
   ],
-  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
-    "188234",
-    "https://github.com/pytorch/pytorch/issues/188234",
-    [
-      "linux"
-    ]
-  ],
   "test_del_multi_stream_sync_dealloc (__main__.TestStreams)": [
     "191414",
     "https://github.com/pytorch/pytorch/issues/191414",
@@ -965,15 +958,6 @@
       "linux"
     ]
   ],
-  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
-    "145189",
-    "https://github.com/pytorch/pytorch/issues/145189",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1024,15 +1008,6 @@
     "https://github.com/pytorch/pytorch/issues/185452",
     [
       "linux"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
-    "182397",
-    "https://github.com/pytorch/pytorch/issues/182397",
-    [
-      "asan",
-      "linux",
-      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
