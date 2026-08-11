@@ -96,6 +96,7 @@ jobs:
       package-type: wheel,libtorch #  We stopped producing conda nightlies
       os: macos-arm64
       channel: ${{ inputs.channel }}
+      test-infra-ref: release/2.14
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
 
   macos-arm64:
@@ -108,7 +109,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.14
       job-name: ${{ matrix.build_name }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
