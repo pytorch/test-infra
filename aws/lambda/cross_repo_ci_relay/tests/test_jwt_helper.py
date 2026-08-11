@@ -290,18 +290,22 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         load_ci_provider_mappings(raw)
         entry = BUILDKITE_REPO_MAP[("org-id", "pipe-id")]
         self.assertEqual(entry["repo"], "myorg/myrepo")
-        self.assertEqual(
-            entry["required_claims"]["build_branch"], ["main", "nightly"]
-        )
+        self.assertEqual(entry["required_claims"]["build_branch"], ["main", "nightly"])
         self.assertEqual(entry["required_claims"]["cluster_id"], ["cluster-uuid"])
 
     def test_empty_config_clears_map(self):
-        BUILDKITE_REPO_MAP[("old", "entry")] = {"repo": "old/repo", "required_claims": {}}
+        BUILDKITE_REPO_MAP[("old", "entry")] = {
+            "repo": "old/repo",
+            "required_claims": {},
+        }
         load_ci_provider_mappings({})
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
     def test_missing_buildkite_section_clears_map(self):
-        BUILDKITE_REPO_MAP[("old", "entry")] = {"repo": "old/repo", "required_claims": {}}
+        BUILDKITE_REPO_MAP[("old", "entry")] = {
+            "repo": "old/repo",
+            "required_claims": {},
+        }
         load_ci_provider_mappings({"gitlab": {"group/proj": "org/repo"}})
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
@@ -311,9 +315,7 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         }
         load_ci_provider_mappings(raw)
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
-        self.assertEqual(
-            BUILDKITE_REPO_MAP[("ok-id", "pipe-id")]["repo"], "ok/repo"
-        )
+        self.assertEqual(BUILDKITE_REPO_MAP[("ok-id", "pipe-id")]["repo"], "ok/repo")
 
 
 class TestUnsupportedIssuer(unittest.TestCase):
