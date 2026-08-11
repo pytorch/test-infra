@@ -2,15 +2,14 @@
 --
 -- One row per runner label. Each trunk logical job outcome (one (commit, workflow, job-shard)
 -- collapsed across every run_attempt / restart run_id) is attributed to the runner label(s) it ran
--- on. A label's red / infra_flake / sustained_infra counts only include jobs that FAILED on that
--- label. infra_flake = intermittent infra flakiness on the label; sustained_infra = persistent infra
--- breaks (the label was hard-red for >= 2 consecutive trunk commits). flake_rate is the label's
--- intermittent infra-flake rate over all jobs it ran. works_elsewhere_pct — share of a label's
+-- on. A label's red / infra_flake counts only include jobs that FAILED on that label.
+-- infra_flake = infra flakiness on the label (advisor infra_issue, persistent or not). flake_rate is
+-- the label's infra-flake rate over all jobs it ran. works_elsewhere_pct — share of a label's
 -- infra-flake jobs that succeeded on a DIFFERENT label — is the pool-fault discriminator (high =
 -- the label/pool is the problem, not the job).
 --
--- flake_rate counts infra_flake only (intermittent); test flakes are job faults, not pool faults, and
--- sustained_infra is reported as its own column. The classification chain (trunk_commits .. category)
+-- flake_rate counts infra_flake only; test flakes are job faults, not pool faults.
+-- The classification chain (trunk_commits .. category)
 -- is the same logic used by flaky_trunk_timeseries and flaky_trunk_jobs; this query additionally
 -- carries the per-job set of pass/fail runner labels.
 WITH
@@ -32,8 +31,9 @@ advisor_agg AS (
     SELECT
         head_sha,
         adv_norm,
-        maxIf(1, verdict IN ('infra_issue', 'not_related', 'garbage')) AS advisor_flake,
-        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real
+        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real,
+        maxIf(1, verdict = 'infra_issue') AS advisor_infra,
+        maxIf(1, verdict IN ('not_related', 'garbage')) AS advisor_testflake
     FROM (
         SELECT
             toString(suspect_commit) AS head_sha,
@@ -66,16 +66,9 @@ raw_jobs AS (
         j.workflow_name AS workflow_name,
         replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
         j.conclusion AS conclusion,
-        arrayJoin(if(empty(j.labels), [''], j.labels)) AS label,
-        if(
-            tupleElement(j.torchci_classification, 'line') = '',
-            tupleElement(j.torchci_classification_temp, 'rule'),
-            tupleElement(j.torchci_classification, 'rule')
-        ) AS rule,
-        upper(ann.annotation) AS annotation
+        arrayJoin(if(empty(j.labels), [''], j.labels)) AS label
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
-    LEFT JOIN default.job_annotation ann ON ann.jobID = j.id
     WHERE j.created_at >= {startTime: DateTime64(3)}
       AND j.created_at < {stopTime: DateTime64(3)}
       AND j.conclusion IN ('success', 'failure')
@@ -93,9 +86,6 @@ consolidated AS (
         replaceRegexpOne(cons_name, ', [0-9]+, [0-9]+\\)$', ')') AS norm_name,
         countIf(conclusion = 'success') > 0 AS has_success,
         countIf(conclusion = 'failure') > 0 AS has_failure,
-        maxIf(rule IN ('pytest failure', 'Python unittest failure'), conclusion = 'failure') AS has_test_rule,
-        max(annotation IN ('TEST_FLAKE', 'INFRA_FLAKE', 'INFRA_BROKEN', 'NETWORK')) AS ann_flake,
-        max(annotation = 'BROKEN_TRUNK') AS ann_real,
         groupUniqArrayIf(label, conclusion = 'failure') AS fail_labels,
         groupUniqArrayIf(label, conclusion = 'success') AS success_labels
     FROM raw_jobs
@@ -113,9 +103,9 @@ job_signals AS (
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_success AND c.has_failure) AS retry_green,
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
-        c.has_test_rule AS has_test_rule,
-        toUInt8(c.ann_flake OR ifNull(aa.advisor_flake, 0) = 1) AS ext_flake,
-        toUInt8(c.ann_real OR ifNull(aa.advisor_real, 0) = 1) AS ext_real
+        ifNull(aa.advisor_real, 0) AS adv_real,
+        ifNull(aa.advisor_infra, 0) AS adv_infra,
+        ifNull(aa.advisor_testflake, 0) AS adv_testflake
     FROM consolidated c
     LEFT JOIN advisor_agg aa ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
 ),
@@ -125,14 +115,14 @@ final_jobs AS (
         fail_labels,
         success_labels,
         is_red,
-        -- Exactly one category per logical red, in precedence order (0 = not red):
-        --   1 real_regression, 2 sustained_infra, 3 test_flake, 4 infra_flake, 5 unclassified.
+        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback:
+        --   1 real_regression, 3 test_flake, 4 infra_flake, 5 unclassified.
         multiIf(
             is_red = 0, 0,
-            ext_real = 1 OR (persistent = 1 AND has_test_rule = 1), 1,
-            persistent = 1 AND has_test_rule = 0, 2,
-            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 1, 3,
-            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 0, 4,
+            adv_real = 1, 1,
+            adv_infra = 1, 4,
+            adv_testflake = 1, 3,
+            persistent = 1, 1,
             5
         ) AS category
     FROM (
@@ -142,9 +132,9 @@ final_jobs AS (
             success_labels,
             is_red,
             retry_green,
-            has_test_rule,
-            ext_flake,
-            ext_real,
+            adv_real,
+            adv_infra,
+            adv_testflake,
             -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
             toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent,
             -- grg_flake: isolated hard-red with a clean green on BOTH adjacent trunk commits.
@@ -173,7 +163,6 @@ agg AS (
         count() AS total_runs,
         countIf(has(fail_labels, label) AND is_red = 1) AS red,
         countIf(has(fail_labels, label) AND category = 4) AS infra_flake,
-        countIf(has(fail_labels, label) AND category = 2) AS sustained_infra,
         countIf(has(fail_labels, label) AND category = 4 AND arrayExists(x -> x != label, success_labels)) AS infra_flake_elsewhere_green,
         uniqExactIf(norm_name, has(fail_labels, label) AND category = 4) AS distinct_jobs_hit
     FROM per_label
@@ -185,7 +174,6 @@ SELECT
     total_runs,
     red,
     infra_flake,
-    sustained_infra,
     round(if(total_runs = 0, 0, infra_flake / total_runs), 4) AS flake_rate,
     -- Wilson score 95% lower bound (z = 1.96) on infra_flake / total_runs
     round(if(total_runs = 0, 0,

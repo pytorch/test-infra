@@ -35,9 +35,8 @@ const TABLE_HEIGHT = 560;
 
 const PAGE_DESCRIPTION =
   "Trunk (main) only. The graph shows flakiness (infra flake, job flake, " +
-  "unclassified); persistent breaks — real regressions and sustained infra " +
-  "outages — are summarized in the tiles above the graph. See 'How to read " +
-  "this' for definitions.";
+  "unclassified); real regressions are summarized in the tile above the " +
+  "graph. See 'How to read this' for definitions.";
 
 export default function Page() {
   const router = useRouter();

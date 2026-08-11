@@ -50,9 +50,9 @@ export interface SelectedEntity {
 }
 
 // A single stacked-bar slice: the count column in flaky_trunk_timeseries and its
-// series label. The graph plots flakiness only; the persistent-break categories
-// (real_regression, sustained_infra) live in the tiles, so in "% of reds" mode
-// these three slices intentionally do not stack to 100%.
+// series label. The graph plots flakiness only; the persistent-break category
+// (real_regression) lives in the tiles, so in "% of reds" mode these three
+// slices intentionally do not stack to 100%.
 export interface FlakeSlice {
   key: string;
   label: string;
@@ -73,7 +73,6 @@ export interface TileConfig {
 
 export const TILE_CONFIGS: TileConfig[] = [
   { key: "real_regression", label: "Real regressions" },
-  { key: "sustained_infra", label: "Sustained infra outages" },
 ];
 
 // The denominator each slice count is divided by to get its plotted percentage.

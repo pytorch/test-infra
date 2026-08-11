@@ -4,18 +4,21 @@
 -- derives every percentage from these raw counts. A "logical job outcome" is one (commit, workflow,
 -- job-shard) collapsed across every run_attempt / restart run_id: green if it ever succeeded and
 -- never failed, red if it ever failed (green + red = total_runs). Every red is assigned to exactly
--- ONE of five mutually-exclusive categories, so
--- infra_flake + test_flake + unclassified + real_regression + sustained_infra = red:
---   real_regression  advisor said related/revert, OR a persistent hard-red run whose failure is a test rule.
---   sustained_infra  a persistent hard-red run whose failure is NOT a test rule (infra broke for >= 2 commits).
---   test_flake       intermittent flake on a test rule (retry-green, green->red->green, advisor/annotation flake).
---   infra_flake      intermittent flake on a non-test rule (same signals).
---   unclassified     an isolated single-commit hard-red with no retry, no green->red->green, no persistence,
---                    and no advisor/annotation signal.
--- Persistence is the key discriminator: a hard-red (failed, no retry-green at this commit) is "persistent"
--- when the SAME job is also hard-red at the immediately previous OR next trunk commit; a hard-red with a
--- clean green on BOTH neighbors is an isolated green->red->green flake. real_regression / sustained_infra
--- are NOT gated on later recovery, so an ongoing (still-red) break still counts.
+-- ONE of four mutually-exclusive categories, so
+-- infra_flake + test_flake + unclassified + real_regression = red:
+--   real_regression  advisor said related/revert; or, with no advisor verdict, a persistent hard-red run.
+--   test_flake       advisor said not_related/garbage (advisor-only; no structural fallback).
+--   infra_flake      advisor said infra_issue (persistent or not).
+--   unclassified     no advisor verdict and not persistent (isolated single-commit hard-red, retry-green,
+--                    or green->red->green -- any non-persistent red with no advisor verdict).
+-- Classification is advisor-verdict-PRIMARY (misc.autorevert_advisor_verdicts) with a structural fallback;
+-- test_flake and infra_flake are assigned ONLY from an advisor verdict (not_related/garbage
+-- for test_flake, infra_issue for infra_flake), so the structural fallback yields only real_regression
+-- (persistent) or unclassified (non-persistent). Persistence
+-- discriminates: a hard-red (failed, no retry-green at this commit) is "persistent" when the SAME job is
+-- also hard-red at the immediately previous OR next trunk commit; a hard-red with a clean green on BOTH
+-- neighbors is an isolated green->red->green flake. real_regression is NOT gated on
+-- later recovery, so an ongoing (still-red) break still counts.
 --
 -- Trunk filter: jobs whose head_sha is a real push to refs/heads/main for the repo param (join to
 -- default.push, which also yields the commit push timestamp used for bucketing + adjacency).
@@ -40,8 +43,9 @@ advisor_agg AS (
     SELECT
         head_sha,
         adv_norm,
-        maxIf(1, verdict IN ('infra_issue', 'not_related', 'garbage')) AS advisor_flake,
-        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real
+        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real,
+        maxIf(1, verdict = 'infra_issue') AS advisor_infra,
+        maxIf(1, verdict IN ('not_related', 'garbage')) AS advisor_testflake
     FROM (
         SELECT
             toString(suspect_commit) AS head_sha,
@@ -73,16 +77,9 @@ raw_jobs AS (
         -- cons_name keeps the shard (config, i, n) but drops the trailing runner, so a retry on a
         -- different runner/fleet collapses into the same shard; norm_name additionally drops the shard.
         replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
-        j.conclusion AS conclusion,
-        if(
-            tupleElement(j.torchci_classification, 'line') = '',
-            tupleElement(j.torchci_classification_temp, 'rule'),
-            tupleElement(j.torchci_classification, 'rule')
-        ) AS rule,
-        upper(ann.annotation) AS annotation
+        j.conclusion AS conclusion
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
-    LEFT JOIN default.job_annotation ann ON ann.jobID = j.id
     WHERE j.created_at >= {startTime: DateTime64(3)}
       AND j.created_at < {stopTime: DateTime64(3)}
       AND j.conclusion IN ('success', 'failure')
@@ -99,10 +96,7 @@ consolidated AS (
         any(commit_time) AS commit_time,
         replaceRegexpOne(cons_name, ', [0-9]+, [0-9]+\\)$', ')') AS norm_name,
         countIf(conclusion = 'success') > 0 AS has_success,
-        countIf(conclusion = 'failure') > 0 AS has_failure,
-        maxIf(rule IN ('pytest failure', 'Python unittest failure'), conclusion = 'failure') AS has_test_rule,
-        max(annotation IN ('TEST_FLAKE', 'INFRA_FLAKE', 'INFRA_BROKEN', 'NETWORK')) AS ann_flake,
-        max(annotation = 'BROKEN_TRUNK') AS ann_real
+        countIf(conclusion = 'failure') > 0 AS has_failure
     FROM raw_jobs
     GROUP BY head_sha, workflow_name, cons_name
 ),
@@ -116,9 +110,9 @@ job_signals AS (
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_success AND c.has_failure) AS retry_green,
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
-        c.has_test_rule AS has_test_rule,
-        toUInt8(c.ann_flake OR ifNull(aa.advisor_flake, 0) = 1) AS ext_flake,
-        toUInt8(c.ann_real OR ifNull(aa.advisor_real, 0) = 1) AS ext_real
+        ifNull(aa.advisor_real, 0) AS adv_real,
+        ifNull(aa.advisor_infra, 0) AS adv_infra,
+        ifNull(aa.advisor_testflake, 0) AS adv_testflake
     FROM consolidated c
     LEFT JOIN advisor_agg aa ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
 ),
@@ -130,14 +124,14 @@ final_jobs AS (
         commit_time,
         is_green,
         is_red,
-        -- Exactly one category per logical red, in precedence order (0 = not red):
-        --   1 real_regression, 2 sustained_infra, 3 test_flake, 4 infra_flake, 5 unclassified.
+        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback:
+        --   1 real_regression, 3 test_flake, 4 infra_flake, 5 unclassified.
         multiIf(
             is_red = 0, 0,
-            ext_real = 1 OR (persistent = 1 AND has_test_rule = 1), 1,
-            persistent = 1 AND has_test_rule = 0, 2,
-            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 1, 3,
-            (retry_green = 1 OR grg_flake = 1 OR ext_flake = 1) AND has_test_rule = 0, 4,
+            adv_real = 1, 1,
+            adv_infra = 1, 4,
+            adv_testflake = 1, 3,
+            persistent = 1, 1,
             5
         ) AS category
     FROM (
@@ -149,9 +143,9 @@ final_jobs AS (
             is_green,
             is_red,
             retry_green,
-            has_test_rule,
-            ext_flake,
-            ext_real,
+            adv_real,
+            adv_infra,
+            adv_testflake,
             -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
             toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent,
             -- grg_flake: isolated hard-red with a clean green on BOTH adjacent trunk commits.
@@ -171,8 +165,7 @@ SELECT
     countIf(category = 4) AS infra_flake,
     countIf(category = 3) AS test_flake,
     countIf(category = 5) AS unclassified,
-    countIf(category = 1) AS real_regression,
-    countIf(category = 2) AS sustained_infra
+    countIf(category = 1) AS real_regression
 FROM final_jobs
 GROUP BY bucket
 ORDER BY bucket

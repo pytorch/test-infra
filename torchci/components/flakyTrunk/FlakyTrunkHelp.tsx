@@ -38,8 +38,9 @@ export default function FlakyTrunkHelp() {
           <Box component="ul" sx={{ m: 0, pl: 3 }}>
             <Typography component="li" variant="body2" color="text.secondary">
               <Term>Infra flake</Term>
-              {" — the machine/runner broke intermittently (a retry passed, or " +
-                "it was green right before and after). Not the code."}
+              {" — any failure the autorevert bot flagged as infra (the " +
+                "machine/runner, not the code), whether a brief blip or a " +
+                "sustained multi-commit outage."}
             </Typography>
             <Typography component="li" variant="body2" color="text.secondary">
               <Term>Job flake</Term>
@@ -52,11 +53,6 @@ export default function FlakyTrunkHelp() {
                 "commits and the failure is a test/code failure. A genuine code break."}
             </Typography>
             <Typography component="li" variant="body2" color="text.secondary">
-              <Term>Sustained infra outage</Term>
-              {" — a persistent break caused by infra (not code) — e.g. a " +
-                "fleet/config outage lasting many commits."}
-            </Typography>
-            <Typography component="li" variant="body2" color="text.secondary">
               <Term>Unclassified</Term>
               {
                 " — an isolated one-off red we can't yet attribute (~a few % of reds)."
@@ -66,10 +62,10 @@ export default function FlakyTrunkHelp() {
 
           <Typography variant="body2" color="text.secondary">
             {"The GRAPH shows flakiness only (Infra flake / Job flake / " +
-              "Unclassified). Real regressions and sustained infra outages are " +
-              "shown as the tiles above it, not on the graph — so in " +
+              "Unclassified). Real regressions are shown as the tile above it, " +
+              "not on the graph — so in " +
               '"% of reds" mode the bars don\'t fill 100%; in aggregate, the ' +
-              "remainder is those tiles."}
+              "remainder is that tile."}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">

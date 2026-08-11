@@ -11,9 +11,9 @@ import {
 
 const TILE_HEIGHT = 88;
 
-// Whole-window persistent-break counts (real regressions, sustained infra), each
-// with its share of all reds. Summed client-side from the same timeseries the
-// graph fetches (shared SWR key), so this adds no extra query.
+// Whole-window persistent-break count (real regressions), with its share of all
+// reds. Summed client-side from the same timeseries the graph fetches (shared
+// SWR key), so this adds no extra query.
 export default function FlakyTrunkTiles({
   startTime,
   stopTime,
