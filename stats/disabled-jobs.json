@@ -95,6 +95,22 @@
     "3d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
     ""
   ],
+  "test_grouped_gemm_compiled_op_3d/3d_a_row_major_False_b_row_major_True_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
+    "pytorch-bot",
+    "192916",
+    "https://github.com/pytorch/pytorch/issues/192916",
+    "test_grouped_gemm_compiled_op_3d",
+    "3d_a_row_major_False_b_row_major_True_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
+    ""
+  ],
+  "test_grouped_gemm_compiled_op_3d/3d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
+    "pytorch-bot",
+    "192917",
+    "https://github.com/pytorch/pytorch/issues/192917",
+    "test_grouped_gemm_compiled_op_3d",
+    "3d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
+    ""
+  ],
   "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)": [
     "pytorch-bot",
     "167297",
