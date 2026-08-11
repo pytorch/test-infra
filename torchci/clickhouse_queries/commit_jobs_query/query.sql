@@ -46,7 +46,6 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND (
             {workflowId: Int64} = 0
@@ -94,7 +93,6 @@ WITH job AS (
     WHERE
         workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND (
             {workflowId: Int64} = 0
