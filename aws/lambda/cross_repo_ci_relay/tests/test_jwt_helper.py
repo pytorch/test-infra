@@ -204,7 +204,9 @@ class TestLoadCIProviderMappings(unittest.TestCase):
             }
         }
         load_ci_provider_mappings(raw)
-        self.assertEqual(BUILDKITE_REPO_MAP[("org-id-1", "pipe-id-1")], "vllm-project/vllm")
+        self.assertEqual(
+            BUILDKITE_REPO_MAP[("org-id-1", "pipe-id-1")], "vllm-project/vllm"
+        )
         self.assertEqual(BUILDKITE_REPO_MAP[("org-id-2", "pipe-id-2")], "acme/repo")
 
     def test_empty_config_clears_map(self):
@@ -218,7 +220,9 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
     def test_skips_invalid_entries(self):
-        raw = {"buildkite": {"noslash": "vllm-project/vllm", "ok-id/pipe-id": "ok/repo"}}
+        raw = {
+            "buildkite": {"noslash": "vllm-project/vllm", "ok-id/pipe-id": "ok/repo"}
+        }
         load_ci_provider_mappings(raw)
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
         self.assertEqual(BUILDKITE_REPO_MAP[("ok-id", "pipe-id")], "ok/repo")
