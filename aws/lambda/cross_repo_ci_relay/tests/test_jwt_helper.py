@@ -137,7 +137,9 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.mock_decode = self.patcher_decode.start()
 
         self._orig_map = BUILDKITE_REPO_MAP.copy()
-        load_ci_provider_mappings({"buildkite": {"org-uuid-123/pipe-uuid-456": "myorg/myrepo"}})
+        load_ci_provider_mappings(
+            {"buildkite": {"org-uuid-123/pipe-uuid-456": "myorg/myrepo"}}
+        )
 
     def tearDown(self):
         self.patcher_detect.stop()
@@ -195,7 +197,12 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         BUILDKITE_REPO_MAP.update(self._orig_map)
 
     def test_loads_valid_buildkite_entries(self):
-        raw = {"buildkite": {"org-id-1/pipe-id-1": "vllm-project/vllm", "org-id-2/pipe-id-2": "acme/repo"}}
+        raw = {
+            "buildkite": {
+                "org-id-1/pipe-id-1": "vllm-project/vllm",
+                "org-id-2/pipe-id-2": "acme/repo",
+            }
+        }
         load_ci_provider_mappings(raw)
         self.assertEqual(BUILDKITE_REPO_MAP[("org-id-1", "pipe-id-1")], "vllm-project/vllm")
         self.assertEqual(BUILDKITE_REPO_MAP[("org-id-2", "pipe-id-2")], "acme/repo")
