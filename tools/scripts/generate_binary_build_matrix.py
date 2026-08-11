@@ -45,13 +45,13 @@ MACOS_PYTHON_POINT_VERSIONS = {
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2", "13.4"],
-    "test": ["12.6", "13.0", "13.2"],
+    "test": ["12.6", "13.0", "13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
     "nightly": ["7.2", "7.14"],
-    "test": ["7.1", "7.2"],
+    "test": ["7.2", "7.14"],
     "release": ["7.1", "7.2"],
 }
 
@@ -99,7 +99,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.14.0"
-CURRENT_CANDIDATE_VERSION = "2.13.0"
+CURRENT_CANDIDATE_VERSION = "2.14.0"
 CURRENT_STABLE_VERSION = "2.13.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
