@@ -1,6 +1,7 @@
 # Copyright (c) 2019-present, Facebook, Inc.
 
 import base64
+import contextlib
 import gzip
 import json
 import os
@@ -54,10 +55,8 @@ def app_private_key():
 def cool_off_until(response):
     reset = response.headers.get("x-ratelimit-reset")
     if reset:
-        try:
+        with contextlib.suppress(ValueError):
             return float(reset)
-        except ValueError:
-            pass
     return time.time() + DEFAULT_COOL_OFF
 
 
