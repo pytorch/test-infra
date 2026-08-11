@@ -112,76 +112,6 @@
       "inductor"
     ]
   ],
-  "test_broadcast_fn_atan2_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_eq_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_fmod_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_ge_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_gt_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_le_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_lt_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_ne_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_pow_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_broadcast_fn_remainder_cpu (__main__.TestTorchDeviceTypeCPU)": [
-    "191283",
-    "https://github.com/pytorch/pytorch/issues/191283",
-    [
-      "dynamo"
-    ]
-  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -439,6 +369,13 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_dynamic_toggle_cuda (__main__.TestProfilerDeviceCUDA)": [
+    "192919",
+    "https://github.com/pytorch/pytorch/issues/192919",
+    [
+      "rocm"
     ]
   ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
@@ -1150,6 +1087,13 @@
     "https://github.com/pytorch/pytorch/issues/190009",
     [
       "rocm"
+    ]
+  ],
+  "test_unbacked_bindings_for_divisible_u_symint_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
+    "192918",
+    "https://github.com/pytorch/pytorch/issues/192918",
+    [
+      "linux"
     ]
   ],
   "test_unbacked_bindings_for_divisible_u_symint_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
