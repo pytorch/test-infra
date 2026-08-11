@@ -24,15 +24,14 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
+
 API = "https://api.github.com"
 UMBRELLA_LABEL = "vllm-torch-nightly-umbrella"
 CHILD_LABEL = "vllm-torch-nightly"
 KEY_PREFIX = "vllm-triage-key"
 
 
-def _req(
-    method: str, path: str, token: str, body: Optional[dict] = None
-) -> Any:
+def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any:
     url = path if path.startswith("http") else f"{API}{path}"
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)

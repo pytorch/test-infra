@@ -7,8 +7,8 @@ name: vLLM torch-nightly triage
 # controlled A/B. This job reports jobs that fail in the former and pass in the latter.
 #
 # Reports to the job log, the run summary, and an artifact. Issue filing is opt-in:
-# it runs only when the file_issues dispatch input or the VLLM_TRIAGE_FILE_ISSUES
-# repo variable is set, and files into pytorch/test-infra (not pytorch/pytorch).
+# it runs only when the file_issues dispatch input is set, and files into
+# pytorch/test-infra (not pytorch/pytorch).
 #
 # ClickHouse stores job metadata only (the tables carry log_url pointers, not log
 # bodies), so this answers *which* jobs regressed, not *why*. Root-causing means
@@ -244,9 +244,11 @@ jobs:
   # be able to open issues. The agent emits data; this job files it with a script, so
   # what gets created is decided by code rather than by the model.
   #
-  # Opt-in: dry-runs unless the file_issues input or the VLLM_TRIAGE_FILE_ISSUES repo
-  # variable says otherwise. A dry run prints the umbrella title and the child issues
-  # it would create, which is the cheap way to sanity-check agent output.
+  # Opt-in: dry-runs unless the file_issues input says otherwise. A dry run prints the
+  # umbrella title and the child issues it would create, which is the cheap way to
+  # sanity-check agent output. Enabling this for the cron means flipping the input's
+  # default to true -- a repo variable would be nicer, but the `vars` context is not
+  # recognised by the actionlint pinned in this repo's lintrunner config.
   file-issues:
     needs: [triage, root-cause]
     if: |
@@ -275,7 +277,7 @@ jobs:
         working-directory: tools
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EXECUTE: ${{ (inputs.file_issues || vars.VLLM_TRIAGE_FILE_ISSUES == 'true') && '--execute' || '' }}
+          EXECUTE: ${{ inputs.file_issues && '--execute' || '' }}
           OVERRIDE: ${{ inputs.torch_version_override }}
         run: |
           set -euo pipefail
