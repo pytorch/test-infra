@@ -390,7 +390,7 @@ jobs:
         # S3 upload is best-effort: the Bedrock-scoped OIDC role may lack S3, and a
         # failure here must not fail the review job (which would discard a good verdict).
         continue-on-error: true
-        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@release/2.14
 
   record:
     needs: [announce_start, review]

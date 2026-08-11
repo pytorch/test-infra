@@ -69,7 +69,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: "release/2.14"
         type: string
       use-custom-docker-registry:
         description: "Use the custom ECR registry. Applies only if build.sh exists in docker-build-dir."
@@ -179,11 +179,11 @@ jobs:
         if: ${{ inputs.gpu-arch-type != 'rocm' && inputs.gpu-arch-type != 'xpu' }}
 
       - name: Setup ROCM
-        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        uses: pytorch/pytorch/.github/actions/setup-rocm@release/2.14
         if: ${{ inputs.gpu-arch-type == 'rocm' }}
 
       - name: Setup XPU
-        uses: pytorch/pytorch/.github/actions/setup-xpu@main
+        uses: pytorch/pytorch/.github/actions/setup-xpu@release/2.14
         if: ${{ inputs.gpu-arch-type == 'xpu' }}
 
       - name: Setup SSH
@@ -389,7 +389,7 @@ jobs:
         uses: ./test-infra/.github/actions/teardown-linux
 
       - name: Teardown XPU
-        uses: pytorch/pytorch/.github/actions/teardown-xpu@main
+        uses: pytorch/pytorch/.github/actions/teardown-xpu@release/2.14
         if: ${{ always() && inputs.gpu-arch-type == 'xpu' }}
 
       - name: Clean workspace after tear down
