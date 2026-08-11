@@ -511,7 +511,7 @@ export default function CrcrSummaryPage() {
   const healthUrl =
     `/api/clickhouse/crcr_health_last_prs?parameters=` +
     encodeURIComponent(JSON.stringify({ count: "5" }));
-  const { data: healthPrs } = useSWR<HealthPrRow[]>(
+  const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
     healthUrl,
     fetcherHandleError,
     { refreshInterval: 60_000 }
@@ -607,7 +607,7 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !ciData && !ciError && !allowlist && !alError;
-  const hasError = ciError || alError || nightlyError;
+  const hasError = ciError || alError || nightlyError || healthError;
 
   return (
     <>
@@ -662,6 +662,7 @@ export default function CrcrSummaryPage() {
             {ciError?.message ||
               alError?.message ||
               nightlyError?.message ||
+              healthError?.message ||
               "Failed to load data"}
           </Typography>
         )}
