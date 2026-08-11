@@ -12,7 +12,7 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import _ from "lodash";
 import { TimeRangePicker } from "pages/metrics";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DENOMINATOR_OPTIONS, DenominatorKey } from "./common";
 
 export default function FlakyTrunkControls({
@@ -49,11 +49,11 @@ export default function FlakyTrunkControls({
     setMinRunsInput(String(minRuns));
   }, [minRuns]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedSetMinRuns = useCallback(
-    _.debounce((value: number) => setMinRuns(value), 500),
-    []
+  const debouncedSetMinRuns = useMemo(
+    () => _.debounce((value: number) => setMinRuns(value), 500),
+    [setMinRuns]
   );
+  useEffect(() => () => debouncedSetMinRuns.cancel(), [debouncedSetMinRuns]);
 
   const onMinRunsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;

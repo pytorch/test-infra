@@ -74,6 +74,8 @@ raw_jobs AS (
         j.head_sha AS head_sha,
         tc.commit_time AS commit_time,
         j.workflow_name AS workflow_name,
+        -- cons_name keeps the shard (config, i, n) but drops the trailing runner, so a retry on a
+        -- different runner/fleet collapses into the same shard; norm_name additionally drops the shard.
         replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
         j.conclusion AS conclusion
     FROM default.workflow_job j
@@ -106,7 +108,6 @@ job_signals AS (
         c.commit_time AS commit_time,
         toUInt8(c.has_success AND NOT c.has_failure) AS is_green,
         toUInt8(c.has_failure) AS is_red,
-        toUInt8(c.has_success AND c.has_failure) AS retry_green,
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
         ifNull(aa.advisor_real, 0) AS adv_real,
         ifNull(aa.advisor_infra, 0) AS adv_infra,
@@ -140,14 +141,11 @@ final_jobs AS (
             commit_time,
             is_green,
             is_red,
-            retry_green,
             adv_real,
             adv_infra,
             adv_testflake,
             -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
-            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent,
-            -- grg_flake: isolated hard-red with a clean green on BOTH adjacent trunk commits.
-            toUInt8(hard_red = 1 AND lagInFrame(is_green) OVER w = 1 AND leadInFrame(is_green) OVER w = 1) AS grg_flake
+            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent
         FROM job_signals
         WINDOW w AS (
             PARTITION BY workflow_name, cons_name

@@ -1,6 +1,9 @@
 import { GridColDef } from "@mui/x-data-grid";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+
+dayjs.extend(isoWeek);
 
 export const FLAKY_TRUNK_REPO = "pytorch/pytorch";
 
@@ -26,7 +29,10 @@ export function snapToGranularity(
   time: dayjs.Dayjs,
   granularity: Granularity
 ): dayjs.Dayjs {
-  return time.utc().startOf(granularity);
+  const utc = time.utc();
+  return granularity === "week"
+    ? utc.startOf("isoWeek")
+    : utc.startOf(granularity);
 }
 
 // Snap a window STOP up to the start of the NEXT bucket, so the (exclusive) upper
