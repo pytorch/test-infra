@@ -138,6 +138,10 @@ ENABLE = "enable"
 DISABLE = "disable"
 
 
+def parse_version(version: str) -> Tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
+
+
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
         return CUDA
@@ -193,6 +197,8 @@ def initialize_globals(
             arch for arch in CUDA_ARCHES if arch not in CUDA_ARCHES_NO_GETTING_STARTED
         ]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
+    if getting_started and channel == NIGHTLY:
+        ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
         PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
