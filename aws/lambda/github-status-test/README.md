@@ -1,6 +1,33 @@
 Despite the name, this is the lambda used to write GitHub webhook payloads to S3 as mentioned
 in https://github.com/pytorch/test-infra/blob/main/torchci/docs/architecture.md
 
+### GitHub credentials
+
+Job logs are downloaded with a GitHub App installation token, falling back to the `GITHUB_TOKENS`
+PAT pool when the app is rate limited, rejected, or not installed on the repo's owner.
+
+| Env var | Required | Purpose |
+| --- | --- | --- |
+| `GITHUB_APP_ID` | no | App id used to mint installation tokens (e.g. `4550824`, `pytorch-bot-preview`) |
+| `GITHUB_APP_PRIVATE_KEY` | no | The app's private key, base64-encoded PEM (same encoding torchci uses) |
+| `GITHUB_TOKENS` | yes | Comma-separated PAT pool, used as the fallback and when no app is configured |
+
+With both app vars unset the lambda behaves exactly as before and only uses `GITHUB_TOKENS`, so
+the app can be rolled back by clearing the env vars — no code change or redeploy needed.
+
+Notes on the app path:
+
+- Installation tokens last an hour and are cached per repo owner in module scope, so a warm
+  invocation reuses one rather than minting a token per job.
+- The app's rate limit is per installation. `pytorch` is enterprise-owned, so its installation
+  gets 15,000 requests/hour, independent of any other app's quota. Use a dedicated app rather
+  than the shared `pytorch-bot` installation, whose quota Dr. CI and the HUD already draw on.
+- Repos outside the installation (e.g. `vllm-project/vllm`) resolve to no installation and go
+  straight to the PAT pool; that negative result is cached briefly to avoid a lookup per job.
+- Downloading job logs is documented as needing the `actions: read` permission. It currently
+  works without it because pytorch repos are public, but the permission should be granted so the
+  dependency is explicit and private repos keep working.
+
 ### Deployment
 
 A new version of the lambda can be deployed using `make deploy` and it will be done so automatically by the workflow
