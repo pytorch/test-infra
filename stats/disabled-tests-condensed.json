@@ -446,13 +446,6 @@
     "https://github.com/pytorch/pytorch/issues/188840",
     []
   ],
-  "test_ensemble_regression_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
-    "180259",
-    "https://github.com/pytorch/pytorch/issues/180259",
-    [
-      "dynamo"
-    ]
-  ],
   "test_equivalent_template_code (__main__.BenchmarkMultiTemplateFusionGpuTest)": [
     "166601",
     "https://github.com/pytorch/pytorch/issues/166601",
