@@ -70,7 +70,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: "release/2.14"
         type: string
       use-custom-docker-registry:
         description: "[Ignored on OSDC] Kept for compatibility with linux_job_v2.yml."
@@ -179,7 +179,7 @@ jobs:
           done
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: pytorch/test-infra/.github/actions/checkout@main
+        uses: pytorch/test-infra/.github/actions/checkout@release/2.14
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
@@ -203,7 +203,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Export matrix variables (if any)
-        uses: pytorch/test-infra/.github/actions/export-matrix-variables@main
+        uses: pytorch/test-infra/.github/actions/export-matrix-variables@release/2.14
         if: ${{ inputs.binary-matrix != '' }}
         with:
           binary-matrix: ${{ inputs.binary-matrix }}
@@ -300,7 +300,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Upload artifacts to S3 (if any)
-        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@main
+        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@release/2.14
         if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
         with:
           retention-days: 14
@@ -310,7 +310,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Upload documentation to S3 (if any)
-        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@main
+        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@release/2.14
         if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
         with:
           retention-days: 14

@@ -234,7 +234,7 @@ jobs:
       - name: Upload usage metrics
         if: always()
         continue-on-error: true
-        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@release/2.14
 
   # Files the root-cause findings as issues in this repo: one umbrella per torch
   # minor version, one child per high-confidence torch regression.

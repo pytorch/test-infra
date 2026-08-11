@@ -205,7 +205,7 @@ jobs:
 
       - name: Upload usage metrics
         if: always()
-        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@release/2.14
 
       - name: Upload Claude execution log
         if: always() && inputs.upload_execution_log

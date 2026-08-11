@@ -56,7 +56,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: "release/2.14"
         type: string
       job-name:
         description: "Name for the job, which is displayed in the GitHub UI"
