@@ -23,30 +23,6 @@
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
   ],
-  "inductor-perf-nightly-rocm-mi300 / linux-jammy-rocm-py3.10-mi300 / test": [
-    "jithunnair-amd",
-    "191554",
-    "https://github.com/pytorch/pytorch/issues/191554",
-    "inductor-perf-nightly-rocm-mi300",
-    "linux-jammy-rocm-py3.10-mi300",
-    "test"
-  ],
-  "inductor-rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test": [
-    "jithunnair-amd",
-    "191548",
-    "https://github.com/pytorch/pytorch/issues/191548",
-    "inductor-rocm-mi300",
-    "linux-noble-rocm-py3.12-mi300",
-    "test"
-  ],
-  "periodic-rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test": [
-    "jithunnair-amd",
-    "189261",
-    "https://github.com/pytorch/pytorch/issues/189261",
-    "periodic-rocm-mi300",
-    "linux-noble-rocm-py3.12-mi300",
-    "test"
-  ],
   "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
     "jithunnair-amd",
     "165040",
@@ -54,14 +30,6 @@
     "rocm",
     "linux-jammy-rocm-py3_10-gfx1100",
     "test (default)"
-  ],
-  "rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test": [
-    "jithunnair-amd",
-    "191550",
-    "https://github.com/pytorch/pytorch/issues/191550",
-    "rocm-mi300",
-    "linux-noble-rocm-py3.12-mi300",
-    "test"
   ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
     "pytorch-bot",
