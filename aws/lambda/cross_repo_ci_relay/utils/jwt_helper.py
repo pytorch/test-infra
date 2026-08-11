@@ -35,33 +35,67 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
 }
 
 # Runtime-populated mapping from Buildkite (organization_id, pipeline_id) to
-# the GitHub-style "owner/repo" identity.  Uses immutable IDs rather than
-# slugs to prevent identity hijacking via slug rename.  Loaded from
-# ci_providers.yml so adding a new downstream repo only requires a config
-# change — no Lambda redeployment.
-BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {}
+# the GitHub-style "owner/repo" identity plus optional required claims.
+# Uses immutable IDs rather than slugs to prevent identity hijacking via slug
+# rename.  Loaded from ci_providers.yml so adding a new downstream repo only
+# requires a config change — no Lambda redeployment.
+#
+# Values are dicts: {"repo": "owner/repo", "required_claims": {...}}
+# required_claims maps claim_name -> list of allowed values (any match passes).
+BUILDKITE_REPO_MAP: Dict[Tuple[str, str], dict] = {}
 
 
 def load_ci_provider_mappings(raw: dict) -> None:
     """Populate provider repo maps from parsed ci_providers.yml content.
 
-    Currently supports ``buildkite``.  Adding a new provider means adding
-    a new section reader here and a corresponding ``_extract_repo_*``
-    function below.
+    Buildkite entries support two formats:
+      org_id/pipeline_id: owner/repo              # simple
+      org_id/pipeline_id:                         # with constraints
+        repo: owner/repo
+        required_claims:
+          build_branch: [main, nightly]
     """
     BUILDKITE_REPO_MAP.clear()
     bk_section = raw.get("buildkite")
     if bk_section and isinstance(bk_section, dict):
-        for bk_key, repo in bk_section.items():
+        for bk_key, value in bk_section.items():
             bk_key_str = str(bk_key).strip()
-            repo_str = str(repo).strip()
-            if "/" not in bk_key_str or "/" not in repo_str:
-                logger.warning(
-                    "Skipping invalid buildkite entry: %s -> %s", bk_key, repo
-                )
+            if "/" not in bk_key_str:
+                logger.warning("Skipping buildkite entry without /: %s", bk_key)
                 continue
             org, pipeline = bk_key_str.split("/", 1)
-            BUILDKITE_REPO_MAP[(org, pipeline)] = repo_str
+
+            if isinstance(value, str):
+                repo_str = value.strip()
+                if "/" not in repo_str:
+                    logger.warning(
+                        "Skipping invalid buildkite entry: %s -> %s", bk_key, value
+                    )
+                    continue
+                BUILDKITE_REPO_MAP[(org, pipeline)] = {
+                    "repo": repo_str,
+                    "required_claims": {},
+                }
+            elif isinstance(value, dict):
+                repo_str = str(value.get("repo", "")).strip()
+                if "/" not in repo_str:
+                    logger.warning(
+                        "Skipping buildkite entry with invalid repo: %s", bk_key
+                    )
+                    continue
+                required = value.get("required_claims", {})
+                if not isinstance(required, dict):
+                    required = {}
+                normalized = {}
+                for k, v in required.items():
+                    if isinstance(v, list):
+                        normalized[k] = [str(x) for x in v]
+                    else:
+                        normalized[k] = [str(v)]
+                BUILDKITE_REPO_MAP[(org, pipeline)] = {
+                    "repo": repo_str,
+                    "required_claims": normalized,
+                }
     if BUILDKITE_REPO_MAP:
         logger.info(
             "Loaded %d Buildkite repo mapping(s) from ci_providers",
@@ -137,13 +171,23 @@ def _extract_repo_buildkite(claims: dict) -> str:
             401,
             "Buildkite OIDC token missing 'organization_id' or 'pipeline_id'",
         )
-    repo = BUILDKITE_REPO_MAP.get((org_id, pipeline_id))
-    if not repo:
+    entry = BUILDKITE_REPO_MAP.get((org_id, pipeline_id))
+    if not entry:
         raise HTTPException(
             403,
             f"Buildkite pipeline {org_id}/{pipeline_id} is not registered with CRCR",
         )
-    return repo
+
+    for claim_name, allowed_values in entry["required_claims"].items():
+        actual = str(claims.get(claim_name, ""))
+        if actual not in allowed_values:
+            raise HTTPException(
+                403,
+                f"Buildkite claim '{claim_name}' value '{actual}' "
+                f"not in allowed set for this pipeline",
+            )
+
+    return entry["repo"]
 
 
 _REPO_EXTRACTORS = {
