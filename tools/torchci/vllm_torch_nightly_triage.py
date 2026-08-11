@@ -33,6 +33,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
+from torchci.vllm_log_parser import parse_log, strip_markers
 
 
 VLLM_REPO = "https://github.com/vllm-project/vllm.git"
@@ -289,17 +290,64 @@ def render(
     return "\n".join(out)
 
 
-_ANSI = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
-_BK_TIMESTAMP = re.compile(r"\x1b_bk;[^\x07]*\x07")
+def _render_cluster_artifact(
+    body: str, cluster_key: str, representative: Dict, tail_lines: int
+) -> str:
+    """Serialize one cluster's representative log for the root-cause agent.
 
-
-def clean_log(text: str) -> str:
-    """Strip Buildkite timestamp markers and ANSI colour codes.
-
-    Raw Buildkite logs interleave ``\\x1b_bk;t=...\\x07`` markers with ANSI escapes;
-    left in place they make the logs nearly unreadable and waste a lot of tokens.
+    parse_log extracts per-test signatures (test id, exception class, the raw
+    traceback body) from anywhere in the log, so a failure far from the end of a
+    huge log is still captured. When there are no pytest failures -- a build/crash
+    before pytest ran, an empty parse, or the parser raising on its own invariant --
+    fall back to the raw tail this script has always emitted.
     """
-    return _BK_TIMESTAMP.sub("", _ANSI.sub("", text))
+    header = (
+        f"# cluster: {cluster_key}\n"
+        f"# job: {representative['name']}\n"
+        f"# url: {representative['url']}\n"
+        f"# state: {representative['state']} exit_status: {representative['exit_status']}\n"
+    )
+
+    parse_error = ""
+    parsed = None
+    try:
+        parsed = parse_log(body)
+    except Exception as exc:  # parser asserts an invariant; never abort the run
+        parse_error = str(exc)
+
+    test_failures = (
+        [
+            failure
+            for result in parsed.pytest_results
+            for failure in result.test_failures
+        ]
+        if parsed
+        else []
+    )
+
+    if test_failures:
+        sections = [header, f"# parsed {len(test_failures)} failing test(s)\n"]
+        for failure in test_failures:
+            sections.append(f"## {failure.test_id}")
+            sections.append(f"pytest_exception_class: {failure.pytest_exception_class}")
+            sections.append(f"test_is_infra: {failure.test_is_infra}")
+            sections.append("")
+            sections.append(failure.exception_chain)
+            sections.append("")
+        return "\n".join(sections)
+
+    cleaned_lines = strip_markers(body).splitlines()
+    job_is_infra = parsed.job_is_infra if parsed else False
+    fallback_notes = (
+        "# parse_fallback: true (raw tail; scan upward for the real error)\n"
+    )
+    if parse_error:
+        fallback_notes += f"# parse_error: {parse_error}\n"
+    fallback_notes += (
+        f"# job_is_infra: {job_is_infra}\n"
+        f"# showing last {tail_lines} of {len(cleaned_lines)} lines\n\n"
+    )
+    return header + fallback_notes + "\n".join(cleaned_lines[-tail_lines:])
 
 
 def fetch_cluster_logs(
@@ -353,14 +401,11 @@ def fetch_cluster_logs(
             print(f"skip {key}: {exc}", file=sys.stderr)
             continue
 
-        lines = clean_log(body).splitlines()
+        artifact = _render_cluster_artifact(body, key, rep, tail_lines)
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)[:80]
         dest = pathlib_dir / f"{safe}.log"
         with open(dest, "w") as f:
-            f.write(f"# cluster: {key}\n# job: {rep['name']}\n# url: {rep['url']}\n")
-            f.write(f"# state: {rep['state']} exit_status: {rep['exit_status']}\n")
-            f.write(f"# showing last {tail_lines} of {len(lines)} lines\n\n")
-            f.write("\n".join(lines[-tail_lines:]))
+            f.write(artifact)
         written.append(str(dest))
     return written
 
