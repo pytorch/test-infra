@@ -55,6 +55,14 @@ interface NightlyMetricsRow {
   latest_sha: string;
 }
 
+interface HealthPrRow {
+  pr_number: number;
+  last_run: string;
+  successes: number;
+  total: number;
+  pass_rate: number;
+}
+
 type EventTab = "pr" | "nightly";
 
 type Level = "L1" | "L2" | "L3" | "L4";
@@ -441,15 +449,15 @@ function StatCard({
 }
 
 function CrcrTestHealthCard({
-  metrics,
+  healthPrs,
 }: {
-  metrics: CiMetricsRow | undefined;
+  healthPrs: HealthPrRow[] | undefined;
 }) {
-  if (!metrics) return null;
-  const pct = (metrics.pass_rate * 100).toFixed(1) + "%";
-  const isHealthy = metrics.pass_rate >= 1.0;
-  const borderColor = isHealthy ? "#2e7d32" : "#ed6c02";
-  const label = isHealthy ? "Healthy" : "Degraded";
+  if (!healthPrs || healthPrs.length === 0) return null;
+  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
+  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -474,8 +482,7 @@ function CrcrTestHealthCard({
           {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {pct} · {metrics.successes}/{metrics.total} jobs passed ·
-          pytorch/crcr-test
+          {passedCount}/{healthPrs.length} recent PRs passed · pytorch/crcr-test
         </Typography>
       </Paper>
     </NextLink>
@@ -506,6 +513,15 @@ export default function CrcrSummaryPage() {
   const { data: nightlyData, error: nightlyError } = useSWR<
     NightlyMetricsRow[]
   >(nightlyUrl, fetcherHandleError, { refreshInterval: 60_000 });
+
+  const healthUrl =
+    `/api/clickhouse/crcr_health_last_prs?parameters=` +
+    encodeURIComponent(JSON.stringify({ count: "5" }));
+  const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
+    healthUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
 
   const nightlyRepoCount = nightlyData?.length ?? 0;
 
@@ -597,7 +613,7 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !ciData && !ciError && !allowlist && !alError;
-  const hasError = ciError || alError || nightlyError;
+  const hasError = ciError || alError || nightlyError || healthError;
 
   return (
     <>
@@ -652,6 +668,7 @@ export default function CrcrSummaryPage() {
             {ciError?.message ||
               alError?.message ||
               nightlyError?.message ||
+              healthError?.message ||
               "Failed to load data"}
           </Typography>
         )}
@@ -661,7 +678,7 @@ export default function CrcrSummaryPage() {
         {stats && (
           <Stack spacing={2}>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-              <CrcrTestHealthCard metrics={metricsMap.get(CRCR_HEALTH_REPO)} />
+              <CrcrTestHealthCard healthPrs={healthPrs} />
               <StatCard
                 label="Total Probe Runs"
                 value={stats.totalRuns}
