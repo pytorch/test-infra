@@ -25,6 +25,8 @@ def _fake_github_claims(**overrides):
 def _fake_buildkite_claims(**overrides):
     base = {
         "iss": BUILDKITE_ISSUER,
+        "organization_id": "org-uuid-123",
+        "pipeline_id": "pipe-uuid-456",
         "organization_slug": "myorg",
         "pipeline_slug": "mypipeline",
         "build_commit": "abc123",
@@ -135,7 +137,7 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.mock_decode = self.patcher_decode.start()
 
         self._orig_map = BUILDKITE_REPO_MAP.copy()
-        load_ci_provider_mappings({"buildkite": {"myorg/mypipeline": "myorg/myrepo"}})
+        load_ci_provider_mappings({"buildkite": {"org-uuid-123/pipe-uuid-456": "myorg/myrepo"}})
 
     def tearDown(self):
         self.patcher_detect.stop()
@@ -155,21 +157,21 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
 
     def test_unregistered_pipeline_raises_403(self):
         self.mock_decode.return_value = _fake_buildkite_claims(
-            organization_slug="unknown", pipeline_slug="unknown"
+            organization_id="unknown-org", pipeline_id="unknown-pipe"
         )
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("bk.oidc.token")
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIn("not registered", ctx.exception.detail)
 
-    def test_missing_org_slug_raises_401(self):
-        self.mock_decode.return_value = _fake_buildkite_claims(organization_slug="")
+    def test_missing_org_id_raises_401(self):
+        self.mock_decode.return_value = _fake_buildkite_claims(organization_id="")
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("bk.oidc.token")
         self.assertEqual(ctx.exception.status_code, 401)
 
-    def test_missing_pipeline_slug_raises_401(self):
-        self.mock_decode.return_value = _fake_buildkite_claims(pipeline_slug="")
+    def test_missing_pipeline_id_raises_401(self):
+        self.mock_decode.return_value = _fake_buildkite_claims(pipeline_id="")
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("bk.oidc.token")
         self.assertEqual(ctx.exception.status_code, 401)
@@ -193,10 +195,10 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         BUILDKITE_REPO_MAP.update(self._orig_map)
 
     def test_loads_valid_buildkite_entries(self):
-        raw = {"buildkite": {"vllm/ci": "vllm-project/vllm", "acme/build": "acme/repo"}}
+        raw = {"buildkite": {"org-id-1/pipe-id-1": "vllm-project/vllm", "org-id-2/pipe-id-2": "acme/repo"}}
         load_ci_provider_mappings(raw)
-        self.assertEqual(BUILDKITE_REPO_MAP[("vllm", "ci")], "vllm-project/vllm")
-        self.assertEqual(BUILDKITE_REPO_MAP[("acme", "build")], "acme/repo")
+        self.assertEqual(BUILDKITE_REPO_MAP[("org-id-1", "pipe-id-1")], "vllm-project/vllm")
+        self.assertEqual(BUILDKITE_REPO_MAP[("org-id-2", "pipe-id-2")], "acme/repo")
 
     def test_empty_config_clears_map(self):
         BUILDKITE_REPO_MAP[("old", "entry")] = "old/repo"
@@ -209,10 +211,10 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         self.assertEqual(len(BUILDKITE_REPO_MAP), 0)
 
     def test_skips_invalid_entries(self):
-        raw = {"buildkite": {"noslash": "vllm-project/vllm", "ok/pipeline": "ok/repo"}}
+        raw = {"buildkite": {"noslash": "vllm-project/vllm", "ok-id/pipe-id": "ok/repo"}}
         load_ci_provider_mappings(raw)
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
-        self.assertEqual(BUILDKITE_REPO_MAP[("ok", "pipeline")], "ok/repo")
+        self.assertEqual(BUILDKITE_REPO_MAP[("ok-id", "pipe-id")], "ok/repo")
 
 
 class TestUnsupportedIssuer(unittest.TestCase):

@@ -34,9 +34,10 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
     issuer: jwt.PyJWKClient(cfg["jwks_uri"]) for issuer, cfg in _ISSUER_CONFIG.items()
 }
 
-# Runtime-populated mapping from Buildkite (org_slug, pipeline_slug) to the
-# GitHub-style "owner/repo" identity.  Loaded from the ci_providers.yml
-# config file so that adding a new downstream repo only requires a config
+# Runtime-populated mapping from Buildkite (organization_id, pipeline_id) to
+# the GitHub-style "owner/repo" identity.  Uses immutable IDs rather than
+# slugs to prevent identity hijacking via slug rename.  Loaded from
+# ci_providers.yml so adding a new downstream repo only requires a config
 # change — no Lambda redeployment.
 BUILDKITE_REPO_MAP: Dict[Tuple[str, str], str] = {}
 
@@ -129,18 +130,18 @@ def _extract_repo_github(claims: dict) -> str:
 
 
 def _extract_repo_buildkite(claims: dict) -> str:
-    org = claims.get("organization_slug", "")
-    pipeline = claims.get("pipeline_slug", "")
-    if not org or not pipeline:
+    org_id = claims.get("organization_id", "")
+    pipeline_id = claims.get("pipeline_id", "")
+    if not org_id or not pipeline_id:
         raise HTTPException(
             401,
-            "Buildkite OIDC token missing 'organization_slug' or 'pipeline_slug'",
+            "Buildkite OIDC token missing 'organization_id' or 'pipeline_id'",
         )
-    repo = BUILDKITE_REPO_MAP.get((org, pipeline))
+    repo = BUILDKITE_REPO_MAP.get((org_id, pipeline_id))
     if not repo:
         raise HTTPException(
             403,
-            f"Buildkite pipeline {org}/{pipeline} is not registered with CRCR",
+            f"Buildkite pipeline {org_id}/{pipeline_id} is not registered with CRCR",
         )
     return repo
 

@@ -6,13 +6,17 @@
 # Format: one top-level key per CI provider.  Each provider section maps
 # the provider's pipeline identifier to the GitHub repo it represents.
 #
+# IMPORTANT: Buildkite mappings use immutable organization_id/pipeline_id
+# (UUIDs) rather than slugs.  Slugs are renameable and a released slug
+# can be claimed by a different organization; IDs are permanent.
+# Find IDs via: buildkite-agent oidc request-token --audience <aud>
+#
 # The Lambda fetches this file at runtime (via CI_PROVIDERS_URL) and
 # caches it in Redis, so changes here take effect without redeployment.
 
 buildkite:
-  # org_slug/pipeline_slug: owner/repo
-  # vllm/ci: vllm-project/vllm
-  # vllm/release: vllm-project/vllm
+  # organization_id/pipeline_id: owner/repo  # slug (for readability)
+  # 018e4f2a-1b2c-3d4e/018e5a6b-7c8d-9e0f: vllm-project/vllm  # vllm/ci
 
 # gitlab:
 #   group/project: owner/repo
