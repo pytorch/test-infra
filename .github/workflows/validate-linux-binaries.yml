@@ -106,6 +106,7 @@ jobs:
       package-type: wheel,libtorch
       os: linux
       channel: ${{ inputs.channel }}
+      test-infra-ref: release/2.14
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
 
@@ -119,7 +120,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.14
       job-name: ${{ matrix.build_name }}
       # ROCm validates on the regular almalinux image (like CUDA) to confirm
       # the wheels are self-contained. Only XPU still needs its own container.
@@ -145,7 +146,7 @@ jobs:
 
         # Validate binaries. Poetry-based validation now lives in the
         # standalone linux-poetry job below so Poetry's own ecosystem
-        # churn (it was previously installed from poetry@release/2.14) cannot
+        # churn (it was previously installed from poetry@main) cannot
         # flake the binary matrix.
         source ../../test-infra/.github/scripts/validate_binaries.sh
 
@@ -156,7 +157,7 @@ jobs:
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.14
       job-name: "poetry-test"
       docker-image: 'pytorch/almalinux-builder:cpu-main'
       docker-build-dir: "skip-docker-build"
@@ -185,7 +186,7 @@ jobs:
     with:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.14
       job-name: "amazon-linux-2023-test"
       docker-image: 'almalinux/9-base'
       docker-build-dir: "skip-docker-build"
