@@ -75,6 +75,13 @@ CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64", "13.4-aar
 # CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
 CUDA_ARCHES_NO_WINDOWS = ["13.4"]
 
+# CUDA versions that are built and validated, but must not be advertised on the
+# pytorch.org getting-started page yet. Without this, update-quick-start-module
+# in pytorch/pytorch.github.io publishes an install selector for a CUDA version
+# users cannot rely on. Only affects the getting-started matrix; nightly, test
+# and release builds and their validation are unchanged.
+CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
+
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
@@ -181,6 +188,10 @@ def initialize_globals(
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
+    if getting_started:
+        CUDA_ARCHES = [
+            arch for arch in CUDA_ARCHES if arch not in CUDA_ARCHES_NO_GETTING_STARTED
+        ]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
