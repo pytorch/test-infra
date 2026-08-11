@@ -21,6 +21,9 @@ inputs:
   build-args:
     description: Newline-separated KEY=VALUE build arguments.
     default: ''
+  labels:
+    description: Newline-separated KEY=VALUE image labels, e.g. the output of docker/metadata-action.
+    default: ''
   target:
     description: Dockerfile stage to build.
     default: ''
@@ -62,6 +65,7 @@ runs:
         CONTEXT: ${{ inputs.context }}
         FILE: ${{ inputs.file }}
         BUILD_ARGS: ${{ inputs.build-args }}
+        LABELS: ${{ inputs.labels }}
         TARGET: ${{ inputs.target }}
         PUSH: ${{ inputs.push }}
         CACHE_FROM: ${{ inputs.cache-from }}
@@ -101,6 +105,11 @@ runs:
           [[ -z "${build_arg}" ]] && continue
           args+=(--build-arg "${build_arg}")
         done <<< "${BUILD_ARGS}"
+
+        while IFS= read -r label; do
+          [[ -z "${label}" ]] && continue
+          args+=(--label "${label}")
+        done <<< "${LABELS}"
 
         while IFS= read -r cache; do
           [[ -z "${cache}" ]] && continue
