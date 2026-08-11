@@ -2,29 +2,31 @@ import { Box, Stack, Tooltip, Typography } from "@mui/material";
 import CopyLink from "components/common/CopyLink";
 import FlakyTrunkControls from "components/flakyTrunk/FlakyTrunkControls";
 import FlakyTrunkGraph from "components/flakyTrunk/FlakyTrunkGraph";
-import FlakyTrunkTable, {
-  BucketRange,
-} from "components/flakyTrunk/FlakyTrunkTable";
+import FlakyTrunkHelp from "components/flakyTrunk/FlakyTrunkHelp";
+import FlakyTrunkTable from "components/flakyTrunk/FlakyTrunkTable";
 import {
+  BucketRange,
   CLICKHOUSE_TIME_FORMAT,
-  DEFAULT_ENTITY,
-  DEFAULT_GRANULARITY,
-  DEFAULT_METRIC,
-  DEFAULT_MIN_RUNS,
   DEFAULT_TIME_RANGE,
-  EntityKey,
-  MetricKey,
+  DenominatorKey,
+  LARGE_WINDOW_DAYS,
+  parseDate,
+  parseDenominator,
+  parseGranularity,
+  parseMinRuns,
+  parseTimeRange,
 } from "components/flakyTrunk/common";
+import { FLAKY_TRUNK_TABLES } from "components/flakyTrunk/tableConfigs";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FaInfoCircle } from "react-icons/fa";
 dayjs.extend(utc);
 
 const GRAPH_HEIGHT = 420;
-const TABLE_HEIGHT = 720;
+const TABLE_HEIGHT = 560;
 
 const PAGE_DESCRIPTION =
   "Trunk (main) only. 'Flaky' = a red confirmed by retry-green, " +
@@ -35,35 +37,29 @@ export default function Page() {
   const router = useRouter();
   const { query } = router;
 
-  const initialTimeRange = query.timeRange
-    ? parseInt(query.timeRange as string)
-    : query.startTime || query.stopTime
-    ? -1
-    : DEFAULT_TIME_RANGE;
-  const initialStartTime = query.startTime
-    ? dayjs(query.startTime as string)
-    : dayjs().subtract(
-        initialTimeRange === -1 ? DEFAULT_TIME_RANGE : initialTimeRange,
-        "day"
-      );
-  const initialStopTime = query.stopTime
-    ? dayjs(query.stopTime as string)
-    : dayjs();
-  const initialGranularity = (query.granularity ||
-    DEFAULT_GRANULARITY) as Granularity;
-  const initialMetric = (query.metric || DEFAULT_METRIC) as MetricKey;
-  const initialEntity = (query.entity || DEFAULT_ENTITY) as EntityKey;
-  const initialMinRuns = query.minRuns
-    ? parseInt(query.minRuns as string)
-    : DEFAULT_MIN_RUNS;
+  const initialTimeRange = parseTimeRange(
+    query.timeRange,
+    query.startTime || query.stopTime ? -1 : DEFAULT_TIME_RANGE
+  );
+  const initialStartTime = parseDate(
+    query.startTime,
+    dayjs().subtract(
+      initialTimeRange === -1 ? DEFAULT_TIME_RANGE : initialTimeRange,
+      "day"
+    )
+  );
+  const initialStopTime = parseDate(query.stopTime, dayjs());
+  const initialGranularity = parseGranularity(query.granularity);
+  const initialDenominator = parseDenominator(query.denominator);
+  const initialMinRuns = parseMinRuns(query.minRuns);
 
   const [startTime, setStartTime] = useState(initialStartTime);
   const [stopTime, setStopTime] = useState(initialStopTime);
   const [timeRange, setTimeRange] = useState(initialTimeRange);
   const [granularity, setGranularity] =
     useState<Granularity>(initialGranularity);
-  const [metric, setMetric] = useState<MetricKey>(initialMetric);
-  const [entity, setEntity] = useState<EntityKey>(initialEntity);
+  const [denominator, setDenominator] =
+    useState<DenominatorKey>(initialDenominator);
   const [minRuns, setMinRuns] = useState(initialMinRuns);
   const [selectedBucket, setSelectedBucket] = useState<BucketRange | null>(
     null
@@ -76,8 +72,7 @@ export default function Page() {
     setStartTime(initialStartTime);
     setStopTime(initialStopTime);
     setGranularity(initialGranularity);
-    setMetric(initialMetric);
-    setEntity(initialEntity);
+    setDenominator(initialDenominator);
     setMinRuns(initialMinRuns);
   }
 
@@ -92,8 +87,7 @@ export default function Page() {
       params.set("stopTime", stopTime.utc().format("YYYY-MM-DD"));
     }
     params.set("granularity", granularity);
-    params.set("metric", metric);
-    params.set("entity", entity);
+    params.set("denominator", denominator);
     params.set("minRuns", minRuns.toString());
 
     router.push(
@@ -102,10 +96,13 @@ export default function Page() {
       { shallow: true }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startTime, stopTime, timeRange, granularity, metric, entity, minRuns]);
+  }, [startTime, stopTime, timeRange, granularity, denominator, minRuns]);
 
   // A bucket selection only makes sense for the granularity/window it was made
-  // in, so discard it whenever those change.
+  // in, so discard it whenever those change. Custom start/stop edits (which only
+  // happen while timeRange is -1) count as a window change; the preset
+  // auto-refresh reuses the same setters but runs only while timeRange is not -1,
+  // so it never clears the selection.
   const changeGranularity = (value: Granularity) => {
     setGranularity(value);
     setSelectedBucket(null);
@@ -114,13 +111,30 @@ export default function Page() {
     setTimeRange(value);
     setSelectedBucket(null);
   };
-
-  const onBucketClick = (bucketStart: dayjs.Dayjs) => {
-    setSelectedBucket({
-      start: bucketStart,
-      end: bucketStart.add(1, granularity),
-    });
+  const changeStartTime = (value: dayjs.Dayjs) => {
+    setStartTime(value);
+    if (timeRange === -1) {
+      setSelectedBucket(null);
+    }
   };
+  const changeStopTime = (value: dayjs.Dayjs) => {
+    setStopTime(value);
+    if (timeRange === -1) {
+      setSelectedBucket(null);
+    }
+  };
+
+  const onBucketClick = useCallback(
+    (bucketStart: dayjs.Dayjs) => {
+      setSelectedBucket({
+        start: bucketStart,
+        end: bucketStart.add(1, granularity),
+      });
+    },
+    [granularity]
+  );
+
+  const clearBucket = useCallback(() => setSelectedBucket(null), []);
 
   const windowStart = startTime.utc().format(CLICKHOUSE_TIME_FORMAT);
   const windowStop = stopTime.utc().format(CLICKHOUSE_TIME_FORMAT);
@@ -130,6 +144,10 @@ export default function Page() {
   const tableStop = selectedBucket
     ? selectedBucket.end.utc().format(CLICKHOUSE_TIME_FORMAT)
     : windowStop;
+
+  // Large windows make the per-label table query expensive, so stop polling it
+  // on an idle long-range tab.
+  const autoRefresh = stopTime.diff(startTime, "day") <= LARGE_WINDOW_DAYS;
 
   const fullUrl = routerReady
     ? `${window.location.origin}${router.asPath}`
@@ -158,19 +176,19 @@ export default function Page() {
         {PAGE_DESCRIPTION}
       </Typography>
 
+      <FlakyTrunkHelp />
+
       <FlakyTrunkControls
         startTime={startTime}
-        setStartTime={setStartTime}
+        setStartTime={changeStartTime}
         stopTime={stopTime}
-        setStopTime={setStopTime}
+        setStopTime={changeStopTime}
         timeRange={timeRange}
         setTimeRange={changeTimeRange}
         granularity={granularity}
         setGranularity={changeGranularity}
-        metric={metric}
-        setMetric={setMetric}
-        entity={entity}
-        setEntity={setEntity}
+        denominator={denominator}
+        setDenominator={setDenominator}
         minRuns={minRuns}
         setMinRuns={setMinRuns}
       />
@@ -180,21 +198,24 @@ export default function Page() {
           startTime={windowStart}
           stopTime={windowStop}
           granularity={granularity}
-          metric={metric}
+          denominator={denominator}
           onBucketClick={onBucketClick}
         />
       </Box>
 
-      <Box sx={{ height: TABLE_HEIGHT, mt: 3 }}>
-        <FlakyTrunkTable
-          entity={entity}
-          startTime={tableStart}
-          stopTime={tableStop}
-          minRuns={minRuns}
-          selectedBucket={selectedBucket}
-          onClearFilter={() => setSelectedBucket(null)}
-        />
-      </Box>
+      {FLAKY_TRUNK_TABLES.map((config) => (
+        <Box key={config.queryName} sx={{ height: TABLE_HEIGHT, mt: 3 }}>
+          <FlakyTrunkTable
+            config={config}
+            startTime={tableStart}
+            stopTime={tableStop}
+            minRuns={minRuns}
+            selectedBucket={selectedBucket}
+            onClearFilter={clearBucket}
+            autoRefresh={autoRefresh}
+          />
+        </Box>
+      ))}
     </div>
   );
 }

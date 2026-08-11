@@ -1,33 +1,27 @@
 import { Chip, Stack } from "@mui/material";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
-import { EntityKey, FLAKY_TRUNK_REPO, formatBucketRange } from "./common";
-import { ENTITY_CONFIGS } from "./tableConfigs";
-
-export interface BucketRange {
-  start: dayjs.Dayjs;
-  end: dayjs.Dayjs;
-}
+import { BucketRange, FLAKY_TRUNK_REPO, formatBucketRange } from "./common";
+import { FlakyTrunkTableConfig } from "./tableConfigs";
 
 export default function FlakyTrunkTable({
-  entity,
+  config,
   startTime,
   stopTime,
   minRuns,
   selectedBucket,
   onClearFilter,
+  autoRefresh,
 }: {
-  entity: EntityKey;
+  config: FlakyTrunkTableConfig;
   startTime: string;
   stopTime: string;
   minRuns: number;
   selectedBucket: BucketRange | null;
   onClearFilter: () => void;
+  autoRefresh: boolean;
 }) {
-  const config = ENTITY_CONFIGS[entity];
-
   const url = `/api/clickhouse/${
     config.queryName
   }?parameters=${encodeURIComponent(
@@ -40,13 +34,12 @@ export default function FlakyTrunkTable({
   )}`;
 
   const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000,
+    refreshInterval: autoRefresh ? 5 * 60 * 1000 : 0,
   });
 
-  const noun = config.label.toLowerCase();
   const title = selectedBucket ? (
     <Stack direction="row" alignItems="center" spacing={1}>
-      <span>Flaky trunk {noun}</span>
+      <span>{config.heading}</span>
       <Chip
         label={`Filtered to ${formatBucketRange(
           selectedBucket.start,
@@ -59,7 +52,7 @@ export default function FlakyTrunkTable({
       />
     </Stack>
   ) : (
-    `Flaky trunk ${noun}`
+    config.heading
   );
 
   return (

@@ -13,7 +13,7 @@ import dayjs from "dayjs";
 import _ from "lodash";
 import { TimeRangePicker } from "pages/metrics";
 import React, { useCallback, useEffect, useState } from "react";
-import { EntityKey, METRIC_OPTIONS, MetricKey } from "./common";
+import { DENOMINATOR_OPTIONS, DenominatorKey } from "./common";
 
 export default function FlakyTrunkControls({
   startTime,
@@ -24,10 +24,8 @@ export default function FlakyTrunkControls({
   setTimeRange,
   granularity,
   setGranularity,
-  metric,
-  setMetric,
-  entity,
-  setEntity,
+  denominator,
+  setDenominator,
   minRuns,
   setMinRuns,
 }: {
@@ -39,10 +37,8 @@ export default function FlakyTrunkControls({
   setTimeRange: (_: number) => void;
   granularity: Granularity;
   setGranularity: (_: Granularity) => void;
-  metric: MetricKey;
-  setMetric: (_: MetricKey) => void;
-  entity: EntityKey;
-  setEntity: (_: EntityKey) => void;
+  denominator: DenominatorKey;
+  setDenominator: (_: DenominatorKey) => void;
   minRuns: number;
   setMinRuns: (_: number) => void;
 }) {
@@ -96,33 +92,21 @@ export default function FlakyTrunkControls({
           <MenuItem value={"month"}>Monthly</MenuItem>
         </Select>
       </FormControl>
-      <FormControl sx={{ minWidth: 220 }}>
-        <InputLabel id="flaky-trunk-metric-label">Graph metric</InputLabel>
-        <Select
-          value={metric}
-          label="Graph metric"
-          labelId="flaky-trunk-metric-label"
-          onChange={(e) => setMetric(e.target.value as MetricKey)}
-        >
-          {METRIC_OPTIONS.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
       <ToggleButtonGroup
         exclusive
-        value={entity}
-        onChange={(_event, newEntity: EntityKey | null) => {
-          if (newEntity !== null) {
-            setEntity(newEntity);
+        value={denominator}
+        onChange={(_event, newDenominator: DenominatorKey | null) => {
+          if (newDenominator !== null) {
+            setDenominator(newDenominator);
           }
         }}
         sx={{ height: 56 }}
       >
-        <ToggleButton value="jobs">Jobs</ToggleButton>
-        <ToggleButton value="labels">Runner labels</ToggleButton>
+        {DENOMINATOR_OPTIONS.map((option) => (
+          <ToggleButton key={option.value} value={option.value}>
+            {option.label}
+          </ToggleButton>
+        ))}
       </ToggleButtonGroup>
       <TextField
         label="Min runs"

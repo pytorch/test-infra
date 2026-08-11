@@ -1,14 +1,18 @@
 -- Flaky Trunk Jobs & Runner Labels HUD page: time-series of trunk (main) job outcomes.
 --
--- One row per time bucket, aggregating over ALL trunk jobs. A "logical job outcome" is one
--- (commit, workflow, job-shard) collapsed across every run_attempt / restart run_id: green if
--- it ever succeeded and never failed, red if it ever failed. Every red is then classified as
--- flake / real / unknown (flake + real + unknown = red; green + red = total_runs).
+-- One row per time bucket of per-bucket COUNTS (not rates) feeding a stacked bar; the front-end
+-- derives every percentage from these raw counts. A "logical job outcome" is one (commit, workflow,
+-- job-shard) collapsed across every run_attempt / restart run_id: green if it ever succeeded and
+-- never failed, red if it ever failed (green + red = total_runs). Every red is classified as exactly
+-- one of real (confirmed regression) / infra_flake / test_flake / unknown, so
+-- real + infra_flake + test_flake + unknown = red. Flakes are split into test_flake vs infra_flake
+-- by the log-classifier rule (has_test_rule).
 --
 -- Trunk filter: jobs whose head_sha is a real push to refs/heads/main for the repo param (join to
 -- default.push, which also yields the commit push timestamp used for bucketing + adjacency).
--- The shared CTE chain (trunk_commits .. final_jobs) is identical across flaky_trunk_timeseries,
--- flaky_trunk_jobs and flaky_trunk_runner_labels.
+-- The trunk_commits .. final_jobs classification is the same logic used by flaky_trunk_jobs;
+-- flaky_trunk_runner_labels reuses that classification but diverges downstream to carry per-job
+-- runner-label arrays.
 WITH
 trunk_commits AS (
     SELECT
@@ -152,14 +156,11 @@ final_jobs AS (
 SELECT
     toDateTime(DATE_TRUNC({granularity: String}, commit_time)) AS bucket,
     countIf(is_green = 1 OR is_red = 1) AS total_runs,
-    countIf(is_green = 1) AS green,
     countIf(is_red = 1) AS red,
-    countIf(is_flake = 1) AS flake,
     countIf(is_real = 1) AS real,
-    countIf(is_unknown = 1) AS unknown,
-    round(if(green + flake = 0, 0, flake / (green + flake)), 4) AS flake_rate,
-    round(if(red = 0, 0, flake / red), 4) AS pct_reds_flake,
-    round(if(real + flake = 0, 0, real / (real + flake)), 4) AS precision
+    countIf(is_infra_flake = 1) AS infra_flake,
+    countIf(is_test_flake = 1) AS test_flake,
+    countIf(is_unknown = 1) AS unknown
 FROM final_jobs
 GROUP BY bucket
 ORDER BY bucket
