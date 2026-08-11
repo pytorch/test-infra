@@ -10,6 +10,9 @@ on:
   pull_request:
     paths:
       - "docker/**"
+      # Validate changes to the build workflows themselves (push: false on PRs)
+      - ".github/workflows/docker-build.yml"
+      - ".github/workflows/_docker-build.yml"
   workflow_dispatch: {}
 
 concurrency:
