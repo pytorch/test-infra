@@ -27,12 +27,15 @@ trunk_commits AS (
         tupleElement(head_commit, 'id') AS head_sha,
         min(tupleElement(head_commit, 'timestamp')) AS commit_time
     FROM default.push
-    WHERE ref = 'refs/heads/main'
-      AND tupleElement(repository, 'full_name') = {repo: String}
-      AND tupleElement(head_commit, 'timestamp') >= {startTime: DateTime64(3)}
-      AND tupleElement(head_commit, 'timestamp') < {stopTime: DateTime64(3)}
+    WHERE
+        ref = 'refs/heads/main'
+        AND tupleElement(repository, 'full_name') = {repo: String}
+        AND tupleElement(head_commit, 'timestamp')
+        >= {startTime: DateTime64(3)}
+        AND tupleElement(head_commit, 'timestamp') < {stopTime: DateTime64(3)}
     GROUP BY head_sha
 ),
+
 -- Latest AI advisor verdict per (trunk commit, normalized job). signal_key comes in two shapes:
 -- 'dr_ci_<workflow> / <job>' (Dr.CI / PR-side) and, for trunk autorevert, a bare (already
 -- normalized) '<job>' optionally suffixed ' [test]'. Both are reduced to the normalized job name.
@@ -50,7 +53,13 @@ advisor_agg AS (
                 replaceRegexpOne(
                     if(
                         startsWith(signal_key, 'dr_ci_'),
-                        arrayStringConcat(arraySlice(splitByString(' / ', substring(signal_key, 7)), 2), ' / '),
+                        arrayStringConcat(
+                            arraySlice(
+                                splitByString(' / ', substring(signal_key, 7)),
+                                2
+                            ),
+                            ' / '
+                        ),
                         signal_key
                     ),
                     ' \\[[^\\]]+\\]$', ''
@@ -59,13 +68,15 @@ advisor_agg AS (
             ) AS adv_norm,
             argMax(verdict, timestamp) AS verdict
         FROM misc.autorevert_advisor_verdicts
-        WHERE repo = {repo: String}
-          AND signal_source = 'job'
-          AND timestamp >= {startTime: DateTime64(3)}
+        WHERE
+            repo = {repo: String}
+            AND signal_source = 'job'
+            AND timestamp >= {startTime: DateTime64(3)}
         GROUP BY suspect_commit, signal_key
     )
     GROUP BY head_sha, adv_norm
 ),
+
 raw_jobs AS (
     SELECT
         j.head_sha AS head_sha,
@@ -73,18 +84,22 @@ raw_jobs AS (
         j.workflow_name AS workflow_name,
         -- cons_name keeps the shard (config, i, n) but drops the trailing runner, so a retry on a
         -- different runner/fleet collapses into the same shard; norm_name additionally drops the shard.
-        replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
+        replaceRegexpOne(
+            j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)'
+        ) AS cons_name,
         j.conclusion AS conclusion
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
-    WHERE j.created_at >= {startTime: DateTime64(3)}
-      AND j.created_at < {stopTime: DateTime64(3)}
-      AND j.conclusion IN ('success', 'failure')
-      AND j.name LIKE '%/%'
-      AND j.name NOT LIKE '%rerun_disabled_tests%'
-      AND j.name NOT LIKE '%mem_leak_check%'
-      AND j.name NOT LIKE '%unstable%'
+    WHERE
+        j.created_at >= {startTime: DateTime64(3)}
+        AND j.created_at < {stopTime: DateTime64(3)}
+        AND j.conclusion IN ('success', 'failure')
+        AND j.name LIKE '%/%'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%mem_leak_check%'
+        AND j.name NOT LIKE '%unstable%'
 ),
+
 consolidated AS (
     SELECT
         head_sha,
@@ -97,6 +112,7 @@ consolidated AS (
     FROM raw_jobs
     GROUP BY head_sha, workflow_name, cons_name
 ),
+
 job_signals AS (
     SELECT
         c.head_sha AS head_sha,
@@ -107,12 +123,15 @@ job_signals AS (
         toUInt8(c.has_success AND NOT c.has_failure) AS is_green,
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
-        ifNull(aa.advisor_real, 0) AS adv_real,
-        ifNull(aa.advisor_infra, 0) AS adv_infra,
-        ifNull(aa.advisor_testflake, 0) AS adv_testflake
+        COALESCE(aa.advisor_real, 0) AS adv_real,
+        COALESCE(aa.advisor_infra, 0) AS adv_infra,
+        COALESCE(aa.advisor_testflake, 0) AS adv_testflake
     FROM consolidated c
-    LEFT JOIN advisor_agg aa ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
+    LEFT JOIN
+        advisor_agg aa
+        ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
 ),
+
 final_jobs AS (
     SELECT
         head_sha,
@@ -145,7 +164,13 @@ final_jobs AS (
             adv_infra,
             adv_testflake,
             -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
-            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent
+            toUInt8(
+                hard_red = 1
+                AND (
+                    lagInFrame(hard_red) OVER w = 1
+                    OR leadInFrame(hard_red) OVER w = 1
+                )
+            ) AS persistent
         FROM job_signals
         WINDOW w AS (
             PARTITION BY workflow_name, cons_name
@@ -154,6 +179,7 @@ final_jobs AS (
         )
     )
 ),
+
 -- Only the logical outcomes classified as flake (test_flake=3, infra_flake=4), keyed for the join-back.
 flake_outcomes AS (
     SELECT
@@ -164,13 +190,16 @@ flake_outcomes AS (
     FROM final_jobs
     WHERE category IN (3, 4)
 ),
+
 -- Raw FAILED runs for the clicked entity only, deduped to one row per job id (SharedReplacingMergeTree).
 failed_runs AS (
     SELECT
         j.head_sha AS head_sha,
         j.name AS job_name,
         j.workflow_name AS workflow_name,
-        replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
+        replaceRegexpOne(
+            j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)'
+        ) AS cons_name,
         j.labels AS labels,
         j.runner_group_name AS runner_group_name,
         toDateTime(j.started_at) AS started_at,
@@ -179,53 +208,71 @@ failed_runs AS (
         j.id AS id
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
-    WHERE j.created_at >= {startTime: DateTime64(3)}
-      AND j.created_at < {stopTime: DateTime64(3)}
-      AND j.conclusion = 'failure'
-      AND j.name LIKE '%/%'
-      AND j.name NOT LIKE '%rerun_disabled_tests%'
-      AND j.name NOT LIKE '%mem_leak_check%'
-      AND j.name NOT LIKE '%unstable%'
-      AND (
-          (
-              {entityType: String} = 'job'
-              AND concat(
-                  j.workflow_name,
-                  ' / ',
-                  replaceRegexpOne(
-                      replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)'),
-                      ', [0-9]+, [0-9]+\\)$', ')'
-                  )
-              ) = {entityValue: String}
-          )
-          OR
-          (
-              {entityType: String} = 'label'
-              AND has(if(empty(j.labels), [''], j.labels), {entityValue: String})
-          )
-      )
+    WHERE
+        j.created_at >= {startTime: DateTime64(3)}
+        AND j.created_at < {stopTime: DateTime64(3)}
+        AND j.conclusion = 'failure'
+        AND j.name LIKE '%/%'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%mem_leak_check%'
+        AND j.name NOT LIKE '%unstable%'
+        AND (
+            (
+                {entityType: String} = 'job'
+                AND concat(
+                    j.workflow_name,
+                    ' / ',
+                    replaceRegexpOne(
+                        replaceRegexpOne(
+                            j.name,
+                            ', ([0-9]+), ([0-9]+), [^)]+\\)$',
+                            ', \\1, \\2)'
+                        ),
+                        ', [0-9]+, [0-9]+\\)$', ')'
+                    )
+                ) = {entityValue: String}
+            )
+            OR
+            (
+                {entityType: String} = 'label'
+                AND has(
+                    if(empty(j.labels), [''], j.labels), {entityValue: String}
+                )
+            )
+        )
     ORDER BY j._inserted_at DESC
     LIMIT 1 BY id
 )
+
 SELECT
     r.head_sha AS head_sha,
     r.job_name AS job_name,
     CAST(r.workflow_name AS String) AS workflow_name,
     if(f.category = 4, 'Infra flake', 'Job flake') AS category,
-    if(empty(r.labels), r.runner_group_name, arrayStringConcat(r.labels, ', ')) AS runner_label,
+    if(
+        empty(r.labels), r.runner_group_name, arrayStringConcat(r.labels, ', ')
+    ) AS runner_label,
     r.started_at AS started_at,
     if(
         r.html_url != '',
         r.html_url,
-        concat('https://github.com/', {repo: String}, '/actions/runs/', toString(r.run_id), '/job/', toString(r.id))
+        concat(
+            'https://github.com/',
+            {repo: String},
+            '/actions/runs/',
+            toString(r.run_id),
+            '/job/',
+            toString(r.id)
+        )
     ) AS html_url,
     toInt64(r.run_id) AS run_id,
     toInt64(r.id) AS id
 FROM failed_runs r
 INNER JOIN flake_outcomes f
-    ON r.head_sha = f.head_sha
-   AND r.workflow_name = f.workflow_name
-   AND r.cons_name = f.cons_name
+    ON
+        r.head_sha = f.head_sha
+        AND r.workflow_name = f.workflow_name
+        AND r.cons_name = f.cons_name
 WHERE {entityType: String} != 'label' OR f.category = 4
 ORDER BY started_at DESC
 LIMIT 2000

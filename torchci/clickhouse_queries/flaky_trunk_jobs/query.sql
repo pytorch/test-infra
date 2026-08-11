@@ -30,12 +30,15 @@ trunk_commits AS (
         tupleElement(head_commit, 'id') AS head_sha,
         min(tupleElement(head_commit, 'timestamp')) AS commit_time
     FROM default.push
-    WHERE ref = 'refs/heads/main'
-      AND tupleElement(repository, 'full_name') = {repo: String}
-      AND tupleElement(head_commit, 'timestamp') >= {startTime: DateTime64(3)}
-      AND tupleElement(head_commit, 'timestamp') < {stopTime: DateTime64(3)}
+    WHERE
+        ref = 'refs/heads/main'
+        AND tupleElement(repository, 'full_name') = {repo: String}
+        AND tupleElement(head_commit, 'timestamp')
+        >= {startTime: DateTime64(3)}
+        AND tupleElement(head_commit, 'timestamp') < {stopTime: DateTime64(3)}
     GROUP BY head_sha
 ),
+
 -- Latest AI advisor verdict per (trunk commit, normalized job). signal_key comes in two shapes:
 -- 'dr_ci_<workflow> / <job>' (Dr.CI / PR-side) and, for trunk autorevert, a bare (already
 -- normalized) '<job>' optionally suffixed ' [test]'. Both are reduced to the normalized job name.
@@ -53,7 +56,13 @@ advisor_agg AS (
                 replaceRegexpOne(
                     if(
                         startsWith(signal_key, 'dr_ci_'),
-                        arrayStringConcat(arraySlice(splitByString(' / ', substring(signal_key, 7)), 2), ' / '),
+                        arrayStringConcat(
+                            arraySlice(
+                                splitByString(' / ', substring(signal_key, 7)),
+                                2
+                            ),
+                            ' / '
+                        ),
                         signal_key
                     ),
                     ' \\[[^\\]]+\\]$', ''
@@ -62,13 +71,15 @@ advisor_agg AS (
             ) AS adv_norm,
             argMax(verdict, timestamp) AS verdict
         FROM misc.autorevert_advisor_verdicts
-        WHERE repo = {repo: String}
-          AND signal_source = 'job'
-          AND timestamp >= {startTime: DateTime64(3)}
+        WHERE
+            repo = {repo: String}
+            AND signal_source = 'job'
+            AND timestamp >= {startTime: DateTime64(3)}
         GROUP BY suspect_commit, signal_key
     )
     GROUP BY head_sha, adv_norm
 ),
+
 raw_jobs AS (
     SELECT
         j.head_sha AS head_sha,
@@ -76,18 +87,22 @@ raw_jobs AS (
         j.workflow_name AS workflow_name,
         -- cons_name keeps the shard (config, i, n) but drops the trailing runner, so a retry on a
         -- different runner/fleet collapses into the same shard; norm_name additionally drops the shard.
-        replaceRegexpOne(j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)') AS cons_name,
+        replaceRegexpOne(
+            j.name, ', ([0-9]+), ([0-9]+), [^)]+\\)$', ', \\1, \\2)'
+        ) AS cons_name,
         j.conclusion AS conclusion
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
-    WHERE j.created_at >= {startTime: DateTime64(3)}
-      AND j.created_at < {stopTime: DateTime64(3)}
-      AND j.conclusion IN ('success', 'failure')
-      AND j.name LIKE '%/%'
-      AND j.name NOT LIKE '%rerun_disabled_tests%'
-      AND j.name NOT LIKE '%mem_leak_check%'
-      AND j.name NOT LIKE '%unstable%'
+    WHERE
+        j.created_at >= {startTime: DateTime64(3)}
+        AND j.created_at < {stopTime: DateTime64(3)}
+        AND j.conclusion IN ('success', 'failure')
+        AND j.name LIKE '%/%'
+        AND j.name NOT LIKE '%rerun_disabled_tests%'
+        AND j.name NOT LIKE '%mem_leak_check%'
+        AND j.name NOT LIKE '%unstable%'
 ),
+
 consolidated AS (
     SELECT
         head_sha,
@@ -100,6 +115,7 @@ consolidated AS (
     FROM raw_jobs
     GROUP BY head_sha, workflow_name, cons_name
 ),
+
 job_signals AS (
     SELECT
         c.workflow_name AS workflow_name,
@@ -109,12 +125,15 @@ job_signals AS (
         toUInt8(c.has_success AND NOT c.has_failure) AS is_green,
         toUInt8(c.has_failure) AS is_red,
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
-        ifNull(aa.advisor_real, 0) AS adv_real,
-        ifNull(aa.advisor_infra, 0) AS adv_infra,
-        ifNull(aa.advisor_testflake, 0) AS adv_testflake
+        COALESCE(aa.advisor_real, 0) AS adv_real,
+        COALESCE(aa.advisor_infra, 0) AS adv_infra,
+        COALESCE(aa.advisor_testflake, 0) AS adv_testflake
     FROM consolidated c
-    LEFT JOIN advisor_agg aa ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
+    LEFT JOIN
+        advisor_agg aa
+        ON aa.head_sha = c.head_sha AND aa.adv_norm = c.norm_name
 ),
+
 final_jobs AS (
     SELECT
         workflow_name,
@@ -145,7 +164,13 @@ final_jobs AS (
             adv_infra,
             adv_testflake,
             -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
-            toUInt8(hard_red = 1 AND (lagInFrame(hard_red) OVER w = 1 OR leadInFrame(hard_red) OVER w = 1)) AS persistent
+            toUInt8(
+                hard_red = 1
+                AND (
+                    lagInFrame(hard_red) OVER w = 1
+                    OR leadInFrame(hard_red) OVER w = 1
+                )
+            ) AS persistent
         FROM job_signals
         WINDOW w AS (
             PARTITION BY workflow_name, cons_name
@@ -154,6 +179,7 @@ final_jobs AS (
         )
     )
 ),
+
 agg AS (
     SELECT
         concat(workflow_name, ' / ', norm_name) AS job_name,
@@ -169,6 +195,7 @@ agg AS (
     GROUP BY job_name
     HAVING total_runs >= {minRuns: Int32}
 )
+
 SELECT
     job_name,
     total_runs,
@@ -180,11 +207,20 @@ SELECT
     real_regression,
     round(if(green + flake = 0, 0, flake / (green + flake)), 4) AS flake_rate,
     -- Wilson score 95% lower bound (z = 1.96) on flake / (green + flake)
-    round(if(green + flake = 0, 0,
-        ((flake / (green + flake) + 3.8416 / (2 * (green + flake)))
-         - 1.96 * sqrt(flake / (green + flake) * (1 - flake / (green + flake)) / (green + flake)
-                       + 3.8416 / (4 * (green + flake) * (green + flake))))
-        / (1 + 3.8416 / (green + flake))), 4) AS flake_rate_wilson_lb,
+    round(if(
+        green + flake = 0, 0,
+        (
+            (flake / (green + flake) + 3.8416 / (2 * (green + flake)))
+            - 1.96 * sqrt(
+                flake
+                / (green + flake)
+                * (1 - flake / (green + flake))
+                / (green + flake)
+                + 3.8416 / (4 * (green + flake) * (green + flake))
+            )
+        )
+        / (1 + 3.8416 / (green + flake))
+    ), 4) AS flake_rate_wilson_lb,
     round(if(red = 0, 0, flake / red), 4) AS pct_reds_flake
 FROM agg
 ORDER BY flake_rate_wilson_lb DESC, flake DESC
