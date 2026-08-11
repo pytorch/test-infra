@@ -81,6 +81,63 @@ class TestSelectTargetRefs(TestCase):
         )
 
 
+class TestReleaseLines(TestCase):
+    def test_only_release_branches(self) -> None:
+        refs = [
+            "refs/heads/main",
+            "refs/heads/nightly",
+            "refs/heads/release/2.14",
+            "refs/heads/release/2.13",
+        ]
+        self.assertEqual(m.release_lines(refs), [(2, 14), (2, 13)])
+
+
+class TestSelectTargetTags(TestCase):
+    def test_ga_and_newest_candidate(self) -> None:
+        names = ["v2.14.0-rc1", "v2.14.0-rc2", "v2.14.0"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 14)),
+            ["refs/tags/v2.14.0", "refs/tags/v2.14.0-rc2"],
+        )
+
+    def test_candidate_only_before_ga(self) -> None:
+        self.assertEqual(
+            m.select_target_tags(["v2.14.0-rc1"], (2, 14)),
+            ["refs/tags/v2.14.0-rc1"],
+        )
+
+    def test_patch_release_supersedes_shipped_tags(self) -> None:
+        # The preceding line is still patchable: v2.13.1-rc1 must win over the
+        # rc15 that shipped as v2.13.0.
+        names = ["v2.13.0-rc15", "v2.13.0", "v2.13.1-rc1"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 13)),
+            ["refs/tags/v2.13.0", "refs/tags/v2.13.1-rc1"],
+        )
+
+    def test_sorts_candidates_numerically_not_lexically(self) -> None:
+        # rc9 must rank below rc10 despite string ordering.
+        names = ["v2.13.0-rc9", "v2.13.0-rc10"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 13)),
+            ["refs/tags/v2.13.0-rc10"],
+        )
+
+    def test_ignores_other_release_lines(self) -> None:
+        names = ["v2.1.0", "v2.1.0-rc1", "v2.14.0-rc1", "v3.1.0-rc1"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 1)),
+            ["refs/tags/v2.1.0", "refs/tags/v2.1.0-rc1"],
+        )
+
+    def test_ignores_unconventional_tags(self) -> None:
+        names = ["v2.14.0-rc1-test", "v2.14.0rc1", "2.14.0-rc1", "v2.14.0-rc", "v2.14"]
+        self.assertEqual(m.select_target_tags(names, (2, 14)), [])
+
+    def test_no_tags_yet(self) -> None:
+        self.assertEqual(m.select_target_tags([], (2, 14)), [])
+
+
 class TestUsesReleaseLabel(TestCase):
     def test_matches_release_labels(self) -> None:
         self.assertTrue(m.uses_release_label("runs-on: rel-l-x86iavx512-44-340"))
