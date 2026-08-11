@@ -12,6 +12,7 @@ export default function FlakyTrunkTable({
   minRuns,
   selectedBucket,
   onClearFilter,
+  onRowClick,
   autoRefresh,
 }: {
   config: FlakyTrunkTableConfig;
@@ -20,6 +21,7 @@ export default function FlakyTrunkTable({
   minRuns: number;
   selectedBucket: BucketRange | null;
   onClearFilter: () => void;
+  onRowClick: (_row: any) => void;
   autoRefresh: boolean;
 }) {
   const url = `/api/clickhouse/${
@@ -63,6 +65,8 @@ export default function FlakyTrunkTable({
       showFooter={true}
       dataGridProps={{
         getRowId: config.getRowId,
+        onRowClick: (params: { row: any }) => onRowClick(params.row),
+        sx: { "& .MuiDataGrid-row": { cursor: "pointer" } },
         initialState: {
           sorting: {
             sortModel: [{ field: config.defaultSortField, sort: "desc" }],

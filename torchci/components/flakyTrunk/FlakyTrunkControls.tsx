@@ -49,6 +49,7 @@ export default function FlakyTrunkControls({
     setMinRunsInput(String(minRuns));
   }, [minRuns]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSetMinRuns = useCallback(
     _.debounce((value: number) => setMinRuns(value), 500),
     []

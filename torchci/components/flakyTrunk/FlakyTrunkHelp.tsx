@@ -68,8 +68,8 @@ export default function FlakyTrunkHelp() {
             {"The GRAPH shows flakiness only (Infra flake / Job flake / " +
               "Unclassified). Real regressions and sustained infra outages are " +
               "shown as the tiles above it, not on the graph — so in " +
-              '"% of reds" mode the bars don\'t fill 100%; the remainder is ' +
-              "exactly those tiles."}
+              '"% of reds" mode the bars don\'t fill 100%; in aggregate, the ' +
+              "remainder is those tiles."}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">

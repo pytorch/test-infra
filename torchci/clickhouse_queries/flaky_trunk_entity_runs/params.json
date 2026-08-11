@@ -1,0 +1,25 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "repo": "String",
+    "entityType": "String",
+    "entityValue": "String"
+  },
+  "tests": [
+    {
+      "startTime": "2026-07-12T00:00:00.000",
+      "stopTime": "2026-08-11T00:00:00.000",
+      "repo": "pytorch/pytorch",
+      "entityType": "job",
+      "entityValue": "trunk / macos-py3-arm64 / test (default)"
+    },
+    {
+      "startTime": "2026-07-12T00:00:00.000",
+      "stopTime": "2026-08-11T00:00:00.000",
+      "repo": "pytorch/pytorch",
+      "entityType": "label",
+      "entityValue": "linux.rocm.gpu.gfx942.1"
+    }
+  ]
+}

@@ -18,7 +18,36 @@ export const LARGE_WINDOW_DAYS = 90;
 // ClickHouse DateTime64(3) literal expected by the flaky_trunk_* queries.
 export const CLICKHOUSE_TIME_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSS";
 
+// Snap a window START down to its granularity bucket before it becomes a query
+// timestamp. TimeRangePicker re-derives "now" every 5 min, which would otherwise
+// churn the SWR key every render; snapping keeps the key stable within a bucket
+// (dedupes the graph/tiles fetch and stops needless heavy re-runs).
+export function snapToGranularity(
+  time: dayjs.Dayjs,
+  granularity: Granularity
+): dayjs.Dayjs {
+  return time.utc().startOf(granularity);
+}
+
+// Snap a window STOP up to the start of the NEXT bucket, so the (exclusive) upper
+// bound includes the current in-progress bucket while staying fixed for that
+// bucket's whole duration — same key-stability benefit, without hiding today.
+export function snapStopToGranularity(
+  time: dayjs.Dayjs,
+  granularity: Granularity
+): dayjs.Dayjs {
+  return snapToGranularity(time, granularity).add(1, granularity);
+}
+
 export type DenominatorKey = "jobs" | "reds";
+
+export type EntityType = "job" | "label";
+
+// The job or runner label whose individual flaky runs the drill-down table shows.
+export interface SelectedEntity {
+  type: EntityType;
+  value: string;
+}
 
 // A single stacked-bar slice: the count column in flaky_trunk_timeseries and its
 // series label. The graph plots flakiness only; the persistent-break categories

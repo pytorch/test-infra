@@ -3,6 +3,7 @@ import CopyLink from "components/common/CopyLink";
 import FlakyTrunkControls from "components/flakyTrunk/FlakyTrunkControls";
 import FlakyTrunkGraph from "components/flakyTrunk/FlakyTrunkGraph";
 import FlakyTrunkHelp from "components/flakyTrunk/FlakyTrunkHelp";
+import FlakyTrunkRunsTable from "components/flakyTrunk/FlakyTrunkRunsTable";
 import FlakyTrunkTable from "components/flakyTrunk/FlakyTrunkTable";
 import FlakyTrunkTiles from "components/flakyTrunk/FlakyTrunkTiles";
 import {
@@ -16,6 +17,9 @@ import {
   parseGranularity,
   parseMinRuns,
   parseTimeRange,
+  SelectedEntity,
+  snapStopToGranularity,
+  snapToGranularity,
 } from "components/flakyTrunk/common";
 import { FLAKY_TRUNK_TABLES } from "components/flakyTrunk/tableConfigs";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
@@ -66,6 +70,9 @@ export default function Page() {
   const [selectedBucket, setSelectedBucket] = useState<BucketRange | null>(
     null
   );
+  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(
+    null
+  );
 
   const [routerReady, setRouterReady] = useState(false);
   if (!routerReady && router.isReady) {
@@ -100,29 +107,33 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startTime, stopTime, timeRange, granularity, denominator, minRuns]);
 
-  // A bucket selection only makes sense for the granularity/window it was made
-  // in, so discard it whenever those change. Custom start/stop edits (which only
-  // happen while timeRange is -1) count as a window change; the preset
-  // auto-refresh reuses the same setters but runs only while timeRange is not -1,
-  // so it never clears the selection.
+  // A bucket or drill-down selection only makes sense for the granularity/window
+  // it was made in, so discard both whenever those change. Custom start/stop
+  // edits (which only happen while timeRange is -1) count as a window change; the
+  // preset auto-refresh reuses the same setters but runs only while timeRange is
+  // not -1, so it never clears the selection.
+  const clearSelections = () => {
+    setSelectedBucket(null);
+    setSelectedEntity(null);
+  };
   const changeGranularity = (value: Granularity) => {
     setGranularity(value);
-    setSelectedBucket(null);
+    clearSelections();
   };
   const changeTimeRange = (value: number) => {
     setTimeRange(value);
-    setSelectedBucket(null);
+    clearSelections();
   };
   const changeStartTime = (value: dayjs.Dayjs) => {
     setStartTime(value);
     if (timeRange === -1) {
-      setSelectedBucket(null);
+      clearSelections();
     }
   };
   const changeStopTime = (value: dayjs.Dayjs) => {
     setStopTime(value);
     if (timeRange === -1) {
-      setSelectedBucket(null);
+      clearSelections();
     }
   };
 
@@ -137,9 +148,18 @@ export default function Page() {
   );
 
   const clearBucket = useCallback(() => setSelectedBucket(null), []);
+  const clearEntity = useCallback(() => setSelectedEntity(null), []);
 
-  const windowStart = startTime.utc().format(CLICKHOUSE_TIME_FORMAT);
-  const windowStop = stopTime.utc().format(CLICKHOUSE_TIME_FORMAT);
+  // Snap to the granularity bucket so the query timestamps (and thus SWR keys)
+  // stay stable while TimeRangePicker keeps re-deriving "now" every 5 min. Start
+  // floors to its bucket; stop ceils to the next bucket so the current
+  // in-progress bucket (e.g. today) stays included.
+  const windowStart = snapToGranularity(startTime, granularity).format(
+    CLICKHOUSE_TIME_FORMAT
+  );
+  const windowStop = snapStopToGranularity(stopTime, granularity).format(
+    CLICKHOUSE_TIME_FORMAT
+  );
   const tableStart = selectedBucket
     ? selectedBucket.start.utc().format(CLICKHOUSE_TIME_FORMAT)
     : windowStart;
@@ -224,10 +244,28 @@ export default function Page() {
             minRuns={minRuns}
             selectedBucket={selectedBucket}
             onClearFilter={clearBucket}
+            onRowClick={(row) =>
+              setSelectedEntity({
+                type: config.entityType,
+                value: config.getRowId(row),
+              })
+            }
             autoRefresh={autoRefresh}
           />
         </Box>
       ))}
+
+      {selectedEntity && (
+        <Box sx={{ height: TABLE_HEIGHT, mt: 3 }}>
+          <FlakyTrunkRunsTable
+            entity={selectedEntity}
+            startTime={tableStart}
+            stopTime={tableStop}
+            onClose={clearEntity}
+            autoRefresh={autoRefresh}
+          />
+        </Box>
+      )}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { GridColDef } from "@mui/x-data-grid";
-import { numCol, pctCol } from "./common";
+import { EntityType, numCol, pctCol } from "./common";
 
 export interface FlakyTrunkTableConfig {
   heading: string;
   queryName: string;
+  entityType: EntityType;
   columns: GridColDef[];
   getRowId: (_row: any) => string;
   defaultSortField: string;
@@ -37,6 +38,7 @@ const COL_DESC = {
 const JOBS_TABLE: FlakyTrunkTableConfig = {
   heading: "Flaky jobs",
   queryName: "flaky_trunk_jobs",
+  entityType: "job",
   getRowId: (row) => row.job_name,
   defaultSortField: "flake_rate_wilson_lb",
   columns: [
@@ -58,6 +60,7 @@ const JOBS_TABLE: FlakyTrunkTableConfig = {
 const LABELS_TABLE: FlakyTrunkTableConfig = {
   heading: "Flaky instance labels",
   queryName: "flaky_trunk_runner_labels",
+  entityType: "label",
   getRowId: (row) => row.label,
   defaultSortField: "flake_rate_wilson_lb",
   columns: [
