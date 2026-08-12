@@ -286,12 +286,12 @@ PACKAGE_ALLOW_LIST = {
         "flash_attn_3",
         # vllm
         "ninja",
-        "cuda_python",
-        "cuda_bindings",
-        "cuda_pathfinder",
-        "cuda_toolkit",
+        # cuda_python, cuda_bindings, cuda_pathfinder, cuda_toolkit and
+        # nvidia_ml_py are sourced from PyPI by update_dependencies.py and live
+        # in PACKAGE_LINKS_ALLOW_LIST only. Listing them here as well makes
+        # manage_v2 regenerate their index from whatever wheels it finds,
+        # competing with the copied one.
         "pynvml",
-        "nvidia_ml_py",
         "einops",
         "packaging",
         "nvidia_cudnn_frontend",
