@@ -38,7 +38,8 @@ if TYPE_CHECKING:
     from github import Github
 
     from greenlight.config import Config
-    from greenlight.github_client import OpenPR, VerdictPR
+    from greenlight.github_client import OpenPR
+    from greenlight.github_types import VerdictPR
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
