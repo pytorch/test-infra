@@ -166,6 +166,13 @@
       "linux"
     ]
   ],
+  "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
+    "180017",
+    "https://github.com/pytorch/pytorch/issues/180017",
+    [
+      "rocm"
+    ]
+  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTestsPerSubkernelBlocks)": [
     "180023",
     "https://github.com/pytorch/pytorch/issues/180023",
@@ -280,6 +287,13 @@
     "https://github.com/pytorch/pytorch/issues/192316",
     [
       "dynamo"
+    ]
+  ],
+  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
+    "188234",
+    "https://github.com/pytorch/pytorch/issues/188234",
+    [
+      "linux"
     ]
   ],
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
