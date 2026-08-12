@@ -1266,16 +1266,127 @@ def test_fingerprint_task_returns_client_on_exception():
     pool: queue.Queue[Github] = queue.Queue()
     client = cast("Github", object())
     pool.put(client)
+    cancel_event = threading.Event()
 
     def boom(_client, _number, _authorized, _skip):
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True)
+        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True, cancel_event)
 
     # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
     # with more PRs than workers drains the pool and queue.get blocks the scan forever.
     assert pool.get_nowait() is client
+    # A non-rate-limit failure must not trip the shared cancel event -- only rate limits abandon.
+    assert not cancel_event.is_set()
+
+
+def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch):
+    from github import RateLimitExceededException
+
+    # Pin one worker for a deterministic FIFO order: PR1 runs first and trips the cancel event before
+    # PR2/PR3 start, so the "stop starting new tasks" behaviour is observable without racing workers.
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 1:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[1\]"):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1's rate limit sets the shared cancel event, so the queued PR2/PR3 short-circuit to _CANCELLED
+    # without ever calling fingerprint (only PR1 appears). A cancelled task is not a failure, so only
+    # PR1 lands in `failed`, and nothing dispatches.
+    assert fingerprinted == [1]
+    assert dispatched == []
+
+
+def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, monkeypatch):
+    from github import RateLimitExceededException
+
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 2:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1 completes as a candidate before PR2 hits the rate limit, so the partial success is preserved
+    # -- PR1 still dispatches. PR2 trips the cancel event, so PR3 short-circuits without being
+    # fingerprinted, and only PR2 lands in `failed`.
+    assert fingerprinted == [1, 2]
+    assert dispatched == [1]
+
+
+def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeypatch):
+    from github import RateLimitExceededException
+
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 2:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
+        review.run(
+            make_config(github_token="t"),
+            max_dispatches=5,
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # The capped path (_fingerprint_until_dispatchable) fingerprints in worker-sized batches (size 1
+    # here). PR1 dispatches, PR2 hits the rate limit and trips the cancel event, so the batch loop
+    # breaks before submitting PR3 -- the cap of 5 is never the limiter, the cancellation is.
+    assert fingerprinted == [1, 2]
+    assert dispatched == [1]
 
 
 def test_fetch_failure_still_closes_main_client(make_config):

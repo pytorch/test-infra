@@ -84,6 +84,16 @@ def build_client(token: str) -> Github:
     )
 
 
+def is_rate_limit_error(exc: BaseException) -> bool:
+    # GitHub delivers a rate limit as 403 (-> RateLimitExceededException) or 429 (-> base
+    # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
+    from github import GithubException, RateLimitExceededException
+
+    if isinstance(exc, RateLimitExceededException):
+        return True
+    return isinstance(exc, GithubException) and getattr(exc, "status", None) == 429
+
+
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
     trusted = {a.lower() for a in authors}
     repo_obj = client.get_repo(repo)

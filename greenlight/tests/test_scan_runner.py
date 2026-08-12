@@ -1,4 +1,6 @@
 import logging
+import queue
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
@@ -31,6 +33,14 @@ class _RaisingFuture:
 
     def result(self) -> object:
         raise self._exc
+
+
+class _ResultFuture:
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    def result(self) -> object:
+        return self._value
 
 
 def test_post_refusals_no_skips_is_noop():
@@ -158,7 +168,9 @@ def test_post_refusals_skips_non_changes_requested_reason(caplog):
 def test_evaluate_pr_iteration_timeout_propagates():
     failed: list[int] = []
     skips: list[tuple[int, ReviewSkip]] = []
-    future = cast("Future[tuple[str, str] | ReviewSkip]", _RaisingFuture(IterationTimeout("boom")))
+    future = cast(
+        "Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _RaisingFuture(IterationTimeout("boom"))
+    )
 
     # IterationTimeout is the soft per-iteration timeout; _evaluate_pr must let it propagate to
     # abort the iteration, not swallow it into `failed` like an ordinary fingerprint error.
@@ -174,6 +186,105 @@ def test_evaluate_pr_iteration_timeout_propagates():
             force=False,
         )
 
+    assert failed == []
+    assert skips == []
+
+
+def test_fingerprint_task_returns_result_and_returns_client_to_pool():
+    pool: queue.Queue[Github] = queue.Queue()
+    client = cast("Github", object())
+    pool.put(client)
+    event = threading.Event()
+
+    def fingerprint(borrowed, _number, _authorized, _skip):
+        assert borrowed is client
+        return ("headsha", "b" * 64)
+
+    result = scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset({"alice"}), True, event)
+
+    assert result == ("headsha", "b" * 64)
+    assert pool.get_nowait() is client  # borrowed then returned via finally
+    assert not event.is_set()
+
+
+def test_fingerprint_task_returns_cancelled_without_touching_pool_when_event_set():
+    pool: queue.Queue[Github] = queue.Queue()
+    sentinel = cast("Github", object())
+    pool.put(sentinel)
+    event = threading.Event()
+    event.set()
+
+    def fingerprint(*_args):
+        raise AssertionError("fingerprint must not run once the cancel event is set")
+
+    result = scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+
+    # A pre-set cancel event short-circuits before borrowing a client, so the already-limited API is
+    # never hit again: the client is left untouched in the pool (get was never called).
+    assert result is scan_runner._CANCELLED
+    assert pool.get_nowait() is sentinel
+    assert pool.empty()
+
+
+def test_fingerprint_task_rate_limit_error_sets_cancel_and_reraises_returning_client():
+    from github import RateLimitExceededException
+
+    pool: queue.Queue[Github] = queue.Queue()
+    client = cast("Github", object())
+    pool.put(client)
+    event = threading.Event()
+
+    def fingerprint(*_args):
+        raise RateLimitExceededException(403)
+
+    # A rate limit trips the shared cancel event (so sibling tasks abandon) yet still propagates,
+    # and the borrowed client returns to the pool via the finally.
+    with pytest.raises(RateLimitExceededException):
+        scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+
+    assert event.is_set()
+    assert pool.get_nowait() is client
+
+
+def test_fingerprint_task_non_rate_limit_error_propagates_without_cancel():
+    pool: queue.Queue[Github] = queue.Queue()
+    client = cast("Github", object())
+    pool.put(client)
+    event = threading.Event()
+
+    def fingerprint(*_args):
+        raise ValueError("not a rate limit")
+
+    # A non-rate-limit error must NOT be swallowed by the rate-limit arm -- it propagates with its
+    # real type, leaves the cancel event untouched, and returns the client.
+    with pytest.raises(ValueError, match="not a rate limit"):
+        scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+
+    assert not event.is_set()
+    assert pool.get_nowait() is client
+
+
+def test_evaluate_pr_cancelled_result_returns_none_without_failing():
+    failed: list[int] = []
+    skips: list[tuple[int, ReviewSkip]] = []
+    future = cast(
+        "Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _ResultFuture(scan_runner._CANCELLED)
+    )
+
+    result = scan_runner._evaluate_pr(
+        5,
+        future,
+        {},
+        now=datetime(2026, 1, 1, tzinfo=UTC),
+        timeout=timedelta(hours=1),
+        failed=failed,
+        skips=skips,
+        force=False,
+    )
+
+    # A cancelled task was never attempted, so it is neither a candidate nor a failure: it is dropped
+    # without landing in `failed` (only tasks that actually hit the limit do).
+    assert result is None
     assert failed == []
     assert skips == []
 
