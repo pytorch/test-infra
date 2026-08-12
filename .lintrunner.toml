@@ -147,6 +147,7 @@ exclude_patterns=[
     '.github/actions/checkout/dist/index.js',
     'tools/clang-tidy-checks/*-patches/**',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -171,6 +172,7 @@ exclude_patterns = [
     '.github/actions/checkout/dist/index.js',
     '.github/actions/checkout/.licenses/**/*.yml',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -203,6 +205,7 @@ exclude_patterns = [
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
