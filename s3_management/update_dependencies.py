@@ -768,7 +768,33 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     # vLLM
     "ninja": [{"project": "vllm"}],
     "cuda-python": [{"project": "vllm"}],
-    "cuda-pathfinder": [{"project": "vllm"}],
+    "cuda-pathfinder": [
+        {
+            "project": "torch",
+            "target": "cu126",
+        },
+        {
+            "project": "torch",
+            "target": "cu128",
+        },
+        {
+            "project": "torch",
+            "target": "cu129",
+        },
+        {
+            "project": "torch",
+            "target": "cu130",
+        },
+        {
+            "project": "torch",
+            "target": "cu132",
+        },
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
+        {"project": "vllm"},
+    ],
     "pynvml": [{"project": "vllm"}],
     "nvidia-ml-py": [{"project": "vllm"}],
     "einops": [{"project": "vllm"}],
