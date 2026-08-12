@@ -747,6 +747,13 @@
       "rocm"
     ]
   ],
+  "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
+    "193150",
+    "https://github.com/pytorch/pytorch/issues/193150",
+    [
+      "linux"
+    ]
+  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
@@ -1078,13 +1085,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
-    "190009",
-    "https://github.com/pytorch/pytorch/issues/190009",
-    [
-      "rocm"
     ]
   ],
   "test_unbacked_bindings_for_divisible_u_symint_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
