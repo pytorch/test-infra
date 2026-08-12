@@ -407,6 +407,36 @@ def test_build_client_wires_bounded_retry_into_github(monkeypatch):
     assert retry.respect_retry_after_header is False
 
 
+def test_build_client_passes_seconds_between_requests_when_given(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _fake_github(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("github.Github", _fake_github)
+
+    github_client.build_client("tok", seconds_between_requests=0.5)
+
+    assert captured["seconds_between_requests"] == 0.5
+
+
+def test_build_client_defaults_pacing_to_pygithub_default(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _fake_github(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("github.Github", _fake_github)
+
+    github_client.build_client("tok")
+
+    # Pins PyGithub's 0.25s default explicitly, so a library default change cannot silently alter
+    # the request rate.
+    assert captured["seconds_between_requests"] == 0.25
+
+
 def test_is_rate_limit_error_true_for_rate_limit_exceeded_exception():
     # A 403 rate limit arrives as RateLimitExceededException (status 403), matched by the isinstance
     # arm, not by the 429 status check.

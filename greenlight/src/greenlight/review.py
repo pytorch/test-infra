@@ -34,6 +34,7 @@ from greenlight.constants import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from typing import Protocol
 
     from github import Github
 
@@ -43,6 +44,11 @@ if TYPE_CHECKING:
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
+
+    class _BuildClient(Protocol):
+        # token positional-only so injected test doubles needn't match the parameter name.
+        def __call__(self, token: str, /, *, seconds_between_requests: float = 0.25) -> Github: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +71,12 @@ def _is_trusted(login: str | None) -> bool:
     return login is not None and login.lower() in _TRUSTED_LOWER
 
 
-_FINGERPRINT_WORKERS = 8
+# The fan-out's aggregate GitHub request rate is workers / seconds-between-requests; both are
+# tuned down together to stay under GitHub's secondary (burst-rate) limit, which the prior
+# 8-worker / default-paced pool tripped. Raising either without lowering the other raises the
+# burst rate.
+_FINGERPRINT_WORKERS = 4
+_FINGERPRINT_SECONDS_BETWEEN_REQUESTS = 0.5
 
 
 def _utcnow() -> datetime:
@@ -183,7 +194,7 @@ def run(
     requester: str | None = None,
     allow_untrusted_author: bool = False,
     bot_login: str = "",
-    build_github: Callable[[str], Github] = github_client.build_client,
+    build_github: _BuildClient = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
     fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
     fingerprint: FingerprintFn = _default_fingerprint,
@@ -251,7 +262,7 @@ def run(
         # and guarantees no two running tasks ever share one.
         client_pool: queue.Queue[Github] = queue.Queue()
         for _ in range(worker_count):
-            worker_client = build_github(token)
+            worker_client = build_github(token, seconds_between_requests=_FINGERPRINT_SECONDS_BETWEEN_REQUESTS)
             clients.callback(_close_client, worker_client)
             client_pool.put(worker_client)
         if max_dispatches is None:

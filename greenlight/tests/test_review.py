@@ -171,7 +171,7 @@ def _run_scan(
         requester=requester,
         allow_untrusted_author=allow_untrusted_author,
         bot_login=bot_login,
-        build_github=lambda _token: _CLIENT,
+        build_github=lambda _token, **_kwargs: _CLIENT,
         fetch=fake_fetch,
         fetch_author=fake_fetch_author,
         fingerprint=fake_fingerprint,
@@ -618,7 +618,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             max_dispatches=1,
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(n) for n in numbers],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -856,7 +856,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             make_config(github_token="t"),
             pr=7,
             force=True,
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [],
             fetch_author=lambda _client, _number: "albanD",
             fingerprint=boom_fingerprint,
@@ -955,7 +955,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
     ):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
@@ -989,7 +989,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
     ):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(3), _open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -1020,7 +1020,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
     ):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
@@ -1049,7 +1049,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
     ):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
@@ -1074,7 +1074,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
     with pytest.raises(IterationTimeout):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
@@ -1105,7 +1105,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
     with caplog.at_level(logging.ERROR, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -1153,7 +1153,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
 
     review.run(
         make_config(github_token="t"),
-        build_github=lambda _token: _CLIENT,
+        build_github=lambda _token, **_kwargs: _CLIENT,
         fetch=lambda _client: [_open_pr(n) for n in numbers],
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
@@ -1176,7 +1176,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
     barrier = threading.Barrier(k, timeout=5)
     built: list[object] = []
 
-    def factory(_token):
+    def factory(_token, **_kwargs):
         client = object()
         built.append(client)
         return cast("Github", client)
@@ -1218,16 +1218,17 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
 def test_run_closes_main_and_worker_clients(make_config):
     class _Closeable:
-        def __init__(self) -> None:
+        def __init__(self, seconds_between_requests: float | None) -> None:
             self.closed = 0
+            self.seconds_between_requests = seconds_between_requests
 
         def close(self) -> None:
             self.closed += 1
 
     built: list[_Closeable] = []
 
-    def factory(_token):
-        client = _Closeable()
+    def factory(_token, *, seconds_between_requests=None):
+        client = _Closeable(seconds_between_requests)
         built.append(client)
         return cast("Github", client)
 
@@ -1246,6 +1247,16 @@ def test_run_closes_main_and_worker_clients(make_config):
     # each is closed exactly once as the scan unwinds -- the connection pools are not leaked.
     assert len(built) == 3
     assert all(client.closed == 1 for client in built)
+    # The main client (built first) keeps PyGithub's default pacing -- no kwarg passed -- while the
+    # two fingerprint worker clients are throttled to bound the fan-out's aggregate request rate.
+    assert built[0].seconds_between_requests is None
+    assert [c.seconds_between_requests for c in built[1:]] == [review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS] * 2
+
+
+def test_fingerprint_throttle_stays_under_burst_limit():
+    # Aggregate fan-out rate is workers / seconds-between-requests; keep it <= 8 req/s to stay
+    # under GitHub's secondary (burst-rate) limit.
+    assert review._FINGERPRINT_WORKERS / review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS <= 8
 
 
 def test_close_client_swallows_close_errors(caplog):
@@ -1302,7 +1313,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch):
     with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[1\]"):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -1337,7 +1348,7 @@ def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, mo
     with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -1373,7 +1384,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
         review.run(
             make_config(github_token="t"),
             max_dispatches=5,
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
@@ -1398,7 +1409,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
     with pytest.raises(RuntimeError, match="fetch boom"):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: cast("Github", client),
+            build_github=lambda _token, **_kwargs: cast("Github", client),
             fetch=boom_fetch,
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
@@ -1471,7 +1482,7 @@ def test_run_cold_authorized_failure_propagates(make_config):
     with pytest.raises(RuntimeError, match="merge_rules unreachable"):
         review.run(
             make_config(github_token="t"),
-            build_github=lambda _token: _CLIENT,
+            build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [_open_pr(1)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
