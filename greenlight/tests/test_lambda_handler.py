@@ -1,4 +1,5 @@
 import base64
+import importlib
 import json
 import logging
 import os
@@ -58,6 +59,12 @@ def fakes(monkeypatch):
     )
 
     monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    # Ensure the real github module is in sys.modules before replacing it, so monkeypatch restores
+    # it on teardown instead of deleting the key. A run that has not yet imported github (github is
+    # lazy-imported everywhere) would otherwise evict it here; the next `from github import ...`
+    # would rebuild the exception classes, breaking isinstance in later tests such as
+    # github_client.is_rate_limit_error.
+    importlib.import_module("github")
     monkeypatch.setitem(sys.modules, "github", fake_github)
     return fake_boto3, fake_github
 

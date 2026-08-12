@@ -9,13 +9,16 @@ filter, and client lifecycle, and drives these helpers.
 from __future__ import annotations
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from greenlight import comment_format, constants
 from greenlight.decision import Decision, decide
+from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
 
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
-    from greenlight.github_client import VerdictPR
+    from greenlight.github_types import VerdictPR
     from greenlight.state import PRState
 
     # The fingerprint seam returns the PR's (head_sha, eval_hash) or, when a human has already
@@ -40,6 +43,15 @@ logger = logging.getLogger(__name__)
 # Never-reviewed candidates sort ahead of every recorded one; this stands in for their
 # absent version so the sort key stays a homogeneous (bool, datetime) tuple.
 _MIN_VERSION = datetime.min
+
+
+class _Cancelled(Enum):
+    # A typed sentinel (single Enum member) for a task skipped after a rate limit tripped the
+    # shared cancel event: mypy strict can narrow this out of the result union; object() cannot.
+    TOKEN = auto()
+
+
+_CANCELLED = _Cancelled.TOKEN
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,17 +79,24 @@ def _fingerprint_task(
     number: int,
     authorized_logins: frozenset[str],
     skip_on_approval: bool,
-) -> tuple[str, str] | ReviewSkip:
+    cancel_event: threading.Event,
+) -> tuple[str, str] | ReviewSkip | _Cancelled:
+    if cancel_event.is_set():
+        return _CANCELLED
     client = client_pool.get()
     try:
         return fingerprint(client, number, authorized_logins, skip_on_approval)
+    except Exception as exc:
+        if is_rate_limit_error(exc):
+            cancel_event.set()
+        raise
     finally:
         client_pool.put(client)
 
 
 def _evaluate_pr(
     number: int,
-    future: Future[tuple[str, str] | ReviewSkip],
+    future: Future[tuple[str, str] | ReviewSkip | _Cancelled],
     states: dict[int, PRState],
     *,
     now: datetime,
@@ -88,6 +107,10 @@ def _evaluate_pr(
 ) -> _Candidate | None:
     try:
         result = future.result()
+        # A cancelled task never ran its fingerprint (an earlier task hit a rate limit and tripped
+        # the shared cancel event), so it is neither a candidate nor a failure: drop it silently.
+        if result is _CANCELLED:
+            return None
         # A ReviewSkip is a human decision, never a fingerprint failure: check before unpacking
         # so it is collected/dropped, not mistaken for an error and appended to failed.
         if isinstance(result, ReviewSkip):
@@ -134,12 +157,19 @@ def _fingerprint_all(
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
 ) -> list[_Candidate]:
-    futures: dict[int, Future[tuple[str, str] | ReviewSkip]] = {}
+    cancel_event = threading.Event()
+    futures: dict[int, Future[tuple[str, str] | ReviewSkip | _Cancelled]] = {}
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             futures = {
                 number: pool.submit(
-                    _fingerprint_task, fingerprint, client_pool, number, authorized_logins, skip_on_approval
+                    _fingerprint_task,
+                    fingerprint,
+                    client_pool,
+                    number,
+                    authorized_logins,
+                    skip_on_approval,
+                    cancel_event,
                 )
                 for number in pr_numbers
             }
@@ -171,15 +201,24 @@ def _fingerprint_until_dispatchable(
 ) -> list[_Candidate]:
     ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
     pending: list[_Candidate] = []
+    cancel_event = threading.Event()
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             for start in range(0, len(ranked), worker_count):
                 if len(pending) >= limit:
                     break
+                if cancel_event.is_set():
+                    break
                 batch = ranked[start : start + worker_count]
                 futures = {
                     number: pool.submit(
-                        _fingerprint_task, fingerprint, client_pool, number, authorized_logins, skip_on_approval
+                        _fingerprint_task,
+                        fingerprint,
+                        client_pool,
+                        number,
+                        authorized_logins,
+                        skip_on_approval,
+                        cancel_event,
                     )
                     for number in batch
                 }
