@@ -827,14 +827,6 @@
     "https://github.com/pytorch/pytorch/issues/188705",
     []
   ],
-  "test_reductions_large_half_tensors_mps_float16 (__main__.TestReductionsMPS)": [
-    "191485",
-    "https://github.com/pytorch/pytorch/issues/191485",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
     "86735",
     "https://github.com/pytorch/pytorch/issues/86735",
