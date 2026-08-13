@@ -21,6 +21,16 @@ This script finds the most recent such pair and reports the delta. It reads only
 job metadata from ClickHouse -- log *contents* are not ingested (the tables carry
 ``log_url`` pointers only), so this identifies *which* jobs regressed and groups
 them, but not *why*. Root-causing means reading the linked logs.
+
+ClickHouse access can be recorded and replayed, so the detection logic is
+runnable and testable without credentials::
+
+    # once, with credentials
+    python3 -m torchci.vllm_torch_nightly_triage --record-clickhouse rows.json ...
+    # thereafter, anywhere
+    python3 -m torchci.vllm_torch_nightly_triage --replay-clickhouse rows.json ...
+
+Replaying a recording reproduces that run's report.md and report.json exactly.
 """
 
 from __future__ import annotations
@@ -30,7 +40,8 @@ import json
 import re
 import sys
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import date, datetime
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
 from torchci.vllm_log_parser import parse_log, strip_markers
@@ -73,6 +84,98 @@ def cluster_key(job_name: str) -> str:
 
 def _rows(client: Any, query: str, params: Dict[str, Any]) -> List[Tuple]:
     return client.query(query, parameters=params).result_rows
+
+
+# --- record/replay -----------------------------------------------------------
+#
+# ClickHouse holds the only inputs this script cannot reconstruct offline, and the
+# credentials to read it are not something every contributor has. Recording the raw
+# result sets makes the detection half (find_latest_pair, compare, render) runnable
+# and testable from a file. report.json is not a substitute: it is the *output* of
+# that pipeline, carrying only the regressed/both buckets, so it can exercise the
+# issue-filing half but not the bucketing that produced it.
+#
+# Result sets are keyed by the table the query reads rather than by query text or
+# call order, so a fixture survives reformatting the SQL and stays readable.
+
+
+def _table_key(query: str) -> str:
+    if "vllm_buildkite_builds" in query:
+        return "builds"
+    if "vllm_buildkite_jobs" in query:
+        return "jobs"
+    raise ValueError(f"cannot map query to a recorded result set: {query[:80]!r}")
+
+
+def _encode(value: Any) -> Any:
+    """Tag the types JSON cannot round-trip. Everything here is scalar."""
+    if isinstance(value, datetime):
+        return {"__datetime__": value.isoformat()}
+    if isinstance(value, date):
+        return {"__date__": value.isoformat()}
+    return value
+
+
+def _decode(value: Any) -> Any:
+    if isinstance(value, dict):
+        if "__datetime__" in value:
+            return datetime.fromisoformat(value["__datetime__"])
+        if "__date__" in value:
+            return date.fromisoformat(value["__date__"])
+    return value
+
+
+class _Result:
+    """The subset of clickhouse_connect's QueryResult that this script touches."""
+
+    def __init__(self, columns: Sequence[str], rows: List[Tuple]) -> None:
+        self.column_names = list(columns)
+        self.result_rows = rows
+
+
+class RecordingClient:
+    """Passes queries through to ClickHouse, keeping each raw result set."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.recorded: Dict[str, Dict[str, Any]] = {}
+
+    def query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> Any:
+        result = self._inner.query(query, parameters=parameters)
+        self.recorded[_table_key(query)] = {
+            "columns": list(result.column_names),
+            "rows": [[_encode(v) for v in row] for row in result.result_rows],
+        }
+        return result
+
+    def dump(self, path: str) -> None:
+        with open(path, "w") as f:
+            json.dump({"clickhouse": self.recorded}, f, indent=1)
+
+
+class ReplayClient:
+    """Serves the result sets from a recorded dump; needs no credentials."""
+
+    def __init__(self, tables: Dict[str, Dict[str, Any]]) -> None:
+        self._tables = tables
+
+    @classmethod
+    def from_file(cls, path: str) -> "ReplayClient":
+        with open(path) as f:
+            return cls(json.load(f)["clickhouse"])
+
+    def query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> Any:
+        key = _table_key(query)
+        try:
+            payload = self._tables[key]
+        except KeyError:
+            raise KeyError(
+                f"recording has no {key!r} result set (has: {sorted(self._tables)})"
+            ) from None
+        rows: Iterable[List[Any]] = payload["rows"]
+        return _Result(
+            payload["columns"], [tuple(_decode(v) for v in row) for row in rows]
+        )
 
 
 def find_latest_pair(
@@ -437,9 +540,28 @@ def main() -> int:
         "(requires BUILDKITE_TOKEN)",
     )
     parser.add_argument("--log-tail-lines", type=int, default=400)
+    parser.add_argument(
+        "--record-clickhouse",
+        metavar="PATH",
+        help="also write the raw ClickHouse result sets here, for offline replay",
+    )
+    parser.add_argument(
+        "--replay-clickhouse",
+        metavar="PATH",
+        help="read the result sets from a --record-clickhouse dump instead of "
+        "querying ClickHouse (needs no credentials)",
+    )
     args = parser.parse_args()
 
-    client = get_clickhouse_client()
+    if args.replay_clickhouse:
+        if args.record_clickhouse:
+            parser.error("--record-clickhouse and --replay-clickhouse are exclusive")
+        client: Any = ReplayClient.from_file(args.replay_clickhouse)
+    else:
+        client = get_clickhouse_client()
+        if args.record_clickhouse:
+            client = RecordingClient(client)
+
     pair = find_latest_pair(client, args.lookback_days)
     if pair is None:
         print(
@@ -447,11 +569,19 @@ def main() -> int:
             f"{args.lookback_days} days; nothing to compare.",
             file=sys.stderr,
         )
+        # Still worth dumping: a recording of this case is what reproduces it.
+        if args.record_clickhouse:
+            client.dump(args.record_clickhouse)
         return 0
 
     tn, base = pair
     buckets = compare(client, tn["number"], base["number"])
     report = render(tn, base, buckets)
+
+    # After compare(), so the dump holds both result sets.
+    if args.record_clickhouse:
+        client.dump(args.record_clickhouse)
+        print(f"recorded ClickHouse rows to {args.record_clickhouse}", file=sys.stderr)
 
     if args.output:
         with open(args.output, "w") as f:
