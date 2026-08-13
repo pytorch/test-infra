@@ -28,7 +28,7 @@ GITHUB_API_URL = "https://api.github.com"
 # Installation tokens last an hour. Refresh early so a warm invocation never
 # signs a request with a token that expires mid-flight.
 TOKEN_EXPIRY_MARGIN = 300
-# How long to remember that an owner has no app installation, so repos outside
+# How long to remember that a repo has no app installation, so repos outside
 # the installation don't trigger a lookup for every job.
 NO_INSTALLATION_TTL = 900
 # Used when a credential is rejected without telling us when it recovers.
@@ -37,7 +37,11 @@ DEFAULT_COOL_OFF = 60
 # (403 or 429) or rejected outright (401).
 FALLBACK_STATUSES = (401, 403, 429)
 
-# owner -> (installation token or None, epoch seconds the entry goes stale)
+# Keyed by "owner/repo", not owner: get_repo_installation() resolves per repo,
+# so a "Selected repositories" install can cover one repo of an owner and not
+# its sibling. Sharing an owner's entry would hand a repo a token minted for a
+# different one, or let one repo's "not installed" result mask another's.
+# full_name -> (installation token or None, epoch seconds the entry goes stale)
 _token_cache = {}
 
 
@@ -63,7 +67,7 @@ def cool_off_until(response):
 def fetch_installation_token(full_name):
     """Mint an installation token for the app installation covering full_name.
 
-    Returns (None, expiry) when the app isn't installed on that owner, so the
+    Returns (None, expiry) when the app isn't installed on that repo, so the
     caller falls back to a PAT instead of retrying the lookup for every job.
     """
     owner, repo = full_name.split("/", 1)
@@ -81,12 +85,11 @@ def fetch_installation_token(full_name):
 
 
 def installation_token(full_name):
-    """Cached installation token for full_name's owner, or None if unavailable."""
+    """Cached installation token for full_name, or None if unavailable."""
     if not GITHUB_APP_ID or not GITHUB_APP_PRIVATE_KEY:
         return None
 
-    owner = full_name.split("/")[0]
-    cached = _token_cache.get(owner)
+    cached = _token_cache.get(full_name)
     if cached and time.time() < cached[1]:
         return cached[0]
 
@@ -97,10 +100,10 @@ def installation_token(full_name):
         # GitHub blip must degrade to the PAT pool, never fail the webhook and
         # lose the payload archiving that happens after the log download.
         # Not cached either, so the next invocation retries.
-        print(f"ERROR minting installation token for {owner}: {err}")
+        print(f"ERROR minting installation token for {full_name}: {err}")
         return None
 
-    _token_cache[owner] = (token, expires_at)
+    _token_cache[full_name] = (token, expires_at)
     return token
 
 
@@ -122,8 +125,7 @@ def download_log(full_name, conclusion, job_id):
         if response.status_code in FALLBACK_STATUSES:
             # Stop using the app until its window resets, otherwise every job
             # for the rest of the hour pays for a doomed request first.
-            owner = full_name.split("/")[0]
-            _token_cache[owner] = (None, cool_off_until(response))
+            _token_cache[full_name] = (None, cool_off_until(response))
             print(
                 f"App auth returned {response.status_code} for {full_name} "
                 f"job {job_id}, falling back to a PAT"

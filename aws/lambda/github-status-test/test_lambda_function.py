@@ -27,21 +27,41 @@ class TestInstallationToken(unittest.TestCase):
 
     @patch.object(lambda_function, "GITHUB_APP_ID", "4550824")
     @patch.object(lambda_function, "GITHUB_APP_PRIVATE_KEY", "key")
-    def test_token_is_cached_per_owner(self):
+    def test_token_is_cached_per_repo(self):
         with patch.object(
             lambda_function,
             "fetch_installation_token",
             return_value=("tok", 2**31),
         ) as fetch:
             self.assertEqual(installation_token("pytorch/pytorch"), "tok")
-            # Same owner, different repo: served from cache, no second mint
-            self.assertEqual(installation_token("pytorch/executorch"), "tok")
+            self.assertEqual(installation_token("pytorch/pytorch"), "tok")
+            # Same repo twice is one mint...
             fetch.assert_called_once()
+            # ...but a sibling repo resolves separately, because a "Selected
+            # repositories" install can cover one and not the other.
+            self.assertEqual(installation_token("pytorch/executorch"), "tok")
+            self.assertEqual(fetch.call_count, 2)
+
+    @patch.object(lambda_function, "GITHUB_APP_ID", "4550824")
+    @patch.object(lambda_function, "GITHUB_APP_PRIVATE_KEY", "key")
+    def test_uninstalled_sibling_does_not_mask_an_installed_repo(self):
+        # Under a "Selected repositories" install, querying the uninstalled
+        # sibling first must not park the whole owner on the PAT path.
+        def per_repo(full_name):
+            if full_name == "pytorch/not-installed":
+                return None, 2**31
+            return "tok", 2**31
+
+        with patch.object(
+            lambda_function, "fetch_installation_token", side_effect=per_repo
+        ):
+            self.assertIsNone(installation_token("pytorch/not-installed"))
+            self.assertEqual(installation_token("pytorch/pytorch"), "tok")
 
     @patch.object(lambda_function, "GITHUB_APP_ID", "4550824")
     @patch.object(lambda_function, "GITHUB_APP_PRIVATE_KEY", "key")
     def test_expired_cache_entry_is_refreshed(self):
-        lambda_function._token_cache["pytorch"] = ("stale", 0)
+        lambda_function._token_cache["pytorch/pytorch"] = ("stale", 0)
         with patch.object(
             lambda_function,
             "fetch_installation_token",
@@ -70,7 +90,7 @@ class TestInstallationToken(unittest.TestCase):
             side_effect=lambda_function.requests.RequestException("boom"),
         ):
             self.assertIsNone(installation_token("pytorch/pytorch"))
-        self.assertNotIn("pytorch", lambda_function._token_cache)
+        self.assertNotIn("pytorch/pytorch", lambda_function._token_cache)
 
     @patch.object(lambda_function, "GITHUB_APP_ID", "4550824")
     @patch.object(lambda_function, "GITHUB_APP_PRIVATE_KEY", "bm90LWEta2V5")
@@ -136,7 +156,7 @@ class TestDownloadLog(unittest.TestCase):
         # 2 calls for the first job (app then PAT), 1 for the second (PAT only)
         self.assertEqual(fetch_log.call_count, 3)
         self.assertEqual(
-            lambda_function._token_cache["pytorch"], (None, float(reset_at))
+            lambda_function._token_cache["pytorch/pytorch"], (None, float(reset_at))
         )
 
     def test_error_response_is_not_archived(self, urlopen, s3):
