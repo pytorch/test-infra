@@ -1079,6 +1079,13 @@
       "slow"
     ]
   ],
+  "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
+    "190009",
+    "https://github.com/pytorch/pytorch/issues/190009",
+    [
+      "rocm"
+    ]
+  ],
   "test_unbacked_bindings_for_divisible_u_symint_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
     "192918",
     "https://github.com/pytorch/pytorch/issues/192918",
