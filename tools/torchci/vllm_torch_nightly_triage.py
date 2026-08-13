@@ -346,9 +346,7 @@ def render_regressed_tests_section(regressed_tests: List[Dict]) -> List[str]:
         )
         out.append(f"- [{entry['name']}]({entry['url']}) — `{entry['state']}`")
         for failure in new_failures:
-            out.append(
-                f"  - `{failure['test_id']}` — `{failure['exception_class']}`"
-            )
+            out.append(f"  - `{failure['test_id']}` — `{failure['exception_class']}`")
         out.append("\n</details>")
     return out
 
@@ -431,9 +429,7 @@ def render(
     return "\n".join(out)
 
 
-def _render_shared_section(
-    shared_failures: List[Tuple[FailedTest, FailedTest]]
-) -> str:
+def _render_shared_section(shared_failures: List[Tuple[FailedTest, FailedTest]]) -> str:
     """Render the shared failures, each with its nightly and baseline chain.
 
     Args:
@@ -641,9 +637,12 @@ def _fetch_both_clusters(
     fetched: List[Tuple[str, Dict, str, str]] = []
     for key, jobs in sorted(clusters.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         rep = sorted(jobs, key=lambda j: j["name"])[0]
+        baseline_url = rep.get("baseline_url")
+        if baseline_url is None:
+            continue
         try:
             torch_nightly_body = _fetch_job_log(rep["url"], token)
-            baseline_body = _fetch_job_log(rep.get("baseline_url"), token)
+            baseline_body = _fetch_job_log(baseline_url, token)
         except urllib.error.HTTPError as exc:
             print(
                 f"skip {key} diff: HTTP {exc.code} {exc.reason}{_http_error_hint(exc)}",
@@ -660,7 +659,7 @@ def _fetch_both_clusters(
 
 
 def diff_both_clusters(
-    fetched: List[Tuple[str, Dict, str, str]]
+    fetched: List[Tuple[str, Dict, str, str]],
 ) -> List[BothClusterDiff]:
     """Diff each fetched `both`-cluster; keep only those with new failures.
 

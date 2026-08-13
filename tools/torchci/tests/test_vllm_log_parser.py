@@ -893,7 +893,9 @@ class TestGetTestSignature(unittest.TestCase):
     """Signature is the (test_id, pytest_exception_class) 2-tuple."""
 
     def test_signature_is_id_and_class(self) -> None:
-        log = "FAILED tests/test_a.py::test_one - ValueError: bad\n= 1 failed in 1.00s ="
+        log = (
+            "FAILED tests/test_a.py::test_one - ValueError: bad\n= 1 failed in 1.00s ="
+        )
         failure = parse_log(log).pytest_results[0].test_failures[0]
         self.assertEqual(
             get_test_signature(failure),
@@ -903,9 +905,7 @@ class TestGetTestSignature(unittest.TestCase):
     def test_signature_empty_class_for_bare_failed(self) -> None:
         log = "FAILED tests/test_a.py::test_one\n= 1 failed in 1.00s ="
         failure = parse_log(log).pytest_results[0].test_failures[0]
-        self.assertEqual(
-            get_test_signature(failure), ("tests/test_a.py::test_one", "")
-        )
+        self.assertEqual(get_test_signature(failure), ("tests/test_a.py::test_one", ""))
 
 
 if __name__ == "__main__":

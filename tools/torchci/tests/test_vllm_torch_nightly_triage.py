@@ -5,14 +5,15 @@ captured logs: the parser is already trusted, so each case isolates exactly one
 diff/compare behaviour.
 """
 
+import email.message
 import tempfile
 import unittest
 import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from torchci.vllm_log_parser import parse_log
 import torchci.vllm_torch_nightly_triage as triage
+from torchci.vllm_log_parser import parse_log
 from torchci.vllm_torch_nightly_triage import diff_failing_tests
 
 
@@ -236,9 +237,7 @@ class TestDiffBothClusters(unittest.TestCase):
         body = make_pytest_body(
             [("tests/test_a.py::test_foo", "AssertionError", "shared boom")]
         )
-        self.assertEqual(
-            triage.diff_both_clusters([("Job A", rep, body, body)]), []
-        )
+        self.assertEqual(triage.diff_both_clusters([("Job A", rep, body, body)]), [])
 
 
 class TestWriteBothArtifacts(unittest.TestCase):
@@ -389,9 +388,7 @@ class TestReportJsonWiring(unittest.TestCase):
                 triage, "compare", return_value=buckets
             ), mock.patch.object(
                 triage, "fetch_cluster_logs", side_effect=_fake_fetch_cluster_logs
-            ), mock.patch.dict(
-                os.environ, {"BUILDKITE_TOKEN": "tok"}
-            ):
+            ), mock.patch.dict(os.environ, {"BUILDKITE_TOKEN": "tok"}):
                 rc = triage.main()
             self.assertEqual(rc, 0)
             with open(json_path) as f:
@@ -435,7 +432,7 @@ class TestBaselineLogAvailabilityGuard(unittest.TestCase):
 
     def test_baseline_401_skips_cluster(self) -> None:
         error = urllib.error.HTTPError(
-            "http://x", 401, "Unauthorized", hdrs=None, fp=None
+            "http://x", 401, "Unauthorized", hdrs=email.message.Message(), fp=None
         )
         self.assertEqual(self._fetch_with_baseline_error(error), [])
 
