@@ -12,10 +12,11 @@ schedule (America/LA)        build message           distinguishing env
 ``0 14 * * *``               Full CI run - daily     (none)
 ===========================  ======================  =========================
 
-On Mon/Tue/Thu the torch-nightly build and the plain nightly fire in the *same
-second* on the *same commit*, differing only by ``TORCH_NIGHTLY=1``. That pair is
-a controlled A/B: a job failing in the former and passing in the latter is
-attributable to torch nightly, with the vLLM variable held constant.
+The baseline is the plain nightly from the *same UTC day*, differing only by
+``TORCH_NIGHTLY=1``. When both fire in the same cron slot they also share a
+commit and the pair is a controlled A/B; otherwise the comparison is
+day-over-day and a regression may instead come from vLLM commits landing
+between the builds. Reports state which case they are.
 
 This script finds the most recent such pair and reports the delta. It reads only
 job metadata from ClickHouse -- log *contents* are not ingested (the tables carry
@@ -40,13 +41,9 @@ VLLM_REPO = "https://github.com/vllm-project/vllm.git"
 PIPELINE = "CI"
 
 TORCH_NIGHTLY_MSG = "Full CI run torch nightly"
-# The plain nightly shares the torch-nightly cron slot; the daily is the fallback
-# baseline when a same-second sibling is missing.
+# The plain nightly is the pinned-torch counterpart of the torch-nightly build;
+# the daily is the fallback when a day has no plain nightly.
 BASELINE_MSGS = ("Full CI run - nightly", "Full CI run - daily")
-
-# A build is only a valid control if it ran the same commit. Buildkite schedules
-# fire at the same instant but a commit can land between them in principle.
-SIBLING_WINDOW_SECONDS = 900
 
 BAD_STATES = ("failed", "timed_out")
 
@@ -80,9 +77,10 @@ def find_latest_pair(
 ) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
     """Return (torch_nightly_build, baseline_build) for the newest complete pair.
 
-    Returns None when no torch-nightly build exists in the window, or when the
-    newest one has no same-commit baseline (in which case there is nothing to
-    compare against and reporting raw failures would be misleading).
+    The baseline is the scheduled run closest in time on the same UTC day. Returns
+    None when no torch-nightly build exists in the window, or when none of them ran
+    on a day that also had a baseline (in which case there is nothing to compare
+    against and reporting raw failures would be misleading).
     """
     builds = _rows(
         client,
@@ -114,26 +112,22 @@ def find_latest_pair(
     if not nightlies:
         return None
 
-    # Walk newest-first rather than taking only nightlies[0]. Off-schedule
-    # torch-nightly builds happen (manual triggers land outside the 06:00 slot and
-    # have no sibling); stopping at the newest would let one of those mask the most
-    # recent genuinely comparable pair.
+    # Walk newest-first rather than taking only nightlies[0]: a torch-nightly build
+    # can land on a day with no scheduled baseline at all.
     for target in nightlies:
         candidates = [
             b
             for b in parsed
             if b["title"].startswith(BASELINE_MSGS)
-            and b["commit"] == target["commit"]
-            and abs((b["created_at"] - target["created_at"]).total_seconds())
-            <= SIBLING_WINDOW_SECONDS
+            and b["created_at"].date() == target["created_at"].date()
         ]
         if not candidates:
             continue
-        # Prefer the closest in time; ties favour the plain nightly (same cron slot).
+        # Plain nightly first, then closest in time.
         candidates.sort(
             key=lambda b: (
-                abs((b["created_at"] - target["created_at"]).total_seconds()),
                 0 if b["title"].startswith(BASELINE_MSGS[0]) else 1,
+                abs((b["created_at"] - target["created_at"]).total_seconds()),
             )
         )
         return target, candidates[0]
@@ -243,17 +237,37 @@ def render(
     agents = agent_concentration(regressed)
     top_agent_share = (agents[0][1] / len(regressed)) if regressed else 0.0
 
+    same_commit = tn["commit"] == base["commit"]
     out: List[str] = []
+    if same_commit:
+        out.append(
+            f"**{len(regressed)} job(s) regressed** on torch nightly "
+            f"[#{tn['number']}]({tn['url']}) versus baseline "
+            f"[#{base['number']}]({base['url']}), both at commit "
+            f"`{tn['commit'][:12]}`.\n"
+        )
+    else:
+        gap_hours = (base["created_at"] - tn["created_at"]).total_seconds() / 3600
+        out.append(
+            f"**{len(regressed)} job(s) regressed** on torch nightly "
+            f"[#{tn['number']}]({tn['url']}) versus same-day baseline "
+            f"[#{base['number']}]({base['url']}) ({gap_hours:+.1f}h).\n\n"
+            f"> :warning: The two builds ran **different commits** "
+            f"(`{tn['commit'][:12]}` vs `{base['commit'][:12]}`), so this is a "
+            f"same-day comparison rather than a controlled A/B. A regression here "
+            f"may be caused by vLLM commits landing between the builds rather than "
+            f"by torch nightly.\n"
+        )
+    out.append("| | build | commit | outcome |")
+    out.append("|---|---|---|---|")
     out.append(
-        f"**{len(regressed)} job(s) regressed** on torch nightly "
-        f"[#{tn['number']}]({tn['url']}) versus baseline "
-        f"[#{base['number']}]({base['url']}), both at commit "
-        f"`{tn['commit'][:12]}`.\n"
+        f"| torch nightly | [#{tn['number']}]({tn['url']}) "
+        f"| `{tn['commit'][:12]}` | {tn['state']} |"
     )
-    out.append("| | build | outcome |")
-    out.append("|---|---|---|")
-    out.append(f"| torch nightly | [#{tn['number']}]({tn['url']}) | {tn['state']} |")
-    out.append(f"| baseline | [#{base['number']}]({base['url']}) | {base['state']} |")
+    out.append(
+        f"| baseline | [#{base['number']}]({base['url']}) "
+        f"| `{base['commit'][:12]}` | {base['state']} |"
+    )
     out.append(
         f"\n- regressed (fails here, passes on baseline): **{len(regressed)}**\n"
         f"- fails on both (pre-existing, not torch): {len(buckets['both'])}\n"
@@ -443,7 +457,7 @@ def main() -> int:
     pair = find_latest_pair(client, args.lookback_days)
     if pair is None:
         print(
-            f"No torch-nightly build with a same-commit baseline in the last "
+            f"No torch-nightly build with a same-day baseline in the last "
             f"{args.lookback_days} days; nothing to compare.",
             file=sys.stderr,
         )
