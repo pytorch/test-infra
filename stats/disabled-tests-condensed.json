@@ -203,6 +203,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_logspace_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "193406",
+    "https://github.com/pytorch/pytorch/issues/193406",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
@@ -869,6 +876,13 @@
   "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsPersistentTest)": [
     "191000",
     "https://github.com/pytorch/pytorch/issues/191000",
+    [
+      "xpu"
+    ]
+  ],
+  "test_save_load_nn_LinearCrossEntropyLoss_xpu_bfloat16 (__main__.TestModuleXPU)": [
+    "193407",
+    "https://github.com/pytorch/pytorch/issues/193407",
     [
       "xpu"
     ]
