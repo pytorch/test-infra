@@ -38,6 +38,14 @@ const CrcrPinnedContext = createContext<[Highlight, any]>([
 
 // ---- Types ----
 
+interface HealthPrRow {
+  pr_number: number;
+  last_run: string;
+  successes: number;
+  total: number;
+  pass_rate: number;
+}
+
 interface CrcrJobRow {
   upstream_repo: string;
   pr_number?: number;
@@ -221,6 +229,43 @@ function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
         color={stats.failures > 0 ? "#d32f2f" : undefined}
       />
     </Box>
+  );
+}
+
+// ---- Relay Health Card (for pytorch/crcr-test) ----
+
+const HEALTH_COUNT = 5;
+
+function RelayHealthCard({
+  healthPrs,
+}: {
+  healthPrs: HealthPrRow[] | undefined;
+}) {
+  if (!healthPrs || healthPrs.length === 0) return null;
+  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
+  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
+  return (
+    <Paper
+      elevation={1}
+      sx={{
+        p: 2,
+        borderTop: `3px solid ${borderColor}`,
+        textAlign: "center",
+        minWidth: 200,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
+        CRCR Relay Health
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+        {label}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {passedCount}/{healthPrs.length} recent PRs passed
+      </Typography>
+    </Paper>
   );
 }
 
@@ -1166,6 +1211,19 @@ export default function CrcrBackendPage() {
   );
   const stats = summaryData?.[0] ?? null;
 
+  const isCrcrTest = repoFullName === "pytorch/crcr-test";
+  const healthUrl =
+    isCrcrTest && !isNightly
+      ? `/api/clickhouse/crcr_health_last_prs?parameters=${encodeURIComponent(
+          JSON.stringify({ count: String(HEALTH_COUNT) })
+        )}`
+      : null;
+  const { data: healthPrs } = useSWR<HealthPrRow[]>(
+    healthUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
+
   const [pinnedTooltip, setPinnedTooltip] = useState<Highlight>({
     sha: undefined,
     name: undefined,
@@ -1270,6 +1328,7 @@ export default function CrcrBackendPage() {
 
             {!isNightly && (
               <>
+                {isCrcrTest && <RelayHealthCard healthPrs={healthPrs} />}
                 {stats ? (
                   <SummaryCards stats={stats} />
                 ) : (
