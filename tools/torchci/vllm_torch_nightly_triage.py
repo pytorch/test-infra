@@ -29,11 +29,19 @@ import argparse
 import json
 import re
 import sys
+import urllib.error
+import urllib.request
 from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
-from torchci.vllm_log_parser import parse_log, strip_markers
+from torchci.vllm_log_parser import (
+    FailedTest,
+    get_test_signature,
+    parse_log,
+    strip_markers,
+)
 
 
 VLLM_REPO = "https://github.com/vllm-project/vllm.git"
@@ -73,6 +81,81 @@ def cluster_key(job_name: str) -> str:
 
 def _rows(client: Any, query: str, params: Dict[str, Any]) -> List[Tuple]:
     return client.query(query, parameters=params).result_rows
+
+
+@dataclass
+class DiffResult:
+    """Failing-test diff between the torch-nightly and baseline logs.
+
+    Keyed on (test_id, exception_class); the exception_chain is never compared,
+    only recorded for the root-cause agent.
+
+    Attributes:
+        new_failures: Failures on torch-nightly only (definitely new).
+        shared_failures: (nightly, baseline) pairs sharing a signature.
+        skipped: Reason the diff is unusable, or "" when usable.
+    """
+
+    new_failures: List[FailedTest] = field(default_factory=list)
+    shared_failures: List[Tuple[FailedTest, FailedTest]] = field(default_factory=list)
+    skipped: str = ""
+
+
+def all_failures(parsed) -> List[FailedTest]:
+    return [
+        failure
+        for pytest_result in parsed.pytest_results
+        for failure in pytest_result.test_failures
+    ]
+
+
+def diff_failing_tests(torch_nightly_body: str, baseline_body: str) -> DiffResult:
+    """Diff the failing-test signatures of two same-commit job logs.
+
+    Baseline-only failures are ignored; they are not torch-attributable. Fails
+    closed: if either side has no pytest session or parsing raises, the result is
+    marked skipped and no new failures are emitted.
+
+    Args:
+        torch_nightly_body: Raw log body from the torch-nightly job.
+        baseline_body: Raw log body from the same-commit baseline job.
+
+    Returns:
+        A DiffResult; new_failures is empty when skipped is set.
+    """
+    try:
+        torch_nightly_parsed = parse_log(torch_nightly_body)
+        baseline_parsed = parse_log(baseline_body)
+    except Exception as exc:  # parser asserts an invariant; never emit on that
+        return DiffResult(skipped=f"parse raised: {exc}")
+
+    if not torch_nightly_parsed.pytest_results:
+        return DiffResult(skipped="no pytest session in torch-nightly log")
+    if not baseline_parsed.pytest_results:
+        return DiffResult(skipped="no pytest session in baseline log")
+
+    torch_nightly_failures = all_failures(torch_nightly_parsed)
+    baseline_failures = all_failures(baseline_parsed)
+
+    baseline_by_signature = {
+        get_test_signature(failure): failure for failure in baseline_failures
+    }
+
+    result = DiffResult()
+    seen_signatures = set()
+    for failure in torch_nightly_failures:
+        signature = get_test_signature(failure)
+        # A retry pass re-lists the same failure in a second summary block; count
+        # each signature once.
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        baseline_match = baseline_by_signature.get(signature)
+        if baseline_match is None:
+            result.new_failures.append(failure)
+        else:
+            result.shared_failures.append((failure, baseline_match))
+    return result
 
 
 def find_latest_pair(
@@ -174,6 +257,9 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
             argMaxIf(lowerUTF8(tupleElement(job, 'state')),
                      tupleElement(job, 'finished_at'),
                      toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS base_state,
+            argMaxIf(tupleElement(job, 'web_url'),
+                     tupleElement(job, 'finished_at'),
+                     toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS base_url,
             countIf(toUInt32(tupleElement(build, 'number')) = {tn: UInt32}) AS in_tn,
             countIf(toUInt32(tupleElement(build, 'number')) = {base: UInt32}) AS in_base
         FROM vllm.vllm_buildkite_jobs FINAL
@@ -195,6 +281,7 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
         tn_url,
         tn_agent,
         base_state,
+        base_url,
         in_tn,
         in_base,
     ) in rows:
@@ -210,6 +297,7 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
             "url": tn_url,
             "agent": tn_agent,
             "baseline_state": base_state,
+            "baseline_url": base_url,
         }
         tn_bad = tn_state in BAD_STATES
         if tn_bad and base_state in BAD_STATES:
@@ -232,8 +320,44 @@ def agent_concentration(regressed: List[Dict]) -> List[Tuple[str, int]]:
     return sorted(counts.items(), key=lambda kv: -kv[1])
 
 
+def render_regressed_tests_section(regressed_tests: List[Dict]) -> List[str]:
+    """Render the red-on-both test-set regressions that job state alone misses.
+
+    Args:
+        regressed_tests: The regressed_tests entries to render.
+
+    Returns:
+        Markdown lines for the report.
+    """
+    out = [
+        f"\n### Test-set regressions ({len(regressed_tests)})\n",
+        "These jobs are red on **both** twins, so job state calls them pre-existing, "
+        "but they fail *more* tests on torch nightly. Each new failing test below is "
+        "torch-nightly-only; shared failures are recorded in the artifacts for the "
+        "root-cause agent.\n",
+    ]
+    for entry in sorted(regressed_tests, key=lambda e: e["cluster"]):
+        new_failures = entry["new_failures"]
+        shared_count = len(entry["shared_failures"])
+        out.append(
+            f"<details><summary><b>{entry['cluster']}</b> — "
+            f"{len(new_failures)} new failing test(s), "
+            f"{shared_count} shared</summary>\n"
+        )
+        out.append(f"- [{entry['name']}]({entry['url']}) — `{entry['state']}`")
+        for failure in new_failures:
+            out.append(
+                f"  - `{failure['test_id']}` — `{failure['exception_class']}`"
+            )
+        out.append("\n</details>")
+    return out
+
+
 def render(
-    tn: Dict[str, Any], base: Dict[str, Any], buckets: Dict[str, List[Dict]]
+    tn: Dict[str, Any],
+    base: Dict[str, Any],
+    buckets: Dict[str, List[Dict]],
+    regressed_tests: Optional[List[Dict]] = None,
 ) -> str:
     regressed = buckets["regressed"]
     clusters: Dict[str, List[Dict]] = defaultdict(list)
@@ -260,8 +384,18 @@ def render(
         f"- fails on baseline only: {len(buckets['baseline_only'])}\n"
     )
 
-    if not regressed:
+    if not regressed and not regressed_tests:
         out.append("No torch-attributable regressions in this run.")
+        return "\n".join(out)
+
+    # Test-set regressions are independent of the job-state regressed bucket -- a
+    # red-on-both job can hide one even when nothing flipped green->red.
+    if regressed_tests:
+        out.extend(render_regressed_tests_section(regressed_tests))
+
+    # The cluster and infrastructure sections describe the regressed bucket; both
+    # index into agents/ordered, which are empty when nothing flipped green->red.
+    if not regressed:
         return "\n".join(out)
 
     out.append(f"\n### Clusters ({len(ordered)})\n")
@@ -297,11 +431,41 @@ def render(
     return "\n".join(out)
 
 
+def _render_shared_section(
+    shared_failures: List[Tuple[FailedTest, FailedTest]]
+) -> str:
+    """Render the shared failures, each with its nightly and baseline chain.
+
+    Args:
+        shared_failures: (nightly, baseline) failure pairs.
+
+    Returns:
+        The rendered section text.
+    """
+    sections = [f"\n# {len(shared_failures)} shared failure(s) (red on both sides)\n"]
+    for torch_nightly_side, baseline_side in shared_failures:
+        sections.append(f"## {torch_nightly_side.test_id}")
+        sections.append(
+            f"pytest_exception_class: {torch_nightly_side.pytest_exception_class}"
+        )
+        sections.append("")
+        sections.append("### torch_nightly_exception_chain")
+        sections.append(torch_nightly_side.exception_chain)
+        sections.append("")
+        sections.append("### baseline_exception_chain")
+        sections.append(baseline_side.exception_chain)
+        sections.append("")
+    return "\n".join(sections)
+
+
 def _render_cluster_artifact(
-    body: str, cluster_key: str, representative: Dict, tail_lines: int
+    body: str,
+    cluster_key: str,
+    representative: Dict,
+    tail_lines: int,
+    shared_failures: Optional[List[Tuple[FailedTest, FailedTest]]] = None,
 ) -> str:
     """Serialize one cluster's representative log for the root-cause agent.
-
     parse_log extracts per-test signatures (test id, exception class, the raw
     traceback body) from anywhere in the log, so a failure far from the end of a
     huge log is still captured. When there are no pytest failures -- a build/crash
@@ -341,6 +505,8 @@ def _render_cluster_artifact(
             sections.append("")
             sections.append(failure.exception_chain)
             sections.append("")
+        if shared_failures:
+            sections.append(_render_shared_section(shared_failures))
         return "\n".join(sections)
 
     cleaned_lines = strip_markers(body).splitlines()
@@ -357,23 +523,226 @@ def _render_cluster_artifact(
     return header + fallback_notes + "\n".join(cleaned_lines[-tail_lines:])
 
 
+def _fetch_job_log(job_url: str, token: str, timeout: int = 120) -> Optional[str]:
+    """GET one Buildkite job's raw log body.
+
+    Args:
+        job_url: Job url of the form .../builds/<n>#<job-uuid>.
+        token: Buildkite API token.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        The log body, or None when job_url can't be parsed into build + job ids.
+
+    Raises:
+        urllib.error.URLError: On HTTP or network failure; the caller decides
+            whether that is a skip or a fail-closed.
+    """
+    # job_url is .../builds/<n>#<job-uuid>; the log endpoint needs both parts.
+    match = re.search(r"/builds/(\d+)#([0-9a-f-]+)$", job_url or "")
+    if not match:
+        return None
+    build_number, job_id = match.group(1), match.group(2)
+    url = (
+        "https://api.buildkite.com/v2/organizations/vllm/pipelines/"
+        f"{PIPELINE.lower()}/builds/{build_number}/jobs/{job_id}/log.txt"
+    )
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def _http_error_hint(exc: urllib.error.HTTPError) -> str:
+    if exc.code == 401:
+        return (
+            "  (401 => token invalid for this org. Check it has read_builds "
+            "and read_build_logs, that the vllm organization is selected, and "
+            "that the value has no trailing newline.)"
+        )
+    return ""
+
+
+def _failure_dict(failure: FailedTest) -> Dict[str, str]:
+    return {
+        "test_id": failure.test_id,
+        "exception_class": failure.pytest_exception_class,
+        "torch_nightly_exception_chain": failure.exception_chain,
+    }
+
+
+def _build_regressed_entry(cluster: str, rep: Dict, diff: DiffResult) -> Dict:
+    """Build the regressed_tests entry for one `both`-cluster with new failures.
+
+    Args:
+        cluster: Cluster name.
+        rep: Representative job for the cluster.
+        diff: The failing-test diff for the cluster.
+
+    Returns:
+        The regressed_tests entry.
+    """
+    return {
+        "name": rep["name"],
+        "cluster": cluster,
+        "url": rep["url"],
+        "baseline_url": rep.get("baseline_url"),
+        "state": rep["state"],
+        "baseline_state": rep["baseline_state"],
+        "new_failures": [_failure_dict(failure) for failure in diff.new_failures],
+        "shared_failures": [
+            {
+                "test_id": torch_nightly_side.test_id,
+                "exception_class": torch_nightly_side.pytest_exception_class,
+                "torch_nightly_exception_chain": torch_nightly_side.exception_chain,
+                "baseline_exception_chain": baseline_side.exception_chain,
+            }
+            for torch_nightly_side, baseline_side in diff.shared_failures
+        ],
+    }
+
+
+@dataclass
+class BothClusterDiff:
+    """A surfaced `both`-cluster: its diff plus what rendering needs.
+
+    Attributes:
+        cluster: Cluster name.
+        rep: Representative job for the cluster.
+        torch_nightly_body: Raw nightly log, kept for the artifact.
+        diff: The failing-test diff; new_failures is non-empty.
+    """
+
+    cluster: str
+    rep: Dict
+    torch_nightly_body: str
+    diff: DiffResult
+
+
+def _fetch_both_clusters(
+    buckets: Dict[str, List[Dict]], token: str
+) -> List[Tuple[str, Dict, str, str]]:
+    """Fetch the nightly and baseline logs for each `both`-bucket cluster.
+
+    Fail closed: a cluster whose nightly or baseline log 401s, errors, or has an
+    unparseable url is skipped rather than returned, so a fetch failure can never
+    fall through to "every nightly failure is new."
+
+    Args:
+        buckets: The compare() buckets.
+        token: Buildkite API token.
+
+    Returns:
+        (cluster, rep, torch_nightly_body, baseline_body) per fetchable cluster.
+    """
+    clusters: Dict[str, List[Dict]] = defaultdict(list)
+    for job in buckets["both"]:
+        clusters[cluster_key(job["name"])].append(job)
+
+    fetched: List[Tuple[str, Dict, str, str]] = []
+    for key, jobs in sorted(clusters.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        rep = sorted(jobs, key=lambda j: j["name"])[0]
+        try:
+            torch_nightly_body = _fetch_job_log(rep["url"], token)
+            baseline_body = _fetch_job_log(rep.get("baseline_url"), token)
+        except urllib.error.HTTPError as exc:
+            print(
+                f"skip {key} diff: HTTP {exc.code} {exc.reason}{_http_error_hint(exc)}",
+                file=sys.stderr,
+            )
+            continue
+        except urllib.error.URLError as exc:
+            print(f"skip {key} diff: {exc}", file=sys.stderr)
+            continue
+        if torch_nightly_body is None or baseline_body is None:
+            continue
+        fetched.append((key, rep, torch_nightly_body, baseline_body))
+    return fetched
+
+
+def diff_both_clusters(
+    fetched: List[Tuple[str, Dict, str, str]]
+) -> List[BothClusterDiff]:
+    """Diff each fetched `both`-cluster; keep only those with new failures.
+
+    Red-on-both jobs are dropped by the metadata layer, but a larger
+    failing-test set on nightly is a real torch regression. A cluster is dropped
+    when its diff is unusable (parse failure, no pytest session) or when nightly
+    adds no new failure.
+
+    Args:
+        fetched: (cluster, rep, torch_nightly_body, baseline_body) tuples.
+
+    Returns:
+        One BothClusterDiff per surfaced cluster (>=1 new failure).
+    """
+    surfaced: List[BothClusterDiff] = []
+    for cluster, rep, torch_nightly_body, baseline_body in fetched:
+        diff = diff_failing_tests(torch_nightly_body, baseline_body)
+        if diff.skipped:
+            print(f"skip {cluster} diff: {diff.skipped}", file=sys.stderr)
+            continue
+        if not diff.new_failures:
+            continue
+        surfaced.append(BothClusterDiff(cluster, rep, torch_nightly_body, diff))
+    return surfaced
+
+
+def _write_both_artifacts(
+    cluster_diffs: List[BothClusterDiff], pathlib_dir: Any, tail_lines: int
+) -> List[str]:
+    """Write one `both_*.log` artifact per surfaced cluster.
+
+    Args:
+        cluster_diffs: Surfaced both-cluster diffs.
+        pathlib_dir: Directory to write artifacts into.
+        tail_lines: Lines of raw tail kept in the fallback.
+
+    Returns:
+        Paths of the artifacts written.
+    """
+    written: List[str] = []
+    for cluster_diff in cluster_diffs:
+        artifact = _render_cluster_artifact(
+            cluster_diff.torch_nightly_body,
+            cluster_diff.cluster,
+            cluster_diff.rep,
+            tail_lines,
+            shared_failures=cluster_diff.diff.shared_failures,
+        )
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", cluster_diff.cluster)[:80]
+        dest = pathlib_dir / f"both_{safe}.log"
+        with open(dest, "w") as f:
+            f.write(artifact)
+        written.append(str(dest))
+    return written
+
+
 def fetch_cluster_logs(
     buckets: Dict[str, List[Dict]],
     logs_dir: str,
     token: str,
     tail_lines: int,
     torch_versions: Optional[List[str]] = None,
+    regressed_tests: Optional[List[Dict]] = None,
 ) -> List[str]:
     """Download one representative log per cluster, cleaned and tail-trimmed.
 
     One per cluster rather than one per job: a cluster is most likely a single root
-    cause, and 28 full logs is both slow and far more context than the analysis needs.
-    Only the tail is kept -- the failure and traceback are at the end, while the head
-    is install and setup noise.
-    """
-    import urllib.error
-    import urllib.request
+    cause, and only the tail is kept since the failure and traceback are at the end.
 
+    Args:
+        buckets: The compare() buckets.
+        logs_dir: Directory to write artifacts into.
+        token: Buildkite API token.
+        tail_lines: Lines of raw tail kept in the fallback.
+        torch_versions: Optional output list; a detected torch version per log is
+            appended here.
+        regressed_tests: Optional output list; when provided, the `both`-bucket
+            clusters are diffed and surfaced entries are appended here.
+
+    Returns:
+        Paths of the artifacts written.
+    """
     clusters: Dict[str, List[Dict]] = defaultdict(list)
     for job in buckets["regressed"]:
         clusters[cluster_key(job["name"])].append(job)
@@ -384,32 +753,19 @@ def fetch_cluster_logs(
 
     for key, jobs in sorted(clusters.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         rep = sorted(jobs, key=lambda j: j["name"])[0]
-        # job["url"] is .../builds/<n>#<job-uuid>; the log endpoint needs both parts.
-        m = re.search(r"/builds/(\d+)#([0-9a-f-]+)$", rep["url"] or "")
-        if not m:
-            print(f"skip {key}: cannot parse job url {rep['url']!r}", file=sys.stderr)
-            continue
-        build_number, job_id = m.group(1), m.group(2)
-        url = (
-            "https://api.buildkite.com/v2/organizations/vllm/pipelines/"
-            f"{PIPELINE.lower()}/builds/{build_number}/jobs/{job_id}/log.txt"
-        )
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
+            body = _fetch_job_log(rep["url"], token)
         except urllib.error.HTTPError as exc:
-            hint = ""
-            if exc.code == 401:
-                hint = (
-                    "  (401 => token invalid for this org. Check it has read_builds "
-                    "and read_build_logs, that the vllm organization is selected, and "
-                    "that the value has no trailing newline.)"
-                )
-            print(f"skip {key}: HTTP {exc.code} {exc.reason}{hint}", file=sys.stderr)
+            print(
+                f"skip {key}: HTTP {exc.code} {exc.reason}{_http_error_hint(exc)}",
+                file=sys.stderr,
+            )
             continue
         except urllib.error.URLError as exc:
             print(f"skip {key}: {exc}", file=sys.stderr)
+            continue
+        if body is None:
+            print(f"skip {key}: cannot parse job url {rep['url']!r}", file=sys.stderr)
             continue
 
         if torch_versions is not None:
@@ -423,6 +779,14 @@ def fetch_cluster_logs(
         with open(dest, "w") as f:
             f.write(artifact)
         written.append(str(dest))
+
+    if regressed_tests is not None:
+        cluster_diffs = diff_both_clusters(_fetch_both_clusters(buckets, token))
+        regressed_tests.extend(
+            _build_regressed_entry(cd.cluster, cd.rep, cd.diff) for cd in cluster_diffs
+        )
+        written.extend(_write_both_artifacts(cluster_diffs, pathlib_dir, tail_lines))
+
     return written
 
 
@@ -451,18 +815,15 @@ def main() -> int:
 
     tn, base = pair
     buckets = compare(client, tn["number"], base["number"])
-    report = render(tn, base, buckets)
 
-    if args.output:
-        with open(args.output, "w") as f:
-            f.write(report)
-    else:
-        print(report)
-
-    # Logs are fetched before the JSON is written: the torch version is only
-    # observable in a log body, and report.json is what carries it downstream.
+    # Logs are fetched before the report is rendered/written: the torch version and
+    # the red-on-both test-set regressions are only observable in the log bodies, and
+    # both feed the rendered report and report.json downstream.
     torch_versions: List[str] = []
-    if args.logs_dir and buckets["regressed"]:
+    regressed_tests: List[Dict] = []
+    # `both` clusters are diffed for hidden test-set regressions even when nothing
+    # flipped green->red, so fetch whenever either bucket is non-empty.
+    if args.logs_dir and (buckets["regressed"] or buckets["both"]):
         import os as _os
 
         # .strip() matters: a trailing newline in the value (easy to introduce when
@@ -474,9 +835,21 @@ def main() -> int:
             print("BUILDKITE_TOKEN unset; skipping log fetch", file=sys.stderr)
         else:
             written = fetch_cluster_logs(
-                buckets, args.logs_dir, token, args.log_tail_lines, torch_versions
+                buckets,
+                args.logs_dir,
+                token,
+                args.log_tail_lines,
+                torch_versions,
+                regressed_tests,
             )
             print(f"fetched {len(written)} cluster log(s)", file=sys.stderr)
+
+    report = render(tn, base, buckets, regressed_tests)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(report)
+    else:
+        print(report)
 
     # Most common wins: a stray version from some other wheel in one log should not
     # outvote the torch build the rest of the jobs installed.
@@ -505,6 +878,7 @@ def main() -> int:
                     "torch_version_minor": torch_version_minor,
                     "regressed": buckets["regressed"],
                     "both": buckets["both"],
+                    "regressed_tests": regressed_tests,
                 },
                 f,
                 indent=2,

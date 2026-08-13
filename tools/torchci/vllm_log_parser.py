@@ -82,6 +82,21 @@ INFRA_PATTERNS = [
 ]
 
 
+def get_test_signature(failed_test: "FailedTest") -> tuple[str, str]:
+    """Build the diff key for a failing test.
+
+    The exception_chain is deliberately excluded: it is not stable build-to-build
+    across the torch-nightly/baseline A/B.
+
+    Args:
+        failed_test: Parsed pytest failure to key.
+
+    Returns:
+        The (test_id, exception_class) pair.
+    """
+    return (failed_test.test_id, failed_test.pytest_exception_class)
+
+
 def strip_markers(text: str) -> str:
     """Remove escape sequences from raw Buildkite log text.
 

@@ -7,7 +7,7 @@ raw_log_snippet.bin has ANSI + BKT markers for strip testing.
 import unittest
 from pathlib import Path
 
-from torchci.vllm_log_parser import parse_log, strip_markers
+from torchci.vllm_log_parser import get_test_signature, parse_log, strip_markers
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -887,6 +887,25 @@ class TestNonInfraNotTagged(unittest.TestCase):
             "ImportError: /lib/libtorch.so: undefined symbol: _ZN3c10\n"
         )
         self.assertFalse(parsed_log.job_is_infra)
+
+
+class TestGetTestSignature(unittest.TestCase):
+    """Signature is the (test_id, pytest_exception_class) 2-tuple."""
+
+    def test_signature_is_id_and_class(self) -> None:
+        log = "FAILED tests/test_a.py::test_one - ValueError: bad\n= 1 failed in 1.00s ="
+        failure = parse_log(log).pytest_results[0].test_failures[0]
+        self.assertEqual(
+            get_test_signature(failure),
+            ("tests/test_a.py::test_one", "ValueError"),
+        )
+
+    def test_signature_empty_class_for_bare_failed(self) -> None:
+        log = "FAILED tests/test_a.py::test_one\n= 1 failed in 1.00s ="
+        failure = parse_log(log).pytest_results[0].test_failures[0]
+        self.assertEqual(
+            get_test_signature(failure), ("tests/test_a.py::test_one", "")
+        )
 
 
 if __name__ == "__main__":
