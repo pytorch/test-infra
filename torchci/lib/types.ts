@@ -45,13 +45,44 @@ export interface JobData extends BasicJobData {
   // Attempt number of the autorevert restart run. Separate from runAttempt on purpose: that field
   // carries the JOB's run_attempt from commit_jobs_query, and the HUD's crcr merge reads it.
   restartRunAttempt?: number;
-  // How many runs this cell merged, and a compact "<origin>: <conclusion>" list of them. Set by
-  // mergeCellRuns only when a cell really had more than one run.
-  mergedRunCount?: number;
-  mergedRuns?: string;
-  // html_url of a failing run that did NOT become the cell's representative. Rule 2 makes the success
-  // the representative, so this is the only route from a flaky cell to the failure itself.
-  mergedFailureUrl?: string;
+  // Every run behind this cell, set by mergeCellRuns only when a cell really had more than one.
+  // The cell renders ONE run's per-row fields (see CellRun.isRepresentative), so without this the
+  // other runs have no route from the grid -- and on a flaky "F" cell, neither does the failure.
+  cellRuns?: CellRun[];
+}
+
+/**
+ * One run behind a HUD cell, carried so the tooltip can name it and show ITS diagnostics.
+ *
+ * Deliberately a compact subset of JobData rather than a nested JobData: it is only read by the
+ * cell tooltip, and embedding whole jobs would both grow the grid payload and couple the cell
+ * format to consumers (Dr.CI, the commit page) that have nothing to do with cell aggregation.
+ *
+ * The failure fields are the load-bearing ones. They are per-run, so a cell rendering a success
+ * holds none of the failed run's classification -- carrying them here is what lets the tooltip
+ * show the failure's log and captures rather than the passing run's (see detailJobForRun).
+ */
+export interface CellRun {
+  runOrigin?: string;
+  conclusion?: string;
+  id?: string;
+  htmlUrl?: string;
+  logUrl?: string;
+  durationS?: number;
+  // The autorevert restart RUN's attempt. There is deliberately no counterpart for the JOB's own
+  // run_attempt: hud_query does not project it, because the HUD page reads `runAttempt` when
+  // merging crcr rows and relies on it being undefined here (see the comment on that column in
+  // hud_query). So a "re-run attempt" line names the origin without an attempt number.
+  restartRunAttempt?: number;
+  restartDispatchedBy?: string;
+  restartRerunBy?: string;
+  failureLines?: string[];
+  failureLineNumbers?: number[];
+  failureCaptures?: string[];
+  failureContext?: string[];
+  // The run whose per-row fields the cell itself renders. The cell's CONCLUSION is a function of
+  // the whole set, not of this run alone -- a mixed cell renders flaky "F" while this run passed.
+  isRepresentative?: boolean;
 }
 
 // Used by Dr.CI
