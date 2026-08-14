@@ -303,6 +303,13 @@
       "linux"
     ]
   ],
+  "test_del_multi_stream_sync_dealloc (__main__.TestStreams)": [
+    "191414",
+    "https://github.com/pytorch/pytorch/issues/191414",
+    [
+      "linux"
+    ]
+  ],
   "test_delayed_optim_step_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
     "189255",
     "https://github.com/pytorch/pytorch/issues/189255",
@@ -628,13 +635,6 @@
       "macos",
       "rocm",
       "win"
-    ]
-  ],
-  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190142",
-    "https://github.com/pytorch/pytorch/issues/190142",
-    [
-      "linux"
     ]
   ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
@@ -1027,6 +1027,13 @@
     "https://github.com/pytorch/pytorch/issues/189843",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_to_float64_after_init (__main__.TestFullyShardCastAfterInit)": [
+    "193470",
+    "https://github.com/pytorch/pytorch/issues/193470",
+    [
       "rocm"
     ]
   ],
