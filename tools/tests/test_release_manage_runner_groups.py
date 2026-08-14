@@ -265,6 +265,86 @@ class TestCollectReleaseWorkflowPaths(TestCase):
             {".github/workflows/_select-release-runner.yml"},
         )
 
+    def test_follows_reusable_whose_runner_comes_from_selector_outputs(self) -> None:
+        # pytorch/pytorch#193378 split the triton build into
+        # _build-triton-wheel-linux.yml. Its callers pass the runner through from
+        # the select-runner job's outputs, so the calling job carries no rel-
+        # label -- the reusable that actually consumes the release runner must
+        # still be followed. Upload jobs depend on the build jobs rather than the
+        # selector, so they stay out.
+        files = {
+            ".github/workflows/build-triton-wheel.yml": m.WorkflowFile(
+                doc={
+                    "jobs": {
+                        "select-runner": {
+                            "uses": "./.github/workflows/_select-release-runner.yml"
+                        },
+                        "build-wheel-cuda": {
+                            "needs": "select-runner",
+                            "uses": "./.github/workflows/_build-triton-wheel-linux.yml",
+                            "with": {
+                                "runs_on": "${{ needs.select-runner.outputs.x86 }}"
+                            },
+                        },
+                        "build-wheel-win": {"runs-on": "windows.4xlarge"},
+                        "upload-wheel-triton": {
+                            "needs": ["build-wheel-cuda"],
+                            "uses": "./.github/workflows/_upload-triton-wheel.yml",
+                        },
+                    }
+                },
+                raw="uses: ./.github/workflows/_select-release-runner.yml\n"
+                "runs_on: ${{ needs.select-runner.outputs.x86 }}",
+            ),
+            ".github/workflows/_select-release-runner.yml": m.WorkflowFile(
+                doc={"jobs": {"select": {"runs-on": "ubuntu-24.04"}}},
+                raw="echo x86=mt-rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/_build-triton-wheel-linux.yml": m.WorkflowFile(
+                doc={"jobs": {"build": {"runs-on": "${{ inputs.runs_on }}"}}},
+                raw="runs-on: ${{ inputs.runs_on }}",
+            ),
+            ".github/workflows/_upload-triton-wheel.yml": m.WorkflowFile(
+                doc={"jobs": {"upload": {"runs-on": "ubuntu-24.04"}}},
+                raw="runs-on: ubuntu-24.04",
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {
+                ".github/workflows/build-triton-wheel.yml",
+                ".github/workflows/_select-release-runner.yml",
+                ".github/workflows/_build-triton-wheel-linux.yml",
+            },
+        )
+
+    def test_selector_outputs_of_a_non_release_job_are_not_a_signal(self) -> None:
+        # needs.<job>.outputs.* only propagates the release signal when that job
+        # is a caller of the release-label reusable. A plain matrix-computing job
+        # must not pull its consumers' reusables in.
+        files = {
+            ".github/workflows/gen.yml": m.WorkflowFile(
+                doc={
+                    "jobs": {
+                        "build": {"runs-on": "rel-l-x86iavx512-44-340"},
+                        "matrix": {"runs-on": "ubuntu-24.04"},
+                        "test": {
+                            "needs": "matrix",
+                            "uses": "./.github/workflows/_test.yml",
+                            "with": {"runs_on": "${{ needs.matrix.outputs.runner }}"},
+                        },
+                    }
+                },
+                raw="runs-on: rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/_test.yml": m.WorkflowFile(
+                doc={"jobs": {}}, raw="runs-on: ${{ inputs.runs_on }}"
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files), {".github/workflows/gen.yml"}
+        )
+
     def test_ignores_remote_uses(self) -> None:
         files = {
             ".github/workflows/gen.yml": m.WorkflowFile(
