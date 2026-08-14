@@ -518,7 +518,42 @@ function CrcrNightlyHealthCard({
 }: {
   nightlyJobs: NightlyJobRow[] | undefined;
 }) {
-  if (!nightlyJobs || nightlyJobs.length === 0) return null;
+  if (!nightlyJobs || nightlyJobs.length === 0) {
+    const staleColor = "#9e9e9e";
+    return (
+      <NextLink
+        href="/crcr/pytorch/crcr-test?event=nightly"
+        passHref
+        legacyBehavior
+      >
+        <Paper
+          component="a"
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            minWidth: 160,
+            textAlign: "center",
+            borderLeft: `4px solid ${staleColor}`,
+            textDecoration: "none",
+            color: "inherit",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: staleColor }}>
+            No Data
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            no nightly results in last 14 days
+          </Typography>
+        </Paper>
+      </NextLink>
+    );
+  }
 
   const shaMap = new Map<string, NightlyJobRow[]>();
   for (const job of nightlyJobs) {
@@ -539,7 +574,42 @@ function CrcrNightlyHealthCard({
     .sort((a, b) => b.latestTime - a.latestTime)
     .slice(0, NIGHTLY_HEALTH_COUNT);
 
-  if (shasByTime.length === 0) return null;
+  if (shasByTime.length === 0) {
+    const staleColor = "#9e9e9e";
+    return (
+      <NextLink
+        href="/crcr/pytorch/crcr-test?event=nightly"
+        passHref
+        legacyBehavior
+      >
+        <Paper
+          component="a"
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            minWidth: 160,
+            textAlign: "center",
+            borderLeft: `4px solid ${staleColor}`,
+            textDecoration: "none",
+            color: "inherit",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: staleColor }}>
+            No Data
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            no nightly results in last 14 days
+          </Typography>
+        </Paper>
+      </NextLink>
+    );
+  }
 
   const allPassed = shasByTime.every((entry) =>
     entry.jobs.every(isNightlyJobPassing)
@@ -624,11 +694,11 @@ export default function CrcrSummaryPage() {
     encodeURIComponent(
       JSON.stringify({ repo: "pytorch/crcr-test", days: "14" })
     );
-  const { data: nightlyHealthJobs } = useSWR<NightlyJobRow[]>(
-    nightlyHealthUrl,
-    fetcherHandleError,
-    { refreshInterval: 60_000 }
-  );
+  const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
+    NightlyJobRow[]
+  >(nightlyHealthUrl, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
 
   const nightlyRepoCount = nightlyData?.length ?? 0;
 
@@ -720,7 +790,8 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !ciData && !ciError && !allowlist && !alError;
-  const hasError = ciError || alError || nightlyError || healthError;
+  const hasError =
+    ciError || alError || nightlyError || healthError || nightlyHealthError;
 
   return (
     <>
@@ -776,6 +847,7 @@ export default function CrcrSummaryPage() {
               alError?.message ||
               nightlyError?.message ||
               healthError?.message ||
+              nightlyHealthError?.message ||
               "Failed to load data"}
           </Typography>
         )}
