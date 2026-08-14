@@ -178,15 +178,95 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
   );
 }
 
-function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
+function isExpectedNightlyOutcome(job: CrcrJobRow): boolean {
+  const name = job.job_name ?? "";
+  return (
+    (name.includes("xfail") && job.conclusion === "failure") ||
+    (name.includes("xcancel") && job.conclusion === "cancelled") ||
+    (name.includes("xtimeout") && job.conclusion === "timed_out")
+  );
+}
+
+function isNightlyJobPassing(job: CrcrJobRow): boolean {
+  if (job.status !== "completed") return false;
+  return job.conclusion === "success" || isExpectedNightlyOutcome(job);
+}
+
+const NIGHTLY_HEALTH_COUNT = 5;
+
+function NightlyHealthCard({ data }: { data: CrcrJobRow[] }) {
+  const shaMap = new Map<string, CrcrJobRow[]>();
+  for (const job of data) {
+    if (!job.pytorch_head_sha) continue;
+    const jobs = shaMap.get(job.pytorch_head_sha) ?? [];
+    jobs.push(job);
+    shaMap.set(job.pytorch_head_sha, jobs);
+  }
+
+  const shasByTime = Array.from(shaMap.entries())
+    .map(([sha, jobs]) => ({
+      sha,
+      jobs,
+      latestTime: Math.max(
+        ...jobs.map((j) => new Date(j.started_at).getTime())
+      ),
+    }))
+    .sort((a, b) => b.latestTime - a.latestTime)
+    .slice(0, NIGHTLY_HEALTH_COUNT);
+
+  if (shasByTime.length === 0) return null;
+
+  const allPassed = shasByTime.every((entry) =>
+    entry.jobs.every(isNightlyJobPassing)
+  );
+  const passedCount = shasByTime.filter((entry) =>
+    entry.jobs.every(isNightlyJobPassing)
+  ).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
+
+  return (
+    <Paper
+      elevation={1}
+      sx={{
+        p: 2,
+        borderTop: `3px solid ${borderColor}`,
+        textAlign: "center",
+        minWidth: 200,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
+        CRCR Relay Health - Nightly
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+        {label}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {passedCount}/{shasByTime.length} recent nightlies passed
+      </Typography>
+    </Paper>
+  );
+}
+
+function NightlySummaryCards({
+  data,
+  repoFullName,
+}: {
+  data: CrcrJobRow[];
+  repoFullName: string;
+}) {
+  const isCrcrTest = repoFullName === "pytorch/crcr-test";
+
   const stats = useMemo(() => {
     const completed = data.filter((j) => j.status === "completed");
     const successes = completed.filter(
       (j) => j.conclusion === "success"
     ).length;
-    const failures = completed.filter((j) => j.conclusion === "failure").length;
+    const failures = completed.filter(
+      (j) => j.conclusion === "failure" && !isExpectedNightlyOutcome(j)
+    ).length;
     const timedOut = completed.filter(
-      (j) => j.conclusion === "timed_out"
+      (j) => j.conclusion === "timed_out" && !isExpectedNightlyOutcome(j)
     ).length;
     const total = completed.length;
     const passRate = total > 0 ? successes / total : 0;
@@ -203,12 +283,16 @@ function NightlySummaryCards({ data }: { data: CrcrJobRow[] }) {
 
   return (
     <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-      <StatCard
-        label="Pass Rate"
-        value={`${(stats.passRate * 100).toFixed(1)}%`}
-        sub={`${stats.successes}/${stats.total} jobs`}
-        color={passColor}
-      />
+      {isCrcrTest ? (
+        <NightlyHealthCard data={data} />
+      ) : (
+        <StatCard
+          label="Pass Rate"
+          value={`${(stats.passRate * 100).toFixed(1)}%`}
+          sub={`${stats.successes}/${stats.total} jobs`}
+          color={passColor}
+        />
+      )}
       <StatCard
         label="Nightly Runs"
         value={stats.uniqueShas}
@@ -998,7 +1082,7 @@ function CrcrNightlyMatrix({
 
   return (
     <>
-      <NightlySummaryCards data={data} />
+      <NightlySummaryCards data={data} repoFullName={repoFullName} />
       <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
