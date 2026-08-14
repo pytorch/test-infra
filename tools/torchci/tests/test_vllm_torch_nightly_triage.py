@@ -315,7 +315,12 @@ class TestRenderRegressedTests(unittest.TestCase):
             "state": "failed",
             "commit": "b706fd1628b0abcdef",
         }
-        base = {"number": 82790, "url": "u_base", "state": "failed"}
+        base = {
+            "number": 82790,
+            "url": "u_base",
+            "state": "failed",
+            "commit": "b706fd1628b0abcdef",
+        }
         return tn, base
 
     def test_section_present_when_regressed_tests(self) -> None:
@@ -348,7 +353,12 @@ class TestReportJsonWiring(unittest.TestCase):
             "state": "failed",
             "commit": "b706fd1628b0abcdef",
         }
-        base = {"number": 82790, "url": "u_base", "state": "failed"}
+        base = {
+            "number": 82790,
+            "url": "u_base",
+            "state": "failed",
+            "commit": "b706fd1628b0abcdef",
+        }
         # A `both` job so main() decides to fetch logs (the diff path).
         buckets = {
             "regressed": [],
