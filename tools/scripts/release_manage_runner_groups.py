@@ -15,11 +15,13 @@ staging clusters are excluded) in sync with a desired state computed from
   from).
 
 Release workflows are discovered, not hardcoded, by the release runner label
-they run on (the ``rel-`` marker, e.g. ``rel-l-x86iavx512-44-340``). An entry
-workflow references such a label directly; reusable workflows are then included
-only when a release entry invokes them via ``uses:`` in a job that runs on a
-release label - this pulls in the build reusable (``_binary-build-linux.yml``)
-while leaving test/upload reusables (which run on other runners) out.
+they run on (the ``rel-`` marker, e.g. ``rel-l-x86iavx512-44-340``). A job counts
+as running on a release runner when it names such a label inline, or when it
+takes its runner from a ``_select-release-runner.yml`` caller's outputs. An entry
+workflow has such a job; reusable workflows are then included only when a release
+entry invokes them via ``uses:`` from one - this pulls in the build reusables
+(``_binary-build-linux.yml``, ``_build-triton-wheel-linux.yml``) while leaving
+test/upload reusables (which run on other runners) out.
 
 Reading and updating runner groups requires a token that can manage them.
 Defaults to a dry-run; pass ``--apply`` to write changes.
@@ -257,6 +259,53 @@ def local_uses_paths(wf: "WorkflowFile") -> Set[str]:
     return {local for local in map(local_uses, jobs.values()) if local is not None}
 
 
+def selector_job_names(wf: "WorkflowFile", label_files: Set[str]) -> Set[str]:
+    """Names of ``wf``'s jobs that invoke a reusable carrying release labels.
+
+    These are the ``select-runner`` style jobs: they hold no label themselves,
+    they call ``_select-release-runner.yml`` and re-export its labels as outputs.
+    """
+    jobs = wf.doc.get("jobs")
+    if not isinstance(jobs, dict):
+        return set()
+    names = set()
+    for name, job in jobs.items():
+        local = local_uses(job)
+        if local is not None and local in label_files:
+            names.add(str(name))
+    return names
+
+
+def selector_output_re(job_name: str) -> "re.Pattern[str]":
+    """Matches a reference to ``job_name``'s outputs, in either accessor form
+    (``needs.select-runner.outputs.x86`` / ``needs['select-runner'].outputs``)."""
+    name = re.escape(job_name)
+    return re.compile(rf"needs(?:\.{name}|\[['\"]{name}['\"]\])\.outputs\.")
+
+
+def runs_on_release_runner(job: Any, selectors: Set[str]) -> bool:
+    """Whether ``job`` runs on a release runner.
+
+    Either it names a release label inline (the generated binary workflows still
+    inline ``rel-l-x86iavx512-44-340`` in ``runs_on:``), or it takes its runner
+    from a selector job's outputs -- which is how pytorch/pytorch#193378's
+    ``build-triton-wheel.yml`` build jobs get theirs, with no label of their own:
+
+        build-wheel-cuda:
+          needs: select-runner
+          uses: ./.github/workflows/_build-triton-wheel-linux.yml
+          with:
+            runs_on: ${{ needs.select-runner.outputs.x86 }}
+
+    Sibling test/upload jobs gate out here: they depend on the build jobs, not on
+    the selector's outputs, so they carry neither signal.
+    """
+    text = str(job)
+    if uses_release_label(text):
+        return True
+    return any(selector_output_re(name).search(text) for name in selectors)
+
+
 @dataclass
 class WorkflowFile:
     doc: Dict[str, Any]
@@ -334,8 +383,16 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
     outputs and so carry no label of their own) -- the release-label signal is
     propagated up the ``uses:`` graph rather than matching a hardcoded filename.
     From each entry, follow local ``uses:`` references, but only for jobs that
-    themselves run on a release label, so the build reusable is included while
+    themselves run on a release runner, so the build reusable is included while
     sibling test/upload jobs (which run on other runners) are not.
+
+    Both steps use the same notion of "runs on a release runner" -- an inline
+    label *or* a selector job's outputs. They used to disagree, and the edge test
+    accepting only inline labels silently dropped
+    ``_build-triton-wheel-linux.yml`` when pytorch/pytorch#193378 split it out of
+    ``build-triton-wheel.yml``: the entry was still discovered via its
+    ``select-runner`` job, but the reusable that actually consumes the runner was
+    not, so its builds hung unassigned.
     """
     label_files = {path for path, wf in files.items() if uses_release_label(wf.raw)}
     entry_paths = {
@@ -356,11 +413,12 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
         jobs = wf.doc.get("jobs")
         if not isinstance(jobs, dict):
             continue
+        selectors = selector_job_names(wf, label_files)
         for job in jobs.values():
             local = local_uses(job)
             if local is None:
                 continue
-            if not uses_release_label(str(job)):
+            if not runs_on_release_runner(job, selectors):
                 continue
             queue.append(local)
     return seen
