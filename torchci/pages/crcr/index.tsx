@@ -489,6 +489,91 @@ function CrcrTestHealthCard({
   );
 }
 
+interface NightlyJobRow {
+  pytorch_head_sha: string;
+  status: string;
+  conclusion: string;
+  started_at: string;
+}
+
+const NIGHTLY_HEALTH_COUNT = 5;
+
+function CrcrNightlyHealthCard({
+  nightlyJobs,
+}: {
+  nightlyJobs: NightlyJobRow[] | undefined;
+}) {
+  if (!nightlyJobs || nightlyJobs.length === 0) return null;
+
+  const shaMap = new Map<string, NightlyJobRow[]>();
+  for (const job of nightlyJobs) {
+    if (!job.pytorch_head_sha) continue;
+    const jobs = shaMap.get(job.pytorch_head_sha) ?? [];
+    jobs.push(job);
+    shaMap.set(job.pytorch_head_sha, jobs);
+  }
+
+  const shasByTime = Array.from(shaMap.entries())
+    .map(([sha, jobs]) => ({
+      sha,
+      jobs,
+      latestTime: Math.max(
+        ...jobs.map((j) => new Date(j.started_at).getTime())
+      ),
+    }))
+    .sort((a, b) => b.latestTime - a.latestTime)
+    .slice(0, NIGHTLY_HEALTH_COUNT);
+
+  if (shasByTime.length === 0) return null;
+
+  const allPassed = shasByTime.every((entry) =>
+    entry.jobs.every(
+      (j) => j.status === "completed" && j.conclusion === "success"
+    )
+  );
+  const passedCount = shasByTime.filter((entry) =>
+    entry.jobs.every(
+      (j) => j.status === "completed" && j.conclusion === "success"
+    )
+  ).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
+
+  return (
+    <NextLink
+      href="/crcr/pytorch/crcr-test?event=nightly"
+      passHref
+      legacyBehavior
+    >
+      <Paper
+        component="a"
+        elevation={2}
+        sx={{
+          p: 2,
+          flex: 1,
+          minWidth: 160,
+          textAlign: "center",
+          borderLeft: `4px solid ${borderColor}`,
+          textDecoration: "none",
+          color: "inherit",
+          cursor: "pointer",
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          CRCR Relay Health - Nightly
+        </Typography>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {passedCount}/{shasByTime.length} recent nightlies passed
+        </Typography>
+      </Paper>
+    </NextLink>
+  );
+}
+
 export default function CrcrSummaryPage() {
   const [days, setDays] = useState(7);
   const [activeTab, setActiveTab] = useState<EventTab>("pr");
@@ -519,6 +604,17 @@ export default function CrcrSummaryPage() {
     encodeURIComponent(JSON.stringify({ count: "5" }));
   const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
     healthUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
+
+  const nightlyHealthUrl =
+    `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
+    encodeURIComponent(
+      JSON.stringify({ repo: "pytorch/crcr-test", days: "14" })
+    );
+  const { data: nightlyHealthJobs } = useSWR<NightlyJobRow[]>(
+    nightlyHealthUrl,
     fetcherHandleError,
     { refreshInterval: 60_000 }
   );
@@ -679,18 +775,19 @@ export default function CrcrSummaryPage() {
           <Stack spacing={2}>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <CrcrTestHealthCard healthPrs={healthPrs} />
+              <CrcrNightlyHealthCard nightlyJobs={nightlyHealthJobs} />
               <StatCard
                 label="Total Probe Runs"
                 value={stats.totalRuns}
                 sub={stats.runsSub}
               />
+            </Box>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <StatCard
                 label="Probe Failures"
                 value={stats.failures}
                 sub="pytorch/crcr-test failures"
               />
-            </Box>
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <StatCard
                 label="Registered Backends"
                 value={stats.totalRepos}
