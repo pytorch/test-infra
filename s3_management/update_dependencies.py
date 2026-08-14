@@ -1,7 +1,7 @@
 import os
 import re
 import time
-from typing import Dict, List
+from typing import Dict, List, NamedTuple
 from urllib.parse import urljoin
 
 import boto3  # type: ignore[import-untyped]
@@ -919,6 +919,40 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
 }
 
 
+class RetainedWheel(NamedTuple):
+    filename: str
+    # Root-relative path to the wheel, so it resolves against whichever host
+    # serves the index (download.pytorch.org or download-r2.pytorch.org) and
+    # stays valid when the index is copied into subdirectories.
+    path: str
+    sha256: str
+
+
+# Wheels that we still host but the upstream simple index has stopped
+# publishing, so mirroring alone drops them and pinned installs stop resolving.
+# Keyed by normalised package name.
+#
+# Only the channel root is injected: manage_v2.py copies a root package index
+# down into every accepted subdirectory for packages in its
+# PACKAGE_LINKS_ALLOW_LIST, so the CUDA targets inherit these links without
+# their conserved indexes being re-mirrored from upstream.
+RETAINED_WHEEL_PREFIXES = {"whl/nightly", "whl/test", "whl"}
+RETAINED_WHEELS: Dict[str, List[RetainedWheel]] = {
+    "nvidia_cudnn_cu12": [
+        # Pinned by every torch 2.4.0-2.6.0 build; removed from pypi.nvidia.com
+        # around 2026-08-12. See pytorch/pytorch#193491.
+        RetainedWheel(
+            filename="nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl",
+            path=(
+                "/whl/cu124/"
+                "nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl"
+            ),
+            sha256="165764f44ef8c61fcdfdfdbe769d687e06374059fbb388b6c89ecb0e28793a6f",
+        ),
+    ],
+}
+
+
 def is_nvidia_package(pkg_name: str) -> bool:
     """Check if a package is from NVIDIA and is therefore CUDA-target only"""
     return pkg_name.startswith("nvidia-") or pkg_name.startswith("cuda-")
@@ -1028,6 +1062,10 @@ def upload_index_html(
         html, base_url, resolve_relative_paths=is_amd_package(pkg_name)
     )
 
+    # Re-add wheels we still host that upstream has stopped publishing. Runs
+    # after the rewrite above so the root-relative paths are left intact.
+    modified_html = append_retained_wheels(modified_html, pkg_name, prefix)
+
     index_key = f"{prefix}/{pkg_name}/index.html"
 
     if dry_run:
@@ -1128,6 +1166,39 @@ def append_preview_numpy_wheels(html: str, pkg_name: str, prefix: str) -> str:
 
     print(
         f"INFO: Merging {len(additions)} preview numpy wheel link(s) "
+        f"for {pkg_name} under {prefix}"
+    )
+    block = "\n".join(additions)
+    if "</body>" in html:
+        return html.replace("</body>", f"{block}\n  </body>", 1)
+    return f"{html}\n{block}\n"
+
+
+def append_retained_wheels(html: str, pkg_name: str, prefix: str) -> str:
+    """Merge :data:`RETAINED_WHEELS` links for *pkg_name* into *html*.
+
+    Limited to the channel roots in :data:`RETAINED_WHEEL_PREFIXES`. Wheels the
+    upstream index still lists are skipped, so this becomes a no-op if a version
+    is ever restored upstream.
+
+    Must run after :func:`replace_relative_links_with_absolute`, which would
+    otherwise resolve these root-relative paths against the upstream index.
+    """
+    entries = RETAINED_WHEELS.get(normalize_pkg_name(pkg_name))
+    if not entries or prefix not in RETAINED_WHEEL_PREFIXES:
+        return html
+
+    additions = [
+        f'    <a href="{entry.path}#sha256={entry.sha256}">{entry.filename}</a><br/>'
+        for entry in entries
+        if entry.filename not in html
+    ]
+
+    if not additions:
+        return html
+
+    print(
+        f"INFO: Merging {len(additions)} retained wheel link(s) "
         f"for {pkg_name} under {prefix}"
     )
     block = "\n".join(additions)
