@@ -296,6 +296,13 @@
       "dynamo"
     ]
   ],
+  "test_dataclass_with_tensor_fields (__main__.TestAssertCloseContainer)": [
+    "193522",
+    "https://github.com/pytorch/pytorch/issues/193522",
+    [
+      "dynamo"
+    ]
+  ],
   "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
     "188234",
     "https://github.com/pytorch/pytorch/issues/188234",
@@ -635,6 +642,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190142",
+    "https://github.com/pytorch/pytorch/issues/190142",
+    [
+      "linux"
     ]
   ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
@@ -1042,6 +1056,14 @@
     "https://github.com/pytorch/pytorch/issues/190500",
     [
       "dynamo"
+    ]
+  ],
+  "test_torch_profiler_benchmarker_reuses_inductor_helpers_hip_value_mock-hip_expected_buffer_size_bytes_268435456 (__main__.TestBenchmarker)": [
+    "185616",
+    "https://github.com/pytorch/pytorch/issues/185616",
+    [
+      "rocm",
+      "xpu"
     ]
   ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
