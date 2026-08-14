@@ -1,14 +1,10 @@
-import { JobStatus } from "components/job/GroupJobConclusion";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
-import {
-  getNameWithoutLF,
-  getNameWithoutOSDC,
-  isFailure,
-} from "./JobClassifierUtil";
+import { getNameWithoutLF, getNameWithoutOSDC } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
+import { mergeCellRuns } from "./mergeCellRuns";
 import {
   HudDataAPIResponse,
   HudParams,
@@ -116,13 +112,22 @@ export default async function fetchHud(
     );
   }
 
-  // Construct mapping of sha => job name => job data
-  const jobsBySha: {
-    [sha: string]: { [name: string]: JobData };
+  // Collect every run that reported for a (sha, job name) cell, then merge the whole set at once.
+  //
+  // Q: How can there be more than one run with the same name for a given sha?
+  // A: Periodic builds can be scheduled multiple times for one sha; a job can be re-run, producing a
+  //    new attempt; and autorevert dispatches restart runs against a trunk/<sha> ref.
+  //
+  // All three are just runs. The merge is issuer-agnostic and order-independent by construction --
+  // see mergeCellRuns. It replaced a pairwise newest-id-wins reducer under which the verdict depended
+  // on arrival order, so a natural pass followed by a restart failure rendered plain red while the
+  // reverse order rendered flaky.
+  const runsBySha: {
+    [sha: string]: { [name: string]: JobData[] };
   } = {};
   results!.forEach((job: JobData) => {
-    if (jobsBySha[job.sha!] === undefined) {
-      jobsBySha[job.sha!] = {};
+    if (runsBySha[job.sha!] === undefined) {
+      runsBySha[job.sha!] = {};
     }
     let key = job.name!;
     if (params.mergeEphemeralLF) {
@@ -131,38 +136,18 @@ export default async function fetchHud(
     if (params.mergeOSDC) {
       key = getNameWithoutOSDC(key);
     }
-
-    const existingJob = jobsBySha[job.sha!][key];
-    if (existingJob !== undefined) {
-      // If there are multiple jobs with the same name, we want the most recent.
-      // Q: How can there be more than one job with the same name for a given sha?
-      // A: Periodic builds can be scheduled multiple times for one sha. In those
-      // cases, we want the most recent job to be shown.
-      // Exception: a `skipped` conclusion has lower priority than any other
-      // status, so a real result always wins over a skip even if the skipped
-      // job has a larger id. This matters for the OSDC merge, where the
-      // unselected variant reports as skipped and would otherwise mask a real
-      // failure on the selected variant.
-      const existingSkipped = existingJob.conclusion === JobStatus.Skipped;
-      const jobSkipped = job.conclusion === JobStatus.Skipped;
-      const replace =
-        existingSkipped && !jobSkipped
-          ? true
-          : !existingSkipped && jobSkipped
-          ? false
-          : job.id! > existingJob.id!;
-      if (replace) {
-        jobsBySha[job.sha!][key] = job;
-        jobsBySha[job.sha!][key].failedPreviousRun =
-          existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
-      } else {
-        existingJob.failedPreviousRun =
-          existingJob.failedPreviousRun || isFailure(job.conclusion);
-      }
-    } else {
-      jobsBySha[job.sha!][key] = job;
-    }
+    (runsBySha[job.sha!][key] ??= []).push(job);
   });
+
+  const jobsBySha: {
+    [sha: string]: { [name: string]: JobData };
+  } = {};
+  for (const sha in runsBySha) {
+    jobsBySha[sha] = {};
+    for (const key in runsBySha[sha]) {
+      jobsBySha[sha][key] = mergeCellRuns(runsBySha[sha][key]);
+    }
+  }
 
   const namesSet: Set<string> = new Set();
 

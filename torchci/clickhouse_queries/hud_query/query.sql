@@ -19,17 +19,24 @@ WITH job AS (
         job.torchci_classification_kg.'captures' as captures,
         job.torchci_classification_kg.'line_num' as line_num,
         annotation.annotation as annotation,
-        -- Provenance for the rows the restart clause below now admits: mark a job that came from
-        -- an autorevert restart run, so the tooltip can say so instead of leaving an unexplained
-        -- green cell for a job the commit never naturally ran.
-        -- NULL rather than '' on purpose: fetchHud strips nulls before shipping the grid, so this
-        -- costs nothing on the ordinary jobs that are the vast majority of rows.
-        if(
+        -- Origin of the run, REPORTED but never aggregated on -- aggregation is issuer-agnostic by
+        -- design (mergeCellRuns). A plain push is left NULL rather than spelled out: it is the
+        -- overwhelming majority and the default reading, and fetchHud strips nulls before shipping
+        -- the grid, so ordinary rows cost nothing.
+        -- NULL means specifically a `push` run, so the UI can name the origin without guessing. Any
+        -- other event (schedule, a non-trunk workflow_dispatch, ...) carries its own event name --
+        -- calling those "push" would be wrong, and periodic schedules are one of the reasons a cell
+        -- has several runs in the first place.
+        multiIf(
             job.workflow_event = 'workflow_dispatch'
             AND job.head_branch LIKE 'trunk/%',
             'autorevert',
-            NULL
-        ) AS restart_source,
+            job.run_attempt > 1,
+            'retry',
+            job.workflow_event = 'push',
+            NULL,
+            job.workflow_event
+        ) AS run_origin,
         tupleElement(restart_run.latest, 1) as restart_actor_login,
         tupleElement(restart_run.latest, 2) as restart_triggering_actor_login,
         tupleElement(restart_run.latest, 3) as restart_run_attempt
@@ -79,7 +86,12 @@ WITH job AS (
         )  -- Should be filtered out by the workflow_event filters, but workflow_event takes some time to populate
         AND job.workflow_event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND job.workflow_event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (job.workflow_event = 'workflow_dispatch' AND job.head_branch LIKE 'trunk/%' AND job.conclusion_kg != 'success') -- Autorevert restart jobs count only when they PASSED: fetchHud's failedPreviousRun can label a success that failed before ("F", flaky), but has no way to label a restart that failed, is still running, or was skipped by the dispatch filter
+        -- Autorevert restart runs are no longer filtered out here, and are deliberately NOT filtered
+        -- by conclusion either. Who issued a run must not change how the HUD aggregates it, so a
+        -- restart is admitted on the same terms as a push or a re-run attempt and the cell verdict is
+        -- decided by mergeCellRuns over the whole set of runs. Filtering by conclusion here was the
+        -- issuer-dependent shortcut this replaces: it dropped a restart that failed, was pending or
+        -- was skipped, which silently hid real results rather than aggregating them.
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         AND job.repository_full_name = {repo: String}
         AND job.workflow_name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
@@ -108,21 +120,23 @@ SELECT
     if(line_num = 0, [ ], [ line_num ]) AS failureLineNumbers,
     captures as failureCaptures,
     annotation as failureAnnotation,
-    restart_source as restartSource,
-    -- Every provenance field below is gated on restart_source, so none can ever appear on a job the
-    -- badge does not also mark. The two sides are derived independently -- the badge from
+    run_origin as runOrigin,
+    -- The identity fields below are gated on an autorevert origin, so none can appear on a run the
+    -- origin does not also mark. The two sides are derived independently -- the origin from
     -- workflow_job, the identity from workflow_run -- and nothing guarantees they agree under
-    -- ingestion lag. The reverse case (badge present, identity missing) stays possible and renders
+    -- ingestion lag. The reverse case (origin present, identity missing) stays possible and renders
     -- fine, since each field is conditional in the tooltip.
     -- An unmatched LEFT JOIN also yields the column default ('' / 0) rather than NULL, so normalize:
-    -- fetchHud strips only nulls, and an empty string would ship on every ordinary job and make
-    -- "field is present" a false test for "this job is a restart".
-    if(restart_source IS NULL, NULL, nullIf(restart_actor_login, '')) as restartDispatchedBy,
+    -- fetchHud strips only nulls, and an empty string would ship on every ordinary run and make
+    -- "field is present" a false test for "this run was dispatched by autorevert".
+    -- coalesce, not a bare comparison: run_origin is Nullable, and `NULL != 'autorevert'` is NULL,
+    -- which would make the whole if() condition NULL rather than false.
+    if(coalesce(run_origin, '') = 'autorevert', nullIf(restart_actor_login, ''), NULL) as restartDispatchedBy,
     -- Only meaningful when it differs: triggering_actor equals the actor on a first attempt, and
     -- names whoever re-ran the run on later ones. Collapsing the two would hide a human re-running
     -- a bot's restart.
     if(
-        restart_source IS NOT NULL
+        coalesce(run_origin, '') = 'autorevert'
         AND restart_triggering_actor_login != ''
         AND restart_triggering_actor_login != restart_actor_login,
         restart_triggering_actor_login,
@@ -134,6 +148,6 @@ SELECT
     -- (existing.runAttempt ?? 0)` when merging crcr rows. That comparison relies on the field being
     -- undefined in the HUD path today, so populating it here would silently change which job data
     -- wins those cells.
-    if(restart_source IS NULL, NULL, nullIf(restart_run_attempt, 0)) as restartRunAttempt
+    if(coalesce(run_origin, '') = 'autorevert', nullIf(restart_run_attempt, 0), NULL) as restartRunAttempt
 FROM
     job

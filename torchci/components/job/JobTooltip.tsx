@@ -1,5 +1,6 @@
 import { AdvisorVerdict } from "lib/advisorVerdictUtils";
 import { isJobViableStrictBlocking } from "lib/JobClassifierUtil";
+import { describeRunOrigin } from "lib/mergeCellRuns";
 import { JobData } from "../../lib/types";
 import { SingleWorkflowDispatcher } from "../commit/WorkflowDispatcher";
 import LogViewer from "../common/log/LogViewer";
@@ -39,21 +40,41 @@ export default function JobTooltip({
     isJobViableStrictBlocking(job.name, repoOwner, repoName);
 
   // Compare against the value rather than testing for presence: hud_query normalizes an unmatched
-  // LEFT JOIN to null, but a future '' would otherwise make every ordinary job look like a restart.
-  const isAutorevertRestart = job.restartSource === "autorevert";
+  // LEFT JOIN to null, but a future '' would otherwise make every push run look like a restart.
+  const isAutorevertRestart = job.runOrigin === "autorevert";
+  const showOrigin = job.runOrigin != null || job.mergedRunCount != null;
 
   return (
     <div>
       {`[${job.conclusion}] ${job.name}`}
-      {isAutorevertRestart && (
+      {showOrigin && (
         <div style={{ color: "gray" }}>
-          {"Result came from an autorevert restart run"}
-          {job.restartRunAttempt != null &&
+          {`Shown run: ${describeRunOrigin(job)}`}
+          {isAutorevertRestart &&
+            job.restartRunAttempt != null &&
             ` (attempt ${job.restartRunAttempt})`}
           {job.restartDispatchedBy &&
             `, dispatched by ${job.restartDispatchedBy}`}
           {job.restartRerunBy && `, rerun by ${job.restartRerunBy}`}
           {"."}
+          {job.mergedRunCount != null && (
+            <div>
+              {`Merged ${job.mergedRunCount} runs for this commit — ${job.mergedRuns}.`}
+              {/* The cell shows the success, so this is the only route to the failure behind an "F". */}
+              {job.mergedFailureUrl && (
+                <>
+                  {" "}
+                  <a
+                    href={job.mergedFailureUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    view the failing run
+                  </a>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
       {isAutorevertSignal && (

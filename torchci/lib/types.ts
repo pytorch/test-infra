@@ -31,19 +31,27 @@ export interface JobData extends BasicJobData {
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
   runAttempt?: number;
-  // Set only on a job that came from a restart run dispatched against a trunk/<sha> ref; absent on
-  // ordinary jobs. Currently the only value is "autorevert", matching the source_type spelling in
-  // queued_jobs/query.sql. Compare against the value rather than testing for presence — see the
-  // nullIf() normalization in hud_query.
-  restartSource?: string;
-  // Login that dispatched the restart run.
+  // Where this run came from. "autorevert" for a restart dispatched against a trunk/<sha> ref
+  // ("autorevert" matches the source_type spelling in queued_jobs/query.sql), "retry" for a re-run
+  // attempt, absent for a plain push — the default and overwhelming majority. REPORTED only: origin
+  // must never affect how runs are aggregated (see mergeCellRuns). Compare against the value rather
+  // than testing for presence.
+  runOrigin?: string;
+  // Login that dispatched the autorevert restart run.
   restartDispatchedBy?: string;
   // Login that triggered the latest attempt, set only when it differs from restartDispatchedBy —
   // i.e. someone re-ran the restart.
   restartRerunBy?: string;
-  // Attempt number of the restart run. Separate from runAttempt on purpose: that field carries the
-  // JOB's run_attempt from commit_jobs_query, and the HUD's crcr merge reads it.
+  // Attempt number of the autorevert restart run. Separate from runAttempt on purpose: that field
+  // carries the JOB's run_attempt from commit_jobs_query, and the HUD's crcr merge reads it.
   restartRunAttempt?: number;
+  // How many runs this cell merged, and a compact "<origin>: <conclusion>" list of them. Set by
+  // mergeCellRuns only when a cell really had more than one run.
+  mergedRunCount?: number;
+  mergedRuns?: string;
+  // html_url of a failing run that did NOT become the cell's representative. Rule 2 makes the success
+  // the representative, so this is the only route from a flaky cell to the failure itself.
+  mergedFailureUrl?: string;
 }
 
 // Used by Dr.CI

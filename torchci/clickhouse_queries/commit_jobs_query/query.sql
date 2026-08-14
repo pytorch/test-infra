@@ -46,7 +46,15 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%' AND job.conclusion_kg != 'success') -- Autorevert restart jobs count only when they PASSED (see hud_query); fetchCommit dedups by newest id with no flaky marker at all, so a non-success restart row would silently replace the natural conclusion
+        -- KNOWN DIVERGENCE FROM hud_query, deliberate. hud_query no longer filters restarts by
+        -- conclusion at all: it admits every run and lets mergeCellRuns decide the cell
+        -- issuer-agnostically, so a restart that failed makes a passing cell render flaky instead of
+        -- vanishing. This surface cannot do that yet -- fetchCommit dedups by newest id and has no
+        -- flaky marker to render, so admitting a non-success restart here would silently REPLACE the
+        -- natural conclusion rather than combine with it. Until the commit page can express a flaky
+        -- result, the success-only filter stays, and the grid and the commit page will disagree about
+        -- a commit whose restart failed.
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%' AND job.conclusion_kg != 'success')
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND (
             {workflowId: Int64} = 0
