@@ -28,6 +28,26 @@ export default function JobTooltip({
   repoOwner?: string;
   repoName?: string;
 }) {
+  // Which of the cell's runs the detail area below describes. Undefined = the cell itself, which is
+  // what the grid renders. Selecting a run rebinds the log viewer, the links and the failure
+  // classification to it -- on a flaky "F" cell the cell's own fields are the run that PASSED, so
+  // without this the failure that made it flaky is not inspectable from the tooltip at all.
+  //
+  // Keyed by RUN, and scoped to the cell it was chosen in. An index would silently rebind to a
+  // different run when the grid refreshes and the run list grows or reorders; and because this
+  // component can be reused for another cell, a selection made in one cell must not survive into the
+  // next. Storing the cell alongside makes a stale selection resolve to "nothing selected" rather
+  // than to the wrong run.
+  //
+  // Declared ABOVE the does-not-exist early return below: hooks must be called in the same order on
+  // every render, and a cell can gain or lose its `id` between renders as the grid refreshes.
+  const cellKey = `${job.sha ?? ""} ${job.name ?? ""}`;
+  const [selection, setSelection] = useState<{
+    cell: string;
+    runKey?: string;
+    showAll: boolean;
+  }>({ cell: cellKey, showAll: false });
+
   // For nonexistent jobs, just show something basic:
   if (!job.hasOwnProperty("id")) {
     return (
@@ -54,22 +74,6 @@ export default function JobTooltip({
   // sit above a failed restart on exactly the cells that exist to show the restart.
   const showSingleRunOrigin = job.runOrigin != null && cellRuns == null;
 
-  // Which of the cell's runs the detail area below describes. Undefined = the cell itself, which is
-  // what the grid renders. Selecting a run rebinds the log viewer, the links and the failure
-  // classification to it -- on a flaky "F" cell the cell's own fields are the run that PASSED, so
-  // without this the failure that made it flaky is not inspectable from the tooltip at all.
-  //
-  // Keyed by RUN, and scoped to the cell it was chosen in. An index would silently rebind to a
-  // different run when the grid refreshes and the run list grows or reorders; and because this
-  // component can be reused for another cell, a selection made in one cell must not survive into the
-  // next. Storing the cell alongside makes a stale selection resolve to "nothing selected" rather
-  // than to the wrong run.
-  const cellKey = `${job.sha ?? ""} ${job.name ?? ""}`;
-  const [selection, setSelection] = useState<{
-    cell: string;
-    runKey?: string;
-    showAll: boolean;
-  }>({ cell: cellKey, showAll: false });
   const active =
     selection.cell === cellKey ? selection : { cell: cellKey, showAll: false };
   const selectedRun = cellRuns?.find((run) => runKeyOf(run) === active.runKey);
