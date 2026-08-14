@@ -491,12 +491,27 @@ function CrcrTestHealthCard({
 
 interface NightlyJobRow {
   pytorch_head_sha: string;
+  job_name: string;
   status: string;
   conclusion: string;
   started_at: string;
 }
 
 const NIGHTLY_HEALTH_COUNT = 5;
+
+function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
+  const name = job.job_name ?? "";
+  return (
+    (name.includes("xfail") && job.conclusion === "failure") ||
+    (name.includes("xcancel") && job.conclusion === "cancelled") ||
+    (name.includes("xtimeout") && job.conclusion === "timed_out")
+  );
+}
+
+function isNightlyJobPassing(job: NightlyJobRow): boolean {
+  if (job.status !== "completed") return false;
+  return job.conclusion === "success" || isExpectedNightlyOutcome(job);
+}
 
 function CrcrNightlyHealthCard({
   nightlyJobs,
@@ -527,14 +542,10 @@ function CrcrNightlyHealthCard({
   if (shasByTime.length === 0) return null;
 
   const allPassed = shasByTime.every((entry) =>
-    entry.jobs.every(
-      (j) => j.status === "completed" && j.conclusion === "success"
-    )
+    entry.jobs.every(isNightlyJobPassing)
   );
   const passedCount = shasByTime.filter((entry) =>
-    entry.jobs.every(
-      (j) => j.status === "completed" && j.conclusion === "success"
-    )
+    entry.jobs.every(isNightlyJobPassing)
   ).length;
   const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
   const label = allPassed ? "Healthy" : "Degraded";
