@@ -103,9 +103,9 @@ describe("mergeCellRuns", () => {
   });
 
   test("a cancelled run is not failure evidence, so it does not make a success flaky", () => {
-    // Documented deliberate divergence from isFailure(), which counts cancelled as a failure. This
-    // is the one behaviour change that is a judgement call rather than a consequence of the rules;
-    // it moves 223 cells over 14 days of pytorch/pytorch from "F" to a plain success.
+    // Deliberate, confirmed divergence from isFailure(), which counts cancelled as a failure. Moves
+    // 223 cells over 14 days of pytorch/pytorch from "F" to a plain success. This test exists to stop
+    // that being "fixed" back: a run rule 3 discards must not also turn a success flaky.
     const merged = mergeCellRuns([
       run("1", JobStatus.Cancelled),
       run("2", JobStatus.Success, "autorevert"),

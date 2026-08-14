@@ -43,8 +43,11 @@ function conclusionOf(job: JobData): string {
  * cancelled run whenever any non-cancelled run exists, and a discarded run must not also contribute
  * failure evidence -- a cancellation says nothing about whether the job passes. Consequence, measured
  * over 14 days of pytorch/pytorch: 223 cells that today render "F" purely because a cancelled run
- * sits beside a success become a plain success. Add Cancelled here to restore the old behaviour;
- * nothing else needs to change.
+ * sits beside a success become a plain success.
+ *
+ * This is intended behaviour, confirmed rather than assumed -- do not "fix" it by adding Cancelled
+ * back to match isFailure(). If cancellation ever needs to be visible on a cell that also has a
+ * success, it wants its own marker rather than overloading the flaky "F".
  */
 function isRealFailureConclusion(conclusion: string): boolean {
   return conclusion === JobStatus.Failure || conclusion === JobStatus.Timed_out;
