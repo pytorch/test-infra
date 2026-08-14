@@ -31,6 +31,19 @@ export interface JobData extends BasicJobData {
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
   runAttempt?: number;
+  // Set only on a job that came from a restart run dispatched against a trunk/<sha> ref; absent on
+  // ordinary jobs. Currently the only value is "autorevert", matching the source_type spelling in
+  // queued_jobs/query.sql. Compare against the value rather than testing for presence — see the
+  // nullIf() normalization in hud_query.
+  restartSource?: string;
+  // Login that dispatched the restart run.
+  restartDispatchedBy?: string;
+  // Login that triggered the latest attempt, set only when it differs from restartDispatchedBy —
+  // i.e. someone re-ran the restart.
+  restartRerunBy?: string;
+  // Attempt number of the restart run. Separate from runAttempt on purpose: that field carries the
+  // JOB's run_attempt from commit_jobs_query, and the HUD's crcr merge reads it.
+  restartRunAttempt?: number;
 }
 
 // Used by Dr.CI
