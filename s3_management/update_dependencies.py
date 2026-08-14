@@ -1202,8 +1202,18 @@ def append_retained_wheels(html: str, pkg_name: str, prefix: str) -> str:
         f"for {pkg_name} under {prefix}"
     )
     block = "\n".join(additions)
-    if "</body>" in html:
-        return html.replace("</body>", f"{block}\n  </body>", 1)
+
+    # pypi.nvidia.com does not terminate its final anchor with a <br>, which
+    # would leave the first injected link on the same rendered line.
+    head, anchor_end, tail = html.rpartition("</a>")
+    if anchor_end and "<br" not in tail:
+        html = f"{head}{anchor_end}<br/>{tail}"
+
+    # Match on the indented closing tag: replacing the bare tag would leave its
+    # leading whitespace in front of the injected block.
+    for marker in ("  </body>", "</body>"):
+        if marker in html:
+            return html.replace(marker, f"{block}\n{marker}", 1)
     return f"{html}\n{block}\n"
 
 
