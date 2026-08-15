@@ -66,7 +66,15 @@ runs:
       run: |
         if [ "${HAS_NVIDIA}" = "true" ]; then
           echo "HAS_NVIDIA_GPU=true" >> "${GITHUB_ENV}"
-          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
+          # NVIDIA_DISABLE_REQUIRE=1 disables the nvidia-container-cli prestart
+          # check that strict-compares a CUDA image's NVIDIA_REQUIRE_CUDA
+          # (e.g. "cuda>=13.2") against the host driver's advertised max CUDA.
+          # That check is overly conservative during a new-CUDA-minor rollout:
+          # CUDA minor-version compatibility lets a container built with a newer
+          # minor toolkit run on an older driver within the same major version
+          # (e.g. cuda13.2 image on the R580 / cuda13.0 driver). Without this,
+          # such jobs fail at container init (exit 125) before any work runs.
+          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all -e NVIDIA_DISABLE_REQUIRE=1" >> "${GITHUB_ENV}"
         else
           echo "HAS_NVIDIA_GPU=false" >> "${GITHUB_ENV}"
         fi
