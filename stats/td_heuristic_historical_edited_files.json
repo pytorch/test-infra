@@ -383,7 +383,7 @@
     "distributed/test_c10d_process_group": 0.1111111111111111
   },
   ".ci/pytorch/rocm_utils.sh": {
-    "inductor/test_ck_backend": 0.1
+    "inductor/test_ck_backend": 0.35
   },
   ".ci/pytorch/smoke_test/check_binary_symbols.py": {
     "benchmark_utils/test_benchmark_utils": 0.00980392156862745,
@@ -2747,7 +2747,7 @@
     "inductor/test_torchinductor": 0.5,
     "test_binary_ufuncs": 0.1,
     "test_nn": 0.75,
-    "test_torch": 0.5
+    "test_torch": 0.6666666666666666
   },
   "aten/src/ATen/native/AveragePool2d.cpp": {
     "nn/test_pooling": 0.5666666666666667,
@@ -3244,7 +3244,7 @@
     "dynamo/test_misc": 0.023342751575744405,
     "dynamo/test_trace_rules": 0.023342751575744405,
     "functorch/test_aotdispatch": 0.2,
-    "functorch/test_ops": 0.29545454545454547,
+    "functorch/test_ops": 0.045454545454545456,
     "functorch/test_vmap_registrations": 0.023342751575744405,
     "inductor/test_compiled_autograd": 0.023342751575744405,
     "inductor/test_fx_fusion": 0.023342751575744405,
@@ -3258,7 +3258,7 @@
     "test_ops": 0.2233427515757444,
     "test_overrides": 0.023342751575744405,
     "test_reductions": 0.7121212121212122,
-    "test_sort_and_select": 0.29545454545454547,
+    "test_sort_and_select": 0.045454545454545456,
     "test_sparse": 0.3333333333333333,
     "test_tensor_creation_ops": 0.06879729703028986,
     "test_torch": 0.5233427515757442,
@@ -3415,7 +3415,7 @@
     "dynamo/test_trace_rules": 0.023342751575744405,
     "export/test_export": 0.14285714285714285,
     "functorch/test_aotdispatch": 0.14285714285714285,
-    "functorch/test_ops": 0.4383116883116883,
+    "functorch/test_ops": 0.18831168831168832,
     "functorch/test_vmap_registrations": 0.023342751575744405,
     "inductor/test_compiled_autograd": 0.023342751575744405,
     "inductor/test_fx_fusion": 0.023342751575744405,
@@ -3427,7 +3427,7 @@
     "test_overrides": 0.023342751575744405,
     "test_proxy_tensor": 0.14285714285714285,
     "test_reductions": 1.0454545454545454,
-    "test_sort_and_select": 0.29545454545454547,
+    "test_sort_and_select": 0.045454545454545456,
     "test_tensor_creation_ops": 0.06879729703028986,
     "test_torch": 0.023342751575744405,
     "test_view_ops": 0.045454545454545456,
@@ -3487,7 +3487,7 @@
     "test_sort_and_select": 0.045454545454545456,
     "test_tensor_creation_ops": 0.06879729703028986,
     "test_testing": 0.5,
-    "test_torch": 0.5233427515757442,
+    "test_torch": 0.6900094182424108,
     "test_view_ops": 0.045454545454545456,
     "torch_np/test_nep50_examples": 0.045454545454545456
   },
@@ -3707,6 +3707,9 @@
   },
   "aten/src/ATen/native/cpu/UpSampleKernel.cpp": {
     "test_nn": 0.24358974358974356
+  },
+  "aten/src/ATen/native/cpu/WeightNormKernel.cpp": {
+    "test_nn": 0.5
   },
   "aten/src/ATen/native/cpu/group_norm_kernel.cpp": {
     "functorch/test_ops": 0.6000000000000001
@@ -4662,7 +4665,8 @@
   },
   "aten/src/ATen/native/mps/kernels/LinearAlgebra.metal": {
     "distributions/test_distributions": 0.9142857142857141,
-    "test_mps": 2.851587301587302
+    "inductor/test_aot_inductor": 0.16666666666666666,
+    "test_mps": 3.0182539682539686
   },
   "aten/src/ATen/native/mps/kernels/LossOps.h": {
     "test_mps": 0.125,
@@ -4760,7 +4764,7 @@
   },
   "aten/src/ATen/native/mps/operations/Attention.mm": {
     "inductor/test_mps_basic": 0.5,
-    "test_mps": 5.2,
+    "test_mps": 5.199999999999999,
     "test_transformers": 0.75
   },
   "aten/src/ATen/native/mps/operations/BinaryKernel.mm": {
@@ -4898,11 +4902,12 @@
   "aten/src/ATen/native/mps/operations/LinearAlgebra.mm": {
     "distributions/test_distributions": 0.9142857142857141,
     "functorch/test_ops": 0.03125,
+    "inductor/test_aot_inductor": 0.16666666666666666,
     "inductor/test_mps_basic": 0.5,
     "inductor/test_torchinductor": 0.2,
     "inductor/test_torchinductor_opinfo": 0.03125,
     "test_linalg": 0.03125,
-    "test_mps": 5.584920634920635
+    "test_mps": 5.751587301587301
   },
   "aten/src/ATen/native/mps/operations/LossOps.mm": {
     "test_mps": 0.625,
@@ -5005,7 +5010,7 @@
     "functorch/test_ops": 0.2077205882352941,
     "functorch/test_vmap": 0.04,
     "functorch/test_vmap_registrations": 0.39941007505686094,
-    "inductor/test_aot_inductor": 0.26785714285714285,
+    "inductor/test_aot_inductor": 0.43452380952380953,
     "inductor/test_compiled_autograd": 0.19000941824241108,
     "inductor/test_cpu_repro": 0.3333333333333333,
     "inductor/test_cutlass_backend": 0.14285714285714285,
@@ -5022,7 +5027,7 @@
     "test_linalg": 0.5183490695128626,
     "test_matmul_cuda": 0.2,
     "test_meta": 0.26737967914438504,
-    "test_mps": 6.665151515151514,
+    "test_mps": 6.831818181818181,
     "test_namedtensor": 0.023342751575744405,
     "test_namedtuple_return_api": 0.14344827586206896,
     "test_nn": 1.0284765067094996,
@@ -5038,7 +5043,7 @@
     "test_testing": 0.10250000000000001,
     "test_torch": 0.023342751575744405,
     "test_transformers": 0.27884615384615385,
-    "test_varlen_attention": 1.54978354978355,
+    "test_varlen_attention": 1.5497835497835497,
     "test_view_ops": 0.25
   },
   "aten/src/ATen/native/nested/NestedTensorBackward.cpp": {
@@ -5193,12 +5198,6 @@
   "aten/src/ATen/native/sparse/cuda/SparseBlasImpl.cpp": {
     "inductor/test_torchinductor_opinfo": 0.25,
     "test_sparse_csr": 0.8500000000000001
-  },
-  "aten/src/ATen/native/sparse/cuda/SparseCUDAApplyUtils.cuh": {
-    "test_sparse": 0.3333333333333333
-  },
-  "aten/src/ATen/native/sparse/cuda/SparseCUDATensor.cu": {
-    "test_sparse": 0.3333333333333333
   },
   "aten/src/ATen/native/sparse/cuda/SparseCUDATensorMath.cu": {
     "test_sparse": 0.25
@@ -8701,8 +8700,8 @@
     "inductor/test_comm_analysis": 0.05263157894736842
   },
   "docs/source/distributed.pipelining.md": {
-    "distributed/pipelining/test_schedule": 0.3666666666666667,
-    "distributed/pipelining/test_schedule_multiproc": 0.3666666666666667
+    "distributed/pipelining/test_schedule": 0.2,
+    "distributed/pipelining/test_schedule_multiproc": 0.2
   },
   "docs/source/distributed.tensor.md": {
     "distributed/tensor/parallel/test_tp_random_state": 0.75,
@@ -15005,7 +15004,7 @@
   "test/distributed/_composable/fsdp/test_fully_shard_compile.py": {
     "distributed/_composable/fsdp/test_fully_shard_clip_grad_norm_": 0.4523809523809524,
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.46400885935769653,
-    "distributed/_composable/fsdp/test_fully_shard_compile": 5.031974227323065,
+    "distributed/_composable/fsdp/test_fully_shard_compile": 5.031974227323064,
     "distributed/_composable/fsdp/test_fully_shard_frozen": 0.2973421926910299,
     "distributed/_composable/fsdp/test_fully_shard_ignore_params": 0.011627906976744186,
     "distributed/_composable/fsdp/test_fully_shard_memory": 0.46400885935769653,
@@ -15090,11 +15089,11 @@
     "distributed/test_store": 0.011627906976744186,
     "dynamo/test_aot_autograd": 0.7584415584415585,
     "dynamo/test_fwd_loss_bwd": 0.9999999999999998,
-    "dynamo/test_misc": 1.758441558441558,
+    "dynamo/test_misc": 1.7584415584415583,
     "functorch/test_aotdispatch": 0.7584415584415585,
     "inductor/test_distributed_patterns": 0.3333333333333333,
-    "test_custom_ops": 0.4727272727272728,
-    "test_opaque_obj_v2": 0.4727272727272728
+    "test_custom_ops": 0.47272727272727266,
+    "test_opaque_obj_v2": 0.47272727272727266
   },
   "test/distributed/_composable/fsdp/test_fully_shard_dtensor.py": {
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.14285714285714285,
@@ -16830,7 +16829,7 @@
     "distributed/_composable/fsdp/test_fully_shard_overlap": 0.5099198193111236,
     "distributed/_composable/fsdp/test_fully_shard_state": 0.2,
     "distributed/_composable/fsdp/test_fully_shard_state_dict": 0.15732111026228673,
-    "distributed/_composable/fsdp/test_fully_shard_training": 8.72637552261873,
+    "distributed/_composable/fsdp/test_fully_shard_training": 8.726375522618731,
     "distributed/_composable/test_composability/test_2d_composability": 1.1653211102622867,
     "distributed/_composable/test_composability/test_pp_composability": 0.006060606060606061,
     "distributed/_composable/test_replicate": 0.008,
@@ -21920,7 +21919,7 @@
     "torch_np/numpy_tests/core/test_dtype": 0.03913707521954944
   },
   "test/distributed/checkpoint/test_compatibility.py": {
-    "distributed/checkpoint/test_compatibility": 0.3333333333333333,
+    "distributed/checkpoint/test_compatibility": 1.3333333333333333,
     "distributed/checkpoint/test_planner": 0.3333333333333333
   },
   "test/distributed/checkpoint/test_consolidate_hf_safetensors.py": {
@@ -31247,10 +31246,6 @@
     "test_nn": 0.2,
     "test_tensor_creation_ops": 0.2
   },
-  "test/distributed/pipelining/artifacts/dualpipev_4rank_10mb.csv": {
-    "distributed/pipelining/test_schedule": 0.16666666666666666,
-    "distributed/pipelining/test_schedule_multiproc": 0.16666666666666666
-  },
   "test/distributed/pipelining/model_registry.py": {
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.011627906976744186,
     "distributed/_composable/fsdp/test_fully_shard_compile": 0.011627906976744186,
@@ -31300,7 +31295,7 @@
     "distributed/pipelining/test_dtensor_pp_unit_tests": 0.14285714285714285,
     "distributed/pipelining/test_pipe": 0.011627906976744186,
     "distributed/pipelining/test_schedule": 0.2,
-    "distributed/pipelining/test_schedule_multiproc": 0.8428571428571429,
+    "distributed/pipelining/test_schedule_multiproc": 0.34285714285714286,
     "distributed/pipelining/test_stage": 0.3449612403100775,
     "distributed/pipelining/test_transformer": 0.011627906976744186,
     "distributed/pipelining/test_unflatten": 0.011627906976744186,
@@ -32087,8 +32082,8 @@
     "distributed/launcher/test_run": 0.015873015873015872,
     "distributed/pipelining/test_dtensor_pp_integration": 0.012389719984656693,
     "distributed/pipelining/test_dtensor_pp_unit_tests": 0.012389719984656693,
-    "distributed/pipelining/test_schedule": 6.1185492363645775,
-    "distributed/pipelining/test_schedule_multiproc": 1.4393939393939394,
+    "distributed/pipelining/test_schedule": 5.6185492363645775,
+    "distributed/pipelining/test_schedule_multiproc": 0.9393939393939394,
     "distributed/pipelining/test_stage": 0.20632911392405065,
     "distributed/pipelining/test_transformer": 0.2,
     "distributed/pipelining/test_unflatten": 0.2,
@@ -32378,8 +32373,8 @@
     "distributed/pipelining/test_dtensor_pp_integration": 0.006060606060606061,
     "distributed/pipelining/test_dtensor_pp_unit_tests": 0.14891774891774892,
     "distributed/pipelining/test_microbatch": 0.05263157894736842,
-    "distributed/pipelining/test_schedule": 1.4393939393939394,
-    "distributed/pipelining/test_schedule_multiproc": 4.664644565960355,
+    "distributed/pipelining/test_schedule": 0.9393939393939394,
+    "distributed/pipelining/test_schedule_multiproc": 3.664644565960356,
     "distributed/pipelining/test_stage": 0.5214285714285715,
     "distributed/pipelining/test_transformer": 0.2,
     "distributed/pipelining/test_unflatten": 0.2,
@@ -32967,7 +32962,7 @@
     "distributed/checkpoint/test_state_dict_utils": 0.0967741935483871,
     "distributed/fsdp/test_fsdp_tp_integration": 0.038461538461538464,
     "distributed/tensor/debug/test_comm_mode": 0.13523573200992556,
-    "distributed/tensor/debug/test_debug_mode": 26.410119018657916,
+    "distributed/tensor/debug/test_debug_mode": 26.410119018657912,
     "distributed/tensor/experimental/test_local_map": 0.0967741935483871,
     "distributed/tensor/parallel/test_micro_pipeline_tp": 0.0967741935483871,
     "distributed/tensor/parallel/test_tp_random_state": 0.0967741935483871,
@@ -34783,7 +34778,7 @@
     "distributed/tensor/test_compile_on_one_rank": 0.2929957805907173,
     "distributed/tensor/test_convolution_ops": 0.006060606060606061,
     "distributed/tensor/test_dtensor": 0.5,
-    "distributed/tensor/test_dtensor_compile": 21.7188580899439,
+    "distributed/tensor/test_dtensor_compile": 21.718858089943904,
     "distributed/tensor/test_dtensor_export": 0.3526610644257703,
     "distributed/tensor/test_dtensor_logging": 0.00980392156862745,
     "distributed/tensor/test_dtensor_ops": 2.0608860028860025,
@@ -35431,7 +35426,7 @@
     "distributed/tensor/test_dtensor": 0.4074612403100775,
     "distributed/tensor/test_dtensor_compile": 2.0608860028860025,
     "distributed/tensor/test_dtensor_export": 0.011627906976744186,
-    "distributed/tensor/test_dtensor_ops": 42.523445912642565,
+    "distributed/tensor/test_dtensor_ops": 42.273445912642565,
     "distributed/tensor/test_experimental_ops": 0.006060606060606061,
     "distributed/tensor/test_math_ops": 6.384355179704018,
     "distributed/tensor/test_matrix_ops": 0.46962790697674417,
@@ -35445,7 +35440,7 @@
     "distributed/tensor/test_strategy_validation": 0.006060606060606061,
     "distributed/tensor/test_tensor_ops": 2.45068851303735,
     "distributed/tensor/test_utils": 0.08939393939393939,
-    "distributed/tensor/test_view_ops": 0.7333333333333334,
+    "distributed/tensor/test_view_ops": 0.48333333333333334,
     "distributed/tensor/test_xla_integration": 0.011627906976744186,
     "distributed/test_aten_comm_compute_reordering": 0.011627906976744186,
     "distributed/test_backends": 0.011627906976744186,
@@ -35561,7 +35556,7 @@
     "inductor/test_scatter_optimization": 0.006060606060606061,
     "inductor/test_select_algorithm": 0.014060606060606062,
     "inductor/test_static_triton_launcher": 0.008,
-    "inductor/test_torchinductor": 0.21406060606060606,
+    "inductor/test_torchinductor": 0.2140606060606061,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.2727272727272727,
     "inductor/test_torchinductor_opinfo": 0.3521558441558441,
@@ -36578,7 +36573,7 @@
     "distributed/tensor/test_init": 0.09090909090909091,
     "distributed/tensor/test_math_ops": 1.8942036645525018,
     "distributed/tensor/test_matrix_ops": 0.6358703312191685,
-    "distributed/tensor/test_op_strategy": 11.044853015201854,
+    "distributed/tensor/test_op_strategy": 11.044853015201852,
     "distributed/tensor/test_optimizers": 0.10253699788583509,
     "distributed/tensor/test_redistribute": 0.7782945736434108,
     "distributed/tensor/test_single_dim_strategy": 0.3333333333333333,
@@ -38992,13 +38987,13 @@
   "test/distributed/tensor/test_view_ops.py": {
     "distributed/tensor/test_dtensor": 0.3666666666666667,
     "distributed/tensor/test_dtensor_compile": 0.5333333333333333,
-    "distributed/tensor/test_dtensor_ops": 0.7333333333333334,
+    "distributed/tensor/test_dtensor_ops": 0.48333333333333334,
     "distributed/tensor/test_math_ops": 0.3333333333333333,
     "distributed/tensor/test_op_strategy": 0.33333333333333337,
     "distributed/tensor/test_placement_types": 0.3055555555555555,
     "distributed/tensor/test_redistribute": 0.4722222222222222,
     "distributed/tensor/test_utils": 0.3055555555555555,
-    "distributed/tensor/test_view_ops": 6.655555555555556
+    "distributed/tensor/test_view_ops": 6.405555555555556
   },
   "test/distributed/tensor/test_xla_integration.py": {
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.03601815087918321,
@@ -39731,7 +39726,7 @@
     "test_multiprocessing": 0.034900542495479206,
     "test_native_functions": 0.008403361344537815,
     "test_nestedtensor": 0.014463967405143874,
-    "test_nn": 0.4055721123049801,
+    "test_nn": 0.40557211230498,
     "test_numa_binding": 0.008403361344537815,
     "test_numpy_interop": 0.006329113924050633,
     "test_opaque_obj_v2": 0.014463967405143874,
@@ -39746,7 +39741,7 @@
     "test_sort_and_select": 0.012389719984656693,
     "test_sparse": 0.040961148556085264,
     "test_sparse_csr": 0.034900542495479206,
-    "test_sparse_semi_structured": 0.2396109637488948,
+    "test_sparse_semi_structured": 0.23961096374889476,
     "test_spectral_ops": 0.008403361344537815,
     "test_sympy_utils": 0.006060606060606061,
     "test_tensor_creation_ops": 0.012389719984656693,
@@ -41116,7 +41111,7 @@
     "distributed/test_c10d_fr_hook": 0.25,
     "distributed/test_c10d_gloo": 0.1111111111111111,
     "distributed/test_c10d_nccl": 0.3060428849902534,
-    "distributed/test_c10d_nccl2": 10.261788017051174,
+    "distributed/test_c10d_nccl2": 10.261788017051176,
     "distributed/test_c10d_p2p": 0.1111111111111111,
     "distributed/test_c10d_process_group": 0.1111111111111111,
     "distributed/test_c10d_pybackend": 0.05263157894736842,
@@ -42809,7 +42804,7 @@
     "distributed/test_composability": 0.0830564784053156,
     "distributed/test_compute_comm_reordering": 0.12980392156862747,
     "distributed/test_control_collectives": 0.011627906976744186,
-    "distributed/test_cupy_as_tensor": 1.7045270666406098,
+    "distributed/test_cupy_as_tensor": 1.5045270666406099,
     "distributed/test_device_mesh": 0.011627906976744186,
     "distributed/test_dist2": 0.011627906976744186,
     "distributed/test_dynamo_distributed": 0.011627906976744186,
@@ -44448,7 +44443,7 @@
     "distributed/test_dynamo_distributed": 0.0967741935483871,
     "distributed/test_fake_pg": 0.0967741935483871,
     "distributed/test_functional_api": 0.34677419354838707,
-    "distributed/test_functional_differentials": 3.5134408602150535,
+    "distributed/test_functional_differentials": 3.6562980030721968,
     "distributed/test_inductor_collectives": 0.0967741935483871,
     "distributed/test_symmetric_memory": 0.0967741935483871,
     "dynamo/test_fake_distributed": 0.0967741935483871
@@ -46441,7 +46436,7 @@
     "distributed/test_p2p_ipc": 0.19142857142857142,
     "distributed/test_pg_wrapper": 0.006060606060606061,
     "distributed/test_store": 0.25263157894736843,
-    "distributed/test_symmetric_memory": 20.539418234798255,
+    "distributed/test_symmetric_memory": 21.53941823479825,
     "distributed/test_token_switch": 0.006060606060606061,
     "distributions/test_distributions": 0.012389719984656693,
     "dynamo/cpython/3_13/test_itertools": 0.011494252873563218,
@@ -47465,7 +47460,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -47476,11 +47471,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -47510,7 +47505,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -47521,11 +47516,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -47916,7 +47911,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -47927,11 +47922,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -47961,7 +47956,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -47972,11 +47967,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -48763,7 +48758,7 @@
     "dynamo/cpython/3_13/test_cmath": 0.02580832245904016,
     "dynamo/cpython/3_13/test_collections": 0.02580832245904016,
     "dynamo/cpython/3_13/test_complex": 0.02580832245904016,
-    "dynamo/cpython/3_13/test_contextlib": 0.06747498912570682,
+    "dynamo/cpython/3_13/test_contextlib": 0.02580832245904016,
     "dynamo/cpython/3_13/test_defaultdict": 0.02580832245904016,
     "dynamo/cpython/3_13/test_descr": 0.008264462809917356,
     "dynamo/cpython/3_13/test_dict": 0.02580832245904016,
@@ -48808,7 +48803,7 @@
     "dynamo/cpython/3_13/test_cmath": 0.10273139938211709,
     "dynamo/cpython/3_13/test_collections": 0.02580832245904016,
     "dynamo/cpython/3_13/test_complex": 0.10273139938211709,
-    "dynamo/cpython/3_13/test_contextlib": 0.1999536216043393,
+    "dynamo/cpython/3_13/test_contextlib": 0.15828695493767264,
     "dynamo/cpython/3_13/test_defaultdict": 0.02580832245904016,
     "dynamo/cpython/3_13/test_descr": 0.008264462809917356,
     "dynamo/cpython/3_13/test_dict": 0.02580832245904016,
@@ -48855,7 +48850,7 @@
     "dynamo/cpython/3_13/test_collections": 0.02580832245904016,
     "dynamo/cpython/3_13/test_complex": 0.02580832245904016,
     "dynamo/cpython/3_13/test_contextlib": 0.02580832245904016,
-    "dynamo/cpython/3_13/test_defaultdict": 0.13295117960189728,
+    "dynamo/cpython/3_13/test_defaultdict": 0.04961784626856397,
     "dynamo/cpython/3_13/test_descr": 0.008264462809917356,
     "dynamo/cpython/3_13/test_dict": 0.02580832245904016,
     "dynamo/cpython/3_13/test_enum": 0.008264462809917356,
@@ -48900,7 +48895,7 @@
     "dynamo/cpython/3_13/test_collections": 0.02580832245904016,
     "dynamo/cpython/3_13/test_complex": 0.02580832245904016,
     "dynamo/cpython/3_13/test_contextlib": 0.02580832245904016,
-    "dynamo/cpython/3_13/test_defaultdict": 0.6219217678371914,
+    "dynamo/cpython/3_13/test_defaultdict": 0.5385884345038581,
     "dynamo/cpython/3_13/test_descr": 0.008264462809917356,
     "dynamo/cpython/3_13/test_dict": 0.02580832245904016,
     "dynamo/cpython/3_13/test_enum": 0.008264462809917356,
@@ -49875,8 +49870,7 @@
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userlist": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_with": 0.008264462809917356,
-    "dynamo/test_generator": 0.3333333333333333
+    "dynamo/cpython/3_13/test_with": 0.008264462809917356
   },
   "test/dynamo/cpython/3_13/test_generators.py": {
     "dynamo/cpython/3_13/test_baseexception": 0.008264462809917356,
@@ -50451,7 +50445,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -50462,11 +50456,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -50496,7 +50490,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -50507,11 +50501,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -51534,7 +51528,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -51545,11 +51539,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -51579,7 +51573,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -51590,11 +51584,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -51890,7 +51884,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -51901,11 +51895,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -51935,7 +51929,7 @@
     "dynamo/cpython/3_13/test_int_literal": 0.008264462809917356,
     "dynamo/cpython/3_13/test_iter": 0.02580832245904016,
     "dynamo/cpython/3_13/test_itertools": 0.07342737007808778,
-    "dynamo/cpython/3_13/test_list": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_list": 0.07342737007808778,
     "dynamo/cpython/3_13/test_math": 0.07342737007808778,
     "dynamo/cpython/3_13/test_numeric_tower": 0.008264462809917356,
     "dynamo/cpython/3_13/test_operator": 0.02580832245904016,
@@ -51946,11 +51940,11 @@
     "dynamo/cpython/3_13/test_set": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sort": 0.02580832245904016,
     "dynamo/cpython/3_13/test_sys": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_tuple": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_tuple": 0.07342737007808778,
     "dynamo/cpython/3_13/test_types": 0.008264462809917356,
     "dynamo/cpython/3_13/test_unittest/test_assertions": 0.008264462809917356,
     "dynamo/cpython/3_13/test_userdict": 0.008264462809917356,
-    "dynamo/cpython/3_13/test_userlist": 0.10373040038111808,
+    "dynamo/cpython/3_13/test_userlist": 0.07342737007808778,
     "dynamo/cpython/3_13/test_with": 0.07342737007808778,
     "dynamo/test_decorators": 0.017543859649122806
   },
@@ -53366,7 +53360,7 @@
     "dynamo/test_hooks": 0.5789473684210525,
     "dynamo/test_inline_and_install": 0.5705128205128205,
     "dynamo/test_logging": 0.17080342902711323,
-    "dynamo/test_misc": 1.2792449874686715,
+    "dynamo/test_misc": 1.2792449874686718,
     "dynamo/test_modes": 0.4208034290271132,
     "dynamo/test_nested_graph_breaks": 0.09185606060606061,
     "dynamo/test_package": 0.17080342902711323,
@@ -56167,7 +56161,7 @@
     "dynamo/test_debug_utils": 0.08500797448165869,
     "dynamo/test_decorators": 0.07894736842105263,
     "dynamo/test_dicts": 0.006060606060606061,
-    "dynamo/test_dynamic_spec": 7.7608737753474575,
+    "dynamo/test_dynamic_spec": 7.760873775347458,
     "dynamo/test_dynamo_decompositions": 0.07894736842105263,
     "dynamo/test_exc": 0.07894736842105263,
     "dynamo/test_functions": 0.07894736842105263,
@@ -56998,11 +56992,11 @@
     "dynamo/test_dynamo_decompositions": 0.00980392156862745,
     "dynamo/test_error_messages": 0.19047619047619047,
     "dynamo/test_exc": 0.00980392156862745,
-    "dynamo/test_exceptions": 5.3379390317159325,
+    "dynamo/test_exceptions": 5.659367603144504,
     "dynamo/test_export": 0.00980392156862745,
     "dynamo/test_fake_distributed": 0.00980392156862745,
     "dynamo/test_flat_apply": 0.00980392156862745,
-    "dynamo/test_functions": 0.20980392156862746,
+    "dynamo/test_functions": 0.2812324929971989,
     "dynamo/test_fwd_loss_bwd": 0.00980392156862745,
     "dynamo/test_fx_annotate": 0.00980392156862745,
     "dynamo/test_generator": 0.375,
@@ -57026,6 +57020,7 @@
     "dynamo/test_reorder_logs": 0.00980392156862745,
     "dynamo/test_repros": 0.510832060096766,
     "dynamo/test_resume": 0.00980392156862745,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "dynamo/test_sets": 0.00980392156862745,
     "dynamo/test_streams": 0.10980392156862745,
     "dynamo/test_structured_trace": 0.05742296918767507,
@@ -57493,7 +57488,7 @@
     "dynamo/test_exceptions": 0.00980392156862745,
     "dynamo/test_exitstack": 0.015873015873015872,
     "dynamo/test_export": 0.1386970192117251,
-    "dynamo/test_fake_distributed": 6.551939466728365,
+    "dynamo/test_fake_distributed": 6.551939466728366,
     "dynamo/test_flat_apply": 0.046840958605664486,
     "dynamo/test_functions": 0.1386970192117251,
     "dynamo/test_fwd_loss_bwd": 0.00980392156862745,
@@ -57737,11 +57732,11 @@
     "dynamo/test_dynamo_decompositions": 0.1257883270267171,
     "dynamo/test_error_messages": 0.09185606060606061,
     "dynamo/test_exc": 0.08875128998968007,
-    "dynamo/test_exceptions": 0.20980392156862746,
+    "dynamo/test_exceptions": 0.2812324929971989,
     "dynamo/test_export": 0.17154460640713834,
     "dynamo/test_fake_distributed": 0.1386970192117251,
     "dynamo/test_flat_apply": 0.046840958605664486,
-    "dynamo/test_functions": 26.184905660557664,
+    "dynamo/test_functions": 26.256334231986234,
     "dynamo/test_fwd_loss_bwd": 0.00980392156862745,
     "dynamo/test_fx_annotate": 0.046840958605664486,
     "dynamo/test_fx_graph_runnable": 0.17080342902711323,
@@ -57773,6 +57768,7 @@
     "dynamo/test_reorder_logs": 0.00980392156862745,
     "dynamo/test_repros": 1.1838253081615242,
     "dynamo/test_resume": 0.00980392156862745,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "dynamo/test_sets": 0.1526610644257703,
     "dynamo/test_streams": 0.36864546988385993,
     "dynamo/test_structured_trace": 0.18060735059574068,
@@ -58339,7 +58335,7 @@
     "dynamo/test_fake_distributed": 0.09185606060606061,
     "dynamo/test_functions": 0.09185606060606061,
     "dynamo/test_fx_graph_runnable": 0.09185606060606061,
-    "dynamo/test_generator": 9.421960077124151,
+    "dynamo/test_generator": 9.088626743790817,
     "dynamo/test_guard_manager": 0.09185606060606061,
     "dynamo/test_guard_serialization": 0.09185606060606061,
     "dynamo/test_higher_order_ops": 0.12411412512218964,
@@ -58823,7 +58819,7 @@
     "dynamo/test_functions": 0.037037037037037035,
     "dynamo/test_fx_annotate": 0.037037037037037035,
     "dynamo/test_graph_deduplication": 0.037037037037037035,
-    "dynamo/test_graph_region_tracker": 2.0421652421652423,
+    "dynamo/test_graph_region_tracker": 1.542165242165242,
     "dynamo/test_higher_order_ops": 0.037037037037037035,
     "dynamo/test_hooks": 0.037037037037037035,
     "dynamo/test_input_attr_tracking": 0.037037037037037035,
@@ -59967,7 +59963,7 @@
   "test/dynamo/test_len_protocol.py": {
     "dynamo/cpython/3_13/test_defaultdict": 0.3125,
     "dynamo/test_dicts": 0.3125,
-    "dynamo/test_len_protocol": 0.4943181818181819
+    "dynamo/test_len_protocol": 0.4943181818181818
   },
   "test/dynamo/test_list.py": {
     "benchmark_utils/test_benchmark_utils": 0.006060606060606061,
@@ -60361,9 +60357,16 @@
     "torch_np/test_indexing": 0.006329113924050633
   },
   "test/dynamo/test_mapping_ops.py": {
-    "dynamo/test_mapping_ops": 0.16233766233766234,
+    "dynamo/test_mapping_ops": 0.4956709956709957,
+    "dynamo/test_metrics_context": 0.3333333333333333,
+    "dynamo/test_model_output": 0.3333333333333333,
     "dynamo/test_sequence_ops": 0.16233766233766234,
     "dynamo/test_user_defined_object": 0.16233766233766234
+  },
+  "test/dynamo/test_metrics_context.py": {
+    "dynamo/test_mapping_ops": 0.3333333333333333,
+    "dynamo/test_metrics_context": 0.3333333333333333,
+    "dynamo/test_model_output": 0.3333333333333333
   },
   "test/dynamo/test_minifier.py": {
     "distributed/tensor/test_dtensor_compile": 0.037037037037037035,
@@ -60395,7 +60398,7 @@
     "functorch/test_leaf_function": 0.037037037037037035
   },
   "test/dynamo/test_misc.py": {
-    "distributed/_composable/fsdp/test_fully_shard_compile": 1.758441558441558,
+    "distributed/_composable/fsdp/test_fully_shard_compile": 1.7584415584415583,
     "distributed/_composable/fsdp/test_fully_shard_dtensor": 0.006329113924050633,
     "distributed/_composable/fsdp/test_fully_shard_training": 0.006329113924050633,
     "distributed/_composable/test_replicate_mixed_precision": 0.006329113924050633,
@@ -60462,7 +60465,7 @@
     "dynamo/test_activation_checkpointing": 0.738171503990125,
     "dynamo/test_activation_offloading": 0.07894736842105263,
     "dynamo/test_after_aot": 0.08527648234510327,
-    "dynamo/test_aot_autograd": 1.2792449874686715,
+    "dynamo/test_aot_autograd": 1.2792449874686718,
     "dynamo/test_aot_autograd_cache": 0.8254459678608285,
     "dynamo/test_aot_compile": 0.18527648234510327,
     "dynamo/test_autograd_function": 0.3435897435897436,
@@ -60541,7 +60544,7 @@
     "export/test_export": 1.46468253968254,
     "export/test_nativert": 0.038461538461538464,
     "export/test_serialize": 0.04479065238558909,
-    "functorch/test_aotdispatch": 1.5909396014757142,
+    "functorch/test_aotdispatch": 1.5909396014757144,
     "functorch/test_control_flow": 1.1079531579531579,
     "functorch/test_dims": 0.006329113924050633,
     "functorch/test_eager_transforms": 0.12347826086956523,
@@ -60648,7 +60651,7 @@
     "test_nn": 0.23480007062800018,
     "test_numpy_interop": 0.04479065238558909,
     "test_opaque_obj_v2": 0.7859377181957827,
-    "test_ops": 0.13312014136186398,
+    "test_ops": 0.133120141361864,
     "test_overrides": 0.029671865499795037,
     "test_proxy_tensor": 1.0499999999999998,
     "test_public_bindings": 0.3333333333333333,
@@ -60693,7 +60696,9 @@
     "dynamo/test_generator": 0.03225806451612903,
     "dynamo/test_guard_exclusion": 0.09090909090909091,
     "dynamo/test_higher_order_ops": 0.03225806451612903,
-    "dynamo/test_model_output": 0.6231671554252199,
+    "dynamo/test_mapping_ops": 0.3333333333333333,
+    "dynamo/test_metrics_context": 0.3333333333333333,
+    "dynamo/test_model_output": 0.9565004887585532,
     "dynamo/test_modules": 0.03225806451612903,
     "dynamo/test_nb_bool": 0.09090909090909091,
     "dynamo/test_nb_float": 0.09090909090909091,
@@ -61115,11 +61120,13 @@
     "dynamo/test_guard_exclusion": 0.09090909090909091,
     "dynamo/test_iterators": 0.20535714285714285,
     "dynamo/test_model_output": 0.09090909090909091,
-    "dynamo/test_nb_bool": 0.8764249639249639,
-    "dynamo/test_nb_float": 0.2615440115440115,
-    "dynamo/test_nb_index": 0.23376623376623376,
-    "dynamo/test_nb_int": 0.3240440115440115,
+    "dynamo/test_nb_bool": 1.0430916305916307,
+    "dynamo/test_nb_float": 0.42821067821067826,
+    "dynamo/test_nb_index": 0.4004329004329005,
+    "dynamo/test_nb_int": 0.49071067821067826,
     "dynamo/test_nb_multiply": 0.06666666666666667,
+    "dynamo/test_nb_operators": 0.16666666666666666,
+    "dynamo/test_nb_shift": 0.16666666666666666,
     "dynamo/test_polyfills": 0.09090909090909091,
     "dynamo/test_repr_protocol": 0.20535714285714285,
     "dynamo/test_sequence_ops": 0.0625,
@@ -61154,10 +61161,12 @@
     "dynamo/test_guard_exclusion": 0.09090909090909091,
     "dynamo/test_iterators": 0.14285714285714285,
     "dynamo/test_model_output": 0.09090909090909091,
-    "dynamo/test_nb_bool": 0.2615440115440115,
-    "dynamo/test_nb_float": 0.7198773448773449,
-    "dynamo/test_nb_index": 0.23376623376623376,
-    "dynamo/test_nb_int": 0.5948773448773449,
+    "dynamo/test_nb_bool": 0.42821067821067826,
+    "dynamo/test_nb_float": 0.8865440115440115,
+    "dynamo/test_nb_index": 0.4004329004329005,
+    "dynamo/test_nb_int": 0.7615440115440115,
+    "dynamo/test_nb_operators": 0.16666666666666666,
+    "dynamo/test_nb_shift": 0.16666666666666666,
     "dynamo/test_polyfills": 0.09090909090909091,
     "dynamo/test_tp_slots": 0.09090909090909091,
     "inductor/test_user_streams": 0.027777777777777776,
@@ -61187,10 +61196,12 @@
     "dynamo/test_guard_exclusion": 0.09090909090909091,
     "dynamo/test_iterators": 0.14285714285714285,
     "dynamo/test_model_output": 0.09090909090909091,
-    "dynamo/test_nb_bool": 0.23376623376623376,
-    "dynamo/test_nb_float": 0.23376623376623376,
-    "dynamo/test_nb_index": 0.6504329004329004,
-    "dynamo/test_nb_int": 0.23376623376623376,
+    "dynamo/test_nb_bool": 0.4004329004329005,
+    "dynamo/test_nb_float": 0.4004329004329005,
+    "dynamo/test_nb_index": 0.8170995670995671,
+    "dynamo/test_nb_int": 0.4004329004329005,
+    "dynamo/test_nb_operators": 0.16666666666666666,
+    "dynamo/test_nb_shift": 0.16666666666666666,
     "dynamo/test_polyfills": 0.09090909090909091,
     "dynamo/test_tp_slots": 0.09090909090909091
   },
@@ -61203,10 +61214,12 @@
     "dynamo/test_guard_exclusion": 0.09090909090909091,
     "dynamo/test_iterators": 0.3386904761904762,
     "dynamo/test_model_output": 0.09090909090909091,
-    "dynamo/test_nb_bool": 0.3240440115440115,
-    "dynamo/test_nb_float": 0.5948773448773449,
-    "dynamo/test_nb_index": 0.23376623376623376,
-    "dynamo/test_nb_int": 1.0634379509379508,
+    "dynamo/test_nb_bool": 0.49071067821067826,
+    "dynamo/test_nb_float": 0.7615440115440115,
+    "dynamo/test_nb_index": 0.4004329004329005,
+    "dynamo/test_nb_int": 1.2301046176046173,
+    "dynamo/test_nb_operators": 0.16666666666666666,
+    "dynamo/test_nb_shift": 0.16666666666666666,
     "dynamo/test_polyfills": 0.09090909090909091,
     "dynamo/test_repr_protocol": 0.19583333333333333,
     "dynamo/test_sequence_ops": 0.19583333333333333,
@@ -61234,8 +61247,12 @@
     "dynamo/cpython/3_13/test_math": 0.1764705882352941,
     "dynamo/test_dicts": 0.1764705882352941,
     "dynamo/test_nb_and": 0.07692307692307693,
-    "dynamo/test_nb_operators": 0.8867269984917043,
-    "dynamo/test_nb_shift": 0.07692307692307693,
+    "dynamo/test_nb_bool": 0.16666666666666666,
+    "dynamo/test_nb_float": 0.16666666666666666,
+    "dynamo/test_nb_index": 0.16666666666666666,
+    "dynamo/test_nb_int": 0.16666666666666666,
+    "dynamo/test_nb_operators": 1.0533936651583709,
+    "dynamo/test_nb_shift": 0.24358974358974358,
     "dynamo/test_sequence_ops": 0.3333333333333333,
     "test_dynamic_shapes": 0.07692307692307693
   },
@@ -61275,8 +61292,12 @@
   },
   "test/dynamo/test_nb_shift.py": {
     "dynamo/test_nb_and": 0.07692307692307693,
-    "dynamo/test_nb_operators": 0.07692307692307693,
-    "dynamo/test_nb_shift": 0.21978021978021978,
+    "dynamo/test_nb_bool": 0.16666666666666666,
+    "dynamo/test_nb_float": 0.16666666666666666,
+    "dynamo/test_nb_index": 0.16666666666666666,
+    "dynamo/test_nb_int": 0.16666666666666666,
+    "dynamo/test_nb_operators": 0.24358974358974358,
+    "dynamo/test_nb_shift": 0.3864468864468864,
     "test_dynamic_shapes": 0.07692307692307693
   },
   "test/dynamo/test_nb_truediv.py": {
@@ -61381,6 +61402,20 @@
     "dynamo/test_nested_graph_breaks": 1.2,
     "dynamo/test_nested_graph_breaks_wrapped": 3.0083333333333337,
     "test_autograd": 0.375
+  },
+  "test/dynamo/test_nops.py": {
+    "dynamo/test_nops": 0.2,
+    "dynamo/test_optimizers": 0.2,
+    "dynamo/test_pgo": 0.2,
+    "dynamo/test_polyfills": 0.2,
+    "dynamo/test_pre_dispatch": 0.2
+  },
+  "test/dynamo/test_optimizers.py": {
+    "dynamo/test_nops": 0.2,
+    "dynamo/test_optimizers": 0.2,
+    "dynamo/test_pgo": 0.2,
+    "dynamo/test_polyfills": 0.2,
+    "dynamo/test_pre_dispatch": 0.2
   },
   "test/dynamo/test_package.py": {
     "complex_tensor/test_complex_tensor": 0.008,
@@ -61554,7 +61589,11 @@
     "dynamo/test_model_output": 0.03225806451612903,
     "dynamo/test_modules": 0.03225806451612903,
     "dynamo/test_nested_graph_breaks": 0.03225806451612903,
-    "dynamo/test_pgo": 2.4489247311827955,
+    "dynamo/test_nops": 0.2,
+    "dynamo/test_optimizers": 0.2,
+    "dynamo/test_pgo": 2.6489247311827957,
+    "dynamo/test_polyfills": 0.2,
+    "dynamo/test_pre_dispatch": 0.2,
     "dynamo/test_precompile_context": 0.03225806451612903,
     "dynamo/test_python_autograd": 0.03225806451612903,
     "dynamo/test_recompile_ux": 0.03225806451612903,
@@ -61580,8 +61619,19 @@
     "dynamo/test_nb_float": 0.09090909090909091,
     "dynamo/test_nb_index": 0.09090909090909091,
     "dynamo/test_nb_int": 0.09090909090909091,
-    "dynamo/test_polyfills": 0.34090909090909094,
+    "dynamo/test_nops": 0.2,
+    "dynamo/test_optimizers": 0.2,
+    "dynamo/test_pgo": 0.2,
+    "dynamo/test_polyfills": 0.5409090909090909,
+    "dynamo/test_pre_dispatch": 0.2,
     "dynamo/test_tp_slots": 0.09090909090909091
+  },
+  "test/dynamo/test_pre_dispatch.py": {
+    "dynamo/test_nops": 0.2,
+    "dynamo/test_optimizers": 0.2,
+    "dynamo/test_pgo": 0.2,
+    "dynamo/test_polyfills": 0.2,
+    "dynamo/test_pre_dispatch": 0.2
   },
   "test/dynamo/test_precompile_context.py": {
     "distributed/launcher/test_run": 0.02857142857142857,
@@ -63132,13 +63182,15 @@
   "test/dynamo/test_sequence_ops.py": {
     "dynamo/test_contains_protocol": 0.19583333333333333,
     "dynamo/test_error_messages": 0.19583333333333333,
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
     "dynamo/test_iterators": 0.19583333333333333,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_nb_bool": 0.0625,
     "dynamo/test_nb_int": 0.19583333333333333,
     "dynamo/test_nb_operators": 0.3333333333333333,
     "dynamo/test_repr_protocol": 0.19583333333333333,
-    "dynamo/test_sequence_ops": 4.624440836940836,
+    "dynamo/test_sequence_ops": 4.945869408369407,
     "dynamo/test_str_protocol": 0.19583333333333333,
     "dynamo/test_user_defined_object": 0.16233766233766234
   },
@@ -63754,7 +63806,7 @@
     "inductor/test_ck_backend": 0.03125,
     "inductor/test_codecache": 0.20952380952380953,
     "inductor/test_combo_kernels": 0.07670454545454546,
-    "inductor/test_compiled_autograd": 0.27867965367965364,
+    "inductor/test_compiled_autograd": 0.2786796536796537,
     "inductor/test_cpu_repro": 0.07670454545454546,
     "inductor/test_cpu_select_algorithm": 0.047619047619047616,
     "inductor/test_cuda_repro": 0.07670454545454546,
@@ -64941,10 +64993,10 @@
     "test_multiprocessing": 0.008,
     "test_namedtensor": 0.023342751575744405,
     "test_nestedtensor": 0.014060606060606062,
-    "test_nn": 0.037403357636350464,
+    "test_nn": 0.03740335763635047,
     "test_opaque_obj_v2": 0.014060606060606062,
     "test_openmp": 0.006060606060606061,
-    "test_ops": 0.037403357636350464,
+    "test_ops": 0.03740335763635047,
     "test_ops_fwd_gradients": 0.008,
     "test_ops_gradients": 0.008,
     "test_ops_jit": 0.008,
@@ -64959,7 +65011,7 @@
     "test_sympy_utils": 0.006060606060606061,
     "test_tensor_creation_ops": 0.029403357636350467,
     "test_testing": 0.014060606060606062,
-    "test_torch": 0.037403357636350464,
+    "test_torch": 0.03740335763635047,
     "test_torch_config_hash_determinism": 0.006060606060606061,
     "test_torchfuzz_repros": 0.008,
     "test_transformers": 0.014060606060606062,
@@ -65444,7 +65496,7 @@
     "dynamo/test_unittest": 0.09185606060606061,
     "dynamo/test_unspec": 0.07894736842105263,
     "dynamo/test_user_defined_object": 0.07894736842105263,
-    "dynamo/test_utils": 11.554060527686845,
+    "dynamo/test_utils": 11.220727194353511,
     "dynamo/test_wrap_inductor_compiled_regions": 0.07894736842105263,
     "export/test_converter": 0.00980392156862745,
     "export/test_dynamic_spec_export": 0.006060606060606061,
@@ -67640,6 +67692,11 @@
   "test/dynamo_expected_failures/CPython313-test_collections-TestCollectionABCs.test_issue_5647": {
     "dynamo/test_misc": 0.2
   },
+  "test/dynamo_expected_failures/CPython313-test_collections-TestCounter.test_basics": {
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
+    "dynamo/test_sequence_ops": 0.07142857142857142
+  },
   "test/dynamo_expected_failures/CPython313-test_collections-TestCounter.test_conversions": {
     "dynamo/cpython/3_13/test_itertools": 0.1
   },
@@ -67841,12 +67898,10 @@
     "dynamo/test_str_protocol": 0.19583333333333333
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-ClosingTestCase.test_closing": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-ClosingTestCase.test_closing_error": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -67869,7 +67924,6 @@
     "cpython/v3_13/test_sys": 0.012658227848101266
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_contextmanager_except_stopiter": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_generator": 0.4545454545454546,
     "dynamo/test_misc": 0.013678276244465078
@@ -67877,12 +67931,6 @@
   "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_contextmanager_traceback": {
     "dynamo/cpython/3_13/test_raise": 0.13043478260869565,
     "dynamo/test_misc": 0.13043478260869565
-  },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_contextmanager_trap_second_yield": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
-  },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_contextmanager_trap_yield_after_throw": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_contextmanager_wrap_runtimeerror": {
     "dynamo/test_generator": 0.4545454545454546
@@ -67892,7 +67940,6 @@
     "dynamo/test_repros": 0.125
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-ContextManagerTestCase.test_nokeepref": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -67914,34 +67961,19 @@
     "cpython/v3_13/test_set": 0.012658227848101266,
     "cpython/v3_13/test_sys": 0.012658227848101266
   },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-NullcontextTestCase.test_nullcontext": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
-  },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-TestAbstractContextManager.test_enter": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
-  },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestAbstractContextManager.test_exit_is_abstract": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestAbstractContextManager.test_slots": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078,
     "dynamo/test_user_defined_object": 0.75
-  },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-TestAbstractContextManager.test_structural_subclassing": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
-  },
-  "test/dynamo_expected_failures/CPython313-test_contextlib-TestContextDecorator.test_contextdecorator_as_mixin": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestContextDecorator.test_contextdecorator_with_exception": {
     "dynamo/test_misc": 0.020833333333333332
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestContextDecorator.test_decorating_method": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -67949,12 +67981,10 @@
     "dynamo/test_misc": 0.020833333333333332
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestContextDecorator.test_typo_enter": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestContextDecorator.test_typo_exit": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -67970,14 +68000,13 @@
     "dynamo/test_exitstack": 0.05555555555555555
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_dont_reraise_RuntimeError": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_enter_context": {
     "dynamo/cpython/3_13/test_cmath": 0.07692307692307693,
     "dynamo/cpython/3_13/test_complex": 0.07692307692307693,
-    "dynamo/cpython/3_13/test_contextlib": 0.17414529914529914,
+    "dynamo/cpython/3_13/test_contextlib": 0.13247863247863248,
     "dynamo/cpython/3_13/test_float": 0.07692307692307693,
     "dynamo/cpython/3_13/test_int": 0.07692307692307693,
     "dynamo/cpython/3_13/test_raise": 0.07692307692307693,
@@ -67986,7 +68015,6 @@
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_enter_context_errors": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.034511609577798405
   },
@@ -67995,7 +68023,6 @@
     "dynamo/test_exitstack": 0.05555555555555555
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_exception_chaining_reference": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -68004,7 +68031,7 @@
     "dynamo/test_exitstack": 0.05555555555555555
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_exception_explicit_none_context": {
-    "dynamo/cpython/3_13/test_contextlib": 0.09722222222222221,
+    "dynamo/cpython/3_13/test_contextlib": 0.05555555555555555,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_exitstack": 0.05555555555555555,
     "dynamo/test_misc": 0.013678276244465078
@@ -68012,6 +68039,12 @@
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_exception_non_suppressing": {
     "dynamo/cpython/3_13/test_contextlib": 0.05555555555555555,
     "dynamo/test_exitstack": 0.05555555555555555
+  },
+  "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_exception_with_correct_context": {
+    "dynamo/test_exceptions": 0.25
+  },
+  "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_exception_with_existing_context": {
+    "dynamo/test_exceptions": 0.25
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_exit_raise": {
     "dynamo/cpython/3_13/test_contextlib": 0.05555555555555555,
@@ -68022,7 +68055,6 @@
     "dynamo/test_exitstack": 0.05555555555555555
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_instance_bypass": {
-    "dynamo/cpython/3_13/test_contextlib": 0.041666666666666664,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078,
     "dynamo/test_user_defined_object": 0.14285714285714285
@@ -68040,7 +68072,7 @@
     "dynamo/test_exitstack": 0.05555555555555555
   },
   "test/dynamo_expected_failures/CPython313-test_contextlib-TestExitStack.test_push": {
-    "dynamo/cpython/3_13/test_contextlib": 0.09722222222222221,
+    "dynamo/cpython/3_13/test_contextlib": 0.05555555555555555,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_exitstack": 0.05555555555555555,
     "dynamo/test_misc": 0.013678276244465078
@@ -68152,44 +68184,28 @@
     "cpython/v3_13/test_iterlen": 0.015625
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_basic": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.125
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_callable_arg": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.125
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_copy": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.125
   },
-  "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_deep_copy": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333
-  },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_keyerror_without_factory": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.1
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_missing": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.125
-  },
-  "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_pickling": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_recursive_repr": {
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
-  "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_repr": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333
-  },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_shallow_copy": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 1.0
   },
   "test/dynamo_expected_failures/CPython313-test_defaultdict-TestDefaultDict.test_union": {
-    "dynamo/cpython/3_13/test_defaultdict": 0.08333333333333333,
     "dynamo/test_dicts": 0.4583333333333333
   },
   "test/dynamo_expected_failures/CPython313-test_deque-TestBasic.test_add": {
@@ -68266,6 +68282,11 @@
     "cpython/v3_13/test_set": 0.005494505494505495,
     "cpython/v3_13/test_sort": 0.005494505494505495
   },
+  "test/dynamo_expected_failures/CPython313-test_deque-TestBasic.test_init": {
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
+    "dynamo/test_sequence_ops": 0.07142857142857142
+  },
   "test/dynamo_expected_failures/CPython313-test_deque-TestBasic.test_maxlen": {
     "dynamo/test_sequence_ops": 0.2
   },
@@ -68294,6 +68315,11 @@
   },
   "test/dynamo_expected_failures/CPython313-test_deque-TestSequence.test_addmul": {
     "dynamo/test_sequence_ops": 0.1
+  },
+  "test/dynamo_expected_failures/CPython313-test_deque-TestSequence.test_constructors": {
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
+    "dynamo/test_sequence_ops": 0.07142857142857142
   },
   "test/dynamo_expected_failures/CPython313-test_deque-TestSequence.test_contains_fake": {
     "dynamo/test_contains_protocol": 0.06666666666666667,
@@ -76802,11 +76828,6 @@
     "cpython/v3_13/test_typechecks": 0.07378048780487806,
     "dynamo/test_repros": 0.010752688172043012
   },
-  "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_addmul": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
-  },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_constructor_exception_handling": {
     "dynamo/cpython/3_13/test_baseexception": 0.0038461538461538464,
     "dynamo/cpython/3_13/test_bool": 0.0038461538461538464,
@@ -76818,9 +76839,6 @@
     "dynamo/test_misc": 0.0038461538461538464
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_constructors": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_getitem": 0.2,
     "dynamo/test_misc": 0.013678276244465078
@@ -76830,18 +76848,10 @@
     "dynamo/test_dicts": 0.06666666666666667
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_contains_order": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_contains_protocol": 0.06666666666666667,
     "dynamo/test_dicts": 0.06666666666666667,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
-  },
-  "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_count": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_count_index_remove_crashes": {
     "cpython/v3_13/test_baseexception": 0.005494505494505495,
@@ -76854,10 +76864,10 @@
     "cpython/v3_13/test_set": 0.005494505494505495,
     "cpython/v3_13/test_sort": 0.005494505494505495,
     "dynamo/cpython/3_13/test_itertools": 0.047619047619047616,
-    "dynamo/cpython/3_13/test_list": 0.07792207792207792,
+    "dynamo/cpython/3_13/test_list": 0.047619047619047616,
     "dynamo/cpython/3_13/test_math": 0.047619047619047616,
-    "dynamo/cpython/3_13/test_tuple": 0.07792207792207792,
-    "dynamo/cpython/3_13/test_userlist": 0.07792207792207792,
+    "dynamo/cpython/3_13/test_tuple": 0.047619047619047616,
+    "dynamo/cpython/3_13/test_userlist": 0.047619047619047616,
     "dynamo/cpython/3_13/test_with": 0.047619047619047616
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_equal_operator_modifying_operand": {
@@ -76871,18 +76881,12 @@
     "cpython/v3_13/test_set": 0.005494505494505495,
     "cpython/v3_13/test_sort": 0.005494505494505495,
     "dynamo/cpython/3_13/test_collections": 0.01098901098901099,
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_lazy_constant": 0.01098901098901099,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_extend": {
     "cpython/v3_13/test_iter": 0.2361111111111111,
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_functions": 0.6361111111111111,
     "dynamo/test_misc": 0.013678276244465078,
@@ -76890,11 +76894,6 @@
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_getitem_error": {
     "dynamo/test_misc": 0.020833333333333332
-  },
-  "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_getitemoverwriteiter": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_imul": {
     "dynamo/test_nb_multiply": 0.07692307692307693
@@ -76917,26 +76916,11 @@
     "dynamo/test_getitem": 0.2
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_keywords_in_subclass": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
-    "dynamo/test_misc": 0.013678276244465078
-  },
-  "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_list_index_modifing_operand": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
-  },
-  "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_lt_operator_modifying_operand": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
+    "dynamo/test_misc": 0.013678276244465078,
+    "dynamo/test_sequence_ops": 0.25
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_no_comdat_folding": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078,
     "dynamo/test_nb_operators": 0.3333333333333333,
@@ -76954,9 +76938,6 @@
   },
   "test/dynamo_expected_failures/CPython313-test_list-ListTest.test_repr_mutate": {
     "dynamo/cpython/3_13/test_collections": 0.01098901098901099,
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_lazy_constant": 0.01098901098901099,
     "dynamo/test_misc": 0.013678276244465078
@@ -78914,7 +78895,10 @@
     "dynamo/test_user_defined_object": 0.14285714285714285
   },
   "test/dynamo_expected_failures/CPython313-test_range-RangeTest.test_range_iterators_invocation": {
-    "dynamo/cpython/3_13/test_range": 0.043478260869565216
+    "dynamo/cpython/3_13/test_range": 0.043478260869565216,
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
+    "dynamo/test_sequence_ops": 0.07142857142857142
   },
   "test/dynamo_expected_failures/CPython313-test_range-RangeTest.test_types": {
     "dynamo/cpython/3_13/test_range": 0.043478260869565216,
@@ -81367,7 +81351,9 @@
   "test/dynamo_expected_failures/CPython313-test_sort-TestBase.test_small_stability": {
     "dynamo/cpython/3_13/test_functools": 0.08333333333333333,
     "dynamo/cpython/3_13/test_sort": 0.2833333333333333,
-    "dynamo/test_functions": 0.14285714285714285,
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.21428571428571427,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "dynamo/test_sets": 0.14285714285714285
   },
   "test/dynamo_expected_failures/CPython313-test_sort-TestBugs.test_bug453523": {
@@ -81720,16 +81706,10 @@
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_addmul": {
     "dynamo/cpython/3_13/test_collections": 0.1111111111111111,
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
     "dynamo/cpython/3_13/test_raise": 0.1111111111111111,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_misc": 0.1111111111111111
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_constructors": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_getitem": 0.2,
     "dynamo/test_misc": 0.013678276244465078
@@ -81739,26 +81719,13 @@
     "dynamo/test_dicts": 0.06666666666666667
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_contains_order": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_contains_protocol": 0.06666666666666667,
     "dynamo/test_dicts": 0.06666666666666667,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
-  "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_count": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
-  },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_getitem_error": {
     "dynamo/test_misc": 0.020833333333333332
-  },
-  "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_getitemoverwriteiter": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_hash_exact": {
     "dynamo/test_tp_hash": 0.024390243902439025
@@ -81770,16 +81737,10 @@
     "dynamo/test_getitem": 0.2
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_keywords_in_subclass": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_no_comdat_folding": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078,
     "dynamo/test_nb_operators": 0.3333333333333333,
@@ -81789,9 +81750,6 @@
     "dynamo/test_nb_multiply": 0.42857142857142855
   },
   "test/dynamo_expected_failures/CPython313-test_tuple-TupleTest.test_track_subtypes": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_error_messages": 0.013678276244465078,
     "dynamo/test_misc": 0.013678276244465078
   },
@@ -82212,9 +82170,6 @@
     "dynamo/test_dicts": 0.06666666666666667
   },
   "test/dynamo_expected_failures/CPython313-test_userlist-UserListTest.test_contains_order": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304,
     "dynamo/test_contains_protocol": 0.06666666666666667,
     "dynamo/test_dicts": 0.06666666666666667,
     "dynamo/test_error_messages": 0.013678276244465078,
@@ -82237,11 +82192,6 @@
   },
   "test/dynamo_expected_failures/CPython313-test_userlist-UserListTest.test_getitem_error": {
     "dynamo/test_misc": 0.020833333333333332
-  },
-  "test/dynamo_expected_failures/CPython313-test_userlist-UserListTest.test_getitemoverwriteiter": {
-    "dynamo/cpython/3_13/test_list": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_tuple": 0.030303030303030304,
-    "dynamo/cpython/3_13/test_userlist": 0.030303030303030304
   },
   "test/dynamo_expected_failures/CPython313-test_userlist-UserListTest.test_iadd": {
     "cpython/v3_13/test_iter": 0.3611111111111111,
@@ -84143,10 +84093,11 @@
     "dynamo/test_trace_rules": 0.006060606060606061,
     "dynamo/test_tree_map": 0.006329113924050633,
     "dynamo/test_utils": 0.006060606060606061,
-    "export/test_dynamic_spec_export": 1.112822620417557,
+    "export/test_dynamic_spec_export": 1.612822620417557,
     "export/test_experimental": 0.006329113924050633,
     "export/test_export": 0.006060606060606061,
     "export/test_serialize": 0.006329113924050633,
+    "export/test_tree_utils": 0.5,
     "functorch/test_aotdispatch": 0.012389719984656693,
     "functorch/test_dims": 0.006329113924050633,
     "functorch/test_leaf_function": 0.006329113924050633,
@@ -84576,7 +84527,7 @@
     "export/test_draft_export": 0.5961710703090014,
     "export/test_dynamic_spec_export": 0.006060606060606061,
     "export/test_experimental": 2.51009325923119,
-    "export/test_export": 56.6610247159401,
+    "export/test_export": 55.91102471594011,
     "export/test_export_opinfo": 1.0,
     "export/test_export_training_ir_to_run_decomp": 0.041666666666666664,
     "export/test_lift_unlift": 0.10714285714285714,
@@ -84756,7 +84707,7 @@
     "distributed/test_symmetric_memory": 0.037037037037037035,
     "dynamo/test_dynamo_ops": 0.07142857142857142,
     "export/test_export": 1.0,
-    "export/test_export_opinfo": 9.714526214526211,
+    "export/test_export_opinfo": 8.714526214526211,
     "export/test_serialize": 0.16666666666666666,
     "functorch/test_aotdispatch": 0.07142857142857142,
     "functorch/test_ops": 0.07142857142857142,
@@ -85687,6 +85638,10 @@
     "torch_np/numpy_tests/lib/test_function_base": 0.015873015873015872,
     "torch_np/numpy_tests/linalg/test_linalg": 0.015873015873015872,
     "torch_np/test_basic": 0.015873015873015872
+  },
+  "test/export/test_tree_utils.py": {
+    "export/test_dynamic_spec_export": 0.5,
+    "export/test_tree_utils": 0.5
   },
   "test/export/test_unflatten.py": {
     "export/test_draft_export": 0.034482758620689655,
@@ -86652,7 +86607,7 @@
     "dynamo/test_install_free_tensors": 0.008403361344537815,
     "dynamo/test_list": 0.006060606060606061,
     "dynamo/test_logging": 0.016133035492678083,
-    "dynamo/test_misc": 1.5909396014757142,
+    "dynamo/test_misc": 1.5909396014757144,
     "dynamo/test_model_output": 0.03225806451612903,
     "dynamo/test_modes": 0.3494663688260114,
     "dynamo/test_modules": 0.0707196029776675,
@@ -88114,7 +88069,7 @@
     "functorch/test_dims": 0.03225806451612903,
     "functorch/test_eager_transforms": 0.03225806451612903,
     "functorch/test_leaf_function": 0.00980392156862745,
-    "functorch/test_ops": 7.302338926014333,
+    "functorch/test_ops": 7.052338926014333,
     "functorch/test_subclass_codegen": 0.00980392156862745,
     "functorch/test_vmap": 1.9312324929971987,
     "higher_order_ops/test_invoke_quant": 0.00980392156862745,
@@ -88141,7 +88096,7 @@
     "test_proxy_tensor": 0.21428571428571427,
     "test_reductions": 0.045454545454545456,
     "test_scaled_matmul_cuda": 0.034482758620689655,
-    "test_sort_and_select": 0.29545454545454547,
+    "test_sort_and_select": 0.045454545454545456,
     "test_sparse_semi_structured": 0.034482758620689655,
     "test_tensor_creation_ops": 0.045454545454545456,
     "test_view_ops": 0.045454545454545456,
@@ -89193,7 +89148,6 @@
     "inductor/test_fxir_backend": 0.011494252873563218,
     "inductor/test_loop_ordering": 0.011494252873563218,
     "inductor/test_max_autotune": 0.011494252873563218,
-    "inductor/test_provenance_tracing": 0.08333333333333333,
     "inductor/test_utils": 0.011494252873563218,
     "lazy/test_ts_opinfo": 0.011494252873563218,
     "nn/test_convolution": 0.011494252873563218,
@@ -92351,7 +92305,7 @@
     "higher_order_ops/test_invoke_subgraph": 0.13106060606060607,
     "higher_order_ops/test_print": 0.006329113924050633,
     "inductor/test_alignment": 0.8,
-    "inductor/test_aot_inductor": 70.75570528209221,
+    "inductor/test_aot_inductor": 70.92237194875887,
     "inductor/test_aot_inductor_arrayref": 1.0351190476190475,
     "inductor/test_aot_inductor_custom_ops": 0.05263157894736842,
     "inductor/test_aot_inductor_package": 1.2846932672590565,
@@ -92518,7 +92472,7 @@
     "test_mobile_optimizer": 0.014060606060606062,
     "test_model_exports_to_core_aten": 0.049666666666666665,
     "test_modules": 0.012389719984656693,
-    "test_mps": 0.18705638665132335,
+    "test_mps": 0.35372305331799003,
     "test_multiprocessing": 0.014329113924050632,
     "test_nestedtensor": 1.1807272727272726,
     "test_nn": 0.2918182914132281,
@@ -93680,7 +93634,7 @@
     "test_jiterator": 0.029126213592233007,
     "test_mps": 0.029126213592233007,
     "test_multiprocessing": 0.029126213592233007,
-    "test_opaque_obj_v2": 0.8219833564493758,
+    "test_opaque_obj_v2": 0.8219833564493759,
     "test_ops": 0.029126213592233007,
     "test_proxy_tensor": 0.029126213592233007,
     "test_serialization": 0.029126213592233007,
@@ -94488,7 +94442,7 @@
     "inductor/test_block_analysis": 0.045454545454545456,
     "inductor/test_cache": 0.045454545454545456,
     "inductor/test_caching": 0.045454545454545456,
-    "inductor/test_ck_backend": 3.0018728956228955,
+    "inductor/test_ck_backend": 3.2518728956228955,
     "inductor/test_codecache": 0.4722222222222222,
     "inductor/test_codegen_triton": 0.045454545454545456,
     "inductor/test_combo_kernels": 0.03125,
@@ -94752,7 +94706,7 @@
     "inductor/test_best_config": 0.058692185007974476,
     "inductor/test_caching": 0.008403361344537815,
     "inductor/test_ck_backend": 0.4722222222222222,
-    "inductor/test_codecache": 27.73513732813187,
+    "inductor/test_codecache": 28.23513732813187,
     "inductor/test_codegen_triton": 0.006329113924050633,
     "inductor/test_combo_kernels": 0.012389719984656693,
     "inductor/test_compile": 0.08695652173913043,
@@ -94996,7 +94950,7 @@
     "inductor/test_caching": 0.045454545454545456,
     "inductor/test_ck_backend": 0.045454545454545456,
     "inductor/test_codecache": 0.006329113924050633,
-    "inductor/test_codegen_triton": 5.651783659378597,
+    "inductor/test_codegen_triton": 5.901783659378597,
     "inductor/test_combo_kernels": 0.006329113924050633,
     "inductor/test_compile_subprocess": 0.045454545454545456,
     "inductor/test_compile_worker": 0.006329113924050633,
@@ -95028,6 +94982,7 @@
     "inductor/test_gpu_cpp_wrapper": 0.05178365937859609,
     "inductor/test_group_batch_fusion": 0.045454545454545456,
     "inductor/test_halide": 0.045454545454545456,
+    "inductor/test_indexing": 0.25,
     "inductor/test_inductor_scheduler": 0.006329113924050633,
     "inductor/test_inplace_padding": 0.045454545454545456,
     "inductor/test_inplacing_pass": 0.045454545454545456,
@@ -95116,7 +95071,7 @@
     "torch_np/test_indexing": 0.006329113924050633
   },
   "test/inductor/test_collective_autotuning.py": {
-    "inductor/test_collective_autotuning": 1.0
+    "inductor/test_collective_autotuning": 0.9999999999999999
   },
   "test/inductor/test_combo_kernels.py": {
     "benchmark_utils/test_benchmark_utils": 0.006060606060606061,
@@ -95991,7 +95946,7 @@
     "dynamo/test_repros": 0.30532269542052154,
     "dynamo/test_sets": 0.006060606060606061,
     "dynamo/test_streams": 0.11911111111111111,
-    "dynamo/test_structured_trace": 0.27867965367965364,
+    "dynamo/test_structured_trace": 0.2786796536796537,
     "dynamo/test_subclasses": 0.5208333333333333,
     "dynamo/test_subgraphs": 0.09185606060606061,
     "dynamo/test_tp_richcompare": 0.006060606060606061,
@@ -96193,7 +96148,7 @@
     "test_multiprocessing": 0.037126213592233004,
     "test_namedtensor": 0.023342751575744405,
     "test_nestedtensor": 0.014060606060606062,
-    "test_nn": 0.037403357636350464,
+    "test_nn": 0.03740335763635047,
     "test_numa_binding": 0.03284758719541328,
     "test_opaque_obj_v2": 0.32652015298617243,
     "test_openmp": 0.006060606060606061,
@@ -99953,7 +99908,7 @@
     "inductor/test_unbacked_symints": 0.03333333333333333
   },
   "test/inductor/test_device_identity.py": {
-    "inductor/test_device_identity": 0.2
+    "inductor/test_device_identity": 0.4
   },
   "test/inductor/test_device_info.py": {
     "inductor/test_analysis": 0.4
@@ -100709,7 +100664,7 @@
     "inductor/test_flex_decoding": 1.7145047488859246,
     "inductor/test_flex_flash": 1.5026855352804722,
     "inductor/test_flex_gemm": 0.006060606060606061,
-    "inductor/test_fp8": 0.5944414394435721,
+    "inductor/test_fp8": 0.594441439443572,
     "inductor/test_fused_attention": 0.006060606060606061,
     "inductor/test_fuzzer": 0.029126213592233007,
     "inductor/test_fxir_backend": 0.13738713568583705,
@@ -101528,7 +101483,7 @@
     "inductor/test_dropout_align_random_eager": 0.006060606060606061,
     "inductor/test_flex_attention": 0.006060606060606061,
     "inductor/test_flex_flash": 0.006060606060606061,
-    "inductor/test_flex_gemm": 4.663563037204343,
+    "inductor/test_flex_gemm": 4.863563037204341,
     "inductor/test_flex_gemm_runtime": 0.07142857142857142,
     "inductor/test_fused_attention": 0.006060606060606061,
     "inductor/test_inductor_freezing": 0.006060606060606061,
@@ -101813,7 +101768,7 @@
     "inductor/test_distributed_patterns": 0.045454545454545456,
     "inductor/test_dropout_align_random_eager": 0.006329113924050633,
     "inductor/test_extension_backend": 0.07458075904677847,
-    "inductor/test_flex_attention": 0.5944414394435721,
+    "inductor/test_flex_attention": 0.594441439443572,
     "inductor/test_flex_decoding": 0.24265778006497593,
     "inductor/test_flex_flash": 0.05178365937859609,
     "inductor/test_fp8": 28.605588625590745,
@@ -101866,7 +101821,7 @@
     "inductor/test_split_cat_fx_passes": 0.035455327516283636,
     "inductor/test_static_triton_launcher": 0.08298412039131628,
     "inductor/test_subgraph_choice": 0.18831168831168826,
-    "inductor/test_torchinductor": 0.6655835326444889,
+    "inductor/test_torchinductor": 0.6655835326444888,
     "inductor/test_torchinductor_codegen_config_overrides": 0.008403361344537815,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.17045454545454547,
     "inductor/test_torchinductor_dynamic_shapes": 0.17678365937859608,
@@ -103057,6 +103012,7 @@
     "higher_order_ops/test_with_effects": 0.029126213592233007,
     "inductor/test_aot_inductor": 0.5,
     "inductor/test_auto_functionalize": 0.029126213592233007,
+    "inductor/test_codegen_triton": 0.25,
     "inductor/test_compiled_autograd": 0.029126213592233007,
     "inductor/test_compiled_optimizers": 0.029126213592233007,
     "inductor/test_cuda_repro": 0.6957928802588996,
@@ -103068,7 +103024,7 @@
     "inductor/test_fuzzer": 0.029126213592233007,
     "inductor/test_fxir_backend": 0.029126213592233007,
     "inductor/test_halide": 0.029126213592233007,
-    "inductor/test_indexing": 10.3994965839626,
+    "inductor/test_indexing": 10.6494965839626,
     "inductor/test_kernel_benchmark": 0.029126213592233007,
     "inductor/test_loop_ordering": 0.3333333333333333,
     "inductor/test_memory_planning": 0.029126213592233007,
@@ -104914,7 +104870,7 @@
     "inductor/test_kernel_optimization": 0.11688311688311688,
     "inductor/test_lookup_table": 0.47879308132919457,
     "inductor/test_loop_ordering": 0.17201708974133678,
-    "inductor/test_max_autotune": 67.15236758990113,
+    "inductor/test_max_autotune": 66.8190342565678,
     "inductor/test_max_autotune_blackwell": 1.68143315018315,
     "inductor/test_mem_estimation": 0.05385790679908327,
     "inductor/test_memory": 0.1940796026826039,
@@ -104945,7 +104901,7 @@
     "inductor/test_scatter_optimization": 0.05784426543920215,
     "inductor/test_select_algorithm": 0.7153045373528456,
     "inductor/test_snode_runtime": 0.045454545454545456,
-    "inductor/test_split_cat_fx_aten_passes": 0.15654556414050083,
+    "inductor/test_split_cat_fx_aten_passes": 0.15654556414050086,
     "inductor/test_split_cat_fx_passes": 0.07775768535262206,
     "inductor/test_static_triton_launcher": 0.06185790679908327,
     "inductor/test_subgraph_choice": 0.18831168831168826,
@@ -105425,7 +105381,7 @@
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_pad_mm": 0.045454545454545456,
     "inductor/test_padding": 0.006329113924050633,
-    "inductor/test_pattern_matcher": 0.9434503260452628,
+    "inductor/test_pattern_matcher": 0.9434503260452626,
     "inductor/test_profiler": 0.071920511773513,
     "inductor/test_provenance_tracing": 0.5619688445637812,
     "inductor/test_quantization": 0.045454545454545456,
@@ -105873,7 +105829,7 @@
     "export/test_unflatten": 0.034482758620689655,
     "functorch/test_control_flow": 0.034482758620689655,
     "inductor/test_minifier": 0.034482758620689655,
-    "inductor/test_minifier_utils": 0.6594827586206896,
+    "inductor/test_minifier_utils": 1.6594827586206897,
     "test_nestedtensor": 0.125
   },
   "test/inductor/test_mix_order_reduction.py": {
@@ -108396,7 +108352,7 @@
     "inductor/test_loop_ordering": 0.05784426543920215,
     "inductor/test_max_autotune": 0.26682834687665513,
     "inductor/test_mem_estimation": 0.05385790679908327,
-    "inductor/test_memory": 0.9434503260452628,
+    "inductor/test_memory": 0.9434503260452626,
     "inductor/test_memory_planning": 0.03333333333333333,
     "inductor/test_metrics": 0.045454545454545456,
     "inductor/test_minifier": 0.0787878787878788,
@@ -108416,7 +108372,7 @@
     "inductor/test_pad_as_cat": 0.006329113924050633,
     "inductor/test_pad_mm": 0.2883116883116883,
     "inductor/test_padding": 0.012389719984656693,
-    "inductor/test_pattern_matcher": 27.30410278296688,
+    "inductor/test_pattern_matcher": 27.161245640109737,
     "inductor/test_perf": 0.05263157894736842,
     "inductor/test_profiler": 0.22137380142210972,
     "inductor/test_provenance_tracing": 0.6923680749630118,
@@ -108806,7 +108762,7 @@
     "inductor/test_padding": 0.012389719984656693,
     "inductor/test_pallas": 0.029126213592233007,
     "inductor/test_pattern_matcher": 0.22137380142210972,
-    "inductor/test_profiler": 0.666913923686316,
+    "inductor/test_profiler": 0.6669139236863159,
     "inductor/test_provenance_tracing": 0.18858019617513289,
     "inductor/test_quantization": 0.07142857142857142,
     "inductor/test_scatter_optimization": 0.012389719984656693,
@@ -109131,7 +109087,7 @@
     "inductor/test_pattern_matcher": 0.6923680749630118,
     "inductor/test_perf": 0.20952380952380953,
     "inductor/test_profiler": 0.18858019617513289,
-    "inductor/test_provenance_tracing": 6.038267545862483,
+    "inductor/test_provenance_tracing": 5.95493421252915,
     "inductor/test_quantization": 0.045454545454545456,
     "inductor/test_scatter_optimization": 0.05784426543920215,
     "inductor/test_select_algorithm": 0.09117759877253548,
@@ -109593,8 +109549,8 @@
     "inductor/test_flex_attention": 0.30000000000000004,
     "inductor/test_flex_decoding": 0.30000000000000004,
     "inductor/test_lookup_table": 0.30000000000000004,
-    "inductor/test_segmented_tree": 0.8999999999999999,
-    "inductor/test_torchinductor": 0.8999999999999999
+    "inductor/test_segmented_tree": 0.7,
+    "inductor/test_torchinductor": 0.7
   },
   "test/inductor/test_select_algorithm.py": {
     "benchmark_utils/test_benchmark_utils": 0.006060606060606061,
@@ -110171,7 +110127,7 @@
     "inductor/test_kernel_optimization": 0.28354978354978355,
     "inductor/test_lookup_table": 0.006329113924050633,
     "inductor/test_loop_ordering": 0.1232122308071675,
-    "inductor/test_max_autotune": 0.15654556414050083,
+    "inductor/test_max_autotune": 0.15654556414050086,
     "inductor/test_mem_estimation": 0.045454545454545456,
     "inductor/test_memory": 0.08511699271192942,
     "inductor/test_memory_planning": 0.03333333333333333,
@@ -110648,7 +110604,7 @@
     "inductor/test_snode_runtime": 0.045454545454545456,
     "inductor/test_split_cat_fx_aten_passes": 0.045454545454545456,
     "inductor/test_split_cat_fx_passes": 0.029126213592233007,
-    "inductor/test_static_triton_launcher": 5.1357857076929045,
+    "inductor/test_static_triton_launcher": 5.46911904102624,
     "inductor/test_subgraph_choice": 0.045454545454545456,
     "inductor/test_torchinductor": 0.5246262135922329,
     "inductor/test_torchinductor_codegen_config_overrides": 0.008403361344537815,
@@ -110836,7 +110792,7 @@
     "inductor/test_max_autotune_blackwell": 1.6834478021978019,
     "inductor/test_nv_universal_gemm": 0.3334478021978021,
     "inductor/test_origami": 0.10267857142857142,
-    "inductor/test_template_heuristics_registry": 2.5167811355311356,
+    "inductor/test_template_heuristics_registry": 2.516781135531135,
     "inductor/test_triton_heuristics": 0.3334478021978021
   },
   "test/inductor/test_template_registration.py": {
@@ -110921,7 +110877,7 @@
     "distributed/tensor/test_convolution_ops": 0.006060606060606061,
     "distributed/tensor/test_dtensor": 0.03913707521954944,
     "distributed/tensor/test_dtensor_compile": 0.058851258446195154,
-    "distributed/tensor/test_dtensor_ops": 0.21406060606060606,
+    "distributed/tensor/test_dtensor_ops": 0.2140606060606061,
     "distributed/tensor/test_experimental_ops": 0.006060606060606061,
     "distributed/tensor/test_math_ops": 0.012389719984656693,
     "distributed/tensor/test_matrix_ops": 0.2921068917018284,
@@ -111090,7 +111046,7 @@
     "inductor/test_flex_flash": 0.012389719984656693,
     "inductor/test_flex_gemm": 0.006060606060606061,
     "inductor/test_foreach": 4.047619047619047,
-    "inductor/test_fp8": 0.6655835326444889,
+    "inductor/test_fp8": 0.6655835326444888,
     "inductor/test_fused_attention": 0.07748917748917748,
     "inductor/test_fuzzer": 0.029126213592233007,
     "inductor/test_fxir_backend": 0.22018312416133867,
@@ -111131,14 +111087,14 @@
     "inductor/test_profiler": 0.13149757532879108,
     "inductor/test_provenance_tracing": 0.04572305331799002,
     "inductor/test_scatter_optimization": 0.34572305331799,
-    "inductor/test_segmented_tree": 0.8999999999999999,
+    "inductor/test_segmented_tree": 0.7,
     "inductor/test_select_algorithm": 0.9781132972204291,
     "inductor/test_split_cat_fx_aten_passes": 0.039662447257383965,
     "inductor/test_split_cat_fx_passes": 0.035455327516283636,
     "inductor/test_static_triton_launcher": 0.5246262135922329,
     "inductor/test_subgraph_choice": 0.1,
     "inductor/test_torchbind": 0.7142857142857142,
-    "inductor/test_torchinductor": 166.39830642028156,
+    "inductor/test_torchinductor": 168.69830642028154,
     "inductor/test_torchinductor_codegen_config_overrides": 0.024390243902439025,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 12.59615800865801,
     "inductor/test_torchinductor_dynamic_shapes": 4.415069447664385,
@@ -111776,7 +111732,7 @@
     "inductor/test_subgraph_choice": 0.045454545454545456,
     "inductor/test_torchinductor": 4.415069447664385,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.7037878787878787,
-    "inductor/test_torchinductor_dynamic_shapes": 20.656507079799688,
+    "inductor/test_torchinductor_dynamic_shapes": 20.65650707979969,
     "inductor/test_torchinductor_opinfo": 0.5181818181818181,
     "inductor/test_torchinductor_opinfo_properties": 0.037037037037037035,
     "inductor/test_torchinductor_strided_blocks": 0.07692307692307693,
@@ -112177,7 +112133,7 @@
     "inductor/test_torchinductor": 0.045037037037037035,
     "inductor/test_torchinductor_dynamic_shapes": 0.037037037037037035,
     "inductor/test_torchinductor_opinfo": 0.08492307692307693,
-    "inductor/test_torchinductor_opinfo_properties": 10.121960113960114,
+    "inductor/test_torchinductor_opinfo_properties": 10.455293447293448,
     "inductor/test_torchinductor_strided_blocks": 0.008,
     "inductor/test_triton_kernels": 0.008,
     "nn/test_convolution": 0.037037037037037035,
@@ -112208,7 +112164,7 @@
     "test_nestedtensor": 0.008,
     "test_nn": 0.045037037037037035,
     "test_opaque_obj_v2": 0.008,
-    "test_ops": 0.12196011396011397,
+    "test_ops": 0.4552934472934473,
     "test_ops_fwd_gradients": 0.08492307692307693,
     "test_ops_gradients": 0.08492307692307693,
     "test_ops_jit": 0.08492307692307693,
@@ -113153,7 +113109,7 @@
     "inductor/test_triton_extension_backend": 0.045454545454545456,
     "inductor/test_triton_helpers": 0.125,
     "inductor/test_triton_heuristics": 0.17619047619047618,
-    "inductor/test_triton_kernels": 24.86984294219883,
+    "inductor/test_triton_kernels": 24.869842942198833,
     "inductor/test_triton_syntax": 0.045454545454545456,
     "inductor/test_unbacked_symints": 0.17619047619047618,
     "nn/test_convolution": 0.03284758719541328,
@@ -113408,7 +113364,7 @@
     "inductor/test_torchinductor_strided_blocks": 0.11025641025641025,
     "inductor/test_triton_heuristics": 0.17619047619047618,
     "inductor/test_triton_kernels": 0.17619047619047618,
-    "inductor/test_unbacked_symints": 11.23595386095386,
+    "inductor/test_unbacked_symints": 11.73595386095386,
     "inductor/test_wrapper_codegen": 0.09090909090909091,
     "nn/test_convolution": 0.018518518518518517,
     "nn/test_module_hooks": 0.018518518518518517,
@@ -118700,7 +118656,7 @@
     "nn/test_init": 0.058823529411764705,
     "nn/test_lazy_modules": 0.20186312072721807,
     "nn/test_load_state_dict": 0.08823529411764705,
-    "nn/test_module_hooks": 1.6487181351344145,
+    "nn/test_module_hooks": 1.6487181351344147,
     "nn/test_multihead_attention": 0.029411764705882353,
     "nn/test_parametrization": 0.2203816392457366,
     "nn/test_pooling": 0.029411764705882353,
@@ -119441,8 +119397,8 @@
     "onnx/exporter/test_building": 0.4545454545454546,
     "onnx/exporter/test_exportable_module": 0.14285714285714285,
     "onnx/exporter/test_hf_models_e2e": 0.14285714285714285,
-    "onnx/exporter/test_small_models_e2e": 5.299783549783549,
-    "onnx/ops/test_ops": 0.9307359307359309,
+    "onnx/exporter/test_small_models_e2e": 5.299783549783548,
+    "onnx/ops/test_ops": 0.9307359307359306,
     "test_decomp": 0.14285714285714285
   },
   "test/onnx/exporter/test_verification.py": {
@@ -119578,7 +119534,7 @@
     "onnx/exporter/test_capture_strategies": 0.0967741935483871,
     "onnx/exporter/test_exportable_module": 0.14285714285714285,
     "onnx/exporter/test_hf_models_e2e": 0.23963133640552994,
-    "onnx/exporter/test_small_models_e2e": 0.9307359307359309,
+    "onnx/exporter/test_small_models_e2e": 0.9307359307359306,
     "onnx/exporter/test_verification": 0.0967741935483871,
     "onnx/internal/test_registration": 0.0967741935483871,
     "onnx/ops/test_ops": 3.6941767909509844,
@@ -120536,7 +120492,7 @@
     "nn/test_module_hooks": 0.058823529411764705,
     "nn/test_parametrization": 0.058823529411764705,
     "nn/test_pruning": 0.058823529411764705,
-    "optim/test_stateless": 0.9754901960784313,
+    "optim/test_stateless": 0.9754901960784312,
     "test_functional_optim": 0.058823529411764705
   },
   "test/optim/test_swa_utils.py": {
@@ -129991,7 +129947,7 @@
     "distributed/_composable/fsdp/test_fully_shard_autograd": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_clip_grad_norm_": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.016403361344537813,
-    "distributed/_composable/fsdp/test_fully_shard_compile": 0.4727272727272728,
+    "distributed/_composable/fsdp/test_fully_shard_compile": 0.47272727272727266,
     "distributed/_composable/fsdp/test_fully_shard_dtensor": 0.006329113924050633,
     "distributed/_composable/fsdp/test_fully_shard_extensions": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_frozen": 0.008403361344537815,
@@ -130247,7 +130203,7 @@
     "test_cuda_primary_ctx": 0.029126213592233007,
     "test_cuda_sanitizer": 0.037529574936770824,
     "test_cuda_trace": 0.029126213592233007,
-    "test_custom_ops": 14.815597025875016,
+    "test_custom_ops": 14.815597025875018,
     "test_dataloader": 0.008,
     "test_datapipe": 0.024276377217553685,
     "test_decomp": 0.049666666666666665,
@@ -130282,7 +130238,7 @@
     "test_nn": 0.19903537190617068,
     "test_numa_binding": 0.07736887858591712,
     "test_numpy_interop": 0.14936870523950402,
-    "test_opaque_obj_v2": 1.1105645399717359,
+    "test_opaque_obj_v2": 1.110564539971736,
     "test_ops": 0.18649491883173702,
     "test_ops_fwd_gradients": 0.008,
     "test_ops_gradients": 0.1510395913154534,
@@ -132097,7 +132053,7 @@
     "test_dispatch": 0.006329113924050633,
     "test_dynamic_shapes": 0.04632911392405063,
     "test_fake_tensor": 0.0847906523855891,
-    "test_foreach": 10.908004938099875,
+    "test_foreach": 11.158004938099875,
     "test_fx": 0.006329113924050633,
     "test_fx_passes": 0.04632911392405063,
     "test_indexing": 0.07846153846153847,
@@ -133609,7 +133565,7 @@
     "test_foreach": 0.07846153846153847,
     "test_fx": 0.05063132809311266,
     "test_fx_passes": 0.04,
-    "test_indexing": 18.245273787083395,
+    "test_indexing": 18.2452737870834,
     "test_jit": 0.1104462008765012,
     "test_jit_autocast": 0.03913707521954944,
     "test_jit_fuser_te": 0.03284758719541328,
@@ -135875,7 +135831,7 @@
     "test_subclass": 0.14303959131545338,
     "test_tensor_creation_ops": 0.04,
     "test_testing": 0.048,
-    "test_torch": 0.4237668640427261,
+    "test_torch": 0.4237668640427262,
     "test_torchfuzz_repros": 0.008,
     "test_transformers": 0.2279626682385303,
     "test_type_hints": 0.008,
@@ -136759,7 +136715,7 @@
     "higher_order_ops/test_local_map": 0.029126213592233007,
     "higher_order_ops/test_print": 0.035455327516283636,
     "higher_order_ops/test_with_effects": 0.029126213592233007,
-    "inductor/test_aot_inductor": 0.18705638665132335,
+    "inductor/test_aot_inductor": 0.35372305331799003,
     "inductor/test_aoti_torchbind_constants": 0.006060606060606061,
     "inductor/test_async_compile": 0.006329113924050633,
     "inductor/test_auto_chunker": 0.006060606060606061,
@@ -136910,7 +136866,7 @@
     "test_mobile_optimizer": 0.014060606060606062,
     "test_model_exports_to_core_aten": 0.008,
     "test_modules": 0.02388397285821991,
-    "test_mps": 82.58916105710706,
+    "test_mps": 82.75582772377372,
     "test_multiprocessing": 0.07202675608771221,
     "test_nestedtensor": 0.014060606060606062,
     "test_nn": 2.129899845874093,
@@ -137255,7 +137211,7 @@
     "torch_np/test_nep50_examples": 0.038461538461538464
   },
   "test/test_multiprocessing_spawn.py": {
-    "test_multiprocessing_spawn": 2.0
+    "test_multiprocessing_spawn": 1.0
   },
   "test/test_namedtensor.py": {
     "dynamo/test_misc": 0.023342751575744405,
@@ -137804,7 +137760,7 @@
     "distributed/tensor/test_strategy_validation": 0.012389719984656693,
     "distributed/tensor/test_tensor_ops": 0.020389719984656694,
     "distributed/tensor/test_utils": 0.012389719984656693,
-    "distributed/test_c10d_common": 0.4055721123049801,
+    "distributed/test_c10d_common": 0.40557211230498,
     "distributed/test_c10d_functional_native": 0.014060606060606062,
     "distributed/test_c10d_gloo": 0.048961148556085264,
     "distributed/test_c10d_hooks": 0.006060606060606061,
@@ -137874,7 +137830,7 @@
     "dynamo/test_subgraphs": 0.006329113924050633,
     "dynamo/test_tp_richcompare": 0.006060606060606061,
     "dynamo/test_tp_slots": 0.006060606060606061,
-    "dynamo/test_trace_rules": 0.037403357636350464,
+    "dynamo/test_trace_rules": 0.03740335763635047,
     "dynamo/test_tree_map": 0.006329113924050633,
     "dynamo/test_utils": 0.04854336468129571,
     "export/test_dynamic_spec_export": 0.012389719984656693,
@@ -137911,7 +137867,7 @@
     "inductor/test_combo_kernels": 0.020389719984656694,
     "inductor/test_compile_subprocess": 0.008,
     "inductor/test_compile_worker": 0.014329113924050632,
-    "inductor/test_compiled_autograd": 0.037403357636350464,
+    "inductor/test_compiled_autograd": 0.03740335763635047,
     "inductor/test_compiled_optimizers": 0.04546618914360007,
     "inductor/test_control_deps": 0.014060606060606062,
     "inductor/test_coordinate_descent_tuner": 0.006060606060606061,
@@ -138043,7 +137999,7 @@
     "test_multiprocessing": 0.1183991179940547,
     "test_namedtensor": 0.023342751575744405,
     "test_nestedtensor": 0.014060606060606062,
-    "test_nn": 53.32780541550895,
+    "test_nn": 53.82780541550895,
     "test_numa_binding": 0.06896551724137931,
     "test_numpy_interop": 0.18850578045905345,
     "test_opaque_obj_v2": 0.014060606060606062,
@@ -138549,7 +138505,7 @@
     "distributed/_composable/fsdp/test_fully_shard_autograd": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_clip_grad_norm_": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_comm": 0.016403361344537813,
-    "distributed/_composable/fsdp/test_fully_shard_compile": 0.4727272727272728,
+    "distributed/_composable/fsdp/test_fully_shard_compile": 0.47272727272727266,
     "distributed/_composable/fsdp/test_fully_shard_extensions": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_frozen": 0.008403361344537815,
     "distributed/_composable/fsdp/test_fully_shard_init": 0.008403361344537815,
@@ -138712,7 +138668,7 @@
     "inductor/test_aot_inductor_custom_ops": 0.02564102564102564,
     "inductor/test_aoti_torchbind_constants": 0.006060606060606061,
     "inductor/test_auto_chunker": 0.006060606060606061,
-    "inductor/test_auto_functionalize": 0.8219833564493758,
+    "inductor/test_auto_functionalize": 0.8219833564493759,
     "inductor/test_benchmarking": 0.008,
     "inductor/test_best_config": 0.006060606060606061,
     "inductor/test_caching": 0.008403361344537815,
@@ -138819,7 +138775,7 @@
     "test_cuda_primary_ctx": 0.029126213592233007,
     "test_cuda_sanitizer": 0.037529574936770824,
     "test_cuda_trace": 0.029126213592233007,
-    "test_custom_ops": 1.1105645399717359,
+    "test_custom_ops": 1.110564539971736,
     "test_dataloader": 0.008,
     "test_datapipe": 0.008403361344537815,
     "test_decomp": 0.008,
@@ -138859,7 +138815,7 @@
     "test_nestedtensor": 0.022463967405143878,
     "test_nn": 0.014060606060606062,
     "test_numa_binding": 0.008403361344537815,
-    "test_opaque_obj_v2": 23.806000001339523,
+    "test_opaque_obj_v2": 23.80600000133952,
     "test_openmp": 0.006060606060606061,
     "test_ops": 0.04318681965283906,
     "test_ops_fwd_gradients": 0.008,
@@ -139176,7 +139132,7 @@
     "dynamo/test_higher_order_ops": 0.008,
     "dynamo/test_list": 0.006060606060606061,
     "dynamo/test_logging": 0.006329113924050633,
-    "dynamo/test_misc": 0.13312014136186398,
+    "dynamo/test_misc": 0.133120141361864,
     "dynamo/test_modes": 0.006329113924050633,
     "dynamo/test_package": 0.008,
     "dynamo/test_profiler": 0.012389719984656693,
@@ -139188,7 +139144,7 @@
     "dynamo/test_subgraphs": 0.006329113924050633,
     "dynamo/test_tp_richcompare": 0.006060606060606061,
     "dynamo/test_tp_slots": 0.006060606060606061,
-    "dynamo/test_trace_rules": 0.037403357636350464,
+    "dynamo/test_trace_rules": 0.03740335763635047,
     "dynamo/test_tree_map": 0.006329113924050633,
     "dynamo/test_utils": 0.014060606060606062,
     "export/test_dynamic_spec_export": 0.012389719984656693,
@@ -139280,7 +139236,7 @@
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.006060606060606061,
     "inductor/test_torchinductor_dynamic_shapes": 0.3160934236883604,
     "inductor/test_torchinductor_opinfo": 0.7438576503944244,
-    "inductor/test_torchinductor_opinfo_properties": 0.12196011396011397,
+    "inductor/test_torchinductor_opinfo_properties": 0.4552934472934473,
     "inductor/test_torchinductor_strided_blocks": 0.04318681965283906,
     "inductor/test_triton_extension_backend": 0.029126213592233007,
     "inductor/test_triton_heuristics": 0.03518681965283907,
@@ -139372,7 +139328,7 @@
     "test_numpy_interop": 0.14936870523950402,
     "test_opaque_obj_v2": 0.04318681965283906,
     "test_openmp": 0.006060606060606061,
-    "test_ops": 17.35032837476204,
+    "test_ops": 17.683661708095375,
     "test_ops_fwd_gradients": 0.08492307692307693,
     "test_ops_gradients": 0.30466721369307576,
     "test_ops_jit": 0.08492307692307693,
@@ -139399,7 +139355,7 @@
     "test_tensorboard": 0.029126213592233007,
     "test_tensorexpr": 0.011494252873563218,
     "test_testing": 0.1998913651073845,
-    "test_torch": 0.6020919281957197,
+    "test_torch": 0.6020919281957196,
     "test_torch_config_hash_determinism": 0.006060606060606061,
     "test_torchfuzz_repros": 0.008,
     "test_transformers": 0.16859445024962266,
@@ -141382,7 +141338,7 @@
     "test_python_dispatch": 0.011494252873563218,
     "test_pytree": 0.016403361344537813,
     "test_reductions": 0.018518518518518517,
-    "test_scaled_matmul_cuda": 42.381349716808145,
+    "test_scaled_matmul_cuda": 42.38134971680814,
     "test_scatter_gather_ops": 0.02702702702702703,
     "test_segment_reductions": 0.018518518518518517,
     "test_serialization": 0.018518518518518517,
@@ -142175,7 +142131,7 @@
     "functorch/test_aotdispatch": 0.012389719984656693,
     "functorch/test_dims": 0.006329113924050633,
     "functorch/test_leaf_function": 0.006329113924050633,
-    "functorch/test_ops": 0.29545454545454547,
+    "functorch/test_ops": 0.045454545454545456,
     "functorch/test_vmap": 0.07670454545454546,
     "higher_order_ops/test_invoke_subgraph": 0.006060606060606061,
     "higher_order_ops/test_print": 0.006329113924050633,
@@ -142287,7 +142243,7 @@
     "test_reductions": 0.12848820483314155,
     "test_scatter_gather_ops": 0.006329113924050633,
     "test_serialization": 0.006060606060606061,
-    "test_sort_and_select": 3.534548810893748,
+    "test_sort_and_select": 3.284548810893748,
     "test_sparse": 0.012389719984656693,
     "test_sparse_csr": 0.006329113924050633,
     "test_sympy_utils": 0.006060606060606061,
@@ -142631,7 +142587,7 @@
     "test_serialization": 0.07890819325601933,
     "test_shape_ops": 0.011494252873563218,
     "test_sort_and_select": 0.012389719984656693,
-    "test_sparse": 24.765692698033202,
+    "test_sparse": 24.43235936469987,
     "test_sparse_csr": 0.6348026600661776,
     "test_sparse_semi_structured": 0.125,
     "test_spectral_ops": 0.21273584905660375,
@@ -142932,7 +142888,7 @@
     "test_serialization": 0.0913661057139318,
     "test_sort_and_select": 0.006329113924050633,
     "test_sparse": 0.6348026600661776,
-    "test_sparse_csr": 9.592189103112995,
+    "test_sparse_csr": 9.592189103112997,
     "test_sparse_semi_structured": 0.2688679245283019,
     "test_spectral_ops": 0.08773584905660377,
     "test_tensor_creation_ops": 0.10330917090410761,
@@ -142973,7 +142929,7 @@
     "distributed/tensor/parallel/test_parallelize_api": 0.018867924528301886,
     "distributed/tensor/test_attention": 0.034482758620689655,
     "distributed/tensor/test_dtensor_compile": 0.034482758620689655,
-    "distributed/test_c10d_common": 0.2396109637488948,
+    "distributed/test_c10d_common": 0.23961096374889476,
     "distributed/test_c10d_spawn_gloo": 0.015873015873015872,
     "distributed/test_distributed_spawn": 0.20512820512820512,
     "distributed/test_fake_pg": 0.034482758620689655,
@@ -144797,7 +144753,7 @@
     "dynamo/test_subgraphs": 0.006329113924050633,
     "dynamo/test_tp_richcompare": 0.006060606060606061,
     "dynamo/test_tp_slots": 0.006060606060606061,
-    "dynamo/test_trace_rules": 0.037403357636350464,
+    "dynamo/test_trace_rules": 0.03740335763635047,
     "dynamo/test_tree_map": 0.006329113924050633,
     "dynamo/test_unspec": 0.03225806451612903,
     "dynamo/test_utils": 0.014060606060606062,
@@ -144945,7 +144901,7 @@
     "test_logging": 0.006329113924050633,
     "test_maskedtensor": 0.018867924528301886,
     "test_matmul_cuda": 0.17570473005255613,
-    "test_meta": 0.4237668640427261,
+    "test_meta": 0.4237668640427262,
     "test_mobile_optimizer": 0.014060606060606062,
     "test_model_exports_to_core_aten": 0.008,
     "test_modules": 0.012389719984656693,
@@ -144959,7 +144915,7 @@
     "test_numpy_interop": 0.14936870523950402,
     "test_opaque_obj_v2": 0.0397016317016317,
     "test_openmp": 0.006060606060606061,
-    "test_ops": 0.6020919281957197,
+    "test_ops": 0.6020919281957196,
     "test_ops_fwd_gradients": 0.008,
     "test_ops_gradients": 0.1510395913154534,
     "test_ops_jit": 0.008,
@@ -144986,7 +144942,7 @@
     "test_tensorboard": 0.03284758719541328,
     "test_tensorexpr": 0.1869092118452732,
     "test_testing": 0.014060606060606062,
-    "test_torch": 27.35954515711506,
+    "test_torch": 27.52621182378173,
     "test_torch_config_hash_determinism": 0.006060606060606061,
     "test_torchfuzz_repros": 0.008,
     "test_transformers": 0.5438252647615043,
@@ -150938,6 +150894,7 @@
     "test_autograd": 0.023342751575744405,
     "test_binary_ufuncs": 0.08773584905660377,
     "test_cuda": 0.027777777777777776,
+    "test_foreach": 0.25,
     "test_namedtensor": 0.023342751575744405,
     "test_nn": 0.023342751575744405,
     "test_ops": 0.11107860063234817,
@@ -151075,6 +151032,9 @@
     "test_testing": 0.029126213592233007,
     "test_typing": 0.029126213592233007,
     "test_weak": 0.029126213592233007
+  },
+  "tools/test/test_codegen.py": {
+    "test_foreach": 0.25
   },
   "tools/test/test_gb_registry_linter.py": {
     "dynamo/test_error_messages": 0.22941176470588237
@@ -151527,7 +151487,7 @@
     "distributed/test_dist2": 0.5,
     "distributed/test_fake_pg": 0.5745614035087719,
     "distributed/test_functional_api": 0.25,
-    "distributed/test_functional_differentials": 0.25,
+    "distributed/test_functional_differentials": 0.3928571428571428,
     "distributed/test_local_tensor": 0.1111111111111111,
     "distributed/test_nccl": 1.162878787878788,
     "distributed/test_nvshmem": 0.9242424242424241,
@@ -152177,7 +152137,7 @@
     "dynamo/test_unittest": 0.09185606060606061,
     "dynamo/test_utils": 0.6394751082251082,
     "export/test_experimental": 0.29166666666666663,
-    "export/test_export": 1.191880341880342,
+    "export/test_export": 1.1918803418803419,
     "export/test_passes": 0.020618556701030927,
     "functorch/test_aot_joint_with_descriptors": 0.3968253968253968,
     "functorch/test_control_flow": 0.48490427098674516,
@@ -152258,7 +152218,8 @@
     "dynamo/test_error_messages": 0.6634776987718164,
     "dynamo/test_exc": 0.20192307692307693,
     "dynamo/test_exception_contract": 0.29914529914529914,
-    "dynamo/test_exceptions": 0.047619047619047616,
+    "dynamo/test_exceptions": 0.11904761904761904,
+    "dynamo/test_functions": 0.07142857142857142,
     "dynamo/test_fwd_loss_bwd": 0.41666666666666663,
     "dynamo/test_fx_annotate": 0.5333333333333333,
     "dynamo/test_generator": 0.07692307692307693,
@@ -152277,11 +152238,12 @@
     "dynamo/test_recompiles": 0.24761904761904763,
     "dynamo/test_reconstruct": 0.3333333333333333,
     "dynamo/test_repros": 1.711498646281255,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "dynamo/test_streams": 0.08695652173913043,
     "dynamo/test_structured_trace": 0.7976190476190477,
     "dynamo/test_subclasses": 0.5476190476190477,
     "dynamo/test_unspec": 0.2,
-    "dynamo/test_utils": 1.4142857142857141,
+    "dynamo/test_utils": 1.0809523809523809,
     "export/test_draft_export": 0.125,
     "export/test_experimental": 3.1083333333333334,
     "export/test_export": 2.0511904761904765,
@@ -152412,7 +152374,7 @@
     "test_type_info": 0.011235955056179775
   },
   "torch/_dynamo/device_interface.py": {
-    "inductor/test_device_identity": 0.2,
+    "inductor/test_device_identity": 0.4,
     "inductor/test_minifier": 0.25,
     "inductor/test_pallas": 0.5,
     "inductor/test_utils": 0.25,
@@ -152632,7 +152594,7 @@
     "dynamo/cpython/3_13/test_userlist": 0.017543859649122806,
     "dynamo/cpython/3_13/test_with": 0.017543859649122806,
     "dynamo/test_backward_higher_order_ops": 0.07142857142857142,
-    "dynamo/test_decorators": 0.30845295055821376,
+    "dynamo/test_decorators": 0.3084529505582137,
     "dynamo/test_fwd_loss_bwd": 0.07142857142857142,
     "dynamo/test_higher_order_ops": 0.26666666666666666,
     "dynamo/test_hooks": 0.6357142857142857,
@@ -152749,7 +152711,7 @@
     "dynamo/test_fake_distributed": 0.1625,
     "dynamo/test_flat_apply": 0.04,
     "dynamo/test_functions": 1.4623015873015872,
-    "dynamo/test_fwd_loss_bwd": 2.877380952380952,
+    "dynamo/test_fwd_loss_bwd": 2.8773809523809524,
     "dynamo/test_fx_annotate": 0.3333333333333333,
     "dynamo/test_generator": 0.5635385926946029,
     "dynamo/test_getitem": 0.6988235294117646,
@@ -152761,7 +152723,7 @@
     "dynamo/test_id": 0.11627906976744186,
     "dynamo/test_input_attr_tracking": 0.21014492753623187,
     "dynamo/test_iterators": 0.34275987006496755,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.06666666666666667,
     "dynamo/test_logging": 0.16666666666666666,
     "dynamo/test_mapping_ops": 0.16233766233766234,
@@ -152780,13 +152742,13 @@
     "dynamo/test_reorder_logs": 1.5,
     "dynamo/test_repr_protocol": 0.35156965871902757,
     "dynamo/test_repros": 2.3772195196108243,
-    "dynamo/test_sequence_ops": 0.691504329004329,
+    "dynamo/test_sequence_ops": 0.6915043290043289,
     "dynamo/test_str_protocol": 0.4636904761904762,
     "dynamo/test_streams": 0.06666666666666667,
     "dynamo/test_subclasses": 0.25263157894736843,
     "dynamo/test_tp_getattro": 0.06451612903225806,
     "dynamo/test_tp_hash": 0.18066931366988084,
-    "dynamo/test_tp_richcompare": 0.24116871323093925,
+    "dynamo/test_tp_richcompare": 0.2411687132309393,
     "dynamo/test_tp_slots": 0.1,
     "dynamo/test_trace_rules": 0.9916666666666666,
     "dynamo/test_user_defined_object": 0.49567099567099565,
@@ -152814,7 +152776,7 @@
     "inductor/test_torchinductor": 0.043478260869565216,
     "inductor/test_torchinductor_opinfo": 0.2,
     "python_native/test_registry": 0.3333333333333333,
-    "test_autograd": 1.202380952380952,
+    "test_autograd": 1.2023809523809523,
     "test_dynamic_shapes": 0.3333333333333333,
     "test_extension_utils": 0.125,
     "test_fake_tensor": 0.24347826086956523,
@@ -152854,7 +152816,6 @@
     "dynamo/test_debug_utils": 2.9166666666666665
   },
   "torch/_dynamo/graph_region_tracker.py": {
-    "dynamo/test_graph_region_tracker": 0.5,
     "test_bundled_inputs": 0.011235955056179775,
     "test_complex": 0.011235955056179775,
     "test_cuda": 0.1,
@@ -153058,7 +153019,7 @@
     "dynamo/test_utils": 0.5666666666666667,
     "export/test_dynamic_spec_export": 0.16666666666666666,
     "export/test_experimental": 1.2472222222222222,
-    "export/test_export": 2.201190476190477,
+    "export/test_export": 1.9511904761904766,
     "export/test_strict_export_v2": 0.2833333333333333,
     "functorch/test_aot_joint_with_descriptors": 0.8968253968253967,
     "functorch/test_aotdispatch": 0.3857142857142857,
@@ -153136,6 +153097,8 @@
     "dynamo/test_decorators": 0.34025974025974026,
     "dynamo/test_dicts": 0.21627906976744188,
     "dynamo/test_dynamo_decompositions": 1.0,
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
     "dynamo/test_fwd_loss_bwd": 0.07142857142857142,
     "dynamo/test_generator": 0.1764705882352941,
     "dynamo/test_getitem": 0.1,
@@ -153145,6 +153108,7 @@
     "dynamo/test_nested_graph_breaks": 1.0357142857142856,
     "dynamo/test_polyfills": 0.25,
     "dynamo/test_repros": 0.39285714285714285,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "dynamo/test_sets": 0.14285714285714285,
     "dynamo/test_tp_hash": 0.11627906976744186,
     "dynamo/test_tp_richcompare": 0.16891064871481026,
@@ -153190,8 +153154,11 @@
   },
   "torch/_dynamo/polyfills/loader.py": {
     "dynamo/cpython/3_13/test_raise": 0.13043478260869565,
+    "dynamo/test_exceptions": 0.07142857142857142,
+    "dynamo/test_functions": 0.07142857142857142,
     "dynamo/test_misc": 0.5575632097371228,
     "dynamo/test_repros": 0.25,
+    "dynamo/test_sequence_ops": 0.07142857142857142,
     "export/test_export": 0.3968253968253968
   },
   "torch/_dynamo/polyfills/operator.py": {
@@ -153220,7 +153187,7 @@
     "export/test_export": 0.2272727272727273,
     "test_bundled_inputs": 0.011235955056179775,
     "test_complex": 0.011235955056179775,
-    "test_pytree": 0.8106060606060603,
+    "test_pytree": 0.8106060606060606,
     "test_type_hints": 0.011235955056179775,
     "test_type_info": 0.011235955056179775
   },
@@ -153385,7 +153352,6 @@
     "dynamo/test_repros": 0.16666666666666666,
     "dynamo/test_subclasses": 0.15263157894736842,
     "dynamo/test_tp_richcompare": 0.16666666666666666,
-    "export/test_export": 0.25,
     "inductor/test_torchinductor": 0.02631578947368421,
     "test_cuda": 0.02631578947368421,
     "test_dynamic_shapes": 0.09090909090909091,
@@ -153422,12 +153388,12 @@
     "dynamo/test_enum": 0.25,
     "dynamo/test_error_messages": 8.120745718606024,
     "dynamo/test_exc": 1.2371794871794872,
-    "dynamo/test_exceptions": 1.217583162095357,
+    "dynamo/test_exceptions": 1.2890117335239284,
     "dynamo/test_export": 1.8426157176157176,
     "dynamo/test_fake_distributed": 0.5,
-    "dynamo/test_functions": 0.976190476190476,
+    "dynamo/test_functions": 1.0476190476190477,
     "dynamo/test_fwd_loss_bwd": 1.0166666666666668,
-    "dynamo/test_generator": 6.788042030433334,
+    "dynamo/test_generator": 6.454708697100001,
     "dynamo/test_getitem": 0.37549019607843137,
     "dynamo/test_global": 0.3333333333333333,
     "dynamo/test_guard_serialization": 0.35,
@@ -153438,7 +153404,7 @@
     "dynamo/test_list": 0.125,
     "dynamo/test_logging": 0.5583333333333333,
     "dynamo/test_mapping_ops": 0.16233766233766234,
-    "dynamo/test_misc": 6.136512720902194,
+    "dynamo/test_misc": 6.136512720902195,
     "dynamo/test_modes": 0.4004329004329005,
     "dynamo/test_modules": 0.125,
     "dynamo/test_nb_bool": 0.06666666666666667,
@@ -153450,7 +153416,7 @@
     "dynamo/test_repr_protocol": 0.11225806451612905,
     "dynamo/test_repros": 1.7683284457478003,
     "dynamo/test_resume": 0.14285714285714285,
-    "dynamo/test_sequence_ops": 0.28733766233766234,
+    "dynamo/test_sequence_ops": 0.35876623376623373,
     "dynamo/test_sets": 0.14285714285714285,
     "dynamo/test_str_protocol": 0.14285714285714285,
     "dynamo/test_streams": 1.3333333333333333,
@@ -153682,7 +153648,7 @@
     "dynamo/test_decorators": 0.8865914786967417,
     "dynamo/test_error_messages": 0.33717948717948715,
     "dynamo/test_export": 0.1,
-    "dynamo/test_fake_distributed": 3.238095238095238,
+    "dynamo/test_fake_distributed": 3.2380952380952377,
     "dynamo/test_functions": 1.611111111111111,
     "dynamo/test_fwd_loss_bwd": 0.41666666666666663,
     "dynamo/test_fx_annotate": 0.5333333333333333,
@@ -153777,7 +153743,7 @@
     "dynamo/test_exceptions": 0.07200929152148663,
     "dynamo/test_functions": 0.961111111111111,
     "dynamo/test_fx_annotate": 0.5333333333333333,
-    "dynamo/test_generator": 1.9579391197038256,
+    "dynamo/test_generator": 1.9579391197038254,
     "dynamo/test_getitem": 0.06666666666666667,
     "dynamo/test_guard_manager": 0.29411764705882354,
     "dynamo/test_guard_serialization": 0.44047619047619047,
@@ -153809,7 +153775,7 @@
     "dynamo/test_tree_map": 0.14285714285714285,
     "dynamo/test_unspec": 0.29411764705882354,
     "dynamo/test_user_defined_object": 0.3333333333333333,
-    "dynamo/test_utils": 4.630753968253968,
+    "dynamo/test_utils": 4.297420634920635,
     "export/test_experimental": 0.25,
     "export/test_export": 0.7333333333333334,
     "functorch/test_aotdispatch": 0.29411764705882354,
@@ -153934,7 +153900,7 @@
     "dynamo/test_id": 0.16891064871481026,
     "dynamo/test_iterators": 0.21589205397301353,
     "dynamo/test_lazy_constant": 0.8829188355504145,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.125,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_misc": 1.8676101525997009,
@@ -154121,7 +154087,7 @@
     "test_nn": 0.11063218390804597,
     "test_numa_binding": 0.06896551724137931,
     "test_numpy_interop": 0.06896551724137931,
-    "test_opaque_obj_v2": 3.8978057037380536,
+    "test_opaque_obj_v2": 3.897805703738053,
     "test_ops": 0.06896551724137931,
     "test_ops_gradients": 0.06896551724137931,
     "test_proxy_tensor": 0.06896551724137931,
@@ -154175,9 +154141,9 @@
     "dynamo/test_input_attr_tracking": 0.21014492753623187,
     "dynamo/test_iterators": 1.113701671891327,
     "dynamo/test_lazy_constant": 1.2591093117408907,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.125,
-    "dynamo/test_misc": 8.30138182792432,
+    "dynamo/test_misc": 8.301381827924322,
     "dynamo/test_modules": 0.125,
     "dynamo/test_nb_and": 0.07692307692307693,
     "dynamo/test_nb_bool": 0.2720238095238095,
@@ -154201,7 +154167,7 @@
     "dynamo/test_reconstruct": 0.23076923076923078,
     "dynamo/test_repr_protocol": 0.35156965871902757,
     "dynamo/test_repros": 0.5193956672930301,
-    "dynamo/test_sequence_ops": 1.0470238095238094,
+    "dynamo/test_sequence_ops": 1.2970238095238094,
     "dynamo/test_sets": 0.2777777777777778,
     "dynamo/test_str_protocol": 0.6065476190476191,
     "dynamo/test_subclasses": 0.3666666666666667,
@@ -154256,7 +154222,7 @@
     "dynamo/test_id": 0.16891064871481026,
     "dynamo/test_iterators": 0.6724137931034481,
     "dynamo/test_lazy_constant": 0.11625216888374781,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.2159090909090909,
     "dynamo/test_misc": 1.9158228889619602,
     "dynamo/test_modules": 0.2159090909090909,
@@ -154379,7 +154345,7 @@
     "dynamo/test_id": 0.11627906976744186,
     "dynamo/test_iterators": 0.4178683385579938,
     "dynamo/test_lazy_constant": 0.6,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.2159090909090909,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_misc": 1.039423194072563,
@@ -154572,7 +154538,7 @@
     "distributions/test_distributions": 0.02857142857142857,
     "dynamo/test_activation_checkpointing": 1.630952380952381,
     "dynamo/test_aot_autograd": 0.15384615384615385,
-    "dynamo/test_autograd_function": 3.5844988344988344,
+    "dynamo/test_autograd_function": 3.584498834498835,
     "dynamo/test_base_hop": 0.16666666666666666,
     "dynamo/test_bytecode_utils": 0.2,
     "dynamo/test_compile": 0.047619047619047616,
@@ -154760,7 +154726,7 @@
     "dynamo/test_id": 0.11627906976744186,
     "dynamo/test_iterators": 0.6571799327608921,
     "dynamo/test_lazy_constant": 0.8829188355504145,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 1.615909090909091,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_misc": 3.143470813120182,
@@ -154877,7 +154843,7 @@
     "dynamo/test_guard_serialization": 0.02040816326530612,
     "dynamo/test_id": 0.16891064871481026,
     "dynamo/test_iterators": 0.1724137931034483,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.2159090909090909,
     "dynamo/test_misc": 1.7770547730199313,
     "dynamo/test_modules": 4.311147186147187,
@@ -154925,13 +154891,14 @@
     "dynamo/test_dicts": 0.9599294609584008,
     "dynamo/test_enum": 0.07692307692307693,
     "dynamo/test_error_messages": 0.36884236453201974,
-    "dynamo/test_functions": 0.25,
+    "dynamo/test_exceptions": 0.3214285714285714,
+    "dynamo/test_functions": 0.3214285714285714,
     "dynamo/test_generator": 1.2934782608695652,
     "dynamo/test_getitem": 0.5683473389355742,
     "dynamo/test_hooks": 0.14285714285714285,
     "dynamo/test_id": 0.11627906976744186,
     "dynamo/test_iterators": 0.21589205397301353,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_misc": 0.9164506110999798,
     "dynamo/test_nb_and": 0.07692307692307693,
@@ -154950,7 +154917,7 @@
     "dynamo/test_nb_unary": 0.288034188034188,
     "dynamo/test_nb_xor": 0.1,
     "dynamo/test_repr_protocol": 0.29859346824283706,
-    "dynamo/test_sequence_ops": 0.7635281385281385,
+    "dynamo/test_sequence_ops": 0.8349567099567099,
     "dynamo/test_str_protocol": 0.4107142857142857,
     "dynamo/test_subclasses": 0.26666666666666666,
     "dynamo/test_tp_getattro": 0.36451612903225805,
@@ -155020,7 +154987,7 @@
     "inductor/test_pattern_matcher": 0.04,
     "lazy/test_generator": 0.7954545454545456,
     "test_matmul_cuda": 0.08108108108108109,
-    "test_opaque_obj_v2": 4.895177498609849
+    "test_opaque_obj_v2": 4.895177498609848
   },
   "torch/_dynamo/variables/sdpa.py": {
     "distributed/tensor/test_attention": 0.08108108108108109,
@@ -155132,7 +155099,7 @@
     "dynamo/test_fake_distributed": 0.13392857142857142,
     "dynamo/test_flat_apply": 0.020833333333333332,
     "dynamo/test_functions": 0.21929824561403508,
-    "dynamo/test_fwd_loss_bwd": 1.7321428571428568,
+    "dynamo/test_fwd_loss_bwd": 1.7321428571428565,
     "dynamo/test_getitem": 0.9010854341736694,
     "dynamo/test_guard_manager": 0.10526315789473684,
     "dynamo/test_guard_serialization": 0.12083333333333333,
@@ -155141,7 +155108,7 @@
     "dynamo/test_id": 0.16891064871481026,
     "dynamo/test_iterators": 0.1724137931034483,
     "dynamo/test_lazy_constant": 0.21625216888374782,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.2159090909090909,
     "dynamo/test_mapping_ops": 0.09090909090909091,
     "dynamo/test_misc": 5.777697125836201,
@@ -155168,11 +155135,11 @@
     "dynamo/test_repros": 0.75,
     "dynamo/test_sequence_ops": 0.4242424242424242,
     "dynamo/test_sources": 0.038461538461538464,
-    "dynamo/test_streams": 1.2499999999999998,
+    "dynamo/test_streams": 1.25,
     "dynamo/test_subclasses": 0.6910931174089068,
     "dynamo/test_tp_getattro": 0.06451612903225806,
     "dynamo/test_tp_hash": 0.21209788509845226,
-    "dynamo/test_tp_richcompare": 0.293430617992844,
+    "dynamo/test_tp_richcompare": 0.29343061799284403,
     "dynamo/test_tree_map": 0.1111111111111111,
     "dynamo/test_user_defined_object": 0.09090909090909091,
     "export/test_export": 0.22596153846153844,
@@ -155236,7 +155203,7 @@
     "dynamo/test_fake_distributed": 0.07142857142857142,
     "dynamo/test_flat_apply": 1.0875,
     "dynamo/test_functions": 2.9444444444444446,
-    "dynamo/test_fwd_loss_bwd": 3.3882034632034634,
+    "dynamo/test_fwd_loss_bwd": 3.388203463203463,
     "dynamo/test_fx_annotate": 1.3060606060606061,
     "dynamo/test_getitem": 0.09226190476190475,
     "dynamo/test_guard_serialization": 0.1636904761904762,
@@ -155256,7 +155223,7 @@
     "dynamo/test_subclasses": 0.04,
     "dynamo/test_tp_getattro": 0.06451612903225806,
     "dynamo/test_tp_hash": 0.21209788509845226,
-    "dynamo/test_tp_richcompare": 0.293430617992844,
+    "dynamo/test_tp_richcompare": 0.29343061799284403,
     "dynamo/test_trace_rules": 1.5583333333333333,
     "export/test_export": 1.141468253968254,
     "export/test_serialize": 0.020833333333333332,
@@ -155343,10 +155310,10 @@
     "dynamo/test_dynamic_shapes": 0.047619047619047616,
     "dynamo/test_enum": 0.5500451713688808,
     "dynamo/test_error_messages": 0.895674764158537,
-    "dynamo/test_exceptions": 1.5797979797979798,
+    "dynamo/test_exceptions": 1.6512265512265512,
     "dynamo/test_exitstack": 0.05555555555555555,
     "dynamo/test_fake_distributed": 0.0625,
-    "dynamo/test_functions": 4.848266499582288,
+    "dynamo/test_functions": 4.91969507101086,
     "dynamo/test_generator": 0.21014492753623187,
     "dynamo/test_getitem": 0.2683473389355742,
     "dynamo/test_guard_manager": 0.05263157894736842,
@@ -155357,7 +155324,7 @@
     "dynamo/test_install_free_tensors": 0.047619047619047616,
     "dynamo/test_iterators": 0.5545825301634897,
     "dynamo/test_lazy_constant": 0.10526315789473684,
-    "dynamo/test_len_protocol": 0.4943181818181819,
+    "dynamo/test_len_protocol": 0.4943181818181818,
     "dynamo/test_list": 0.125,
     "dynamo/test_mapping_ops": 0.16233766233766234,
     "dynamo/test_misc": 6.115943485933034,
@@ -155385,7 +155352,7 @@
     "dynamo/test_reconstruct": 0.23076923076923078,
     "dynamo/test_repr_protocol": 0.49442680157617036,
     "dynamo/test_repros": 2.2658108813449904,
-    "dynamo/test_sequence_ops": 1.8843614718614716,
+    "dynamo/test_sequence_ops": 2.205790043290044,
     "dynamo/test_str_protocol": 0.6244047619047619,
     "dynamo/test_streams": 0.39285714285714285,
     "dynamo/test_structured_trace": 0.047619047619047616,
@@ -156083,7 +156050,7 @@
     "test_autograd": 0.30000000000000004,
     "test_bundled_inputs": 0.02040816326530612,
     "test_complex": 0.02040816326530612,
-    "test_custom_ops": 0.4727272727272728,
+    "test_custom_ops": 0.47272727272727266,
     "test_dynamic_shapes": 0.29411764705882354,
     "test_fake_tensor": 0.12796101949025487,
     "test_function_schema": 0.4,
@@ -156358,7 +156325,7 @@
     "onnx/test_pytorch_onnx_onnxruntime": 0.020618556701030927,
     "test_autograd": 0.020618556701030927,
     "test_cuda": 0.020618556701030927,
-    "test_custom_ops": 0.4727272727272728,
+    "test_custom_ops": 0.47272727272727266,
     "test_decomp": 0.020618556701030927,
     "test_fx": 0.020618556701030927,
     "test_indexing": 0.020618556701030927,
@@ -156366,7 +156333,7 @@
     "test_jit_autocast": 0.020618556701030927,
     "test_nn": 0.020618556701030927,
     "test_numpy_interop": 0.020618556701030927,
-    "test_opaque_obj_v2": 0.4727272727272728,
+    "test_opaque_obj_v2": 0.47272727272727266,
     "test_pruning_op": 0.020618556701030927,
     "test_reductions": 0.020618556701030927,
     "test_segment_reductions": 0.020618556701030927,
@@ -157145,7 +157112,7 @@
     "dynamo/test_wrap_inductor_compiled_regions": 0.08333333333333333,
     "functorch/test_aotdispatch": 0.125,
     "inductor/test_aot_inductor": 0.8720238095238096,
-    "inductor/test_aot_inductor_package": 1.0982142857142856,
+    "inductor/test_aot_inductor_package": 1.0982142857142858,
     "inductor/test_async_compile": 0.2,
     "inductor/test_ck_backend": 0.3333333333333333,
     "inductor/test_codecache": 10.124838829133632,
@@ -157165,7 +157132,7 @@
     "inductor/test_select_algorithm": 0.1111111111111111,
     "inductor/test_static_triton_launcher": 0.2311111111111111,
     "inductor/test_torchbind": 0.25,
-    "inductor/test_torchinductor": 0.8999999999999999,
+    "inductor/test_torchinductor": 0.9,
     "inductor/test_triton_heuristics": 0.12,
     "inductor/test_user_streams": 0.1111111111111111,
     "nn/test_load_state_dict": 0.037037037037037035,
@@ -157183,7 +157150,7 @@
     "test_utils_config_module": 0.37
   },
   "torch/_inductor/codegen/aoti_runtime/interface.cpp": {
-    "inductor/test_aot_inductor": 1.001388888888889,
+    "inductor/test_aot_inductor": 1.0013888888888889,
     "inductor/test_aot_inductor_package": 0.0625
   },
   "torch/_inductor/codegen/aoti_runtime/streams.h": {
@@ -157300,7 +157267,7 @@
     "inductor/test_mix_order_reduction": 0.15,
     "inductor/test_online_softmax": 0.1111111111111111,
     "inductor/test_optimize_indexing": 0.045454545454545456,
-    "inductor/test_provenance_tracing": 0.6428571428571429,
+    "inductor/test_provenance_tracing": 0.5595238095238095,
     "inductor/test_torchinductor": 2.589398540056434,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.29545454545454547,
     "inductor/test_triton_helpers": 0.16666666666666666,
@@ -157419,7 +157386,7 @@
     "dynamo/test_aot_autograd": 0.125,
     "export/test_torchbind": 0.3208333333333333,
     "inductor/test_aot_inductor": 1.9652777777777775,
-    "inductor/test_aot_inductor_arrayref": 2.3208333333333333,
+    "inductor/test_aot_inductor_arrayref": 2.320833333333333,
     "inductor/test_cpu_cpp_wrapper": 0.6000000000000001,
     "inductor/test_cpu_repro": 0.1111111111111111,
     "inductor/test_custom_op_out_lowering": 0.1875,
@@ -157659,7 +157626,7 @@
     "inductor/test_cutlass_evt": 0.5,
     "inductor/test_dependencies": 0.045454545454545456,
     "inductor/test_flex_flash": 0.5111111111111111,
-    "inductor/test_flex_gemm": 0.7113095238095237,
+    "inductor/test_flex_gemm": 0.7113095238095236,
     "inductor/test_optimize_indexing": 0.045454545454545456,
     "inductor/test_torchinductor": 0.045454545454545456,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.045454545454545456,
@@ -157901,7 +157868,7 @@
     "distributed/elastic/multiprocessing/api_test": 0.023809523809523808,
     "distributed/tensor/test_utils": 0.023809523809523808,
     "inductor/test_async_compile": 0.125,
-    "inductor/test_nv_universal_gemm": 1.5829725829725827,
+    "inductor/test_nv_universal_gemm": 1.582972582972583,
     "test_scatter_gather_ops": 0.023809523809523808
   },
   "torch/_inductor/codegen/nv_universal_gemm/nv_universal_gemm_utils.py": {
@@ -157932,7 +157899,7 @@
   "torch/_inductor/codegen/rocm/ck_tile_universal_gemm_template.py": {
     "dynamo/test_guard_serialization": 0.02040816326530612,
     "dynamo/test_recompile_ux": 0.02040816326530612,
-    "inductor/test_ck_backend": 0.1,
+    "inductor/test_ck_backend": 0.35,
     "inductor/test_group_batch_fusion": 0.02040816326530612,
     "profiler/test_memory_profiler": 0.02040816326530612,
     "test_cuda_nvml_based_avail": 0.02040816326530612
@@ -157946,7 +157913,7 @@
     "test_cuda_nvml_based_avail": 0.02040816326530612
   },
   "torch/_inductor/codegen/rocm/compile_command.py": {
-    "inductor/test_ck_backend": 0.45833333333333326
+    "inductor/test_ck_backend": 0.7083333333333333
   },
   "torch/_inductor/codegen/rocm/rocm_cpp_scheduling.py": {
     "inductor/test_ck_backend": 0.3333333333333333,
@@ -157959,8 +157926,8 @@
     "inductor/test_torchinductor": 0.16666666666666666
   },
   "torch/_inductor/codegen/segmented_tree.py": {
-    "inductor/test_segmented_tree": 0.6000000000000001,
-    "inductor/test_torchinductor": 0.6000000000000001
+    "inductor/test_segmented_tree": 0.4,
+    "inductor/test_torchinductor": 0.4
   },
   "torch/_inductor/codegen/simd.py": {
     "distributed/fsdp/test_fsdp_misc": 0.14285714285714285,
@@ -157996,7 +157963,7 @@
     "inductor/test_online_softmax": 0.1111111111111111,
     "inductor/test_optimize_indexing": 0.045454545454545456,
     "inductor/test_pallas": 0.2,
-    "inductor/test_provenance_tracing": 0.6428571428571429,
+    "inductor/test_provenance_tracing": 0.5595238095238095,
     "inductor/test_simd_range_trees": 0.3333333333333333,
     "inductor/test_torchinductor": 1.6807414807414807,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.24545454545454548,
@@ -158062,7 +158029,7 @@
     "inductor/test_benchmark_fusion": 0.018518518518518517,
     "inductor/test_block_ptr_store_dtype": 0.5,
     "inductor/test_codecache": 0.8333333333333333,
-    "inductor/test_codegen_triton": 2.683333333333333,
+    "inductor/test_codegen_triton": 2.9333333333333336,
     "inductor/test_combo_kernels": 5.1000000000000005,
     "inductor/test_compiled_autograd": 0.125,
     "inductor/test_compiled_optimizers": 0.2685185185185185,
@@ -158085,6 +158052,7 @@
     "inductor/test_gpu_cpp_wrapper": 0.125,
     "inductor/test_graph_transform_observer": 0.018518518518518517,
     "inductor/test_halide": 0.2,
+    "inductor/test_indexing": 0.25,
     "inductor/test_kernel_benchmark": 0.3333333333333333,
     "inductor/test_max_autotune": 1.4844322344322343,
     "inductor/test_max_autotune_blackwell": 1.0357142857142856,
@@ -158237,10 +158205,10 @@
     "inductor/test_memory": 0.03125,
     "inductor/test_mkldnn_pattern_matcher": 0.6303571428571428,
     "inductor/test_pattern_matcher": 0.06666666666666667,
-    "inductor/test_provenance_tracing": 0.5428571428571428,
-    "inductor/test_segmented_tree": 0.6000000000000001,
+    "inductor/test_provenance_tracing": 0.45952380952380945,
+    "inductor/test_segmented_tree": 0.4,
     "inductor/test_static_triton_launcher": 0.6075,
-    "inductor/test_torchinductor": 6.964484126984127,
+    "inductor/test_torchinductor": 6.764484126984127,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.48749999999999993,
     "inductor/test_torchinductor_opinfo": 0.03125,
     "inductor/test_triton_extension_backend": 0.5227272727272727,
@@ -158385,7 +158353,7 @@
     "inductor/test_multi_kernel": 0.125,
     "inductor/test_pad_mm": 1.0666666666666667,
     "inductor/test_pattern_matcher": 0.6785714285714286,
-    "inductor/test_provenance_tracing": 0.6083333333333333,
+    "inductor/test_provenance_tracing": 0.5249999999999999,
     "inductor/test_select_algorithm": 0.07692307692307693,
     "inductor/test_split_cat_fx_passes": 0.5666666666666667,
     "inductor/test_static_triton_launcher": 0.12,
@@ -158552,7 +158520,7 @@
     "inductor/test_pallas": 0.5601045296167246,
     "inductor/test_pattern_matcher": 0.5833333333333333,
     "inductor/test_perf": 1.3333333333333333,
-    "inductor/test_provenance_tracing": 0.31666666666666665,
+    "inductor/test_provenance_tracing": 0.23333333333333334,
     "inductor/test_reorder_for_locality_in_training": 0.3333333333333333,
     "inductor/test_scatter_optimization": 0.16666666666666666,
     "inductor/test_select_algorithm": 0.3333333333333333,
@@ -158613,7 +158581,7 @@
     "inductor/test_gpu_cpp_wrapper": 0.3333333333333333
   },
   "torch/_inductor/cpu_vec_isa.py": {
-    "inductor/test_codecache": 1.25,
+    "inductor/test_codecache": 1.7499999999999998,
     "inductor/test_cpu_repro": 0.5,
     "inductor/test_cpu_select_algorithm": 0.5833333333333333
   },
@@ -158736,7 +158704,7 @@
     "inductor/test_debug_graph_dump": 0.2,
     "inductor/test_minifier": 0.034482758620689655,
     "inductor/test_minifier_utils": 0.034482758620689655,
-    "inductor/test_provenance_tracing": 2.9833333333333334,
+    "inductor/test_provenance_tracing": 2.9,
     "inductor/test_torchbind": 0.25,
     "inductor/test_torchinductor": 0.5,
     "profiler/test_execution_trace": 0.05555555555555555,
@@ -159113,6 +159081,7 @@
     "inductor/test_scatter_optimization": 0.3333333333333333,
     "inductor/test_torchinductor": 4.533333333333333,
     "inductor/test_torchinductor_dynamic_shapes": 1.3333333333333333,
+    "inductor/test_unbacked_symints": 0.5,
     "test_fx": 0.2727272727272727,
     "test_torchfuzz_repros": 0.3333333333333333
   },
@@ -159291,7 +159260,7 @@
     "inductor/test_op_dtype_prop": 0.125,
     "inductor/test_pad_mm": 0.14285714285714285,
     "inductor/test_padding": 0.5,
-    "inductor/test_pattern_matcher": 7.586904761904763,
+    "inductor/test_pattern_matcher": 7.44404761904762,
     "inductor/test_profiler": 0.2727272727272727,
     "inductor/test_provenance_tracing": 0.45833333333333326,
     "inductor/test_reorder_for_locality_in_training": 0.3333333333333333,
@@ -159506,16 +159475,16 @@
     "test_torch": 0.125
   },
   "torch/_inductor/fx_passes/serialized_patterns/addmm_gelu_pattern.py": {
-    "inductor/test_pattern_matcher": 1.0857142857142856
+    "inductor/test_pattern_matcher": 0.9428571428571428
   },
   "torch/_inductor/fx_passes/serialized_patterns/addmm_gelu_pattern_2.py": {
-    "inductor/test_pattern_matcher": 0.2857142857142857
+    "inductor/test_pattern_matcher": 0.14285714285714285
   },
   "torch/_inductor/fx_passes/serialized_patterns/addmm_relu_pattern.py": {
-    "inductor/test_pattern_matcher": 1.0857142857142856
+    "inductor/test_pattern_matcher": 0.9428571428571428
   },
   "torch/_inductor/fx_passes/serialized_patterns/addmm_relu_pattern_2.py": {
-    "inductor/test_pattern_matcher": 0.2857142857142857
+    "inductor/test_pattern_matcher": 0.14285714285714285
   },
   "torch/_inductor/fx_passes/split_cat.py": {
     "distributed/tensor/test_attention": 0.08108108108108109,
@@ -159581,7 +159550,7 @@
     "inductor/test_custom_op_autotune": 0.7142857142857142,
     "inductor/test_custom_op_out_lowering": 0.1875,
     "inductor/test_cutedsl_template": 0.3472222222222222,
-    "inductor/test_device_identity": 0.2,
+    "inductor/test_device_identity": 0.4,
     "inductor/test_exc_lowering_stack_trace": 0.25,
     "inductor/test_flex_attention": 0.2222222222222222,
     "inductor/test_flex_flash": 0.3472222222222222,
@@ -159684,7 +159653,7 @@
     "inductor/test_triton_heuristics": 0.15109890109890112
   },
   "torch/_inductor/heuristics/template/flex_gemm.py": {
-    "inductor/test_flex_gemm": 0.5499999999999999,
+    "inductor/test_flex_gemm": 0.5499999999999998,
     "test_public_bindings": 0.05,
     "test_testing": 0.05
   },
@@ -159869,17 +159838,17 @@
     "inductor/test_online_softmax": 0.4361111111111111,
     "inductor/test_pad_as_cat": 0.3333333333333333,
     "inductor/test_pad_mm": 1.0666666666666667,
-    "inductor/test_padding": 1.1666666666666667,
+    "inductor/test_padding": 1.1666666666666665,
     "inductor/test_pattern_matcher": 0.06666666666666667,
     "inductor/test_perf": 1.5833333333333333,
-    "inductor/test_provenance_tracing": 0.6833333333333333,
+    "inductor/test_provenance_tracing": 0.6833333333333335,
     "inductor/test_select_algorithm": 0.05,
     "inductor/test_static_triton_launcher": 0.48749999999999993,
     "inductor/test_strict_numerics": 0.42167832167832164,
     "inductor/test_subgraph_choice": 0.05,
     "inductor/test_symm_mem_registry": 0.2,
     "inductor/test_torchbind": 0.8809523809523808,
-    "inductor/test_torchinductor": 12.150385218434417,
+    "inductor/test_torchinductor": 12.150385218434419,
     "inductor/test_torchinductor_codegen_config_overrides": 0.25,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 1.4041666666666666,
     "inductor/test_torchinductor_dynamic_shapes": 0.5,
@@ -160142,13 +160111,13 @@
   },
   "torch/_inductor/kernel/flex_gemm/epilogue.py": {
     "inductor/test_cutedsl_template": 0.125,
-    "inductor/test_flex_gemm": 1.5428932178932178,
+    "inductor/test_flex_gemm": 1.542893217893218,
     "inductor/test_flex_gemm_runtime": 0.07142857142857142,
     "inductor/test_nv_universal_gemm": 0.09090909090909091,
     "inductor/test_utils": 0.125
   },
   "torch/_inductor/kernel/flex_gemm/fx_cutedsl_codegen.py": {
-    "inductor/test_flex_gemm": 1.5486111111111114,
+    "inductor/test_flex_gemm": 1.7486111111111113,
     "test_public_bindings": 0.21666666666666667,
     "test_testing": 0.05
   },
@@ -160167,12 +160136,12 @@
     "test_testing": 0.05
   },
   "torch/_inductor/kernel/flex_gemm/output_layout.py": {
-    "inductor/test_flex_gemm": 0.05,
+    "inductor/test_flex_gemm": 0.25,
     "test_public_bindings": 0.05,
     "test_testing": 0.05
   },
   "torch/_inductor/kernel/flex_gemm/output_layout_cutedsl.py": {
-    "inductor/test_flex_gemm": 0.05,
+    "inductor/test_flex_gemm": 0.25,
     "test_public_bindings": 0.05,
     "test_testing": 0.05
   },
@@ -160183,7 +160152,7 @@
     "test_testing": 0.05
   },
   "torch/_inductor/kernel/flex_gemm/runtime.py": {
-    "inductor/test_flex_gemm": 2.0106770343183387,
+    "inductor/test_flex_gemm": 2.210677034318339,
     "inductor/test_flex_gemm_runtime": 0.23809523809523808,
     "inductor/test_max_autotune": 0.03125,
     "inductor/test_max_autotune_blackwell": 0.03125,
@@ -160245,7 +160214,7 @@
     "inductor/test_fxir_backend": 0.3333333333333333,
     "inductor/test_inplace_padding": 0.125,
     "inductor/test_lookup_table": 0.25,
-    "inductor/test_max_autotune": 7.105561105561105,
+    "inductor/test_max_autotune": 6.772227772227772,
     "inductor/test_max_autotune_blackwell": 0.14285714285714285,
     "inductor/test_mmdecomp": 0.5333333333333333,
     "inductor/test_multi_kernel": 0.125,
@@ -160329,7 +160298,7 @@
   },
   "torch/_inductor/kernel/templates/triton_bmm.py.jinja": {
     "inductor/test_aot_inductor": 0.3333333333333333,
-    "inductor/test_max_autotune": 1.783333333333333,
+    "inductor/test_max_autotune": 1.7833333333333332,
     "inductor/test_select_algorithm": 0.7
   },
   "torch/_inductor/kernel/templates/triton_conv2d_bwd_input.py.jinja": {
@@ -160389,7 +160358,7 @@
     "test_testing": 0.09090909090909091
   },
   "torch/_inductor/kernel/vendored_templates/cutedsl/wrappers/dense_blockscaled_gemm_kernel.py": {
-    "inductor/test_nv_universal_gemm": 1.8409090909090908,
+    "inductor/test_nv_universal_gemm": 1.8409090909090906,
     "test_public_bindings": 0.25
   },
   "torch/_inductor/kernel_inputs.py": {
@@ -160446,7 +160415,7 @@
     "dynamo/test_misc": 0.2233427515757444,
     "dynamo/test_recompile_ux": 0.02040816326530612,
     "dynamo/test_repros": 0.2934782608695652,
-    "dynamo/test_streams": 3.3611111111111107,
+    "dynamo/test_streams": 3.361111111111111,
     "dynamo/test_subclasses": 0.5194805194805194,
     "dynamo/test_trace_rules": 0.023342751575744405,
     "export/test_draft_export": 2.0212121212121206,
@@ -160646,7 +160615,7 @@
     "inductor/test_inductor_scheduler": 0.06666666666666667,
     "inductor/test_needs_exact_strides": 0.25,
     "inductor/test_pattern_matcher": 8.45357142857143,
-    "inductor/test_provenance_tracing": 0.15,
+    "inductor/test_provenance_tracing": 0.06666666666666667,
     "inductor/test_static_triton_launcher": 0.12,
     "inductor/test_torchinductor": 1.0,
     "inductor/test_triton_heuristics": 0.12,
@@ -160826,7 +160795,7 @@
     "inductor/test_codegen_triton": 0.25,
     "inductor/test_combo_kernels": 0.16666666666666666,
     "inductor/test_coordinate_descent_tuner": 0.16666666666666666,
-    "inductor/test_device_identity": 0.2,
+    "inductor/test_device_identity": 0.4,
     "inductor/test_max_autotune": 0.388034188034188,
     "inductor/test_mix_order_reduction": 0.49743589743589745,
     "inductor/test_nv_universal_gemm": 0.23076923076923078,
@@ -160856,7 +160825,7 @@
     "distributed/test_local_tensor": 0.12,
     "inductor/test_codecache": 1.086111111111111,
     "inductor/test_select_algorithm": 0.1111111111111111,
-    "inductor/test_static_triton_launcher": 1.3311111111111111,
+    "inductor/test_static_triton_launcher": 1.6644444444444442,
     "inductor/test_torchinductor_strided_blocks": 0.41666666666666663,
     "inductor/test_triton_heuristics": 0.12,
     "test_utils_config_module": 0.12
@@ -160936,7 +160905,7 @@
     "inductor/test_padding": 0.16666666666666666,
     "inductor/test_perf": 0.16666666666666666,
     "inductor/test_select_algorithm": 0.1111111111111111,
-    "inductor/test_static_triton_launcher": 3.164444444444445,
+    "inductor/test_static_triton_launcher": 3.497777777777778,
     "inductor/test_strict_numerics": 0.33076923076923076,
     "inductor/test_torchinductor": 1.6860195360195358,
     "inductor/test_torchinductor_dynamic_shapes": 1.5769230769230769,
@@ -161029,13 +160998,13 @@
     "inductor/test_nested_reduction": 2.111111111111111,
     "inductor/test_nv_universal_gemm": 0.3418803418803419,
     "inductor/test_pattern_matcher": 0.06666666666666667,
-    "inductor/test_provenance_tracing": 0.6833333333333333,
-    "inductor/test_segmented_tree": 0.6000000000000001,
+    "inductor/test_provenance_tracing": 0.6833333333333335,
+    "inductor/test_segmented_tree": 0.4,
     "inductor/test_select_algorithm": 0.3333333333333333,
     "inductor/test_snode_runtime": 0.3333333333333333,
     "inductor/test_strict_numerics": 0.33076923076923076,
     "inductor/test_torchbind": 0.16666666666666666,
-    "inductor/test_torchinductor": 5.476531801531802,
+    "inductor/test_torchinductor": 5.276531801531802,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 0.125,
     "inductor/test_torchinductor_dynamic_shapes": 0.20192307692307693,
     "inductor/test_triton_heuristics": 0.388034188034188,
@@ -161067,7 +161036,8 @@
     "inductor/test_benchmarking": 0.14285714285714285,
     "inductor/test_caching": 0.1111111111111111,
     "inductor/test_codecache": 0.1111111111111111,
-    "inductor/test_collective_autotuning": 1.0,
+    "inductor/test_codegen_triton": 0.25,
+    "inductor/test_collective_autotuning": 0.9999999999999999,
     "inductor/test_cuda_repro": 0.2,
     "inductor/test_custom_op_autotune": 2.2416666666666663,
     "inductor/test_cutedsl_template": 0.05,
@@ -161079,6 +161049,7 @@
     "inductor/test_flex_attention": 3.6583333333333328,
     "inductor/test_group_batch_fusion": 0.02040816326530612,
     "inductor/test_halide": 0.2,
+    "inductor/test_indexing": 0.25,
     "inductor/test_max_autotune": 11.835714285714282,
     "inductor/test_max_autotune_blackwell": 0.39285714285714285,
     "inductor/test_nv_universal_gemm": 0.2,
@@ -161468,7 +161439,7 @@
     "inductor/test_cutlass_backend": 0.69977579891373,
     "inductor/test_cutlass_evt": 0.17733990147783252,
     "inductor/test_deterministic": 0.3333333333333333,
-    "inductor/test_device_identity": 0.2,
+    "inductor/test_device_identity": 0.4,
     "inductor/test_flex_attention": 0.325,
     "inductor/test_flex_flash": 0.125,
     "inductor/test_flex_gemm": 0.125,
@@ -161481,7 +161452,7 @@
     "inductor/test_inplace_padding": 0.125,
     "inductor/test_kernel_benchmark": 0.3333333333333333,
     "inductor/test_lookup_table": 0.2,
-    "inductor/test_max_autotune": 3.7289432789432797,
+    "inductor/test_max_autotune": 3.3956099456099462,
     "inductor/test_max_autotune_blackwell": 0.25,
     "inductor/test_memory": 0.3333333333333333,
     "inductor/test_minifier": 0.25,
@@ -161710,7 +161681,7 @@
     "distributed/test_c10d_functional_native": 0.024390243902439025,
     "inductor/test_cache": 0.058823529411764705,
     "inductor/test_codecache": 0.024390243902439025,
-    "test_custom_ops": 1.4790043290043289,
+    "test_custom_ops": 1.479004329004329,
     "test_opaque_obj_v2": 1.3847599180879024
   },
   "torch/_library/opaque_object.py": {
@@ -161890,7 +161861,7 @@
     "inductor/test_graph_transform_observer": 0.020618556701030927,
     "inductor/test_max_autotune": 0.3661809205287466,
     "inductor/test_mkldnn_pattern_matcher": 0.22061855670103092,
-    "inductor/test_torchinductor": 6.049922586005058,
+    "inductor/test_torchinductor": 5.549922586005058,
     "inductor/test_torchinductor_codegen_dynamic_shapes": 1.2428571428571427,
     "inductor/test_torchinductor_dynamic_shapes": 0.07692307692307693,
     "inductor/test_torchinductor_opinfo": 0.051868556701030924,
@@ -161986,7 +161957,7 @@
     "python_native/test_flydsl_cache": 0.1,
     "python_native/test_flydsl_utils": 0.1,
     "python_native/test_instrumentation": 0.225,
-    "python_native/test_native_dsl_ops": 0.6039682539682539,
+    "python_native/test_native_dsl_ops": 0.603968253968254,
     "python_native/test_registry": 0.25,
     "python_native/test_torch_backends": 0.25,
     "test_bmm_outer_product": 0.30000000000000004,
@@ -162598,7 +162569,7 @@
     "dynamo/test_repros": 3.532847587195413,
     "dynamo/test_sources": 0.038461538461538464,
     "dynamo/test_subclasses": 0.038461538461538464,
-    "export/test_export": 2.888888888888889,
+    "export/test_export": 2.388888888888889,
     "export/test_nativert": 0.038461538461538464,
     "export/test_serialize": 0.038461538461538464,
     "functorch/test_ac": 0.03284758719541328,
@@ -162667,7 +162638,7 @@
     "test_tensor_creation_ops": 0.11688311688311688,
     "test_tensorboard": 0.03284758719541328,
     "test_tensorexpr": 0.03284758719541328,
-    "test_torch": 0.6832235270450372,
+    "test_torch": 0.8498901937117038,
     "test_type_hints": 0.008130081300813009,
     "test_type_info": 0.008130081300813009,
     "test_type_promotion": 0.038461538461538464,
@@ -162736,7 +162707,7 @@
     "test_fake_tensor": 0.08448275862068966,
     "test_nn": 0.45,
     "test_ops": 0.3333333333333333,
-    "test_torch": 0.5
+    "test_torch": 0.6666666666666666
   },
   "torch/_strobelight/cli_function_profiler.py": {
     "test_bundled_inputs": 0.02631578947368421,
@@ -162806,7 +162777,7 @@
     "inductor/test_custom_op_out_lowering": 0.1875,
     "inductor/test_fx_fusion": 0.023342751575744405,
     "inductor/test_indexing": 0.037037037037037035,
-    "inductor/test_mkldnn_pattern_matcher": 0.8982142857142859,
+    "inductor/test_mkldnn_pattern_matcher": 0.8982142857142856,
     "inductor/test_profiler": 0.2727272727272727,
     "inductor/test_static_triton_launcher": 0.48749999999999993,
     "inductor/test_torchinductor": 1.750758480649785,
@@ -163072,7 +163043,6 @@
     "test_xnnpack_integration": 0.03284758719541328
   },
   "torch/_torch_docs.py": {
-    "distributed/test_cupy_as_tensor": 0.2,
     "dynamo/test_misc": 0.10344827586206896,
     "functorch/test_ops": 0.03125,
     "functorch/test_vmap_registrations": 0.10344827586206896,
@@ -163080,6 +163050,7 @@
     "inductor/test_torchinductor_opinfo": 0.03125,
     "test_cuda": 0.1989247311827957,
     "test_fake_tensor": 0.3333333333333333,
+    "test_foreach": 0.25,
     "test_linalg": 0.13469827586206895,
     "test_namedtuple_return_api": 0.10344827586206896,
     "test_ops": 0.10344827586206896,
@@ -163233,7 +163204,7 @@
     "python_native/test_quack_vendor": 0.0196078431372549
   },
   "torch/_vendor/quack/gemm_act.py": {
-    "inductor/test_flex_gemm": 1.3829984628897674,
+    "inductor/test_flex_gemm": 1.3829984628897671,
     "python_native/test_quack_vendor": 0.052941176470588235,
     "test_public_bindings": 0.05,
     "test_testing": 0.05
@@ -164936,7 +164907,7 @@
   },
   "torch/compiler/__init__.py": {
     "cpython/v3_13/test_operator": 0.05454545454545454,
-    "dynamo/test_activation_checkpointing": 1.606060606060606,
+    "dynamo/test_activation_checkpointing": 1.6060606060606057,
     "dynamo/test_aot_compile": 1.5595238095238095,
     "dynamo/test_backends": 0.2,
     "dynamo/test_call_protocol": 0.05454545454545454,
@@ -165361,7 +165332,7 @@
     "test_autograd": 1.0056022408963585,
     "test_custom_ops": 0.8727272727272728,
     "test_mps": 0.3333333333333333,
-    "test_opaque_obj_v2": 0.4727272727272728,
+    "test_opaque_obj_v2": 0.47272727272727266,
     "test_python_dispatch": 0.5
   },
   "torch/csrc/autograd/input_buffer.cpp": {
@@ -165719,7 +165690,7 @@
   },
   "torch/csrc/distributed/c10d/FakeProcessGroup.hpp": {
     "distributed/flight_recorder/test_fr_analysis": 0.04,
-    "distributed/tensor/debug/test_comm_mode": 2.2095238095238097,
+    "distributed/tensor/debug/test_comm_mode": 2.2095238095238092,
     "distributed/tensor/test_dtensor_compile": 2.033333333333333,
     "distributed/tensor/test_dtensor_ops": 1.3428571428571427,
     "distributed/test_c10d_common": 0.125,
@@ -165759,12 +165730,13 @@
     "distributed/test_c10d_functional_native": 1.4077380952380951,
     "distributed/test_c10d_nccl": 0.0625,
     "distributed/test_functional_api": 0.25,
-    "distributed/test_functional_differentials": 0.5833333333333334,
+    "distributed/test_functional_differentials": 0.7261904761904763,
     "dynamo/test_fake_distributed": 0.0625
   },
   "torch/csrc/distributed/c10d/Functional.hpp": {
     "distributed/test_c10d_functional_native": 0.6577380952380952,
     "distributed/test_c10d_nccl": 0.0625,
+    "distributed/test_functional_differentials": 0.14285714285714285,
     "dynamo/test_fake_distributed": 0.0625
   },
   "torch/csrc/distributed/c10d/HashStore.cpp": {
@@ -166131,7 +166103,7 @@
     "distributed/test_c10d_nccl2": 1.5697802197802195
   },
   "torch/csrc/distributed/c10d/nccl2/NCCLBootstrap.hpp": {
-    "distributed/test_c10d_nccl2": 0.8269230769230771
+    "distributed/test_c10d_nccl2": 0.8269230769230769
   },
   "torch/csrc/distributed/c10d/nccl2/NcclApi.cpp": {
     "distributed/test_c10d_nccl2": 0.5526315789473684,
@@ -166148,10 +166120,10 @@
     "inductor/test_comm_analysis": 0.05263157894736842
   },
   "torch/csrc/distributed/c10d/nccl2/ProcessGroupNCCL.cpp": {
-    "distributed/test_c10d_collectives": 1.4345238095238093,
+    "distributed/test_c10d_collectives": 1.4345238095238095,
     "distributed/test_c10d_common": 0.125,
     "distributed/test_c10d_fault_tolerance": 0.30952380952380953,
-    "distributed/test_c10d_nccl2": 5.303113553113553,
+    "distributed/test_c10d_nccl2": 5.303113553113555,
     "distributed/test_c10d_p2p": 0.5,
     "distributed/test_c10d_process_group": 0.30952380952380953,
     "distributed/test_c10d_suspend_resume": 0.2,
@@ -166159,7 +166131,7 @@
   },
   "torch/csrc/distributed/c10d/nccl2/ProcessGroupNCCL.hpp": {
     "distributed/flight_recorder/test_fr_analysis": 0.04,
-    "distributed/test_c10d_collectives": 1.351190476190476,
+    "distributed/test_c10d_collectives": 1.3511904761904763,
     "distributed/test_c10d_common": 0.125,
     "distributed/test_c10d_fault_tolerance": 0.8928571428571428,
     "distributed/test_c10d_fr_hook": 0.04,
@@ -166199,7 +166171,7 @@
   },
   "torch/csrc/distributed/c10d/nccl2/ProcessGroupNCCLLazy.hpp": {
     "distributed/test_c10d_nccl": 0.15789473684210525,
-    "distributed/test_c10d_nccl2": 0.8412280701754387,
+    "distributed/test_c10d_nccl2": 0.8412280701754385,
     "distributed/test_device_mesh": 0.15789473684210525,
     "distributed/test_fake_pg": 0.15789473684210525
   },
@@ -166333,7 +166305,7 @@
   "torch/csrc/distributed/c10d/symm_mem/NCCLSymmetricMemory.cu": {
     "distributed/test_c10d_nccl": 0.09090909090909091,
     "distributed/test_ce_colls": 0.07692307692307693,
-    "distributed/test_nccl": 3.7243256743256747,
+    "distributed/test_nccl": 3.724325674325675,
     "distributed/test_nvshmem": 2.01025641025641,
     "distributed/test_symmetric_memory": 0.619022644022644
   },
@@ -166362,7 +166334,7 @@
     "distributed/test_nvshmem": 0.125
   },
   "torch/csrc/distributed/c10d/symm_mem/SymmetricMemory.cpp": {
-    "distributed/test_nccl": 2.488311688311689,
+    "distributed/test_nccl": 2.4883116883116885,
     "distributed/test_nvshmem": 2.874242424242425,
     "distributed/test_symmetric_memory": 1.8932900432900432
   },
@@ -166723,7 +166695,7 @@
     "inductor/test_aot_inductor_arrayref": 0.3333333333333333
   },
   "torch/csrc/inductor/aoti_runtime/interface.h": {
-    "inductor/test_aot_inductor": 1.001388888888889,
+    "inductor/test_aot_inductor": 1.0013888888888889,
     "inductor/test_aot_inductor_package": 0.0625
   },
   "torch/csrc/inductor/aoti_runtime/kernel_context_tls.h": {
@@ -166791,10 +166763,10 @@
     "test_varlen_attention": 1.121212121212121
   },
   "torch/csrc/inductor/aoti_torch/generated/c_shim_mps.h": {
-    "inductor/test_aot_inductor": 0.325,
+    "inductor/test_aot_inductor": 0.4916666666666667,
     "inductor/test_torchinductor": 0.43452380952380953,
     "test_autograd": 0.08333333333333333,
-    "test_mps": 0.8127344877344875,
+    "test_mps": 0.9794011544011543,
     "test_transformers": 0.15384615384615385
   },
   "torch/csrc/inductor/aoti_torch/generated/c_shim_xpu.h": {
@@ -167053,6 +167025,7 @@
   },
   "torch/csrc/jit/python/pybind_utils.cpp": {
     "distributed/tensor/test_dtensor_compile": 0.020833333333333332,
+    "distributed/test_functional_differentials": 0.14285714285714285,
     "distributed/test_processgroup_jit": 0.3333333333333333,
     "dynamo/test_decorators": 0.020833333333333332,
     "dynamo/test_flat_apply": 0.020833333333333332,
@@ -167330,7 +167303,7 @@
     "cpp_extensions/test_libtorch_agnostic": 0.15555555555555556
   },
   "torch/csrc/stable/c/shim.h": {
-    "cpp_extensions/test_libtorch_agnostic": 2.245659324335795
+    "cpp_extensions/test_libtorch_agnostic": 2.2456593243357954
   },
   "torch/csrc/stable/c/shim_function_versions.txt": {
     "cpp_extensions/test_libtorch_agnostic": 1.4682783719548427
@@ -167510,7 +167483,6 @@
     "test_torch": 0.5
   },
   "torch/csrc/utils/tensor_new.cpp": {
-    "distributed/test_cupy_as_tensor": 0.2,
     "dynamo/test_misc": 0.023342751575744405,
     "dynamo/test_trace_rules": 0.023342751575744405,
     "functorch/test_vmap_registrations": 0.023342751575744405,
@@ -167529,11 +167501,7 @@
     "test_tensor_creation_ops": 0.16666666666666666
   },
   "torch/csrc/utils/tensor_numpy.cpp": {
-    "distributed/test_cupy_as_tensor": 0.2,
     "test_numpy_interop": 1.5
-  },
-  "torch/csrc/utils/tensor_numpy.h": {
-    "distributed/test_cupy_as_tensor": 0.2
   },
   "torch/csrc/xpu/Event.cpp": {
     "dynamo/test_streams": 0.1111111111111111,
@@ -167611,7 +167579,7 @@
     "profiler/test_cupti_monitor": 0.4861111111111111,
     "test_bundled_inputs": 0.02040816326530612,
     "test_complex": 0.02040816326530612,
-    "test_cuda": 1.978968253968254,
+    "test_cuda": 1.9789682539682538,
     "test_cuda_graph_annotations": 0.5833333333333333,
     "test_cuda_graph_debug": 1.0,
     "test_cuda_graph_utils": 3.1694444444444447,
@@ -167792,7 +167760,7 @@
     "distributed/test_dynamo_distributed": 0.4685690653432589,
     "distributed/test_fake_pg": 0.13523573200992556,
     "distributed/test_functional_api": 0.6801075268817204,
-    "distributed/test_functional_differentials": 2.5134408602150535,
+    "distributed/test_functional_differentials": 2.6562980030721963,
     "distributed/test_inductor_collectives": 0.7954921422663357,
     "distributed/test_local_tensor": 0.038461538461538464,
     "distributed/test_symmetric_memory": 0.0967741935483871,
@@ -168192,7 +168160,7 @@
     "distributed/test_functional_api": 0.0967741935483871,
     "distributed/test_functional_differentials": 0.0967741935483871,
     "distributed/test_inductor_collectives": 0.0967741935483871,
-    "distributed/test_nccl": 2.2973776223776223,
+    "distributed/test_nccl": 2.297377622377622,
     "distributed/test_nvshmem": 1.2392607392607395,
     "distributed/test_symmetric_memory": 3.4657968375710313,
     "distributions/test_distributions": 0.03284758719541328,
@@ -169292,7 +169260,7 @@
     "distributed/_composable/fsdp/test_fully_shard_mixed_precision": 2.233333333333333,
     "distributed/_composable/fsdp/test_fully_shard_overlap": 1.1666666666666665,
     "distributed/_composable/fsdp/test_fully_shard_spmd_types": 0.25,
-    "distributed/_composable/fsdp/test_fully_shard_training": 2.737878787878788,
+    "distributed/_composable/fsdp/test_fully_shard_training": 2.7378787878787874,
     "distributed/_composable/test_replicate_mixed_precision": 0.2,
     "distributed/_composable/test_replicate_with_fsdp": 0.14285714285714285,
     "distributed/test_composability": 0.6545454545454545
@@ -169648,10 +169616,6 @@
     "test_tensor_creation_ops": 0.020618556701030927,
     "torch_np/numpy_tests/core/test_dtype": 0.020618556701030927
   },
-  "torch/distributed/pipelining/__init__.py": {
-    "distributed/pipelining/test_schedule": 0.16666666666666666,
-    "distributed/pipelining/test_schedule_multiproc": 0.16666666666666666
-  },
   "torch/distributed/pipelining/_backward.py": {
     "distributed/_shard/sharded_tensor/test_sharded_tensor": 0.020618556701030927,
     "distributed/checkpoint/test_checkpoint": 0.020618556701030927,
@@ -169713,8 +169677,8 @@
   },
   "torch/distributed/pipelining/schedules.py": {
     "distributed/pipelining/test_dtensor_pp_unit_tests": 1.3333333333333333,
-    "distributed/pipelining/test_schedule": 4.816666666666666,
-    "distributed/pipelining/test_schedule_multiproc": 2.066666666666667,
+    "distributed/pipelining/test_schedule": 4.316666666666666,
+    "distributed/pipelining/test_schedule_multiproc": 1.5666666666666667,
     "distributed/pipelining/test_stage": 0.5833333333333333,
     "distributed/test_c10d_common": 0.125,
     "distributed/test_c10d_nccl": 0.42857142857142855,
@@ -169835,7 +169799,7 @@
     "distributed/tensor/test_compile_on_one_rank": 0.3333333333333333,
     "distributed/tensor/test_dtensor": 1.3291666666666666,
     "distributed/tensor/test_dtensor_logging": 0.45,
-    "distributed/tensor/test_dtensor_ops": 3.2458333333333336,
+    "distributed/tensor/test_dtensor_ops": 2.995833333333333,
     "distributed/tensor/test_init": 0.25,
     "distributed/tensor/test_math_ops": 0.8333333333333333,
     "distributed/tensor/test_op_strategy": 0.9264069264069263,
@@ -169845,7 +169809,7 @@
     "distributed/tensor/test_redistribute": 0.08333333333333333,
     "distributed/tensor/test_tensor_ops": 1.2173160173160171,
     "distributed/tensor/test_utils": 1.9166666666666665,
-    "distributed/tensor/test_view_ops": 1.2,
+    "distributed/tensor/test_view_ops": 0.95,
     "distributed/test_local_tensor": 0.0625,
     "test_hop_infra": 0.6111111111111112,
     "test_nestedtensor": 0.0625
@@ -169980,7 +169944,7 @@
     "distributed/tensor/debug/test_debug_mode": 0.14285714285714285,
     "distributed/tensor/test_api": 0.14285714285714285,
     "distributed/tensor/test_dtensor": 0.28799019607843135,
-    "distributed/tensor/test_dtensor_ops": 7.605357142857144,
+    "distributed/tensor/test_dtensor_ops": 7.6053571428571445,
     "distributed/tensor/test_math_ops": 15.866666666666664,
     "distributed/tensor/test_op_strategy": 3.9242424242424243,
     "distributed/tensor/test_placement_types": 0.5133689839572193,
@@ -170056,13 +170020,13 @@
     "distributed/tensor/test_decompositions": 0.2,
     "distributed/tensor/test_dtensor": 0.058823529411764705,
     "distributed/tensor/test_dtensor_compile": 0.5333333333333333,
-    "distributed/tensor/test_dtensor_ops": 1.1,
+    "distributed/tensor/test_dtensor_ops": 0.85,
     "distributed/tensor/test_math_ops": 0.16666666666666666,
     "distributed/tensor/test_op_strategy": 0.34090909090909094,
     "distributed/tensor/test_placement_types": 0.36437908496732024,
     "distributed/tensor/test_redistribute": 0.3055555555555555,
     "distributed/tensor/test_utils": 0.36437908496732024,
-    "distributed/tensor/test_view_ops": 4.28888888888889,
+    "distributed/tensor/test_view_ops": 4.03888888888889,
     "dynamo/test_higher_order_ops": 0.3333333333333333,
     "higher_order_ops/test_local_map": 0.3333333333333333,
     "inductor/test_compiled_autograd": 0.3333333333333333
@@ -170418,7 +170382,7 @@
     "distributed/tensor/test_redistribute": 2.5511904761904765,
     "distributed/tensor/test_single_dim_strategy": 0.2,
     "distributed/tensor/test_tensor_ops": 0.5972222222222222,
-    "distributed/tensor/test_utils": 3.1215219421101774,
+    "distributed/tensor/test_utils": 3.121521942110177,
     "distributed/tensor/test_view_ops": 0.6722222222222223,
     "distributed/test_aten_comm_compute_reordering": 0.0967741935483871,
     "distributed/test_c10d_functional_native": 0.0967741935483871,
@@ -170470,7 +170434,7 @@
     "export/test_draft_export": 0.034482758620689655,
     "export/test_dynamic_spec_export": 0.23376623376623376,
     "export/test_experimental": 0.5106732348111658,
-    "export/test_export": 1.31464148877942,
+    "export/test_export": 1.3146414887794198,
     "export/test_passes": 0.034482758620689655,
     "export/test_retraceability": 0.16666666666666666,
     "export/test_serialize": 0.034482758620689655,
@@ -170554,7 +170518,7 @@
     "dynamo/test_misc": 0.711111111111111,
     "export/test_dynamic_spec_export": 0.2909090909090909,
     "export/test_experimental": 1.9484126984126984,
-    "export/test_export": 11.834415584415584,
+    "export/test_export": 11.584415584415584,
     "export/test_export_opinfo": 1.0,
     "export/test_retraceability": 0.16666666666666666,
     "export/test_strict_export_v2": 0.569047619047619,
@@ -171026,7 +170990,7 @@
     "inductor/test_cudagraph_trees": 0.020833333333333332,
     "inductor/test_flex_attention": 0.2,
     "inductor/test_pattern_matcher": 0.35416666666666663,
-    "inductor/test_provenance_tracing": 0.15,
+    "inductor/test_provenance_tracing": 0.06666666666666667,
     "inductor/test_static_triton_launcher": 0.12,
     "inductor/test_torchinductor": 0.09090909090909091,
     "inductor/test_triton_heuristics": 0.12,
@@ -171110,7 +171074,7 @@
     "dynamo/test_guard_exclusion": 0.16666666666666666,
     "dynamo/test_guard_manager": 0.05263157894736842,
     "dynamo/test_guard_serialization": 0.020833333333333332,
-    "dynamo/test_higher_order_ops": 0.7291666666666666,
+    "dynamo/test_higher_order_ops": 0.7291666666666667,
     "dynamo/test_logging": 0.3333333333333333,
     "dynamo/test_misc": 2.4611111111111112,
     "dynamo/test_python_autograd": 0.020618556701030927,
@@ -171162,7 +171126,7 @@
     "test_nestedtensor": 0.7,
     "test_nn": 0.020618556701030927,
     "test_numpy_interop": 0.020618556701030927,
-    "test_opaque_obj_v2": 0.7503517823639775,
+    "test_opaque_obj_v2": 0.7503517823639776,
     "test_proxy_tensor": 0.8,
     "test_pruning_op": 0.020618556701030927,
     "test_reductions": 0.020618556701030927,
@@ -171334,7 +171298,7 @@
   },
   "torch/fx/passes/_tensorify_python_scalars.py": {
     "dynamo/test_misc": 1.15,
-    "dynamo/test_recompiles": 2.0,
+    "dynamo/test_recompiles": 1.9999999999999998,
     "dynamo/test_subclasses": 0.7,
     "functorch/test_control_flow": 0.2,
     "inductor/test_compiled_optimizers": 1.0,
@@ -171394,7 +171358,7 @@
     "dynamo/test_compiler_bisector": 0.2,
     "dynamo/test_utils": 0.25,
     "inductor/test_codecache": 0.06666666666666667,
-    "inductor/test_provenance_tracing": 0.15,
+    "inductor/test_provenance_tracing": 0.06666666666666667,
     "profiler/test_profiler": 0.06666666666666667,
     "test_fx": 0.050310559006211175,
     "test_fx_experimental": 0.02857142857142857
@@ -171627,7 +171591,6 @@
     "functorch/test_aotdispatch": 0.16666666666666666,
     "higher_order_ops/test_with_effects": 0.5,
     "inductor/test_max_autotune": 0.2,
-    "inductor/test_provenance_tracing": 0.08333333333333333,
     "test_cuda": 0.125,
     "test_fx": 0.6467391304347826
   },
@@ -172235,7 +172198,7 @@
     "test_meta": 0.07692307692307693,
     "test_nestedtensor": 0.125,
     "test_transformers": 0.3496503496503497,
-    "test_varlen_attention": 7.840440115440115
+    "test_varlen_attention": 7.840440115440114
   },
   "torch/nn/cpp.py": {
     "test_bundled_inputs": 0.011235955056179775,
@@ -173583,7 +173546,7 @@
   },
   "torch/optim/__init__.py": {
     "inductor/test_compiled_optimizers": 0.16666666666666666,
-    "optim/test_stateless": 0.9166666666666666,
+    "optim/test_stateless": 0.9166666666666665,
     "test_optim": 0.16666666666666666
   },
   "torch/optim/_muon.py": {
@@ -173591,7 +173554,7 @@
     "test_optim": 0.5
   },
   "torch/optim/_stateless.py": {
-    "optim/test_stateless": 0.9166666666666666
+    "optim/test_stateless": 0.9166666666666665
   },
   "torch/optim/adam.py": {
     "distributed/test_c10d_torchcomms": 0.16666666666666666,
@@ -173771,7 +173734,7 @@
     "test_cuda_graph_utils": 0.5694444444444444
   },
   "torch/profiler/_cupti/cupti_python.py": {
-    "profiler/test_cupti_monitor": 1.1845238095238093,
+    "profiler/test_cupti_monitor": 1.1845238095238095,
     "profiler/test_cupti_node_timer": 0.2,
     "profiler/test_cupti_python": 0.5833333333333333,
     "test_cuda_graph_utils": 0.08333333333333333,
@@ -173796,7 +173759,7 @@
     "profiler/test_cupti_monitor": 0.25
   },
   "torch/profiler/_cupti/observers/base.py": {
-    "profiler/test_cupti_monitor": 1.186111111111111,
+    "profiler/test_cupti_monitor": 1.1861111111111111,
     "test_cuda_graph_utils": 0.8194444444444444
   },
   "torch/profiler/_cupti/observers/node_timer.py": {
@@ -174388,7 +174351,7 @@
     "inductor/test_torchinductor": 2.121845107927582,
     "inductor/test_torchinductor_dynamic_shapes": 0.3727272727272727,
     "inductor/test_torchinductor_opinfo": 2.9598896760429056,
-    "inductor/test_torchinductor_opinfo_properties": 0.07692307692307693,
+    "inductor/test_torchinductor_opinfo_properties": 0.41025641025641024,
     "inductor/test_torchinductor_strided_blocks": 0.7833333333333333,
     "inductor/test_triton_kernels": 0.03284758719541328,
     "inductor/test_user_streams": 0.027777777777777776,
@@ -174424,10 +174387,10 @@
     "test_namedtensor": 0.023342751575744405,
     "test_namedtuple_return_api": 0.10344827586206896,
     "test_nestedtensor": 0.2,
-    "test_nn": 2.9388025781180453,
+    "test_nn": 2.938802578118046,
     "test_numa_binding": 0.03284758719541328,
     "test_numpy_interop": 0.020618556701030927,
-    "test_ops": 3.928462940430482,
+    "test_ops": 4.261796273763814,
     "test_ops_fwd_gradients": 0.6102564102564103,
     "test_ops_gradients": 0.7102564102564102,
     "test_ops_jit": 0.07692307692307693,
@@ -174449,7 +174412,7 @@
     "test_tensorboard": 0.03284758719541328,
     "test_tensorexpr": 0.03284758719541328,
     "test_testing": 0.1736111111111111,
-    "test_torch": 1.045584278165097,
+    "test_torch": 1.212250944831764,
     "test_type_promotion": 0.08773584905660377,
     "test_unary_ufuncs": 0.33773584905660375,
     "test_view_ops": 0.16603798170656248,
@@ -175215,7 +175178,7 @@
     "distributed/test_c10d_functional_native": 0.25,
     "distributed/test_device_mesh": 0.03284758719541328,
     "distributed/test_functional_api": 0.25,
-    "distributed/test_functional_differentials": 0.25,
+    "distributed/test_functional_differentials": 0.3928571428571428,
     "distributions/test_distributions": 0.03284758719541328,
     "dynamo/test_export": 0.03284758719541328,
     "dynamo/test_functions": 0.03284758719541328,
@@ -175824,12 +175787,12 @@
     "test_custom_ops": 0.6000000000000001
   },
   "torch/testing/_internal/optests/generate_tests.py": {
-    "distributed/_composable/fsdp/test_fully_shard_compile": 0.4727272727272728,
-    "dynamo/test_aot_autograd": 0.4727272727272728,
+    "distributed/_composable/fsdp/test_fully_shard_compile": 0.47272727272727266,
+    "dynamo/test_aot_autograd": 0.47272727272727266,
     "dynamo/test_misc": 1.072727272727273,
-    "functorch/test_aotdispatch": 0.4727272727272728,
+    "functorch/test_aotdispatch": 0.47272727272727266,
     "test_custom_ops": 1.072727272727273,
-    "test_opaque_obj_v2": 0.4727272727272728
+    "test_opaque_obj_v2": 0.47272727272727266
   },
   "torch/testing/_internal/optests/make_fx.py": {
     "inductor/test_torchinductor": 0.02631578947368421,
@@ -176997,7 +176960,7 @@
     "test_torch": 0.023342751575744405
   },
   "torchgen/fuse/gen_patterns.py": {
-    "inductor/test_pattern_matcher": 1.0857142857142856
+    "inductor/test_pattern_matcher": 0.9428571428571428
   },
   "torchgen/gen.py": {
     "cpp_extensions/test_libtorch_agnostic": 0.30514705882352944,
