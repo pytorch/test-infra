@@ -35,8 +35,12 @@ Notes on the app path:
 > the new code on `$LATEST` and every webhook hits it right away. The publish-a-version steps below are
 > stale — they describe pinning the integration to a numbered version, which is not how it is wired
 > today, and the resource id is now `xtmtzj` rather than `clc02o`. Until that is fixed, treat any deploy
-> as a direct production change: `make prepare` verifies the zip contains every vendored module before
-> `make deploy` will run, but there is no staged rollout behind it.
+> as a direct production change: `make prepare` verifies the zip contains every vendored module and
+> `make deploy` refuses to publish a package built for a different python than the function runs, but
+> there is no staged rollout behind it.
+>
+> `PYTHON_VERSION` in the Makefile must match the function's runtime. Changing one without the other
+> breaks every invocation, so the two have to move together — see the rollout order when bumping.
 
 A new version of the lambda can be deployed using `make deploy` and it will be done so automatically by the workflow
 `github-status-test-lambda` when a change is committed to main. We have limited capacity for testing this lambda at
