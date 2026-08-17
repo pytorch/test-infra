@@ -85,10 +85,15 @@ raw_jobs AS (
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
     WHERE
-        -- The join above is the real filter (in-window trunk commits); this created_at range only prunes
-        -- the scan, extends past stopTime to still catch a commit's late retry (bounded, to stay fast).
-        j.created_at >= {startTime: DateTime64(3)}
-        AND j.created_at < {stopTime: DateTime64(3)} + INTERVAL 3 DAY
+        -- Bind jobs to trunk-commit membership rather than a created_at window: a commit's retries are
+        -- separate rows created arbitrarily later, so over historical/backfill windows every attempt must
+        -- be counted or a late retry-green is misclassified as a hard failure. Slower than the created_at
+        -- skip-index scan, but the join above is the exact filter and correctness wins here.
+        j.id IN (
+            SELECT id
+            FROM materialized_views.workflow_job_by_head_sha
+            WHERE head_sha IN (SELECT head_sha FROM trunk_commits)
+        )
         AND j.conclusion IN ('success', 'failure')
         AND j.name LIKE '%/%'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
