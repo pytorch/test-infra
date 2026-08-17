@@ -2,6 +2,7 @@ import { AdvisorVerdict } from "lib/advisorVerdictUtils";
 import { isJobViableStrictBlocking } from "lib/JobClassifierUtil";
 import {
   describeCellRun,
+  describeRunIdentity,
   describeRunOrigin,
   detailJobForRun,
   runKeyOf,
@@ -11,6 +12,7 @@ import { JobData } from "../../lib/types";
 import { SingleWorkflowDispatcher } from "../commit/WorkflowDispatcher";
 import LogViewer from "../common/log/LogViewer";
 import AdvisorSection from "./AdvisorSection";
+import JobConclusion from "./JobConclusion";
 import JobLinks from "./JobLinks";
 
 export default function JobTooltip({
@@ -20,6 +22,7 @@ export default function JobTooltip({
   advisorVerdict,
   repoOwner,
   repoName,
+  pinCell,
 }: {
   job: JobData;
   sha?: string;
@@ -27,6 +30,10 @@ export default function JobTooltip({
   advisorVerdict?: AdvisorVerdict;
   repoOwner?: string;
   repoName?: string;
+  // Pin this cell's tooltip open, so a choice made in it survives the pointer leaving the cell. The
+  // caller owns the pinning policy; this component only says when the reader has acted. Passed in
+  // rather than read from PinnedTooltipContext so this component keeps no dependency on the HUD page.
+  pinCell?: () => void;
 }) {
   // Which of the cell's runs the detail area below describes. Undefined = the cell itself, which is
   // what the grid renders. Selecting a run rebinds the log viewer, the links and the failure
@@ -74,20 +81,50 @@ export default function JobTooltip({
   // sit above a failed restart on exactly the cells that exist to show the restart.
   const showSingleRunOrigin = job.runOrigin != null && cellRuns == null;
 
+  // One radio group per CELL. Two tooltips can be mounted at once -- a pinned one and a hovered one
+  // -- and a shared `name` would let picking a run in one clear the selection rendered in the other,
+  // since a radio group is global to the document.
+  const radioGroup = `cellRuns ${cellKey}`;
+
   const active =
     selection.cell === cellKey ? selection : { cell: cellKey, showAll: false };
+
+  function pickRun(runKey: string) {
+    setSelection({ cell: cellKey, runKey, showAll: active.showAll });
+    // A choice has to outlive the pointer. An UNPINNED tooltip is mounted only while the cell is
+    // hovered (TooltipTarget), so it unmounts on mouse-out and takes this component's state with it --
+    // picking a run then looked like nothing had happened, because by the time the reader looked at
+    // the detail area the selection no longer existed. Clicking a run cannot pin via the cell's own
+    // handler either: these rows must stop propagation to keep a double-click from navigating.
+    pinCell?.();
+  }
   const selectedRun = cellRuns?.find((run) => runKeyOf(run) === active.runKey);
   const detailJob = detailJobForRun(job, selectedRun);
+
+  // The run the detail area is describing: the picked one, or the representative while nothing has
+  // been picked -- the same rule the radios are checked by, so the two cannot disagree.
+  const shownRun = selectedRun ?? cellRuns?.find((run) => run.isRepresentative);
+  const shownIdentity = shownRun ? describeRunIdentity(shownRun) : "";
 
   // Long tails exist -- one cell on a real page merges 82 runs -- and an unbounded list would push
   // the log viewer off the tooltip. Collapse the RENDERING only, never the payload, which would hide
   // the very failure that explains the cell. The list is ordered representative-then-failures, so
   // what the reader most needs is never in the collapsed tail.
   const collapsedRunCount = 5;
-  const visibleRuns =
+  let visibleRuns =
     cellRuns == null || active.showAll
       ? cellRuns
       : cellRuns.slice(0, collapsedRunCount);
+  // A run picked before a grid refresh can land in the collapsed tail afterwards: the list is rebuilt
+  // and re-ordered from fresh data. Keep it rendered, or the detail area would describe a run with no
+  // checked radio anywhere on screen (DP17, gpt-5.6-sol).
+  if (
+    visibleRuns != null &&
+    selectedRun != null &&
+    !visibleRuns.includes(selectedRun)
+  ) {
+    visibleRuns = [...visibleRuns, selectedRun];
+  }
 
   return (
     <div>
@@ -110,12 +147,16 @@ export default function JobTooltip({
             {/* Says the status combines them all, rather than naming one as "shown": the cell's
                 conclusion is a function of the whole set, and a mixed cell renders flaky "F" while
                 the run supplying its fields passed. */}
-            {`${cellRuns.length} runs for this commit — the cell's status combines all of them. Click one to inspect it:`}
-            {/* The surrounding cell pins on click and opens the job page on DOUBLE click, and
-                  dblclick bubbles separately from click -- so stopping click alone would still let a
-                  double-click on a run navigate away while toggling the selection twice. */}
-            <ul
-              style={{ margin: 0, paddingLeft: "1.2em" }}
+            {`${cellRuns.length} runs for this commit — the cell's status combines all of them:`}
+            {/* RADIO BUTTONS, not links. These change what the rest of the tooltip describes, and a
+                link is a promise to navigate: the anchors this replaced read as "open this run" while
+                doing something else entirely (Ivan, 2026-08-17). Navigation now has its own affordance
+                per row -- the `gh` link -- so the two behaviours are no longer wearing one control.
+
+                The surrounding cell pins on click and opens the job page on DOUBLE click, and
+                dblclick bubbles separately from click -- so stopping click alone would still let a
+                double-click on a run navigate away while toggling the selection twice. */}
+            <div
               onDoubleClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -123,31 +164,84 @@ export default function JobTooltip({
             >
               {visibleRuns.map((run) => {
                 const key = runKeyOf(run);
-                const isSelected = key === active.runKey;
+                // Checked = the run the detail area is describing, decided by `shownRun` rather than
+                // re-derived here. Keyed off the RESOLVED run, not off `active.runKey` alone: a stale
+                // key (its run gone after a refresh) would otherwise leave the group with nothing
+                // checked while the detail area described the representative (DP17, gpt-5.6-sol).
+                const isSelected = run === shownRun;
                 return (
-                  <li key={key}>
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelection({
-                          cell: cellKey,
-                          runKey: isSelected ? undefined : key,
-                          showAll: active.showAll,
-                        });
+                  <div
+                    key={key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3em",
+                    }}
+                  >
+                    {/* The `gh` link is OUTSIDE the label: nesting a link inside it puts the link's
+                        text into the radio's accessible name, and the row's own name comes from
+                        aria-label below. */}
+                    <label
+                      // A mouse convenience only. What the row no longer spells out is rendered for
+                      // the INSPECTED run below the list, because a title is unreachable on touch and
+                      // a screen reader skips it once the row has visible text (DP17, gpt-5.6-sol).
+                      title={describeCellRun(run)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3em",
+                        cursor: "pointer",
                       }}
-                      style={{ fontWeight: isSelected ? "bold" : "normal" }}
                     >
-                      {describeCellRun(run)}
-                    </a>
-                    {run.isRepresentative &&
-                      " (this cell's duration and default links)"}
-                  </li>
+                      <input
+                        type="radio"
+                        name={radioGroup}
+                        checked={isSelected}
+                        // The visible text is the ORIGIN, which two runs can share -- a periodic job
+                        // scheduled twice gives two rows reading "schedule". The full description is
+                        // what distinguishes them for a screen reader (DP17, gpt-5.6-sol).
+                        aria-label={describeCellRun(run)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => pickRun(key)}
+                      />
+                      {/* The grid's own status glyph, via the grid's own component -- so a run reads
+                        the same way in the tooltip as a cell does on the HUD, monster sprites
+                        included when that setting is on. `failedPreviousRun` is deliberately not
+                        passed: flakiness is a property of the SET, and marking a single run "F"
+                        would say something false about it. */}
+                      <JobConclusion
+                        conclusion={run.conclusion}
+                        // Truthiness, matching what mergeCellRuns carries: fetchHud deletes an empty
+                        // `failureAnnotation` before the merge, so '' never reaches a run here -- and
+                        // testing `!= null` while the carrier drops '' would be the one combination
+                        // that can disagree with itself (DP17, gpt-5.6-sol).
+                        classified={!!run.failureAnnotation}
+                        jobData={{
+                          failureLines: run.failureLines,
+                        }}
+                      />
+                      <span
+                        style={{ fontWeight: isSelected ? "bold" : "normal" }}
+                      >
+                        {describeRunOrigin(run)}
+                      </span>
+                    </label>
+                    {run.htmlUrl && (
+                      <a
+                        href={run.htmlUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="open this run on GitHub"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        gh
+                      </a>
+                    )}
+                  </div>
                 );
               })}
-            </ul>
-            {!active.showAll && cellRuns.length > collapsedRunCount && (
+            </div>
+            {!active.showAll && cellRuns.length > visibleRuns.length && (
               <a
                 href="#"
                 onClick={(e) => {
@@ -160,9 +254,17 @@ export default function JobTooltip({
                   e.stopPropagation();
                 }}
               >
-                {`show ${cellRuns.length - collapsedRunCount} more`}
+                {/* Counted against what is actually on screen, not against the collapse limit: a
+                    selected run pulled out of the tail above makes those two differ by one. */}
+                {`show ${cellRuns.length - visibleRuns.length} more`}
               </a>
             )}
+            {/* The dispatch identity of the run being inspected -- attempt, who dispatched it, who
+                re-ran it. Rendered once, here, rather than on every row: that is what let the rows
+                shrink to one line each, and it keeps the information out of a `title` attribute
+                that touch and screen readers cannot reach. Absent for ordinary runs, which have no
+                identity to report. */}
+            {shownIdentity !== "" && <div>{shownIdentity}</div>}
           </div>
         </div>
       )}

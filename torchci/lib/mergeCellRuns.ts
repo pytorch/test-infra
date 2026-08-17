@@ -163,6 +163,30 @@ export function describeCellRun(run: CellRun): string {
 }
 
 /**
+ * The dispatch identity of a run -- restart attempt, who dispatched it, who re-ran it -- or '' when
+ * it has none (every ordinary push or periodic run).
+ *
+ * Exists so the run list can stay ONE SHORT LINE per row while this information is still rendered
+ * for the run being inspected. It used to sit in each row's text, which Ivan called "extremely
+ * verbose" (2026-08-17); moving it into a `title` attribute would have been worse than either, since
+ * touch devices cannot reach a title at all and a screen reader skips it once the row has visible
+ * text of its own.
+ */
+export function describeRunIdentity(run: CellRun): string {
+  const parts: string[] = [];
+  if (run.restartRunAttempt != null) {
+    parts.push(`attempt ${run.restartRunAttempt}`);
+  }
+  if (run.restartDispatchedBy) {
+    parts.push(`dispatched by ${run.restartDispatchedBy}`);
+  }
+  if (run.restartRerunBy) {
+    parts.push(`rerun by ${run.restartRerunBy}`);
+  }
+  return parts.join(", ");
+}
+
+/**
  * The JobData the tooltip's detail area -- log viewer, links, failure classification -- should
  * render for a selected run, or for the cell itself when nothing is selected.
  *
@@ -186,6 +210,8 @@ export function detailJobForRun(cell: JobData, run?: CellRun): JobData {
   return {
     ...cell,
     id: run.id,
+    workflowId: run.workflowId,
+    failureAnnotation: run.failureAnnotation,
     conclusion: run.conclusion,
     htmlUrl: run.htmlUrl,
     logUrl: run.logUrl,
@@ -294,6 +320,7 @@ export function mergeCellRuns(runs: JobData[]): JobData {
           runOrigin: job.runOrigin,
           conclusion: job.conclusion,
           id: job.id,
+          workflowId: job.workflowId,
           htmlUrl: job.htmlUrl,
           logUrl: job.logUrl,
           durationS: job.durationS,
@@ -301,6 +328,12 @@ export function mergeCellRuns(runs: JobData[]): JobData {
           restartDispatchedBy: job.restartDispatchedBy,
           restartRerunBy: job.restartRerunBy,
         };
+        // Only when there IS one. An unannotated job carries '' rather than null on some producers,
+        // and fetchHud strips only nulls -- assigning it unconditionally would ship an empty string
+        // on every run of every multi-run cell to say nothing.
+        if (job.failureAnnotation) {
+          run.failureAnnotation = job.failureAnnotation;
+        }
         // Classification text ONLY for runs that actually failed. It is the largest thing a run can
         // carry -- one run on a real page carries 55 KB of it -- and torchci classifies plenty of
         // runs that did not fail: measured over the 50 newest pytorch/pytorch trunk commits, runs on

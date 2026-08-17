@@ -80,8 +80,17 @@ export interface CellRun {
   failureLineNumbers?: number[];
   failureCaptures?: string[];
   failureContext?: string[];
+  // Carried so that picking a run rebinds EVERY id-bearing affordance in the tooltip, not just the
+  // ones on the row itself. `canShowODCCommand` reads (workflowId, id, failureLineNumbers) as one
+  // run's identity: with only `id` per-run, picking a sibling produced an ODC command pairing that
+  // run's job id with the REPRESENTATIVE's workflow id. `failureAnnotation` drives the classified
+  // styling, which is per-run for the same reason the classification text is.
+  workflowId?: string;
+  failureAnnotation?: string;
   // The run whose per-row fields the cell itself renders. The cell's CONCLUSION is a function of
   // the whole set, not of this run alone -- a mixed cell renders flaky "F" while this run passed.
+  // It is also what the tooltip shows before the reader picks anything, so the run list can render a
+  // default selection instead of a third "nothing is selected" state.
   isRepresentative?: boolean;
 }
 

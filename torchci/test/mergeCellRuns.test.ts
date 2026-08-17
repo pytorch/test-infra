@@ -1,6 +1,7 @@
 import { JobStatus } from "components/job/GroupJobConclusion";
 import {
   describeCellRun,
+  describeRunIdentity,
   describeRunOrigin,
   detailJobForRun,
   mergeCellRuns,
@@ -404,6 +405,59 @@ describe("mergeCellRuns", () => {
     expect(byId.get("3")!.id).toBe("3");
   });
 
+  // The ODC command reads (workflowId, id, failureLineNumbers) as ONE run's identity, so a run list
+  // that carried only `id` produced a command pairing the selected run's job with the
+  // representative's workflow -- a pair that never existed.
+  test("each run carries its own workflow id, and an annotation only when it has one", () => {
+    const merged = mergeCellRuns([
+      {
+        id: "1",
+        workflowId: "100",
+        conclusion: JobStatus.Failure,
+        failureAnnotation: "infra flake",
+        name: "w / j",
+      },
+      {
+        id: "2",
+        workflowId: "200",
+        conclusion: JobStatus.Failure,
+        name: "w / j",
+      },
+    ]);
+    const byId = new Map(merged.cellRuns!.map((r) => [r.id, r]));
+    expect(byId.get("1")!.workflowId).toBe("100");
+    expect(byId.get("2")!.workflowId).toBe("200");
+    expect(byId.get("1")!.failureAnnotation).toBe("infra flake");
+    // Absent rather than empty: an unannotated job carries '' on some producers, and fetchHud strips
+    // only nulls -- so assigning it would ship a key saying nothing on every run of every cell.
+    expect("failureAnnotation" in byId.get("2")!).toBe(false);
+  });
+
+  // The run list shows one short line per row, so the dispatch identity is rendered once for the run
+  // being inspected instead of on every row. A run with nothing to report must yield '', not a stray
+  // empty line under the list.
+  test("run identity names attempt, dispatcher and rerunner, and is empty when there are none", () => {
+    expect(
+      describeRunIdentity({
+        runOrigin: "autorevert",
+        restartRunAttempt: 2,
+        restartDispatchedBy: "pytorch-auto-revert[bot]",
+        restartRerunBy: "someone",
+      })
+    ).toBe(
+      "attempt 2, dispatched by pytorch-auto-revert[bot], rerun by someone"
+    );
+    expect(
+      describeRunIdentity({
+        runOrigin: "autorevert",
+        restartDispatchedBy: "pytorch-auto-revert[bot]",
+      })
+    ).toBe("dispatched by pytorch-auto-revert[bot]");
+    expect(describeRunIdentity({ conclusion: JobStatus.Success })).toBe("");
+    // Attempt 1 is still worth naming: it distinguishes a restart from its own re-runs.
+    expect(describeRunIdentity({ restartRunAttempt: 1 })).toBe("attempt 1");
+  });
+
   test("a stale failedPreviousRun on an input row cannot leak into a clean cell", () => {
     const poisoned: JobData = {
       id: "1",
@@ -509,6 +563,40 @@ describe("mergeCellRuns", () => {
       expect(pushDetail.runOrigin).toBeUndefined();
       expect(pushDetail.restartDispatchedBy).toBeUndefined();
       expect(pushDetail.restartRunAttempt).toBeUndefined();
+    });
+
+    test("selecting a run rebinds its workflow id and annotation, and clears one it lacks", () => {
+      // Round-tripped, for the same reason as the test above: the un-annotated run's key is dropped
+      // by JSON.stringify, which is exactly when an implementation that relied on the key being
+      // present would leave the representative's annotation standing.
+      const cell = JSON.parse(
+        JSON.stringify(
+          mergeCellRuns([
+            {
+              id: "2",
+              workflowId: "200",
+              conclusion: JobStatus.Failure,
+              failureAnnotation: "infra flake",
+              failureLines: ["boom"],
+              name: "w / j",
+            },
+            {
+              id: "1",
+              workflowId: "100",
+              conclusion: JobStatus.Failure,
+              name: "w / j",
+            },
+          ])
+        )
+      ) as JobData;
+
+      expect(cell.id).toBe("2");
+      expect(cell.failureAnnotation).toBe("infra flake");
+
+      const other = cell.cellRuns!.find((r) => r.id === "1")!;
+      const detail = detailJobForRun(cell, other);
+      expect(detail.workflowId).toBe("100");
+      expect(detail.failureAnnotation).toBeUndefined();
     });
 
     test("selecting a run without diagnostics does not inherit another run's failure", () => {
