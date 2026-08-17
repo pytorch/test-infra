@@ -394,6 +394,7 @@ PACKAGE_ALLOW_LIST = {
         "Markdown",
         "MarkupSafe",
         "monarch",
+        "torchmonarch",
         "opentelemetry_api",
         "pip",
         "platformdirs",
