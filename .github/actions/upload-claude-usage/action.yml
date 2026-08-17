@@ -33,15 +33,15 @@ runs:
         # than carrying the whole result, whose .result text can be large) keeps
         # the value small for the payload step below.
         METRICS=$(jq -s -c '
-          [ .. | objects | select(.type == "result") ] | last
+          [ .[] | (if type == "array" then .[] else empty end) | select(type == "object" and .type == "result") ] | last
           | if . == null then empty else {
-              duration_ms: (.duration_ms? // 0),
-              num_turns: (.num_turns? // 0),
-              total_cost_usd: (.total_cost_usd? // 0),
-              input_tokens: (.usage.input_tokens? // 0),
-              output_tokens: (.usage.output_tokens? // 0),
-              cache_read_input_tokens: (.usage.cache_read_input_tokens? // 0),
-              cache_creation_input_tokens: (.usage.cache_creation_input_tokens? // 0),
+              duration_ms: ((.duration_ms? | tonumber?) // 0),
+              num_turns: ((.num_turns? | tonumber?) // 0),
+              total_cost_usd: ((.total_cost_usd? | tonumber?) // 0),
+              input_tokens: ((.usage.input_tokens? | tonumber?) // 0),
+              output_tokens: ((.usage.output_tokens? | tonumber?) // 0),
+              cache_read_input_tokens: ((.usage.cache_read_input_tokens? | tonumber?) // 0),
+              cache_creation_input_tokens: ((.usage.cache_creation_input_tokens? | tonumber?) // 0),
               model: (.modelUsage | if type == "object" then (keys[0] // "") else "" end)
             } end
         ' "$METRICS_FILE" 2>/dev/null || true)
@@ -88,7 +88,10 @@ runs:
           exit 0
         fi
 
-        echo "$PAYLOAD" > /tmp/claude_usage.json
+        if ! echo "$PAYLOAD" > /tmp/claude_usage.json; then
+          echo "::warning::Failed to write Claude usage payload to disk; skipping usage upload"
+          exit 0
+        fi
 
         if ! aws s3 cp /tmp/claude_usage.json \
           "s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}/${{ github.repository }}/${{ github.run_id }}_${{ github.run_attempt }}.json"; then
