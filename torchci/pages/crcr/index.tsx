@@ -826,7 +826,7 @@ export default function CrcrSummaryPage() {
           >
             pytorch/crcr-test
           </Link>{" "}
-          probes. To know more, check the HUD dashboard for{" "}
+          probes. To know more, check the HUD dashboard —{" "}
           <Link
             href="https://hud.pytorch.org/crcr/pytorch/crcr-test"
             target="_blank"
@@ -841,8 +841,8 @@ export default function CrcrSummaryPage() {
             rel="noreferrer"
           >
             Nightly
-          </Link>
-          , or view{" "}
+          </Link>{" "}
+          — or view{" "}
           <NextLink href="/crcr/metrics" passHref legacyBehavior>
             <Link underline="hover">success-rate trends</Link>
           </NextLink>
