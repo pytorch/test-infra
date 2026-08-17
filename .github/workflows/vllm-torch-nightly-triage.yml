@@ -160,10 +160,6 @@ jobs:
             root-cause analysis guidance -- in particular "Group by root cause", the
             "Gotchas observed" list, and the repo routing cheat-sheet.
 
-            Skip the skill's log-fetching and Buildkite steps: the logs are already
-            downloaded and cleaned. Skip its issue-filing and retry steps entirely --
-            you have no credentials for either and must not attempt them.
-
             Inputs, all under ${{ runner.temp }}/triage:
               - report.md   the torch-nightly vs baseline A/B, with clusters
               - report.json the same data structured
@@ -204,7 +200,8 @@ jobs:
               "clusters":   ["<cluster name>", ...],
               "job_urls":   ["<buildkite job url>", ...],
               "routing":    "pytorch/pytorch" | "vllm-project/vllm" | "infra",
-              "confidence": "high" | "medium" | "low",
+              "classification_confidence": "high" | "medium" | "low",
+              "new_failure_confidence": "high" | "medium" | "low",
               "determined": true | false
             }]}
 
