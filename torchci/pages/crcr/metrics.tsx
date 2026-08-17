@@ -299,11 +299,7 @@ export default function CrcrMetricsPage() {
         )}
 
         {activeTab === "nightly" && (
-          <MetricsCharts
-            data={nightlyData}
-            days={days}
-            error={nightlyError}
-          />
+          <MetricsCharts data={nightlyData} days={days} error={nightlyError} />
         )}
       </Stack>
     </>
