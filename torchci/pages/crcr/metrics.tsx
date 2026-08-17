@@ -8,6 +8,8 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
 import {
@@ -22,6 +24,8 @@ import NextLink from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 dayjs.extend(utc);
+
+type MetricsTab = "pr" | "nightly";
 
 interface SuccessRateRow {
   day: string;
@@ -153,22 +157,100 @@ function TotalRunsChart({
   );
 }
 
-export default function CrcrMetricsPage() {
-  const [days, setDays] = useState(30);
-
-  const url = `/api/clickhouse/crcr_success_rate?parameters=${encodeURIComponent(
-    JSON.stringify({ days: String(days) })
-  )}`;
-  const { data, error } = useSWR<SuccessRateRow[]>(url, fetcherHandleError, {
-    refreshInterval: 5 * 60_000,
-  });
-
+function MetricsCharts({
+  data,
+  days,
+  error,
+}: {
+  data: SuccessRateRow[] | undefined;
+  days: number;
+  error: Error | undefined;
+}) {
   const repos = useMemo(() => {
     if (!data) return [];
     return [...new Set(data.map((r) => r.repo))].sort();
   }, [data]);
 
   const isLoading = !data && !error;
+
+  return (
+    <>
+      {error && (
+        <Typography color="error">
+          {error.message || "Failed to load metrics data"}
+        </Typography>
+      )}
+
+      {isLoading && (
+        <Stack spacing={2}>
+          <Skeleton variant="rectangular" height={420} />
+          <Skeleton variant="rectangular" height={420} />
+        </Stack>
+      )}
+
+      {data && (
+        <Stack spacing={3}>
+          <PassRateChart data={data} days={days} />
+          <FailuresChart data={data} days={days} />
+          <TotalRunsChart data={data} days={days} />
+        </Stack>
+      )}
+
+      {data && repos.length > 0 && (
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Repos in view ({repos.length}):
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {repos.map((repo) => (
+              <NextLink
+                key={repo}
+                href={`/crcr/${repo}`}
+                passHref
+                legacyBehavior
+              >
+                <Link
+                  underline="hover"
+                  sx={{
+                    fontSize: "0.85rem",
+                    px: 1,
+                    py: 0.25,
+                    bgcolor: "action.hover",
+                    borderRadius: 1,
+                  }}
+                >
+                  {repo}
+                </Link>
+              </NextLink>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+}
+
+export default function CrcrMetricsPage() {
+  const [days, setDays] = useState(30);
+  const [activeTab, setActiveTab] = useState<MetricsTab>("pr");
+
+  const prUrl = `/api/clickhouse/crcr_success_rate?parameters=${encodeURIComponent(
+    JSON.stringify({ days: String(days) })
+  )}`;
+  const { data: prData, error: prError } = useSWR<SuccessRateRow[]>(
+    prUrl,
+    fetcherHandleError,
+    { refreshInterval: 5 * 60_000 }
+  );
+
+  const nightlyUrl = `/api/clickhouse/crcr_nightly_success_rate?parameters=${encodeURIComponent(
+    JSON.stringify({ days: String(days) })
+  )}`;
+  const { data: nightlyData, error: nightlyError } = useSWR<SuccessRateRow[]>(
+    nightlyUrl,
+    fetcherHandleError,
+    { refreshInterval: 5 * 60_000 }
+  );
 
   return (
     <>
@@ -203,56 +285,25 @@ export default function CrcrMetricsPage() {
           </NextLink>
         </Typography>
 
-        {error && (
-          <Typography color="error">
-            {error.message || "Failed to load metrics data"}
-          </Typography>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v: MetricsTab) => setActiveTab(v)}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab label="Pull Requests" value="pr" />
+          <Tab label="Nightly" value="nightly" />
+        </Tabs>
+
+        {activeTab === "pr" && (
+          <MetricsCharts data={prData} days={days} error={prError} />
         )}
 
-        {isLoading && (
-          <Stack spacing={2}>
-            <Skeleton variant="rectangular" height={420} />
-            <Skeleton variant="rectangular" height={420} />
-          </Stack>
-        )}
-
-        {data && (
-          <Stack spacing={3}>
-            <PassRateChart data={data} days={days} />
-            <FailuresChart data={data} days={days} />
-            <TotalRunsChart data={data} days={days} />
-          </Stack>
-        )}
-
-        {data && repos.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Repos in view ({repos.length}):
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              {repos.map((repo) => (
-                <NextLink
-                  key={repo}
-                  href={`/crcr/${repo}`}
-                  passHref
-                  legacyBehavior
-                >
-                  <Link
-                    underline="hover"
-                    sx={{
-                      fontSize: "0.85rem",
-                      px: 1,
-                      py: 0.25,
-                      bgcolor: "action.hover",
-                      borderRadius: 1,
-                    }}
-                  >
-                    {repo}
-                  </Link>
-                </NextLink>
-              ))}
-            </Box>
-          </Box>
+        {activeTab === "nightly" && (
+          <MetricsCharts
+            data={nightlyData}
+            days={days}
+            error={nightlyError}
+          />
         )}
       </Stack>
     </>
