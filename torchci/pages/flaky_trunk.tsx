@@ -17,6 +17,7 @@ import {
   parseGranularity,
   parseMinRuns,
   parseTimeRange,
+  parseViableStrictOnly,
   SelectedEntity,
   snapStopToGranularity,
   snapToGranularity,
@@ -57,6 +58,7 @@ export default function Page() {
   const initialGranularity = parseGranularity(query.granularity);
   const initialDenominator = parseDenominator(query.denominator);
   const initialMinRuns = parseMinRuns(query.minRuns);
+  const initialViableStrictOnly = parseViableStrictOnly(query.viableStrictOnly);
 
   const [startTime, setStartTime] = useState(initialStartTime);
   const [stopTime, setStopTime] = useState(initialStopTime);
@@ -66,6 +68,9 @@ export default function Page() {
   const [denominator, setDenominator] =
     useState<DenominatorKey>(initialDenominator);
   const [minRuns, setMinRuns] = useState(initialMinRuns);
+  const [viableStrictOnly, setViableStrictOnly] = useState(
+    initialViableStrictOnly
+  );
   const [selectedBucket, setSelectedBucket] = useState<BucketRange | null>(
     null
   );
@@ -82,6 +87,7 @@ export default function Page() {
     setGranularity(initialGranularity);
     setDenominator(initialDenominator);
     setMinRuns(initialMinRuns);
+    setViableStrictOnly(initialViableStrictOnly);
   }
 
   useEffect(() => {
@@ -97,6 +103,7 @@ export default function Page() {
     params.set("granularity", granularity);
     params.set("denominator", denominator);
     params.set("minRuns", minRuns.toString());
+    params.set("viableStrictOnly", viableStrictOnly ? "1" : "0");
 
     router.push(
       { pathname: router.pathname, query: params.toString() },
@@ -104,7 +111,15 @@ export default function Page() {
       { shallow: true }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startTime, stopTime, timeRange, granularity, denominator, minRuns]);
+  }, [
+    startTime,
+    stopTime,
+    timeRange,
+    granularity,
+    denominator,
+    minRuns,
+    viableStrictOnly,
+  ]);
 
   // A bucket or drill-down selection only makes sense for the granularity/window
   // it was made in, so discard both whenever those change. Custom start/stop
@@ -212,6 +227,8 @@ export default function Page() {
         setDenominator={setDenominator}
         minRuns={minRuns}
         setMinRuns={setMinRuns}
+        viableStrictOnly={viableStrictOnly}
+        setViableStrictOnly={setViableStrictOnly}
       />
 
       <Box sx={{ mt: 3 }}>
@@ -219,6 +236,7 @@ export default function Page() {
           startTime={windowStart}
           stopTime={windowStop}
           granularity={granularity}
+          viableStrictOnly={viableStrictOnly}
           autoRefresh={autoRefresh}
         />
       </Box>
@@ -229,6 +247,7 @@ export default function Page() {
           stopTime={windowStop}
           granularity={granularity}
           denominator={denominator}
+          viableStrictOnly={viableStrictOnly}
           onBucketClick={onBucketClick}
           autoRefresh={autoRefresh}
         />
@@ -241,6 +260,7 @@ export default function Page() {
             startTime={tableStart}
             stopTime={tableStop}
             minRuns={minRuns}
+            viableStrictOnly={viableStrictOnly}
             selectedBucket={selectedBucket}
             onClearFilter={clearBucket}
             onRowClick={(row) =>
@@ -260,6 +280,7 @@ export default function Page() {
             entity={selectedEntity}
             startTime={tableStart}
             stopTime={tableStop}
+            viableStrictOnly={viableStrictOnly}
             onClose={clearEntity}
             autoRefresh={autoRefresh}
           />

@@ -72,12 +72,14 @@ export default function FlakyTrunkRunsTable({
   entity,
   startTime,
   stopTime,
+  viableStrictOnly,
   onClose,
   autoRefresh,
 }: {
   entity: SelectedEntity;
   startTime: string;
   stopTime: string;
+  viableStrictOnly: boolean;
   onClose: () => void;
   autoRefresh: boolean;
 }) {
@@ -86,6 +88,7 @@ export default function FlakyTrunkRunsTable({
       startTime,
       stopTime,
       repo: FLAKY_TRUNK_REPO,
+      viableStrictOnly,
       entityType: entity.type,
       entityValue: entity.value,
     })

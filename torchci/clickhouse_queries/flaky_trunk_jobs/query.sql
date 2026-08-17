@@ -99,6 +99,12 @@ raw_jobs AS (
         AND j.name NOT LIKE '%rerun_disabled_tests%'
         AND j.name NOT LIKE '%mem_leak_check%'
         AND j.name NOT LIKE '%unstable%'
+        -- Restrict to viable/strict blocking workflows (keep in sync with
+        -- pytorch/pytorch .github/workflows/update-viablestrict.yml `requires`).
+        AND (
+            {viableStrictOnly: Bool} = false
+            OR lower(j.workflow_name) IN ('pull', 'trunk', 'lint', 'docs-build')
+        )
 ),
 
 consolidated AS (

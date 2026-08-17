@@ -4,7 +4,11 @@
     "stopTime": "DateTime64(3)",
     "repo": "String",
     "entityType": "String",
-    "entityValue": "String"
+    "entityValue": "String",
+    "viableStrictOnly": "Bool"
+  },
+  "defaults": {
+    "viableStrictOnly": false
   },
   "tests": [
     {
@@ -12,14 +16,16 @@
       "stopTime": "2026-08-11T00:00:00.000",
       "repo": "pytorch/pytorch",
       "entityType": "job",
-      "entityValue": "trunk / macos-py3-arm64 / test (default)"
+      "entityValue": "trunk / macos-py3-arm64 / test (default)",
+      "viableStrictOnly": true
     },
     {
       "startTime": "2026-07-12T00:00:00.000",
       "stopTime": "2026-08-11T00:00:00.000",
       "repo": "pytorch/pytorch",
       "entityType": "label",
-      "entityValue": "linux.rocm.gpu.gfx942.1"
+      "entityValue": "linux.rocm.gpu.gfx942.1",
+      "viableStrictOnly": false
     }
   ]
 }

@@ -1,5 +1,7 @@
 import {
+  Checkbox,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
@@ -28,6 +30,8 @@ export default function FlakyTrunkControls({
   setDenominator,
   minRuns,
   setMinRuns,
+  viableStrictOnly,
+  setViableStrictOnly,
 }: {
   startTime: dayjs.Dayjs;
   setStartTime: (_: dayjs.Dayjs) => void;
@@ -41,6 +45,8 @@ export default function FlakyTrunkControls({
   setDenominator: (_: DenominatorKey) => void;
   minRuns: number;
   setMinRuns: (_: number) => void;
+  viableStrictOnly: boolean;
+  setViableStrictOnly: (_: boolean) => void;
 }) {
   // Local input keeps the field responsive while committed changes are debounced
   // so the table query does not refetch on every keystroke.
@@ -116,6 +122,15 @@ export default function FlakyTrunkControls({
         onChange={onMinRunsChange}
         sx={{ width: 120 }}
         slotProps={{ htmlInput: { min: 0 } }}
+      />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={viableStrictOnly}
+            onChange={(e) => setViableStrictOnly(e.target.checked)}
+          />
+        }
+        label="Viable/strict jobs only"
       />
     </Stack>
   );

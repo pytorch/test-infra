@@ -10,6 +10,7 @@ export default function FlakyTrunkTable({
   startTime,
   stopTime,
   minRuns,
+  viableStrictOnly,
   selectedBucket,
   onClearFilter,
   onRowClick,
@@ -19,6 +20,7 @@ export default function FlakyTrunkTable({
   startTime: string;
   stopTime: string;
   minRuns: number;
+  viableStrictOnly: boolean;
   selectedBucket: BucketRange | null;
   onClearFilter: () => void;
   onRowClick: (_row: any) => void;
@@ -31,6 +33,7 @@ export default function FlakyTrunkTable({
       startTime,
       stopTime,
       repo: FLAKY_TRUNK_REPO,
+      viableStrictOnly,
       minRuns,
     })
   )}`;

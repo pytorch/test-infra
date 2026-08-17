@@ -23,6 +23,7 @@ function FlakyTrunkGraph({
   stopTime,
   granularity,
   denominator,
+  viableStrictOnly,
   onBucketClick,
   autoRefresh,
 }: {
@@ -30,6 +31,7 @@ function FlakyTrunkGraph({
   stopTime: string;
   granularity: Granularity;
   denominator: DenominatorKey;
+  viableStrictOnly: boolean;
   onBucketClick: (_bucketStart: dayjs.Dayjs) => void;
   autoRefresh: boolean;
 }) {
@@ -79,6 +81,7 @@ function FlakyTrunkGraph({
         startTime,
         stopTime,
         repo: FLAKY_TRUNK_REPO,
+        viableStrictOnly,
       }}
       granularity={granularity}
       groupByFieldName={"series"}

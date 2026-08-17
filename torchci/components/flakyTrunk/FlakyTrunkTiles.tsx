@@ -18,15 +18,17 @@ export default function FlakyTrunkTiles({
   startTime,
   stopTime,
   granularity,
+  viableStrictOnly,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
   granularity: string;
+  viableStrictOnly: boolean;
   autoRefresh: boolean;
 }) {
   const { data } = useSWR(
-    flakyTrunkTimeseriesUrl(startTime, stopTime, granularity),
+    flakyTrunkTimeseriesUrl(startTime, stopTime, granularity, viableStrictOnly),
     fetcher,
     { refreshInterval: autoRefresh ? 5 * 60 * 1000 : 0 }
   );
