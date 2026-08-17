@@ -36,6 +36,16 @@ buildkite:
   #   required_claims:
   #     build_branch: [main, release]
 
+  # vllm-project/vllm -- the "CI" pipeline in the vllm organization.
+  # Reports torch-nightly results to CRCR (vllm-project/vllm#51830).
+  # This pipeline builds fork PRs and any job in it can mint an OIDC token, so
+  # it is constrained to main: a fork PR must not be able to report as
+  # vllm-project/vllm.
+  018b5ec5-c236-4037-ba08-d8a5d29bcdae/018cdabc-d930-49f6-9085-634c4cb582ed:
+    repo: vllm-project/vllm
+    required_claims:
+      build_branch: [main]
+
 # gitlab:
 #   group/project: owner/repo
 
