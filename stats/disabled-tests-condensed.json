@@ -29,13 +29,6 @@
       "macos"
     ]
   ],
-  "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "188897",
-    "https://github.com/pytorch/pytorch/issues/188897",
-    [
-      "rocm"
-    ]
-  ],
   "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
     "192616",
     "https://github.com/pytorch/pytorch/issues/192616",
