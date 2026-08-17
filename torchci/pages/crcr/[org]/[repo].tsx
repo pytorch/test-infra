@@ -254,6 +254,7 @@ function RelayHealthCard({
         borderTop: `3px solid ${borderColor}`,
         textAlign: "center",
         minWidth: 200,
+        flex: 1,
       }}
     >
       <Typography variant="caption" color="text.secondary">
@@ -1328,7 +1329,11 @@ export default function CrcrBackendPage() {
 
             {!isNightly && (
               <>
-                {isCrcrTest && <RelayHealthCard healthPrs={healthPrs} />}
+                {isCrcrTest && (
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <RelayHealthCard healthPrs={healthPrs} />
+                  </Box>
+                )}
                 {stats ? (
                   <SummaryCards stats={stats} />
                 ) : (
