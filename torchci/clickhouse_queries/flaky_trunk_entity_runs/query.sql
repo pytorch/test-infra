@@ -36,9 +36,10 @@ trunk_commits AS (
     GROUP BY head_sha
 ),
 
--- Latest AI advisor verdict per (trunk commit, normalized job). signal_key comes in two shapes:
--- 'dr_ci_<workflow> / <job>' (Dr.CI / PR-side) and, for trunk autorevert, a bare (already
--- normalized) '<job>' optionally suffixed ' [test]'. Both are reduced to the normalized job name.
+-- Latest AI advisor verdict per (trunk commit, normalized job), for signal_source = 'job'.
+-- Dr.CI/PR-side verdicts ('dr_ci_' prefix) carry a PR-head suspect_commit that never equals a
+-- trunk sha, so they drop out of the advisor join below and need no handling here; the
+-- surviving bare trunk-autorevert keys are reduced to the normalized job name.
 advisor_agg AS (
     SELECT
         head_sha,
@@ -51,17 +52,7 @@ advisor_agg AS (
             toString(suspect_commit) AS head_sha,
             replaceRegexpOne(
                 replaceRegexpOne(
-                    if(
-                        startsWith(signal_key, 'dr_ci_'),
-                        arrayStringConcat(
-                            arraySlice(
-                                splitByString(' / ', substring(signal_key, 7)),
-                                2
-                            ),
-                            ' / '
-                        ),
-                        signal_key
-                    ),
+                    signal_key,
                     ' \\[[^\\]]+\\]$', ''
                 ),
                 ', [0-9]+, [0-9]+, .+\\)', ')'
@@ -91,8 +82,10 @@ raw_jobs AS (
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
     WHERE
+        -- The join above is the real filter (in-window trunk commits); this created_at range only prunes
+        -- the scan, extends past stopTime to still catch a commit's late retry (bounded, to stay fast).
         j.created_at >= {startTime: DateTime64(3)}
-        AND j.created_at < {stopTime: DateTime64(3)}
+        AND j.created_at < {stopTime: DateTime64(3)} + INTERVAL 3 DAY
         AND j.conclusion IN ('success', 'failure')
         AND j.name LIKE '%/%'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
@@ -209,8 +202,10 @@ failed_runs AS (
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
     WHERE
+        -- The join above is the real filter (in-window trunk commits); this created_at range only prunes
+        -- the scan, extends past stopTime to still catch a commit's late retry (bounded, to stay fast).
         j.created_at >= {startTime: DateTime64(3)}
-        AND j.created_at < {stopTime: DateTime64(3)}
+        AND j.created_at < {stopTime: DateTime64(3)} + INTERVAL 3 DAY
         AND j.conclusion = 'failure'
         AND j.name LIKE '%/%'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
