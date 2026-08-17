@@ -2,6 +2,9 @@ import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import nock from "nock";
 import * as probot from "probot";
 import pytorchBot from "../lib/bot/pytorchBot";
+import PytorchBotHandler, {
+  PytorchbotParams,
+} from "../lib/bot/pytorchBotHandler";
 import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
@@ -1612,6 +1615,80 @@ some other text lol
     await probot.receive(event);
 
     handleScope(scope);
+  });
+
+  // The greenlight App bot posts reviews with author_association=NONE, so it is
+  // only honored as an approver on pytorch/pytorch (see getApprovalStatus).
+  const greenlightApprovedReview = {
+    user: { login: "pytorchgreenlight[bot]" },
+    state: "APPROVED",
+    author_association: "NONE",
+    submitted_at: "2024-01-01T00:00:00Z",
+  };
+
+  function makeApprovalHandler(
+    owner: string,
+    repo: string,
+    reviews: any[]
+  ): PytorchBotHandler {
+    const params: PytorchbotParams = {
+      owner,
+      repo,
+      prNum: 42,
+      ctx: {
+        octokit: {
+          paginate: jest.fn().mockResolvedValue(reviews),
+          pulls: { listReviews: jest.fn() },
+        },
+        log: jest.fn(),
+      },
+      url: "https://github.com/pytorch/pytorch/pull/42#issuecomment-123",
+      login: "test-user",
+      commentId: 123,
+      commentBody: "@pytorchbot merge",
+      useReactions: false,
+      cachedConfigTracker: {} as any,
+    };
+    return new PytorchBotHandler(params);
+  }
+
+  test("greenlight bot approval (author_association NONE) counts as approved on pytorch/pytorch", async () => {
+    const handler = makeApprovalHandler("pytorch", "pytorch", [
+      greenlightApprovedReview,
+    ]);
+    expect(await handler.getApprovalStatus()).toBe("approved");
+  });
+
+  test("greenlight bot approval is not honored on a supported-org repo that is not pytorch/pytorch", async () => {
+    const handler = makeApprovalHandler("pytorch", "gha-ci-playground", [
+      greenlightApprovedReview,
+    ]);
+    expect(await handler.getApprovalStatus()).toBe("");
+  });
+
+  test("non-greenlight approval with author_association NONE is not honored on pytorch/pytorch", async () => {
+    const handler = makeApprovalHandler("pytorch", "pytorch", [
+      {
+        user: { login: "some-random-bot[bot]" },
+        state: "APPROVED",
+        author_association: "NONE",
+        submitted_at: "2024-01-01T00:00:00Z",
+      },
+    ]);
+    expect(await handler.getApprovalStatus()).toBe("");
+  });
+
+  test("greenlight bot review dismissed after approval is not honored on pytorch/pytorch", async () => {
+    const handler = makeApprovalHandler("pytorch", "pytorch", [
+      greenlightApprovedReview,
+      {
+        user: { login: "pytorchgreenlight[bot]" },
+        state: "DISMISSED",
+        author_association: "NONE",
+        submitted_at: "2024-01-02T00:00:00Z",
+      },
+    ]);
+    expect(await handler.getApprovalStatus()).toBe("");
   });
 
   test("pytorchmergebot -h rebase command on pull request prints help message and does not execute rebase", async () => {
