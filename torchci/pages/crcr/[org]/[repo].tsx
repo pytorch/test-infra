@@ -194,7 +194,16 @@ function isNightlyJobPassing(job: CrcrJobRow): boolean {
 
 const NIGHTLY_HEALTH_COUNT = 5;
 
-function NightlyHealthCard({ data }: { data: CrcrJobRow[] }) {
+function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
+  const url =
+    `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
+    encodeURIComponent(JSON.stringify({ repo: repoFullName, days: "14" }));
+  const { data } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
+
+  if (!data || data.length === 0) return null;
+
   const shaMap = new Map<string, CrcrJobRow[]>();
   for (const job of data) {
     if (!job.pytorch_head_sha) continue;
@@ -263,16 +272,20 @@ function NightlySummaryCards({
       (j) => j.conclusion === "success"
     ).length;
     const failures = completed.filter(
-      (j) => j.conclusion === "failure" && !isExpectedNightlyOutcome(j)
+      (j) =>
+        j.conclusion === "failure" &&
+        !(isCrcrTest && isExpectedNightlyOutcome(j))
     ).length;
     const timedOut = completed.filter(
-      (j) => j.conclusion === "timed_out" && !isExpectedNightlyOutcome(j)
+      (j) =>
+        j.conclusion === "timed_out" &&
+        !(isCrcrTest && isExpectedNightlyOutcome(j))
     ).length;
     const total = completed.length;
     const passRate = total > 0 ? successes / total : 0;
     const uniqueShas = new Set(data.map((j) => j.pytorch_head_sha)).size;
     return { successes, failures, timedOut, total, passRate, uniqueShas };
-  }, [data]);
+  }, [data, isCrcrTest]);
 
   const passColor =
     stats.passRate >= 1.0
@@ -284,7 +297,7 @@ function NightlySummaryCards({
   return (
     <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
       {isCrcrTest ? (
-        <NightlyHealthCard data={data} />
+        <NightlyHealthCard repoFullName={repoFullName} />
       ) : (
         <StatCard
           label="Pass Rate"
