@@ -36,13 +36,13 @@ export async function scaleDown(): Promise<void> {
 
     metrics.run();
 
-    const runnersDict = groupBy(
-      sortRunnersByLaunchTime(await listRunners(metrics, { environment: Config.Instance.environment })),
-      (itm) => {
-        if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
-        return `${itm.runnerType}#${itm.repo}`;
-      },
+    const ec2Runners = sortRunnersByLaunchTime(
+      await listRunners(metrics, { environment: Config.Instance.environment }),
     );
+    const runnersDict = groupBy(ec2Runners, (itm) => {
+      if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
+      return `${itm.runnerType}#${itm.repo}`;
+    });
 
     if (runnersDict.size === 0) {
       console.info(`No active runners found for environment: '${Config.Instance.environment}'`);
@@ -100,10 +100,18 @@ export async function scaleDown(): Promise<void> {
       }
     }
 
+    // Pet instances register one-shot, so deregistering a live-but-offline pet orphans it permanently;
+    // skip pets still backed by a live EC2 instance when sweeping offline runners.
+    const petInstanceIds = new Set(
+      ec2Runners
+        .filter((runner) => runner.instanceManagement?.toLowerCase() === 'pet')
+        .map((runner) => runner.instanceId),
+    );
+
     if (Config.Instance.enableOrganizationRunners) {
       for (const org of foundOrgs) {
         const offlineGhRunners = (await listGithubRunnersOrg(org, metrics)).filter(
-          (r) => r.status.toLowerCase() === 'offline',
+          (r) => r.status.toLowerCase() === 'offline' && !petInstanceIds.has(r.name),
         );
         metrics.runnerGhOfflineFoundOrg(org, offlineGhRunners.length);
 
@@ -123,7 +131,7 @@ export async function scaleDown(): Promise<void> {
       for (const repoString of foundRepos) {
         const repo = getRepo(repoString);
         const offlineGhRunners = (await listGithubRunnersRepo(repo, metrics)).filter(
-          (r) => r.status.toLowerCase() === 'offline',
+          (r) => r.status.toLowerCase() === 'offline' && !petInstanceIds.has(r.name),
         );
         metrics.runnerGhOfflineFoundRepo(repo, offlineGhRunners.length);
 

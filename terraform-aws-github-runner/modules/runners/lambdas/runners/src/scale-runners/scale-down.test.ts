@@ -58,7 +58,7 @@ jest.mock('./gh-auth', () => ({
 
 beforeEach(() => {
   jest.resetModules();
-  jest.clearAllMocks();
+  jest.resetAllMocks();
   jest.restoreAllMocks();
   nock.disableNetConnect();
 });
@@ -501,6 +501,45 @@ describe('scale-down', () => {
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
     });
+
+    it('does not deregister an offline pet runner (org)', async () => {
+      const petEc2Runner = {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'keep-all-4',
+        instanceId: 'pet-offline-01',
+        org: theOrg,
+        instanceManagement: 'pet',
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      };
+      const petGhRunner = mockRunner({ id: '01XX', name: 'pet-offline-01', busy: false, status: 'offline' });
+
+      const mockedListRunners = mocked(listRunners);
+      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
+      const mockedTerminateRunner = mocked(terminateRunner);
+
+      mockedListRunners.mockResolvedValueOnce([...listRunnersRet, petEc2Runner]);
+      mockedListGithubRunnersOrg.mockResolvedValue([...ghRunners, petGhRunner] as GhRunners);
+      mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
+
+      await scaleDown();
+
+      expect(mockedRemoveGithubRunnerOrg).not.toBeCalledWith(petGhRunner.id, theOrg, metrics);
+      expect(mockedTerminateRunner).not.toBeCalledWith(petEc2Runner, metrics);
+
+      {
+        const { ghR } = getRunnerPair('remove-offline-01');
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, theOrg, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-02');
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, theOrg, metrics);
+      }
+    });
   });
 
   describe('repo', () => {
@@ -841,6 +880,45 @@ describe('scale-down', () => {
       {
         const { awsR } = getRunnerPair('remove-ephemeral-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
+      }
+    });
+
+    it('does not deregister an offline pet runner (repo)', async () => {
+      const petEc2Runner = {
+        awsRegion: baseConfig.awsRegion,
+        runnerType: 'keep-all-4',
+        instanceId: 'pet-offline-01',
+        repo: theRepo,
+        instanceManagement: 'pet',
+        launchTime: dateRef
+          .clone()
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+      };
+      const petGhRunner = mockRunner({ id: '01XX', name: 'pet-offline-01', busy: false, status: 'offline' });
+
+      const mockedListRunners = mocked(listRunners);
+      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
+      const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
+      const mockedTerminateRunner = mocked(terminateRunner);
+
+      mockedListRunners.mockResolvedValueOnce([...listRunnersRet, petEc2Runner]);
+      mockedListGithubRunnersRepo.mockResolvedValue([...ghRunners, petGhRunner] as GhRunners);
+      mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
+
+      await scaleDown();
+
+      expect(mockedRemoveGithubRunnerRepo).not.toBeCalledWith(petGhRunner.id, repo, metrics);
+      expect(mockedTerminateRunner).not.toBeCalledWith(petEc2Runner, metrics);
+
+      {
+        const { ghR } = getRunnerPair('remove-offline-01');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-02');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
     });
   });
