@@ -170,6 +170,13 @@ jobs:
               - cluster-logs/*.log  one representative Buildkite log per cluster,
                 ANSI-stripped and tail-trimmed. The first lines of each file give the
                 cluster name, job name, job URL, state and exit status.
+                Files prefixed `both_` are red-on-both-twins clusters (see report.json
+                "regressed_tests"): the job fails on both the torch-nightly and
+                baseline build, but fails MORE tests on nightly. A "shared failure(s)"
+                section pairs each shared failure's torch_nightly_exception_chain and
+                baseline_exception_chain so you can judge whether a shared failure
+                changed. Only the torch-nightly-only tests listed above that section
+                are definitely new.
 
             For each cluster, identify the actual failure: the failed test IDs and the
             real exception. Remember that "Engine core initialization failed. See root

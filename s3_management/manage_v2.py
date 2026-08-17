@@ -478,7 +478,10 @@ PT_R2_PACKAGES_PROD = {
 # instead of processing wheels in subdirectories
 # For example: whl/nightly/filelock/index.html -> whl/nightly/cu128/filelock/index.html
 PACKAGE_LINKS_ALLOW_LIST = {
-    x.lower()
+    # Normalized to the underscore spelling every lookup uses: package names are
+    # derived from wheel filenames, and get_packages_to_copy_from_parent maps
+    # parent directory names through the same replace() before comparing.
+    x.lower().replace("-", "_")
     for x in [
         "filelock",
         "sympy",
@@ -489,17 +492,11 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "fsspec",
         "typing-extensions",
         "spmd-types",
-        "spmd_types",
         "cuda-bindings",
-        "cuda_bindings",
         "cuda-toolkit",
-        # Underscore spelling is the one that matches; see "spmd_types" above.
         "cuda-pathfinder",
-        "cuda_pathfinder",
         "cuda-python",
-        "cuda_python",
         "nvidia-ml-py",
-        "nvidia_ml_py",
         "nvidia-cuda-nvrtc-cu12",
         "nvidia-cuda-nvrtc",
         "nvidia-cuda-runtime-cu12",
