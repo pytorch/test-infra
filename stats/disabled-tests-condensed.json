@@ -495,14 +495,6 @@
       "linux"
     ]
   ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_False_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186605",
-    "https://github.com/pytorch/pytorch/issues/186605",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
     "186867",
     "https://github.com/pytorch/pytorch/issues/186867",
@@ -678,6 +670,15 @@
     "https://github.com/pytorch/pytorch/issues/192012",
     [
       "xpu"
+    ]
+  ],
+  "test_memory_snapshot (__main__.TestCudaAllocator)": [
+    "179745",
+    "https://github.com/pytorch/pytorch/issues/179745",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_mempool_ctx_multithread (__main__.TestMemPool)": [
