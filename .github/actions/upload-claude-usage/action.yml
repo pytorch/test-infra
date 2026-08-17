@@ -18,8 +18,18 @@ runs:
   steps:
     - name: Upload usage metrics
       shell: bash
+      env:
+        METRICS_FILE: ${{ inputs.metrics-file }}
+        GH_REPOSITORY: ${{ github.repository }}
+        GH_RUN_ID: ${{ github.run_id }}
+        GH_RUN_ATTEMPT: ${{ github.run_attempt }}
+        GH_ACTOR: ${{ github.actor }}
+        GH_EVENT_NAME: ${{ github.event_name }}
+        GH_WORKFLOW: ${{ github.workflow }}
+        GH_PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || 0 }}
+        S3_BUCKET: ${{ inputs.s3-bucket }}
+        S3_PREFIX: ${{ inputs.s3-prefix }}
       run: |
-        METRICS_FILE="${{ inputs.metrics-file }}"
         if [ ! -f "$METRICS_FILE" ]; then
           echo "::notice::Claude usage metrics file not found: $METRICS_FILE; skipping upload"
           exit 0
@@ -57,9 +67,9 @@ runs:
         # workflow name instead so these rows are clearly automated and remain
         # distinguishable per-workflow. github.event_name is still stored, so
         # the original signal isn't lost.
-        ACTOR="${{ github.actor }}"
-        if [ "${{ github.event_name }}" = "schedule" ]; then
-          ACTOR="${{ github.workflow }} (scheduled)"
+        ACTOR="$GH_ACTOR"
+        if [ "$GH_EVENT_NAME" = "schedule" ]; then
+          ACTOR="$GH_WORKFLOW (scheduled)"
         fi
 
         # Merge GitHub context with the extracted metrics. Context ids arrive as
@@ -67,12 +77,12 @@ runs:
         # the step on an empty or malformed value).
         PAYLOAD=$(jq -n \
           --argjson metrics "$METRICS" \
-          --arg repo "${{ github.repository }}" \
-          --arg run_id "${{ github.run_id }}" \
-          --arg run_attempt "${{ github.run_attempt }}" \
+          --arg repo "$GH_REPOSITORY" \
+          --arg run_id "$GH_RUN_ID" \
+          --arg run_attempt "$GH_RUN_ATTEMPT" \
           --arg actor "$ACTOR" \
-          --arg event_name "${{ github.event_name }}" \
-          --arg pr_number "${{ github.event.issue.number || github.event.pull_request.number || 0 }}" \
+          --arg event_name "$GH_EVENT_NAME" \
+          --arg pr_number "$GH_PR_NUMBER" \
           --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000)" \
           '{
             repo: $repo,
@@ -94,7 +104,7 @@ runs:
         fi
 
         if ! aws s3 cp /tmp/claude_usage.json \
-          "s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}/${{ github.repository }}/${{ github.run_id }}_${{ github.run_attempt }}.json"; then
+          "s3://$S3_BUCKET/$S3_PREFIX/$GH_REPOSITORY/${GH_RUN_ID}_${GH_RUN_ATTEMPT}.json"; then
           echo "::warning::Failed to upload Claude usage metrics to S3 (best-effort telemetry)"
           exit 0
         fi
