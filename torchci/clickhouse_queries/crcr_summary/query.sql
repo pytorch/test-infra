@@ -1,3 +1,22 @@
+WITH deduped AS (
+    SELECT
+        downstream_repo,
+        downstream_repo_level,
+        job_name,
+        conclusion,
+        duration_seconds,
+        started_at,
+        ROW_NUMBER() OVER (
+            PARTITION BY downstream_repo, pr_number, job_name
+            ORDER BY run_attempt DESC
+        ) AS rn
+    FROM
+        default.crcr_workflow_job FINAL
+    WHERE
+        started_at > now() - INTERVAL {days: UInt64} DAY
+        AND status = 'completed'
+        AND pr_number > 0
+)
 SELECT
     downstream_repo AS repo,
     anyLast(downstream_repo_level) AS downstream_repo_level,
@@ -33,11 +52,9 @@ SELECT
     avg(duration_seconds) AS avg_duration_s,
     max(started_at) AS last_run
 FROM
-    default.crcr_workflow_job FINAL
+    deduped
 WHERE
-    started_at > now() - INTERVAL {days: UInt64} DAY
-    AND status = 'completed'
-    AND pr_number > 0
+    rn = 1
 GROUP BY
     repo
 ORDER BY
