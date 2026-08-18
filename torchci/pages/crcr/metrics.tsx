@@ -161,10 +161,12 @@ function MetricsCharts({
   data,
   days,
   error,
+  eventSuffix,
 }: {
   data: SuccessRateRow[] | undefined;
   days: number;
   error: Error | undefined;
+  eventSuffix: string;
 }) {
   const repos = useMemo(() => {
     if (!data) return [];
@@ -205,7 +207,7 @@ function MetricsCharts({
             {repos.map((repo) => (
               <NextLink
                 key={repo}
-                href={`/crcr/${repo}`}
+                href={`/crcr/${repo}${eventSuffix}`}
                 passHref
                 legacyBehavior
               >
@@ -235,7 +237,7 @@ export default function CrcrMetricsPage() {
   const [activeTab, setActiveTab] = useState<MetricsTab>("pr");
 
   const prUrl = `/api/clickhouse/crcr_success_rate?parameters=${encodeURIComponent(
-    JSON.stringify({ days: String(days) })
+    JSON.stringify({ days: String(days), event_type: "pull_request" })
   )}`;
   const { data: prData, error: prError } = useSWR<SuccessRateRow[]>(
     prUrl,
@@ -243,8 +245,8 @@ export default function CrcrMetricsPage() {
     { refreshInterval: 5 * 60_000 }
   );
 
-  const nightlyUrl = `/api/clickhouse/crcr_nightly_success_rate?parameters=${encodeURIComponent(
-    JSON.stringify({ days: String(days) })
+  const nightlyUrl = `/api/clickhouse/crcr_success_rate?parameters=${encodeURIComponent(
+    JSON.stringify({ days: String(days), event_type: "nightly" })
   )}`;
   const { data: nightlyData, error: nightlyError } = useSWR<SuccessRateRow[]>(
     nightlyUrl,
@@ -295,11 +297,11 @@ export default function CrcrMetricsPage() {
         </Tabs>
 
         {activeTab === "pr" && (
-          <MetricsCharts data={prData} days={days} error={prError} />
+          <MetricsCharts data={prData} days={days} error={prError} eventSuffix="" />
         )}
 
         {activeTab === "nightly" && (
-          <MetricsCharts data={nightlyData} days={days} error={nightlyError} />
+          <MetricsCharts data={nightlyData} days={days} error={nightlyError} eventSuffix="?event=nightly" />
         )}
       </Stack>
     </>
