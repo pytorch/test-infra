@@ -1266,16 +1266,220 @@ def test_fingerprint_task_returns_client_on_exception():
     pool: queue.Queue[Github] = queue.Queue()
     client = cast("Github", object())
     pool.put(client)
+    cancel_event = threading.Event()
 
     def boom(_client, _number, _authorized, _skip):
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True)
+        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True, cancel_event)
 
     # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
     # with more PRs than workers drains the pool and queue.get blocks the scan forever.
     assert pool.get_nowait() is client
+    # A non-rate-limit failure must not trip the shared cancel event -- only rate limits abandon.
+    assert not cancel_event.is_set()
+
+
+def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, caplog):
+    from github import RateLimitExceededException
+
+    # Pin one worker for a deterministic FIFO order: PR1 runs first and trips the cancel event before
+    # PR2/PR3 start, so the "stop starting new tasks" behaviour is observable without racing workers.
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 1:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1's rate limit sets the shared cancel event, so the queued PR2/PR3 short-circuit to _CANCELLED
+    # without ever calling fingerprint (only PR1 appears). A cancelled task is not a failure: PR1 lands
+    # in `failed`, PR2/PR3 are counted as abandoned (not failed), and nothing dispatches.
+    assert fingerprinted == [1]
+    assert dispatched == []
+    # The abandonment is surfaced, never silently dropped: a warning names the count, and the
+    # end-of-scan RuntimeError carries both the failed PR and the abandoned ones distinctly so the
+    # scan still fails closed on an incomplete pass.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [1]" in message
+    assert "2 PR(s) abandoned due to rate limit: [2, 3]" in message
+    assert "abandoned 2 of 3" in caplog.text
+
+
+def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, monkeypatch, caplog):
+    from github import RateLimitExceededException
+
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 2:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1 completes as a candidate before PR2 hits the rate limit, but a dispatch is a workflow_dispatch
+    # POST on the same throttled token -- exactly what secondary-rate-limit detection punishes -- so the
+    # whole dispatch phase is skipped once the cancel event trips. PR1 is deferred, not lost: no state
+    # row is written, so the next scan re-fingerprints and dispatches it once the limit clears. PR2 trips
+    # the event, so PR3 short-circuits without being fingerprinted.
+    assert fingerprinted == [1, 2]
+    assert dispatched == []
+    # The deferral is surfaced by the merged rate-limit warning, and the scan still fails closed: PR2
+    # (failed) and PR3 (abandoned) are carried distinctly in the end-of-scan RuntimeError.
+    assert "skipping dispatch of 1 completed candidate(s) this pass" in caplog.text
+    assert "abandoned 1 of 3" in caplog.text
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [2]" in message
+    assert "1 PR(s) abandoned due to rate limit: [3]" in message
+
+
+def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, monkeypatch, caplog):
+    from github import RateLimitExceededException
+
+    # The gate keys off cancel_event, not the `abandoned` list, precisely for this case: the rate limit
+    # hits the LAST task to run, so no queued task is left to short-circuit to _CANCELLED and `abandoned`
+    # stays empty -- yet the event IS set, so dispatch must still be skipped. A regression to `if abandoned:`
+    # would pass every other test but wrongly dispatch the completed candidates onto the throttled token here.
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 3:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token, **_kwargs: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # PR1 and PR2 complete as candidates; PR3 (the last task) trips the cancel event with nothing left to
+    # cancel, so abandoned is empty. Dispatch is still skipped -- the two completed candidates are deferred.
+    assert fingerprinted == [1, 2, 3]
+    assert dispatched == []
+    assert "skipping dispatch of 2 completed candidate(s) this pass" in caplog.text
+    # abandoned is empty, so the fail-closed RuntimeError carries only the failed clause (the last PR) and
+    # no "abandoned" clause -- the scan still signals incomplete via the rate-limited task landing in failed.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [3]" in message
+    assert "abandoned" not in message
+
+
+def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeypatch):
+    from github import RateLimitExceededException
+
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        if number == 2:
+            raise RateLimitExceededException(403)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
+        review.run(
+            make_config(github_token="t"),
+            max_dispatches=5,
+            build_github=lambda _token: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    # The capped path (_fingerprint_until_dispatchable) fingerprints in worker-sized batches (size 1
+    # here). PR1 completes, PR2 hits the rate limit and trips the cancel event, so the batch loop
+    # breaks before submitting PR3 -- the cap of 5 is never the limiter, the cancellation is. The
+    # tripped event then gates the dispatch phase, so PR1 is deferred rather than dispatched.
+    assert fingerprinted == [1, 2]
+    assert dispatched == []
+
+
+def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, caplog):
+    # Guard against over-gating: with no rate limit the cancel event never trips, so the dispatch phase
+    # must run exactly as before -- every completed candidate is dispatched and no deferral warning fires.
+    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    fingerprinted: list[int] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        fingerprinted.append(number)
+        return (f"headsha{number}", _HASH_A)
+
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        dispatched.append(number)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token, **_kwargs: _CLIENT,
+            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            dispatch=fake_dispatch,
+            resolve_authorized=lambda: _AUTHORIZED,
+            now=lambda: _NOW,
+        )
+
+    assert fingerprinted == [1, 2, 3]
+    assert dispatched == [1, 2, 3]
+    assert "skipping dispatch" not in caplog.text
+    assert "rate limit" not in caplog.text
 
 
 def test_fetch_failure_still_closes_main_client(make_config):

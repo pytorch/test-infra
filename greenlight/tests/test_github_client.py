@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 
 import pytest
-from github import Github
+from github import Github, GithubException, RateLimitExceededException
+from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from greenlight import github_client
@@ -404,6 +405,58 @@ def test_build_client_wires_bounded_retry_into_github(monkeypatch):
     assert isinstance(retry, Retry)
     assert 403 not in retry.status_forcelist
     assert retry.respect_retry_after_header is False
+
+
+def test_is_rate_limit_error_true_for_rate_limit_exceeded_exception():
+    # A 403 rate limit arrives as RateLimitExceededException (status 403), matched by the isinstance
+    # arm, not by the 429 status check.
+    assert github_client.is_rate_limit_error(RateLimitExceededException(403)) is True
+
+
+def test_is_rate_limit_error_true_for_github_exception_status_429():
+    # A 429 arrives as a bare GithubException (never RateLimitExceededException), caught by the
+    # status arm; this is why 429 must stay off the retry forcelist.
+    assert github_client.is_rate_limit_error(GithubException(429)) is True
+
+
+def test_is_rate_limit_error_false_for_github_exception_status_403():
+    # A bare 403 with no rate-limit headers is a plain error (e.g. a permission denial), not a limit.
+    assert github_client.is_rate_limit_error(GithubException(403)) is False
+
+
+def test_is_rate_limit_error_true_for_403_with_retry_after_header():
+    # A secondary-limit 403 whose body does not match PyGithub's literal rate-limit strings arrives
+    # as a bare GithubException; the retry-after header is the robust signal that it is a rate limit.
+    exc = GithubException(403, headers={"retry-after": "60"})
+    assert github_client.is_rate_limit_error(exc) is True
+
+
+def test_is_rate_limit_error_true_for_403_with_exhausted_ratelimit_remaining():
+    # A primary-limit 403 that misclassifies is still recognizable by an exhausted budget.
+    exc = GithubException(403, headers={"x-ratelimit-remaining": "0"})
+    assert github_client.is_rate_limit_error(exc) is True
+
+
+def test_is_rate_limit_error_false_for_403_with_budget_remaining():
+    # A genuine permission 403 carries x-ratelimit-remaining with budget left and no retry-after, so
+    # it must not be misread as a rate limit.
+    exc = GithubException(403, headers={"x-ratelimit-remaining": "4999"})
+    assert github_client.is_rate_limit_error(exc) is False
+
+
+def test_is_rate_limit_error_false_for_github_exception_other_status():
+    # A GithubException carrying any other status (e.g. a 500) is not a rate limit.
+    assert github_client.is_rate_limit_error(GithubException(500)) is False
+
+
+def test_is_rate_limit_error_false_for_retry_error():
+    # A urllib3-exhausted retry surfaces as requests RetryError, not a GithubException, so it is not
+    # classified as a rate limit.
+    assert github_client.is_rate_limit_error(RetryError("too many retries")) is False
+
+
+def test_is_rate_limit_error_false_for_plain_value_error():
+    assert github_client.is_rate_limit_error(ValueError("unrelated")) is False
 
 
 def _build_fp(
