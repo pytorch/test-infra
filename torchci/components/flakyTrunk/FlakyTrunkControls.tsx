@@ -130,7 +130,7 @@ export default function FlakyTrunkControls({
             onChange={(e) => setViableStrictOnly(e.target.checked)}
           />
         }
-        label="Viable/strict jobs only"
+        label="Required workflows only"
       />
     </Stack>
   );

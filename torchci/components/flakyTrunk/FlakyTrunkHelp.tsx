@@ -54,9 +54,7 @@ export default function FlakyTrunkHelp() {
             </Typography>
             <Typography component="li" variant="body2" color="text.secondary">
               <Term>Unclassified</Term>
-              {
-                " — an isolated one-off red we can't yet attribute (~a few % of reds)."
-              }
+              {" — an isolated one-off red we can't yet attribute."}
             </Typography>
           </Box>
 

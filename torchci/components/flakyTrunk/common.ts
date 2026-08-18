@@ -2,8 +2,10 @@ import { GridColDef } from "@mui/x-data-grid";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
+import utc from "dayjs/plugin/utc";
 
 dayjs.extend(isoWeek);
+dayjs.extend(utc);
 
 export const FLAKY_TRUNK_REPO = "pytorch/pytorch";
 
@@ -169,7 +171,7 @@ export function parseDate(value: unknown, fallback: dayjs.Dayjs): dayjs.Dayjs {
   if (typeof value !== "string") {
     return fallback;
   }
-  const parsed = dayjs(value);
+  const parsed = dayjs.utc(value);
   return parsed.isValid() ? parsed : fallback;
 }
 

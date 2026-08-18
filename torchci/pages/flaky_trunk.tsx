@@ -150,6 +150,13 @@ export default function Page() {
       clearSelections();
     }
   };
+  // Filtering can hide the drilled-in job, leaving the runs panel open over an
+  // empty grid, so drop the entity; the selected bucket's interval is still
+  // valid under the filter, so keep it.
+  const changeViableStrictOnly = (value: boolean) => {
+    setViableStrictOnly(value);
+    setSelectedEntity(null);
+  };
 
   const onBucketClick = useCallback(
     (bucketStart: dayjs.Dayjs) => {
@@ -228,7 +235,7 @@ export default function Page() {
         minRuns={minRuns}
         setMinRuns={setMinRuns}
         viableStrictOnly={viableStrictOnly}
-        setViableStrictOnly={setViableStrictOnly}
+        setViableStrictOnly={changeViableStrictOnly}
       />
 
       <Box sx={{ mt: 3 }}>
