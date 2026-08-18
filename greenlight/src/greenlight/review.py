@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import queue
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -248,6 +249,11 @@ def run(
         failed: list[int] = []
         abandoned: list[int] = []
         skips: list[tuple[int, ReviewSkip]] = []
+        # Owned here (not inside the helpers) so run can read it back after the fan-out: a rate limit
+        # trips it, which gates the dispatch phase below. It reflects "the cancel event fired," which
+        # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
+        # cancel (abandoned stays empty) yet must still skip dispatch.
+        cancel_event = threading.Event()
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
@@ -272,6 +278,7 @@ def run(
                 abandoned=abandoned,
                 skips=skips,
                 force=force,
+                cancel_event=cancel_event,
             )
         else:
             pending = scan_runner._fingerprint_until_dispatchable(
@@ -289,17 +296,30 @@ def run(
                 abandoned=abandoned,
                 skips=skips,
                 force=force,
+                cancel_event=cancel_event,
             )
-        if abandoned:
+        dispatch_failed: list[int] = []
+        if cancel_event.is_set():
+            # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
+            # state row is written for them, so the next scan re-fingerprints and dispatches them once
+            # the limit clears. Firing workflow_dispatch POSTs now on the same throttled token is what
+            # GitHub's secondary-rate-limit detection punishes most, so skip the dispatch phase.
             logger.warning(
-                "rate limit hit: abandoned %d of %d fingerprint(s) (not evaluated); %d candidate(s) dispatchable",
+                "rate limit hit: abandoned %d of %d fingerprint(s) (not evaluated); "
+                "skipping dispatch of %d completed candidate(s) this pass; will retry next scan",
                 len(abandoned),
                 len(fingerprint_numbers),
                 len(pending),
             )
-        dispatch_failed = scan_runner._dispatch_pending(
-            client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch, emit_dispatched=emit_dispatched
-        )
+        else:
+            dispatch_failed = scan_runner._dispatch_pending(
+                client,
+                pending,
+                ref=ref,
+                max_dispatches=max_dispatches,
+                dispatch=dispatch,
+                emit_dispatched=emit_dispatched,
+            )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),
         # so this can never comment on a listing-scan approval.

@@ -9,7 +9,6 @@ filter, and client lifecycle, and drives these helpers.
 from __future__ import annotations
 
 import logging
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -24,6 +23,7 @@ from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
 
 if TYPE_CHECKING:
     import queue
+    import threading
     from collections.abc import Callable, Sequence
     from concurrent.futures import Future
     from datetime import timedelta
@@ -160,8 +160,8 @@ def _fingerprint_all(
     abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
+    cancel_event: threading.Event,
 ) -> list[_Candidate]:
-    cancel_event = threading.Event()
     futures: dict[int, Future[tuple[str, str] | ReviewSkip | _Cancelled]] = {}
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
@@ -211,10 +211,10 @@ def _fingerprint_until_dispatchable(
     abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
+    cancel_event: threading.Event,
 ) -> list[_Candidate]:
     ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
     pending: list[_Candidate] = []
-    cancel_event = threading.Event()
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             for start in range(0, len(ranked), worker_count):
