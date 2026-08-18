@@ -462,6 +462,13 @@
       "rocm"
     ]
   ],
+  "test_generic_stream_multiple (__main__.TestGenericStreamCompile)": [
+    "190330",
+    "https://github.com/pytorch/pytorch/issues/190330",
+    [
+      "linux"
+    ]
+  ],
   "test_get_remote_tensor (__main__.NVSHMEMSymmetricMemoryTest)": [
     "190294",
     "https://github.com/pytorch/pytorch/issues/190294",
