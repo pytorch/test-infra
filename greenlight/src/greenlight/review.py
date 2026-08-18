@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import queue
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -34,14 +35,21 @@ from greenlight.constants import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from typing import Protocol
 
     from github import Github
 
     from greenlight.config import Config
-    from greenlight.github_client import OpenPR, VerdictPR
+    from greenlight.github_client import OpenPR
+    from greenlight.github_types import VerdictPR
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
+
+    class _BuildClient(Protocol):
+        # token positional-only so injected test doubles needn't match the parameter name.
+        def __call__(self, token: str, /, *, seconds_between_requests: float = 0.25) -> Github: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +74,12 @@ def _is_trusted(login: str | None) -> bool:
     return login is not None and login.lower() in _TRUSTED_LOWER
 
 
-_FINGERPRINT_WORKERS = 8
+# Aggregate fan-out request rate is workers / seconds-between-requests: more workers or a
+# shorter interval raise it. Cutting workers (8->4) and lengthening the interval (0.25s->0.5s)
+# both lower it, to ~8 req/s, keeping the fan-out under GitHub's secondary (burst-rate) limit
+# that the prior 8-worker / 0.25s pool tripped.
+_FINGERPRINT_WORKERS = 4
+_FINGERPRINT_SECONDS_BETWEEN_REQUESTS = 0.5
 
 
 def _utcnow() -> datetime:
@@ -184,7 +197,7 @@ def run(
     requester: str | None = None,
     allow_untrusted_author: bool = False,
     bot_login: str = "",
-    build_github: Callable[[str], Github] = github_client.build_client,
+    build_github: _BuildClient = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
     fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
     fingerprint: FingerprintFn = _default_fingerprint,
@@ -245,14 +258,20 @@ def run(
         else:
             fingerprint_numbers = pr_numbers
         failed: list[int] = []
+        abandoned: list[int] = []
         skips: list[tuple[int, ReviewSkip]] = []
+        # Owned here (not inside the helpers) so run can read it back after the fan-out: a rate limit
+        # trips it, which gates the dispatch phase below. It reflects "the cancel event fired," which
+        # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
+        # cancel (abandoned stays empty) yet must still skip dispatch.
+        cancel_event = threading.Event()
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
         # and guarantees no two running tasks ever share one.
         client_pool: queue.Queue[Github] = queue.Queue()
         for _ in range(worker_count):
-            worker_client = build_github(token)
+            worker_client = build_github(token, seconds_between_requests=_FINGERPRINT_SECONDS_BETWEEN_REQUESTS)
             clients.callback(_close_client, worker_client)
             client_pool.put(worker_client)
         if max_dispatches is None:
@@ -267,8 +286,10 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                abandoned=abandoned,
                 skips=skips,
                 force=force,
+                cancel_event=cancel_event,
             )
         else:
             pending = scan_runner._fingerprint_until_dispatchable(
@@ -283,12 +304,33 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                abandoned=abandoned,
                 skips=skips,
                 force=force,
+                cancel_event=cancel_event,
             )
-        dispatch_failed = scan_runner._dispatch_pending(
-            client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch, emit_dispatched=emit_dispatched
-        )
+        dispatch_failed: list[int] = []
+        if cancel_event.is_set():
+            # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
+            # state row is written for them, so the next scan re-fingerprints and dispatches them once
+            # the limit clears. Firing workflow_dispatch POSTs now on the same throttled token is what
+            # GitHub's secondary-rate-limit detection punishes most, so skip the dispatch phase.
+            logger.warning(
+                "rate limit hit: abandoned %d of %d fingerprint(s) (not evaluated); "
+                "skipping dispatch of %d completed candidate(s) this pass; will retry next scan",
+                len(abandoned),
+                len(fingerprint_numbers),
+                len(pending),
+            )
+        else:
+            dispatch_failed = scan_runner._dispatch_pending(
+                client,
+                pending,
+                ref=ref,
+                max_dispatches=max_dispatches,
+                dispatch=dispatch,
+                emit_dispatched=emit_dispatched,
+            )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),
         # so this can never comment on a listing-scan approval.
@@ -296,10 +338,12 @@ def run(
             scan_runner.post_refusals(
                 client, TARGET_REPO, skips, bot_login=bot_login, get_pr=get_pr, upsert_comment=upsert_comment
             )
-        if failed or dispatch_failed:
+        if failed or dispatch_failed or abandoned:
             errors: list[str] = []
             if failed:
                 errors.append(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
             if dispatch_failed:
                 errors.append(f"failed to dispatch {len(dispatch_failed)} PR(s): {sorted(dispatch_failed)}")
+            if abandoned:
+                errors.append(f"{len(abandoned)} PR(s) abandoned due to rate limit: {sorted(abandoned)}")
             raise RuntimeError("; ".join(errors))

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from greenlight import constants
 from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
@@ -20,125 +20,18 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from github import Github
+    from urllib3.util.retry import Retry
 
-    class _PRUser(Protocol):
-        @property
-        def login(self) -> str | None: ...
-
-    class _Label(Protocol):
-        @property
-        def name(self) -> str: ...
-
-    class _PullRequest(Protocol):
-        @property
-        def number(self) -> int: ...
-        @property
-        def user(self) -> _PRUser | None: ...
-        @property
-        def title(self) -> str: ...
-        @property
-        def html_url(self) -> str: ...
-        @property
-        def head(self) -> _PRBase: ...
-        @property
-        def updated_at(self) -> datetime | None: ...
-        @property
-        def labels(self) -> Iterable[_Label]: ...
-        @property
-        def draft(self) -> bool: ...
-
-    class _Repo(Protocol):
-        def get_pulls(self, state: str) -> Iterable[_PullRequest]: ...
-
-    class _RepoClient(Protocol):
-        def get_repo(self, full_name_or_id: str) -> _Repo: ...
-
-    class _PRActor(Protocol):
-        @property
-        def login(self) -> str | None: ...
-        @property
-        def type(self) -> str: ...
-
-    class _PRComment(Protocol):
-        @property
-        def id(self) -> int: ...
-        @property
-        def user(self) -> _PRActor | None: ...
-        @property
-        def body(self) -> str: ...
-
-    class _PRReview(Protocol):
-        @property
-        def id(self) -> int: ...
-        @property
-        def user(self) -> _PRActor | None: ...
-        @property
-        def body(self) -> str: ...
-        @property
-        def state(self) -> str: ...
-
-    class _PRBase(Protocol):
-        @property
-        def sha(self) -> str: ...
-
-    class _FingerprintPR(Protocol):
-        @property
-        def head(self) -> _PRBase: ...
-        def get_issue_comments(self) -> Iterable[_PRComment]: ...
-        def get_review_comments(self) -> Iterable[_PRComment]: ...
-        def get_reviews(self) -> Iterable[_PRReview]: ...
-
-    class _ScanRepo(Protocol):
-        def get_pull(self, number: int) -> _FingerprintPR: ...
-
-    class _AuthorPR(Protocol):
-        @property
-        def user(self) -> _PRUser | None: ...
-
-    class _AuthorRepo(Protocol):
-        def get_pull(self, number: int) -> _AuthorPR: ...
-
-    class _AuthorClient(Protocol):
-        def get_repo(self, full_name_or_id: str) -> _AuthorRepo: ...
-
-    class _VerdictReview(Protocol):
-        @property
-        def id(self) -> int: ...
-        @property
-        def user(self) -> _PRUser | None: ...
-        @property
-        def state(self) -> str: ...
-        def dismiss(self, message: str) -> None: ...
-
-    class _VerdictComment(Protocol):
-        @property
-        def body(self) -> str: ...
-        @property
-        def user(self) -> _PRUser | None: ...
-        def edit(self, body: str) -> None: ...
-
-    class VerdictPR(Protocol):
-        @property
-        def head(self) -> _PRBase: ...
-        def create_review(self, *, body: str, event: str) -> object: ...
-        def create_issue_comment(self, body: str) -> object: ...
-        def get_issue_comments(self) -> Iterable[_VerdictComment]: ...
-        def get_reviews(self) -> Iterable[_VerdictReview]: ...
-
-    class _VerdictRepo(Protocol):
-        def get_pull(self, number: int) -> VerdictPR: ...
-
-
-class VerdictClient(Protocol):
-    """Structural GitHub client for the verdict path; the real ``github.Github`` satisfies it."""
-
-    def get_repo(self, full_name_or_id: str) -> _VerdictRepo: ...
-
-
-class ScanClient(Protocol):
-    """Structural GitHub client for the scan/fingerprint path; the real ``github.Github`` satisfies it."""
-
-    def get_repo(self, full_name_or_id: str) -> _ScanRepo: ...
+    from greenlight.github_types import (
+        ScanClient,
+        VerdictClient,
+        VerdictPR,
+        _AuthorClient,
+        _FingerprintPR,
+        _PRActor,
+        _PRReview,
+        _RepoClient,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,11 +50,63 @@ class OpenPR:
 # worst-case pagination outlast the per-iteration runtime watchdog.
 _GITHUB_TIMEOUT_SECONDS: int = 15
 
+_GITHUB_RETRY_TOTAL: int = 2
+_GITHUB_RETRY_BACKOFF_FACTOR: float = 0.5
+_GITHUB_RETRY_BACKOFF_MAX_SECONDS: float = 5.0
 
-def build_client(token: str) -> Github:
+
+def _build_retry() -> Retry:
+    # Not PyGithub's default GithubRetry: it force-lists 403 and sleeps in-call until the
+    # rate-limit reset, which would stall a fingerprint worker past the per-iteration runtime
+    # budget. A plain urllib3 Retry with a 5xx-only forcelist lets a rate limit raise at once.
+    from urllib3.util.retry import Retry
+
+    return Retry(
+        total=_GITHUB_RETRY_TOTAL,
+        backoff_factor=_GITHUB_RETRY_BACKOFF_FACTOR,
+        backoff_max=_GITHUB_RETRY_BACKOFF_MAX_SECONDS,
+        status_forcelist=frozenset(range(500, 600)),
+        allowed_methods=frozenset({"GET", "HEAD", "PUT", "DELETE"}),
+        respect_retry_after_header=False,
+        raise_on_status=True,
+    )
+
+
+def build_client(token: str, *, seconds_between_requests: float = 0.25) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
-    return Github(auth=Auth.Token(token), per_page=100, timeout=_GITHUB_TIMEOUT_SECONDS, lazy=True)
+    # Pin PyGithub's 0.25s default pacing explicitly (cf. _GITHUB_TIMEOUT_SECONDS) so a library
+    # default change can't silently alter our request rate; the fingerprint fan-out passes a
+    # slower value to bound its aggregate rate.
+    return Github(
+        auth=Auth.Token(token),
+        per_page=100,
+        timeout=_GITHUB_TIMEOUT_SECONDS,
+        retry=_build_retry(),
+        lazy=True,
+        seconds_between_requests=seconds_between_requests,
+    )
+
+
+def is_rate_limit_error(exc: BaseException) -> bool:
+    # GitHub delivers a rate limit as 403 (usually -> RateLimitExceededException) or 429 (-> base
+    # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
+    from github import GithubException, RateLimitExceededException
+
+    if isinstance(exc, RateLimitExceededException):
+        return True
+    if not isinstance(exc, GithubException):
+        return False
+    status = getattr(exc, "status", None)
+    if status == 429:
+        return True
+    # PyGithub only maps a 403 to RateLimitExceededException when the body matches one of a few
+    # literal message strings, so a rate-limit 403 whose wording drifts arrives as a bare
+    # GithubException; key off the rate-limit headers GitHub sends with it instead of the message.
+    if status == 403:
+        headers = getattr(exc, "headers", None) or {}
+        return "retry-after" in headers or headers.get("x-ratelimit-remaining") == "0"
+    return False
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
