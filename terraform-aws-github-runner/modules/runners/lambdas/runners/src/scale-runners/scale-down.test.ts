@@ -526,7 +526,14 @@ describe('scale-down', () => {
       mockedListGithubRunnersOrg.mockResolvedValue([...ghRunners, petGhRunner] as GhRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
 
+      const spyOfflineFound = jest.spyOn(metrics, 'runnerGhOfflineFoundOrg');
+      const spyOfflineSkippedPet = jest.spyOn(metrics, 'runnerGhOfflineSkippedPetOrg');
+
       await scaleDown();
+
+      expect(spyOfflineFound).toBeCalledWith(theOrg, 3);
+      expect(spyOfflineSkippedPet).toBeCalledTimes(1);
+      expect(spyOfflineSkippedPet).toBeCalledWith(theOrg);
 
       expect(mockedRemoveGithubRunnerOrg).not.toBeCalledWith(petGhRunner.id, theOrg, metrics);
       expect(mockedTerminateRunner).not.toBeCalledWith(petEc2Runner, metrics);
@@ -907,7 +914,14 @@ describe('scale-down', () => {
       mockedListGithubRunnersRepo.mockResolvedValue([...ghRunners, petGhRunner] as GhRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
 
+      const spyOfflineFound = jest.spyOn(metrics, 'runnerGhOfflineFoundRepo');
+      const spyOfflineSkippedPet = jest.spyOn(metrics, 'runnerGhOfflineSkippedPetRepo');
+
       await scaleDown();
+
+      expect(spyOfflineFound).toBeCalledWith(repo, 3);
+      expect(spyOfflineSkippedPet).toBeCalledTimes(1);
+      expect(spyOfflineSkippedPet).toBeCalledWith(repo);
 
       expect(mockedRemoveGithubRunnerRepo).not.toBeCalledWith(petGhRunner.id, repo, metrics);
       expect(mockedTerminateRunner).not.toBeCalledWith(petEc2Runner, metrics);

@@ -111,11 +111,15 @@ export async function scaleDown(): Promise<void> {
     if (Config.Instance.enableOrganizationRunners) {
       for (const org of foundOrgs) {
         const offlineGhRunners = (await listGithubRunnersOrg(org, metrics)).filter(
-          (r) => r.status.toLowerCase() === 'offline' && !petInstanceIds.has(r.name),
+          (r) => r.status.toLowerCase() === 'offline',
         );
         metrics.runnerGhOfflineFoundOrg(org, offlineGhRunners.length);
 
         for (const ghRunner of offlineGhRunners) {
+          if (petInstanceIds.has(ghRunner.name)) {
+            metrics.runnerGhOfflineSkippedPetOrg(org);
+            continue;
+          }
           try {
             await removeGithubRunnerOrg(ghRunner.id, org, metrics);
             metrics.runnerGhOfflineRemovedOrg(org);
@@ -131,11 +135,15 @@ export async function scaleDown(): Promise<void> {
       for (const repoString of foundRepos) {
         const repo = getRepo(repoString);
         const offlineGhRunners = (await listGithubRunnersRepo(repo, metrics)).filter(
-          (r) => r.status.toLowerCase() === 'offline' && !petInstanceIds.has(r.name),
+          (r) => r.status.toLowerCase() === 'offline',
         );
         metrics.runnerGhOfflineFoundRepo(repo, offlineGhRunners.length);
 
         for (const ghRunner of offlineGhRunners) {
+          if (petInstanceIds.has(ghRunner.name)) {
+            metrics.runnerGhOfflineSkippedPetRepo(repo);
+            continue;
+          }
           try {
             await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
             metrics.runnerGhOfflineRemovedRepo(repo);
