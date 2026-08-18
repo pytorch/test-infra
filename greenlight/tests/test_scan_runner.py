@@ -167,6 +167,7 @@ def test_post_refusals_skips_non_changes_requested_reason(caplog):
 
 def test_evaluate_pr_iteration_timeout_propagates():
     failed: list[int] = []
+    abandoned: list[int] = []
     skips: list[tuple[int, ReviewSkip]] = []
     future = cast(
         "Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _RaisingFuture(IterationTimeout("boom"))
@@ -182,11 +183,13 @@ def test_evaluate_pr_iteration_timeout_propagates():
             now=datetime(2026, 1, 1, tzinfo=UTC),
             timeout=timedelta(hours=1),
             failed=failed,
+            abandoned=abandoned,
             skips=skips,
             force=False,
         )
 
     assert failed == []
+    assert abandoned == []
     assert skips == []
 
 
@@ -264,8 +267,9 @@ def test_fingerprint_task_non_rate_limit_error_propagates_without_cancel():
     assert pool.get_nowait() is client
 
 
-def test_evaluate_pr_cancelled_result_returns_none_without_failing():
+def test_evaluate_pr_cancelled_result_records_abandoned_not_failed():
     failed: list[int] = []
+    abandoned: list[int] = []
     skips: list[tuple[int, ReviewSkip]] = []
     future = cast(
         "Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _ResultFuture(scan_runner._CANCELLED)
@@ -278,13 +282,16 @@ def test_evaluate_pr_cancelled_result_returns_none_without_failing():
         now=datetime(2026, 1, 1, tzinfo=UTC),
         timeout=timedelta(hours=1),
         failed=failed,
+        abandoned=abandoned,
         skips=skips,
         force=False,
     )
 
-    # A cancelled task was never attempted, so it is neither a candidate nor a failure: it is dropped
-    # without landing in `failed` (only tasks that actually hit the limit do).
+    # A cancelled task was never attempted, so it is not a candidate and not a failure: it is recorded
+    # as abandoned (distinct from `failed`, which holds only tasks that actually hit the limit) so the
+    # scan can surface it instead of dropping it silently.
     assert result is None
+    assert abandoned == [5]
     assert failed == []
     assert skips == []
 
