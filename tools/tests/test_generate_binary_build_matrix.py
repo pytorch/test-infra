@@ -4,7 +4,11 @@ import os
 import sys
 from unittest import main, TestCase
 
-from tools.scripts.generate_binary_build_matrix import generate_build_matrix
+from tools.scripts.generate_binary_build_matrix import (
+    generate_build_matrix,
+    parse_version,
+    ROCM_ARCHES_DICT,
+)
 
 
 ASSETS_DIR = "tools/tests/assets"
@@ -199,6 +203,46 @@ class GenerateBuildMatrixTest(TestCase):
                 # torchvision is not published for these versions yet.
                 self.assertNotIn("torchvision", entry["installation"])
                 self.assertIn("torch", entry["installation"])
+
+    def _rocm_versions(self, channel: str, getting_started: str) -> set:
+        out = generate_build_matrix(
+            "wheel",
+            "linux",
+            channel,
+            "enable",
+            "enable",
+            "enable",
+            "enable",
+            "false",
+            "false",
+            "disable",
+            getting_started,
+            None,
+        )
+        return {
+            entry["gpu_arch_version"]
+            for entry in out["include"]
+            if entry["gpu_arch_type"] == "rocm"
+        }
+
+    def test_parse_version_orders_double_digit_minors(self):
+        self.assertGreater(parse_version("7.14"), parse_version("7.2"))
+        self.assertEqual(
+            max(["7.2", "7.14"], key=parse_version),
+            "7.14",
+        )
+
+    def test_getting_started_nightly_ships_one_rocm(self):
+        versions = self._rocm_versions("nightly", "true")
+        self.assertEqual(len(versions), 1)
+        self.assertEqual(
+            versions, {max(ROCM_ARCHES_DICT["nightly"], key=parse_version)}
+        )
+
+    def test_nightly_builds_keep_every_rocm(self):
+        versions = self._rocm_versions("nightly", "false")
+        self.assertEqual(versions, set(ROCM_ARCHES_DICT["nightly"]))
+        self.assertGreater(len(versions), 1)
 
 
 def parse_args():

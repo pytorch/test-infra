@@ -1,0 +1,100 @@
+[2026-07-13T19:39:36Z] 2026-07-13 19:32:43,259	INFO kernel.py:292 -- Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+[2026-07-13T19:39:36Z] 2026-07-13 19:32:43,259	INFO vllm.py:1371 -- Cudagraph is disabled under eager mode
+[2026-07-13T19:39:36Z] =============================== warnings summary ===============================
+[2026-07-13T19:39:36Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:36Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:36Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] ../../usr/local/lib/python3.12/dist-packages/pytest_asyncio/plugin.py:977
+[2026-07-13T19:39:36Z] ../../usr/local/lib/python3.12/dist-packages/pytest_asyncio/plugin.py:977
+[2026-07-13T19:39:36Z]   /usr/local/lib/python3.12/dist-packages/pytest_asyncio/plugin.py:977: PytestDeprecationWarning: The "scope" keyword argument to the asyncio marker has been deprecated. Please use the "loop_scope" argument instead.
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z]     warnings.warn(PytestDeprecationWarning(_MARKER_SCOPE_KWARG_DEPRECATION_WARNING))
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] ../../usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: 14 warnings
+[2026-07-13T19:39:36Z]   /usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+[2026-07-13T19:39:36Z]     warnings.warn(
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] v1/engine/test_engine_core_client.py:328
+[2026-07-13T19:39:36Z]   /vllm-workspace/tests/v1/engine/test_engine_core_client.py:328: PytestCollectionWarning: cannot collect test class 'TestMessage' because it has a __init__ constructor (from: tests/v1/engine/test_engine_core_client.py)
+[2026-07-13T19:39:36Z]     @dataclass
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] tests/v1/engine/test_abort_final_step.py: 2 warnings
+[2026-07-13T19:39:36Z] tests/v1/engine/test_async_llm.py: 29 warnings
+[2026-07-13T19:39:36Z] tests/v1/engine/test_engine_core_client.py: 7 warnings
+[2026-07-13T19:39:36Z]   /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=192) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-07-13T19:39:36Z]     self.pid = os.fork()
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] tests/v1/engine/test_engine_core.py: 10 warnings
+[2026-07-13T19:39:36Z] tests/v1/engine/test_engine_core_client.py: 3 warnings
+[2026-07-13T19:39:36Z]   /vllm-workspace/tests/utils.py:1732: DeprecationWarning: This process (pid=192) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-07-13T19:39:36Z]     pid = os.fork()
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] tests/v1/engine/test_llm_engine.py::test_parallel_sampling[False]
+[2026-07-13T19:39:36Z]   /usr/local/lib/python3.12/dist-packages/transformers/models/gpt2/tokenization_gpt2.py:110: DeprecationWarning: Deprecated in 0.9.0: BPE.__init__ will not create from files anymore, try `BPE.from_file` instead
+[2026-07-13T19:39:36Z]     BPE(
+[2026-07-13T19:39:36Z]
+[2026-07-13T19:39:36Z] -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[2026-07-13T19:39:36Z] =========================== short test summary info ============================
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_abort_final_step.py::test_abort_during_final_step[False] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_abort_final_step.py::test_abort_during_final_step[True] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_load[engine_args0-Hello my name is Robert and-RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_load[engine_args0-Hello my name is Robert and-RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_load[engine_args1-prompt1-RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_load[engine_args1-prompt1-RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort[engine_args0-Hello my name is Robert and-RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort[engine_args0-Hello my name is Robert and-RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort[engine_args1-prompt1-RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort[engine_args1-prompt1-RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_multi_abort[RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_multi_abort[RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_finished_flag[engine_args0-Hello my name is Robert and-1] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_finished_flag[engine_args0-Hello my name is Robert and-3] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_finished_flag[engine_args1-prompt1-1] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_finished_flag[engine_args1-prompt1-3] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_mid_stream_cancellation[engine_args0-Hello my name is Robert and] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_mid_stream_cancellation[engine_args1-prompt1] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_customize_loggers - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_customize_aggregated_loggers - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_dp_rank_argument - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_header_dp_rank_argument - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_check_health - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort_final_output[RequestOutputKind.DELTA] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_abort_final_output[RequestOutputKind.FINAL_ONLY] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_resume_basic - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_abort - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_then_abort_queued_request - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_wait - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_keep_single_request - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_async_llm.py::test_pause_keep_multi_request - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_engine_core - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_engine_core_advanced_sampling - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_engine_core_concurrent_batches - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_engine_core_invalid_request_id_type - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[False-ec_producer-0.01-False] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[False-ec_consumer-0.7-True] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[False-ec_consumer-0.7-False] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[True-ec_producer-0.01-False] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[True-ec_consumer-0.7-True] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core.py::test_encoder_instance_zero_kv_cache[True-ec_consumer-0.7-False] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client[True] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client[False] - RuntimeError: CUDA driver initialization failed, you might not have a CUDA gpu.
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client_asyncio - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client_util_method_custom_return - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client_util_method_custom_dict_return - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client_util_method_nested_structures - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_engine_core_client_future_utility_async - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_kv_cache_events[True-tcp-meta-llama/Llama-3.2-1B-Instruct-1] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] FAILED v1/engine/test_engine_core_client.py::test_kv_cache_events[True-tcp-google/gemma-3-1b-it-7] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:36Z] ====== 50 failed, 67 passed, 2 skipped, 71 warnings in 707.46s (0:11:47) =======
+[2026-07-13T19:39:38Z] sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+^^^ +++
+[2026-07-13T19:39:41Z] 🚨 Error: The command exited with status 1
+^^^ +++
+[2026-07-13T19:39:41Z] user command error: The plugin docker command hook exited with status 1
+~~~ Running global pre-exit hook
+[2026-07-13T19:39:41Z] $ /etc/buildkite-agent/hooks/pre-exit
+~~~ Running plugin docker pre-exit hook
+[2026-07-13T19:39:41Z] $ /var/lib/buildkite-agent/plugins/bk-gpu-1-queue-ci-i-073a22352e7910a55-1/github-com-buildkite-plugins-docker-buildkite-plugin-v5-2-0/hooks/pre-exit
