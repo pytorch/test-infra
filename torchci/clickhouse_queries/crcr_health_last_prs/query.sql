@@ -10,25 +10,39 @@ SELECT
     count() AS total,
     if(total > 0, successes / total, 0) AS pass_rate
 FROM
-    default.crcr_workflow_job FINAL
-WHERE
-    downstream_repo = 'pytorch/crcr-test'
-    AND status = 'completed'
-    AND pr_number > 0
-    AND pr_number IN (
-        SELECT pr_number
+    (
+        SELECT
+            pr_number,
+            job_name,
+            started_at,
+            conclusion,
+            ROW_NUMBER() OVER (
+                PARTITION BY pr_number, job_name
+                ORDER BY run_attempt DESC
+            ) AS rn
         FROM
             default.crcr_workflow_job FINAL
         WHERE
             downstream_repo = 'pytorch/crcr-test'
             AND status = 'completed'
             AND pr_number > 0
-        GROUP BY
-            pr_number
-        ORDER BY
-            max(started_at) DESC
-        LIMIT {count: UInt64}
+            AND pr_number IN (
+                SELECT pr_number
+                FROM
+                    default.crcr_workflow_job FINAL
+                WHERE
+                    downstream_repo = 'pytorch/crcr-test'
+                    AND status = 'completed'
+                    AND pr_number > 0
+                GROUP BY
+                    pr_number
+                ORDER BY
+                    max(started_at) DESC
+                LIMIT {count: UInt64}
+            )
     )
+WHERE
+    rn = 1
 GROUP BY
     pr_number
 ORDER BY
