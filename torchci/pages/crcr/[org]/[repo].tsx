@@ -361,7 +361,7 @@ function RelayHealthCard({
         {label}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {passedCount}/{healthPrs.length} recent PRs passed (all time)
+        {passedCount}/{healthPrs.length} of last {HEALTH_COUNT} PRs passed
       </Typography>
     </Paper>
   );

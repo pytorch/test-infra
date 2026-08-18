@@ -1,3 +1,14 @@
+WITH recent_prs AS (
+    SELECT pr_number
+    FROM default.crcr_workflow_job FINAL
+    WHERE
+        downstream_repo = 'pytorch/crcr-test'
+        AND status = 'completed'
+        AND pr_number > 0
+    GROUP BY pr_number
+    ORDER BY max(started_at) DESC
+    LIMIT {count: UInt64}
+)
 SELECT
     pr_number,
     max(started_at) AS last_run,
@@ -26,20 +37,7 @@ FROM
             downstream_repo = 'pytorch/crcr-test'
             AND status = 'completed'
             AND pr_number > 0
-            AND pr_number IN (
-                SELECT pr_number
-                FROM
-                    default.crcr_workflow_job FINAL
-                WHERE
-                    downstream_repo = 'pytorch/crcr-test'
-                    AND status = 'completed'
-                    AND pr_number > 0
-                GROUP BY
-                    pr_number
-                ORDER BY
-                    max(started_at) DESC
-                LIMIT {count: UInt64}
-            )
+            AND pr_number IN (SELECT pr_number FROM recent_prs)
     )
 WHERE
     rn = 1
