@@ -46,11 +46,11 @@ def lambda_handler(event, context):
         config = get_config()
         body = json.loads(body_bytes) if body_bytes else {}
 
-        # OIDC is the only identity check Relay performs.  The callback body is
-        # passed through to HUD untouched — HUD owns schema/business validation.
-        # Relay reports the OIDC-verified repo to HUD separately as
-        # `verified_repo` so HUD has a trusted source of truth for the
-        # caller's identity.
+        # Load external CI provider repo mappings (Buildkite, etc.) so
+        # verify_oidc_token can resolve non-GitHub OIDC tokens.  Cached
+        # in Redis; no-op when CI_PROVIDERS_URL is not configured.
+        jwt_helper.load_ci_providers(config)
+
         oidc_claims = jwt_helper.verify_oidc_token(headers.get("authorization", ""))
         verified_repo = oidc_claims["repository"]
 

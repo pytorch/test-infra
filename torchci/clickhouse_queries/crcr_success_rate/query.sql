@@ -35,7 +35,7 @@ FROM
 WHERE
     started_at > now() - INTERVAL {days: UInt64} DAY
     AND status = 'completed'
-    AND pr_number > 0
+    AND event_type = {event_type: String}
 GROUP BY
     day, repo
 ORDER BY

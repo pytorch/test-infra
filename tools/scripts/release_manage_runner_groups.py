@@ -7,17 +7,21 @@ staging clusters are excluded) in sync with a desired state computed from
 
 - ensure ``pytorch/pytorch`` is an allowed repository (add-only), and
 - restrict allowed workflows to the release workflows discovered in
-  ``pytorch/pytorch``, pinned to ``main``, ``nightly`` and the release branches
+  ``pytorch/pytorch``, pinned to ``main``, ``nightly``, the release branches
   around the test-channel version (the ``release/X.Y`` anchor read from
   ``generate_binary_build_matrix.py`` plus the preceding protected release
-  branch).
+  branch), and each pinned line's release tags (its newest ``v<version>`` and
+  ``v<version>-rc<n>``, which is where the release binaries are actually built
+  from).
 
 Release workflows are discovered, not hardcoded, by the release runner label
-they run on (the ``rel-`` marker, e.g. ``rel-l-x86iavx512-44-340``). An entry
-workflow references such a label directly; reusable workflows are then included
-only when a release entry invokes them via ``uses:`` in a job that runs on a
-release label - this pulls in the build reusable (``_binary-build-linux.yml``)
-while leaving test/upload reusables (which run on other runners) out.
+they run on (the ``rel-`` marker, e.g. ``rel-l-x86iavx512-44-340``). A job counts
+as running on a release runner when it names such a label inline, or when it
+takes its runner from a ``_select-release-runner.yml`` caller's outputs. An entry
+workflow has such a job; reusable workflows are then included only when a release
+entry invokes them via ``uses:`` from one - this pulls in the build reusables
+(``_binary-build-linux.yml``, ``_build-triton-wheel-linux.yml``) while leaving
+test/upload reusables (which run on other runners) out.
 
 Reading and updating runner groups requires a token that can manage them.
 Defaults to a dry-run; pass ``--apply`` to write changes.
@@ -145,13 +149,89 @@ def select_target_refs(
     return [f"refs/heads/{name}" for name in selected]
 
 
+def release_lines(refs: Iterable[str]) -> List[Tuple[int, int]]:
+    """The ``(major, minor)`` release lines among the selected branch refs."""
+    lines = []
+    for ref in refs:
+        match = RELEASE_BRANCH_RE.match(ref.removeprefix("refs/heads/"))
+        if match is not None:
+            lines.append((int(match.group(1)), int(match.group(2))))
+    return lines
+
+
+def release_tag_re(line: Tuple[int, int]) -> "re.Pattern[str]":
+    """Matches the GA and release-candidate tags on release line ``X.Y``.
+
+    pytorch/pytorch tags releases as ``v<version>``, with candidates numbered
+    ``v<version>-rc<n>``: ``v2.13.0``, ``v2.13.0-rc15``, ``v2.13.1-rc1``.
+    """
+    return re.compile(rf"^v{line[0]}\.{line[1]}\.(\d+)(?:-rc(\d+))?$")
+
+
+def select_target_tags(tag_names: Iterable[str], line: Tuple[int, int]) -> List[str]:
+    """The newest GA tag and the newest release-candidate tag on line ``X.Y``.
+
+    Release binaries are built from tags, not branches: pushing ``v2.14.0-rc1``
+    runs the build workflows at ``refs/tags/v2.14.0-rc1``. GitHub matches
+    ``selected_workflows`` entries on the exact ref, so the
+    ``@refs/heads/release/2.14`` entry does not authorize that run and the tag
+    has to be pinned in its own right.
+
+    Newest wins by ``(patch, rc)``, so a patch release supersedes the line's
+    previous tags (``v2.13.1-rc1`` over ``v2.13.0-rc15``). Only one of each is
+    kept: a new tag supersedes the last, and pinning every one would grow both
+    the allow-list and the per-ref discovery cost by a workflow set per tag
+    (2.13 reached rc15).
+    """
+    pattern = release_tag_re(line)
+    ga: List[Tuple[int, str]] = []
+    candidates: List[Tuple[Tuple[int, int], str]] = []
+    for name in tag_names:
+        match = pattern.match(name)
+        if match is None:
+            continue
+        patch, number = int(match.group(1)), match.group(2)
+        if number is None:
+            ga.append((patch, name))
+        else:
+            candidates.append(((patch, int(number)), name))
+    selected: List[str] = []
+    if ga:
+        selected.append(max(ga)[1])
+    if candidates:
+        selected.append(max(candidates)[1])
+    return [f"refs/tags/{name}" for name in selected]
+
+
+def get_release_tags(client: GitHubClient, line: Tuple[int, int]) -> List[str]:
+    # matching-refs returns every ref under the prefix in a single request;
+    # listing /tags would page through pytorch/pytorch's entire tag history. The
+    # trailing dot keeps a v2.1. prefix off v2.14.0, and the names are still
+    # filtered against the exact tag pattern.
+    prefix = f"v{line[0]}.{line[1]}."
+    refs = client.request(
+        "GET", f"/repos/{TARGET_REPO}/git/matching-refs/tags/{prefix}"
+    ).json()
+    names = [str(ref["ref"]).removeprefix("refs/tags/") for ref in refs]
+    return select_target_tags(names, line)
+
+
 def get_target_refs(client: GitHubClient) -> List[str]:
     anchor = get_test_version_anchor()
     log(f"Test-channel version anchor: release/{anchor[0]}.{anchor[1]}")
     branches = client.paginate(
         f"/repos/{TARGET_REPO}/branches", params={"protected": "true"}
     )
-    return select_target_refs((branch["name"] for branch in branches), anchor)
+    refs = select_target_refs((branch["name"] for branch in branches), anchor)
+    # Every pinned release line gets its tags, not just the candidate's, so a
+    # patch release on the preceding line keeps runner access too.
+    tags = [
+        tag for line in release_lines(refs) for tag in get_release_tags(client, line)
+    ]
+    if not tags:
+        # Expected between a branch cut and the line's first RC tag.
+        log("No release tags cut yet on the pinned release lines")
+    return refs + tags
 
 
 # --- Desired state: workflow discovery -------------------------------------
@@ -177,6 +257,53 @@ def local_uses_paths(wf: "WorkflowFile") -> Set[str]:
     if not isinstance(jobs, dict):
         return set()
     return {local for local in map(local_uses, jobs.values()) if local is not None}
+
+
+def selector_job_names(wf: "WorkflowFile", label_files: Set[str]) -> Set[str]:
+    """Names of ``wf``'s jobs that invoke a reusable carrying release labels.
+
+    These are the ``select-runner`` style jobs: they hold no label themselves,
+    they call ``_select-release-runner.yml`` and re-export its labels as outputs.
+    """
+    jobs = wf.doc.get("jobs")
+    if not isinstance(jobs, dict):
+        return set()
+    names = set()
+    for name, job in jobs.items():
+        local = local_uses(job)
+        if local is not None and local in label_files:
+            names.add(str(name))
+    return names
+
+
+def selector_output_re(job_name: str) -> "re.Pattern[str]":
+    """Matches a reference to ``job_name``'s outputs, in either accessor form
+    (``needs.select-runner.outputs.x86`` / ``needs['select-runner'].outputs``)."""
+    name = re.escape(job_name)
+    return re.compile(rf"needs(?:\.{name}|\[['\"]{name}['\"]\])\.outputs\.")
+
+
+def runs_on_release_runner(job: Any, selectors: Set[str]) -> bool:
+    """Whether ``job`` runs on a release runner.
+
+    Either it names a release label inline (the generated binary workflows still
+    inline ``rel-l-x86iavx512-44-340`` in ``runs_on:``), or it takes its runner
+    from a selector job's outputs -- which is how pytorch/pytorch#193378's
+    ``build-triton-wheel.yml`` build jobs get theirs, with no label of their own:
+
+        build-wheel-cuda:
+          needs: select-runner
+          uses: ./.github/workflows/_build-triton-wheel-linux.yml
+          with:
+            runs_on: ${{ needs.select-runner.outputs.x86 }}
+
+    Sibling test/upload jobs gate out here: they depend on the build jobs, not on
+    the selector's outputs, so they carry neither signal.
+    """
+    text = str(job)
+    if uses_release_label(text):
+        return True
+    return any(selector_output_re(name).search(text) for name in selectors)
 
 
 @dataclass
@@ -256,8 +383,16 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
     outputs and so carry no label of their own) -- the release-label signal is
     propagated up the ``uses:`` graph rather than matching a hardcoded filename.
     From each entry, follow local ``uses:`` references, but only for jobs that
-    themselves run on a release label, so the build reusable is included while
+    themselves run on a release runner, so the build reusable is included while
     sibling test/upload jobs (which run on other runners) are not.
+
+    Both steps use the same notion of "runs on a release runner" -- an inline
+    label *or* a selector job's outputs. They used to disagree, and the edge test
+    accepting only inline labels silently dropped
+    ``_build-triton-wheel-linux.yml`` when pytorch/pytorch#193378 split it out of
+    ``build-triton-wheel.yml``: the entry was still discovered via its
+    ``select-runner`` job, but the reusable that actually consumes the runner was
+    not, so its builds hung unassigned.
     """
     label_files = {path for path, wf in files.items() if uses_release_label(wf.raw)}
     entry_paths = {
@@ -278,11 +413,12 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
         jobs = wf.doc.get("jobs")
         if not isinstance(jobs, dict):
             continue
+        selectors = selector_job_names(wf, label_files)
         for job in jobs.values():
             local = local_uses(job)
             if local is None:
                 continue
-            if not uses_release_label(str(job)):
+            if not runs_on_release_runner(job, selectors):
                 continue
             queue.append(local)
     return seen
@@ -301,7 +437,7 @@ def discover_release_workflows(
     """
     paths_by_ref: Dict[str, Set[str]] = {}
     for ref in refs:
-        rev = ref.removeprefix("refs/heads/")
+        rev = ref.removeprefix("refs/heads/").removeprefix("refs/tags/")
         paths = collect_release_workflow_paths(fetch_workflow_files(client, rev))
         log(f"Discovered {len(paths)} release workflow(s) on {TARGET_REPO}@{rev}:")
         for path in sorted(paths):

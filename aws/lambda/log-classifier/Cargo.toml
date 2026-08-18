@@ -35,3 +35,9 @@ time = "0.3.47"
   [dependencies.tokio]
   version = "1.38.2"
   features = [ "full" ]
+
+[dev-dependencies]
+# Lets the Bedrock tests hand the SDK a canned HTTP response body. Already in
+# the tree as a transitive dependency of the aws-sdk crates -- naming it here
+# only makes `SdkBody` reachable from the test module.
+aws-smithy-types = "1.4.6"

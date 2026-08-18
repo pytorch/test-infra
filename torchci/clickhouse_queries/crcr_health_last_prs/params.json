@@ -1,0 +1,10 @@
+{
+  "params": {
+    "count": "UInt64"
+  },
+  "tests": [
+    {
+      "count": "5"
+    }
+  ]
+}
