@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 from github import Github
+from urllib3.util.retry import Retry
 
 from greenlight import github_client
 from greenlight.constants import EVAL_HASH_RE
@@ -363,6 +364,46 @@ def test_build_client_pins_request_timeout():
     # PyGithub exposes no public timeout accessor; read the mangled requester internals.
     requester = client.__dict__["_Github__requester"]
     assert requester.__dict__["_Requester__timeout"] == 15
+
+
+def test_build_retry_is_bounded_and_omits_rate_limit_statuses():
+    retry = github_client._build_retry()
+
+    # GithubRetry subclasses urllib3.Retry, so assert the exact type -- isinstance would
+    # pass for the GithubRetry we're rejecting.
+    assert type(retry) is Retry
+    assert 403 not in retry.status_forcelist
+    assert 429 not in retry.status_forcelist
+    assert 500 in retry.status_forcelist
+    assert 503 in retry.status_forcelist
+    assert retry.respect_retry_after_header is False
+    assert retry.allowed_methods == frozenset({"GET", "HEAD", "PUT", "DELETE"})
+    assert "PUT" in retry.allowed_methods
+    assert "DELETE" in retry.allowed_methods
+    assert "POST" not in retry.allowed_methods
+    assert "PATCH" not in retry.allowed_methods
+    assert retry.total == 2
+    assert retry.backoff_factor == 0.5
+    assert retry.backoff_max == 5.0
+
+
+def test_build_client_wires_bounded_retry_into_github(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _fake_github(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    # build_client re-runs `from github import ... Github` per call, so patching the attribute on
+    # the github module is picked up; Auth is left real (Auth.Token is a pure, offline wrapper).
+    monkeypatch.setattr("github.Github", _fake_github)
+
+    github_client.build_client("tok")
+
+    retry = captured["retry"]
+    assert isinstance(retry, Retry)
+    assert 403 not in retry.status_forcelist
+    assert retry.respect_retry_after_header is False
 
 
 def _build_fp(

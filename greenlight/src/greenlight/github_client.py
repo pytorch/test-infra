@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from github import Github
+    from urllib3.util.retry import Retry
 
     from greenlight.github_types import (
         ScanClient,
@@ -49,11 +50,38 @@ class OpenPR:
 # worst-case pagination outlast the per-iteration runtime watchdog.
 _GITHUB_TIMEOUT_SECONDS: int = 15
 
+_GITHUB_RETRY_TOTAL: int = 2
+_GITHUB_RETRY_BACKOFF_FACTOR: float = 0.5
+_GITHUB_RETRY_BACKOFF_MAX_SECONDS: float = 5.0
+
+
+def _build_retry() -> Retry:
+    # Not PyGithub's default GithubRetry: it force-lists 403 and sleeps in-call until the
+    # rate-limit reset, which would stall a fingerprint worker past the per-iteration runtime
+    # budget. A plain urllib3 Retry with a 5xx-only forcelist lets a rate limit raise at once.
+    from urllib3.util.retry import Retry
+
+    return Retry(
+        total=_GITHUB_RETRY_TOTAL,
+        backoff_factor=_GITHUB_RETRY_BACKOFF_FACTOR,
+        backoff_max=_GITHUB_RETRY_BACKOFF_MAX_SECONDS,
+        status_forcelist=frozenset(range(500, 600)),
+        allowed_methods=frozenset({"GET", "HEAD", "PUT", "DELETE"}),
+        respect_retry_after_header=False,
+        raise_on_status=True,
+    )
+
 
 def build_client(token: str) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
-    return Github(auth=Auth.Token(token), per_page=100, timeout=_GITHUB_TIMEOUT_SECONDS, lazy=True)
+    return Github(
+        auth=Auth.Token(token),
+        per_page=100,
+        timeout=_GITHUB_TIMEOUT_SECONDS,
+        retry=_build_retry(),
+        lazy=True,
+    )
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
