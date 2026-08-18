@@ -158,7 +158,7 @@ final_jobs AS (
             adv_real,
             adv_infra,
             adv_testflake,
-            -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
+            -- persistent: this job's adjacent observed run is also hard-red (>= 2 of its runs in a row).
             toUInt8(
                 hard_red = 1
                 AND (

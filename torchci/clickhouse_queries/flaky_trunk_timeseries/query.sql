@@ -16,9 +16,11 @@
 -- for test_flake, infra_issue for infra_flake), so the structural fallback yields only real_regression
 -- (persistent) or unclassified (non-persistent). Persistence
 -- discriminates: a hard-red (failed, no retry-green at this commit) is "persistent" when the SAME job is
--- also hard-red at the immediately previous OR next trunk commit; a hard-red with a clean green on BOTH
--- neighbors is an isolated green->red->green flake. real_regression is NOT gated on
--- later recovery, so an ongoing (still-red) break still counts.
+-- also hard-red at its immediately adjacent observed run -- its previous or next run ordered by
+-- commit_time. A job need not run on every commit, so "adjacent" means adjacent in this job's own run
+-- sequence, not the trunk-commit sequence, and that run may be several trunk commits away; a hard-red
+-- flanked by green on BOTH its neighbor runs is an isolated green->red->green flake. real_regression is
+-- NOT gated on later recovery, so an ongoing (still-red) break still counts.
 --
 -- Trunk filter: jobs whose head_sha is a real push to refs/heads/main for the repo param (join to
 -- default.push, which also yields the commit push timestamp used for bucketing + adjacency).
@@ -167,7 +169,7 @@ final_jobs AS (
             adv_real,
             adv_infra,
             adv_testflake,
-            -- persistent: this hard-red has an adjacent hard-red on trunk (run of >= 2 consecutive reds).
+            -- persistent: this job's adjacent observed run is also hard-red (>= 2 of its runs in a row).
             toUInt8(
                 hard_red = 1
                 AND (
