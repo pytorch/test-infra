@@ -1,0 +1,21 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "granularity": "String",
+    "repo": "String",
+    "viableStrictOnly": "Bool"
+  },
+  "defaults": {
+    "viableStrictOnly": false
+  },
+  "tests": [
+    {
+      "startTime": "2026-07-12T00:00:00.000",
+      "stopTime": "2026-08-11T00:00:00.000",
+      "granularity": "week",
+      "repo": "pytorch/pytorch",
+      "viableStrictOnly": true
+    }
+  ]
+}
