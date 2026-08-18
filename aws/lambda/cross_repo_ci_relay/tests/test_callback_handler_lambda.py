@@ -48,26 +48,29 @@ class TestCallbackLambdaHandler(unittest.TestCase):
         response = lambda_handler(_event(body="not-json"), {})
         self.assertEqual(response["statusCode"], 400)
 
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")
-    def test_missing_authorization_header_returns_401(self, mock_get_config):
+    def test_missing_authorization_header_returns_401(self, mock_get_config, _):
         response = lambda_handler(_event(headers={}), {})
         self.assertEqual(response["statusCode"], 401)
         self.assertIn("Missing", json.loads(response["body"])["detail"])
 
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
-    def test_oidc_failure_returns_401(self, mock_oidc, mock_get_config):
+    def test_oidc_failure_returns_401(self, mock_oidc, mock_get_config, _):
         mock_oidc.side_effect = HTTPException(401, "Invalid authorization token")
 
         response = lambda_handler(_event(), {})
 
         self.assertEqual(response["statusCode"], 401)
 
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
     @patch("callback.lambda_function.callback_handler.handle")
     def test_happy_path_forwards_body_and_verified_repo(
-        self, mock_handle, mock_oidc, mock_get_config
+        self, mock_handle, mock_oidc, mock_get_config, _
     ):
         mock_oidc.return_value = {"repository": "org/repo"}
         mock_handle.return_value = {"ok": True, "status": "completed"}
@@ -83,13 +86,13 @@ class TestCallbackLambdaHandler(unittest.TestCase):
         self.assertEqual(args[1], {"status": "completed", "head_sha": "abc123"})
         self.assertEqual(args[2], "org/repo")
 
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
     @patch("callback.lambda_function.callback_handler.handle")
     def test_hud_error_from_handler_is_forwarded(
-        self, mock_handle, mock_oidc, mock_get_config
+        self, mock_handle, mock_oidc, mock_get_config, _
     ):
-        # HUD's HTTP status propagates out of Relay (transparent proxy).
         mock_oidc.return_value = {"repository": "org/repo"}
         mock_handle.side_effect = HTTPException(503, "HUD unreachable")
 
@@ -98,11 +101,12 @@ class TestCallbackLambdaHandler(unittest.TestCase):
         self.assertEqual(response["statusCode"], 503)
         self.assertEqual(json.loads(response["body"])["detail"], "HUD unreachable")
 
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")
     @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
     @patch("callback.lambda_function.callback_handler.handle")
     def test_unhandled_exception_returns_500(
-        self, mock_handle, mock_oidc, mock_get_config
+        self, mock_handle, mock_oidc, mock_get_config, _
     ):
         mock_oidc.return_value = {"repository": "org/repo"}
         mock_handle.side_effect = Exception("boom")
