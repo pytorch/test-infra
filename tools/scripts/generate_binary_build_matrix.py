@@ -130,6 +130,7 @@ MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
+PACKAGES_TO_INSTALL_ROCM_WHL = "torchvision torch"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
@@ -323,6 +324,9 @@ def get_wheel_install_command(
         if getting_started
         else PACKAGES_TO_INSTALL_WHL
     )
+
+    if gpu_arch_type == ROCM:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_ROCM_WHL
 
     # Validate torch only (no torchvision) for versions without published
     # torchvision wheels, e.g. 3.15 / 3.15t.
