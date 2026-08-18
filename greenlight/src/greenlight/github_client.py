@@ -89,13 +89,24 @@ def build_client(token: str, *, seconds_between_requests: float = 0.25) -> Githu
 
 
 def is_rate_limit_error(exc: BaseException) -> bool:
-    # GitHub delivers a rate limit as 403 (-> RateLimitExceededException) or 429 (-> base
+    # GitHub delivers a rate limit as 403 (usually -> RateLimitExceededException) or 429 (-> base
     # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
     from github import GithubException, RateLimitExceededException
 
     if isinstance(exc, RateLimitExceededException):
         return True
-    return isinstance(exc, GithubException) and getattr(exc, "status", None) == 429
+    if not isinstance(exc, GithubException):
+        return False
+    status = getattr(exc, "status", None)
+    if status == 429:
+        return True
+    # PyGithub only maps a 403 to RateLimitExceededException when the body matches one of a few
+    # literal message strings, so a rate-limit 403 whose wording drifts arrives as a bare
+    # GithubException; key off the rate-limit headers GitHub sends with it instead of the message.
+    if status == 403:
+        headers = getattr(exc, "headers", None) or {}
+        return "retry-after" in headers or headers.get("x-ratelimit-remaining") == "0"
+    return False
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
