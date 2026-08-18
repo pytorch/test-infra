@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, merge_authz, review, verdict
+from greenlight import cli, github_client, merge_authz, review, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
@@ -702,6 +702,25 @@ def test_build_authz_client_builds_github_client():
     client = cli._build_authz_client(Config(github_token="tok"))
 
     assert isinstance(client, Github)
+
+
+def test_build_authz_client_uses_patient_authz_builder(monkeypatch):
+    calls: list[str] = []
+
+    def _fake_build_authz_client(token: str) -> object:
+        calls.append(token)
+        return object()
+
+    # The authz path must build via build_authz_client (patient retry that waits out a 429), never
+    # the fail-fast build_client the scan/verdict clients use.
+    monkeypatch.setattr(github_client, "build_authz_client", _fake_build_authz_client)
+    monkeypatch.setattr(
+        github_client, "build_client", Mock(side_effect=AssertionError("authz must not use build_client"))
+    )
+
+    cli._build_authz_client(Config(github_token="tok"))
+
+    assert calls == ["tok"]
 
 
 def test_main_review_cache_uses_configured_ttl(monkeypatch):
