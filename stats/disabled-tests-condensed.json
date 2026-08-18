@@ -29,6 +29,13 @@
       "macos"
     ]
   ],
+  "test_TransformerEncoderLayer_gelu_activation_cuda_tf32 (__main__.TestNN)": [
+    "155217",
+    "https://github.com/pytorch/pytorch/issues/155217",
+    [
+      "rocm"
+    ]
+  ],
   "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
     "192616",
     "https://github.com/pytorch/pytorch/issues/192616",
