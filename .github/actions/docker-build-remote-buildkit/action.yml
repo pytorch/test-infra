@@ -1,0 +1,149 @@
+name: Build a Docker image on remote BuildKit
+
+description: >
+  Build (and push) a Docker image from an OSDC/ARC runner, which has no host docker daemon.
+  Registers the in-cluster remote BuildKit builder for the runner's architecture and retries
+  connection-phase failures while the autoscaled builder pool is cold, so callers get a build
+  that either succeeds or fails for a real reason. The step blocks until the image is pushed,
+  so downstream jobs can depend on it with `needs:`.
+
+inputs:
+  command:
+    description: >
+      A build command to run on the remote builder instead of assembling a `docker buildx build`
+      invocation — a repo build script or make target, for example. When set, the buildx inputs
+      below (tags, context, file, build-args, labels, target, push, cache-from, cache-to) are
+      ignored and the `image` output is not set. The command is responsible for its own tags and
+      for `--push`; note there is no local daemon, so `--load` cannot work.
+    default: ''
+  tags:
+    description: >
+      Newline- or comma-separated list of image tags, e.g. ghcr.io/pytorch/my-image:abc123.
+      Required unless `command` is set.
+    default: ''
+  context:
+    description: Build context path.
+    default: .
+  file:
+    description: Path to the Dockerfile. Defaults to <context>/Dockerfile.
+    default: ''
+  build-args:
+    description: Newline-separated KEY=VALUE build arguments.
+    default: ''
+  labels:
+    description: Newline-separated KEY=VALUE image labels, e.g. the output of docker/metadata-action.
+    default: ''
+  target:
+    description: Dockerfile stage to build.
+    default: ''
+  push:
+    description: >
+      Push the image to the registry. There is no local docker daemon on an OSDC runner, so
+      `--load` has nothing to load into; a build with push=false is only useful as a syntax check.
+    default: 'true'
+  cache-from:
+    description: Newline-separated buildx --cache-from entries.
+    default: ''
+  cache-to:
+    description: Newline-separated buildx --cache-to entries.
+    default: ''
+  connect-attempts:
+    description: >
+      How many times to retry a connection-phase failure before giving up. The default of 480 at
+      the default 15s delay waits roughly two hours for a builder, which covers a fully cold or
+      saturated pool (one build per builder pod, so a burst queues). Bound the real ceiling with
+      the job's `timeout-minutes`, not by lowering this.
+    default: '480'
+  connect-delay:
+    description: Seconds to wait between connection-phase retries.
+    default: '15'
+
+outputs:
+  image:
+    description: >
+      The first tag passed in, for convenience when wiring up downstream jobs. Empty in command
+      mode.
+    value: ${{ steps.build.outputs.image }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build and push with remote BuildKit
+      id: build
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        TAGS: ${{ inputs.tags }}
+        CONTEXT: ${{ inputs.context }}
+        FILE: ${{ inputs.file }}
+        BUILD_ARGS: ${{ inputs.build-args }}
+        LABELS: ${{ inputs.labels }}
+        TARGET: ${{ inputs.target }}
+        PUSH: ${{ inputs.push }}
+        CACHE_FROM: ${{ inputs.cache-from }}
+        CACHE_TO: ${{ inputs.cache-to }}
+        REMOTE_BUILDKIT_CONNECT_ATTEMPTS: ${{ inputs.connect-attempts }}
+        REMOTE_BUILDKIT_CONNECT_DELAY: ${{ inputs.connect-delay }}
+      run: |
+        set -euo pipefail
+
+        # Command mode: hand the whole thing to the helper, which registers the
+        # builder and retries only connection-phase failures.
+        if [[ -n "${COMMAND}" ]]; then
+          exec bash "${GITHUB_ACTION_PATH}/build_with_remote_buildkit.sh" bash -c "${COMMAND}"
+        fi
+
+        args=()
+
+        # Tags may be newline- or comma-separated.
+        first_tag=""
+        while IFS= read -r tag; do
+          tag="$(echo "${tag}" | tr -d '[:space:]')"
+          [[ -z "${tag}" ]] && continue
+          [[ -z "${first_tag}" ]] && first_tag="${tag}"
+          args+=(--tag "${tag}")
+        done < <(echo "${TAGS}" | tr ',' '\n')
+        if [[ -z "${first_tag}" ]]; then
+          echo "::error::no image tag was provided" >&2
+          exit 1
+        fi
+        echo "image=${first_tag}" >> "${GITHUB_OUTPUT}"
+
+        # Remote BuildKit is per-arch, so the only buildable platform is the
+        # runner's own.
+        case "$(uname -m)" in
+          aarch64|arm64) args+=(--platform linux/arm64) ;;
+          *)             args+=(--platform linux/amd64) ;;
+        esac
+
+        [[ -n "${FILE}" ]] && args+=(--file "${FILE}")
+        [[ -n "${TARGET}" ]] && args+=(--target "${TARGET}")
+
+        while IFS= read -r build_arg; do
+          [[ -z "${build_arg}" ]] && continue
+          args+=(--build-arg "${build_arg}")
+        done <<< "${BUILD_ARGS}"
+
+        while IFS= read -r label; do
+          [[ -z "${label}" ]] && continue
+          args+=(--label "${label}")
+        done <<< "${LABELS}"
+
+        while IFS= read -r cache; do
+          [[ -z "${cache}" ]] && continue
+          args+=(--cache-from "${cache}")
+        done <<< "${CACHE_FROM}"
+
+        while IFS= read -r cache; do
+          [[ -z "${cache}" ]] && continue
+          args+=(--cache-to "${cache}")
+        done <<< "${CACHE_TO}"
+
+        if [[ "${PUSH}" == "true" ]]; then
+          args+=(--push)
+        else
+          echo "::warning::push=false — the image is built but discarded (no local docker daemon to --load into)"
+        fi
+
+        bash "${GITHUB_ACTION_PATH}/build_with_remote_buildkit.sh" \
+          docker buildx build "${args[@]}" "${CONTEXT}"

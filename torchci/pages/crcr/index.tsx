@@ -55,6 +55,14 @@ interface NightlyMetricsRow {
   latest_sha: string;
 }
 
+interface HealthPrRow {
+  pr_number: number;
+  last_run: string;
+  successes: number;
+  total: number;
+  pass_rate: number;
+}
+
 type EventTab = "pr" | "nightly";
 
 type Level = "L1" | "L2" | "L3" | "L4";
@@ -441,15 +449,15 @@ function StatCard({
 }
 
 function CrcrTestHealthCard({
-  metrics,
+  healthPrs,
 }: {
-  metrics: CiMetricsRow | undefined;
+  healthPrs: HealthPrRow[] | undefined;
 }) {
-  if (!metrics) return null;
-  const pct = (metrics.pass_rate * 100).toFixed(1) + "%";
-  const isHealthy = metrics.pass_rate >= 1.0;
-  const borderColor = isHealthy ? "#2e7d32" : "#ed6c02";
-  const label = isHealthy ? "Healthy" : "Degraded";
+  if (!healthPrs || healthPrs.length === 0) return null;
+  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
+  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -474,8 +482,173 @@ function CrcrTestHealthCard({
           {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {pct} · {metrics.successes}/{metrics.total} jobs passed ·
-          pytorch/crcr-test
+          {passedCount}/{healthPrs.length} recent PRs passed · pytorch/crcr-test
+        </Typography>
+      </Paper>
+    </NextLink>
+  );
+}
+
+interface NightlyJobRow {
+  pytorch_head_sha: string;
+  job_name: string;
+  status: string;
+  conclusion: string;
+  started_at: string;
+}
+
+const NIGHTLY_HEALTH_COUNT = 5;
+
+function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
+  const name = job.job_name ?? "";
+  return (
+    (name.includes("xfail") && job.conclusion === "failure") ||
+    (name.includes("xcancel") && job.conclusion === "cancelled") ||
+    (name.includes("xtimeout") && job.conclusion === "timed_out")
+  );
+}
+
+function isNightlyJobPassing(job: NightlyJobRow): boolean {
+  if (job.status !== "completed") return false;
+  return job.conclusion === "success" || isExpectedNightlyOutcome(job);
+}
+
+function CrcrNightlyHealthCard({
+  nightlyJobs,
+}: {
+  nightlyJobs: NightlyJobRow[] | undefined;
+}) {
+  if (!nightlyJobs || nightlyJobs.length === 0) {
+    const staleColor = "#9e9e9e";
+    return (
+      <NextLink
+        href="/crcr/pytorch/crcr-test?event=nightly"
+        passHref
+        legacyBehavior
+      >
+        <Paper
+          component="a"
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            minWidth: 160,
+            textAlign: "center",
+            borderLeft: `4px solid ${staleColor}`,
+            textDecoration: "none",
+            color: "inherit",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: staleColor }}>
+            No Data
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            no nightly results in last 14 days
+          </Typography>
+        </Paper>
+      </NextLink>
+    );
+  }
+
+  const shaMap = new Map<string, NightlyJobRow[]>();
+  for (const job of nightlyJobs) {
+    if (!job.pytorch_head_sha) continue;
+    const jobs = shaMap.get(job.pytorch_head_sha) ?? [];
+    jobs.push(job);
+    shaMap.set(job.pytorch_head_sha, jobs);
+  }
+
+  const shasByTime = Array.from(shaMap.entries())
+    .map(([sha, jobs]) => ({
+      sha,
+      jobs,
+      latestTime: Math.max(
+        ...jobs.map((j) => new Date(j.started_at).getTime())
+      ),
+    }))
+    .sort((a, b) => b.latestTime - a.latestTime)
+    .slice(0, NIGHTLY_HEALTH_COUNT);
+
+  if (shasByTime.length === 0) {
+    const staleColor = "#9e9e9e";
+    return (
+      <NextLink
+        href="/crcr/pytorch/crcr-test?event=nightly"
+        passHref
+        legacyBehavior
+      >
+        <Paper
+          component="a"
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            minWidth: 160,
+            textAlign: "center",
+            borderLeft: `4px solid ${staleColor}`,
+            textDecoration: "none",
+            color: "inherit",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: staleColor }}>
+            No Data
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            no nightly results in last 14 days
+          </Typography>
+        </Paper>
+      </NextLink>
+    );
+  }
+
+  const allPassed = shasByTime.every((entry) =>
+    entry.jobs.every(isNightlyJobPassing)
+  );
+  const passedCount = shasByTime.filter((entry) =>
+    entry.jobs.every(isNightlyJobPassing)
+  ).length;
+  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
+  const label = allPassed ? "Healthy" : "Degraded";
+
+  return (
+    <NextLink
+      href="/crcr/pytorch/crcr-test?event=nightly"
+      passHref
+      legacyBehavior
+    >
+      <Paper
+        component="a"
+        elevation={2}
+        sx={{
+          p: 2,
+          flex: 1,
+          minWidth: 160,
+          textAlign: "center",
+          borderLeft: `4px solid ${borderColor}`,
+          textDecoration: "none",
+          color: "inherit",
+          cursor: "pointer",
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          CRCR Relay Health - Nightly
+        </Typography>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {passedCount}/{shasByTime.length} recent nightlies passed
         </Typography>
       </Paper>
     </NextLink>
@@ -506,6 +679,26 @@ export default function CrcrSummaryPage() {
   const { data: nightlyData, error: nightlyError } = useSWR<
     NightlyMetricsRow[]
   >(nightlyUrl, fetcherHandleError, { refreshInterval: 60_000 });
+
+  const healthUrl =
+    `/api/clickhouse/crcr_health_last_prs?parameters=` +
+    encodeURIComponent(JSON.stringify({ count: "5" }));
+  const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
+    healthUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
+
+  const nightlyHealthUrl =
+    `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
+    encodeURIComponent(
+      JSON.stringify({ repo: "pytorch/crcr-test", days: "14" })
+    );
+  const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
+    NightlyJobRow[]
+  >(nightlyHealthUrl, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
 
   const nightlyRepoCount = nightlyData?.length ?? 0;
 
@@ -597,7 +790,8 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !ciData && !ciError && !allowlist && !alError;
-  const hasError = ciError || alError || nightlyError;
+  const hasError =
+    ciError || alError || nightlyError || healthError || nightlyHealthError;
 
   return (
     <>
@@ -632,15 +826,19 @@ export default function CrcrSummaryPage() {
           >
             pytorch/crcr-test
           </Link>{" "}
-          probes. To know more, check the{" "}
-          <Link
-            href="https://hud.pytorch.org/crcr/pytorch/crcr-test"
-            target="_blank"
-            rel="noreferrer"
+          probes. To know more, check the HUD dashboard —{" "}
+          <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
+            <Link underline="hover">Pull Requests</Link>
+          </NextLink>{" "}
+          and{" "}
+          <NextLink
+            href="/crcr/pytorch/crcr-test?event=nightly"
+            passHref
+            legacyBehavior
           >
-            HUD dashboard
-          </Link>{" "}
-          or view{" "}
+            <Link underline="hover">Nightly</Link>
+          </NextLink>{" "}
+          — or view{" "}
           <NextLink href="/crcr/metrics" passHref legacyBehavior>
             <Link underline="hover">success-rate trends</Link>
           </NextLink>
@@ -652,6 +850,8 @@ export default function CrcrSummaryPage() {
             {ciError?.message ||
               alError?.message ||
               nightlyError?.message ||
+              healthError?.message ||
+              nightlyHealthError?.message ||
               "Failed to load data"}
           </Typography>
         )}
@@ -661,19 +861,20 @@ export default function CrcrSummaryPage() {
         {stats && (
           <Stack spacing={2}>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-              <CrcrTestHealthCard metrics={metricsMap.get(CRCR_HEALTH_REPO)} />
+              <CrcrTestHealthCard healthPrs={healthPrs} />
+              <CrcrNightlyHealthCard nightlyJobs={nightlyHealthJobs} />
               <StatCard
                 label="Total Probe Runs"
                 value={stats.totalRuns}
                 sub={stats.runsSub}
               />
+            </Box>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <StatCard
                 label="Probe Failures"
                 value={stats.failures}
                 sub="pytorch/crcr-test failures"
               />
-            </Box>
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <StatCard
                 label="Registered Backends"
                 value={stats.totalRepos}
