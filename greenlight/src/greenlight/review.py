@@ -246,6 +246,7 @@ def run(
         else:
             fingerprint_numbers = pr_numbers
         failed: list[int] = []
+        abandoned: list[int] = []
         skips: list[tuple[int, ReviewSkip]] = []
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
@@ -268,6 +269,7 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                abandoned=abandoned,
                 skips=skips,
                 force=force,
             )
@@ -284,8 +286,16 @@ def run(
                 now=evaluated_at,
                 timeout=timeout,
                 failed=failed,
+                abandoned=abandoned,
                 skips=skips,
                 force=force,
+            )
+        if abandoned:
+            logger.warning(
+                "rate limit hit: abandoned %d of %d fingerprint(s) (not evaluated); %d candidate(s) dispatchable",
+                len(abandoned),
+                len(fingerprint_numbers),
+                len(pending),
             )
         dispatch_failed = scan_runner._dispatch_pending(
             client, pending, ref=ref, max_dispatches=max_dispatches, dispatch=dispatch, emit_dispatched=emit_dispatched
@@ -297,10 +307,12 @@ def run(
             scan_runner.post_refusals(
                 client, TARGET_REPO, skips, bot_login=bot_login, get_pr=get_pr, upsert_comment=upsert_comment
             )
-        if failed or dispatch_failed:
+        if failed or dispatch_failed or abandoned:
             errors: list[str] = []
             if failed:
                 errors.append(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
             if dispatch_failed:
                 errors.append(f"failed to dispatch {len(dispatch_failed)} PR(s): {sorted(dispatch_failed)}")
+            if abandoned:
+                errors.append(f"{len(abandoned)} PR(s) abandoned due to rate limit: {sorted(abandoned)}")
             raise RuntimeError("; ".join(errors))

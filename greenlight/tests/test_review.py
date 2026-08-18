@@ -1281,7 +1281,7 @@ def test_fingerprint_task_returns_client_on_exception():
     assert not cancel_event.is_set()
 
 
-def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch):
+def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, caplog):
     from github import RateLimitExceededException
 
     # Pin one worker for a deterministic FIFO order: PR1 runs first and trips the cancel event before
@@ -1299,7 +1299,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch):
     def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
         dispatched.append(number)
 
-    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[1\]"):
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
@@ -1312,13 +1312,20 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch):
         )
 
     # PR1's rate limit sets the shared cancel event, so the queued PR2/PR3 short-circuit to _CANCELLED
-    # without ever calling fingerprint (only PR1 appears). A cancelled task is not a failure, so only
-    # PR1 lands in `failed`, and nothing dispatches.
+    # without ever calling fingerprint (only PR1 appears). A cancelled task is not a failure: PR1 lands
+    # in `failed`, PR2/PR3 are counted as abandoned (not failed), and nothing dispatches.
     assert fingerprinted == [1]
     assert dispatched == []
+    # The abandonment is surfaced, never silently dropped: a warning names the count, and the
+    # end-of-scan RuntimeError carries both the failed PR and the abandoned ones distinctly so the
+    # scan still fails closed on an incomplete pass.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [1]" in message
+    assert "2 PR(s) abandoned due to rate limit: [2, 3]" in message
+    assert "abandoned 2 of 3" in caplog.text
 
 
-def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, monkeypatch):
+def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, monkeypatch, caplog):
     from github import RateLimitExceededException
 
     monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
@@ -1334,7 +1341,7 @@ def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, mo
     def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
         dispatched.append(number)
 
-    with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token: _CLIENT,
@@ -1348,9 +1355,15 @@ def test_rate_limit_still_dispatches_earlier_completed_candidate(make_config, mo
 
     # PR1 completes as a candidate before PR2 hits the rate limit, so the partial success is preserved
     # -- PR1 still dispatches. PR2 trips the cancel event, so PR3 short-circuits without being
-    # fingerprinted, and only PR2 lands in `failed`.
+    # fingerprinted: PR2 lands in `failed`, PR3 is counted as abandoned (not failed).
     assert fingerprinted == [1, 2]
     assert dispatched == [1]
+    # The failure and the abandonment are surfaced distinctly in the fail-closed signal, and the
+    # abandonment is logged as its own warning rather than folded into the failure count.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [2]" in message
+    assert "1 PR(s) abandoned due to rate limit: [3]" in message
+    assert "abandoned 1 of 3" in caplog.text
 
 
 def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeypatch):

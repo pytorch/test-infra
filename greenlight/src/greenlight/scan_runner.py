@@ -102,14 +102,17 @@ def _evaluate_pr(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
 ) -> _Candidate | None:
     try:
         result = future.result()
         # A cancelled task never ran its fingerprint (an earlier task hit a rate limit and tripped
-        # the shared cancel event), so it is neither a candidate nor a failure: drop it silently.
+        # the shared cancel event), so it is not a failure: record it as abandoned (never evaluated),
+        # kept distinct from `failed` so the end-of-scan signal can report both without conflating them.
         if result is _CANCELLED:
+            abandoned.append(number)
             return None
         # A ReviewSkip is a human decision, never a fingerprint failure: check before unpacking
         # so it is collected/dropped, not mistaken for an error and appended to failed.
@@ -154,6 +157,7 @@ def _fingerprint_all(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
 ) -> list[_Candidate]:
@@ -176,7 +180,15 @@ def _fingerprint_all(
     pending: list[_Candidate] = []
     for number in pr_numbers:
         candidate = _evaluate_pr(
-            number, futures[number], states, now=now, timeout=timeout, failed=failed, skips=skips, force=force
+            number,
+            futures[number],
+            states,
+            now=now,
+            timeout=timeout,
+            failed=failed,
+            abandoned=abandoned,
+            skips=skips,
+            force=force,
         )
         if candidate is not None:
             pending.append(candidate)
@@ -196,6 +208,7 @@ def _fingerprint_until_dispatchable(
     now: datetime,
     timeout: timedelta,
     failed: list[int],
+    abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
 ) -> list[_Candidate]:
@@ -230,6 +243,7 @@ def _fingerprint_until_dispatchable(
                         now=now,
                         timeout=timeout,
                         failed=failed,
+                        abandoned=abandoned,
                         skips=skips,
                         force=force,
                     )
