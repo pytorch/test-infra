@@ -1254,8 +1254,11 @@ def test_run_closes_main_and_worker_clients(make_config):
 
 
 def test_fingerprint_throttle_stays_under_burst_limit():
-    # Aggregate fan-out rate is workers / seconds-between-requests; keep it <= 8 req/s to stay
-    # under GitHub's secondary (burst-rate) limit.
+    # The asserted quantity is the fan-out's aggregate request rate (workers / seconds-between-requests).
+    # 8 req/s is our own conservative budget, NOT a GitHub-published limit -- it is the ceiling we chose
+    # to stay comfortably under GitHub's (undocumented, variable) secondary/burst rate limit. It bounds
+    # only this fingerprint fan-out; the listing, dispatch, verdict, and authz clients each pace
+    # themselves independently and sit outside this budget.
     assert review._FINGERPRINT_WORKERS / review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS <= 8
 
 
