@@ -1,0 +1,100 @@
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z]         # Exercise the core NIXL bindings used by NixlConnector.
+[2026-07-13T19:28:19Z]         importlib.import_module("nixl._api")
+[2026-07-13T19:28:19Z]         importlib.import_module("nixl._bindings")
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z]         # Exercise the NIXL EP extension used by fused MoE expert parallelism.
+[2026-07-13T19:28:19Z] >       nixl_ep = importlib.import_module("nixl_ep")
+[2026-07-13T19:28:19Z]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] v1/kv_connector/nixl_integration/test_nixl_imports.py:64:
+[2026-07-13T19:28:19Z] _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+[2026-07-13T19:28:19Z] /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+[2026-07-13T19:28:19Z]     return _bootstrap._gcd_import(name[level:], package, level)
+[2026-07-13T19:28:19Z]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1387: in _gcd_import
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1360: in _find_and_load
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:935: in _load_unlocked
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap_external>:999: in exec_module
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:488: in _call_with_frames_removed
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] /usr/local/lib/python3.12/dist-packages/nixl_ep/__init__.py:56: in <module>
+[2026-07-13T19:28:19Z]     _pkg = sys.modules[_load_ep_module()]
+[2026-07-13T19:28:19Z]                        ^^^^^^^^^^^^^^^^^
+[2026-07-13T19:28:19Z] /usr/local/lib/python3.12/dist-packages/nixl_ep/__init__.py:36: in _load_ep_module
+[2026-07-13T19:28:19Z]     return importlib.import_module(mod_name).__name__
+[2026-07-13T19:28:19Z]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-07-13T19:28:19Z] /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+[2026-07-13T19:28:19Z]     return _bootstrap._gcd_import(name[level:], package, level)
+[2026-07-13T19:28:19Z]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1387: in _gcd_import
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1360: in _find_and_load
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:935: in _load_unlocked
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap_external>:999: in exec_module
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:488: in _call_with_frames_removed
+[2026-07-13T19:28:19Z]     ???
+[2026-07-13T19:28:19Z] _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z]     # SPDX-FileCopyrightText: Copyright (c) 2025 DeepSeek
+[2026-07-13T19:28:19Z]     # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+[2026-07-13T19:28:19Z]     #
+[2026-07-13T19:28:19Z]     # This file incorporates material from the DeepSeek project, licensed under the MIT License.
+[2026-07-13T19:28:19Z]     # The modifications made by NVIDIA are licensed under the Apache License, Version 2.0.
+[2026-07-13T19:28:19Z]     #
+[2026-07-13T19:28:19Z]     # SPDX-License-Identifier: MIT AND Apache-2.0
+[2026-07-13T19:28:19Z]     #
+[2026-07-13T19:28:19Z]     # Licensed under the Apache License, Version 2.0 (the "License");
+[2026-07-13T19:28:19Z]     # you may not use this file except in compliance with the License.
+[2026-07-13T19:28:19Z]     # You may obtain a copy of the License at
+[2026-07-13T19:28:19Z]     #
+[2026-07-13T19:28:19Z]     #     http://www.apache.org/licenses/LICENSE-2.0
+[2026-07-13T19:28:19Z]     #
+[2026-07-13T19:28:19Z]     # Unless required by applicable law or agreed to in writing, software
+[2026-07-13T19:28:19Z]     # distributed under the License is distributed on an "AS IS" BASIS,
+[2026-07-13T19:28:19Z]     # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+[2026-07-13T19:28:19Z]     # See the License for the specific language governing permissions and
+[2026-07-13T19:28:19Z]     # limitations under the License.
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z]     import torch
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] >   from . import nixl_ep_cpp as _nixl_ep_cpp
+[2026-07-13T19:28:19Z] E   ImportError: /usr/local/lib/python3.12/dist-packages/nixl_ep_cu13/nixl_ep_cpp.cpython-312-x86_64-linux-gnu.so: undefined symbol: _ZN3c104impl3cow23materialize_cow_storageERNS_11StorageImplE
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] /usr/local/lib/python3.12/dist-packages/nixl_ep_cu13/__init__.py:23: ImportError
+[2026-07-13T19:28:19Z] =============================== warnings summary ===============================
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:28:19Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:28:19Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] tests/v1/kv_connector/nixl_integration/test_nixl_imports.py: 14 warnings
+[2026-07-13T19:28:19Z]   /usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+[2026-07-13T19:28:19Z]     warnings.warn(
+[2026-07-13T19:28:19Z]
+[2026-07-13T19:28:19Z] -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[2026-07-13T19:28:19Z] =========================== short test summary info ============================
+[2026-07-13T19:28:19Z] FAILED v1/kv_connector/nixl_integration/test_nixl_imports.py::test_nixl_and_nixl_ep_imports - ImportError: /usr/local/lib/python3.12/dist-packages/nixl_ep_cu13/nixl_ep_cpp.cpython-312-x86_64-linux-gnu.so: undefined symbol: _ZN3c104impl3cow23materialize_cow_storageERNS_11StorageImplE
+[2026-07-13T19:28:19Z] !!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+[2026-07-13T19:28:19Z] ======================== 1 failed, 16 warnings in 1.43s ========================
+[2026-07-13T19:28:20Z] sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+^^^ +++
+[2026-07-13T19:28:23Z] 🚨 Error: The command exited with status 1
+^^^ +++
+[2026-07-13T19:28:23Z] user command error: The plugin docker command hook exited with status 1
+~~~ Running global pre-exit hook
+[2026-07-13T19:28:23Z] $ /etc/buildkite-agent/hooks/pre-exit
+~~~ Running plugin docker pre-exit hook
+[2026-07-13T19:28:23Z] $ /var/lib/buildkite-agent/plugins/bk-gpu-4-queue-ci-i-04593d39a3d232af3-1/github-com-buildkite-plugins-docker-buildkite-plugin-v5-2-0/hooks/pre-exit

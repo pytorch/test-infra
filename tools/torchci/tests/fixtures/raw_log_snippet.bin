@@ -1,0 +1,12 @@
+648
+_bk;t=1783974785648-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+_bk;t=1783974785649[36m[1m=================================================================== short test summary info ====================================================================[0m
+_bk;t=1783974785649[31mFAILED[0m quantization/test_cutlass_w4a16.py::[1mtest_w4a16_machete_e2e[nm-testing/tinyllama-oneshot-w4a16-channel-v2][0m - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+_bk;t=1783974785649[31mFAILED[0m quantization/test_cutlass_w4a16.py::[1mtest_w4a16_machete_e2e[nm-testing/TinyLlama-1.1B-Chat-v1.0-W4A16-G128-Asym-Updated-ActOrder][0m - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+_bk;t=1783974785649[31mFAILED[0m quantization/test_cutlass_w4a16.py::[1mtest_w4a16_machete_bfloat16_deterministic[0m - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+_bk;t=1783974785649[31m========================================================== [31m[1m3 failed[0m, [32m8 passed[0m, [33m19 warnings[0m[31m in 21.94s[0m[31m ===========================================================[0m
+_bk;t=1783974786533sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+_bk;t=1783974787899^^^ +++
+_bk;t=1783974787899[31m🚨 Error: The command exited with status 1[0m
+_bk;t=1783974787899^^^ +++
+_bk;t=1783974787899user command error: exit status 1

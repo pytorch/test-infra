@@ -175,8 +175,15 @@ jobs:
       - name: Decline oversized diffs
         id: sizecheck
         env:
-          MAX_DIFF_LINES: ${{ vars.PYTORCH_GREENLIGHT_MAX_DIFF_LINES || '2000' }}
-          MAX_DIFF_BYTES: ${{ vars.PYTORCH_GREENLIGHT_MAX_DIFF_BYTES || '500000' }}
+          # Literals rather than `vars.*`: the actionlint pinned in .lintrunner.toml
+          # is 1.6.21, which predates the `vars` context (added in 1.6.24) and so
+          # reports it as an undefined variable. That failure is repo-wide, because
+          # the ACTIONLINT linter checks every workflow rather than only changed
+          # ones. Restore the `vars.PYTORCH_GREENLIGHT_MAX_DIFF_*` lookups once the
+          # pinned binary is bumped -- the step already rejects non-integer values,
+          # so it is safe against a malformed override.
+          MAX_DIFF_LINES: "2000"
+          MAX_DIFF_BYTES: "500000"
         run: |
           set -euo pipefail
           # Line count is the primary gate: the model reads only ~2000 lines of the diff, so a

@@ -45,13 +45,13 @@ MACOS_PYTHON_POINT_VERSIONS = {
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "13.0", "13.2", "13.4"],
-    "test": ["12.6", "13.0", "13.2"],
+    "test": ["12.6", "13.0", "13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
     "nightly": ["7.2", "7.14"],
-    "test": ["7.1", "7.2"],
+    "test": ["7.2", "7.14"],
     "release": ["7.1", "7.2"],
 }
 
@@ -74,6 +74,13 @@ CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64", "13.4-aar
 # CUDA versions with no Windows torch build to depend on; see
 # CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
 CUDA_ARCHES_NO_WINDOWS = ["13.4"]
+
+# CUDA versions that are built and validated, but must not be advertised on the
+# pytorch.org getting-started page yet. Without this, update-quick-start-module
+# in pytorch/pytorch.github.io publishes an install selector for a CUDA version
+# users cannot rely on. Only affects the getting-started matrix; nightly, test
+# and release builds and their validation are unchanged.
+CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -98,8 +105,8 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.14.0"
-CURRENT_CANDIDATE_VERSION = "2.13.0"
+CURRENT_NIGHTLY_VERSION = "2.15.0"
+CURRENT_CANDIDATE_VERSION = "2.14.0"
 CURRENT_STABLE_VERSION = "2.13.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -129,6 +136,10 @@ DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
 ENABLE = "enable"
 DISABLE = "disable"
+
+
+def parse_version(version: str) -> Tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def arch_type(arch_version: str) -> str:
@@ -181,7 +192,13 @@ def initialize_globals(
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
+    if getting_started:
+        CUDA_ARCHES = [
+            arch for arch in CUDA_ARCHES if arch not in CUDA_ARCHES_NO_GETTING_STARTED
+        ]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
+    if getting_started and channel == NIGHTLY:
+        ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
         PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
