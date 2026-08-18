@@ -7,6 +7,10 @@
     {
       "days": "30",
       "event_type": "pull_request"
+    },
+    {
+      "days": "7",
+      "event_type": "nightly"
     }
   ]
 }
