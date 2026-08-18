@@ -12,6 +12,7 @@ from utils.redis_helper import (
     create_client,
     get_cached_yaml,
     get_callback_state,
+    record_workflow_started,
     set_cached_yaml,
     set_callback_state,
 )
@@ -265,6 +266,62 @@ class TestCallbackStateMachine(unittest.TestCase):
                 client=client,
                 payload={},
             )
+
+
+class TestWorkflowStart(unittest.TestCase):
+    """queue_time is workflow-level: the first job in a run to report
+    in_progress claims the shared start marker; later jobs in the same run
+    read that same value back instead of recording their own (later) time."""
+
+    def setUp(self):
+        redis_helper._cached_client = None
+        redis_helper._cached_client_url = None
+
+    def test_first_job_claims_and_returns_its_own_timestamp(self):
+        """SET NX succeeds when no other job has claimed the marker yet."""
+        client = MagicMock()
+        client.set.return_value = True
+
+        result = record_workflow_started(
+            _cfg(), "del-123", "org/repo", 99999, 1, 1030.0, client=client
+        )
+
+        self.assertEqual(result, 1030.0)
+        client.set.assert_called_once_with(
+            "crcr:workflow_start:del-123:org/repo:99999:1",
+            1030.0,
+            nx=True,
+            ex=3600,
+        )
+        client.get.assert_not_called()
+
+    def test_later_job_reads_back_first_jobs_timestamp(self):
+        """SET NX fails once another job already claimed the marker; the
+        later job's own (later) timestamp is discarded for the stored one."""
+        client = MagicMock()
+        client.set.return_value = None
+        client.get.return_value = "1030.0"
+
+        result = record_workflow_started(
+            _cfg(), "del-123", "org/repo", 99999, 1, 1200.0, client=client
+        )
+
+        self.assertEqual(result, 1030.0)
+        client.get.assert_called_once_with(
+            "crcr:workflow_start:del-123:org/repo:99999:1"
+        )
+
+    def test_redis_error_on_set_falls_back_to_own_timestamp(self):
+        """A Redis outage degrades to per-job queue_time rather than blocking
+        the callback: the caller's own timestamp is returned unchanged."""
+        client = MagicMock()
+        client.set.side_effect = redis_lib.exceptions.RedisError("boom")
+
+        result = record_workflow_started(
+            _cfg(), "del-123", "org/repo", 99999, 1, 1200.0, client=client
+        )
+
+        self.assertEqual(result, 1200.0)
 
 
 class TestRateLimit(unittest.TestCase):

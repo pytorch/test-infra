@@ -45,7 +45,8 @@ def _dispatch_one(
     # Set dispatch state with timestamp to prove valid webhook occurred.
     # Keyed by delivery_id + repo + run_id + run_attempt.
     # Uses DISPATCH_RUN_ID/DISPATCH_RUN_ATTEMPT sentinels for repo-level dispatch.
-    # Timestamp is used for queue_time calculation (dispatch → in_progress).
+    # Timestamp is used for queue_time calculation (dispatch → first job's
+    # in_progress in the run; see redis_helper.record_workflow_started).
     redis_helper.set_callback_state(
         config,
         client_payload["delivery_id"],
