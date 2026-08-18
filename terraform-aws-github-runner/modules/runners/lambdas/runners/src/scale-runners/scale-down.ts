@@ -36,13 +36,13 @@ export async function scaleDown(): Promise<void> {
 
     metrics.run();
 
-    const runnersDict = groupBy(
-      sortRunnersByLaunchTime(await listRunners(metrics, { environment: Config.Instance.environment })),
-      (itm) => {
-        if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
-        return `${itm.runnerType}#${itm.repo}`;
-      },
+    const ec2Runners = sortRunnersByLaunchTime(
+      await listRunners(metrics, { environment: Config.Instance.environment }),
     );
+    const runnersDict = groupBy(ec2Runners, (itm) => {
+      if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
+      return `${itm.runnerType}#${itm.repo}`;
+    });
 
     if (runnersDict.size === 0) {
       console.info(`No active runners found for environment: '${Config.Instance.environment}'`);
@@ -100,6 +100,14 @@ export async function scaleDown(): Promise<void> {
       }
     }
 
+    // Pet instances register one-shot, so deregistering a live-but-offline pet orphans it permanently;
+    // skip pets still backed by a live EC2 instance when sweeping offline runners.
+    const petInstanceIds = new Set(
+      ec2Runners
+        .filter((runner) => runner.instanceManagement?.toLowerCase() === 'pet')
+        .map((runner) => runner.instanceId),
+    );
+
     if (Config.Instance.enableOrganizationRunners) {
       for (const org of foundOrgs) {
         const offlineGhRunners = (await listGithubRunnersOrg(org, metrics)).filter(
@@ -108,6 +116,10 @@ export async function scaleDown(): Promise<void> {
         metrics.runnerGhOfflineFoundOrg(org, offlineGhRunners.length);
 
         for (const ghRunner of offlineGhRunners) {
+          if (petInstanceIds.has(ghRunner.name)) {
+            metrics.runnerGhOfflineSkippedPetOrg(org);
+            continue;
+          }
           try {
             await removeGithubRunnerOrg(ghRunner.id, org, metrics);
             metrics.runnerGhOfflineRemovedOrg(org);
@@ -128,6 +140,10 @@ export async function scaleDown(): Promise<void> {
         metrics.runnerGhOfflineFoundRepo(repo, offlineGhRunners.length);
 
         for (const ghRunner of offlineGhRunners) {
+          if (petInstanceIds.has(ghRunner.name)) {
+            metrics.runnerGhOfflineSkippedPetRepo(repo);
+            continue;
+          }
           try {
             await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
             metrics.runnerGhOfflineRemovedRepo(repo);

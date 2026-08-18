@@ -20,6 +20,10 @@ import {
   BenchmarkPageType,
 } from "./config_book_types";
 import {
+  BETTER_BENCHMARK_ID,
+  BetterBenchmarkDashboardConfig,
+} from "./teams/compilers/inductor_kernel_benchmark_config";
+import {
   PYTORCH_GPTFAST_BENCHMARK_ID,
   PytorchGptFastBenchmarkDashboardConfig,
 } from "./teams/gptfast/config";
@@ -45,6 +49,9 @@ export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
 };
 
 export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
+  [BETTER_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: BetterBenchmarkDashboardConfig,
+  },
   [COMPILTER_BENCHMARK_NAME]: {
     [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
   },
@@ -78,6 +85,11 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
 };
 
 export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
+  [BETTER_BENCHMARK_ID]: {
+    id: BETTER_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "inductor-kernel-benchmark",
+  },
   [COMPILTER_BENCHMARK_NAME]: {
     id: COMPILTER_BENCHMARK_NAME,
     repoName: "pytorch/pytorch",
@@ -222,6 +234,13 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
             href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
           },
         ],
+      },
+      {
+        name: "Better Benchmark",
+        route: `/benchmark/v3/dashboard/${BETTER_BENCHMARK_ID}`,
+        info: "Powered by [better-benchmark](https://github.com/eellison/better-benchmark), which extracts and deduplicates fused kernel regions from real model compilations, and the [PyTorch B200 workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/better-benchmark-b200.yml).",
+        description:
+          "Nightly B200 measurements of TorchInductor kernels across retained model shapes, including latency and gap to memory-bandwidth SOL.",
       },
       {
         name: "Triton Benchmark",

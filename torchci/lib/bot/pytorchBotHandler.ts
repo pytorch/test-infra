@@ -187,6 +187,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       "OWNER",
     ];
 
+    // GitHub App bots authenticate via installations rather than as repo
+    // collaborators, so their reviews always carry author_association=NONE.
+    // Allowlist trusted App identities so their approvals are still honored,
+    // but only on pytorch/pytorch since that is the sole repo these bots
+    // review -- other supported orgs/repos must not honor the exemption.
+    const ALLOWED_APPROVER_BOT_LOGINS = ["pytorchgreenlight[bot]"];
+    const isPyTorchPyTorchRepo = isPyTorchPyTorch(this.owner, this.repo);
+
     // Find the latest review offered by each authroized reviewer
     // But first sort them in case Github ever returns the list unsorted
     var latest_reviews: { [user: string]: string } = reviews
@@ -203,6 +211,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           if (
             !ALLOWED_APPROVER_ASSOCIATIONS.includes(
               curr_review.author_association
+            ) &&
+            !(
+              isPyTorchPyTorchRepo &&
+              ALLOWED_APPROVER_BOT_LOGINS.includes(
+                curr_review.user?.login ?? ""
+              )
             )
           ) {
             // Not an authorized approver

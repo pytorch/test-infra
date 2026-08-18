@@ -18,17 +18,45 @@ runs:
   steps:
     - name: Upload usage metrics
       shell: bash
+      env:
+        METRICS_FILE: ${{ inputs.metrics-file }}
+        GH_REPOSITORY: ${{ github.repository }}
+        GH_RUN_ID: ${{ github.run_id }}
+        GH_RUN_ATTEMPT: ${{ github.run_attempt }}
+        GH_ACTOR: ${{ github.actor }}
+        GH_EVENT_NAME: ${{ github.event_name }}
+        GH_WORKFLOW: ${{ github.workflow }}
+        GH_PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || 0 }}
+        S3_BUCKET: ${{ inputs.s3-bucket }}
+        S3_PREFIX: ${{ inputs.s3-prefix }}
       run: |
-        METRICS_FILE="${{ inputs.metrics-file }}"
         if [ ! -f "$METRICS_FILE" ]; then
-          echo "Metrics file not found: $METRICS_FILE"
+          echo "::notice::Claude usage metrics file not found: $METRICS_FILE; skipping upload"
           exit 0
         fi
 
-        # File is a JSON array, extract the "result" entry
-        RESULT=$(jq '.[] | select(.type == "result")' "$METRICS_FILE")
-        if [ -z "$RESULT" ]; then
-          echo "No result entry found in metrics file"
+        # The producer (claude-code-action) writes a JSON array of SDK message
+        # objects, one of which has type "result". Extract only the metric fields
+        # from that entry, defensively: a non-array, unparseable, or truncated
+        # file yields no match, and if more than one result object is ever
+        # emitted the last one wins. Projecting to just these fields here (rather
+        # than carrying the whole result, whose .result text can be large) keeps
+        # the value small for the payload step below.
+        METRICS=$(jq -s -c '
+          [ .[] | (if type == "array" then .[] else empty end) | select(type == "object" and .type == "result") ] | last
+          | if . == null then empty else {
+              duration_ms: ((.duration_ms? | tonumber?) // 0),
+              num_turns: ((.num_turns? | tonumber?) // 0),
+              total_cost_usd: ((.total_cost_usd? | tonumber?) // 0),
+              input_tokens: ((.usage.input_tokens? | tonumber?) // 0),
+              output_tokens: ((.usage.output_tokens? | tonumber?) // 0),
+              cache_read_input_tokens: ((.usage.cache_read_input_tokens? | tonumber?) // 0),
+              cache_creation_input_tokens: ((.usage.cache_creation_input_tokens? | tonumber?) // 0),
+              model: (.modelUsage | if type == "object" then (keys[0] // "") else "" end)
+            } end
+        ' "$METRICS_FILE" 2>/dev/null || true)
+        if [ -z "$METRICS" ]; then
+          echo "::warning::No usable Claude result entry in $METRICS_FILE; skipping usage upload"
           exit 0
         fi
 
@@ -39,45 +67,44 @@ runs:
         # workflow name instead so these rows are clearly automated and remain
         # distinguishable per-workflow. github.event_name is still stored, so
         # the original signal isn't lost.
-        ACTOR="${{ github.actor }}"
-        if [ "${{ github.event_name }}" = "schedule" ]; then
-          ACTOR="${{ github.workflow }} (scheduled)"
+        ACTOR="$GH_ACTOR"
+        if [ "$GH_EVENT_NAME" = "schedule" ]; then
+          ACTOR="$GH_WORKFLOW (scheduled)"
         fi
 
-        # Extract fields and add context
-        jq -n \
-          --arg repo "${{ github.repository }}" \
-          --argjson run_id "${{ github.run_id }}" \
-          --argjson run_attempt "${{ github.run_attempt }}" \
+        # Merge GitHub context with the extracted metrics. Context ids arrive as
+        # strings and are coerced with tonumber (never --argjson, which aborts
+        # the step on an empty or malformed value).
+        PAYLOAD=$(jq -n \
+          --argjson metrics "$METRICS" \
+          --arg repo "$GH_REPOSITORY" \
+          --arg run_id "$GH_RUN_ID" \
+          --arg run_attempt "$GH_RUN_ATTEMPT" \
           --arg actor "$ACTOR" \
-          --arg event_name "${{ github.event_name }}" \
-          --argjson pr_number "${{ github.event.issue.number || github.event.pull_request.number || 0 }}" \
+          --arg event_name "$GH_EVENT_NAME" \
+          --arg pr_number "$GH_PR_NUMBER" \
           --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000)" \
-          --argjson duration_ms "$(echo "$RESULT" | jq -r '.duration_ms // 0')" \
-          --argjson num_turns "$(echo "$RESULT" | jq -r '.num_turns // 0')" \
-          --argjson total_cost_usd "$(echo "$RESULT" | jq -r '.total_cost_usd // 0')" \
-          --argjson input_tokens "$(echo "$RESULT" | jq -r '.usage.input_tokens // 0')" \
-          --argjson output_tokens "$(echo "$RESULT" | jq -r '.usage.output_tokens // 0')" \
-          --argjson cache_read_input_tokens "$(echo "$RESULT" | jq -r '.usage.cache_read_input_tokens // 0')" \
-          --argjson cache_creation_input_tokens "$(echo "$RESULT" | jq -r '.usage.cache_creation_input_tokens // 0')" \
-          --arg model "$(echo "$RESULT" | jq -r '.modelUsage | keys[0] // ""')" \
           '{
             repo: $repo,
-            run_id: $run_id,
-            run_attempt: $run_attempt,
+            run_id: ($run_id | tonumber? // 0),
+            run_attempt: ($run_attempt | tonumber? // 0),
             actor: $actor,
             event_name: $event_name,
-            pr_number: $pr_number,
-            timestamp: $timestamp,
-            duration_ms: $duration_ms,
-            num_turns: $num_turns,
-            total_cost_usd: $total_cost_usd,
-            input_tokens: $input_tokens,
-            output_tokens: $output_tokens,
-            cache_read_input_tokens: $cache_read_input_tokens,
-            cache_creation_input_tokens: $cache_creation_input_tokens,
-            model: $model
-          }' > /tmp/claude_usage.json
+            pr_number: ($pr_number | tonumber? // 0),
+            timestamp: $timestamp
+          } + $metrics' || true)
+        if [ -z "$PAYLOAD" ]; then
+          echo "::warning::Failed to build Claude usage payload; skipping usage upload"
+          exit 0
+        fi
 
-        aws s3 cp /tmp/claude_usage.json \
-          "s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}/${{ github.repository }}/${{ github.run_id }}_${{ github.run_attempt }}.json"
+        if ! echo "$PAYLOAD" > /tmp/claude_usage.json; then
+          echo "::warning::Failed to write Claude usage payload to disk; skipping usage upload"
+          exit 0
+        fi
+
+        if ! aws s3 cp /tmp/claude_usage.json \
+          "s3://$S3_BUCKET/$S3_PREFIX/$GH_REPOSITORY/${GH_RUN_ID}_${GH_RUN_ATTEMPT}.json"; then
+          echo "::warning::Failed to upload Claude usage metrics to S3 (best-effort telemetry)"
+          exit 0
+        fi

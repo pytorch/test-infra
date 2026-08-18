@@ -77,6 +77,7 @@ class RelayConfig:
     zombie_timeout_seconds: int
     max_cleanup_workers: int
     in_progress_warn_threshold: int
+    ci_providers_url: str
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
@@ -194,6 +195,7 @@ class RelayConfig:
             zombie_timeout_seconds=zombie_timeout_seconds,
             max_cleanup_workers=max_cleanup_workers,
             in_progress_warn_threshold=in_progress_warn_threshold,
+            ci_providers_url=os.getenv("CI_PROVIDERS_URL", ""),
         )
 
 

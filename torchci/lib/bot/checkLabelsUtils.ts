@@ -7,6 +7,10 @@ export const LABEL_COMMENT_END = "\n<!-- check-labels-comment-end -->";
 // Bot authors that can create the label error comment
 export const BOT_AUTHORS = ["github-actions", "pytorchmergebot", "pytorch-bot"];
 
+export function isBotAuthor(author: string): boolean {
+  return BOT_AUTHORS.includes(author.toLowerCase().replace("[bot]", ""));
+}
+
 // Error message title
 export const LABEL_ERR_MSG_TITLE = "This PR needs a `release notes:` label";
 
@@ -50,10 +54,7 @@ export function formLabelErrComment(): string {
  * Check if a comment is the label error comment.
  */
 export function isLabelErrComment(body: string, author: string): boolean {
-  return (
-    body.includes(LABEL_COMMENT_START) &&
-    BOT_AUTHORS.includes(author.toLowerCase().replace("[bot]", ""))
-  );
+  return body.includes(LABEL_COMMENT_START) && isBotAuthor(author);
 }
 
 /**
