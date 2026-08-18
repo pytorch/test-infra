@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from greenlight.config import Config
-    from greenlight.github_client import VerdictClient, VerdictPR
+    from greenlight.github_types import VerdictClient, VerdictPR
 
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
 
