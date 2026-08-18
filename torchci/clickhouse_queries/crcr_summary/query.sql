@@ -17,6 +17,7 @@ WITH deduped AS (
         AND status = 'completed'
         AND pr_number > 0
 )
+
 SELECT
     downstream_repo AS repo,
     anyLast(downstream_repo_level) AS downstream_repo_level,

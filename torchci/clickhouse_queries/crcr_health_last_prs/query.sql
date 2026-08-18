@@ -9,6 +9,7 @@ WITH recent_prs AS (
     ORDER BY max(started_at) DESC
     LIMIT {count: UInt64}
 )
+
 SELECT
     pr_number,
     max(started_at) AS last_run,

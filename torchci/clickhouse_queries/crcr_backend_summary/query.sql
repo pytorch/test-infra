@@ -17,6 +17,7 @@ WITH deduped AS (
         AND status = 'completed'
         AND pr_number > 0
 )
+
 SELECT
     countIf(
         conclusion = 'success'
