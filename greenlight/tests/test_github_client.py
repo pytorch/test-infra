@@ -437,6 +437,69 @@ def test_build_client_defaults_pacing_to_pygithub_default(monkeypatch):
     assert captured["seconds_between_requests"] == 0.25
 
 
+def test_build_authz_retry_is_patient_and_honors_retry_after():
+    retry = github_client._build_authz_retry()
+
+    # A plain urllib3 Retry (not GithubRetry), but unlike the fail-fast scan retry it rides out a
+    # secondary limit: 429 and 5xx are force-listed and a Retry-After is honored, capped at 60s.
+    assert type(retry) is Retry
+    assert retry.respect_retry_after_header is True
+    assert 429 in retry.status_forcelist
+    assert 500 in retry.status_forcelist
+    assert 503 in retry.status_forcelist
+    # 403 stays off so a permission denial is never retried.
+    assert 403 not in retry.status_forcelist
+    assert retry.retry_after_max == 60
+    # Authz is all reads; no write verbs are retried.
+    assert retry.allowed_methods == frozenset({"GET", "HEAD"})
+    assert "PUT" not in retry.allowed_methods
+    assert "POST" not in retry.allowed_methods
+    assert retry.total == 2
+    assert retry.raise_on_status is True
+
+
+def test_build_authz_retry_caps_worst_case_wait_under_budget():
+    retry = github_client._build_authz_retry()
+
+    # A huge/garbage Retry-After is clamped to retry_after_max, so worst-case wait is
+    # total x retry_after_max (<=120s), well under the 300s Lambda / 600s daemon budget.
+    assert retry.parse_retry_after("100000") == 60
+    total = retry.total
+    assert isinstance(total, int)
+    assert total * retry.retry_after_max <= 120
+
+
+def test_build_authz_client_wires_patient_retry_into_github(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _fake_github(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("github.Github", _fake_github)
+
+    github_client.build_authz_client("tok")
+
+    retry = captured["retry"]
+    assert isinstance(retry, Retry)
+    assert retry.respect_retry_after_header is True
+    assert 429 in retry.status_forcelist
+    assert retry.retry_after_max == 60
+    assert retry.allowed_methods == frozenset({"GET", "HEAD"})
+
+
+def test_authz_retry_differs_from_scan_retry_on_rate_limit_handling():
+    scan = github_client._build_retry()
+    authz = github_client._build_authz_retry()
+
+    # The one behavioral split: authz waits out a 429 (forcelist + Retry-After); the scan does not,
+    # so its 429 raises at once for is_rate_limit_error to classify.
+    assert 429 in authz.status_forcelist
+    assert authz.respect_retry_after_header is True
+    assert 429 not in scan.status_forcelist
+    assert scan.respect_retry_after_header is False
+
+
 def test_is_rate_limit_error_true_for_rate_limit_exceeded_exception():
     # A 403 rate limit arrives as RateLimitExceededException (status 403), matched by the isinstance
     # arm, not by the 429 status check.

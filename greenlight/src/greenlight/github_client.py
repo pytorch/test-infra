@@ -50,9 +50,17 @@ class OpenPR:
 # worst-case pagination outlast the per-iteration runtime watchdog.
 _GITHUB_TIMEOUT_SECONDS: int = 15
 
+_SERVER_ERROR_STATUSES: frozenset[int] = frozenset(range(500, 600))
+
 _GITHUB_RETRY_TOTAL: int = 2
 _GITHUB_RETRY_BACKOFF_FACTOR: float = 0.5
 _GITHUB_RETRY_BACKOFF_MAX_SECONDS: float = 5.0
+
+_GITHUB_AUTHZ_RETRY_TOTAL: int = 2
+_GITHUB_AUTHZ_RETRY_BACKOFF_FACTOR: float = 0.5
+_GITHUB_AUTHZ_RETRY_BACKOFF_MAX_SECONDS: float = 5.0
+_GITHUB_AUTHZ_RETRY_AFTER_MAX_SECONDS: int = 60
+_GITHUB_AUTHZ_RETRY_STATUSES: frozenset[int] = _SERVER_ERROR_STATUSES | frozenset({429})
 
 
 def _build_retry() -> Retry:
@@ -65,27 +73,56 @@ def _build_retry() -> Retry:
         total=_GITHUB_RETRY_TOTAL,
         backoff_factor=_GITHUB_RETRY_BACKOFF_FACTOR,
         backoff_max=_GITHUB_RETRY_BACKOFF_MAX_SECONDS,
-        status_forcelist=frozenset(range(500, 600)),
+        status_forcelist=_SERVER_ERROR_STATUSES,
         allowed_methods=frozenset({"GET", "HEAD", "PUT", "DELETE"}),
         respect_retry_after_header=False,
         raise_on_status=True,
     )
 
 
-def build_client(token: str, *, seconds_between_requests: float = 0.25) -> Github:
+def _build_authz_retry() -> Retry:
+    # The merge-authz refresh (merge_rules.yaml fetch + team expansion) is all reads and is the
+    # scan's first GitHub call on a cold client, so a 429 here is waited out rather than raised as
+    # the scan retry does. respect_retry_after_header honors a 429/5xx Retry-After, capped at
+    # retry_after_max, bounding the worst-case wait to total x cap (<=120s) -- inside the
+    # per-iteration runtime budget and on the SIGALRM-interruptible main thread. 403 is excluded so
+    # a permission denial is never retried; if the limit outlasts the retries the exhausted-retry
+    # error propagates and merge_authz fails closed (stale set when warm, re-raise when cold).
+    from urllib3.util.retry import Retry
+
+    return Retry(
+        total=_GITHUB_AUTHZ_RETRY_TOTAL,
+        backoff_factor=_GITHUB_AUTHZ_RETRY_BACKOFF_FACTOR,
+        backoff_max=_GITHUB_AUTHZ_RETRY_BACKOFF_MAX_SECONDS,
+        status_forcelist=_GITHUB_AUTHZ_RETRY_STATUSES,
+        allowed_methods=frozenset({"GET", "HEAD"}),
+        respect_retry_after_header=True,
+        retry_after_max=_GITHUB_AUTHZ_RETRY_AFTER_MAX_SECONDS,
+        raise_on_status=True,
+    )
+
+
+def build_client(token: str, *, seconds_between_requests: float = 0.25, retry: Retry | None = None) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
     # Pin PyGithub's 0.25s default pacing explicitly (cf. _GITHUB_TIMEOUT_SECONDS) so a library
     # default change can't silently alter our request rate; the fingerprint fan-out passes a
-    # slower value to bound its aggregate rate.
+    # slower value to bound its aggregate rate. retry defaults to the fail-fast scan policy; the
+    # authz client passes the patient policy via build_authz_client.
     return Github(
         auth=Auth.Token(token),
         per_page=100,
         timeout=_GITHUB_TIMEOUT_SECONDS,
-        retry=_build_retry(),
+        retry=_build_retry() if retry is None else retry,
         lazy=True,
         seconds_between_requests=seconds_between_requests,
     )
+
+
+def build_authz_client(token: str) -> Github:
+    # The merge-authorization client rides out a short secondary rate limit on its refresh; every
+    # other client keeps build_client's fail-fast retry. See _build_authz_retry.
+    return build_client(token, retry=_build_authz_retry())
 
 
 def is_rate_limit_error(exc: BaseException) -> bool:
