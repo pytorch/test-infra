@@ -81,6 +81,63 @@ class TestSelectTargetRefs(TestCase):
         )
 
 
+class TestReleaseLines(TestCase):
+    def test_only_release_branches(self) -> None:
+        refs = [
+            "refs/heads/main",
+            "refs/heads/nightly",
+            "refs/heads/release/2.14",
+            "refs/heads/release/2.13",
+        ]
+        self.assertEqual(m.release_lines(refs), [(2, 14), (2, 13)])
+
+
+class TestSelectTargetTags(TestCase):
+    def test_ga_and_newest_candidate(self) -> None:
+        names = ["v2.14.0-rc1", "v2.14.0-rc2", "v2.14.0"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 14)),
+            ["refs/tags/v2.14.0", "refs/tags/v2.14.0-rc2"],
+        )
+
+    def test_candidate_only_before_ga(self) -> None:
+        self.assertEqual(
+            m.select_target_tags(["v2.14.0-rc1"], (2, 14)),
+            ["refs/tags/v2.14.0-rc1"],
+        )
+
+    def test_patch_release_supersedes_shipped_tags(self) -> None:
+        # The preceding line is still patchable: v2.13.1-rc1 must win over the
+        # rc15 that shipped as v2.13.0.
+        names = ["v2.13.0-rc15", "v2.13.0", "v2.13.1-rc1"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 13)),
+            ["refs/tags/v2.13.0", "refs/tags/v2.13.1-rc1"],
+        )
+
+    def test_sorts_candidates_numerically_not_lexically(self) -> None:
+        # rc9 must rank below rc10 despite string ordering.
+        names = ["v2.13.0-rc9", "v2.13.0-rc10"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 13)),
+            ["refs/tags/v2.13.0-rc10"],
+        )
+
+    def test_ignores_other_release_lines(self) -> None:
+        names = ["v2.1.0", "v2.1.0-rc1", "v2.14.0-rc1", "v3.1.0-rc1"]
+        self.assertEqual(
+            m.select_target_tags(names, (2, 1)),
+            ["refs/tags/v2.1.0", "refs/tags/v2.1.0-rc1"],
+        )
+
+    def test_ignores_unconventional_tags(self) -> None:
+        names = ["v2.14.0-rc1-test", "v2.14.0rc1", "2.14.0-rc1", "v2.14.0-rc", "v2.14"]
+        self.assertEqual(m.select_target_tags(names, (2, 14)), [])
+
+    def test_no_tags_yet(self) -> None:
+        self.assertEqual(m.select_target_tags([], (2, 14)), [])
+
+
 class TestUsesReleaseLabel(TestCase):
     def test_matches_release_labels(self) -> None:
         self.assertTrue(m.uses_release_label("runs-on: rel-l-x86iavx512-44-340"))
@@ -206,6 +263,86 @@ class TestCollectReleaseWorkflowPaths(TestCase):
         self.assertEqual(
             m.collect_release_workflow_paths(files),
             {".github/workflows/_select-release-runner.yml"},
+        )
+
+    def test_follows_reusable_whose_runner_comes_from_selector_outputs(self) -> None:
+        # pytorch/pytorch#193378 split the triton build into
+        # _build-triton-wheel-linux.yml. Its callers pass the runner through from
+        # the select-runner job's outputs, so the calling job carries no rel-
+        # label -- the reusable that actually consumes the release runner must
+        # still be followed. Upload jobs depend on the build jobs rather than the
+        # selector, so they stay out.
+        files = {
+            ".github/workflows/build-triton-wheel.yml": m.WorkflowFile(
+                doc={
+                    "jobs": {
+                        "select-runner": {
+                            "uses": "./.github/workflows/_select-release-runner.yml"
+                        },
+                        "build-wheel-cuda": {
+                            "needs": "select-runner",
+                            "uses": "./.github/workflows/_build-triton-wheel-linux.yml",
+                            "with": {
+                                "runs_on": "${{ needs.select-runner.outputs.x86 }}"
+                            },
+                        },
+                        "build-wheel-win": {"runs-on": "windows.4xlarge"},
+                        "upload-wheel-triton": {
+                            "needs": ["build-wheel-cuda"],
+                            "uses": "./.github/workflows/_upload-triton-wheel.yml",
+                        },
+                    }
+                },
+                raw="uses: ./.github/workflows/_select-release-runner.yml\n"
+                "runs_on: ${{ needs.select-runner.outputs.x86 }}",
+            ),
+            ".github/workflows/_select-release-runner.yml": m.WorkflowFile(
+                doc={"jobs": {"select": {"runs-on": "ubuntu-24.04"}}},
+                raw="echo x86=mt-rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/_build-triton-wheel-linux.yml": m.WorkflowFile(
+                doc={"jobs": {"build": {"runs-on": "${{ inputs.runs_on }}"}}},
+                raw="runs-on: ${{ inputs.runs_on }}",
+            ),
+            ".github/workflows/_upload-triton-wheel.yml": m.WorkflowFile(
+                doc={"jobs": {"upload": {"runs-on": "ubuntu-24.04"}}},
+                raw="runs-on: ubuntu-24.04",
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {
+                ".github/workflows/build-triton-wheel.yml",
+                ".github/workflows/_select-release-runner.yml",
+                ".github/workflows/_build-triton-wheel-linux.yml",
+            },
+        )
+
+    def test_selector_outputs_of_a_non_release_job_are_not_a_signal(self) -> None:
+        # needs.<job>.outputs.* only propagates the release signal when that job
+        # is a caller of the release-label reusable. A plain matrix-computing job
+        # must not pull its consumers' reusables in.
+        files = {
+            ".github/workflows/gen.yml": m.WorkflowFile(
+                doc={
+                    "jobs": {
+                        "build": {"runs-on": "rel-l-x86iavx512-44-340"},
+                        "matrix": {"runs-on": "ubuntu-24.04"},
+                        "test": {
+                            "needs": "matrix",
+                            "uses": "./.github/workflows/_test.yml",
+                            "with": {"runs_on": "${{ needs.matrix.outputs.runner }}"},
+                        },
+                    }
+                },
+                raw="runs-on: rel-l-x86iavx512-44-340",
+            ),
+            ".github/workflows/_test.yml": m.WorkflowFile(
+                doc={"jobs": {}}, raw="runs-on: ${{ inputs.runs_on }}"
+            ),
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files), {".github/workflows/gen.yml"}
         )
 
     def test_ignores_remote_uses(self) -> None:

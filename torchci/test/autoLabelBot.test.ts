@@ -1133,6 +1133,43 @@ describe("auto-label-bot: labeler.yml config", () => {
       .reply(200);
   }
 
+  function mockBotLabelTimeline(
+    repoFullName: string,
+    prNumber: number,
+    labels: { name: string; actor?: string }[],
+    leadingEventCount = 0
+  ) {
+    const leadingEvents = Array.from({ length: leadingEventCount }, () => ({
+      event: "commented",
+      actor: { login: "some-user" },
+    }));
+    const labelEvents = labels.map((label) => ({
+      event: "labeled",
+      label: { name: label.name },
+      actor: { login: label.actor ?? "pytorch-bot[bot]" },
+    }));
+    const events = [...leadingEvents, ...labelEvents];
+    nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/issues/${prNumber}/timeline?per_page=100`)
+      .reply(200, events);
+  }
+
+  function mockRemoveLabel(
+    label: string,
+    repoFullName: string,
+    prNumber: number
+  ) {
+    return nock("https://api.github.com")
+      .delete((uri) =>
+        uri.includes(
+          `/repos/${repoFullName}/issues/${prNumber}/labels/${encodeURIComponent(
+            label
+          )}`
+        )
+      )
+      .reply(200);
+  }
+
   function defaultMockConfig(repoFullName: string) {
     const config = `
 "module: dynamo":
@@ -1273,6 +1310,227 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope.done();
     scope2.done();
     handleScope(checkLabelsScope);
+  });
+
+  test("labeler draft:false skips ciflow-style label on draft PR", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.pull_request.draft = true;
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/inductor":
+  globs:
+    - torch/_dynamo/**
+  draft: false
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = utils.mockAddLabels(
+      ["module: dynamo"],
+      repoFullName,
+      prNumber
+    );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+    handleScope(checkLabelsScope);
+  });
+
+  test("labeler draft:false applies ciflow-style label when PR is not draft", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.pull_request.draft = false;
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/inductor":
+  globs:
+    - torch/_dynamo/**
+  draft: false
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = utils.mockAddLabels(
+      ["module: dynamo", "ciflow/inductor"],
+      repoFullName,
+      prNumber
+    );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+    handleScope(checkLabelsScope);
+  });
+
+  test("labeler draft:false applies ciflow-style label on ready_for_review", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.action = "ready_for_review";
+    event.payload.pull_request.draft = false;
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/inductor":
+  globs:
+    - torch/_dynamo/**
+  draft: false
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    const scope2 = utils.mockAddLabels(
+      ["module: dynamo", "ciflow/inductor"],
+      repoFullName,
+      prNumber
+    );
+    await probot.receive(event);
+    scope.done();
+    scope2.done();
+  });
+
+  test("labeler draft:false removes ciflow-style label on converted_to_draft", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.action = "converted_to_draft";
+    event.payload.pull_request.draft = true;
+    event.payload.pull_request.labels = [
+      { name: "module: dynamo" },
+      { name: "ciflow/inductor" },
+    ];
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/inductor":
+  globs:
+    - torch/_dynamo/**
+  draft: false
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockBotLabelTimeline(
+      repoFullName,
+      prNumber,
+      [{ name: "ciflow/inductor" }],
+      30
+    );
+    const removeScope = mockRemoveLabel(
+      "ciflow/inductor",
+      repoFullName,
+      prNumber
+    );
+    await probot.receive(event);
+    scope.done();
+    removeScope.done();
+  });
+
+  test("labeler draft:false does not remove label applied by other bot on converted_to_draft", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.action = "converted_to_draft";
+    event.payload.pull_request.draft = true;
+    event.payload.pull_request.labels = [
+      { name: "module: dynamo" },
+      { name: "ciflow/inductor" },
+    ];
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/inductor":
+  globs:
+    - torch/_dynamo/**
+  draft: false
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockBotLabelTimeline(
+      repoFullName,
+      prNumber,
+      [{ name: "ciflow/inductor", actor: "dependabot[bot]" }],
+      30
+    );
+    await probot.receive(event);
+    scope.done();
+  });
+
+  test("labeler draft:true removes label on ready_for_review", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.payload.action = "ready_for_review";
+    event.payload.pull_request.draft = false;
+    event.payload.pull_request.labels = [{ name: "draft-only" }];
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{ filename: "torch/a.py" }];
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+    const config = `
+"draft-only":
+  globs:
+    - torch/**
+  draft: true
+`;
+    utils.mockConfig(
+      "pytorch-probot.yml",
+      "labeler_config: labeler.yml",
+      repoFullName
+    );
+    utils.mockConfig("labeler.yml", config, repoFullName);
+    utils.mockHasApprovedWorkflowRun(repoFullName);
+    mockBotLabelTimeline(repoFullName, prNumber, [{ name: "draft-only" }]);
+    const removeScope = mockRemoveLabel("draft-only", repoFullName, prNumber);
+    await probot.receive(event);
+    scope.done();
+    removeScope.done();
   });
 });
 
@@ -1734,6 +1992,31 @@ describe("auto-label-bot: check-labels integration", () => {
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
     // No error comment expected since PR already has the required label
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not add error comment on ready_for_review without required labels", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["action"] = "ready_for_review";
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [];
+    payload["pull_request"]["draft"] = false;
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 

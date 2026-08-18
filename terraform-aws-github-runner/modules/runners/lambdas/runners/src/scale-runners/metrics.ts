@@ -1575,6 +1575,12 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  runnerGhOfflineSkippedPetRepo(repo: Repo) {
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.ghRunner.perRepo.offline.skipped.pet', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
   runnerGhOfflineFoundOrg(org: string, total: number) {
     const dimensions = new Map([['Org', org]]);
     this.addEntry('run.ghRunner.perOrg.offline.found', total, dimensions);
@@ -1590,6 +1596,12 @@ export class ScaleDownMetrics extends Metrics {
   runnerGhOfflineRemovedFailureOrg(org: string) {
     const dimensions = new Map([['Org', org]]);
     this.countEntry('run.ghRunner.perOrg.offline.removed.failure', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineSkippedPetOrg(org: string) {
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.ghRunner.perOrg.offline.skipped.pet', 1, dimensions);
   }
 
   /* istanbul ignore next */

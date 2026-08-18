@@ -1,10 +1,16 @@
 {
   "params": {
-    "days": "UInt64"
+    "days": "UInt64",
+    "event_type": "String"
   },
   "tests": [
     {
-      "days": "30"
+      "days": "30",
+      "event_type": "pull_request"
+    },
+    {
+      "days": "7",
+      "event_type": "nightly"
     }
   ]
 }

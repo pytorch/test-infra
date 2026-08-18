@@ -1,0 +1,100 @@
+[2026-07-13T19:39:31Z]                         break
+[2026-07-13T19:39:31Z]             else:
+[2026-07-13T19:39:31Z]                 stable_since = None
+[2026-07-13T19:39:31Z]                 stable_used_bytes = None
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z]             if dur_s >= timeout_s:
+[2026-07-13T19:39:31Z] >               raise ValueError(
+[2026-07-13T19:39:31Z]                     f"Memory of devices {devices=} not free after "
+[2026-07-13T19:39:31Z]                     f"{dur_s=:.02f} ({threshold=})"
+[2026-07-13T19:39:31Z]                 )
+[2026-07-13T19:39:31Z] E               ValueError: Memory of devices devices=[0] not free after dur_s=120.01 (threshold='device=0: 0.100')
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z] utils.py:1668: ValueError
+[2026-07-13T19:39:31Z] ------------------------------ Captured log call -------------------------------
+[2026-07-13T19:39:31Z] INFO     vllm.entrypoints.serve.utils.api_utils:api_utils.py:273 non-default args: {'trust_remote_code': True, 'max_model_len': 1024, 'gpu_memory_utilization': 0.45, 'max_num_seqs': 256, 'disable_log_stats': True, 'compilation_config': {'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}, 'attention_config': AttentionConfig(backend=<AttentionBackendEnum.FLASH_ATTN: 'vllm.v1.attention.backends.flash_attn.FlashAttentionBackend'>, flash_attn_version=2, use_prefill_decode_attention=False, flash_attn_max_num_splits_for_cuda_graph=16, tq_max_kv_splits_for_cuda_graph=32, use_trtllm_attention=None, disable_flashinfer_q_quantization=False, mla_prefill_backend=None, use_prefill_query_quantization=False, use_fp4_indexer_cache=False, indexer_kv_dtype='bf16', use_non_causal=False, flex_attn_block_m=None, flex_attn_block_n=None, flex_attn_q_block_size=None, flex_attn_kv_block_size=None), 'model': 'Qwen/Qwen2-1.5B-Instruct'}
+[2026-07-13T19:39:31Z] INFO     vllm.config.model:model.py:619 Resolved architecture: Qwen2ForCausalLM
+[2026-07-13T19:39:31Z] INFO     vllm.config.model:model.py:1770 Using max model len 1024
+[2026-07-13T19:39:31Z] INFO     vllm.config.kernel:kernel.py:292 Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+[2026-07-13T19:39:31Z] =============================== warnings summary ===============================
+[2026-07-13T19:39:31Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:31Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:31Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z] ../../usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: 14 warnings
+[2026-07-13T19:39:31Z]   /usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+[2026-07-13T19:39:31Z]     warnings.warn(
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z] tests/v1/cudagraph/test_cudagraph_mode.py::test_backend_and_cudagraph_mode_combo[FA2-FULL-True]
+[2026-07-13T19:39:31Z] tests/v1/cudagraph/test_cudagraph_mode.py::test_backend_and_cudagraph_mode_combo[FA2-FULL_AND_PIECEWISE-True]
+[2026-07-13T19:39:31Z]   /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=336) is multi-threaded, use of fork() may lead to deadlocks in the child.
+[2026-07-13T19:39:31Z]     self.pid = os.fork()
+[2026-07-13T19:39:31Z]
+[2026-07-13T19:39:31Z] -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[2026-07-13T19:39:31Z] =========================== short test summary info ============================
+[2026-07-13T19:39:31Z] FAILED v1/cudagraph/test_cudagraph_mode.py::test_backend_and_cudagraph_mode_combo[FA2-FULL-True] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:31Z] FAILED v1/cudagraph/test_cudagraph_mode.py::test_backend_and_cudagraph_mode_combo[FA2-FULL_AND_PIECEWISE-True] - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-13T19:39:31Z] FAILED v1/cudagraph/test_cudagraph_mode.py::test_cudagraph_compilation_combo[FA2-FULL-3-True] - ValueError: Memory of devices devices=[0] not free after dur_s=120.01 (threshold='device=0: 0.100')
+[2026-07-13T19:39:31Z] FAILED v1/cudagraph/test_cudagraph_mode.py::test_cudagraph_compilation_combo[FA2-FULL_DECODE_ONLY-3-True] - ValueError: Memory of devices devices=[0] not free after dur_s=120.01 (threshold='device=0: 0.100')
+[2026-07-13T19:39:31Z] ======= 4 failed, 10 passed, 2 skipped, 18 warnings in 669.01s (0:11:09) =======
+[2026-07-13T19:39:33Z] sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
++++ :test_tube: Command (3/3): pytest -v -s v1/cudagraph/test_breakable_cudagraph.py
+[2026-07-13T19:39:46Z] W0713 19:39:46.081000 2956 torch/_opaque_base.py:6] torch._opaque_base is deprecated, use torch._custom_class_base instead
+[2026-07-13T19:39:46Z] W0713 19:39:46.081000 2956 torch/_library/opaque_object.py:288] register_opaque_type is deprecated, use register_custom_class instead
+[2026-07-13T19:39:46Z] W0713 19:39:46.081000 2956 torch/_library/opaque_object.py:211] typ='value' is deprecated, use typ='constant' instead
+[2026-07-13T19:39:50Z] ============================= test session starts ==============================
+[2026-07-13T19:39:50Z] platform linux -- Python 3.12.13, pytest-9.1.0, pluggy-1.5.0 -- /usr/bin/python3
+[2026-07-13T19:39:51Z] cachedir: .pytest_cache
+[2026-07-13T19:39:51Z] hypothesis profile 'ci' -> database=None, deadline=None, print_blob=True, derandomize=True, suppress_health_check=[HealthCheck.too_slow]
+[2026-07-13T19:39:51Z] rootdir: /vllm-workspace
+[2026-07-13T19:39:51Z] configfile: pyproject.toml
+[2026-07-13T19:39:51Z] plugins: anyio-4.14.1, buildkite-test-collector-0.1.9, hypothesis-6.131.0, asyncio-1.4.0, cov-6.3.0, forked-1.6.0, mock-3.14.0, rerunfailures-14.0, shard-0.1.2, timeout-2.3.1, schemathesis-4.21.6
+[2026-07-13T19:39:51Z] asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+[2026-07-13T19:39:51Z] collecting ...
+collected 12 items
+[2026-07-13T19:39:51Z] Running 12 items in this shard: tests/v1/cudagraph/test_breakable_cudagraph.py::test_decorator_passthrough_outside_capture, tests/v1/cudagraph/test_breakable_cudagraph.py::test_current_is_none_when_inactive, tests/v1/cudagraph/test_breakable_cudagraph.py::test_thread_local_active_during_context, tests/v1/cudagraph/test_breakable_cudagraph.py::test_nested_capture_raises, tests/v1/cudagraph/test_breakable_cudagraph.py::test_active_state_isolated_across_threads, tests/v1/cudagraph/test_breakable_cudagraph.py::test_capture_with_no_eager_break_records_one_graph, tests/v1/cudagraph/test_breakable_cudagraph.py::test_add_eager_creates_alternating_graph_eager_graph, tests/v1/cudagraph/test_breakable_cudagraph.py::test_capture_replay_matches_eager_simple, tests/v1/cudagraph/test_breakable_cudagraph.py::test_decorator_breaks_when_invoked_inside_capture, tests/v1/cudagraph/test_breakable_cudagraph.py::test_replay_invokes_eager_segments_in_order, tests/v1/cudagraph/test_breakable_cudagraph.py::test_exception_in_body_clears_active, tests/v1/cudagraph/test_breakable_cudagraph.py::test_nested_decorated_op_runs_inline
+[2026-07-13T19:39:51Z]
+[2026-07-13T19:39:51Z] v1/cudagraph/test_breakable_cudagraph.py::test_decorator_passthrough_outside_capture PASSED
+[2026-07-13T19:39:52Z] v1/cudagraph/test_breakable_cudagraph.py::test_current_is_none_when_inactive PASSED
+[2026-07-13T19:39:52Z] v1/cudagraph/test_breakable_cudagraph.py::test_thread_local_active_during_context PASSED
+[2026-07-13T19:39:52Z] v1/cudagraph/test_breakable_cudagraph.py::test_nested_capture_raises PASSED
+[2026-07-13T19:39:52Z] v1/cudagraph/test_breakable_cudagraph.py::test_active_state_isolated_across_threads PASSED
+[2026-07-13T19:39:53Z] v1/cudagraph/test_breakable_cudagraph.py::test_capture_with_no_eager_break_records_one_graph PASSED
+[2026-07-13T19:39:53Z] v1/cudagraph/test_breakable_cudagraph.py::test_add_eager_creates_alternating_graph_eager_graph PASSED
+[2026-07-13T19:39:53Z] v1/cudagraph/test_breakable_cudagraph.py::test_capture_replay_matches_eager_simple PASSED
+[2026-07-13T19:39:54Z] v1/cudagraph/test_breakable_cudagraph.py::test_decorator_breaks_when_invoked_inside_capture PASSED
+[2026-07-13T19:39:54Z] v1/cudagraph/test_breakable_cudagraph.py::test_replay_invokes_eager_segments_in_order PASSED
+[2026-07-13T19:39:54Z] v1/cudagraph/test_breakable_cudagraph.py::test_exception_in_body_clears_active PASSED
+[2026-07-13T19:39:54Z] v1/cudagraph/test_breakable_cudagraph.py::test_nested_decorated_op_runs_inline PASSED
+[2026-07-13T19:39:54Z]
+[2026-07-13T19:39:54Z] =============================== warnings summary ===============================
+[2026-07-13T19:39:54Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:54Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+[2026-07-13T19:39:54Z]
+[2026-07-13T19:39:54Z] <frozen importlib._bootstrap>:488
+[2026-07-13T19:39:54Z]   <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+[2026-07-13T19:39:54Z]
+[2026-07-13T19:39:54Z] tests/v1/cudagraph/test_breakable_cudagraph.py: 14 warnings
+[2026-07-13T19:39:54Z]   /usr/local/lib/python3.12/dist-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+[2026-07-13T19:39:54Z]     warnings.warn(
+[2026-07-13T19:39:54Z]
+[2026-07-13T19:39:54Z] tests/v1/cudagraph/test_breakable_cudagraph.py::test_thread_local_active_during_context
+[2026-07-13T19:39:54Z] tests/v1/cudagraph/test_breakable_cudagraph.py::test_nested_capture_raises
+[2026-07-13T19:39:54Z] tests/v1/cudagraph/test_breakable_cudagraph.py::test_active_state_isolated_across_threads
+[2026-07-13T19:39:54Z] tests/v1/cudagraph/test_breakable_cudagraph.py::test_exception_in_body_clears_active
+[2026-07-13T19:39:54Z]   /usr/local/lib/python3.12/dist-packages/torch/cuda/graphs.py:264: UserWarning: The CUDA Graph is empty. This usually means that the graph was attempted to be captured on wrong device or stream. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/cuda/CUDAGraph.cpp:241.)
+[2026-07-13T19:39:54Z]     super().capture_end_pre()
+[2026-07-13T19:39:54Z]
+[2026-07-13T19:39:54Z] -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[2026-07-13T19:39:54Z] ======================= 12 passed, 20 warnings in 3.97s ========================
+[2026-07-13T19:39:55Z] sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+^^^ +++
+[2026-07-13T19:39:58Z] 🚨 Error: The command exited with status 1
+^^^ +++
+[2026-07-13T19:39:58Z] user command error: The plugin docker command hook exited with status 1
+~~~ Running global pre-exit hook
+[2026-07-13T19:39:58Z] $ /etc/buildkite-agent/hooks/pre-exit
+~~~ Running plugin docker pre-exit hook
+[2026-07-13T19:39:58Z] $ /var/lib/buildkite-agent/plugins/bk-gpu-1-queue-ci-i-07eb4eb58535ed8af-1/github-com-buildkite-plugins-docker-buildkite-plugin-v5-2-0/hooks/pre-exit

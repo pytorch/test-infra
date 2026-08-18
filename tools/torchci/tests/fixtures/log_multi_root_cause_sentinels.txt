@@ -1,0 +1,49 @@
+[2026-07-15T10:04:50Z] =============================== FAILURES ================================
+[2026-07-15T10:05:00Z] _________________________ test_model_loading __________________________
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z]     def init_gpu_memory():
+[2026-07-15T10:05:00Z] >       raise ValueError("GPU memory exhausted on device 0")
+[2026-07-15T10:05:00Z] E       ValueError: GPU memory exhausted on device 0
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] utils.py:42: ValueError
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] The above exception was the direct cause of the following exception:
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z]     def test_model_loading():
+[2026-07-15T10:05:00Z]         try:
+[2026-07-15T10:05:00Z]             engine = create_engine(config)
+[2026-07-15T10:05:00Z]         except ValueError as exc:
+[2026-07-15T10:05:00Z] >           raise RuntimeError(
+[2026-07-15T10:05:00Z]                 "Engine core initialization failed. See root cause above. "
+[2026-07-15T10:05:00Z]                 "Failed core proc(s): {'EngineCore': 1}"
+[2026-07-15T10:05:00Z]             ) from exc
+[2026-07-15T10:05:00Z] E           RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] test_engine.py:20: RuntimeError
+[2026-07-15T10:05:00Z] ________________________ test_kernel_dispatch _________________________
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z]     def dispatch_kernel(dtype):
+[2026-07-15T10:05:00Z] >       raise TypeError("unsupported dtype bfloat16 for this kernel")
+[2026-07-15T10:05:00Z] E       TypeError: unsupported dtype bfloat16 for this kernel
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] kernels.py:87: TypeError
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] The above exception was the direct cause of the following exception:
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z]     def test_kernel_dispatch():
+[2026-07-15T10:05:00Z]         try:
+[2026-07-15T10:05:00Z]             dispatch_kernel(torch.bfloat16)
+[2026-07-15T10:05:00Z]         except TypeError as exc:
+[2026-07-15T10:05:00Z] >           raise RuntimeError(
+[2026-07-15T10:05:00Z]                 "Engine core initialization failed. See root cause above. "
+[2026-07-15T10:05:00Z]                 "Failed core proc(s): {'EngineCore': 1}"
+[2026-07-15T10:05:00Z]             ) from exc
+[2026-07-15T10:05:00Z] E           RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-15T10:05:00Z]
+[2026-07-15T10:05:00Z] test_engine.py:30: RuntimeError
+[2026-07-15T10:05:00Z] =============================== warnings summary ===============================
+[2026-07-15T10:05:00Z] -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[2026-07-15T10:05:00Z] =========================== short test summary info ============================
+[2026-07-15T10:05:00Z] FAILED test_engine.py::test_model_loading - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-15T10:05:00Z] FAILED test_engine.py::test_kernel_dispatch - RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[2026-07-15T10:05:00Z] ========================= 2 failed, 1 warning in 5.00s =========================
