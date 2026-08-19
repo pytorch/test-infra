@@ -16,6 +16,12 @@ every login and unions ALL merge_rules entries. It MUST NOT reuse pytorch's
 ``trymerge.py`` authorization check: that is case-sensitive and scoped to the rules whose
 file patterns match a single PR, so its set diverges from this full lowercased union and
 yields a different digest -- refusing every land.
+
+Bot-command comments/reviews are excluded too: any comment or review whose body contains a
+bot-command @-mention (see ``BOT_COMMAND_MENTIONS`` / ``is_bot_command``) is dropped whole, so a
+trusted author's ``@pytorchbot merge`` never perturbs the digest. This is part of the same
+byte-identical cross-process contract -- the land-time verifier MUST import ``is_bot_command`` and
+MUST NOT reimplement it, or its digest diverges and it refuses every land.
 """
 
 from __future__ import annotations
@@ -25,7 +31,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-HASH_SCHEME_VERSION = 5
+HASH_SCHEME_VERSION = 6
 
 BOT_LOGINS: frozenset[str] = frozenset(
     {
@@ -44,6 +50,16 @@ BOT_LOGINS: frozenset[str] = frozenset(
     }
 )
 
+# Lowercase; ``@pytorchbot`` is NOT a substring of ``@pytorchmergebot``, so both are listed.
+BOT_COMMAND_MENTIONS: frozenset[str] = frozenset(
+    {
+        "@pytorchbot",
+        "@pytorchmergebot",
+        "@claude",
+        "@greenlight",
+    }
+)
+
 
 def is_bot(login: str | None, user_type: str | None = None) -> bool:
     if user_type is not None and user_type.lower() == "bot":
@@ -54,6 +70,13 @@ def is_bot(login: str | None, user_type: str | None = None) -> bool:
     if normalized_login.endswith("[bot]"):
         return True
     return normalized_login in BOT_LOGINS
+
+
+def is_bot_command(body: str | None) -> bool:
+    if not body:
+        return False
+    normalized_body = body.lower()
+    return any(mention in normalized_body for mention in BOT_COMMAND_MENTIONS)
 
 
 @dataclass(frozen=True, slots=True)
