@@ -72,15 +72,19 @@ def _build_retry() -> Retry:
     )
 
 
-def build_client(token: str) -> Github:
+def build_client(token: str, *, seconds_between_requests: float = 0.25) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
+    # Pin PyGithub's 0.25s default pacing explicitly (cf. _GITHUB_TIMEOUT_SECONDS) so a library
+    # default change can't silently alter our request rate; the fingerprint fan-out passes a
+    # slower value to bound its aggregate rate.
     return Github(
         auth=Auth.Token(token),
         per_page=100,
         timeout=_GITHUB_TIMEOUT_SECONDS,
         retry=_build_retry(),
         lazy=True,
+        seconds_between_requests=seconds_between_requests,
     )
 
 
