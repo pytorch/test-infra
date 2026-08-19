@@ -690,6 +690,89 @@ def test_build_pr_fingerprint_self_login_excluded_even_when_authorized():
     assert fingerprint.human_events == (HumanEvent(id=1, body="authorized other"),)
 
 
+def test_build_pr_fingerprint_excludes_bot_command_bodies_across_all_sources():
+    pr = _FakePR(
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("alice", "User"), "@pytorchbot merge"),
+        ],
+        review_comments=[
+            _FakeComment(3, _FakeActor("bob", "User"), "nit: rename this"),
+            _FakeComment(4, _FakeActor("bob", "User"), "@pytorchmergebot rebase"),
+        ],
+        reviews=[
+            _FakeReview(5, _FakeActor("carol", "User"), "lgtm"),
+            _FakeReview(6, _FakeActor("carol", "User"), "@claude take a look"),
+        ],
+    )
+
+    fingerprint = _build_fp(pr)
+
+    # One bot-command body per source is dropped whole; the three normal human comments survive, so a
+    # trusted author's '@pytorchbot merge' never perturbs the digest.
+    assert fingerprint.human_events == (
+        HumanEvent(id=1, body="please fix"),
+        HumanEvent(id=3, body="nit: rename this"),
+        HumanEvent(id=5, body="lgtm"),
+    )
+
+
+def test_build_pr_fingerprint_bot_command_excluded_on_top_of_authorized_filter():
+    pr = _FakePR(
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "genuine review note"),
+            _FakeComment(2, _FakeActor("alice", "User"), "@greenlight status"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+
+    # alice is authorized, so the author filter keeps both comments; the bot-command body is still
+    # dropped, proving is_bot_command runs in addition to (not instead of) the author filter.
+    fingerprint = _build_fp(pr, authorized_logins=frozenset({"alice"}))
+
+    assert fingerprint.human_events == (HumanEvent(id=1, body="genuine review note"),)
+
+
+def test_build_pr_fingerprint_bot_command_does_not_change_eval_hash():
+    authorized = frozenset({"alice"})
+    base = _FakePR(
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("alice", "User"), "one more thing"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+    base_hash = compute_pr_hash(_build_fp(base, authorized_logins=authorized))
+
+    with_bot_command = _FakePR(
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("alice", "User"), "one more thing"),
+            _FakeComment(3, _FakeActor("alice", "User"), "@pytorchbot merge"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+    # A '@pytorchbot merge' from the same authorized author is dropped whole, so the eval_hash is
+    # unchanged and the scan does not re-dispatch a review over it.
+    assert compute_pr_hash(_build_fp(with_bot_command, authorized_logins=authorized)) == base_hash
+
+    with_normal_comment = _FakePR(
+        issue_comments=[
+            _FakeComment(1, _FakeActor("alice", "User"), "please fix"),
+            _FakeComment(2, _FakeActor("alice", "User"), "one more thing"),
+            _FakeComment(3, _FakeActor("alice", "User"), "actually, rename this"),
+        ],
+        review_comments=[],
+        reviews=[],
+    )
+    # Control: swapping only that one body for a non-command comment moves the eval_hash, proving
+    # the equality above is not vacuous.
+    assert compute_pr_hash(_build_fp(with_normal_comment, authorized_logins=authorized)) != base_hash
+
+
 def test_fingerprint_pr_threads_authorized_logins():
     pr = _FakePR(
         issue_comments=[
@@ -735,12 +818,12 @@ def _golden_pr() -> _FakePR:
     )
 
 
-def test_build_pr_fingerprint_golden_hash_scheme_v5():
-    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the scheme-v5 digest.
+def test_build_pr_fingerprint_golden_hash_scheme_v6():
+    """End-to-end golden: build_pr_fingerprint -> compute_pr_hash pins the current-scheme (v6) digest.
 
-    Guards against drift in is_bot / BOT_LOGINS / self_login exclusion and the
-    PR-field mapping. Uses the default scheme_version (5); a future
-    HASH_SCHEME_VERSION bump regenerates this literal.
+    Guards against drift in is_bot / BOT_LOGINS / is_bot_command / self_login exclusion and the
+    PR-field mapping. Uses the default scheme_version (6); a future HASH_SCHEME_VERSION bump
+    regenerates this literal.
     """
     pr = _golden_pr()
     fingerprint = _build_fp(pr, self_login="greenlight")
@@ -749,7 +832,7 @@ def test_build_pr_fingerprint_golden_hash_scheme_v5():
         HumanEvent(id=1, body="please fix"),
         HumanEvent(id=6, body="lgtm"),
     )
-    assert compute_pr_hash(fingerprint) == "9d0506bd3e887a00d858f49e653cab9f913f185674a475582706cc83fcae70d4"
+    assert compute_pr_hash(fingerprint) == "51a4e58faef3da88e3fe8506437a21d0d7e8060256a2428c410d37a2e8122926"
 
 
 @pytest.mark.parametrize("null_login", [None, ""])
@@ -904,18 +987,19 @@ def test_fingerprint_pr_allow_skip_no_decision_builds_fingerprint_fetching_revie
     assert "get_review_comments" in pr.calls
 
 
-def test_fingerprint_pr_hash_is_byte_identical_to_pre_skip_scheme():
-    """Characterization: a non-skipped PR's eval_hash equals the pre-refactor digest.
+def test_fingerprint_pr_golden_hash_scheme_v6():
+    """End-to-end golden for the current scheme (v6) through the fingerprint_pr entry point.
 
-    Pins the digest produced before reviews were threaded through build_pr_fingerprint,
-    proving the fingerprint payload is unchanged for PRs that are still fingerprinted.
+    fingerprint_pr leaves self_login unset, so (unlike test_build_pr_fingerprint_golden_hash_scheme_v6)
+    the greenlight self-note survives and this pins a distinct digest. A HASH_SCHEME_VERSION bump
+    regenerates this literal.
     """
     pr = _golden_pr()
     client = _FakeScanClient(_FakeScanRepo(pr))
 
     result = github_client.fingerprint_pr(client, "pytorch/pytorch", 9)
 
-    assert result == ("head-sha", "bcf6a1d21566873cd1da85fa724bd1e9996e213b869ed28544751c7e4e06a0f4")
+    assert result == ("head-sha", "fed90fac1ad308b7149a622b6d81da3f309ab933d12c85f427d300534f700408")
 
 
 class _FakeVerdictReview:
