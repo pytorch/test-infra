@@ -2,7 +2,11 @@ import { JobStatus } from "components/job/GroupJobConclusion";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import _ from "lodash";
 import { queryClickhouseSaved } from "./clickhouse";
-import { commitDataFromResponse, getOctokit } from "./github";
+import {
+  commitDataFromResponse,
+  getOctokit,
+  parsePrAndDiffNumbers,
+} from "./github";
 import {
   getNameWithoutLF,
   getNameWithoutOSDC,
@@ -10,6 +14,7 @@ import {
 } from "./JobClassifierUtil";
 import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 import {
+  CommitData,
   HudDataAPIResponse,
   HudParams,
   JobData,
@@ -33,19 +38,73 @@ async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
   return response;
 }
 
-export default async function fetchHud(
-  params: HudParams
-): Promise<HudDataAPIResponse> {
-  // Retrieve commit data from GitHub
+// Map a hud_commits row to the same CommitData shape commitDataFromResponse
+// produces. The push mirror stores author.username as "" (never null) when no
+// GitHub user was resolved, so "" means: use the git author name and no URL.
+function commitDataFromPushRow(row: any): CommitData {
+  const message = row.message as string;
+  const { prNum, diffNum } = parsePrAndDiffNumbers(message);
+  const username = (row.author_username as string) ?? "";
+  return {
+    author: username !== "" ? username : (row.author_name as string),
+    authorUrl: username !== "" ? `https://github.com/${username}` : null,
+    time: row.timestamp as string,
+    sha: row.sha as string,
+    commitUrl: row.url as string,
+    commitTitle: message.split("\n")[0],
+    commitMessageBody: message,
+    prNum,
+    diffNum,
+  };
+}
+
+// Commit list for the HUD grid, read from the push mirror first so a normal page
+// load never calls GitHub (this listCommits was the highest-volume GitHub read on
+// the PyTorchBot app). Falls back to GitHub's listCommits when the mirror can't
+// answer authoritatively: a raw-sha ref it isn't keyed by, a ClickHouse failure,
+// or fewer rows than a full page (empty branch, deep page beyond the mirror, or a
+// just-landed tip not yet ingested).
+async function fetchCommits(params: HudParams): Promise<CommitData[]> {
+  const branch = decodeURIComponent(params.branch);
+  const isRawSha = /^[0-9a-f]{40}$/i.test(branch);
+
+  let chCommits: CommitData[] | undefined;
+  if (!isRawSha) {
+    try {
+      const rows = await queryClickhouseSaved("hud_commits", {
+        repo: `${params.repoOwner}/${params.repoName}`,
+        branch,
+        per_page: params.per_page,
+        offset: (params.page - 1) * params.per_page,
+      });
+      chCommits = rows.map(commitDataFromPushRow);
+    } catch (e) {
+      console.warn(
+        `fetchHud: ClickHouse hud_commits query failed for ${params.repoOwner}/${params.repoName}@${branch}, falling back to GitHub`,
+        e
+      );
+    }
+  }
+
+  if (chCommits !== undefined && chCommits.length >= params.per_page) {
+    return chCommits;
+  }
+
   const octokit = await getOctokit(params.repoOwner, params.repoName);
-  const branch = await octokit.rest.repos.listCommits({
+  const githubCommits = await octokit.rest.repos.listCommits({
     owner: params.repoOwner,
     repo: params.repoName,
-    sha: decodeURIComponent(params.branch),
+    sha: branch,
     per_page: params.per_page,
     page: params.page,
   });
-  const commits = branch.data.map(commitDataFromResponse);
+  return githubCommits.data.map(commitDataFromResponse);
+}
+
+export default async function fetchHud(
+  params: HudParams
+): Promise<HudDataAPIResponse> {
+  const commits = await fetchCommits(params);
 
   // Retrieve job data from the database
   const shas = commits.map((commit) => commit.sha);
