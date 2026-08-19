@@ -239,7 +239,7 @@ class CoverageDispatcher:
         shas = sorted({r.observed_commit for r in reds})
         keys = sorted({coverage_signal_key(r) for r in reds})
         query = (
-            "SELECT suspect_commit, signal_key "
+            "SELECT toString(suspect_commit) AS suspect_commit, signal_key "
             "FROM misc.autorevert_advisor_verdicts "
             "WHERE repo = {repo:String} "
             "AND suspect_commit IN {shas:Array(String)} "

@@ -368,6 +368,7 @@ class TestDedup(unittest.TestCase):
         query = h.mock_ch.return_value.client.query.call_args.args[0]
         params = h.mock_ch.return_value.client.query.call_args.kwargs["parameters"]
         self.assertIn("misc.autorevert_advisor_verdicts", query)
+        self.assertIn("toString(suspect_commit)", query)
         self.assertIn("suspect_commit IN", query)
         self.assertIn("signal_key IN", query)
         self.assertNotIn("now()", query.lower())
