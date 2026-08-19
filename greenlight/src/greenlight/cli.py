@@ -142,7 +142,7 @@ def _build_authz_client(config: Config) -> merge_authz.AuthzClient:
     token = config.github_token
     if token is None:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to resolve merge authorization")
-    return github_client.build_client(token)
+    return github_client.build_authz_client(token)
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
