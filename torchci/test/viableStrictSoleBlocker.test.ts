@@ -91,21 +91,30 @@ describe("viable/strict sole blocker query.sql stays in sync with the fold + fil
   test("matches gating workflows in full, mirroring the gate's re.fullmatch", () => {
     // Anchored at both ends (test-infra #8438). A bare prefix would also match
     // sandbox/experiment workflows and linters that share the prefix but do
-    // not gate.
-    expect(sql).toContain("'^(pull|trunk|lint|docs-build)$'");
+    // not gate. Assert the whole predicate, not just the pattern: the pattern
+    // is all-lowercase only because lower() runs first, so dropping lower() as
+    // redundant-looking would silently un-gate the "Lint" workflow.
+    expect(sql).toContain(
+      "match(lower(j.workflow_name), '^(pull|trunk|lint|docs-build)$')"
+    );
 
-    const gating = /^(pull|trunk|lint|docs-build)$/;
-    for (const wf of ["pull", "trunk", "lint", "docs-build"]) {
-      expect(gating.test(wf)).toBe(true);
+    // Mirrors match(lower(j.workflow_name), ...): case-fold, then full-match.
+    const gates = (workflowName: string) =>
+      /^(pull|trunk|lint|docs-build)$/.test(workflowName.toLowerCase());
+
+    // Workflow names as they are actually spelled on main -- note "Lint",
+    // which a case-sensitive mirror would wrongly reject.
+    for (const wf of ["pull", "trunk", "Lint", "docs-build"]) {
+      expect(gates(wf)).toBe(true);
     }
     for (const wf of [
       "trunk-ci-sandbox",
       "trunk-tagging",
       "pull-test-sandbox",
-      "linter",
-      "lintrunner",
+      "Linter",
+      "Lintrunner",
     ]) {
-      expect(gating.test(wf)).toBe(false);
+      expect(gates(wf)).toBe(false);
     }
   });
 
