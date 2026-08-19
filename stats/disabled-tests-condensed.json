@@ -89,14 +89,6 @@
       "linux"
     ]
   ],
-  "test_batchnorm_train_running_stats (__main__.MPSBasicTests)": [
-    "192156",
-    "https://github.com/pytorch/pytorch/issues/192156",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
     "188513",
     "https://github.com/pytorch/pytorch/issues/188513",
@@ -255,16 +247,6 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
-    ]
-  ],
-  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
-    "127536",
-    "https://github.com/pytorch/pytorch/issues/127536",
-    [
-      "dynamo",
-      "inductor",
-      "linux",
-      "slow"
     ]
   ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
@@ -455,14 +437,6 @@
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
     "https://github.com/pytorch/pytorch/issues/186907",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_generic_stream_basic (__main__.TestGenericStreamCompile)": [
-    "189988",
-    "https://github.com/pytorch/pytorch/issues/189988",
     [
       "linux",
       "rocm"
@@ -875,14 +849,6 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_reuse_kernel_cpu (__main__.AOTInductorTestABICompatibleCpu)": [
-    "192157",
-    "https://github.com/pytorch/pytorch/issues/192157",
-    [
-      "inductor",
-      "rocm"
     ]
   ],
   "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsNonPersistentTest)": [
