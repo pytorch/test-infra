@@ -1,4 +1,6 @@
 import { JobStatus } from "components/job/GroupJobConclusion";
+// Read only inside a function body, for the same initialization-order reason as JobStatus below.
+import { getConclusionChar } from "lib/JobClassifierUtil";
 import { CellRun, JobData } from "./types";
 
 /**
@@ -160,6 +162,159 @@ export function describeCellRun(run: CellRun): string {
     line += `, rerun by ${run.restartRerunBy}`;
   }
   return `${line} — ${conclusionOf(run)}`;
+}
+
+/**
+ * What a row of the run list renders ON SCREEN: the origin text, plus the CHARACTER the status glyph
+ * draws -- `getConclusionChar`, the same function the glyph itself goes through, not the raw
+ * conclusion. Those differ, and the difference is the point: every conclusion outside the known set
+ * collapses to `U`, so two runs concluding `action_required` and `stale` draw the identical glyph while
+ * their conclusion strings do not match (DP17, gpt-5.6-sol).
+ *
+ * `failedPreviousRun` is not passed, matching the row, which deliberately withholds it -- flakiness is
+ * a property of the whole cell rather than of one run.
+ *
+ * `failureAnnotation` is deliberately NOT part of the signature. It does change the glyph's styling,
+ * so it is arguably a visible difference, but a styling difference is a weak thing to rest "the reader
+ * can tell these apart" on -- and over-reporting a collision only ever costs a suffix.
+ */
+function visibleRunSignature(run: CellRun): string {
+  return `${describeRunOrigin(run)} ${getConclusionChar(run.conclusion)}`;
+}
+
+/**
+ * The TEXT a row of the run list presents, so a collision in either counts. Not every way a row
+ * presents a run: the `gh` anchor is a third, and it carries its own label rather than a signature
+ * here, because a suffix cannot fix a link whose name is the word "gh" on every row.
+ *
+ * Neither signature dominates the other, which is why both are here rather than just the coarser one:
+ *   - `describeCellRun` carries the attempt / dispatcher / rerunner, so two autorevert restarts of one
+ *     cell separate under it while both rows still read "autorevert restart" on screen;
+ *   - `visibleRunSignature` goes through the glyph, which folds unknown conclusions onto `U` and an
+ *     absent conclusion onto `~`, while `conclusionOf` folds absent and empty together -- so two runs
+ *     can share a glyph while their descriptions differ, and vice versa.
+ */
+const RUN_ROW_SIGNATURES: ((run: CellRun) => string)[] = [
+  visibleRunSignature,
+  describeCellRun,
+];
+
+/**
+ * Candidate disambiguators, best identification first. Neither is guaranteed to separate a group, which
+ * is why `labelsGroupDistinctly` checks the resulting labels rather than assuming a field works:
+ *
+ *   - `id` is the JOB id, a primary key in `workflow_job`, and it is what the row's `gh` link points
+ *     at (`.../actions/runs/<workflowId>/job/<id>`), so it names the thing the link opens.
+ *   - `workflowId` is `job.run_id`, which every re-run ATTEMPT of one run SHARES -- so two retries of
+ *     the same run carry the same value and it cannot separate them. It is a fallback for rows that
+ *     arrive without a job id, not a second opinion.
+ */
+const RUN_DISAMBIGUATORS: {
+  noun: string;
+  valueOf: (run: CellRun) => string | undefined;
+}[] = [
+  { noun: "job", valueOf: (run) => run.id },
+  { noun: "run", valueOf: (run) => run.workflowId },
+];
+
+function suffixFrom(
+  run: CellRun,
+  candidate: { noun: string; valueOf: (run: CellRun) => string | undefined }
+): string {
+  const value = candidate.valueOf(run);
+  return value == null || value === "" ? "" : ` (${candidate.noun} ${value})`;
+}
+
+/**
+ * Whether one candidate makes every row of a colliding group read differently.
+ *
+ * The test is on the SUFFIXES, not on the underlying values, and that distinction is the whole point:
+ * a run the candidate has no value for contributes '' -- which still separates it from a sibling that
+ * got a suffix. Requiring every member to carry a value would reject `[{id: "7"}, {}]`, whose two rows
+ * read `push` and `push (job 7)` and are perfectly distinguishable (DP17, gpt-5.6-sol).
+ */
+function labelsGroupDistinctly(
+  group: CellRun[],
+  candidate: { noun: string; valueOf: (run: CellRun) => string | undefined }
+): boolean {
+  const suffixes = new Set(group.map((run) => suffixFrom(run, candidate)));
+  return suffixes.size === group.length;
+}
+
+/**
+ * Per-run suffix that makes a cell's run rows tell each other apart. Two different reasons produce '':
+ * the row already reads uniquely in its cell, OR it collides and no candidate can label the collision
+ * distinctly -- the second is a gap none of the candidates above can close, not a claim the row is
+ * unique.
+ *
+ * Why it is needed: a row shows `describeRunOrigin` and a status glyph, and its hover and accessible
+ * text are `describeCellRun` -- all of which collapse to one string for two runs sharing an origin
+ * and a conclusion, since the attempt / dispatcher / rerunner that would separate them are absent on
+ * every ordinary push or periodic run. That covers a periodic job scheduled twice, two pushes, and
+ * two re-run attempts. Over the 50 newest pytorch/pytorch `main` commits it is 1,147 of 2,555
+ * multi-run cells, so it is the common case rather than an edge one.
+ *
+ * An unlabellable group gets no suffix rather than a made-up one: a positional "2 of 3" would be worse
+ * than silence, since the list is re-ordered from fresh data on every grid refresh and an ordinal would
+ * then silently re-point at a different run.
+ *
+ * Scoped to COLLIDING rows, not applied to every row, so a cell whose runs already read differently
+ * keeps the one-short-line-per-run shape Ivan asked for (2026-08-17: the spelled-out identity on
+ * every line was "extremely verbose").
+ *
+ * What this does NOT promise: that the final rendered strings are globally unique across the cell. It
+ * makes each COLLIDING GROUP internally distinct. A suffix could in principle recreate a collision with
+ * some third row whose own text happens to end in the same parenthetical -- type-valid, and not
+ * reachable from `hud_query`, whose conclusions and ids cannot contain one.
+ *
+ * The returned Map is keyed by object identity, which is simply the lookup the caller needs per row;
+ * `visibleRuns` holds the same references. It is not load-bearing for correctness -- two byte-identical
+ * rows compute identical suffixes anyway, since every input to the suffix is one of their equal fields.
+ */
+export function disambiguateCellRuns(runs: CellRun[]): Map<CellRun, string> {
+  const groupsPerSignature = RUN_ROW_SIGNATURES.map((signatureOf) => {
+    const groups = new Map<string, CellRun[]>();
+    for (const run of runs) {
+      const group = groups.get(signatureOf(run));
+      if (group === undefined) {
+        groups.set(signatureOf(run), [run]);
+      } else {
+        group.push(run);
+      }
+    }
+    return { signatureOf, groups };
+  });
+
+  const suffixes = new Map<CellRun, string>();
+  for (const run of runs) {
+    // Every run this one is indistinguishable from, under EITHER signature. A union rather than an
+    // intersection: colliding in one of the places a row renders is enough to need a suffix, and the
+    // chosen candidate then has to label all of them distinctly at once.
+    //
+    // Two runs of one collision can compute DIFFERENT unions -- A may also collide with C under the
+    // other signature while B does not -- and so may pick different candidates. That cannot make their
+    // labels equal: each union contains the whole colliding pair, so a candidate accepted for A already
+    // labels A and B differently, and two different candidates carry different nouns.
+    const indistinguishable = new Set<CellRun>();
+    for (const { signatureOf, groups } of groupsPerSignature) {
+      const group = groups.get(signatureOf(run));
+      if (group !== undefined && group.length > 1) {
+        for (const sibling of group) {
+          indistinguishable.add(sibling);
+        }
+      }
+    }
+    if (indistinguishable.size < 2) {
+      suffixes.set(run, "");
+      continue;
+    }
+    const group = Array.from(indistinguishable);
+    const chosen = RUN_DISAMBIGUATORS.find((candidate) =>
+      labelsGroupDistinctly(group, candidate)
+    );
+    suffixes.set(run, chosen === undefined ? "" : suffixFrom(run, chosen));
+  }
+  return suffixes;
 }
 
 /**

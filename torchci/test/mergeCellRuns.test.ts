@@ -1,13 +1,15 @@
 import { JobStatus } from "components/job/GroupJobConclusion";
+import { getConclusionChar } from "lib/JobClassifierUtil";
 import {
   describeCellRun,
   describeRunIdentity,
   describeRunOrigin,
   detailJobForRun,
+  disambiguateCellRuns,
   mergeCellRuns,
   runKeyOf,
 } from "lib/mergeCellRuns";
-import { JobData } from "lib/types";
+import { CellRun, JobData } from "lib/types";
 import nock from "nock";
 
 nock.disableNetConnect();
@@ -456,6 +458,253 @@ describe("mergeCellRuns", () => {
     expect(describeRunIdentity({ conclusion: JobStatus.Success })).toBe("");
     // Attempt 1 is still worth naming: it distinguishes a restart from its own re-runs.
     expect(describeRunIdentity({ restartRunAttempt: 1 })).toBe("attempt 1");
+  });
+
+  // Two runs sharing an origin AND a conclusion produced byte-identical row text, hover text and
+  // accessible name, because the restart fields that would separate them are absent on every ordinary
+  // push or periodic run. The suffix is added only to the rows that would collide.
+  describe("disambiguateCellRuns", () => {
+    test("runs that already read differently get no suffix", () => {
+      const push: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "success",
+      };
+      const periodic: CellRun = {
+        id: "2",
+        workflowId: "20",
+        conclusion: "success",
+        runOrigin: "schedule",
+      };
+      const suffixes = disambiguateCellRuns([push, periodic]);
+      expect(suffixes.get(push)).toBe("");
+      expect(suffixes.get(periodic)).toBe("");
+    });
+
+    // Note the scope of the title: conclusions that map to DIFFERENT glyphs are a difference. Two
+    // conclusions that both fall through to `U` are not, which is the `action_required` / `stale` case
+    // further down.
+    test("conclusions that draw different glyphs are already a difference, so neither row is suffixed", () => {
+      const passed: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "success",
+      };
+      const failed: CellRun = {
+        id: "2",
+        workflowId: "20",
+        conclusion: "failure",
+      };
+      const suffixes = disambiguateCellRuns([passed, failed]);
+      expect(suffixes.get(passed)).toBe("");
+      expect(suffixes.get(failed)).toBe("");
+    });
+
+    // The REQUIREMENT is that the rendered strings end up unique, not that any particular field was
+    // chosen -- asserting the field would pin the implementation's own guess and could pass while two
+    // rows still read the same (a suffix built from a shared value separates nothing).
+    //
+    // `visible` includes the GLYPH CHARACTER, because that is on the row: a model that dropped it would
+    // report two `U`-drawing runs as already distinct and could not see the defect this covers.
+    function rowStrings(runs: CellRun[]): {
+      visible: string[];
+      accessible: string[];
+    } {
+      const suffixes = disambiguateCellRuns(runs);
+      return {
+        visible: runs.map(
+          (run) =>
+            `${getConclusionChar(run.conclusion)} ${describeRunOrigin(
+              run
+            )}${suffixes.get(run)}`
+        ),
+        accessible: runs.map(
+          (run) => `${describeCellRun(run)}${suffixes.get(run)}`
+        ),
+      };
+    }
+
+    function allDistinct(values: string[]): boolean {
+      return new Set(values).size === values.length;
+    }
+
+    test("colliding runs end up with distinct row text, hover text and accessible name", () => {
+      const first: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "success",
+        runOrigin: "schedule",
+      };
+      const second: CellRun = {
+        id: "2",
+        workflowId: "20",
+        conclusion: "success",
+        runOrigin: "schedule",
+      };
+      // Without a suffix these are the same string, which is the defect.
+      expect(describeRunOrigin(first)).toBe(describeRunOrigin(second));
+      expect(describeCellRun(first)).toBe(describeCellRun(second));
+      const rows = rowStrings([first, second]);
+      expect(allDistinct(rows.visible)).toBe(true);
+      expect(allDistinct(rows.accessible)).toBe(true);
+    });
+
+    // `workflowId` is `job.run_id`, which every re-run ATTEMPT of one run shares. A disambiguator
+    // picked by presence rather than by distinctness would hand both rows the same suffix and
+    // separate nothing (DP17, gpt-5.6-sol).
+    test("two retries of ONE run share a workflow id and are still told apart", () => {
+      const attemptTwo: CellRun = {
+        id: "11",
+        workflowId: "500",
+        conclusion: "failure",
+        runOrigin: "retry",
+      };
+      const attemptThree: CellRun = {
+        id: "12",
+        workflowId: "500",
+        conclusion: "failure",
+        runOrigin: "retry",
+      };
+      const suffixes = disambiguateCellRuns([attemptTwo, attemptThree]);
+      expect(suffixes.get(attemptTwo)).not.toBe(suffixes.get(attemptThree));
+      const rows = rowStrings([attemptTwo, attemptThree]);
+      expect(allDistinct(rows.visible)).toBe(true);
+    });
+
+    // The row shows the ORIGIN and a glyph, not the attempt -- so two restarts of one cell read the
+    // same on screen even though `describeCellRun` separates them (DP17, gpt-5.6-sol).
+    test("two restarts differing only by attempt read the same on the row, so they are suffixed", () => {
+      const attemptOne: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "failure",
+        runOrigin: "autorevert",
+        restartRunAttempt: 1,
+      };
+      const attemptTwo: CellRun = {
+        id: "2",
+        workflowId: "20",
+        conclusion: "failure",
+        runOrigin: "autorevert",
+        restartRunAttempt: 2,
+      };
+      // `describeCellRun` already differs here; the VISIBLE line does not.
+      expect(describeCellRun(attemptOne)).not.toBe(describeCellRun(attemptTwo));
+      expect(describeRunOrigin(attemptOne)).toBe(describeRunOrigin(attemptTwo));
+      const rows = rowStrings([attemptOne, attemptTwo]);
+      expect(allDistinct(rows.visible)).toBe(true);
+    });
+
+    test("only the colliding group is suffixed, and a distinct row is left alone", () => {
+      const a: CellRun = { id: "1", workflowId: "10", conclusion: "success" };
+      const b: CellRun = { id: "2", workflowId: "20", conclusion: "success" };
+      const restart: CellRun = {
+        id: "3",
+        workflowId: "30",
+        conclusion: "success",
+        runOrigin: "autorevert",
+        restartRunAttempt: 1,
+      };
+      const suffixes = disambiguateCellRuns([a, b, restart]);
+      expect(suffixes.get(a)).not.toBe("");
+      expect(suffixes.get(b)).not.toBe("");
+      expect(suffixes.get(a)).not.toBe(suffixes.get(b));
+      // Its origin already differs, so it keeps the one short line.
+      expect(suffixes.get(restart)).toBe("");
+    });
+
+    // `getConclusionChar` folds every conclusion outside the known set onto `U`, so two runs can draw
+    // the identical glyph while their conclusion strings differ -- which a signature built from the
+    // conclusion rather than the glyph reports as "already different" (DP17, gpt-5.6-sol).
+    test("two unknown conclusions draw the same glyph, so those rows are suffixed", () => {
+      const actionRequired: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "action_required",
+      };
+      const stale: CellRun = { id: "2", workflowId: "20", conclusion: "stale" };
+      expect(getConclusionChar(actionRequired.conclusion)).toBe(
+        getConclusionChar(stale.conclusion)
+      );
+      // Their descriptions DO differ, so nothing but the glyph reveals the collision.
+      expect(describeCellRun(actionRequired)).not.toBe(describeCellRun(stale));
+      // The requirement is that the RENDERED rows differ, not that both carry a suffix.
+      expect(allDistinct(rowStrings([actionRequired, stale]).visible)).toBe(
+        true
+      );
+    });
+
+    // The mirror of the case above, and the reason the glyph signature is not the only one consulted:
+    // `conclusionOf` folds both an ABSENT and an EMPTY conclusion onto `pending`, while the glyph draws
+    // `~` for absent and `U` for empty. So these two rows look different on screen but their hover text
+    // and accessible name are the same string -- which a screen reader is all that renders.
+    test("rows that differ only by glyph still share a description, and are suffixed for it", () => {
+      const absent: CellRun = { id: "1", workflowId: "10" };
+      const empty: CellRun = { id: "2", workflowId: "20", conclusion: "" };
+      expect(getConclusionChar(absent.conclusion)).not.toBe(
+        getConclusionChar(empty.conclusion)
+      );
+      expect(describeCellRun(absent)).toBe(describeCellRun(empty));
+      // The ACCESSIBLE name is the one at risk here, so that is what has to come out distinct.
+      expect(allDistinct(rowStrings([absent, empty]).accessible)).toBe(true);
+    });
+
+    test("two runs whose glyphs differ are left alone", () => {
+      const failed: CellRun = {
+        id: "1",
+        workflowId: "10",
+        conclusion: "failure",
+      };
+      const timedOut: CellRun = {
+        id: "2",
+        workflowId: "20",
+        conclusion: "timed_out",
+      };
+      expect(getConclusionChar(failed.conclusion)).not.toBe(
+        getConclusionChar(timedOut.conclusion)
+      );
+      const suffixes = disambiguateCellRuns([failed, timedOut]);
+      expect(suffixes.get(failed)).toBe("");
+      expect(suffixes.get(timedOut)).toBe("");
+    });
+
+    test("a group with no job id falls back to the workflow id when that separates it", () => {
+      const first: CellRun = { workflowId: "10", conclusion: "success" };
+      const second: CellRun = { workflowId: "20", conclusion: "success" };
+      const suffixes = disambiguateCellRuns([first, second]);
+      expect(suffixes.get(first)).toBe(" (run 10)");
+      expect(suffixes.get(second)).toBe(" (run 20)");
+    });
+
+    // A candidate only ONE row of the group has still separates the group: the other row's suffix is
+    // '', and '' differs from a suffix. Testing that the values are all PRESENT would reject this and
+    // leave two identical rows on screen (DP17, gpt-5.6-sol).
+    test("a candidate only one row carries still separates the pair", () => {
+      const withJobId: CellRun = { id: "7", conclusion: "success" };
+      const bare: CellRun = { conclusion: "success" };
+      const suffixes = disambiguateCellRuns([withJobId, bare]);
+      expect(suffixes.get(withJobId)).toBe(" (job 7)");
+      expect(suffixes.get(bare)).toBe("");
+      expect(allDistinct(rowStrings([withJobId, bare]).visible)).toBe(true);
+    });
+
+    test("a group nothing can separate is left bare rather than given a made-up ordinal", () => {
+      // Neither row carries either identifier, so no candidate produces two different suffixes.
+      // Silence is the honest answer -- an ordinal would re-point at a different run on the next
+      // refresh, since the list is rebuilt and re-ordered from fresh data.
+      const twin: CellRun = { conclusion: "success" };
+      const other: CellRun = { conclusion: "success" };
+      const suffixes = disambiguateCellRuns([twin, other]);
+      expect(suffixes.get(twin)).toBe("");
+      expect(suffixes.get(other)).toBe("");
+      // And that is consistent with the rest of the module: these two rows are ONE run as far as
+      // selection is concerned, since `runKeyOf` gives them the same key.
+      expect(runKeyOf(twin)).toBe(runKeyOf(other));
+    });
+
+    test("an empty list is not a special case", () => {
+      expect(disambiguateCellRuns([]).size).toBe(0);
+    });
   });
 
   test("a stale failedPreviousRun on an input row cannot leak into a clean cell", () => {

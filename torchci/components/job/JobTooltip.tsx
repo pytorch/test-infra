@@ -5,6 +5,7 @@ import {
   describeRunIdentity,
   describeRunOrigin,
   detailJobForRun,
+  disambiguateCellRuns,
   runKeyOf,
 } from "lib/mergeCellRuns";
 import { useState } from "react";
@@ -106,6 +107,12 @@ export default function JobTooltip({
   const shownRun = selectedRun ?? cellRuns?.find((run) => run.isRepresentative);
   const shownIdentity = shownRun ? describeRunIdentity(shownRun) : "";
 
+  // Computed over EVERY run, not over the collapsed slice below: a label that only disambiguated
+  // against the visible rows would change as the reader expands the tail, and a row that reads
+  // uniquely on screen while colliding with a hidden run is still the wrong answer to "which run is
+  // this?". Empty for any row nothing else in the cell collides with -- which is most of them.
+  const runSuffix = disambiguateCellRuns(cellRuns ?? []);
+
   // Long tails exist -- one cell on a real page merges 82 runs -- and an unbounded list would push
   // the log viewer off the tooltip. Collapse the RENDERING only, never the payload, which would hide
   // the very failure that explains the cell. The list is ordered representative-then-failures, so
@@ -128,7 +135,12 @@ export default function JobTooltip({
 
   return (
     <div>
-      {`[${job.conclusion}] ${job.name}`}
+      {/* `detailJob`, not `job`: the links and the log below describe the SELECTED run, and a heading
+          built from the CELL contradicted them. On a flaky "F" cell the cell's conclusion is the
+          representative's, and rule 2 makes the representative the run that PASSED -- so picking the
+          failed run rendered its failure lines and its log under `[success]`. With nothing picked
+          `detailJobForRun` returns the cell itself, so the default heading is unchanged. */}
+      {`[${detailJob.conclusion}] ${detailJob.name}`}
       {showSingleRunOrigin && (
         <div style={{ color: "gray" }}>
           {`Run: ${describeRunOrigin(job)}`}
@@ -169,6 +181,10 @@ export default function JobTooltip({
                 // key (its run gone after a refresh) would otherwise leave the group with nothing
                 // checked while the detail area described the representative (DP17, gpt-5.6-sol).
                 const isSelected = run === shownRun;
+                // '' unless another row in this cell reads identically, in which case it names this
+                // run's own job -- the one its `gh` link opens -- or, when a job id cannot separate
+                // the collision, its workflow.
+                const suffix = runSuffix.get(run) ?? "";
                 return (
                   <div
                     key={key}
@@ -185,7 +201,7 @@ export default function JobTooltip({
                       // A mouse convenience only. What the row no longer spells out is rendered for
                       // the INSPECTED run below the list, because a title is unreachable on touch and
                       // a screen reader skips it once the row has visible text (DP17, gpt-5.6-sol).
-                      title={describeCellRun(run)}
+                      title={`${describeCellRun(run)}${suffix}`}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -199,9 +215,22 @@ export default function JobTooltip({
                         checked={isSelected}
                         // The visible text is the ORIGIN, which two runs can share -- a periodic job
                         // scheduled twice gives two rows reading "schedule". The full description is
-                        // what distinguishes them for a screen reader (DP17, gpt-5.6-sol).
-                        aria-label={describeCellRun(run)}
-                        onClick={(e) => e.stopPropagation()}
+                        // what distinguishes them for a screen reader (DP17, gpt-5.6-sol) -- plus the
+                        // suffix, because the description alone ALSO collapses to one string for two
+                        // ordinary runs sharing an origin and a conclusion.
+                        aria-label={`${describeCellRun(run)}${suffix}`}
+                        // `onChange` alone left the ALREADY-CHECKED row inert: React fires change for
+                        // a radio only when its checked value actually changes, so clicking the
+                        // representative's row -- the one checked on a fresh hover -- ran neither
+                        // `pickRun` nor the `pinCell` inside it, and the unpinned tooltip then
+                        // vanished on mouse-out. Guarded on `isSelected` so an unchecked row is still
+                        // handled by `onChange` exactly once rather than by both handlers.
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isSelected) {
+                            pickRun(key);
+                          }
+                        }}
                         onChange={() => pickRun(key)}
                       />
                       {/* The grid's own status glyph, via the grid's own component -- so a run reads
@@ -223,7 +252,7 @@ export default function JobTooltip({
                       <span
                         style={{ fontWeight: isSelected ? "bold" : "normal" }}
                       >
-                        {describeRunOrigin(run)}
+                        {`${describeRunOrigin(run)}${suffix}`}
                       </span>
                     </label>
                     {run.htmlUrl && (
@@ -232,6 +261,13 @@ export default function JobTooltip({
                         target="_blank"
                         rel="noreferrer"
                         title="open this run on GitHub"
+                        // Its visible text is "gh" on every row, so without this the links are the one
+                        // part of the list a screen reader still cannot tell apart -- the row's own
+                        // suffix reaches the radio and the origin span, not the anchor beside them
+                        // (DP17, gpt-5.6-sol).
+                        aria-label={`open ${describeRunOrigin(
+                          run
+                        )}${suffix} on GitHub`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         gh
