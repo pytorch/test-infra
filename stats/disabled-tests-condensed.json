@@ -1,4 +1,12 @@
 {
+  "test_64bit_binops (__main__.TestLargeTensors)": [
+    "190665",
+    "https://github.com/pytorch/pytorch/issues/190665",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
@@ -998,14 +1006,6 @@
     "https://github.com/pytorch/pytorch/issues/192461",
     [
       "linux"
-    ]
-  ],
-  "test_thread_shutdown (__main__.TestAutogradWithCompiledAutograd)": [
-    "189843",
-    "https://github.com/pytorch/pytorch/issues/189843",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_to_float64_after_init (__main__.TestFullyShardCastAfterInit)": [
