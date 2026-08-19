@@ -33,12 +33,14 @@ export interface JobData extends BasicJobData {
   runAttempt?: number;
   // Where this run came from. "autorevert" for a restart dispatched against a trunk/<sha> ref
   // ("autorevert" matches the source_type spelling in queued_jobs/query.sql), "retry" for a re-run
-  // attempt, absent for a plain push — the default and overwhelming majority. REPORTED only: origin
+  // attempt, empty for a plain push — the default and overwhelming majority. REPORTED only: origin
   // must never affect how runs are aggregated (see mergeCellRuns). Compare against the value rather
   // than testing for presence.
-  runOrigin?: string;
+  // Both `null` and `undefined` occur and mean the same run: hud_query's rows reach the client with
+  // the key stripped, while commit_jobs_query ships a real SQL NULL.
+  runOrigin?: string | null;
   // Login that dispatched the autorevert restart run.
-  restartDispatchedBy?: string;
+  restartDispatchedBy?: string | null;
   // Login that triggered the latest attempt, set only when it differs from restartDispatchedBy —
   // i.e. someone re-ran the restart.
   restartRerunBy?: string;

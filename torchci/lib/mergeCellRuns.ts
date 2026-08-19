@@ -1,6 +1,7 @@
 import { JobStatus } from "components/job/GroupJobConclusion";
 // Read only inside a function body, for the same initialization-order reason as JobStatus below.
 import { getConclusionChar } from "lib/JobClassifierUtil";
+import { describeRunOrigin } from "lib/runOrigin";
 import { CellRun, JobData } from "./types";
 
 /**
@@ -97,7 +98,9 @@ function numericId(job: { id?: string }): number | undefined {
  */
 function tiebreakKey(job: {
   id?: string;
-  runOrigin?: string;
+  // Nullable because commit_jobs_query ships a real NULL where hud_query strips the key. The
+  // `?? ""` below already treats the two identically, so this widening changes no behaviour.
+  runOrigin?: string | null;
   conclusion?: string;
   htmlUrl?: string;
 }): string {
@@ -110,26 +113,12 @@ function tiebreakKey(job: {
 }
 
 /**
- * `runOrigin` is ABSENT only for a run whose workflow event is literally `push`; every other event
- * (schedule, a non-trunk workflow_dispatch, ...) carries its event name, so this never guesses.
- *
- * A BLANK value is a third case and not the same claim: `workflow_event` is a dictGet over
- * workflow_run_dict, so it returns the column default until the dictionary catches up -- the
- * query's own comment says it "takes some time to populate", which means blanks land on the
- * FRESHEST rows, i.e. the top of the HUD. Reporting those as "push" would be a guess, and
- * reporting them as "" rendered the tooltip as `Shown run: .`
- *
- * Normalized here rather than in SQL on purpose. `nullIf` in the query would map a blank onto the
- * NULL that already means "push", re-introducing the guess; and this guards every producer of a
- * JobData, not just hud_query.
+ * Re-exported so existing importers (JobTooltip, this module's own callers, the tests) keep
+ * working. The definition moved to the dependency-free `lib/runOrigin`, because the commit page's
+ * run picker needs the same vocabulary and reaching it from there through this module would create
+ * an import cycle -- see that file for the chain.
  */
-export function describeRunOrigin(run: { runOrigin?: string }): string {
-  if (run.runOrigin === "autorevert") return "autorevert restart";
-  if (run.runOrigin === "retry") return "re-run attempt";
-  if (run.runOrigin == null) return "push";
-  const origin = run.runOrigin.trim();
-  return origin === "" ? "unknown" : origin;
-}
+export { describeRunOrigin };
 
 /**
  * Stable identity of a run within its cell -- a React key, and the handle the tooltip remembers a
@@ -472,7 +461,11 @@ export function mergeCellRuns(runs: JobData[]): JobData {
       })
       .map((job) => {
         const run: CellRun = {
-          runOrigin: job.runOrigin,
+          // `?? undefined` normalizes at the boundary rather than widening CellRun: a JobData can
+          // carry a SQL NULL (commit_jobs_query), a CellRun never does -- it is built only from
+          // hud_query rows, whose nulls fetchHud has already stripped. Both spellings mean the
+          // same run, so collapsing them here keeps the narrower type honest.
+          runOrigin: job.runOrigin ?? undefined,
           conclusion: job.conclusion,
           id: job.id,
           workflowId: job.workflowId,
@@ -480,7 +473,7 @@ export function mergeCellRuns(runs: JobData[]): JobData {
           logUrl: job.logUrl,
           durationS: job.durationS,
           restartRunAttempt: job.restartRunAttempt,
-          restartDispatchedBy: job.restartDispatchedBy,
+          restartDispatchedBy: job.restartDispatchedBy ?? undefined,
           restartRerunBy: job.restartRerunBy,
         };
         // Only when there IS one. An unannotated job carries '' rather than null on some producers,

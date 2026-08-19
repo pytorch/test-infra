@@ -37,7 +37,33 @@ WITH job AS (
         job.torchci_classification_kg.'context' as context,
         job.runner_name AS runner_name,
         workflow.head_commit. 'author'.'email' AS authorEmail,
-        job.run_attempt AS run_attempt
+        job.run_attempt AS run_attempt,
+        -- Origin of the run, so the workflow picker can say what it is offering instead of a bare
+        -- numeric id. Same multiIf as hud_query's run_origin on purpose: one run must not read two
+        -- different ways on the grid and on this page. A plain push stays NULL -- it is the
+        -- overwhelming majority and the default reading.
+        multiIf(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            'autorevert',
+            job.run_attempt > 1,
+            'retry',
+            workflow.event = 'push',
+            NULL,
+            workflow.event
+        ) AS run_origin,
+        -- Who ORIGINALLY dispatched an autorevert restart. This query already joins workflow_run
+        -- for the run-level event, branch, head_sha and name, and workflow_run.actor is invariant
+        -- across re-run attempts -- so the row FINAL selects is sufficient here. hud_query starts
+        -- from workflow_job and additionally needs the latest triggering_actor and run_attempt,
+        -- which is why it pays for a separate grouped workflow_run lookup; FINAL would NOT be
+        -- sufficient for those. NULL for anything that is not a restart.
+        if(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            nullIf(workflow.actor. 'login', ''),
+            NULL
+        ) AS restart_actor_login
     FROM
         workflow_job job final
         INNER JOIN workflow_run workflow final ON workflow.id = job.run_id
@@ -96,7 +122,27 @@ WITH job AS (
         [ ] as context,
         '' AS runner_name,
         workflow.head_commit.author.email AS authorEmail,
-        workflow.run_attempt as run_attempt
+        workflow.run_attempt as run_attempt,
+        -- Same two columns as the branch above, because a UNION ALL needs matching shapes. These
+        -- rows carry workflow_id = 0, which fetchCommit normalizes to null and getWorkflowIdsByName
+        -- then filters out, so a startup-failure pseudo-row never reaches the picker -- they are
+        -- projected for the union, not for the dropdown.
+        multiIf(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            'autorevert',
+            workflow.run_attempt > 1,
+            'retry',
+            workflow.event = 'push',
+            NULL,
+            workflow.event
+        ) AS run_origin,
+        if(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            nullIf(workflow.actor. 'login', ''),
+            NULL
+        ) AS restart_actor_login
     FROM
         workflow_run workflow final
     WHERE
@@ -136,7 +182,9 @@ SELECT
     runner_name AS runnerName,
     authorEmail,
     time,
-    run_attempt AS runAttempt
+    run_attempt AS runAttempt,
+    run_origin AS runOrigin,
+    restart_actor_login AS restartDispatchedBy
 FROM
     job
 ORDER BY
