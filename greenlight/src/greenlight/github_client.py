@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from greenlight import constants
-from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
+from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot, is_bot_command
 from greenlight.review_gate import ReviewSkip, human_review_skip_reason
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
     from datetime import datetime
 
     from github import Github
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         _AuthorClient,
         _FingerprintPR,
         _PRActor,
+        _PRComment,
         _PRReview,
         _RepoClient,
     )
@@ -213,6 +214,26 @@ def _actor_login(
     return login
 
 
+def _fingerprint_events(
+    events: Iterable[_PRComment | _PRReview],
+    self_login: str | None,
+    authorized_logins: frozenset[str] | None,
+) -> Iterator[HumanEvent]:
+    """Yield a ``HumanEvent`` for each event passing BOTH fingerprint filters.
+
+    Shared across all three sources so every source filters identically: an event is kept only
+    when ``_actor_login`` attributes it (non-ghost, non-bot, non-self, authorized) AND its body
+    is not a bot command (``is_bot_command``), so a trusted author's ``@pytorchbot merge`` never
+    enters the fingerprint.
+    """
+    for event in events:
+        if _actor_login(event.user, self_login, authorized_logins) is None:
+            continue
+        if is_bot_command(event.body):
+            continue
+        yield HumanEvent(id=event.id, body=event.body)
+
+
 def build_pr_fingerprint(
     pr: _FingerprintPR,
     *,
@@ -235,25 +256,15 @@ def build_pr_fingerprint(
     the verifier MUST pass the identically-resolved set or their digests diverge.
 
     Coverage: the fingerprint covers ``head_sha`` and the ``id`` and ``body`` of
-    non-bot, non-self human events (issue comments, review comments, and reviews). It
-    deliberately EXCLUDES the changed files, event kind/author/state/timestamp, and the
-    PR title/body.
+    non-bot, non-self human events (issue comments, review comments, and reviews),
+    EXCLUDING any whose body is a bot command (contains a bot-command @-mention such as
+    ``@pytorchbot merge``; see ``is_bot_command``). It also deliberately EXCLUDES the
+    changed files, event kind/author/state/timestamp, and the PR title/body.
     """
     human_events: list[HumanEvent] = []
-    for comment in pr.get_issue_comments():
-        if _actor_login(comment.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=comment.id, body=comment.body))
-
-    for review_comment in pr.get_review_comments():
-        if _actor_login(review_comment.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=review_comment.id, body=review_comment.body))
-
-    for review in reviews:
-        if _actor_login(review.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=review.id, body=review.body))
+    human_events.extend(_fingerprint_events(pr.get_issue_comments(), self_login, authorized_logins))
+    human_events.extend(_fingerprint_events(pr.get_review_comments(), self_login, authorized_logins))
+    human_events.extend(_fingerprint_events(reviews, self_login, authorized_logins))
 
     return PRFingerprint(
         head_sha=pr.head.sha,
