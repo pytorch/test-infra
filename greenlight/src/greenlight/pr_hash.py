@@ -57,6 +57,7 @@ BOT_COMMAND_MENTIONS: frozenset[str] = frozenset(
         "@pytorchmergebot",
         "@claude",
         "@greenlight",
+        "@meta-codesync",
     }
 )
 
