@@ -426,6 +426,13 @@
       "slow"
     ]
   ],
+  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "188131",
+    "https://github.com/pytorch/pytorch/issues/188131",
+    [
+      "xpu"
+    ]
+  ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
     "190295",
     "https://github.com/pytorch/pytorch/issues/190295",
