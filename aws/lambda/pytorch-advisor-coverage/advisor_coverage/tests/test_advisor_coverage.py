@@ -289,7 +289,7 @@ class TestNormalizedKeying(unittest.TestCase):
         with _DispatchHarness([red], existing_rows=concrete_existing) as h:
             stats = h.dispatcher.dispatch_for_window(T(0), T(59))
         self.assertEqual(stats.skipped_existing, 0)
-        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.would_dispatch, 1)
 
     def test_sibling_shards_same_commit_collapse_to_one_dispatch(self):
         # Post-SQL there is one red per normalized job; if the same normalized key +
@@ -305,7 +305,7 @@ class TestNormalizedKeying(unittest.TestCase):
         ]
         with _DispatchHarness(reds) as h:
             stats = h.dispatcher.dispatch_for_window(T(0), T(59))
-        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.would_dispatch, 1)
         self.assertEqual(stats.skipped_duplicate, 2)
 
     def test_query_collapses_to_normalized_job(self):
@@ -368,7 +368,8 @@ class TestDispatch(unittest.TestCase):
     def test_dry_run_never_posts(self):
         with _DispatchHarness([make_red()], config=make_config(dry_run=True)) as h:
             stats = h.dispatcher.dispatch_for_window(T(0), T(59))
-        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.dispatched, 0)
+        self.assertEqual(stats.would_dispatch, 1)
         h.dispatch_mock.assert_not_called()
 
     def test_real_run_keys_to_observed_commit_pr0(self):
@@ -406,7 +407,7 @@ class TestLogFilter(unittest.TestCase):
         with _DispatchHarness([make_red()], log_ok=True) as h:
             stats = h.dispatcher.dispatch_for_window(T(0), T(59))
         self.assertEqual(stats.skipped_no_log, 0)
-        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.would_dispatch, 1)
 
     def test_has_readable_log_large_2xx(self):
         from advisor_coverage import logfilter
@@ -490,8 +491,8 @@ class TestDedup(unittest.TestCase):
         with _DispatchHarness([red]) as h:
             s1 = h.dispatcher.dispatch_for_window(T(0), T(40))
             s2 = h.dispatcher.dispatch_for_window(T(20), T(59))  # overlapping
-        self.assertEqual(s1.dispatched, 1)
-        self.assertEqual(s2.dispatched, 0)
+        self.assertEqual(s1.would_dispatch, 1)
+        self.assertEqual(s2.would_dispatch, 0)
         self.assertEqual(s2.skipped_duplicate, 1)
 
     def test_emit_window_filters_out_of_range_reds(self):
@@ -502,7 +503,7 @@ class TestDedup(unittest.TestCase):
                 T(0), T(59), emit_start=T(20), emit_stop=T(40)
             )
         self.assertEqual(stats.eligible, 1)  # only red_in is in [T(20), T(40))
-        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.would_dispatch, 1)
 
 
 # ----------------------------------------------------------------------
@@ -513,7 +514,7 @@ class TestThrottle(unittest.TestCase):
         reds = [make_red(job_name=f"j{i} / t", observed=f"o{i}") for i in range(3)]
         with _DispatchHarness(reds, limit=2) as h:
             stats = h.dispatcher.dispatch_for_window(T(0), T(59))
-        self.assertEqual(stats.dispatched, 2)
+        self.assertEqual(stats.would_dispatch, 2)
         self.assertTrue(stats.capped)
         self.assertEqual(h.sleep_calls, [3])
 
@@ -806,7 +807,8 @@ class TestBackfill(unittest.TestCase):
             result = run_backfill(cfg, d, deadline=None, limit=2)
         self.assertEqual(result["stop_reason"], "capped")
         self.assertEqual(result["chunks_run"], 1)
-        self.assertEqual(result["dispatched"], 2)
+        self.assertEqual(result["dispatched"], 0)
+        self.assertEqual(result["would_dispatch"], 2)
         self.assertEqual(result["next_as_of"], self.CURSOR0)  # did NOT advance
 
     def test_cursor_roundtrips_through_parse_datetime(self):

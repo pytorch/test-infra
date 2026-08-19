@@ -101,6 +101,7 @@ def run_backfill(
         "dry_run": config.dry_run,
         "chunks_run": chunks_run,
         "dispatched": dispatcher.success_total,
+        "would_dispatch": dispatcher.would_dispatch_total,
         "attempts": dispatcher.attempts_total,
         "stop_reason": stop_reason,
         "next_as_of": next_as_of,

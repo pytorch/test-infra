@@ -2,8 +2,10 @@
 
 Assembles the advisor workflow's `signal_pattern` JSON for a single unclassified
 trunk red: the failing suspect commit plus a few green baseline-before commits
-of the same job. Matches the validated /tmp/ft_test_payload_*.json schema. The
-top-level `signal_key` is COVERAGE_SIGNAL_KEY_PREFIX + the NORMALIZED native job
+of the same job. The payload shape is pinned by the unit tests
+(`TestPayload.TOP_KEYS` / `COMMIT_KEYS` / `EVENT_KEYS`) and the advisor
+workflow's `signal_pattern` input contract. The top-level `signal_key` is
+COVERAGE_SIGNAL_KEY_PREFIX + the NORMALIZED native job
 key (shard index + runner dropped); `workflow_name`, `signal_source`,
 `suspect_commit`, and each commit event's concrete job name / log URL stay REAL.
 """

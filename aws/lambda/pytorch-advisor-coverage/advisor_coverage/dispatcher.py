@@ -49,7 +49,8 @@ class DispatchStats:
     skipped_existing: int = 0
     skipped_duplicate: int = 0
     skipped_no_log: int = 0
-    dispatched: int = 0  # successful dispatches only
+    dispatched: int = 0  # successful real dispatches only (never counts dry-run)
+    would_dispatch: int = 0  # dry-run: reds that WOULD have been POSTed, not real
     errors: int = 0
     capped: bool = False
 
@@ -74,6 +75,7 @@ class CoverageDispatcher:
         self._remaining: Optional[int] = None  # None = unlimited (local backfill)
         self._attempts_total = 0
         self._success_total = 0
+        self._would_dispatch_total = 0
         self._dispatched_keys: Set[Tuple[str, str]] = set()
         self._workflow: Any = None
 
@@ -89,6 +91,10 @@ class CoverageDispatcher:
         return self._success_total
 
     @property
+    def would_dispatch_total(self) -> int:
+        return self._would_dispatch_total
+
+    @property
     def attempts_total(self) -> int:
         return self._attempts_total
 
@@ -102,6 +108,7 @@ class CoverageDispatcher:
         self._remaining = limit
         self._attempts_total = 0
         self._success_total = 0
+        self._would_dispatch_total = 0
         self._dispatched_keys = set()
 
     def _budget_exhausted(self) -> bool:
@@ -204,8 +211,13 @@ class CoverageDispatcher:
                     red=red,
                     prefixed_key=prefixed_key,
                 )
-                stats.dispatched += 1
-                self._success_total += 1
+                if self.config.dry_run:
+                    # _dispatch_one POSTed nothing -- not a real dispatch.
+                    stats.would_dispatch += 1
+                    self._would_dispatch_total += 1
+                else:
+                    stats.dispatched += 1
+                    self._success_total += 1
             except Exception:
                 stats.errors += 1
                 log.exception(

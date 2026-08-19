@@ -171,8 +171,10 @@ _CTE_FINAL_JOBS = r"""final_jobs AS (
     )
 )"""
 
-# Total runs per normalized job over the window — matches the /flaky_trunk
-# HAVING total_runs >= minRuns, so coverage targets the same displayed set.
+# Total runs per normalized job over the enumeration window. Reuses the
+# /flaky_trunk `HAVING total_runs >= minRuns` threshold, but over this window
+# (far shorter than the page's default view) it is a STRICTER in-window filter,
+# not the page's displayed set.
 _CTE_JOB_COUNTS = r"""job_counts AS (
     SELECT
         workflow_name,

@@ -55,8 +55,10 @@ DEFAULT_DISPATCH_GAP_SECONDS = 3
 DEFAULT_HOURS = 24
 # Backfill enumeration chunk size (a day gives persistence enough neighbors).
 DEFAULT_AS_OF_STEP_HOURS = 24
-# Minimum total runs for a job to be enumerated — matches the /flaky_trunk page's
-# HAVING total_runs >= minRuns so coverage targets the SAME displayed set.
+# Minimum total runs for a job to be enumerated. Reuses the /flaky_trunk page's
+# `HAVING total_runs >= minRuns` threshold, but the lambda applies it over its
+# enumeration window (far shorter than the page's default view), so the same
+# number is a STRICTER in-window filter here, not the page's displayed set.
 DEFAULT_MIN_RUNS = 20
 # Persistence lookback/lookahead margin: the enumeration window is widened by
 # this on each side so the lag/lead persistence check sees the neighbouring
