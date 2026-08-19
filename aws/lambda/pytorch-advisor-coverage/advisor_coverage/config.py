@@ -23,8 +23,11 @@ from pytorch_auto_revert.utils import parse_datetime
 # keeps it out of autorevert's exact-match verdict read-back, so it can never
 # drive a real revert or veto. It is deliberately NOT env/event configurable: an
 # empty or altered prefix would land verdicts on native keys and trigger real
-# reverts. MUST stay equal to torchci `COVERAGE_PREFIX` in
-# torchci/lib/advisorVerdictUtils.ts — the HUD strips the same literal.
+# reverts. The same literal is stripped by the `'^coverage_'` regex in the
+# advisor_agg CTE of torchci's flaky_trunk query.sql files (flaky_trunk_jobs,
+# flaky_trunk_timeseries, flaky_trunk_entity_runs, flaky_trunk_runner_labels),
+# which is what normalizes a coverage verdict onto the native job so it
+# classifies the red on /flaky_trunk; this literal MUST stay equal to that regex.
 COVERAGE_SIGNAL_KEY_PREFIX = "coverage_"
 
 # Compiled-in safety ceilings. Env/event may only make the throttle SMALLER.

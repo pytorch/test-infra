@@ -56,8 +56,8 @@ class RedSignal:
     observed_commit: str
     commit_time: Optional[datetime]
     workflow_name: str
-    job_name: str  # full name (with runner) → signal_key + suspect event
-    job_base_name: str  # runner-dropped form (advisor context)
+    job_name: str  # normalized job key -> coverage signal_key (== native job key)
+    job_base_name: str  # same normalized identity, advisor context
     suspect: JobRun
     baselines: List[BaselineCommit]
 
@@ -79,8 +79,8 @@ class UnclassifiedRedEnumerator:
         reds = self._query_unclassified(start, stop)
         if not reds:
             return []
-        cons_names = sorted({r["cons_name"] for r in reds})
-        baselines = self._query_baselines(start, stop, cons_names)
+        norm_names = sorted({r["norm_name"] for r in reds})
+        baselines = self._query_baselines(start, stop, norm_names)
         return [self._assemble(r, baselines) for r in reds]
 
     # ------------------------------------------------------------------
@@ -99,21 +99,21 @@ class UnclassifiedRedEnumerator:
         return self._run(query, params)
 
     def _query_baselines(
-        self, start: datetime, stop: datetime, cons_names: List[str]
+        self, start: datetime, stop: datetime, norm_names: List[str]
     ) -> Dict[Tuple[str, str], List[BaselineCommit]]:
         query = self._apply_workflow_filter(QUERY_BASELINES)
         params: Dict[str, Any] = {
             "repo": self.config.repo_full_name,
             "startTime": _naive_utc(start),
             "stopTime": _naive_utc(stop),
-            "consNames": cons_names,
+            "normNames": norm_names,
         }
         if self.config.workflows:
             params["workflows"] = list(self.config.workflows)
 
         by_job: Dict[Tuple[str, str], List[BaselineCommit]] = defaultdict(list)
         for row in self._run(query, params):
-            key = (row["workflow_name"], row["cons_name"])
+            key = (row["workflow_name"], row["norm_name"])
             by_job[key].append(
                 BaselineCommit(
                     sha=row["head_sha"],
@@ -141,7 +141,7 @@ class UnclassifiedRedEnumerator:
         baselines: Dict[Tuple[str, str], List[BaselineCommit]],
     ) -> RedSignal:
         commit_time = red["commit_time"]
-        key = (red["workflow_name"], red["cons_name"])
+        key = (red["workflow_name"], red["norm_name"])
         picked = [
             b
             for b in baselines.get(key, [])
@@ -153,8 +153,8 @@ class UnclassifiedRedEnumerator:
             observed_commit=red["head_sha"],
             commit_time=commit_time,
             workflow_name=red["workflow_name"],
-            job_name=red["name"],
-            job_base_name=red["cons_name"],
+            job_name=red["norm_name"],
+            job_base_name=red["norm_name"],
             suspect=_job_run(red),
             baselines=picked,
         )

@@ -48,8 +48,9 @@ def make_config(**overrides) -> CoverageConfig:
 
 def make_red(
     *,
-    job_name="linux-jammy / test (slow, 2, 3, mt-l-runner-a)",
-    job_base_name="linux-jammy / test (slow, 2, 3)",
+    job_name="linux-jammy / test (slow)",
+    run_name="linux-jammy / test (slow, 2, 3, mt-l-runner-a)",
+    job_base_name=None,
     workflow="slow",
     observed="sha_observed_1",
     minute=30,
@@ -57,9 +58,13 @@ def make_red(
     job_id=9000,
     n_baselines=3,
 ) -> RedSignal:
+    # job_name is the NORMALIZED key (feeds signal_key + dedup); run_name is the
+    # concrete shard+runner run (feeds the payload events + log url). Production
+    # sets job_base_name to the same normalized identity as job_name.
     base = commit_dt if commit_dt is not None else T(minute)
+    job_base_name = job_base_name if job_base_name is not None else job_name
     suspect = JobRun(
-        name=job_name,
+        name=run_name,
         job_id=job_id,
         wf_run_id=job_id + 1,
         run_attempt=1,
@@ -71,7 +76,7 @@ def make_red(
             sha=f"sha_base_{i}",
             commit_time=base - timedelta(minutes=5 * (i + 1)),
             run=JobRun(
-                name=job_name,
+                name=run_name,
                 job_id=job_id - 100 * (i + 1),
                 wf_run_id=job_id - 100 * (i + 1) + 1,
                 run_attempt=1,
@@ -198,6 +203,10 @@ class TestPayload(unittest.TestCase):
 
         self.assertEqual(set(payload), self.TOP_KEYS)
         self.assertEqual(payload["signal_key"], "coverage_" + red.job_name)
+        # signal_key is the NORMALIZED job key -- no shard index, no runner.
+        self.assertEqual(payload["signal_key"], "coverage_linux-jammy / test (slow)")
+        self.assertNotIn(", 2, 3", payload["signal_key"])
+        self.assertNotIn("mt-l-runner-a", payload["signal_key"])
         self.assertEqual(payload["signal_source"], "job")
         self.assertEqual(payload["workflow_name"], "slow")
         self.assertEqual(payload["job_base_name"], red.job_base_name)
@@ -219,6 +228,9 @@ class TestPayload(unittest.TestCase):
             ev["log_url"],
             f"https://ossci-raw-job-status.s3.amazonaws.com/log/{red.suspect.job_id}",
         )
+        # the concrete event keeps the full shard+runner name (not normalized).
+        self.assertEqual(ev["job_name"], red.suspect.name)
+        self.assertEqual(ev["job_name"], "linux-jammy / test (slow, 2, 3, mt-l-runner-a)")
         for bc in commits[1:]:
             self.assertFalse(bc["is_suspect"])
             self.assertIn("successful:", bc["partition"])
@@ -227,6 +239,104 @@ class TestPayload(unittest.TestCase):
     def test_coverage_signal_key(self):
         red = make_red(job_name="docker-build (x, y)")
         self.assertEqual(coverage_signal_key(red), "coverage_docker-build (x, y)")
+
+
+# ----------------------------------------------------------------------
+# Option A — coverage verdicts keyed at the NORMALIZED-job level
+# ----------------------------------------------------------------------
+class TestNormalizedKeying(unittest.TestCase):
+    def test_signal_key_is_normalized_no_shard_or_runner(self):
+        red = make_red(
+            job_name="linux / test (slow)",
+            run_name="linux / test (slow, 2, 3, mt-runner-a10g)",
+        )
+        self.assertEqual(coverage_signal_key(red), "coverage_linux / test (slow)")
+        payload = json.loads(build_isolated_red_payload(red, "pytorch/pytorch"))
+        self.assertEqual(payload["signal_key"], "coverage_linux / test (slow)")
+        self.assertNotIn(", 2, 3", payload["signal_key"])
+        self.assertNotIn("mt-runner-a10g", payload["signal_key"])
+        self.assertEqual(payload["job_base_name"], "linux / test (slow)")
+
+    def test_event_keeps_concrete_run_name_and_log(self):
+        red = make_red(
+            job_name="linux / test (slow)",
+            run_name="linux / test (slow, 2, 3, mt-runner-a10g)",
+            job_id=4242,
+        )
+        payload = json.loads(build_isolated_red_payload(red, "pytorch/pytorch"))
+        ev = payload["commits"][0]["events"][0]
+        self.assertEqual(ev["job_name"], "linux / test (slow, 2, 3, mt-runner-a10g)")
+        self.assertEqual(
+            ev["log_url"],
+            "https://ossci-raw-job-status.s3.amazonaws.com/log/4242",
+        )
+
+    def test_dedup_key_uses_normalized_name(self):
+        red = make_red(
+            job_name="linux / test (slow)",
+            run_name="linux / test (slow, 2, 3, mt-runner-a10g)",
+        )
+        # a verdict under the NORMALIZED key dedups the red...
+        norm_existing = [(red.observed_commit, "coverage_linux / test (slow)")]
+        with _DispatchHarness([red], existing_rows=norm_existing) as h:
+            stats = h.dispatcher.dispatch_for_window(T(0), T(59))
+        self.assertEqual(stats.skipped_existing, 1)
+        self.assertEqual(stats.dispatched, 0)
+        # ...but a verdict under the concrete shard+runner name does NOT.
+        concrete_existing = [
+            (red.observed_commit, "coverage_linux / test (slow, 2, 3, mt-runner-a10g)")
+        ]
+        with _DispatchHarness([red], existing_rows=concrete_existing) as h:
+            stats = h.dispatcher.dispatch_for_window(T(0), T(59))
+        self.assertEqual(stats.skipped_existing, 0)
+        self.assertEqual(stats.dispatched, 1)
+
+    def test_sibling_shards_same_commit_collapse_to_one_dispatch(self):
+        # Post-SQL there is one red per normalized job; if the same normalized key +
+        # observed commit surfaces more than once in a window, the intra-run dedup
+        # collapses it to a single dispatch (no per-shard re-dispatch).
+        reds = [
+            make_red(
+                job_name="linux / test (slow)",
+                run_name=f"linux / test (slow, {i}, 3, runner-{i})",
+                job_id=1000 + i,
+            )
+            for i in range(1, 4)
+        ]
+        with _DispatchHarness(reds) as h:
+            stats = h.dispatcher.dispatch_for_window(T(0), T(59))
+        self.assertEqual(stats.dispatched, 1)
+        self.assertEqual(stats.skipped_duplicate, 2)
+
+    def test_query_collapses_to_normalized_job(self):
+        from advisor_coverage.sql import QUERY_BASELINES, QUERY_UNCLASSIFIED
+
+        self.assertIn(
+            "GROUP BY fj.head_sha, fj.workflow_name, fj.norm_name", QUERY_UNCLASSIFIED
+        )
+        self.assertIn("fj.norm_name AS norm_name", QUERY_UNCLASSIFIED)
+        self.assertIn("{normNames:Array(String)}", QUERY_BASELINES)
+        # advisor_agg strips a leading coverage_ so coverage verdicts attach here.
+        self.assertIn("'^coverage_', ''", QUERY_UNCLASSIFIED)
+
+    def test_representative_selection_tuple_has_job_id_tiebreaker(self):
+        # The representative run per normalized job is picked with several
+        # independent argMax(<col>, tuple) calls. Sibling shards share attempt=1
+        # and often the same started_at second, so without a per-row-unique
+        # tiebreaker different argMax calls can resolve to different shards and
+        # tear the representative (job_id/log mismatching its name). job_id in the
+        # ordering tuple makes the max unique so every argMax picks the same shard.
+        from advisor_coverage.sql import QUERY_BASELINES, QUERY_UNCLASSIFIED
+
+        self.assertIn("started_at_pick, rj.job_id", QUERY_UNCLASSIFIED)
+        self.assertIn("started_at_pick, g.job_id", QUERY_BASELINES)
+
+    def test_query_binds_by_commit_membership_not_created_at(self):
+        from advisor_coverage.sql import QUERY_BASELINES, QUERY_UNCLASSIFIED
+
+        for q in (QUERY_UNCLASSIFIED, QUERY_BASELINES):
+            self.assertIn("materialized_views.workflow_job_by_head_sha", q)
+            self.assertNotIn("j.created_at", q)
 
 
 # ----------------------------------------------------------------------
@@ -517,7 +627,7 @@ class TestEnumeration(unittest.TestCase):
             "commit_time",
             "workflow_name",
             "name",
-            "cons_name",
+            "norm_name",
             "job_id",
             "run_id",
             "run_attempt",
@@ -530,7 +640,7 @@ class TestEnumeration(unittest.TestCase):
                 T(30),
                 "slow",
                 "linux / test (slow, 2, 3, runner-a)",
-                "linux / test (slow, 2, 3)",
+                "linux / test (slow)",
                 900,
                 901,
                 1,
@@ -540,7 +650,7 @@ class TestEnumeration(unittest.TestCase):
         ]
         base_cols = [
             "workflow_name",
-            "cons_name",
+            "norm_name",
             "head_sha",
             "commit_time",
             "name",
@@ -553,7 +663,7 @@ class TestEnumeration(unittest.TestCase):
         base_rows = [
             (
                 "slow",
-                "linux / test (slow, 2, 3)",
+                "linux / test (slow)",
                 "sha_future",
                 T(50),
                 "linux / test (slow, 2, 3, runner-a)",
@@ -565,7 +675,7 @@ class TestEnumeration(unittest.TestCase):
             ),
             (
                 "slow",
-                "linux / test (slow, 2, 3)",
+                "linux / test (slow)",
                 "sha_before",
                 T(20),
                 "linux / test (slow, 2, 3, runner-a)",
@@ -587,8 +697,9 @@ class TestEnumeration(unittest.TestCase):
         self.assertEqual(len(reds), 1)
         red = reds[0]
         self.assertEqual(red.observed_commit, "sha_obs")
-        self.assertEqual(red.job_name, "linux / test (slow, 2, 3, runner-a)")
-        self.assertEqual(red.job_base_name, "linux / test (slow, 2, 3)")
+        self.assertEqual(red.job_name, "linux / test (slow)")
+        self.assertEqual(red.job_base_name, "linux / test (slow)")
+        self.assertEqual(red.suspect.name, "linux / test (slow, 2, 3, runner-a)")
         self.assertEqual(red.suspect.job_id, 900)
         # only the baseline BEFORE the suspect's commit_time is kept
         self.assertEqual([b.sha for b in red.baselines], ["sha_before"])

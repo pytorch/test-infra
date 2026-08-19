@@ -6,8 +6,11 @@ attaching advisor verdict (related/revert/infra_issue/not_related/garbage) keyed
 to the trunk head_sha AND is not structurally persistent (no adjacent hard-red
 on the previous or next trunk commit). Two queries per window:
 
-- QUERY_UNCLASSIFIED: category=5 reds with the representative failing job row.
-- QUERY_BASELINES:    recent GREEN runs of the involved jobs (payload context).
+- QUERY_UNCLASSIFIED: category=5 reds collapsed to ONE row per NORMALIZED job
+  (config kept; shard index + runner dropped), each with a representative failing
+  run — so exactly one advisor is dispatched per normalized job, keyed
+  `coverage_` + the native job signal_key the /flaky_trunk page joins on.
+- QUERY_BASELINES:    recent GREEN runs of those normalized jobs (payload context).
 
 Fragments are composed with `", \n".join(...)` (never str.format / f-strings)
 so ClickHouse's `{name:Type}` parameter syntax passes through untouched. The
@@ -15,7 +18,17 @@ so ClickHouse's `{name:Type}` parameter syntax passes through untouched. The
 
 NOTE: the shard/runner-stripping regexes and the category logic are copied
 verbatim from flaky_trunk_jobs so coverage keys off the SAME normalized job
-identity the /flaky_trunk page joins on.
+identity the /flaky_trunk page joins on. advisor_agg itself is NOT verbatim: it
+answers only "does ANY classifying verdict exist for this job?" (the outer
+maxIf), so it reduces verdicts with a plain argMax(verdict, timestamp) grouped by
+`suspect_commit, signal_key`. The page instead has to pick which verdict wins, so
+it uses a native-preference argMax(verdict, (NOT startsWith coverage_, timestamp))
+grouped by a coverage-stripped `base_key` — the lambda needs neither. advisor_agg
+additionally strips a leading `coverage_` so an already-written coverage verdict
+normalizes to (and classifies) the same red — the lambda's category=5 set then
+matches the page's classified set. raw_jobs binds jobs by trunk-commit
+membership, not a created_at window, so late retry attempts of a windowed commit
+are still counted.
 """
 
 _CTE_TRUNK_COMMITS = r"""trunk_commits AS (
@@ -49,7 +62,7 @@ _CTE_ADVISOR_AGG = r"""advisor_agg AS (
                             arraySlice(splitByString(' / ', substring(signal_key, 7)), 2),
                             ' / '
                         ),
-                        signal_key
+                        replaceRegexpOne(signal_key, '^coverage_', '')
                     ),
                     ' \\[[^\\]]+\\]$', ''
                 ),
@@ -82,8 +95,16 @@ _CTE_RAW_JOBS = r"""raw_jobs AS (
     FROM default.workflow_job j
     INNER JOIN trunk_commits tc ON j.head_sha = tc.head_sha
     WHERE
-        j.created_at >= {startTime:DateTime64(3)}
-        AND j.created_at < {stopTime:DateTime64(3)}
+        -- Bind to trunk-commit membership, not a created_at window: a commit's
+        -- retries are separate rows created arbitrarily later, so a created_at
+        -- window drops late attempts -- a retry-green then falls outside and the
+        -- red is misread as persistent/unclassified. trunk_commits is already
+        -- windowed on commit timestamp, so this stays scoped to the window.
+        j.id IN (
+            SELECT id
+            FROM materialized_views.workflow_job_by_head_sha
+            WHERE head_sha IN (SELECT head_sha FROM trunk_commits)
+        )
         AND j.conclusion IN ('success', 'failure')
         AND j.name LIKE '%/%'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
@@ -190,17 +211,23 @@ _CTE_GREEN_JOBS = r"""green_jobs AS (
     GROUP BY head_sha, workflow_name, cons_name
 )"""
 
+# One row per (commit, NORMALIZED job): the category=5 shards of a normalized job
+# at a commit are collapsed to the normalized name so exactly ONE advisor is
+# dispatched per normalized job. Its coverage_ verdict then classifies every shard
+# of that job at the commit (the same normalized identity /flaky_trunk joins on),
+# instead of one shard's verdict bleeding onto its siblings. The representative
+# failing run (name/job_id/log) is the latest-attempt category=5 shard.
 _SELECT_UNCLASSIFIED = r"""SELECT
     fj.head_sha AS head_sha,
-    fj.commit_time AS commit_time,
+    any(fj.commit_time) AS commit_time,
     fj.workflow_name AS workflow_name,
-    rj.name AS name,
-    fj.cons_name AS cons_name,
-    rj.job_id AS job_id,
-    rj.run_id AS run_id,
-    rj.run_attempt_max AS run_attempt,
-    rj.started_at_pick AS started_at,
-    rj.completed_at AS completed_at
+    argMax(rj.name, (rj.run_attempt_max, rj.started_at_pick, rj.job_id)) AS name,
+    fj.norm_name AS norm_name,
+    argMax(rj.job_id, (rj.run_attempt_max, rj.started_at_pick, rj.job_id)) AS job_id,
+    argMax(rj.run_id, (rj.run_attempt_max, rj.started_at_pick, rj.job_id)) AS run_id,
+    max(rj.run_attempt_max) AS run_attempt,
+    argMax(rj.started_at_pick, (rj.run_attempt_max, rj.started_at_pick, rj.job_id)) AS started_at,
+    argMax(rj.completed_at, (rj.run_attempt_max, rj.started_at_pick, rj.job_id)) AS completed_at
 FROM final_jobs fj
 INNER JOIN red_jobs rj
     ON fj.head_sha = rj.head_sha
@@ -211,27 +238,32 @@ INNER JOIN job_counts jc
     AND jc.norm_name = fj.norm_name
 WHERE fj.category = 5
     AND jc.total_runs >= {minRuns:Int32}
-ORDER BY fj.commit_time DESC, fj.workflow_name, fj.cons_name"""
+GROUP BY fj.head_sha, fj.workflow_name, fj.norm_name
+ORDER BY commit_time DESC, workflow_name, norm_name"""
 
+# Green baseline-before runs of the same NORMALIZED jobs: green shard-cells are
+# collapsed to the normalized name (one representative green run per commit) so the
+# baselines match the normalized red the advisor is asked about.
 _SELECT_BASELINES = r"""SELECT
     c.workflow_name AS workflow_name,
-    c.cons_name AS cons_name,
+    c.norm_name AS norm_name,
     c.head_sha AS head_sha,
-    c.commit_time AS commit_time,
-    g.name AS name,
-    g.job_id AS job_id,
-    g.run_id AS run_id,
-    g.run_attempt_max AS run_attempt,
-    g.started_at_pick AS started_at,
-    g.completed_at AS completed_at
+    any(c.commit_time) AS commit_time,
+    argMax(g.name, (g.run_attempt_max, g.started_at_pick, g.job_id)) AS name,
+    argMax(g.job_id, (g.run_attempt_max, g.started_at_pick, g.job_id)) AS job_id,
+    argMax(g.run_id, (g.run_attempt_max, g.started_at_pick, g.job_id)) AS run_id,
+    max(g.run_attempt_max) AS run_attempt,
+    argMax(g.started_at_pick, (g.run_attempt_max, g.started_at_pick, g.job_id)) AS started_at,
+    argMax(g.completed_at, (g.run_attempt_max, g.started_at_pick, g.job_id)) AS completed_at
 FROM consolidated c
 INNER JOIN green_jobs g
     ON g.head_sha = c.head_sha
     AND g.workflow_name = c.workflow_name
     AND g.cons_name = c.cons_name
 WHERE c.has_success AND NOT c.has_failure
-    AND c.cons_name IN {consNames:Array(String)}
-ORDER BY c.commit_time DESC"""
+    AND c.norm_name IN {normNames:Array(String)}
+GROUP BY c.workflow_name, c.norm_name, c.head_sha
+ORDER BY commit_time DESC"""
 
 
 QUERY_UNCLASSIFIED = (

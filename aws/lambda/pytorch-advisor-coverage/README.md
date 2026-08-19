@@ -34,23 +34,28 @@ The verdicts table is a **live control input**: autorevert reads it back and a
 high-confidence `revert`/`related` verdict triggers a real revert. Its read-back
 is an EXACT `signal_key` match.
 
-Every coverage verdict carries `signal_key = "coverage_" + <real job name>`. The
-prefix keeps it out of autorevert's extracted key set, so it is **never attached
-and never drives a revert or veto** — the same mechanism the PR-side Dr.CI path
+Every coverage verdict carries `signal_key = "coverage_" + <native job signal_key>`
+(the normalized job key — config kept, shard index + runner dropped). The prefix
+keeps it out of autorevert's extracted key set, so it is **never attached and
+never drives a revert or veto** — the same mechanism the PR-side Dr.CI path
 (`dr_ci_`) already uses.
 
 - The prefix is a **hard-coded module constant** `COVERAGE_SIGNAL_KEY_PREFIX`
   (`config.py`), NOT env/event configurable.
-- It **must stay equal** to torchci `COVERAGE_PREFIX` in
-  `torchci/lib/advisorVerdictUtils.ts`.
+- It **must stay equal** to the `'^coverage_'` literal stripped in the
+  `advisor_agg` CTE of torchci's flaky_trunk `query.sql` files (`flaky_trunk_jobs`,
+  `flaky_trunk_timeseries`, `flaky_trunk_entity_runs`, `flaky_trunk_runner_labels`);
+  that strip normalizes a coverage verdict onto the native job so it classifies
+  the red on /flaky_trunk (see "How verdicts land on /flaky_trunk" below).
 - A dispatch-time guard refuses to POST if the outgoing key is not safely
   prefixed (never equal to the native key).
 
 ## How a red becomes a dispatch
 
-1. **Enumerate** currently-unclassified trunk reds for the window (one CH query
-   reusing the flaky_trunk CTE chain), plus a few green baseline-before commits
-   of the same job (a second CH query).
+1. **Enumerate** currently-unclassified trunk reds for the window — one row per
+   NORMALIZED job (config kept; shard index + runner dropped), reusing the
+   flaky_trunk CTE chain — plus a few green baseline-before commits of that job
+   (a second CH query).
 2. **Windowless dedup**: skip any red that already has a `coverage_`-prefixed
    verdict for `(repo, observed commit, key)` — no time filter.
 3. **Log-readability pre-filter**: HEAD-check the raw log at
@@ -62,14 +67,15 @@ and never drives a revert or veto** — the same mechanism the PR-side Dr.CI pat
 The advisor gets the diff from the workflow's OWN checkout of `suspect_commit`,
 so the dispatch token needs no PR-read scope (`pr_number` is just metadata).
 
-## Deferred (not yet live)
+## How verdicts land on /flaky_trunk
 
-The `/flaky_trunk` SQL does not yet strip the `coverage_` prefix in `advisor_agg`
-before its job-name join. **Until that change lands, coverage verdicts are
-written but NOT yet displayed on /flaky_trunk** (and, usefully, they do not yet
-reclassify the red out of the unclassified bucket — the windowless dedup is what
-prevents re-dispatch in the meantime). No confidence gate is applied: any
-non-`unsure` verdict is a classification.
+Because a coverage verdict is keyed at the normalized-job level (`"coverage_" +
+<native job signal_key>`), the `/flaky_trunk` SQL strips the leading `coverage_`
+in `advisor_agg` and joins it on the SAME normalized job the page displays. A
+coverage verdict therefore classifies — and reclassifies out of the unclassified
+bucket — that normalized job at the observed commit, and the page prefers a native
+verdict over a coverage one for the same (commit, job). No confidence gate is
+applied: any non-`unsure` verdict is a classification.
 
 ## What it does NOT do
 

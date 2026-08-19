@@ -2,9 +2,10 @@
 
 Assembles the advisor workflow's `signal_pattern` JSON for a single unclassified
 trunk red: the failing suspect commit plus a few green baseline-before commits
-of the same job. Matches the validated /tmp/ft_test_payload_*.json schema. Only
-`signal_key` is prefixed with COVERAGE_SIGNAL_KEY_PREFIX; `workflow_name`,
-`signal_source`, `suspect_commit`, and the job identity stay REAL.
+of the same job. Matches the validated /tmp/ft_test_payload_*.json schema. The
+top-level `signal_key` is COVERAGE_SIGNAL_KEY_PREFIX + the NORMALIZED native job
+key (shard index + runner dropped); `workflow_name`, `signal_source`,
+`suspect_commit`, and each commit event's concrete job name / log URL stay REAL.
 """
 
 from __future__ import annotations
@@ -50,7 +51,11 @@ def _event(*, status: str, run: JobRun, repo_full_name: str) -> Dict[str, Any]:
 
 
 def coverage_signal_key(red: RedSignal) -> str:
-    """The prefixed signal_key for this red (dispatch + dedup + payload)."""
+    """The prefixed signal_key for this red (dispatch + dedup + payload).
+
+    `red.job_name` is the normalized job key, so this equals
+    COVERAGE_SIGNAL_KEY_PREFIX + the native job signal_key the page joins on.
+    """
     return COVERAGE_SIGNAL_KEY_PREFIX + red.job_name
 
 
