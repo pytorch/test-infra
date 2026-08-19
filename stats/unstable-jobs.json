@@ -119,6 +119,22 @@
     "linux-noble-rocm-nightly-py3.12-gfx942",
     "test (inductor)"
   ],
+  "trunk / linux-jammy-rocm-py3.10-mi350 / test (default)": [
+    "jithunnair-amd",
+    "179911",
+    "https://github.com/pytorch/pytorch/issues/179911",
+    "trunk",
+    "linux-jammy-rocm-py3.10-mi350",
+    "test (default)"
+  ],
+  "trunk / linux-jammy-rocm-py3.10-mi350 / test (distributed)": [
+    "jeffdaily",
+    "178884",
+    "https://github.com/pytorch/pytorch/issues/178884",
+    "trunk",
+    "linux-jammy-rocm-py3.10-mi350",
+    "test (distributed)"
+  ],
   "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
