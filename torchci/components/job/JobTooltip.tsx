@@ -262,10 +262,14 @@ export default function JobTooltip({
                         rel="noreferrer"
                         title="open this run on GitHub"
                         // Its visible text is "gh" on every row, so without this the links are the one
-                        // part of the list a screen reader still cannot tell apart -- the row's own
-                        // suffix reaches the radio and the origin span, not the anchor beside them
-                        // (DP17, gpt-5.6-sol).
-                        aria-label={`open ${describeRunOrigin(
+                        // part of the list a screen reader cannot tell apart. Built from
+                        // `describeCellRun`, matching the radio above: the origin alone omits the
+                        // conclusion, and two runs differing ONLY in how they concluded get no
+                        // suffix -- both row signatures already separate them -- so a flaky cell's
+                        // passing and failing runs ended up with the same link name and different
+                        // targets. Opens with the visible "gh" so the accessible name contains the
+                        // visible label, which voice control matches on (DP17, gpt-5.6-sol).
+                        aria-label={`gh: open ${describeCellRun(
                           run
                         )}${suffix} on GitHub`}
                         onClick={(e) => e.stopPropagation()}
