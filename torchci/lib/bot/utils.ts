@@ -59,7 +59,7 @@ export class CachedConfigTracker {
         context.payload.ref === "refs/heads/master" ||
         context.payload.ref === "refs/heads/main"
       ) {
-        await this.loadConfig(context, /* force */ true);
+        delete this.repoConfigs[repoKey(context)];
       }
     });
   }
@@ -130,7 +130,9 @@ export class CachedLabelerConfigTracker extends CachedConfigTracker {
         context.payload.ref === "refs/heads/master" ||
         context.payload.ref === "refs/heads/main"
       ) {
-        await this.loadLabelsConfig(context, /* force */ true);
+        const key = repoKey(context);
+        delete this.repoConfigs[key];
+        delete this.repoLabels[key];
       }
     });
   }
@@ -159,7 +161,9 @@ export class LabelToLabelConfigTracker extends CachedConfigTracker {
         context.payload.ref === "refs/heads/master" ||
         context.payload.ref === "refs/heads/main"
       ) {
-        await this.loadLabelsConfig(context, /* force */ true);
+        const key = repoKey(context);
+        delete this.repoConfigs[key];
+        delete this.repoLabels[key];
       }
     });
   }
