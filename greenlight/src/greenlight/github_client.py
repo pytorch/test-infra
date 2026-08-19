@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         _PRComment,
         _PRReview,
         _RepoClient,
+        _VerdictReview,
     )
 
 
@@ -364,20 +365,31 @@ def upsert_issue_comment(
     pr.create_issue_comment(body)
 
 
-def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
-    """Dismiss every prior APPROVED review authored by ``bot_login``.
+def _iter_greenlight_approvals(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
+    """Yield each live APPROVED review authored by ``bot_login`` -- greenlight's own approvals.
 
-    The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather
-    than read via ``get_user``, which is not available on an App installation token; only
-    that account's own approvals are ever dismissed.
+    The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather than read
+    via ``get_user``, which an App installation token cannot call. Null-user, empty-login, and
+    non-APPROVED reviews are skipped; the login match is case-insensitive.
     """
     target = bot_login.lower()
-    dismissed: list[int] = []
     for review in pr.get_reviews():
         user = review.user
         if user is None or not user.login:
             continue
         if user.login.lower() == target and review.state == _REVIEW_STATE_APPROVED:
-            review.dismiss(message)
-            dismissed.append(review.id)
+            yield review
+
+
+def has_live_greenlight_approval(pr: VerdictPR, *, bot_login: str) -> bool:
+    """Return True iff ``bot_login`` has at least one live (undismissed) APPROVED review on ``pr``."""
+    return next(_iter_greenlight_approvals(pr, bot_login), None) is not None
+
+
+def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
+    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``_iter_greenlight_approvals``)."""
+    dismissed: list[int] = []
+    for review in _iter_greenlight_approvals(pr, bot_login):
+        review.dismiss(message)
+        dismissed.append(review.id)
     return dismissed
