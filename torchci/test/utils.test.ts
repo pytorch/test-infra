@@ -1,4 +1,8 @@
-import { hasApprovedPullRuns } from "lib/bot/utils";
+import {
+  clearFilesChangedCache,
+  getFilesChangedByPrCached,
+  hasApprovedPullRuns,
+} from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
 import * as utils from "./utils";
@@ -87,5 +91,31 @@ describe("utils: hasApprovedPullRuns", () => {
       { conclusion: "success" },
     ]);
     await checkhasApprovedPullRunsReturns(false);
+  });
+});
+
+describe("utils: getFilesChangedByPrCached", () => {
+  beforeEach(() => clearFilesChangedCache());
+  afterEach(() => clearFilesChangedCache());
+
+  test("dedupes by head sha; re-fetches on sha change or after clear", async () => {
+    const octokit = {
+      paginate: jest
+        .fn()
+        .mockResolvedValue([{ filename: "a.py" }, { filename: "b.py" }]),
+    } as any;
+    const call = (sha: string) =>
+      getFilesChangedByPrCached(octokit, "pytorch", "pytorch", 1, sha);
+
+    expect(await call("sha1")).toEqual(["a.py", "b.py"]);
+    expect(await call("sha1")).toEqual(["a.py", "b.py"]);
+    expect(octokit.paginate).toHaveBeenCalledTimes(1);
+
+    await call("sha2");
+    expect(octokit.paginate).toHaveBeenCalledTimes(2);
+
+    clearFilesChangedCache();
+    await call("sha1");
+    expect(octokit.paginate).toHaveBeenCalledTimes(3);
   });
 });

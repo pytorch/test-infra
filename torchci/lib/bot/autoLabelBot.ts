@@ -12,7 +12,7 @@ import {
   addLabels,
   CachedIssueTracker,
   CachedLabelerConfigTracker,
-  getFilesChangedByPr,
+  getFilesChangedByPrCached,
   hasApprovedPullRuns,
   hasWritePermissions,
   isPyTorchbotSupportedOrg,
@@ -544,11 +544,12 @@ function myBot(app: Probot): void {
       );
       const repo = context.payload.repository.name;
       const title = context.payload.pull_request.title;
-      const filesChanged = await getFilesChangedByPr(
+      const filesChanged = await getFilesChangedByPrCached(
         context.octokit,
         owner,
         repo,
-        context.payload.pull_request.number
+        context.payload.pull_request.number,
+        context.payload.pull_request.head.sha
       );
       context.log({ labels, title, filesChanged });
 

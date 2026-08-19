@@ -1,7 +1,7 @@
 import * as yaml from "js-yaml";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
-import { getFilesChangedByPr, isPyTorchPyTorch } from "./utils";
+import { getFilesChangedByPrCached, isPyTorchPyTorch } from "./utils";
 
 // Implements logic similar to https://github.com/ethanis/nitpicker.
 // Reads `.github/nitpicks.yml` from the repo's default branch and posts
@@ -162,11 +162,12 @@ export default function nitpickBot(app: Probot): void {
         return;
       }
 
-      const filesChanged = await getFilesChangedByPr(
+      const filesChanged = await getFilesChangedByPrCached(
         context.octokit,
         owner,
         repo,
-        prNum
+        prNum,
+        context.payload.pull_request.head.sha
       );
       const matched = getMatchingRules(filesChanged, rules);
       const newBody = formNitpickComment(matched);
