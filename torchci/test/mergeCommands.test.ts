@@ -130,7 +130,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     const additionalScopes = [
@@ -178,7 +178,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     const additionalScopes = [
@@ -206,7 +206,7 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"))
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
@@ -958,7 +958,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -1054,7 +1054,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
     await probot.receive(event);
 
@@ -1405,7 +1405,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1443,7 +1443,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1488,7 +1488,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1527,7 +1527,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1559,7 +1559,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1597,7 +1597,7 @@ some other text lol
     const comment_number = event.payload.comment.id;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,

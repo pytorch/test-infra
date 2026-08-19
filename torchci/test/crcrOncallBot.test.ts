@@ -63,7 +63,7 @@ describe("crcrOncallBot", () => {
 
   test("posts comment on L3 CRCR check run failure", async () => {
     const scope = nock("https://api.github.com")
-      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments?per_page=100`)
       .reply(200, [])
       .post(
         `/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`,
@@ -89,7 +89,7 @@ describe("crcrOncallBot", () => {
 
   test("posts comment on L4 CRCR check run failure", async () => {
     const scope = nock("https://api.github.com")
-      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments?per_page=100`)
       .reply(200, [])
       .post(
         `/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`,
@@ -143,7 +143,7 @@ describe("crcrOncallBot", () => {
 
   test("dedup: does not comment twice if marker already exists", async () => {
     const scope = nock("https://api.github.com")
-      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments?per_page=100`)
       .reply(200, [
         {
           id: 100,
@@ -191,7 +191,7 @@ L3:
 
   test("posts comment when external_id contains PR number for cross-fork PR", async () => {
     const scope = nock("https://api.github.com")
-      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`)
+      .get(`/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments?per_page=100`)
       .reply(200, [])
       .post(
         `/repos/${OWNER}/${REPO}/issues/${PR_NUMBER}/comments`,
