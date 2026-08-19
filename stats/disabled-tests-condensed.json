@@ -1046,16 +1046,6 @@
       "linux"
     ]
   ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
     "186909",
     "https://github.com/pytorch/pytorch/issues/186909",
