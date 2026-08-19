@@ -308,6 +308,7 @@ REVIEW_EVENT_REQUEST_CHANGES = "REQUEST_CHANGES"
 REVIEW_EVENT_COMMENT = "COMMENT"
 _REVIEW_EVENTS: frozenset[str] = frozenset({REVIEW_EVENT_APPROVE, REVIEW_EVENT_REQUEST_CHANGES, REVIEW_EVENT_COMMENT})
 _REVIEW_STATE_APPROVED = "APPROVED"
+_REVIEW_STATE_COMMENTED = "COMMENTED"
 
 
 def get_pr(client: VerdictClient, repo: str, number: int) -> VerdictPR:
@@ -365,31 +366,34 @@ def upsert_issue_comment(
     pr.create_issue_comment(body)
 
 
-def _iter_greenlight_approvals(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
-    """Yield each live APPROVED review authored by ``bot_login`` -- greenlight's own approvals.
+def _iter_greenlight_reviews(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
+    """Yield every review authored by ``bot_login`` (any state) -- greenlight's own reviews.
 
-    The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather than read
-    via ``get_user``, which an App installation token cannot call. Null-user, empty-login, and
-    non-APPROVED reviews are skipped; the login match is case-insensitive.
+    The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token
+    cannot call ``get_user``. Null-user and empty-login reviews are skipped; match is case-insensitive.
     """
     target = bot_login.lower()
     for review in pr.get_reviews():
         user = review.user
-        if user is None or not user.login:
-            continue
-        if user.login.lower() == target and review.state == _REVIEW_STATE_APPROVED:
+        if user is not None and user.login and user.login.lower() == target:
             yield review
 
 
 def has_live_greenlight_approval(pr: VerdictPR, *, bot_login: str) -> bool:
-    """Return True iff ``bot_login`` has at least one live (undismissed) APPROVED review on ``pr``."""
-    return next(_iter_greenlight_approvals(pr, bot_login), None) is not None
+    """Return True iff greenlight's latest non-COMMENTED review on ``pr`` is APPROVED.
+
+    Mirrors trymerge's approver rule (latest non-COMMENTED state per login wins), so a stale
+    APPROVED behind a newer DISMISSED never reads as approved. Assumes ``get_reviews()`` is oldest-first.
+    """
+    states = [r.state for r in _iter_greenlight_reviews(pr, bot_login) if r.state != _REVIEW_STATE_COMMENTED]
+    return bool(states) and states[-1] == _REVIEW_STATE_APPROVED
 
 
 def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
-    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``_iter_greenlight_approvals``)."""
+    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``_iter_greenlight_reviews``)."""
     dismissed: list[int] = []
-    for review in _iter_greenlight_approvals(pr, bot_login):
-        review.dismiss(message)
-        dismissed.append(review.id)
+    for review in _iter_greenlight_reviews(pr, bot_login):
+        if review.state == _REVIEW_STATE_APPROVED:
+            review.dismiss(message)
+            dismissed.append(review.id)
     return dismissed

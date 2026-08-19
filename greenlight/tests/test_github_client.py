@@ -1365,7 +1365,7 @@ def test_has_live_greenlight_approval_false_for_commented_and_dismissed():
     assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
 
 
-def test_has_live_greenlight_approval_true_when_any_own_approved_among_many():
+def test_has_live_greenlight_approval_true_when_latest_non_commented_approved():
     reviews = [
         _FakeVerdictReview(1, _FakeActor("alice"), "APPROVED"),
         _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
@@ -1374,3 +1374,52 @@ def test_has_live_greenlight_approval_true_when_any_own_approved_among_many():
     pr = _FakeVerdictPR(reviews=reviews)
 
     assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
+
+
+def test_has_live_greenlight_approval_false_when_approved_then_dismissed():
+    reviews = [
+        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
+        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "DISMISSED"),
+    ]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    # trymerge collapses greenlight to its latest non-COMMENTED state (DISMISSED), so it would
+    # not count greenlight as an approver; an older APPROVED must not read as a live approval.
+    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
+
+
+def test_has_live_greenlight_approval_true_when_dismissed_then_approved():
+    reviews = [
+        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "DISMISSED"),
+        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "APPROVED"),
+    ]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
+
+
+def test_has_live_greenlight_approval_true_when_commented_after_approved():
+    reviews = [
+        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
+        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
+    ]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
+
+
+def test_has_live_greenlight_approval_false_when_latest_changes_requested():
+    reviews = [
+        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
+        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "CHANGES_REQUESTED"),
+    ]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
+
+
+def test_has_live_greenlight_approval_false_when_only_other_author_approved():
+    reviews = [_FakeVerdictReview(1, _FakeActor("alice"), "APPROVED")]
+    pr = _FakeVerdictPR(reviews=reviews)
+
+    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
