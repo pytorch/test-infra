@@ -230,7 +230,9 @@ class TestPayload(unittest.TestCase):
         )
         # the concrete event keeps the full shard+runner name (not normalized).
         self.assertEqual(ev["job_name"], red.suspect.name)
-        self.assertEqual(ev["job_name"], "linux-jammy / test (slow, 2, 3, mt-l-runner-a)")
+        self.assertEqual(
+            ev["job_name"], "linux-jammy / test (slow, 2, 3, mt-l-runner-a)"
+        )
         for bc in commits[1:]:
             self.assertFalse(bc["is_suspect"])
             self.assertIn("successful:", bc["partition"])
