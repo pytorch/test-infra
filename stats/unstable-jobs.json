@@ -135,12 +135,20 @@
     "linux-jammy-rocm-py3.10-mi350",
     "test (distributed)"
   ],
-  "trunk-rocm-sandbox / linux-jammy-rocm-py3.10 / test": [
+  "trunk / linux-jammy-rocm-py3.10-mi350 / test (inductor)": [
+    "jithunnair-amd",
+    "194094",
+    "https://github.com/pytorch/pytorch/issues/194094",
+    "trunk",
+    "linux-jammy-rocm-py3.10-mi350",
+    "test (inductor)"
+  ],
+  "trunk-rocm-sandbox / linux-noble-rocm-py3.12-mi350 / test": [
     "jithunnair-amd",
     "167616",
     "https://github.com/pytorch/pytorch/issues/167616",
     "trunk-rocm-sandbox",
-    "linux-jammy-rocm-py3.10",
+    "linux-noble-rocm-py3.12-mi350",
     "test"
   ],
   "vLLM Benchmark / Run vLLM benchmarks (linux.dgx.b200)": [
