@@ -53,5 +53,5 @@ def _log_content_length(job_id: int) -> Optional[int]:
         log.debug("[coverage] log HEAD %s → HTTP %s", job_id, e.code)
         return None
     except (urllib.error.URLError, ValueError, OSError) as e:
-        log.warning("[coverage] log HEAD %s failed: %s", job_id, e)
+        log.warning("[coverage] log HEAD %s failed: %s", job_id, e)  # noqa: G200
         return None

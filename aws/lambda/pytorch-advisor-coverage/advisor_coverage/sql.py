@@ -18,7 +18,6 @@ verbatim from flaky_trunk_jobs so coverage keys off the SAME normalized job
 identity the /flaky_trunk page joins on.
 """
 
-
 _CTE_TRUNK_COMMITS = r"""trunk_commits AS (
     SELECT
         tupleElement(head_commit, 'id') AS head_sha,

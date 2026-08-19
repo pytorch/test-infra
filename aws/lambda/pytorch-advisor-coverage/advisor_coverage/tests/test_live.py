@@ -59,8 +59,10 @@ class TestLiveEnumeration(unittest.TestCase):
         print(f"\n[live] unclassified reds in last 48h: {len(reds)}")
         if reds:
             total_baselines = sum(len(r.baselines) for r in reds)
-            print(f"[live] sample suspect job_id={reds[0].suspect.job_id} "
-                  f"key={reds[0].job_name!r} baselines_total={total_baselines}")
+            print(
+                f"[live] sample suspect job_id={reds[0].suspect.job_id} "
+                f"key={reds[0].job_name!r} baselines_total={total_baselines}"
+            )
 
 
 @unittest.skipUnless(_LIVE, "needs COVERAGE_LIVE_TESTS=1 (network)")

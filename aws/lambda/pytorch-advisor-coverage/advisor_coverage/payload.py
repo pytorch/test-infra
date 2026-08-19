@@ -22,8 +22,7 @@ _LABEL_FAILED = (
     "at or after the suspect commit (newest first)"
 )
 _LABEL_SUCCESSFUL = (
-    "successful: baseline commits where this signal was GREEN "
-    "before the suspect commit"
+    "successful: baseline commits where this signal was GREEN before the suspect commit"
 )
 
 
@@ -33,9 +32,7 @@ def _fmt_ts(dt: Optional[datetime]) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
-def _event(
-    *, status: str, run: JobRun, repo_full_name: str
-) -> Dict[str, Any]:
+def _event(*, status: str, run: JobRun, repo_full_name: str) -> Dict[str, Any]:
     return {
         "status": status,
         "job_name": run.name,
@@ -48,9 +45,7 @@ def _event(
             f"https://github.com/{repo_full_name}/actions/runs/"
             f"{run.wf_run_id}/job/{run.job_id}"
         ),
-        "log_url": (
-            f"https://ossci-raw-job-status.s3.amazonaws.com/log/{run.job_id}"
-        ),
+        "log_url": (f"https://ossci-raw-job-status.s3.amazonaws.com/log/{run.job_id}"),
     }
 
 

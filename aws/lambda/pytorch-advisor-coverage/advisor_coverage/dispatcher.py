@@ -32,9 +32,7 @@ from .payload import build_isolated_red_payload, coverage_signal_key
 log = logging.getLogger(__name__)
 
 
-def _in_emit_window(
-    ts: Optional[datetime], start: datetime, stop: datetime
-) -> bool:
+def _in_emit_window(ts: Optional[datetime], start: datetime, stop: datetime) -> bool:
     """True if `ts` is in [start, stop). Missing timestamps are kept."""
     if ts is None:
         return True
@@ -251,9 +249,7 @@ class CoverageDispatcher:
         for attempt in RetryWithBackoff():
             with attempt:
                 res = CHCliFactory().client.query(query, parameters=params)
-                return {
-                    (str(row[0]).strip(), str(row[1])) for row in res.result_rows
-                }
+                return {(str(row[0]).strip(), str(row[1])) for row in res.result_rows}
 
     def _dispatch_one(
         self,

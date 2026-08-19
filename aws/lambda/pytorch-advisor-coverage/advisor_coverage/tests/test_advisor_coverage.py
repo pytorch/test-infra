@@ -14,10 +14,10 @@ from unittest.mock import MagicMock, patch
 from advisor_coverage import config as config_mod
 from advisor_coverage.backfill import run_backfill
 from advisor_coverage.config import (
+    _parse_workflows,
     COVERAGE_SIGNAL_KEY_PREFIX,
     CoverageConfig,
     HARD_CAP_DISPATCHES,
-    _parse_workflows,
 )
 from advisor_coverage.dispatcher import CoverageDispatcher
 from advisor_coverage.enumeration import (
@@ -34,14 +34,14 @@ def T(minute: int) -> datetime:
 
 
 def make_config(**overrides) -> CoverageConfig:
-    defaults = dict(
-        repo_full_name="pytorch/pytorch",
-        workflows=[],
-        hours=24,
-        max_dispatches_per_run=10,
-        dispatch_gap_seconds=3,
-        dry_run=True,
-    )
+    defaults = {
+        "repo_full_name": "pytorch/pytorch",
+        "workflows": [],
+        "hours": 24,
+        "max_dispatches_per_run": 10,
+        "dispatch_gap_seconds": 3,
+        "dry_run": True,
+    }
     defaults.update(overrides)
     return CoverageConfig(**defaults)
 
@@ -96,7 +96,9 @@ def _urlopen_cm(status, content_length):
     """A fake urlopen() context manager for logfilter HEAD tests."""
     resp = MagicMock()
     resp.status = status
-    resp.headers = {} if content_length is None else {"Content-Length": str(content_length)}
+    resp.headers = (
+        {} if content_length is None else {"Content-Length": str(content_length)}
+    )
     cm = MagicMock()
     cm.__enter__.return_value = resp
     cm.__exit__.return_value = False
@@ -119,7 +121,9 @@ class _DispatchHarness:
         self.reds = reds
         self.config = config or make_config()
         self.existing_rows = existing_rows or []
-        self.limit = limit if limit is not None else self.config.effective_max_dispatches()
+        self.limit = (
+            limit if limit is not None else self.config.effective_max_dispatches()
+        )
         self.dispatch_side_effect = dispatch_side_effect
         self.sleep_calls = []
         self.log_calls = []
@@ -238,11 +242,10 @@ class TestPrefixInvariant(unittest.TestCase):
         self.assertFalse(hasattr(cfg, "coverage_prefix"))
 
     def test_dispatch_guard_never_posts_native_key(self):
-        with _DispatchHarness([make_red()]) as h:
-            with patch("advisor_coverage.dispatcher.COVERAGE_SIGNAL_KEY_PREFIX", ""), patch(
-                "advisor_coverage.payload.COVERAGE_SIGNAL_KEY_PREFIX", ""
-            ):
-                stats = h.dispatcher.dispatch_for_window(T(0), T(59))
+        with _DispatchHarness([make_red()]) as h, patch(
+            "advisor_coverage.dispatcher.COVERAGE_SIGNAL_KEY_PREFIX", ""
+        ), patch("advisor_coverage.payload.COVERAGE_SIGNAL_KEY_PREFIX", ""):
+            stats = h.dispatcher.dispatch_for_window(T(0), T(59))
         self.assertEqual(stats.dispatched, 0)
         self.assertEqual(stats.errors, 1)
         h.dispatch_mock.assert_not_called()
@@ -423,13 +426,17 @@ class TestThrottle(unittest.TestCase):
 class TestConfig(unittest.TestCase):
     def test_hard_cap(self):
         self.assertEqual(
-            make_config(max_dispatches_per_run=10000, dispatch_gap_seconds=1).effective_max_dispatches(),
+            make_config(
+                max_dispatches_per_run=10000, dispatch_gap_seconds=1
+            ).effective_max_dispatches(),
             HARD_CAP_DISPATCHES,
         )
 
     def test_timeout_clamp(self):
         self.assertEqual(
-            make_config(max_dispatches_per_run=10000, dispatch_gap_seconds=3).effective_max_dispatches(),
+            make_config(
+                max_dispatches_per_run=10000, dispatch_gap_seconds=3
+            ).effective_max_dispatches(),
             87,
         )
 
@@ -456,7 +463,12 @@ class TestConfig(unittest.TestCase):
 
     def test_lowercase_event_overrides(self):
         cfg = CoverageConfig.from_env_and_event(
-            {"mode": "backfill", "hours": 48, "as_of_start": "2026-01-01", "as_of_end": "2026-01-05"}
+            {
+                "mode": "backfill",
+                "hours": 48,
+                "as_of_start": "2026-01-01",
+                "as_of_end": "2026-01-05",
+            }
         )
         self.assertEqual(cfg.mode, "backfill")
         self.assertEqual(cfg.hours, 48)
@@ -480,7 +492,11 @@ class TestConfig(unittest.TestCase):
     def test_backfill_as_of_must_be_ordered(self):
         with self.assertRaises(ValueError):
             CoverageConfig.from_env_and_event(
-                {"mode": "backfill", "as_of_start": "2026-01-05", "as_of_end": "2026-01-01"}
+                {
+                    "mode": "backfill",
+                    "as_of_start": "2026-01-05",
+                    "as_of_end": "2026-01-01",
+                }
             )
 
 
@@ -496,22 +512,68 @@ class TestEnumeration(unittest.TestCase):
 
     def test_assembles_red_with_baselines_before(self):
         unc_cols = [
-            "head_sha", "commit_time", "workflow_name", "name", "cons_name",
-            "job_id", "run_id", "run_attempt", "started_at", "completed_at",
+            "head_sha",
+            "commit_time",
+            "workflow_name",
+            "name",
+            "cons_name",
+            "job_id",
+            "run_id",
+            "run_attempt",
+            "started_at",
+            "completed_at",
         ]
         unc_rows = [
-            ("sha_obs", T(30), "slow", "linux / test (slow, 2, 3, runner-a)",
-             "linux / test (slow, 2, 3)", 900, 901, 1, T(30), T(40)),
+            (
+                "sha_obs",
+                T(30),
+                "slow",
+                "linux / test (slow, 2, 3, runner-a)",
+                "linux / test (slow, 2, 3)",
+                900,
+                901,
+                1,
+                T(30),
+                T(40),
+            ),
         ]
         base_cols = [
-            "workflow_name", "cons_name", "head_sha", "commit_time", "name",
-            "job_id", "run_id", "run_attempt", "started_at", "completed_at",
+            "workflow_name",
+            "cons_name",
+            "head_sha",
+            "commit_time",
+            "name",
+            "job_id",
+            "run_id",
+            "run_attempt",
+            "started_at",
+            "completed_at",
         ]
         base_rows = [
-            ("slow", "linux / test (slow, 2, 3)", "sha_future", T(50),
-             "linux / test (slow, 2, 3, runner-a)", 700, 701, 1, T(50), T(55)),
-            ("slow", "linux / test (slow, 2, 3)", "sha_before", T(20),
-             "linux / test (slow, 2, 3, runner-a)", 800, 801, 1, T(20), T(25)),
+            (
+                "slow",
+                "linux / test (slow, 2, 3)",
+                "sha_future",
+                T(50),
+                "linux / test (slow, 2, 3, runner-a)",
+                700,
+                701,
+                1,
+                T(50),
+                T(55),
+            ),
+            (
+                "slow",
+                "linux / test (slow, 2, 3)",
+                "sha_before",
+                T(20),
+                "linux / test (slow, 2, 3, runner-a)",
+                800,
+                801,
+                1,
+                T(20),
+                T(25),
+            ),
         ]
         mock_ch = MagicMock()
         mock_ch.return_value.client.query.side_effect = [
@@ -553,8 +615,12 @@ class TestEnumeration(unittest.TestCase):
         enum_wf = UnclassifiedRedEnumerator(make_config(workflows=["slow"]))
         from advisor_coverage.sql import QUERY_UNCLASSIFIED
 
-        self.assertNotIn("workflow_name IN", enum_all._apply_workflow_filter(QUERY_UNCLASSIFIED))
-        self.assertIn("workflow_name IN", enum_wf._apply_workflow_filter(QUERY_UNCLASSIFIED))
+        self.assertNotIn(
+            "workflow_name IN", enum_all._apply_workflow_filter(QUERY_UNCLASSIFIED)
+        )
+        self.assertIn(
+            "workflow_name IN", enum_wf._apply_workflow_filter(QUERY_UNCLASSIFIED)
+        )
 
 
 # ----------------------------------------------------------------------
@@ -639,9 +705,7 @@ class TestBackfill(unittest.TestCase):
         parsed = CoverageConfig.from_env_and_event(
             {"mode": "backfill", "as_of_start": cursor, "as_of_end": "2026-01-02"}
         )
-        self.assertEqual(
-            parsed.as_of_start.strftime("%Y-%m-%d %H:%M:%S"), cursor
-        )
+        self.assertEqual(parsed.as_of_start.strftime("%Y-%m-%d %H:%M:%S"), cursor)
 
 
 # ----------------------------------------------------------------------

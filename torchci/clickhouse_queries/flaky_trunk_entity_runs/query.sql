@@ -64,7 +64,10 @@ advisor_agg AS (
             ) AS adv_norm,
             -- Prefer a native (non-coverage_) verdict over a coverage_ one for the same
             -- (commit, job); among equals, the latest timestamp wins.
-            argMax(verdict, (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)) AS verdict
+            argMax(
+                verdict,
+                (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)
+            ) AS verdict
         FROM misc.autorevert_advisor_verdicts
         WHERE
             repo = {repo: String}

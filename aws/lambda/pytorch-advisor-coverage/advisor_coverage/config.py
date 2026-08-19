@@ -164,9 +164,7 @@ class CoverageConfig:
                 f"{sorted(ALLOWED_REPOS)} — refusing to dispatch against it"
             )
         if self.mode not in ("ongoing", "backfill"):
-            raise ValueError(
-                f"mode must be 'ongoing' or 'backfill', got {self.mode!r}"
-            )
+            raise ValueError(f"mode must be 'ongoing' or 'backfill', got {self.mode!r}")
         if require_backfill_window and self.mode == "backfill":
             if self.as_of_start is None or self.as_of_end is None:
                 raise ValueError(

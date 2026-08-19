@@ -21,7 +21,6 @@ from dataclasses import dataclass
 
 import boto3
 import github
-
 from pytorch_auto_revert.clickhouse_client_helper import CHCliFactory
 from pytorch_auto_revert.github_client_helper import GHClientFactory
 from pytorch_auto_revert.utils import RetryWithBackoff
@@ -92,9 +91,7 @@ def _get_secret_from_aws(secret_store_name: str) -> _AWSSecrets:
         sys.exit(1)
 
 
-def _mint_scoped_installation_token(
-    app_id: str, pem: str, installation_id: int
-) -> str:
+def _mint_scoped_installation_token(app_id: str, pem: str, installation_id: int) -> str:
     """Mint an installation token scoped to `actions:write` only.
 
     Without token_permissions the mint inherits the App's full permission set
