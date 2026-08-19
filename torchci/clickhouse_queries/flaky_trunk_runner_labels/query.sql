@@ -41,20 +41,27 @@ advisor_agg AS (
     FROM (
         SELECT
             toString(suspect_commit) AS head_sha,
+            -- Strip a leading "coverage_": coverage/backfill advisor dispatches use
+            -- signal_key = 'coverage_' + the native job signal_key, so stripping it
+            -- lets such a verdict normalize to (and classify) the same red. No native
+            -- job signal_key starts with 'coverage_'.
+            replaceRegexpOne(signal_key, '^coverage_', '') AS base_key,
             replaceRegexpOne(
                 replaceRegexpOne(
-                    signal_key,
+                    base_key,
                     ' \\[[^\\]]+\\]$', ''
                 ),
                 ', [0-9]+, [0-9]+, .+\\)', ')'
             ) AS adv_norm,
-            argMax(verdict, timestamp) AS verdict
+            -- Prefer a native (non-coverage_) verdict over a coverage_ one for the same
+            -- (commit, job); among equals, the latest timestamp wins.
+            argMax(verdict, (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)) AS verdict
         FROM misc.autorevert_advisor_verdicts
         WHERE
             repo = {repo: String}
             AND signal_source = 'job'
             AND timestamp >= {startTime: DateTime64(3)}
-        GROUP BY suspect_commit, signal_key
+        GROUP BY suspect_commit, base_key
     )
     GROUP BY head_sha, adv_norm
 ),
