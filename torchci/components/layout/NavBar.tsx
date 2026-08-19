@@ -35,6 +35,10 @@ function NavBar() {
       href: "/reliability",
     },
     {
+      name: "Flaky Trunk",
+      href: "/flaky_trunk",
+    },
+    {
       name: "Failures Classifier",
       href: "/failedjobs/pytorch/pytorch/main",
     },
