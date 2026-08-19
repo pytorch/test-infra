@@ -88,6 +88,27 @@ describe("viable/strict sole blocker query.sql stays in sync with the fold + fil
     expect(sql).not.toContain("splitByString(' / ', j.name), 2)");
   });
 
+  test("matches gating workflows in full, mirroring the gate's re.fullmatch", () => {
+    // Anchored at both ends (test-infra #8438). A bare prefix would also match
+    // sandbox/experiment workflows and linters that share the prefix but do
+    // not gate.
+    expect(sql).toContain("'^(pull|trunk|lint|docs-build)$'");
+
+    const gating = /^(pull|trunk|lint|docs-build)$/;
+    for (const wf of ["pull", "trunk", "lint", "docs-build"]) {
+      expect(gating.test(wf)).toBe(true);
+    }
+    for (const wf of [
+      "trunk-ci-sandbox",
+      "trunk-tagging",
+      "pull-test-sandbox",
+      "linter",
+      "lintrunner",
+    ]) {
+      expect(gating.test(wf)).toBe(false);
+    }
+  });
+
   test("keeps the gate's job filters + the fold-collision filters, drops the over-filters", () => {
     // gate parity
     expect(sql).toContain("j.name != 'ciflow_should_run'");
