@@ -24,18 +24,26 @@ describe("describeRunOrigin", () => {
 });
 
 describe("describeWorkflowRun", () => {
-  test("an autorevert restart names both what it is and who dispatched it", () => {
-    expect(
-      describeWorkflowRun({
-        runOrigin: "autorevert",
-        restartDispatchedBy: "pytorch-auto-revert[bot]",
-      })
-    ).toEqual("autorevert restart by pytorch-auto-revert[bot]");
+  test("an autorevert run is named by its origin, with no actor to repeat it", () => {
+    // "autorevert restart by pytorch-auto-revert[bot]" said autorevert twice (Ivan, 2026-08-19).
+    expect(describeWorkflowRun({ runOrigin: "autorevert" })).toEqual(
+      "autorevert dispatch"
+    );
   });
 
-  test("a restart with no recorded dispatcher still says what it is", () => {
+  test("the label depends only on the origin, never on who pressed the button", () => {
+    // Why the actor is not named: commit_jobs_query classifies a trunk/<sha> workflow_dispatch as
+    // "autorevert" regardless of WHO dispatched it, so the origin survives a human hand-dispatching
+    // one while an actor-only label ("dispatched by <person>") would hide it. That classification
+    // lives in SQL and is not exercised here; this only pins that the formatter reads the origin
+    // and nothing else, which is what makes the SQL's answer the one the reader sees.
     expect(describeWorkflowRun({ runOrigin: "autorevert" })).toEqual(
-      "autorevert restart"
+      "autorevert dispatch"
+    );
+    // A non-trunk dispatch is a different origin and keeps the raw event name. Not ideal copy;
+    // pre-existing on both surfaces via describeRunOrigin, and deliberately not changed here.
+    expect(describeWorkflowRun({ runOrigin: "workflow_dispatch" })).toEqual(
+      "workflow_dispatch"
     );
   });
 
@@ -43,19 +51,21 @@ describe("describeWorkflowRun", () => {
     // Deliberate: an unlabelled row in a picker that exists to disambiguate cannot be told apart
     // from one whose data is missing.
     expect(describeWorkflowRun({})).toEqual("push");
-    expect(
-      describeWorkflowRun({ runOrigin: null, restartDispatchedBy: null })
-    ).toEqual("push");
+    expect(describeWorkflowRun({ runOrigin: null })).toEqual("push");
+  });
+
+  test("other origins keep the wording they have in the HUD tooltip", () => {
+    expect(describeWorkflowRun({ runOrigin: "retry" })).toEqual(
+      "re-run attempt"
+    );
+    expect(describeWorkflowRun({ runOrigin: "schedule" })).toEqual("schedule");
   });
 
   // The two entries in the reviewer's screenshot differed only by id. This is that case.
   test("a restart and a push in one picker do not read the same", () => {
-    const push = describeWorkflowRun({ runOrigin: null });
-    const restart = describeWorkflowRun({
-      runOrigin: "autorevert",
-      restartDispatchedBy: "pytorch-auto-revert[bot]",
-    });
-    expect(restart).not.toEqual(push);
+    expect(describeWorkflowRun({ runOrigin: "autorevert" })).not.toEqual(
+      describeWorkflowRun({ runOrigin: null })
+    );
   });
 });
 
@@ -69,42 +79,22 @@ describe("getWorkflowIdsByName", () => {
     } as JobData;
   }
 
-  test("carries the origin and dispatcher through to the picker entries", () => {
+  test("carries the origin through to the picker entries", () => {
     // Without this the formatter tests above would all still pass while the dropdown showed
     // nothing but bare ids.
     const byName = getWorkflowIdsByName([
       // NULL, not undefined: that is the shape commit_jobs_query actually ships for a push.
-      job({
-        workflowId: "100",
-        runAttempt: 1,
-        runOrigin: null,
-        restartDispatchedBy: null,
-      }),
-      job({
-        workflowId: "200",
-        runAttempt: 1,
-        runOrigin: "autorevert",
-        restartDispatchedBy: "pytorch-auto-revert[bot]",
-      }),
+      job({ workflowId: "100", runAttempt: 1, runOrigin: null }),
+      job({ workflowId: "200", runAttempt: 1, runOrigin: "autorevert" }),
     ]);
 
     expect(byName["trunk"]).toEqual([
-      {
-        id: "100",
-        attempt: 1,
-        runOrigin: null,
-        restartDispatchedBy: null,
-      },
-      {
-        id: "200",
-        attempt: 1,
-        runOrigin: "autorevert",
-        restartDispatchedBy: "pytorch-auto-revert[bot]",
-      },
+      { id: "100", attempt: 1, runOrigin: null },
+      { id: "200", attempt: 1, runOrigin: "autorevert" },
     ]);
     expect(byName["trunk"].map(describeWorkflowRun)).toEqual([
       "push",
-      "autorevert restart by pytorch-auto-revert[bot]",
+      "autorevert dispatch",
     ]);
   });
 

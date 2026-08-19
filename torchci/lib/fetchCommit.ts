@@ -51,11 +51,10 @@ export function getWorkflowIdsByName(
           return {
             id: job.workflowId,
             attempt: job.runAttempt,
-            // Every job of one run carries the same origin and dispatcher, so taking them from
-            // whichever job wins the uniqBy below is safe -- it dedups by (id, attempt), which is
-            // exactly the granularity these two describe.
+            // Every job of one run carries the same origin, so taking it from whichever job wins
+            // the uniqBy below is safe -- that dedups by (id, attempt), and origin is a property of
+            // the run.
             runOrigin: job.runOrigin,
-            restartDispatchedBy: job.restartDispatchedBy,
           };
         })
         .filter(

@@ -48,17 +48,20 @@ export function describeRunOrigin(run: { runOrigin?: string | null }): string {
  * `describeRunOrigin` cannot tell a genuine NULL from an absent key (DP17, gpt-5.6-sol). Only a
  * BLANK origin is called out, as "unknown".
  *
- * The login names whoever DISPATCHED the run, which for a restart is the bot. It is deliberately
- * not the person who re-ran an attempt: `workflow_run.actor` is the original dispatcher and is
- * invariant across attempts, while `triggering_actor` differs per attempt. So "attempt 2 ... by
- * <bot>" means the bot started the run, not that the bot pressed re-run.
+ * NO ACTOR IS NAMED, and that is a decision rather than an omission. "autorevert restart by
+ * pytorch-auto-revert[bot]" says autorevert twice (Ivan, 2026-08-19). Naming the actor INSTEAD of
+ * the origin was the alternative, and it is wrong here: actor and origin are independent facts, so
+ * a person hand-dispatching a trunk/<sha> run would read "dispatched by <person>" with the
+ * autorevert nature invisible — the one thing the label exists to show (DP17, gpt-5.6-sol). The
+ * origin alone is the smaller and stronger answer. If the picker ever shows actors for the whole
+ * workflow_dispatch family, revisit: naming both then stops being redundant.
+ *
+ * "dispatch" rather than the tooltip's "restart" because this list enumerates the workflow RUNS
+ * behind a commit, where what matters is that the run was dispatched rather than pushed.
  */
 export function describeWorkflowRun(run: {
   runOrigin?: string | null;
-  restartDispatchedBy?: string | null;
 }): string {
-  const origin = describeRunOrigin(run);
-  return run.restartDispatchedBy
-    ? `${origin} by ${run.restartDispatchedBy}`
-    : origin;
+  if (run.runOrigin === "autorevert") return "autorevert dispatch";
+  return describeRunOrigin(run);
 }

@@ -51,19 +51,7 @@ WITH job AS (
             workflow.event = 'push',
             NULL,
             workflow.event
-        ) AS run_origin,
-        -- Who ORIGINALLY dispatched an autorevert restart. This query already joins workflow_run
-        -- for the run-level event, branch, head_sha and name, and workflow_run.actor is invariant
-        -- across re-run attempts -- so the row FINAL selects is sufficient here. hud_query starts
-        -- from workflow_job and additionally needs the latest triggering_actor and run_attempt,
-        -- which is why it pays for a separate grouped workflow_run lookup; FINAL would NOT be
-        -- sufficient for those. NULL for anything that is not a restart.
-        if(
-            workflow.event = 'workflow_dispatch'
-            AND workflow.head_branch LIKE 'trunk/%',
-            nullIf(workflow.actor. 'login', ''),
-            NULL
-        ) AS restart_actor_login
+        ) AS run_origin
     FROM
         workflow_job job final
         INNER JOIN workflow_run workflow final ON workflow.id = job.run_id
@@ -123,9 +111,9 @@ WITH job AS (
         '' AS runner_name,
         workflow.head_commit.author.email AS authorEmail,
         workflow.run_attempt as run_attempt,
-        -- Same two columns as the branch above, because a UNION ALL needs matching shapes. These
-        -- rows carry workflow_id = 0, which fetchCommit normalizes to null and getWorkflowIdsByName
-        -- then filters out, so a startup-failure pseudo-row never reaches the picker -- they are
+        -- Same column as the branch above, because a UNION ALL needs matching shapes. These rows
+        -- carry workflow_id = 0, which fetchCommit normalizes to null and getWorkflowIdsByName then
+        -- filters out, so a startup-failure pseudo-row never reaches the picker -- this is
         -- projected for the union, not for the dropdown.
         multiIf(
             workflow.event = 'workflow_dispatch'
@@ -136,13 +124,7 @@ WITH job AS (
             workflow.event = 'push',
             NULL,
             workflow.event
-        ) AS run_origin,
-        if(
-            workflow.event = 'workflow_dispatch'
-            AND workflow.head_branch LIKE 'trunk/%',
-            nullIf(workflow.actor. 'login', ''),
-            NULL
-        ) AS restart_actor_login
+        ) AS run_origin
     FROM
         workflow_run workflow final
     WHERE
@@ -183,8 +165,7 @@ SELECT
     authorEmail,
     time,
     run_attempt AS runAttempt,
-    run_origin AS runOrigin,
-    restart_actor_login AS restartDispatchedBy
+    run_origin AS runOrigin
 FROM
     job
 ORDER BY
