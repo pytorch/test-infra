@@ -47,7 +47,7 @@ function cancelWorkflowsOnCloseBot(app: Probot): void {
         owner,
         repo,
         head_sha: headSha,
-        per_page: 30,
+        per_page: 100,
       }
     );
 
