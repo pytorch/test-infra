@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
-    from greenlight.github_client import VerdictPR
+    from greenlight.github_types import VerdictPR
     from greenlight.state import PRState
 
     # The fingerprint seam returns the PR's (head_sha, eval_hash) or, when a human has already
