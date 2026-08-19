@@ -59,11 +59,12 @@ function commitDataFromPushRow(row: any): CommitData {
 }
 
 // Commit list for the HUD grid, read from the push mirror first so a normal page
-// load never calls GitHub (this listCommits was the highest-volume GitHub read on
-// the PyTorchBot app). Falls back to GitHub's listCommits when the mirror can't
-// answer authoritatively: a raw-sha ref it isn't keyed by, a ClickHouse failure,
-// or fewer rows than a full page (empty branch, deep page beyond the mirror, or a
-// just-landed tip not yet ingested).
+// load never calls GitHub. Falls back to GitHub's listCommits only when the
+// mirror can't answer authoritatively: a raw-sha branch (the mirror isn't keyed
+// by sha), a ClickHouse error, or fewer than per_page rows returned (empty branch
+// or a deep page past what the mirror holds). The guard is count-only: a full
+// page never triggers fallback, so a just-landed tip not yet ingested can briefly
+// be missing from page 1 until the next ingest (display-only, self-heals).
 async function fetchCommits(params: HudParams): Promise<CommitData[]> {
   const branch = decodeURIComponent(params.branch);
   const isRawSha = /^[0-9a-f]{40}$/i.test(branch);

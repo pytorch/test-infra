@@ -6,11 +6,19 @@
 -- head_commit is always the last element of `commits`, so array position DESC
 -- orders the commits of a single push head/newest-first.
 --
--- No FINAL, and the two-stage shape, are deliberate: FINAL forces a full merge
--- that defeats the read-in-order tail scan (~25x slower here) and push has no
--- duplicate rows in practice; the inner query keeps the wide scan on the cheap
--- sort-key columns so only the projected commit subcolumns are decompressed
--- (never the large added/modified/removed file lists).
+-- The inner ORDER BY uses the tupleElement(head_commit, ...) sort-key expression
+-- rather than head_commit.<field> dot syntax: only the exact sort-key expression
+-- lets ClickHouse read in sort-key order and stop after LIMIT rows instead of
+-- scanning the whole table. The head_commit.id term also makes the LIMIT cutoff
+-- deterministic when pushes share a timestamp.
+--
+-- No FINAL: default.push can hold several rows for one head_commit.id (the same
+-- push stored under different dynamoKey), but dynamoKey is part of the sort key,
+-- so ReplacingMergeTree treats those rows as distinct and FINAL would not merge
+-- them. `LIMIT 1 BY` dedups by head sha before the ARRAY JOIN (with the downstream
+-- keyBy(sha) as backstop). The two-stage shape keeps the scan on the small
+-- sort-key columns so only the projected commit subcolumns are decompressed,
+-- never the large added/modified/removed file lists.
 SELECT
     sha,
     message,
@@ -31,7 +39,8 @@ FROM (
     PREWHERE
         repository.full_name = {repo: String}
         AND ref = concat('refs/heads/', {branch: String})
-    ORDER BY head_commit.timestamp DESC
+    ORDER BY tupleElement(head_commit, 'timestamp') DESC, tupleElement(head_commit, 'id') DESC
+    LIMIT 1 BY tupleElement(head_commit, 'id')
     LIMIT {per_page: Int32} + {offset: Int32}
 )
 ARRAY JOIN
