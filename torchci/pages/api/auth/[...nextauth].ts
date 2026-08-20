@@ -42,6 +42,9 @@ export const authOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      // GitHub now returns an `iss` param on the OAuth callback (RFC 9207), and
+      // openid-client rejects it unless the issuer is configured here.
+      issuer: "https://github.com/login/oauth",
       authorization: { params: { scope: "public_repo workflow" } },
     }),
   ],
