@@ -406,3 +406,63 @@ export async function getFilesChangedByPr(
   );
   return filesChangedRes.map((f: any) => f.filename);
 }
+
+export const FILES_CHANGED_CACHE_TTL_MS = 60 * 1000;
+
+interface FilesChangedCacheEntry {
+  promise: Promise<string[]>;
+  expiresAt: number;
+}
+
+// autoLabelBot and nitpickBot both fetch a PR's changed files on the same
+// pull_request delivery, staggered (nitpick loads its config first). Caching
+// the resolved fetch — not just the in-flight promise — lets the second
+// handler reuse the first's paginated GET /pulls/{n}/files. The delivery id
+// scopes an entry to a single webhook delivery: GitHub computes the file list
+// against the PR's base, and retargeting the base changes that list without
+// changing head.sha, so an entry is only ever safe to reuse within the
+// delivery that produced it. The TTL only bounds memory.
+const filesChangedCache = new Map<string, FilesChangedCacheEntry>();
+
+export function getFilesChangedByPrCached(
+  octokit: Octokit,
+  deliveryId: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  headSha: string
+): Promise<string[]> {
+  const key = `${deliveryId}/${owner}/${repo}/${prNumber}/${headSha}`;
+  const now = Date.now();
+
+  const cached = filesChangedCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.promise;
+  }
+
+  for (const [k, entry] of filesChangedCache) {
+    if (entry.expiresAt <= now) {
+      filesChangedCache.delete(k);
+    }
+  }
+
+  const promise = getFilesChangedByPr(octokit, owner, repo, prNumber);
+  filesChangedCache.set(key, {
+    promise,
+    expiresAt: now + FILES_CHANGED_CACHE_TTL_MS,
+  });
+  // A failed fetch must not be served for the rest of the TTL; drop it so a
+  // later handler re-fetches (matching the uncached on-error behavior).
+  promise.catch(() => {
+    if (filesChangedCache.get(key)?.promise === promise) {
+      filesChangedCache.delete(key);
+    }
+  });
+
+  return promise;
+}
+
+/** Clear the in-memory files-changed cache (useful for testing). */
+export function clearFilesChangedCache(): void {
+  filesChangedCache.clear();
+}

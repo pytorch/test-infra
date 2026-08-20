@@ -12,6 +12,10 @@ import { mockAddLabels } from "./utils";
 
 nock.disableNetConnect();
 
+beforeEach(() => {
+  botUtils.clearFilesChangedCache();
+});
+
 describe("auto-label-bot", () => {
   let probot: Probot;
   function emptyMockConfig(repoFullName: string) {
