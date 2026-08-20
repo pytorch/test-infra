@@ -8,13 +8,14 @@ import json
 import logging
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from advisor_coverage import config as config_mod
 from advisor_coverage.backfill import run_backfill
 from advisor_coverage.config import (
     _parse_workflows,
+    BACKFILL_MIN_DISPATCH_GAP_SECONDS,
     COVERAGE_SIGNAL_KEY_PREFIX,
     CoverageConfig,
     HARD_CAP_DISPATCHES,
@@ -94,6 +95,25 @@ def make_red(
         job_base_name=job_base_name,
         suspect=suspect,
         baselines=baselines,
+    )
+
+
+def _minted(token: str, valid_for: timedelta) -> MagicMock:
+    """A stand-in for PyGithub's InstallationAuthorization."""
+    auth = MagicMock()
+    auth.token = token
+    auth.expires_at = datetime.now(timezone.utc) + valid_for
+    return auth
+
+
+def _auth_expiring_in(remaining: timedelta):
+    from advisor_coverage.bootstrap import _DispatchAuth
+
+    return _DispatchAuth(
+        app_id="a",
+        pem="PEM",
+        installation_id=1,
+        expires_at=datetime.now(timezone.utc) + remaining,
     )
 
 
@@ -557,6 +577,13 @@ class TestConfig(unittest.TestCase):
     def test_gap_floor(self):
         self.assertEqual(make_config(dispatch_gap_seconds=0).effective_gap_seconds(), 1)
 
+    def test_backfill_gap_floor(self):
+        cfg = make_config(mode="backfill", dispatch_gap_seconds=3)
+        self.assertEqual(cfg.effective_gap_seconds(), BACKFILL_MIN_DISPATCH_GAP_SECONDS)
+        raised = make_config(mode="backfill", dispatch_gap_seconds=60)
+        self.assertEqual(raised.effective_gap_seconds(), 60)
+        self.assertEqual(make_config(dispatch_gap_seconds=3).effective_gap_seconds(), 3)
+
     def test_repo_pin(self):
         with self.assertRaises(ValueError):
             CoverageConfig.from_env_and_event({"repo_full_name": "evil/repo"})
@@ -842,12 +869,12 @@ class TestBootstrapSecurity(unittest.TestCase):
     def test_mint_scopes_token_to_actions_write(self, mock_integration):
         import github
 
-        from advisor_coverage.bootstrap import _mint_scoped_installation_token
+        from advisor_coverage.bootstrap import _mint_scoped_installation_auth
 
         get_token = mock_integration.return_value.get_access_token
         get_token.return_value.token = "ghs_scoped"
-        token = _mint_scoped_installation_token("app-id", "PEM", 4242)
-        self.assertEqual(token, "ghs_scoped")
+        scoped = _mint_scoped_installation_auth("app-id", "PEM", 4242)
+        self.assertEqual(scoped.token, "ghs_scoped")
         self.assertIsInstance(
             mock_integration.call_args.kwargs["auth"], github.Auth.AppAuth
         )
@@ -859,15 +886,75 @@ class TestBootstrapSecurity(unittest.TestCase):
     def test_mint_failure_names_the_identifiers(self, mock_integration):
         import github
 
-        from advisor_coverage.bootstrap import _mint_scoped_installation_token
+        from advisor_coverage.bootstrap import _mint_scoped_installation_auth
 
         mock_integration.return_value.get_access_token.side_effect = (
             github.GithubException(401, {"message": "could not be decoded"}, None)
         )
         with self.assertRaises(RuntimeError) as ctx:
-            _mint_scoped_installation_token("app-id", "PEM", 4242)
+            _mint_scoped_installation_auth("app-id", "PEM", 4242)
         self.assertIn("app-id", str(ctx.exception))
         self.assertIn("4242", str(ctx.exception))
+
+    def test_token_refresh_noop_without_app_auth(self):
+        from advisor_coverage import bootstrap
+
+        bootstrap._dispatch_auth = None
+        self.assertFalse(bootstrap.refresh_dispatch_token_if_stale())
+
+    def test_token_refresh_noop_while_fresh(self):
+        from advisor_coverage import bootstrap
+
+        bootstrap._dispatch_auth = _auth_expiring_in(timedelta(minutes=59))
+        try:
+            with patch(
+                "advisor_coverage.bootstrap._mint_scoped_installation_auth"
+            ) as mint:
+                self.assertFalse(bootstrap.refresh_dispatch_token_if_stale())
+            mint.assert_not_called()
+        finally:
+            bootstrap._dispatch_auth = None
+
+    def test_token_reminted_inside_the_expiry_margin(self):
+        from advisor_coverage import bootstrap
+
+        # Still valid, but inside the margin — a dispatch now could outlive it.
+        bootstrap._dispatch_auth = _auth_expiring_in(timedelta(minutes=5))
+        try:
+            with patch(
+                "advisor_coverage.bootstrap._mint_scoped_installation_auth",
+                return_value=_minted("ghs_new", timedelta(minutes=60)),
+            ) as mint, patch("advisor_coverage.bootstrap.GHClientFactory") as ghf:
+                self.assertTrue(bootstrap.refresh_dispatch_token_if_stale())
+                mint.assert_called_once_with("a", "PEM", 1)
+                ghf.setup_client.assert_called_once_with(token="ghs_new")
+                # Expiry advanced, so the next dispatch does not re-mint again.
+                self.assertFalse(bootstrap.refresh_dispatch_token_if_stale())
+        finally:
+            bootstrap._dispatch_auth = None
+
+    def test_token_reminted_after_a_suspend(self):
+        """An already-expired token re-mints even with no elapsed process time."""
+        from advisor_coverage import bootstrap
+
+        bootstrap._dispatch_auth = _auth_expiring_in(timedelta(minutes=-30))
+        try:
+            with patch(
+                "advisor_coverage.bootstrap._mint_scoped_installation_auth",
+                return_value=_minted("ghs_new", timedelta(minutes=60)),
+            ), patch("advisor_coverage.bootstrap.GHClientFactory"):
+                self.assertTrue(bootstrap.refresh_dispatch_token_if_stale())
+        finally:
+            bootstrap._dispatch_auth = None
+
+    def test_dispatch_checks_token_freshness(self):
+        reds = [make_red(job_name="j / t", observed="o1")]
+        with patch(
+            "advisor_coverage.dispatcher.refresh_dispatch_token_if_stale"
+        ) as refresh:
+            with _DispatchHarness(reds, config=make_config(dry_run=False)) as h:
+                h.dispatcher.dispatch_for_window(T(0), T(59))
+        refresh.assert_called_once_with()
 
     def test_setup_clients_uses_scoped_token(self):
         cfg = make_config(
@@ -876,8 +963,8 @@ class TestBootstrapSecurity(unittest.TestCase):
             github_app_secret=base64.b64encode(b"PEM").decode(),
         )
         with patch(
-            "advisor_coverage.bootstrap._mint_scoped_installation_token",
-            return_value="ghs_scoped",
+            "advisor_coverage.bootstrap._mint_scoped_installation_auth",
+            return_value=_minted("ghs_scoped", timedelta(minutes=60)),
         ) as mint, patch("advisor_coverage.bootstrap.GHClientFactory") as ghf, patch(
             "advisor_coverage.bootstrap.CHCliFactory"
         ) as ch:

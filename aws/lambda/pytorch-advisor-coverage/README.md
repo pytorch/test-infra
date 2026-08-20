@@ -120,7 +120,11 @@ MODE=backfill AS_OF_START=2026-02-19 AS_OF_END=2026-08-18 \
 
 - `MAX_DISPATCHES_PER_RUN` (default 10) — per invocation, clamped by a compiled
   `HARD_CAP` (100) and the Lambda timeout budget; env/event may only LOWER it.
-- `DISPATCH_GAP_SECONDS` (default 3) — sleep between dispatches (floored to 1s).
+- `DISPATCH_GAP_SECONDS` (default 3) — sleep between dispatches, floored to 1s in
+  ongoing mode and to 5s in backfill mode. Backfill sustains a dispatch rate the
+  ongoing cron never reaches, so it is the only mode that can hit GitHub's
+  secondary rate limit on `workflow_dispatch`. The env may raise the gap past
+  either floor, never below it.
 
 Cross-invocation duplicates (a red re-dispatched before its verdict lands) are
 accepted: safe (prefixed → no reverts) and bounded by the throttle. Intra-run
@@ -155,7 +159,7 @@ dispatched once. This is bounded, safe (non-reverting), and matches
 | `AS_OF_START` / `AS_OF_END` | — | backfill range (UTC) |
 | `AS_OF_STEP_HOURS` | `24` | backfill chunk size |
 | `MAX_DISPATCHES_PER_RUN` | `10` | see Throttle |
-| `DISPATCH_GAP_SECONDS` | `3` | see Throttle |
+| `DISPATCH_GAP_SECONDS` | `3` | floored to 5s in backfill mode; see Throttle |
 | `DRY_RUN` | `true` | `false` arms real dispatch |
 | `LOG_LEVEL` | `INFO` | secret-leaking loggers pinned to WARNING regardless |
 

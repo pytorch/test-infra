@@ -23,6 +23,7 @@ from pytorch_auto_revert.clickhouse_client_helper import CHCliFactory
 from pytorch_auto_revert.github_client_helper import GHClientFactory
 from pytorch_auto_revert.utils import proper_workflow_create_dispatch, RetryWithBackoff
 
+from .bootstrap import refresh_dispatch_token_if_stale
 from .config import ADVISOR_WORKFLOW_FILE, COVERAGE_SIGNAL_KEY_PREFIX, CoverageConfig
 from .enumeration import _naive_utc, RedSignal, UnclassifiedRedEnumerator
 from .logfilter import has_readable_log
@@ -287,6 +288,7 @@ class CoverageDispatcher:
             )
             return
 
+        refresh_dispatch_token_if_stale()
         workflow = self._advisor_workflow()
         factory = GHClientFactory()
         # /dispatches is non-idempotent — single attempt via the retry=0
