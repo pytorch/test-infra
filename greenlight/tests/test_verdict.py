@@ -697,6 +697,74 @@ def test_full_land_approves_with_empty_body(make_config, tmp_path):
     assert pr.created_reviews == [("APPROVE", "")]
 
 
+def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path, caplog):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=40, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # A live greenlight approval already exists: no second APPROVE review is posted (the prior one is
+    # left intact), yet the canonical comment is still upserted and the skip is logged.
+    assert pr.created_reviews == []
+    assert reviews[0].dismissed_with is None
+    assert rec.events == ["emit", "comment"]
+    assert pr.comments[0].startswith(comment_format.COMMENT_MARKER)
+    assert f"**{comment_format.LAND_HEADLINE}**" in pr.comments[0]
+    assert "LGTM" in pr.comments[0]
+    assert any("skipping re-approval" in record.getMessage() for record in caplog.records)
+
+
+def test_full_land_reapproves_when_prior_bot_approval_dismissed(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "DISMISSED", rec)])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=41, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # A prior greenlight approval that was dismissed is not live, so LAND re-approves.
+    assert pr.created_reviews == [("APPROVE", "")]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+
+
+def test_full_land_approves_when_only_other_author_approved(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, "alice", "APPROVED", rec)])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=42, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # A human's approval is not greenlight's own, so LAND still posts greenlight's approval.
+    assert pr.created_reviews == [("APPROVE", "")]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+
+
+def test_full_land_approves_when_only_bot_commented_review(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "COMMENTED", rec)])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(repo="r", pr_number=43, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # A COMMENTED review from greenlight is not an approval, so LAND posts one.
+    assert pr.created_reviews == [("APPROVE", "")]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+
+
 class _CommentBoomPR(_FakePR):
     """A PR whose issue-comment create always fails, to prove the cosmetic write is best-effort."""
 
