@@ -1,8 +1,15 @@
+import json
 import unittest
 from unittest.mock import MagicMock, patch
 
 import lambda_function
-from lambda_function import download_log, installation_token, parse_event
+from lambda_function import (
+    classifier_payload,
+    classify_log,
+    download_log,
+    installation_token,
+    parse_event,
+)
 
 
 def make_response(status_code, content=b"log data", headers=None):
@@ -47,6 +54,46 @@ class TestParseEvent(unittest.TestCase):
     def test_rejects_a_non_object_payload(self):
         with self.assertRaises(ValueError):
             parse_event(["pytorch/pytorch", 123])
+
+
+class TestClassifierPayload(unittest.TestCase):
+    def test_is_a_v2_request_the_classifier_can_parse(self):
+        payload = classifier_payload("pytorch/executorch", 999)
+        # log_classifier builds on lambda_http with only the apigw_http feature,
+        # so version 2.0 and requestContext.http are what make it deserialize.
+        self.assertEqual(payload["version"], "2.0")
+        self.assertIn("http", payload["requestContext"])
+        self.assertEqual(
+            payload["queryStringParameters"],
+            {"job_id": "999", "repo": "pytorch/executorch"},
+        )
+        self.assertEqual(payload["rawQueryString"], "job_id=999&repo=pytorch/executorch")
+
+    def test_is_json_serializable(self):
+        json.dumps(classifier_payload("pytorch/pytorch", 1))
+
+
+class TestClassifyLog(unittest.TestCase):
+    def test_invokes_the_classifier_asynchronously(self):
+        with patch.object(lambda_function, "lambda_client") as client:
+            self.assertTrue(classify_log("pytorch/pytorch", 123))
+
+        kwargs = client.invoke.call_args.kwargs
+        self.assertEqual(kwargs["FunctionName"], "log_classifier")
+        # Event, not RequestResponse: waiting on classification is exactly the
+        # mistake that gave github-status-test its multi-hundred-second tails.
+        self.assertEqual(kwargs["InvocationType"], "Event")
+        self.assertEqual(
+            json.loads(kwargs["Payload"])["queryStringParameters"],
+            {"job_id": "123", "repo": "pytorch/pytorch"},
+        )
+
+    def test_a_failed_invoke_is_reported_not_raised(self):
+        # Raising would make Lambda retry the whole function, re-downloading a
+        # multi-megabyte log to retry a handoff that takes milliseconds.
+        with patch.object(lambda_function, "lambda_client") as client:
+            client.invoke.side_effect = RuntimeError("throttled")
+            self.assertFalse(classify_log("pytorch/pytorch", 123))
 
 
 class TestInstallationToken(unittest.TestCase):
@@ -240,14 +287,34 @@ class TestDownloadLog(unittest.TestCase):
 @patch.object(lambda_function, "s3")
 class TestLambdaHandler(unittest.TestCase):
     def test_returns_a_summary(self, s3):
-        with patch.object(lambda_function, "download_log", return_value=True):
+        with patch.object(
+            lambda_function, "download_log", return_value=True
+        ), patch.object(lambda_function, "classify_log", return_value=True):
             self.assertEqual(
                 lambda_function.lambda_handler(
                     {"repo": "pytorch/pytorch", "job_id": 5, "conclusion": "success"},
                     None,
                 ),
-                {"repo": "pytorch/pytorch", "job_id": 5, "stored": True},
+                {
+                    "repo": "pytorch/pytorch",
+                    "job_id": 5,
+                    "stored": True,
+                    "classified": True,
+                },
             )
+
+    def test_does_not_classify_a_log_that_was_never_stored(self, s3):
+        # A 404 from GitHub means there is nothing in S3 for the classifier to
+        # read, so asking it to try would only produce a confusing failure.
+        with patch.object(
+            lambda_function, "download_log", return_value=False
+        ), patch.object(lambda_function, "classify_log") as classify:
+            result = lambda_function.lambda_handler(
+                {"repo": "pytorch/pytorch", "job_id": 5}, None
+            )
+
+        classify.assert_not_called()
+        self.assertFalse(result["classified"])
 
     def test_a_github_blip_propagates_so_lambda_retries(self, s3):
         with patch.object(

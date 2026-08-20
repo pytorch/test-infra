@@ -1,20 +1,22 @@
 # Copyright (c) 2019-present, Facebook, Inc.
 
-"""Download a completed GitHub Actions job log and archive it to S3.
+"""Download a completed GitHub Actions job log, archive it to S3, and classify it.
 
 Invoked asynchronously (``InvocationType: "Event"``) by the PyTorch bot's
 ``workflow_job`` handler in torchci, and by torchci's backfill route. There is no
 API Gateway integration and no Lambda function URL: the only way in is
 ``lambda:InvokeFunction``, which is IAM-authenticated.
 
-Classification is *not* triggered from here. An S3 ObjectCreated notification on
-the ``log/`` prefix drives it, so any path that lands a log gets classified and
-this function never blocks on the classifier finishing.
+The classifier is invoked the same way, asynchronously, so this function never
+blocks on classification finishing. ``github-status-test`` called it with an
+untimed ``urlopen`` and waited, which is what produced its 274s/344s/400s/900s
+duration tails -- the fix is the invocation type, not a separate function.
 """
 
 import base64
 import contextlib
 import gzip
+import json
 import os
 import random
 import time
@@ -26,11 +28,13 @@ from github.GithubException import UnknownObjectException
 
 
 s3 = boto3.resource("s3")
+lambda_client = boto3.client("lambda")
 GITHUB_TOKENS = os.environ.get("GITHUB_TOKENS")
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 # Base64-encoded PEM, the same encoding torchci uses for its app key
 GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY")
 BUCKET_NAME = "ossci-raw-job-status"
+LOG_CLASSIFIER_FUNCTION = "log_classifier"
 
 GITHUB_API_URL = "https://api.github.com"
 # Installation tokens last an hour. Refresh early so a warm invocation never
@@ -131,6 +135,66 @@ def log_object_path(full_name, job_id):
     return f"log/{full_name}/{job_id}"
 
 
+def classifier_payload(full_name, job_id):
+    """An API Gateway HTTP API v2.0 request, which is what lambda_http parses.
+
+    log_classifier is built on lambda_http with only the `apigw_http` feature, so
+    it expects this envelope even on a direct invoke. Verified against the
+    deployed function: a payload with no `job_id` returns its 400 "no job id
+    provided" branch, and a non-numeric one fails in its `parse::<usize>()`,
+    which together show both the envelope and the query string are read.
+    """
+    return {
+        "version": "2.0",
+        "routeKey": "$default",
+        "rawPath": "/",
+        "rawQueryString": f"job_id={job_id}&repo={full_name}",
+        "headers": {},
+        "queryStringParameters": {"job_id": str(job_id), "repo": full_name},
+        "requestContext": {
+            "accountId": "308535385114",
+            "apiId": "gha-log-uploader",
+            "domainName": "lambda-invoke",
+            "domainPrefix": "lambda-invoke",
+            "http": {
+                "method": "GET",
+                "path": "/",
+                "protocol": "HTTP/1.1",
+                "sourceIp": "127.0.0.1",
+                "userAgent": "gha-log-uploader",
+            },
+            "requestId": f"gha-log-uploader-{job_id}",
+            "routeKey": "$default",
+            "stage": "$default",
+            "time": "01/Jan/1970:00:00:00 +0000",
+            "timeEpoch": 0,
+        },
+        "isBase64Encoded": False,
+    }
+
+
+def classify_log(full_name, job_id):
+    """Kick off classification for a log we just stored. Returns True on handoff.
+
+    Asynchronous, and reached through `lambda:InvokeFunction` rather than
+    log_classifier's public function URL, so the path from here to classification
+    never crosses a public endpoint.
+    """
+    try:
+        lambda_client.invoke(
+            FunctionName=LOG_CLASSIFIER_FUNCTION,
+            InvocationType="Event",
+            Payload=json.dumps(classifier_payload(full_name, job_id)).encode(),
+        )
+        return True
+    except Exception as err:
+        # Best effort, deliberately. Raising would make Lambda retry the whole
+        # function, re-downloading a multi-megabyte log from GitHub to retry a
+        # handoff that takes milliseconds. The log itself is already safe in S3.
+        print(f"ERROR invoking the classifier for {full_name} job {job_id}: {err}")
+        return False
+
+
 def download_log(full_name, conclusion, job_id):
     """Fetch a job log from GitHub and archive it. Returns True when stored."""
     response = None
@@ -204,4 +268,11 @@ def lambda_handler(event, context):
         print(f"ERROR downloading log for {full_name} job {job_id}: {err}")
         raise
 
-    return {"repo": full_name, "job_id": job_id, "stored": stored}
+    classified = classify_log(full_name, job_id) if stored else False
+
+    return {
+        "repo": full_name,
+        "job_id": job_id,
+        "stored": stored,
+        "classified": classified,
+    }
