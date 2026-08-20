@@ -1,10 +1,8 @@
-import json
 import unittest
 from unittest.mock import MagicMock, patch
 
 import lambda_function
 from lambda_function import (
-    classifier_payload,
     classify_log,
     download_log,
     installation_token,
@@ -56,43 +54,20 @@ class TestParseEvent(unittest.TestCase):
             parse_event(["pytorch/pytorch", 123])
 
 
-class TestClassifierPayload(unittest.TestCase):
-    def test_is_a_v2_request_the_classifier_can_parse(self):
-        payload = classifier_payload("pytorch/executorch", 999)
-        # log_classifier builds on lambda_http with only the apigw_http feature,
-        # so version 2.0 and requestContext.http are what make it deserialize.
-        self.assertEqual(payload["version"], "2.0")
-        self.assertIn("http", payload["requestContext"])
-        self.assertEqual(
-            payload["queryStringParameters"],
-            {"job_id": "999", "repo": "pytorch/executorch"},
-        )
-        self.assertEqual(payload["rawQueryString"], "job_id=999&repo=pytorch/executorch")
-
-    def test_is_json_serializable(self):
-        json.dumps(classifier_payload("pytorch/pytorch", 1))
-
-
 class TestClassifyLog(unittest.TestCase):
-    def test_invokes_the_classifier_asynchronously(self):
-        with patch.object(lambda_function, "lambda_client") as client:
+    def test_calls_the_classifier(self):
+        with patch.object(lambda_function, "urlopen") as urlopen:
             self.assertTrue(classify_log("pytorch/pytorch", 123))
 
-        kwargs = client.invoke.call_args.kwargs
-        self.assertEqual(kwargs["FunctionName"], "log_classifier")
-        # Event, not RequestResponse: waiting on classification is exactly the
-        # mistake that gave github-status-test its multi-hundred-second tails.
-        self.assertEqual(kwargs["InvocationType"], "Event")
-        self.assertEqual(
-            json.loads(kwargs["Payload"])["queryStringParameters"],
-            {"job_id": "123", "repo": "pytorch/pytorch"},
+        urlopen.assert_called_once_with(
+            f"{lambda_function.LOG_CLASSIFIER_URL}/?job_id=123&repo=pytorch/pytorch"
         )
 
-    def test_a_failed_invoke_is_reported_not_raised(self):
-        # Raising would make Lambda retry the whole function, re-downloading a
-        # multi-megabyte log to retry a handoff that takes milliseconds.
-        with patch.object(lambda_function, "lambda_client") as client:
-            client.invoke.side_effect = RuntimeError("throttled")
+    def test_a_failed_call_is_reported_not_raised(self):
+        # Raising would make Lambda retry the whole function and re-download a
+        # multi-megabyte log, when the log is already safe in S3.
+        with patch.object(lambda_function, "urlopen") as urlopen:
+            urlopen.side_effect = RuntimeError("connection reset")
             self.assertFalse(classify_log("pytorch/pytorch", 123))
 
 

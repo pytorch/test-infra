@@ -7,19 +7,20 @@ Invoked asynchronously (``InvocationType: "Event"``) by the PyTorch bot's
 API Gateway integration and no Lambda function URL: the only way in is
 ``lambda:InvokeFunction``, which is IAM-authenticated.
 
-The classifier is invoked the same way, asynchronously, so this function never
-blocks on classification finishing. ``github-status-test`` called it with an
-untimed ``urlopen`` and waited, which is what produced its 274s/344s/400s/900s
-duration tails -- the fix is the invocation type, not a separate function.
+Classification is kicked off exactly as ``github-status-test`` does it, through
+log_classifier's function URL. That call is synchronous, so this function's
+duration includes the classification -- which is why its timeout has to stay at
+900s. Switching to an async ``lambda:InvokeFunction`` needs log_classifier to
+accept a plain payload first; see the README.
 """
 
 import base64
 import contextlib
 import gzip
-import json
 import os
 import random
 import time
+from urllib.request import urlopen
 
 import boto3
 import requests
@@ -28,13 +29,12 @@ from github.GithubException import UnknownObjectException
 
 
 s3 = boto3.resource("s3")
-lambda_client = boto3.client("lambda")
 GITHUB_TOKENS = os.environ.get("GITHUB_TOKENS")
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 # Base64-encoded PEM, the same encoding torchci uses for its app key
 GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY")
 BUCKET_NAME = "ossci-raw-job-status"
-LOG_CLASSIFIER_FUNCTION = "log_classifier"
+LOG_CLASSIFIER_URL = "https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws"
 
 GITHUB_API_URL = "https://api.github.com"
 # Installation tokens last an hour. Refresh early so a warm invocation never
@@ -135,66 +135,21 @@ def log_object_path(full_name, job_id):
     return f"log/{full_name}/{job_id}"
 
 
-def classifier_payload(full_name, job_id):
-    """An API Gateway HTTP API v2.0 request, which is what lambda_http parses.
-
-    log_classifier is built on lambda_http with only the `apigw_http` feature, so
-    it expects this envelope even on a direct invoke. Verified against the
-    deployed function: a payload with no `job_id` returns its 400 "no job id
-    provided" branch, and a non-numeric one fails in its `parse::<usize>()`,
-    which together show both the envelope and the query string are read.
-    """
-    return {
-        "version": "2.0",
-        "routeKey": "$default",
-        "rawPath": "/",
-        "rawQueryString": f"job_id={job_id}&repo={full_name}",
-        "headers": {},
-        "queryStringParameters": {"job_id": str(job_id), "repo": full_name},
-        "requestContext": {
-            "accountId": "308535385114",
-            "apiId": "gha-log-uploader",
-            "domainName": "lambda-invoke",
-            "domainPrefix": "lambda-invoke",
-            "http": {
-                "method": "GET",
-                "path": "/",
-                "protocol": "HTTP/1.1",
-                "sourceIp": "127.0.0.1",
-                "userAgent": "gha-log-uploader",
-            },
-            "requestId": f"gha-log-uploader-{job_id}",
-            "routeKey": "$default",
-            "stage": "$default",
-            "time": "01/Jan/1970:00:00:00 +0000",
-            "timeEpoch": 0,
-        },
-        "isBase64Encoded": False,
-    }
-
-
 def classify_log(full_name, job_id):
-    """Kick off classification for a log we just stored. Returns True on handoff.
+    """Kick off classification for a log we just stored. Returns True on success.
 
-    Asynchronous, and reached through `lambda:InvokeFunction` rather than
-    log_classifier's public function URL, so the path from here to classification
-    never crosses a public endpoint. A function URL would not do: it only supports
-    the RequestResponse invocation type, so using one means waiting for
-    classification to finish -- which is exactly the mistake that gave
-    github-status-test its multi-hundred-second tails.
+    Same call github-status-test makes. The function URL only supports the
+    RequestResponse invocation type, so this blocks until classification
+    finishes; the function's 900s timeout has to cover that.
     """
     try:
-        lambda_client.invoke(
-            FunctionName=LOG_CLASSIFIER_FUNCTION,
-            InvocationType="Event",
-            Payload=json.dumps(classifier_payload(full_name, job_id)).encode(),
-        )
+        urlopen(f"{LOG_CLASSIFIER_URL}/?job_id={job_id}&repo={full_name}")
         return True
     except Exception as err:
         # Best effort, deliberately. Raising would make Lambda retry the whole
-        # function, re-downloading a multi-megabyte log from GitHub to retry a
-        # handoff that takes milliseconds. The log itself is already safe in S3.
-        print(f"ERROR invoking the classifier for {full_name} job {job_id}: {err}")
+        # function and re-download a multi-megabyte log from GitHub, when the log
+        # itself is already safe in S3.
+        print(f"ERROR calling the classifier for {full_name} job {job_id}: {err}")
         return False
 
 
