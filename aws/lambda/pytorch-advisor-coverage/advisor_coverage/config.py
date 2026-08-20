@@ -33,6 +33,10 @@ COVERAGE_SIGNAL_KEY_PREFIX = "coverage_"
 # Compiled-in safety ceilings. Env/event may only make the throttle SMALLER.
 HARD_CAP_DISPATCHES = 100
 MIN_DISPATCH_GAP_SECONDS = 1
+# Backfill walks months of history in one pass, so it sustains a dispatch rate
+# the ongoing cron never approaches and is the only mode that can reach GitHub's
+# secondary rate limit on workflow_dispatch. It floors far higher as a result.
+BACKFILL_MIN_DISPATCH_GAP_SECONDS = 5
 # The Lambda's configured timeout (tf). The throttle is clamped so a run's
 # inter-dispatch sleeps can never approach it.
 LAMBDA_TIMEOUT_SECONDS = 260
@@ -146,8 +150,17 @@ class CoverageConfig:
     log_level: str = "INFO"
 
     def effective_gap_seconds(self) -> int:
-        """Gap floored to a positive minimum (never 0 → no dispatch storm)."""
-        return max(MIN_DISPATCH_GAP_SECONDS, int(self.dispatch_gap_seconds))
+        """Gap floored to a positive minimum (never 0 → no dispatch storm).
+
+        Backfill floors at its own, much higher minimum; env/event can raise the
+        gap beyond either floor but never below it.
+        """
+        floor = (
+            BACKFILL_MIN_DISPATCH_GAP_SECONDS
+            if self.mode == "backfill"
+            else MIN_DISPATCH_GAP_SECONDS
+        )
+        return max(floor, int(self.dispatch_gap_seconds))
 
     def effective_max_dispatches(self) -> int:
         """Configured cap, clamped by HARD_CAP and the Lambda timeout budget.

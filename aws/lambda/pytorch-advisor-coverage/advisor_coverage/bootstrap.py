@@ -18,6 +18,8 @@ import json
 import logging
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import boto3
 import github
@@ -42,6 +44,27 @@ _SECRET_LEAKING_LOGGERS = (
 # Minimum installation-token scope needed to POST workflow_dispatch. Crucially
 # excludes contents:write, so a leaked coverage token cannot push/revert.
 _DISPATCH_TOKEN_PERMISSIONS = {"actions": "write"}
+
+# GitHub installation tokens expire 60 minutes after minting, and the token is a
+# plain string handed to GHClientFactory — nothing refreshes it. A backfill
+# dispatches for hours off one startup mint, so the dispatch path re-mints ahead
+# of expiry. Freshness is judged against GitHub's own `expires_at` rather than
+# elapsed local time: a laptop suspended mid-backfill wakes with the token
+# already dead while a monotonic counter still reads it as fresh.
+_TOKEN_REFRESH_MARGIN = timedelta(minutes=10)
+
+
+@dataclass
+class _DispatchAuth:
+    """App credentials retained so the dispatch token can be re-minted."""
+
+    app_id: str
+    pem: str
+    installation_id: int
+    expires_at: datetime
+
+
+_dispatch_auth: Optional[_DispatchAuth] = None
 
 
 def configure_logging(log_level: str) -> None:
@@ -91,20 +114,35 @@ def _get_secret_from_aws(secret_store_name: str) -> _AWSSecrets:
         sys.exit(1)
 
 
-def _mint_scoped_installation_token(app_id: str, pem: str, installation_id: int) -> str:
-    """Mint an installation token scoped to `actions:write` only.
+def _mint_scoped_installation_auth(app_id: str, pem: str, installation_id: int):
+    """Mint an installation authorization scoped to `actions:write` only.
 
-    Without token_permissions the mint inherits the App's full permission set
+    Returns the whole authorization, not just the token string, because its
+    `expires_at` is the only trustworthy basis for deciding when to re-mint.
+
+    Without explicit permissions the mint inherits the App's full permission set
     (incl. contents:write → revert-capable). Scoping to actions:write is the
     minimum for workflow_dispatch and removes revert capability entirely.
+
+    Minted through GithubIntegration rather than Auth.AppInstallationAuth:
+    PyGithub (2.6.1) only builds that auth object's internal integration inside
+    `withRequester`, which nothing calls until the auth is handed to a
+    `github.Github(...)`, so reading `.token` off a standalone instance always
+    asserts.
     """
-    app_auth = github.Auth.AppAuth(app_id, pem)
-    inst_auth = github.Auth.AppInstallationAuth(
-        app_auth,
-        installation_id=installation_id,
-        token_permissions=_DISPATCH_TOKEN_PERMISSIONS,
-    )
-    return inst_auth.token
+    integration = github.GithubIntegration(auth=github.Auth.AppAuth(app_id, pem))
+    try:
+        return integration.get_access_token(
+            installation_id, permissions=_DISPATCH_TOKEN_PERMISSIONS
+        )
+    except github.GithubException as e:
+        # GitHub answers a key that is validly formed but registered to a
+        # different App with "A JSON web token could not be decoded" — naming the
+        # identifiers is what distinguishes that from a genuine outage.
+        raise RuntimeError(
+            f"Failed to mint an installation token for GITHUB_APP_ID={app_id}, "
+            f"GITHUB_INSTALLATION_ID={installation_id}: {e}"
+        ) from e
 
 
 def setup_clients(config: CoverageConfig) -> None:
@@ -128,10 +166,17 @@ def setup_clients(config: CoverageConfig) -> None:
     )
 
     if config.github_app_id and config.github_installation_id and gh_app_secret:
-        scoped_token = _mint_scoped_installation_token(
+        global _dispatch_auth
+        scoped = _mint_scoped_installation_auth(
             config.github_app_id, gh_app_secret, config.github_installation_id
         )
-        GHClientFactory.setup_client(token=scoped_token)
+        GHClientFactory.setup_client(token=scoped.token)
+        _dispatch_auth = _DispatchAuth(
+            app_id=config.github_app_id,
+            pem=gh_app_secret,
+            installation_id=config.github_installation_id,
+            expires_at=scoped.expires_at,
+        )
     elif config.github_access_token:
         GHClientFactory.setup_client(token=config.github_access_token)
     else:
@@ -145,3 +190,27 @@ def setup_clients(config: CoverageConfig) -> None:
         raise RuntimeError(
             "ClickHouse connection test failed. Please check your configuration."
         )
+
+
+def refresh_dispatch_token_if_stale() -> bool:
+    """Re-mint the installation token when it is close to GitHub's stated expiry.
+
+    Returns True when a new token was installed. A no-op when the client was
+    configured from a raw GITHUB_TOKEN — there are no App credentials to re-mint
+    from, and a PAT does not expire on this timescale.
+    """
+    if _dispatch_auth is None:
+        return False
+    if datetime.now(timezone.utc) + _TOKEN_REFRESH_MARGIN < _dispatch_auth.expires_at:
+        return False
+
+    scoped = _mint_scoped_installation_auth(
+        _dispatch_auth.app_id, _dispatch_auth.pem, _dispatch_auth.installation_id
+    )
+    GHClientFactory.setup_client(token=scoped.token)
+    _dispatch_auth.expires_at = scoped.expires_at
+    logging.info(
+        "[coverage] re-minted the installation token, now valid until %s",
+        scoped.expires_at.isoformat(timespec="seconds"),
+    )
+    return True
