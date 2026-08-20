@@ -5,6 +5,7 @@ import nitpickBot, {
   NITPICK_COMMENT_START,
   parseNitpickConfig,
 } from "lib/bot/nitpickBot";
+import { clearFilesChangedCache } from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
 import { handleScope, requireDeepCopy } from "./common";
@@ -175,6 +176,7 @@ describe("nitpickBot probot integration", () => {
 `;
 
   beforeEach(() => {
+    clearFilesChangedCache();
     probot = utils.testProbot();
     probot.load(nitpickBot);
     utils.mockAccessToken();
