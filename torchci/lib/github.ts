@@ -49,13 +49,9 @@ const PR_REGEX = /Pull Request resolved: .*?(\d+)/;
 const PHAB_REGEX = /Differential Revision: (D.*)/;
 const EXPORTED_PHAB_REGEX = /Differential Revision: \[(.*)\]/;
 
-// Parse the PR number and Phabricator diff number out of a commit message.
-// Shared by both the GitHub-sourced and ClickHouse-sourced commit paths so the
-// two stay in lockstep on how a commit is linked back to its PR/diff.
-export function parsePrAndDiffNumbers(message: string): {
-  prNum: number | null;
-  diffNum: string | null;
-} {
+// Turns a JSON response from octokit into our CommitData type.
+export function commitDataFromResponse(data: any): CommitData {
+  const message = data.commit.message;
   const prMatch = message.match(PR_REGEX);
   let prNum = null;
   if (prMatch) {
@@ -74,14 +70,6 @@ export function parsePrAndDiffNumbers(message: string): {
       diffNum = exportedPhabMatch[1];
     }
   }
-
-  return { prNum, diffNum };
-}
-
-// Turns a JSON response from octokit into our CommitData type.
-export function commitDataFromResponse(data: any): CommitData {
-  const message = data.commit.message;
-  const { prNum, diffNum } = parsePrAndDiffNumbers(message);
 
   return {
     author: data.author?.login ?? data.commit.author.name,

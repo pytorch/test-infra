@@ -703,12 +703,7 @@ export default function Hud() {
 }
 
 function useLatestCommitSha(params: HudParams) {
-  const { data } = useHudData({
-    ...params,
-    page: 1,
-    per_page: 1,
-    requireLatestCommit: true,
-  });
+  const { data } = useHudData({ ...params, page: 1, per_page: 1 });
   if (data === undefined) {
     return null;
   }
