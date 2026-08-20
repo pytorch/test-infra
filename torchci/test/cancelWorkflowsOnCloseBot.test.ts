@@ -26,7 +26,7 @@ describe("accept bot", () => {
         merge_base_commit: { sha: "idk something else" },
       })
       .get(
-        "/repos/pytorch/pytorch/actions/runs?head_sha=381ace654ad6474357cedad09418340896d16d90&per_page=30"
+        "/repos/pytorch/pytorch/actions/runs?head_sha=381ace654ad6474357cedad09418340896d16d90&per_page=100"
       )
       .reply(200, [
         { id: 6647495490, status: "in_progress" },

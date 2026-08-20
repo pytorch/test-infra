@@ -57,7 +57,7 @@ describe("label-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -89,7 +89,7 @@ describe("label-bot", () => {
     const issue_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -123,7 +123,7 @@ describe("label-bot", () => {
     const comment_number = event.payload.comment.id;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -167,7 +167,7 @@ describe("label-bot", () => {
     // With the new behavior, labels are still added even without approval,
     // but a comment warns that CI won't be triggered until approved.
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
@@ -220,7 +220,7 @@ describe("label-bot", () => {
     const default_branch = event.payload.repository.default_branch;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -263,7 +263,7 @@ describe("label-bot", () => {
     const user = event.payload.comment.user.login;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
       .reply(200, {
@@ -293,7 +293,7 @@ describe("label-bot", () => {
     const user = event.payload.comment.user.login;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
       .reply(200, {
@@ -328,7 +328,7 @@ describe("label-bot", () => {
     const comment_number = event.payload.comment.id;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
@@ -362,7 +362,7 @@ describe("label-bot", () => {
     const user = event.payload.comment.user.login;
 
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/labels`)
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
       .reply(200, existingRepoLabelsResponse)
       .get(`/repos/${owner}/${repo}/collaborators/${user}/permission`)
       .reply(200, { permission: "read" })

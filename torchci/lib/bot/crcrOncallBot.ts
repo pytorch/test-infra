@@ -48,6 +48,7 @@ async function findExistingComment(
     owner,
     repo,
     issue_number: prNumber,
+    per_page: 100,
   });
   for (const comment of comments) {
     if (comment.body?.includes(marker)) {

@@ -171,6 +171,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         owner: this.owner,
         repo: this.repo,
         pull_number: this.prNum,
+        per_page: 100,
       }
     );
 
@@ -417,6 +418,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       {
         owner: owner,
         repo: repo,
+        per_page: 100,
       }
     );
     return labels.map((d: any) => d.name);
