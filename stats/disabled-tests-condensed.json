@@ -224,6 +224,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_special_i1_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "194155",
+    "https://github.com/pytorch/pytorch/issues/194155",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_special_i1e_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "194147",
     "https://github.com/pytorch/pytorch/issues/194147",
