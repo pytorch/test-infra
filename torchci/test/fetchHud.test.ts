@@ -1,7 +1,7 @@
 import * as clickhouse from "lib/clickhouse";
-import fetchHud from "lib/fetchHud";
+import fetchHud, { commitDataFromPushRow } from "lib/fetchHud";
 import * as github from "lib/github";
-import { HudParams } from "lib/types";
+import { formatHudUrlForFetch, HudParams, packHudParams } from "lib/types";
 import { Octokit } from "octokit";
 
 function makeParams(overrides: Partial<HudParams> = {}): HudParams {
@@ -193,5 +193,155 @@ describe("fetchHud", () => {
 
     expect(listCommits).toHaveBeenCalledTimes(1);
     expect(shaGrid.map((r) => r.sha)).toEqual(["ghsha"]);
+  });
+
+  test("(e) requireLatestCommit skips ClickHouse and uses GitHub", async () => {
+    // ClickHouse returns a full page here, so the count-only guard would accept
+    // it and never reach GitHub. Only the explicit flag forces the authoritative
+    // read the caller asked for.
+    const saved = mockClickhouse({ hudCommits: [chRows[0]] });
+    const { listCommits } = mockOctokit([ghCommit]);
+
+    const { shaGrid } = await fetchHud(
+      makeParams({ per_page: 1, requireLatestCommit: true })
+    );
+
+    expect(listCommits).toHaveBeenCalledTimes(1);
+    const queriedNames = saved.mock.calls.map((c) => c[0]);
+    expect(queriedNames).not.toContain("hud_commits");
+    expect(shaGrid.map((r) => r.sha)).toEqual(["ghsha"]);
+  });
+
+  test("(f) requireLatestCommit survives the client fetch URL round trip", () => {
+    // The flag is set on the client and consumed on the server, so a mismatch
+    // across that hop would disable (e) in production with every test still green.
+    const url = formatHudUrlForFetch(
+      "api/hud",
+      makeParams({ per_page: 1, requireLatestCommit: true })
+    );
+    const query = Object.fromEntries(new URL(url, "https://hud").searchParams);
+    expect(packHudParams(query).requireLatestCommit).toBe(true);
+
+    // The grid request shares the same builder and must not opt in.
+    const gridUrl = formatHudUrlForFetch("api/hud", makeParams());
+    expect(gridUrl).not.toContain("requireLatestCommit");
+    const gridQuery = Object.fromEntries(
+      new URL(gridUrl, "https://hud").searchParams
+    );
+    expect(packHudParams(gridQuery).requireLatestCommit).toBe(false);
+  });
+});
+
+// One logical commit expressed in both source shapes, so a single fixture drives
+// both mappers and neither can drift without the other noticing.
+function bothShapesOf(opts: {
+  sha: string;
+  message: string;
+  timestamp: string;
+  authorLogin: string;
+  authorName: string;
+}) {
+  const commitUrl = `https://github.com/pytorch/pytorch/commit/${opts.sha}`;
+  return {
+    // hud_commits/query.sql renders timestamp with
+    // formatDateTime(ts, '%Y-%m-%dT%H:%i:%SZ', 'UTC'), which is byte-identical to
+    // the ISO-8601 Z string GitHub puts in commit.committer.date. It stores
+    // author.username as "" rather than null for an unresolved GitHub user.
+    chRow: {
+      sha: opts.sha,
+      message: opts.message,
+      url: commitUrl,
+      timestamp: opts.timestamp,
+      author_username: opts.authorLogin,
+      author_name: opts.authorName,
+    },
+    ghResponse: {
+      sha: opts.sha,
+      html_url: commitUrl,
+      author:
+        opts.authorLogin !== ""
+          ? {
+              login: opts.authorLogin,
+              html_url: `https://github.com/${opts.authorLogin}`,
+            }
+          : null,
+      commit: {
+        message: opts.message,
+        author: { name: opts.authorName },
+        committer: { date: opts.timestamp },
+      },
+    },
+  };
+}
+
+describe("commit mapping equivalence", () => {
+  const sha = "9f2e1c4b7a05d38e6c1b0f4a2d7e8c395b6a1d02";
+  const commitUrl = `https://github.com/pytorch/pytorch/commit/${sha}`;
+  const timestamp = "2026-08-19T14:32:07Z";
+
+  test("a resolved author maps identically from ClickHouse and GitHub", () => {
+    const message = [
+      "Fix the thing that broke",
+      "",
+      "A body spanning several lines, so commitTitle and commitMessageBody are",
+      "actually distinguishable.",
+      "",
+      "Pull Request resolved: https://github.com/pytorch/pytorch/pull/145678",
+      "Differential Revision: D65432109",
+    ].join("\n");
+    const { chRow, ghResponse } = bothShapesOf({
+      sha,
+      message,
+      timestamp,
+      authorLogin: "alice",
+      authorName: "Alice Anderson",
+    });
+
+    const fromCh = commitDataFromPushRow(chRow);
+
+    expect(fromCh).toEqual(github.commitDataFromResponse(ghResponse));
+    // Also spelled out: a field both mappers dropped would satisfy the
+    // comparison above while never reaching the UI from either source.
+    expect(fromCh).toEqual({
+      sha,
+      time: timestamp,
+      author: "alice",
+      authorUrl: "https://github.com/alice",
+      commitUrl,
+      commitTitle: "Fix the thing that broke",
+      commitMessageBody: message,
+      prNum: 145678,
+      diffNum: "D65432109",
+    });
+  });
+
+  test("an unresolved author falls back to the git name on both paths", () => {
+    const message = [
+      "Bump the pinned toolchain",
+      "",
+      "Landed without a PR trailer, so prNum and diffNum stay null.",
+    ].join("\n");
+    const { chRow, ghResponse } = bothShapesOf({
+      sha,
+      message,
+      timestamp,
+      authorLogin: "",
+      authorName: "Alice Anderson",
+    });
+
+    const fromCh = commitDataFromPushRow(chRow);
+
+    expect(fromCh).toEqual(github.commitDataFromResponse(ghResponse));
+    expect(fromCh).toEqual({
+      sha,
+      time: timestamp,
+      author: "Alice Anderson",
+      authorUrl: null,
+      commitUrl,
+      commitTitle: "Bump the pinned toolchain",
+      commitMessageBody: message,
+      prNum: null,
+      diffNum: null,
+    });
   });
 });
