@@ -835,18 +835,39 @@ class TestBootstrapSecurity(unittest.TestCase):
         for name in ("github", "github.Requester", "botocore", "boto3", "urllib3"):
             self.assertEqual(logging.getLogger(name).level, logging.WARNING, name)
 
-    @patch("advisor_coverage.bootstrap.github")
-    def test_mint_scopes_token_to_actions_write(self, mock_github):
+    # Patches only GithubIntegration, so the surrounding call path runs against
+    # real PyGithub: a mint that cannot produce a token without a Requester
+    # fails here instead of passing against an all-mocked github module.
+    @patch("advisor_coverage.bootstrap.github.GithubIntegration")
+    def test_mint_scopes_token_to_actions_write(self, mock_integration):
+        import github
+
         from advisor_coverage.bootstrap import _mint_scoped_installation_token
 
-        inst = MagicMock()
-        inst.token = "ghs_scoped"
-        mock_github.Auth.AppInstallationAuth.return_value = inst
+        get_token = mock_integration.return_value.get_access_token
+        get_token.return_value.token = "ghs_scoped"
         token = _mint_scoped_installation_token("app-id", "PEM", 4242)
         self.assertEqual(token, "ghs_scoped")
-        kwargs = mock_github.Auth.AppInstallationAuth.call_args.kwargs
-        self.assertEqual(kwargs["token_permissions"], {"actions": "write"})
-        self.assertEqual(kwargs["installation_id"], 4242)
+        self.assertIsInstance(
+            mock_integration.call_args.kwargs["auth"], github.Auth.AppAuth
+        )
+        args, kwargs = get_token.call_args
+        self.assertEqual(args, (4242,))
+        self.assertEqual(kwargs["permissions"], {"actions": "write"})
+
+    @patch("advisor_coverage.bootstrap.github.GithubIntegration")
+    def test_mint_failure_names_the_identifiers(self, mock_integration):
+        import github
+
+        from advisor_coverage.bootstrap import _mint_scoped_installation_token
+
+        mock_integration.return_value.get_access_token.side_effect = (
+            github.GithubException(401, {"message": "could not be decoded"}, None)
+        )
+        with self.assertRaises(RuntimeError) as ctx:
+            _mint_scoped_installation_token("app-id", "PEM", 4242)
+        self.assertIn("app-id", str(ctx.exception))
+        self.assertIn("4242", str(ctx.exception))
 
     def test_setup_clients_uses_scoped_token(self):
         cfg = make_config(

@@ -94,17 +94,29 @@ def _get_secret_from_aws(secret_store_name: str) -> _AWSSecrets:
 def _mint_scoped_installation_token(app_id: str, pem: str, installation_id: int) -> str:
     """Mint an installation token scoped to `actions:write` only.
 
-    Without token_permissions the mint inherits the App's full permission set
+    Without explicit permissions the mint inherits the App's full permission set
     (incl. contents:write → revert-capable). Scoping to actions:write is the
     minimum for workflow_dispatch and removes revert capability entirely.
+
+    Minted through GithubIntegration rather than Auth.AppInstallationAuth:
+    PyGithub (2.6.1) only builds that auth object's internal integration inside
+    `withRequester`, which nothing calls until the auth is handed to a
+    `github.Github(...)`, so reading `.token` off a standalone instance always
+    asserts.
     """
-    app_auth = github.Auth.AppAuth(app_id, pem)
-    inst_auth = github.Auth.AppInstallationAuth(
-        app_auth,
-        installation_id=installation_id,
-        token_permissions=_DISPATCH_TOKEN_PERMISSIONS,
-    )
-    return inst_auth.token
+    integration = github.GithubIntegration(auth=github.Auth.AppAuth(app_id, pem))
+    try:
+        return integration.get_access_token(
+            installation_id, permissions=_DISPATCH_TOKEN_PERMISSIONS
+        ).token
+    except github.GithubException as e:
+        # GitHub answers a key that is validly formed but registered to a
+        # different App with "A JSON web token could not be decoded" — naming the
+        # identifiers is what distinguishes that from a genuine outage.
+        raise RuntimeError(
+            f"Failed to mint an installation token for GITHUB_APP_ID={app_id}, "
+            f"GITHUB_INSTALLATION_ID={installation_id}: {e}"
+        ) from e
 
 
 def setup_clients(config: CoverageConfig) -> None:
