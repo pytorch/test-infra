@@ -12,8 +12,9 @@ clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and 
 updates GitHub with a defanged copy of the message. Both LAND and NO_LAND upsert one
 canonical verdict comment -- edited in place across runs, found by a hidden marker and
 restricted to greenlight's own account (``bot_login``); LAND additionally posts an approving
-review, and NO_LAND additionally dismisses greenlight's own prior approval (matched by
-``bot_login``). The row is authoritative, so the comment upsert is best-effort on every path (a
+review unless greenlight already holds a live approval on the PR, and NO_LAND additionally
+dismisses greenlight's own prior approval (both matched by ``bot_login``). The row is
+authoritative, so the comment upsert is best-effort on every path (a
 failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
 merge gate and stay load-bearing -- they raise on failure. MARKER statuses (CANCELLED / FAILED /
 AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
@@ -303,8 +304,11 @@ def _run_full(
     job_url = request.agent_job_url or request.eval_job_url
     body = comment_format.verdict_body(status, reason, message, job_url, request.run_id)
     if status == STATUS_LAND:
-        github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
-        logger.info("approved %s#%d", request.repo, request.pr_number)
+        if github_client.has_live_greenlight_approval(pr, bot_login=request.bot_login):
+            logger.info("already approved %s#%d; skipping re-approval", request.repo, request.pr_number)
+        else:
+            github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
+            logger.info("approved %s#%d", request.repo, request.pr_number)
         _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
         return
     dismissed = github_client.dismiss_prior_greenlight_approvals(

@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from greenlight import constants
-from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot
+from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot, is_bot_command
 from greenlight.review_gate import ReviewSkip, human_review_skip_reason
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
     from datetime import datetime
 
     from github import Github
@@ -29,8 +29,10 @@ if TYPE_CHECKING:
         _AuthorClient,
         _FingerprintPR,
         _PRActor,
+        _PRComment,
         _PRReview,
         _RepoClient,
+        _VerdictReview,
     )
 
 
@@ -213,6 +215,26 @@ def _actor_login(
     return login
 
 
+def _fingerprint_events(
+    events: Iterable[_PRComment | _PRReview],
+    self_login: str | None,
+    authorized_logins: frozenset[str] | None,
+) -> Iterator[HumanEvent]:
+    """Yield a ``HumanEvent`` for each event passing BOTH fingerprint filters.
+
+    Shared across all three sources so every source filters identically: an event is kept only
+    when ``_actor_login`` attributes it (non-ghost, non-bot, non-self, authorized) AND its body
+    is not a bot command (``is_bot_command``), so a trusted author's ``@pytorchbot merge`` never
+    enters the fingerprint.
+    """
+    for event in events:
+        if _actor_login(event.user, self_login, authorized_logins) is None:
+            continue
+        if is_bot_command(event.body):
+            continue
+        yield HumanEvent(id=event.id, body=event.body)
+
+
 def build_pr_fingerprint(
     pr: _FingerprintPR,
     *,
@@ -235,25 +257,15 @@ def build_pr_fingerprint(
     the verifier MUST pass the identically-resolved set or their digests diverge.
 
     Coverage: the fingerprint covers ``head_sha`` and the ``id`` and ``body`` of
-    non-bot, non-self human events (issue comments, review comments, and reviews). It
-    deliberately EXCLUDES the changed files, event kind/author/state/timestamp, and the
-    PR title/body.
+    non-bot, non-self human events (issue comments, review comments, and reviews),
+    EXCLUDING any whose body is a bot command (contains a bot-command @-mention such as
+    ``@pytorchbot merge``; see ``is_bot_command``). It also deliberately EXCLUDES the
+    changed files, event kind/author/state/timestamp, and the PR title/body.
     """
     human_events: list[HumanEvent] = []
-    for comment in pr.get_issue_comments():
-        if _actor_login(comment.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=comment.id, body=comment.body))
-
-    for review_comment in pr.get_review_comments():
-        if _actor_login(review_comment.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=review_comment.id, body=review_comment.body))
-
-    for review in reviews:
-        if _actor_login(review.user, self_login, authorized_logins) is None:
-            continue
-        human_events.append(HumanEvent(id=review.id, body=review.body))
+    human_events.extend(_fingerprint_events(pr.get_issue_comments(), self_login, authorized_logins))
+    human_events.extend(_fingerprint_events(pr.get_review_comments(), self_login, authorized_logins))
+    human_events.extend(_fingerprint_events(reviews, self_login, authorized_logins))
 
     return PRFingerprint(
         head_sha=pr.head.sha,
@@ -296,6 +308,7 @@ REVIEW_EVENT_REQUEST_CHANGES = "REQUEST_CHANGES"
 REVIEW_EVENT_COMMENT = "COMMENT"
 _REVIEW_EVENTS: frozenset[str] = frozenset({REVIEW_EVENT_APPROVE, REVIEW_EVENT_REQUEST_CHANGES, REVIEW_EVENT_COMMENT})
 _REVIEW_STATE_APPROVED = "APPROVED"
+_REVIEW_STATE_COMMENTED = "COMMENTED"
 
 
 def get_pr(client: VerdictClient, repo: str, number: int) -> VerdictPR:
@@ -353,20 +366,34 @@ def upsert_issue_comment(
     pr.create_issue_comment(body)
 
 
-def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
-    """Dismiss every prior APPROVED review authored by ``bot_login``.
+def _iter_greenlight_reviews(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
+    """Yield every review authored by ``bot_login`` (any state) -- greenlight's own reviews.
 
-    The login is passed in (the greenlight GitHub App's ``<slug>[bot]`` account) rather
-    than read via ``get_user``, which is not available on an App installation token; only
-    that account's own approvals are ever dismissed.
+    The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token
+    cannot call ``get_user``. Null-user and empty-login reviews are skipped; match is case-insensitive.
     """
     target = bot_login.lower()
-    dismissed: list[int] = []
     for review in pr.get_reviews():
         user = review.user
-        if user is None or not user.login:
-            continue
-        if user.login.lower() == target and review.state == _REVIEW_STATE_APPROVED:
+        if user is not None and user.login and user.login.lower() == target:
+            yield review
+
+
+def has_live_greenlight_approval(pr: VerdictPR, *, bot_login: str) -> bool:
+    """Return True iff greenlight's latest non-COMMENTED review on ``pr`` is APPROVED.
+
+    Mirrors trymerge's approver rule (latest non-COMMENTED state per login wins), so a stale
+    APPROVED behind a newer DISMISSED never reads as approved. Assumes ``get_reviews()`` is oldest-first.
+    """
+    states = [r.state for r in _iter_greenlight_reviews(pr, bot_login) if r.state != _REVIEW_STATE_COMMENTED]
+    return bool(states) and states[-1] == _REVIEW_STATE_APPROVED
+
+
+def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
+    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``_iter_greenlight_reviews``)."""
+    dismissed: list[int] = []
+    for review in _iter_greenlight_reviews(pr, bot_login):
+        if review.state == _REVIEW_STATE_APPROVED:
             review.dismiss(message)
             dismissed.append(review.id)
     return dismissed
