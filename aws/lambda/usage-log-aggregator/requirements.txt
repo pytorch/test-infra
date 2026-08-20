@@ -9,7 +9,6 @@
 aioboto3
 aiobotocore
 aiofile
-# >=3.13.3 fixes CVE-2025-69223, CVE-2025-69224, CVE-2025-69228, CVE-2025-69229
 aiohttp>=3.13.3
 pandas
 python-dateutil
