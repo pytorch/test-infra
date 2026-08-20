@@ -65,10 +65,9 @@ These are uploaded to S3 directly by the GitHub workflows in `pytorch/pytorch`.
 
 The PyTorch bot's `workflow_job` handler (`lib/bot/logUploader.ts`) asynchronously
 invokes the [`gha-log-uploader`] lambda when a job completes. That lambda
-downloads the log from GitHub and puts it in the [`ossci-raw-job-status`] bucket
-under `log/`. An S3 `ObjectCreated` notification on that prefix then invokes
-`call-log-classifier`, which invokes [`log-classifier`] to do the classification
-(more detail in the [README]).
+downloads the log from GitHub, puts it in the [`ossci-raw-job-status`] bucket
+under `log/`, and then asynchronously invokes [`log-classifier`] to do the
+classification (more detail in the [README]).
 
 [readme]: https://github.com/pytorch/test-infra/blob/main/aws/lambda/log-classifier/README.md
 
