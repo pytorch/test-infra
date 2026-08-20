@@ -4,8 +4,9 @@
 -- Approximates the viable/strict gate for FAILURE ATTRIBUTION -- it is not a
 -- full reimplementation. It uses the same job-level red definition as
 -- pytorch/.github/scripts/fetch_latest_green_commit.py (via commit_jobs_batch_query):
---   * gating workflows are prefix-matched against ^(pull|trunk|lint|docs-build)
+--   * gating workflows are matched in FULL against ^(pull|trunk|lint|docs-build)$
 --     (case-insensitive), same as the `requires` list in update-viablestrict.yml
+--     and the gate's re.fullmatch
 --   * a job blocks if its latest run attempt (per workflow run) has a
 --     conclusion_kg other than success/skipped
 --   * jobs marked unstable (name contains "unstable", or the shard-folded name
@@ -84,10 +85,14 @@ raw_jobs AS (
             SELECT id FROM materialized_views.workflow_run_by_head_sha
             WHERE head_sha IN (SELECT sha FROM commits)
         )
-        -- Gating workflow prefixes; keep in sync with the `requires` list in
+        -- Gating workflows; keep in sync with the `requires` list in
         -- pytorch/pytorch .github/workflows/update-viablestrict.yml
         -- (["pull", "trunk", "lint", "docs-build"] as of 2026-07-27).
-        AND match(lower(j.workflow_name), '^(pull|trunk|lint|docs-build)')
+        -- Anchored at both ends to mirror the gate's re.fullmatch (test-infra
+        -- #8438): a prefix match would also pull in unrelated workflows that
+        -- merely share the prefix -- e.g. a `trunk-ci-sandbox` experiment or a
+        -- `Linter` -- and make them look like viable/strict blockers.
+        AND match(lower(j.workflow_name), '^(pull|trunk|lint|docs-build)$')
         -- Match the gate's job-level filtering (commit_jobs_batch_query), which
         -- only drops ciflow_should_run and generate-test-matrix. We additionally
         -- drop unstable and rerun_disabled_tests jobs: the gate ignores unstable
