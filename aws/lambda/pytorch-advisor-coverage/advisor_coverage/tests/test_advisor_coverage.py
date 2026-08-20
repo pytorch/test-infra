@@ -868,7 +868,6 @@ class TestBootstrapSecurity(unittest.TestCase):
     @patch("advisor_coverage.bootstrap.github.GithubIntegration")
     def test_mint_scopes_token_to_actions_write(self, mock_integration):
         import github
-
         from advisor_coverage.bootstrap import _mint_scoped_installation_auth
 
         get_token = mock_integration.return_value.get_access_token
@@ -885,7 +884,6 @@ class TestBootstrapSecurity(unittest.TestCase):
     @patch("advisor_coverage.bootstrap.github.GithubIntegration")
     def test_mint_failure_names_the_identifiers(self, mock_integration):
         import github
-
         from advisor_coverage.bootstrap import _mint_scoped_installation_auth
 
         mock_integration.return_value.get_access_token.side_effect = (
@@ -951,9 +949,8 @@ class TestBootstrapSecurity(unittest.TestCase):
         reds = [make_red(job_name="j / t", observed="o1")]
         with patch(
             "advisor_coverage.dispatcher.refresh_dispatch_token_if_stale"
-        ) as refresh:
-            with _DispatchHarness(reds, config=make_config(dry_run=False)) as h:
-                h.dispatcher.dispatch_for_window(T(0), T(59))
+        ) as refresh, _DispatchHarness(reds, config=make_config(dry_run=False)) as h:
+            h.dispatcher.dispatch_for_window(T(0), T(59))
         refresh.assert_called_once_with()
 
     def test_setup_clients_uses_scoped_token(self):
