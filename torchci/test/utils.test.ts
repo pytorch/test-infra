@@ -105,7 +105,14 @@ describe("utils: getFilesChangedByPrCached", () => {
         .mockResolvedValue([{ filename: "a.py" }, { filename: "b.py" }]),
     } as any;
     const call = (sha: string) =>
-      getFilesChangedByPrCached(octokit, "pytorch", "pytorch", 1, sha);
+      getFilesChangedByPrCached(
+        octokit,
+        "delivery1",
+        "pytorch",
+        "pytorch",
+        1,
+        sha
+      );
 
     expect(await call("sha1")).toEqual(["a.py", "b.py"]);
     expect(await call("sha1")).toEqual(["a.py", "b.py"]);
@@ -117,5 +124,51 @@ describe("utils: getFilesChangedByPrCached", () => {
     clearFilesChangedCache();
     await call("sha1");
     expect(octokit.paginate).toHaveBeenCalledTimes(3);
+  });
+
+  test("dedupes within one delivery; re-fetches across deliveries", async () => {
+    const octokit = {
+      paginate: jest.fn().mockResolvedValue([{ filename: "a.py" }]),
+    } as any;
+    const call = (deliveryId: string) =>
+      getFilesChangedByPrCached(
+        octokit,
+        deliveryId,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha1"
+      );
+
+    await call("delivery1");
+    await call("delivery1");
+    expect(octokit.paginate).toHaveBeenCalledTimes(1);
+
+    await call("delivery2");
+    expect(octokit.paginate).toHaveBeenCalledTimes(2);
+  });
+
+  test("a later delivery sees its own file list after a base retarget", async () => {
+    const octokit = {
+      paginate: jest
+        .fn()
+        .mockResolvedValueOnce([{ filename: "torch/csrc/foo.cpp" }])
+        .mockResolvedValueOnce([{ filename: "docs/readme.md" }]),
+    } as any;
+    // Retargeting a PR's base fires pull_request.edited without moving
+    // head.sha, so every key component except the delivery id is identical.
+    const call = (deliveryId: string) =>
+      getFilesChangedByPrCached(
+        octokit,
+        deliveryId,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha1"
+      );
+
+    expect(await call("delivery1")).toEqual(["torch/csrc/foo.cpp"]);
+    expect(await call("delivery2")).toEqual(["docs/readme.md"]);
+    expect(octokit.paginate).toHaveBeenCalledTimes(2);
   });
 });

@@ -164,6 +164,7 @@ export default function nitpickBot(app: Probot): void {
 
       const filesChanged = await getFilesChangedByPrCached(
         context.octokit,
+        context.id,
         owner,
         repo,
         prNum,

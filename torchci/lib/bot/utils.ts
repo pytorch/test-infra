@@ -50,8 +50,27 @@ export function isDrCIEnabled(owner: string, repo: string): boolean {
   );
 }
 
+function retainLastKnownGood(
+  context: Context,
+  lastKnownGood: any,
+  key: string,
+  error: unknown
+): any {
+  // A repo with no config file resolves to null, so membership rather than
+  // truthiness decides whether an earlier fetch ever succeeded.
+  if (!(key in lastKnownGood)) {
+    throw error;
+  }
+  context.log.error(
+    { key, err: error },
+    "config fetch failed, serving the last known good value"
+  );
+  return lastKnownGood[key];
+}
+
 export class CachedConfigTracker {
   repoConfigs: any = {};
+  lastKnownGoodConfigs: any = {};
 
   constructor(app: Probot) {
     app.on("push", async (context) => {
@@ -68,7 +87,20 @@ export class CachedConfigTracker {
     const key = repoKey(context);
     if (!(key in this.repoConfigs) || force) {
       context.log({ key }, "loadConfig");
-      this.repoConfigs[key] = await context.config("pytorch-probot.yml");
+      try {
+        this.repoConfigs[key] = await context.config("pytorch-probot.yml");
+        this.lastKnownGoodConfigs[key] = this.repoConfigs[key];
+      } catch (error) {
+        // A forced read leaves the previous value in place; dropping it keeps
+        // the key stale so the next read retries the fetch.
+        delete this.repoConfigs[key];
+        return retainLastKnownGood(
+          context,
+          this.lastKnownGoodConfigs,
+          key,
+          error
+        );
+      }
     }
     return this.repoConfigs[key];
   }
@@ -123,6 +155,7 @@ export class CachedIssueTracker extends CachedConfigTracker {
 
 export class CachedLabelerConfigTracker extends CachedConfigTracker {
   repoLabels: any = {};
+  lastKnownGoodLabels: any = {};
   constructor(app: Probot) {
     super(app);
     app.on("push", async (context) => {
@@ -140,7 +173,17 @@ export class CachedLabelerConfigTracker extends CachedConfigTracker {
   async loadLabelsConfig(context: Context, force = false): Promise<object> {
     const key = repoKey(context);
     if (!(key in this.repoLabels) || force) {
-      const config: any = await this.loadConfig(context, force);
+      let config: any;
+      try {
+        config = await this.loadConfig(context, force);
+      } catch (error) {
+        return retainLastKnownGood(
+          context,
+          this.lastKnownGoodLabels,
+          key,
+          error
+        );
+      }
 
       if (config != null && "labeler_config" in config) {
         this.repoLabels[key] = context.config(config["labeler_config"]);
@@ -148,12 +191,24 @@ export class CachedLabelerConfigTracker extends CachedConfigTracker {
         this.repoLabels[key] = {};
       }
     }
-    return this.repoLabels[key];
+    // The cache holds the unsettled fetch itself so concurrent readers share it.
+    const pending = this.repoLabels[key];
+    try {
+      const labels = await pending;
+      this.lastKnownGoodLabels[key] = labels;
+      return labels;
+    } catch (error) {
+      if (this.repoLabels[key] === pending) {
+        delete this.repoLabels[key];
+      }
+      return retainLastKnownGood(context, this.lastKnownGoodLabels, key, error);
+    }
   }
 }
 
 export class LabelToLabelConfigTracker extends CachedConfigTracker {
   repoLabels: any = {};
+  lastKnownGoodLabels: any = {};
   constructor(app: Probot) {
     super(app);
     app.on("push", async (context) => {
@@ -171,7 +226,17 @@ export class LabelToLabelConfigTracker extends CachedConfigTracker {
   async loadLabelsConfig(context: Context, force = false): Promise<object> {
     const key = repoKey(context);
     if (!(key in this.repoLabels) || force) {
-      const config: any = await this.loadConfig(context, force);
+      let config: any;
+      try {
+        config = await this.loadConfig(context, force);
+      } catch (error) {
+        return retainLastKnownGood(
+          context,
+          this.lastKnownGoodLabels,
+          key,
+          error
+        );
+      }
 
       if (config != null && "label_to_label_config" in config) {
         this.repoLabels[key] = context.config(config["label_to_label_config"]);
@@ -179,7 +244,18 @@ export class LabelToLabelConfigTracker extends CachedConfigTracker {
         this.repoLabels[key] = {};
       }
     }
-    return this.repoLabels[key];
+    // The cache holds the unsettled fetch itself so concurrent readers share it.
+    const pending = this.repoLabels[key];
+    try {
+      const labels = await pending;
+      this.lastKnownGoodLabels[key] = labels;
+      return labels;
+    } catch (error) {
+      if (this.repoLabels[key] === pending) {
+        delete this.repoLabels[key];
+      }
+      return retainLastKnownGood(context, this.lastKnownGoodLabels, key, error);
+    }
   }
 }
 
@@ -340,19 +416,23 @@ interface FilesChangedCacheEntry {
 
 // autoLabelBot and nitpickBot both fetch a PR's changed files on the same
 // pull_request delivery, staggered (nitpick loads its config first). Caching
-// the resolved fetch for a short TTL — not just the in-flight promise — lets
-// the second handler reuse the first's paginated GET /pulls/{n}/files. Keying
-// on headSha makes a re-push miss naturally; the TTL only bounds memory.
+// the resolved fetch — not just the in-flight promise — lets the second
+// handler reuse the first's paginated GET /pulls/{n}/files. The delivery id
+// scopes an entry to a single webhook delivery: GitHub computes the file list
+// against the PR's base, and retargeting the base changes that list without
+// changing head.sha, so an entry is only ever safe to reuse within the
+// delivery that produced it. The TTL only bounds memory.
 const filesChangedCache = new Map<string, FilesChangedCacheEntry>();
 
 export function getFilesChangedByPrCached(
   octokit: Octokit,
+  deliveryId: string,
   owner: string,
   repo: string,
   prNumber: number,
   headSha: string
 ): Promise<string[]> {
-  const key = `${owner}/${repo}/${prNumber}/${headSha}`;
+  const key = `${deliveryId}/${owner}/${repo}/${prNumber}/${headSha}`;
   const now = Date.now();
 
   const cached = filesChangedCache.get(key);

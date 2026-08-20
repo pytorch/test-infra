@@ -546,6 +546,7 @@ function myBot(app: Probot): void {
       const title = context.payload.pull_request.title;
       const filesChanged = await getFilesChangedByPrCached(
         context.octokit,
+        context.id,
         owner,
         repo,
         context.payload.pull_request.number,
