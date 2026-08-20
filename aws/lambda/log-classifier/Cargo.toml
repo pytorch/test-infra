@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lambda_http = { version = "0.6.0", default-features = false, features = ["apigw_http"] }
 lambda_runtime = "0.6.0"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
