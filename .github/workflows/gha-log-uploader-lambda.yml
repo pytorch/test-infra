@@ -7,12 +7,14 @@ on:
     paths:
       - ".github/workflows/gha-log-uploader-lambda.yml"
       - "aws/lambda/gha-log-uploader/**"
-      - "aws/lambda/call-log-classifier/**"
   pull_request:
     paths:
       - ".github/workflows/gha-log-uploader-lambda.yml"
       - "aws/lambda/gha-log-uploader/**"
-      - "aws/lambda/call-log-classifier/**"
+
+defaults:
+  run:
+    working-directory: aws/lambda/gha-log-uploader/
 
 jobs:
   test:
@@ -23,16 +25,8 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Test gha-log-uploader
-        working-directory: aws/lambda/gha-log-uploader/
-        run: |
-          pip3 install -r requirements.txt pytest
-          pytest -v test_lambda_function.py
-      - name: Test call-log-classifier
-        working-directory: aws/lambda/call-log-classifier/
-        run: |
-          pip3 install boto3 pytest
-          pytest -v test_lambda_function.py
+      - run: pip3 install -r requirements.txt pytest
+      - run: pytest -v test_lambda_function.py
 
   deploy:
     needs: test
@@ -65,10 +59,5 @@ jobs:
             set -eux
             python3 -m pip install awscli
 
-      - name: Deploy gha-log-uploader
-        working-directory: aws/lambda/gha-log-uploader/
-        run: make deploy
-
-      - name: Deploy call-log-classifier
-        working-directory: aws/lambda/call-log-classifier/
+      - name: Deploy the lambda
         run: make deploy
