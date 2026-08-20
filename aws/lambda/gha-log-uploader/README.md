@@ -41,12 +41,14 @@ separate function.
 
 It is reached through `lambda:InvokeFunction` rather than its public function URL
 (`AuthType: NONE`), so the path from here to classification never crosses a
-public endpoint. `log_classifier` builds on `lambda_http` with only the
-`apigw_http` feature, so `classifier_payload()` reproduces an API Gateway HTTP API
-v2.0 request. Verified against the deployed function: a payload with no `job_id`
-returns its 400 "no job id provided" branch, and a non-numeric one fails inside
-its `parse::<usize>()`, which together show both the envelope and the query
-string are read from a direct invoke.
+public endpoint. A function URL would not work anyway: those only support the
+`RequestResponse` invocation type, so calling one means waiting for
+classification to finish.
+
+The payload is just `{"job_id": ..., "repo": "..."}`. `log_classifier` accepts
+that shape alongside the API Gateway request its function URL callers send — see
+`parse_request` in `../log-classifier/src/main.rs`, whose
+`parses_a_direct_invoke_payload` test pins this contract from the other side.
 
 A failed handoff is logged and reported as `classified: false`, not raised.
 Raising would make Lambda retry the whole function, re-downloading a
