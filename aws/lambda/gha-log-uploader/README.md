@@ -45,10 +45,19 @@ public endpoint. A function URL would not work anyway: those only support the
 `RequestResponse` invocation type, so calling one means waiting for
 classification to finish.
 
-The payload is just `{"job_id": ..., "repo": "..."}`. `log_classifier` accepts
-that shape alongside the API Gateway request its function URL callers send — see
-`parse_request` in `../log-classifier/src/main.rs`, whose
-`parses_a_direct_invoke_payload` test pins this contract from the other side.
+`log_classifier` builds on `lambda_http` with only the `apigw_http` feature, so
+`classifier_payload()` reproduces the API Gateway HTTP API v2.0 request it
+expects even on a direct invoke. Verified against the deployed function: a
+payload with no `job_id` returns its 400 "no job id provided" branch, and a
+non-numeric one fails inside its `parse::<usize>()`, which together show both the
+envelope and the query string are read.
+
+That envelope is coupling to another lambda's framework, and it would break if
+`log_classifier`'s handler changed. Teaching it to accept a plain
+`{"job_id", "repo"}` payload is the real fix, and lets its public function URL be
+retired once `backfillJobs.mjs`, `keep-going-call-log-classifier` and
+`github-status-test` move off it too — worth doing on its own, not as a rider on
+this migration.
 
 A failed handoff is logged and reported as `classified: false`, not raised.
 Raising would make Lambda retry the whole function, re-downloading a
