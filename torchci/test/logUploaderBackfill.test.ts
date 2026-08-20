@@ -114,8 +114,13 @@ describe("/api/log-uploader/backfill", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  test("reports a failure to reach the uploader", async () => {
-    invoke.mockRejectedValue(new Error("AccessDeniedException"));
+  test.each([
+    ["credentials are missing", new lambda.MissingAwsCredentialsError()],
+    ["the role cannot invoke", new Error("AccessDeniedException")],
+    ["the Lambda API is unreachable", new Error("TimeoutError")],
+  ])("reports 502 rather than throwing when %s", async (_label, error) => {
+    invoke.mockRejectedValue(error);
+    jest.spyOn(console, "error").mockImplementation(() => {});
     const res = mockRes();
     await handler(mockReq(), res);
 
