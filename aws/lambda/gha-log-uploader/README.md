@@ -33,31 +33,27 @@ twice and then DLQs it.
 
 ## Classification
 
-After a log is stored, `log_classifier` is invoked with `InvocationType: "Event"`
-and the result is not awaited. `github-status-test` called it with an untimed
-`urlopen` and blocked until classification finished, which is what produced its
-274s/344s/400s/900s duration tails — the fix is the invocation type, not a
-separate function.
+After a log is stored, `log_classifier` is called through its function URL —
+byte for byte the call `github-status-test` makes today.
 
-It is reached through `lambda:InvokeFunction` rather than its public function URL
-(`AuthType: NONE`), so the path from here to classification never crosses a
-public endpoint. A function URL would not work anyway: those only support the
-`RequestResponse` invocation type, so calling one means waiting for
-classification to finish.
+That call is synchronous. Function URLs only support the `RequestResponse`
+invocation type, so this function's duration includes the classification, and
+`github-status-test`'s 274s/344s/400s/900s duration maxima come from exactly
+this. **Keep the timeout at 900s**: on a slow classification a shorter one would
+kill the invocation mid-wait, and since callers invoke asynchronously, Lambda
+would then retry the whole thing and re-download the log.
 
-`log_classifier` builds on `lambda_http` with only the `apigw_http` feature, so
-`classifier_payload()` reproduces the API Gateway HTTP API v2.0 request it
-expects even on a direct invoke. Verified against the deployed function: a
-payload with no `job_id` returns its 400 "no job id provided" branch, and a
-non-numeric one fails inside its `parse::<usize>()`, which together show both the
-envelope and the query string are read.
+Unlike in `github-status-test` the tail is no longer harmful. There it ran behind
+API Gateway on the webhook's critical path, so a slow classification risked a
+GitHub webhook timeout. Here the caller has already returned, and a long
+invocation costs GB-seconds and a concurrency slot, nothing more.
 
-That envelope is coupling to another lambda's framework, and it would break if
-`log_classifier`'s handler changed. Teaching it to accept a plain
-`{"job_id", "repo"}` payload is the real fix, and lets its public function URL be
-retired once `backfillJobs.mjs`, `keep-going-call-log-classifier` and
-`github-status-test` move off it too — worth doing on its own, not as a rider on
-this migration.
+The way out is `lambda:InvokeFunction` with `InvocationType: "Event"`, which
+needs `log_classifier` to accept a plain `{"job_id", "repo"}` payload — it
+currently only parses the API Gateway request its `lambda_http` handler expects.
+That change also lets its `AuthType: NONE` function URL be retired, once
+`backfillJobs.mjs`, `keep-going-call-log-classifier` and `github-status-test`
+move off it. Worth doing on its own, not as a rider on this migration.
 
 A failed handoff is logged and reported as `classified: false`, not raised.
 Raising would make Lambda retry the whole function, re-downloading a
@@ -112,13 +108,12 @@ Notes on the app path:
 
 Not done by CI. Needed before the deploy workflow can run.
 
-1. Create the function: python3.12, x86_64, handler `lambda_function.lambda_handler`.
-   512 MB and a 60s timeout are plenty — the old function averaged 200ms and its
-   long tail was the classifier ping this one does not make.
-2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`,
-   `lambda:InvokeFunction` on
-   `arn:aws:lambda:us-east-1:308535385114:function:log_classifier`, plus the
-   usual CloudWatch Logs permissions.
+1. Create the function: python3.12, x86_64, handler `lambda_function.lambda_handler`,
+   512 MB, **900s timeout** — matching `github-status-test`, because the
+   synchronous classifier call means a slow classification is a slow invocation.
+2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`
+   plus the usual CloudWatch Logs permissions. No `lambda:InvokeFunction` is
+   needed while the classifier is reached over its function URL.
 3. Set the env vars above. Prefer fresh credentials over copying
    `github-status-test`'s, whose PATs sit in plaintext env vars and are due for
    rotation.
@@ -134,9 +129,8 @@ Not done by CI. Needed before the deploy workflow can run.
    `OUR_AWS_ACCESS_KEY_ID` before granting.
 6. Create the `gha_workflow_gha-log-uploader-lambda` IAM role the deploy workflow
    assumes, mirroring `gha_workflow_github-status-test-lambda`.
-7. Nothing to wire for classification: this function invokes `log_classifier`
-   directly, so there is no S3 notification to add. `keep-going-call-log-classifier`
-   still covers the separate `temp_logs/` prefix on `gha-artifacts`.
+7. Nothing to wire for classification: the classifier is called over its existing
+   function URL, so there is no notification or extra permission to add.
 
 ## Deployment
 
