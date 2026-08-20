@@ -348,13 +348,6 @@
       "rocm"
     ]
   ],
-  "test_disable_external_correlation (__main__.TestProfilerCUDA)": [
-    "187203",
-    "https://github.com/pytorch/pytorch/issues/187203",
-    [
-      "rocm"
-    ]
-  ],
   "test_dropout_parity_dynamic_shapes (__main__.TestDropoutAlignRandomEager)": [
     "188836",
     "https://github.com/pytorch/pytorch/issues/188836",
@@ -1075,13 +1068,6 @@
       "asan",
       "linux",
       "slow"
-    ]
-  ],
-  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
-    "186909",
-    "https://github.com/pytorch/pytorch/issues/186909",
-    [
-      "rocm"
     ]
   ],
   "test_trace_return_namedtuple (__main__.TestFX)": [
