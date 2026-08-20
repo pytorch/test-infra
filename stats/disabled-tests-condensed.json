@@ -111,6 +111,13 @@
       "inductor"
     ]
   ],
+  "test_bmm_shared_a_offered_when_eligible_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "194141",
+    "https://github.com/pytorch/pytorch/issues/194141",
+    [
+      "inductor"
+    ]
+  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -636,14 +643,6 @@
     "https://github.com/pytorch/pytorch/issues/190142",
     [
       "linux"
-    ]
-  ],
-  "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190748",
-    "https://github.com/pytorch/pytorch/issues/190748",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
