@@ -36,6 +36,9 @@ export interface AdvisorRepoConfig {
   // The workflow_dispatch file (on the repo's default branch) that runs the
   // advisor analysis for this repo.
   workflowFile: string;
+  // The repo's default branch (e.g. "main") the advisor dispatches against. Kept
+  // as config so the dispatch path needs no repos.get REST call per run.
+  defaultBranch: string;
   // Auto-dispatch bails entirely if a PR has more than this many NEW failures
   // (outage guard), unless the PR carries an OUTAGE_GUARD_BYPASS_LABELS label.
   // Falls back to DEFAULT_MAX_NEW_FAILURES when unset.
@@ -54,6 +57,7 @@ export interface AdvisorRepoConfig {
 export const ADVISOR_REPOS: Record<string, AdvisorRepoConfig> = {
   "pytorch/pytorch": {
     workflowFile: "claude-autorevert-advisor.yml",
+    defaultBranch: "main",
     maxNewFailures: 8,
     maxDispatchPerPr: 32,
   },
