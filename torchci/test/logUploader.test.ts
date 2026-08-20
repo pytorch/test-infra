@@ -138,10 +138,17 @@ describe("logUploader", () => {
     );
   });
 
-  test("a failed invoke does not fail the webhook", async () => {
+  test.each([
+    ["the role cannot invoke the function", "AccessDeniedException"],
+    ["credentials are missing entirely", "MissingAwsCredentialsError"],
+    ["the Lambda API is unreachable", "TimeoutError"],
+    ["Lambda throttles us", "TooManyRequestsException"],
+  ])("a failed invoke does not fail the webhook when %s", async (_l, name) => {
     // Throwing here would make GitHub redeliver the event and re-run every other
     // handler, to retry something Dr.CI repairs on its own.
-    invoke.mockRejectedValue(new Error("AccessDeniedException"));
+    const error = new Error(name);
+    error.name = name;
+    invoke.mockRejectedValue(error);
 
     await expect(receive(workflowJobPayload())).resolves.not.toThrow();
   });
