@@ -41,7 +41,7 @@ async function fetchDatabaseInfo(owner: string, repo: string, shas: string[]) {
 // Map a hud_commits row to the same CommitData shape commitDataFromResponse
 // produces. The push mirror stores author.username as "" (never null) when no
 // GitHub user was resolved, so "" means: use the git author name and no URL.
-function commitDataFromPushRow(row: any): CommitData {
+export function commitDataFromPushRow(row: any): CommitData {
   const message = row.message as string;
   const { prNum, diffNum } = parsePrAndDiffNumbers(message);
   const username = (row.author_username as string) ?? "";
@@ -60,17 +60,20 @@ function commitDataFromPushRow(row: any): CommitData {
 
 // Commit list for the HUD grid, read from the push mirror first so a normal page
 // load never calls GitHub. Falls back to GitHub's listCommits only when the
-// mirror can't answer authoritatively: a raw-sha branch (the mirror isn't keyed
-// by sha), a ClickHouse error, or fewer than per_page rows returned (empty branch
-// or a deep page past what the mirror holds). The guard is count-only: a full
-// page never triggers fallback, so a just-landed tip not yet ingested can briefly
-// be missing from page 1 until the next ingest (display-only, self-heals).
+// mirror can't answer authoritatively: params.requireLatestCommit, a raw-sha
+// branch (the mirror isn't keyed by sha), a ClickHouse error, or fewer than
+// per_page rows returned (empty branch or a deep page past what the mirror
+// holds). The count-only guard cannot see ingest lag — a full page still looks
+// complete while a just-landed tip is missing from it. For the grid that is
+// display-only staleness that self-heals on the next ingest, but a caller asking
+// which commit is the tip would silently get the one below it, so those callers
+// set requireLatestCommit and read through to GitHub.
 async function fetchCommits(params: HudParams): Promise<CommitData[]> {
   const branch = decodeURIComponent(params.branch);
   const isRawSha = /^[0-9a-f]{40}$/i.test(branch);
 
   let chCommits: CommitData[] | undefined;
-  if (!isRawSha) {
+  if (!isRawSha && !params.requireLatestCommit) {
     try {
       const rows = await queryClickhouseSaved("hud_commits", {
         repo: `${params.repoOwner}/${params.repoName}`,

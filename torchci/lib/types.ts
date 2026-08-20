@@ -135,6 +135,9 @@ export interface HudParams {
   mergeEphemeralLF?: boolean;
   mergeOSDC?: boolean;
   useRegexFilter?: boolean;
+  // Set by callers that read the commit list to learn which commit is the tip
+  // rather than to render a page of it. See fetchCommits in lib/fetchHud.ts.
+  requireLatestCommit?: boolean;
 }
 
 export function isPyTorchPyTorchRepo(params: HudParams): boolean {
@@ -300,6 +303,7 @@ export function packHudParams(input: any) {
     mergeEphemeralLF: input.mergeEphemeralLF as boolean,
     mergeOSDC: input.mergeOSDC as boolean,
     useRegexFilter: input.useRegexFilter === "true",
+    requireLatestCommit: input.requireLatestCommit === "true",
   };
 }
 
@@ -350,6 +354,10 @@ function formatHudURL(
 
   if (params.mergeOSDC) {
     base += `&mergeOSDC=true`;
+  }
+
+  if (params.requireLatestCommit) {
+    base += `&requireLatestCommit=true`;
   }
 
   // Preserve autorevert view params so router.push doesn't strip them.
