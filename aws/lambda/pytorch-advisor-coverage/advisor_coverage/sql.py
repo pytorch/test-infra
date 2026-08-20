@@ -215,10 +215,12 @@ _CTE_GREEN_JOBS = r"""green_jobs AS (
 
 # One row per (commit, NORMALIZED job): the category=5 shards of a normalized job
 # at a commit are collapsed to the normalized name so exactly ONE advisor is
-# dispatched per normalized job. Its coverage_ verdict then classifies every shard
-# of that job at the commit (the same normalized identity /flaky_trunk joins on),
-# instead of one shard's verdict bleeding onto its siblings. The representative
-# failing run (name/job_id/log) is the latest-attempt category=5 shard.
+# dispatched per normalized job, keyed at the same normalized identity
+# /flaky_trunk joins on -- so its coverage_ verdict classifies every shard of that
+# job at the commit, and this enumeration's unclassified set matches the page's.
+# The evidence is narrower than the key: the representative failing run
+# (name/job_id/log) is a single latest-attempt category=5 shard, so one shard's
+# log backs the verdict that lands on all of them.
 _SELECT_UNCLASSIFIED = r"""SELECT
     fj.head_sha AS head_sha,
     any(fj.commit_time) AS commit_time,
