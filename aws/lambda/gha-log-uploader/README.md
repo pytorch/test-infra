@@ -31,13 +31,29 @@ Payload:
 `conclusion` is optional. A malformed payload raises, which means Lambda retries
 twice and then DLQs it.
 
-## What it does not do
+## Classification
 
-It does not ping the log classifier. An S3 `ObjectCreated` notification on the
-`log/` prefix invokes `call-log-classifier`, which invokes `log_classifier`. That
-split is deliberate: the old lambda called the classifier with an untimed
+After a log is stored, `log_classifier` is invoked with `InvocationType: "Event"`
+and the result is not awaited. `github-status-test` called it with an untimed
 `urlopen` and blocked until classification finished, which is what produced its
-274s/344s/400s/900s duration tails.
+274s/344s/400s/900s duration tails — the fix is the invocation type, not a
+separate function.
+
+It is reached through `lambda:InvokeFunction` rather than its public function URL
+(`AuthType: NONE`), so the path from here to classification never crosses a
+public endpoint. `log_classifier` builds on `lambda_http` with only the
+`apigw_http` feature, so `classifier_payload()` reproduces an API Gateway HTTP API
+v2.0 request. Verified against the deployed function: a payload with no `job_id`
+returns its 400 "no job id provided" branch, and a non-numeric one fails inside
+its `parse::<usize>()`, which together show both the envelope and the query
+string are read from a direct invoke.
+
+A failed handoff is logged and reported as `classified: false`, not raised.
+Raising would make Lambda retry the whole function, re-downloading a
+multi-megabyte log from GitHub to retry something that takes milliseconds; the
+log itself is already safe in S3.
+
+## What it does not do
 
 It does not archive raw webhook payloads. Nothing read them —
 `clickhouse-replicator-s3` has no `SUPPORTED_PATHS` entry for `workflow_job/`,
@@ -88,8 +104,10 @@ Not done by CI. Needed before the deploy workflow can run.
 1. Create the function: python3.12, x86_64, handler `lambda_function.lambda_handler`.
    512 MB and a 60s timeout are plenty — the old function averaged 200ms and its
    long tail was the classifier ping this one does not make.
-2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`
-   plus the usual CloudWatch Logs permissions.
+2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`,
+   `lambda:InvokeFunction` on
+   `arn:aws:lambda:us-east-1:308535385114:function:log_classifier`, plus the
+   usual CloudWatch Logs permissions.
 3. Set the env vars above. Prefer fresh credentials over copying
    `github-status-test`'s, whose PATs sit in plaintext env vars and are due for
    rotation.
@@ -105,7 +123,9 @@ Not done by CI. Needed before the deploy workflow can run.
    `OUR_AWS_ACCESS_KEY_ID` before granting.
 6. Create the `gha_workflow_gha-log-uploader-lambda` IAM role the deploy workflow
    assumes, mirroring `gha_workflow_github-status-test-lambda`.
-7. Wire the classifier notification — see `../call-log-classifier/README.md`.
+7. Nothing to wire for classification: this function invokes `log_classifier`
+   directly, so there is no S3 notification to add. `keep-going-call-log-classifier`
+   still covers the separate `temp_logs/` prefix on `gha-artifacts`.
 
 ## Deployment
 
