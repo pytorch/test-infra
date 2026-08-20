@@ -135,6 +135,44 @@ def log_object_path(full_name, job_id):
     return f"log/{full_name}/{job_id}"
 
 
+def classifier_payload(full_name, job_id):
+    """An API Gateway HTTP API v2.0 request, which is what lambda_http parses.
+
+    log_classifier is built on lambda_http with only the `apigw_http` feature, so
+    it expects this envelope even on a direct invoke. Verified against the
+    deployed function: a payload with no `job_id` returns its 400 "no job id
+    provided" branch, and a non-numeric one fails in its `parse::<usize>()`,
+    which together show both the envelope and the query string are read.
+    """
+    return {
+        "version": "2.0",
+        "routeKey": "$default",
+        "rawPath": "/",
+        "rawQueryString": f"job_id={job_id}&repo={full_name}",
+        "headers": {},
+        "queryStringParameters": {"job_id": str(job_id), "repo": full_name},
+        "requestContext": {
+            "accountId": "308535385114",
+            "apiId": "gha-log-uploader",
+            "domainName": "lambda-invoke",
+            "domainPrefix": "lambda-invoke",
+            "http": {
+                "method": "GET",
+                "path": "/",
+                "protocol": "HTTP/1.1",
+                "sourceIp": "127.0.0.1",
+                "userAgent": "gha-log-uploader",
+            },
+            "requestId": f"gha-log-uploader-{job_id}",
+            "routeKey": "$default",
+            "stage": "$default",
+            "time": "01/Jan/1970:00:00:00 +0000",
+            "timeEpoch": 0,
+        },
+        "isBase64Encoded": False,
+    }
+
+
 def classify_log(full_name, job_id):
     """Kick off classification for a log we just stored. Returns True on handoff.
 
@@ -149,7 +187,7 @@ def classify_log(full_name, job_id):
         lambda_client.invoke(
             FunctionName=LOG_CLASSIFIER_FUNCTION,
             InvocationType="Event",
-            Payload=json.dumps({"job_id": job_id, "repo": full_name}).encode(),
+            Payload=json.dumps(classifier_payload(full_name, job_id)).encode(),
         )
         return True
     except Exception as err:
