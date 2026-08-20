@@ -187,9 +187,7 @@ export async function dispatchAdvisorWorkflow(
   const botOctokit = await getOctokit(owner, repo);
   const jobPattern = jobNameToBasePattern(jobName);
 
-  // Look up default branch (usually "main") instead of hardcoding
-  const repoData = await botOctokit.rest.repos.get({ owner, repo });
-  const defaultBranch = repoData.data.default_branch;
+  const defaultBranch = cfg.defaultBranch;
 
   // Fetch merge base SHA from GitHub
   let resolvedMergeBase = params.mergeBaseSha || "";
