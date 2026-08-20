@@ -1,5 +1,4 @@
-use lambda_runtime::{run, service_fn, Error, LambdaEvent};
-use serde_json::{json, Value};
+use lambda_http::{run, service_fn, Body, Error, IntoResponse, Request, RequestExt, Response};
 
 use anyhow::Result;
 use std::time::Instant;
@@ -79,95 +78,39 @@ async fn handle(
     }
 }
 
-/// What the handler needs, however the caller chose to say it.
-#[derive(Debug, PartialEq)]
-struct ClassifyRequest {
-    job_id: usize,
-    repo: String,
-    context_depth: usize,
-    is_temp_log: bool,
-}
+async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+    // Extract some useful information from the request
+    let query_string_parameters = event.query_string_parameters();
+    Ok(match query_string_parameters.first("job_id") {
+        Some(job_id) => {
+            let job_id = job_id.parse::<usize>()?;
+            let repo = query_string_parameters
+                .first("repo")
+                .unwrap_or_else(|| "pytorch/pytorch");
+            let context_depth = query_string_parameters
+                .first("context_depth")
+                .unwrap_or_else(|| CONTEXT_DEPTH)
+                .parse::<usize>()?;
+            let is_temp_log = query_string_parameters
+                .first("temp_log")
+                .map_or(false, |v| v == "true");
+            handle(
+                job_id,
+                repo,
+                ShouldWriteDynamo(true),
+                context_depth,
+                is_temp_log,
+            )
+            .await?
+            .into_response()
+            .await
+        }
 
-/// Pull a single parameter out of either payload shape.
-///
-/// Two callers exist. Function URL callers (backfillJobs.mjs,
-/// keep-going-call-log-classifier, github-status-test) send an API Gateway HTTP
-/// API v2.0 request, where the values live under `queryStringParameters` and are
-/// always strings. Direct `lambda:InvokeFunction` callers (gha-log-uploader) send
-/// a plain `{"job_id": 123, "repo": "..."}` object, where `job_id` is a real
-/// number. Accepting both is what lets an async invoke skip the public function
-/// URL without every caller having to synthesise an HTTP request.
-fn param(event: &Value, name: &str) -> Option<String> {
-    let from_query = event
-        .get("queryStringParameters")
-        .and_then(|q| q.get(name))
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
-    if from_query.is_some() {
-        return from_query;
-    }
-
-    // A v2.0 request with no `queryStringParameters` still carries the raw
-    // string, so fall back to it rather than 400-ing a well-formed request.
-    let from_raw = event
-        .get("rawQueryString")
-        .and_then(|v| v.as_str())
-        .and_then(|raw| {
-            raw.split('&')
-                .filter_map(|pair| pair.split_once('='))
-                .find(|(k, _)| *k == name)
-                .map(|(_, v)| v.to_string())
-        });
-    if from_raw.is_some() {
-        return from_raw;
-    }
-
-    match event.get(name) {
-        Some(Value::String(s)) => Some(s.clone()),
-        Some(Value::Number(n)) => Some(n.to_string()),
-        Some(Value::Bool(b)) => Some(b.to_string()),
-        _ => None,
-    }
-}
-
-fn parse_request(event: &Value) -> Option<ClassifyRequest> {
-    let job_id = param(event, "job_id")?.parse::<usize>().ok()?;
-    Some(ClassifyRequest {
-        job_id,
-        repo: param(event, "repo").unwrap_or_else(|| "pytorch/pytorch".to_string()),
-        context_depth: param(event, "context_depth")
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or_else(|| CONTEXT_DEPTH.parse::<usize>().expect("valid default")),
-        is_temp_log: param(event, "temp_log").map_or(false, |v| v == "true"),
+        _ => Response::builder()
+            .status(400)
+            .body("no job id provided".into())
+            .expect("failed to render response"),
     })
-}
-
-/// The API Gateway response shape, kept so function URL callers see exactly what
-/// they saw when this was a lambda_http handler.
-fn response(status: u16, body: impl Into<String>) -> Value {
-    json!({
-        "statusCode": status,
-        "headers": {},
-        "body": body.into(),
-        "isBase64Encoded": false,
-    })
-}
-
-async fn function_handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
-    let Some(request) = parse_request(&event.payload) else {
-        return Ok(response(400, "no job id provided"));
-    };
-
-    let body = handle(
-        request.job_id,
-        &request.repo,
-        ShouldWriteDynamo(true),
-        request.context_depth,
-        request.is_temp_log,
-    )
-    .await?;
-
-    Ok(response(200, body))
 }
 
 #[tokio::main]
@@ -187,109 +130,6 @@ mod test {
     use log_classifier::engine::evaluate_rule;
     use log_classifier::rule::Rule;
     use regex::Regex;
-
-    fn v2_request(query: Value) -> Value {
-        json!({
-            "version": "2.0",
-            "routeKey": "$default",
-            "rawPath": "/",
-            "headers": {},
-            "queryStringParameters": query,
-            "isBase64Encoded": false,
-        })
-    }
-
-    #[test]
-    fn parses_a_direct_invoke_payload() {
-        // gha-log-uploader sends this: job_id is a real number, not a string.
-        assert_eq!(
-            parse_request(&json!({"job_id": 123, "repo": "pytorch/executorch"})),
-            Some(ClassifyRequest {
-                job_id: 123,
-                repo: "pytorch/executorch".to_string(),
-                context_depth: 12,
-                is_temp_log: false,
-            })
-        );
-    }
-
-    #[test]
-    fn parses_a_function_url_request() {
-        // What backfillJobs.mjs and keep-going-call-log-classifier send.
-        assert_eq!(
-            parse_request(&v2_request(
-                json!({"job_id": "123", "repo": "pytorch/pytorch", "temp_log": "true"})
-            )),
-            Some(ClassifyRequest {
-                job_id: 123,
-                repo: "pytorch/pytorch".to_string(),
-                context_depth: 12,
-                is_temp_log: true,
-            })
-        );
-    }
-
-    #[test]
-    fn falls_back_to_the_raw_query_string() {
-        let event = json!({
-            "version": "2.0",
-            "rawQueryString": "job_id=99&repo=pytorch/rl&context_depth=3",
-        });
-        let parsed = parse_request(&event).expect("should parse");
-        assert_eq!(parsed.job_id, 99);
-        assert_eq!(parsed.repo, "pytorch/rl");
-        assert_eq!(parsed.context_depth, 3);
-    }
-
-    #[test]
-    fn query_parameters_win_over_a_top_level_key() {
-        // A v2.0 envelope has no top-level job_id, but if one ever appears the
-        // request the caller actually made is the one to honour.
-        let mut event = v2_request(json!({"job_id": "1"}));
-        event["job_id"] = json!(2);
-        assert_eq!(parse_request(&event).expect("should parse").job_id, 1);
-    }
-
-    #[test]
-    fn defaults_repo_and_context_depth() {
-        let parsed = parse_request(&json!({"job_id": 5})).expect("should parse");
-        assert_eq!(parsed.repo, "pytorch/pytorch");
-        assert_eq!(parsed.context_depth, 12);
-        assert!(!parsed.is_temp_log);
-    }
-
-    #[test]
-    fn rejects_a_payload_with_no_job_id() {
-        assert_eq!(parse_request(&json!({"repo": "pytorch/pytorch"})), None);
-        assert_eq!(parse_request(&v2_request(json!({}))), None);
-    }
-
-    #[test]
-    fn rejects_a_non_numeric_job_id() {
-        assert_eq!(parse_request(&json!({"job_id": "not a number"})), None);
-    }
-
-    #[test]
-    fn temp_log_is_only_true_for_the_exact_string() {
-        // It arrives as a string over the function URL and could arrive as a
-        // bool on a direct invoke; both normalise through param().
-        assert!(parse_request(&json!({"job_id": 1, "temp_log": true}))
-            .expect("should parse")
-            .is_temp_log);
-        assert!(!parse_request(&json!({"job_id": 1, "temp_log": "false"}))
-            .expect("should parse")
-            .is_temp_log);
-    }
-
-    #[test]
-    fn response_keeps_the_api_gateway_shape() {
-        // Function URL callers still get a structured response, unchanged from
-        // when this was a lambda_http handler.
-        let r = response(400, "no job id provided");
-        assert_eq!(r["statusCode"], 400);
-        assert_eq!(r["body"], "no job id provided");
-        assert_eq!(r["isBase64Encoded"], false);
-    }
 
     #[test]
     fn basic_evaluate_rule() {
