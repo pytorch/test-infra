@@ -34,7 +34,9 @@ GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 # Base64-encoded PEM, the same encoding torchci uses for its app key
 GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY")
 BUCKET_NAME = "ossci-raw-job-status"
-LOG_CLASSIFIER_URL = "https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws"
+LOG_CLASSIFIER_URL = (
+    "https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws"
+)
 
 GITHUB_API_URL = "https://api.github.com"
 # Installation tokens last an hour. Refresh early so a warm invocation never
