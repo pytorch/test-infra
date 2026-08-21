@@ -2,9 +2,9 @@
  * GET/POST /api/gcx-token
  *
  * Self-serve endpoint that mints a read-only (Viewer) Grafana service-account
- * token for the `gcx` CLI, gated by GitHub identity the same way Flambeau is:
- * the caller must have write access to pytorch/pytorch (or be on the
- * Flambeau allow list).
+ * token for the `gcx` CLI, gated by GitHub identity: the caller must have
+ * write access to pytorch/pytorch (or be on the allow list in
+ * lib/auth/allowList.json).
  *
  * Intended use: one-time setup. Run it once, save the returned token in
  * GRAFANA_TOKEN, and reuse it for read-only `gcx` access. Not meant to be
@@ -54,7 +54,7 @@ export default async function handler(
     });
   }
 
-  // 2. Validate GitHub identity + pytorch/pytorch write access (Flambeau gate).
+  // 2. Validate GitHub identity + pytorch/pytorch write access (shared gate).
   const auth = await authorizeGithubToken(githubToken);
   if (!auth.ok) {
     return res.status(auth.status).json({ error: auth.error });
