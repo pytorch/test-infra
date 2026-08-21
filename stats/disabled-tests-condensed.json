@@ -172,6 +172,13 @@
       "rocm"
     ]
   ],
+  "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
+    "194332",
+    "https://github.com/pytorch/pytorch/issues/194332",
+    [
+      "linux"
+    ]
+  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
