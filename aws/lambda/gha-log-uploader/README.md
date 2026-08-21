@@ -31,22 +31,51 @@ Payload:
 `conclusion` is optional. A malformed payload raises, which means Lambda retries
 twice and then DLQs it.
 
+## What fails how
+
+Callers invoke asynchronously, so *raising* is what reaches Lambda's retries and
+then the dead-letter queue; *returning* records the invocation as a success no
+matter what the return value says. Which failures do which:
+
+| Failure | Behaviour |
+| --- | --- |
+| Network error reaching GitHub | raises — retried, then DLQ |
+| GitHub 5xx or 429 | raises — retried, then DLQ |
+| No usable credential | raises — retried, then DLQ |
+| Malformed payload | raises — retried, then DLQ |
+| GitHub 404 (log has aged out), 401, 403 | returns `stored: false`, no retry |
+| Classifier call fails or times out | returns `classified: false`, no retry |
+
+The bottom two are deliberate. A log GitHub has already dropped does not come
+back on the third attempt, and re-running a whole download to retry a classifier
+handoff would re-fetch megabytes to redo something that takes milliseconds.
+`stored: false` is therefore not visible on the DLQ; if you want to alarm on it,
+match the terminal `ERROR <status> downloading log` line specifically. Do **not**
+alarm on `ERROR` generally: `installation_token` logs one every time it falls
+back to the PAT pool, which is a path that then usually succeeds.
+
 ## Classification
 
 After a log is stored, `log_classifier` is called through its function URL —
 byte for byte the call `github-status-test` makes today.
 
-That call is synchronous. Function URLs only support the `RequestResponse`
-invocation type, so this function's duration includes the classification, and
-`github-status-test`'s 274s/344s/400s/900s duration maxima come from exactly
-this. **Keep the timeout at 900s**: on a slow classification a shorter one would
-kill the invocation mid-wait, and since callers invoke asynchronously, Lambda
-would then retry the whole thing and re-download the log.
+Function URLs only support the `RequestResponse` invocation type, so there is no
+way to ask for fire-and-forget. `CLASSIFIER_TIMEOUT` gets close enough: after 30s
+this stops waiting for the reply. Disconnecting does not cancel the classifier —
+it runs to completion regardless — so nothing is lost by hanging up, and
+`github-status-test`'s 274s/344s/400s/900s duration maxima do not carry over.
 
-Unlike in `github-status-test` the tail is no longer harmful. There it ran behind
-API Gateway on the webhook's critical path, so a slow classification risked a
-GitHub webhook timeout. Here the caller has already returned, and a long
-invocation costs GB-seconds and a concurrency slot, nothing more.
+That bound is load-bearing, not tidiness. `urlopen` with no `timeout` has none at
+all, so a connection that is accepted and never answered raises nothing and burns
+the entire function timeout. Since callers invoke asynchronously, Lambda counts
+that as a failure and replays the whole invocation twice more, re-downloading the
+same log each time and eventually DLQ-ing a job whose log was archived fine on
+the first attempt. `github-status-test` does hit its 900s ceiling, so this is an
+observed tail, not a theoretical one.
+
+With the wait bounded, every step has an explicit ceiling — two 30s log fetches
+at most, then a 30s classifier call — so a **300s function timeout** is
+comfortable, rather than the 900s `github-status-test` needs.
 
 The way out is `lambda:InvokeFunction` with `InvocationType: "Event"`, which
 needs `log_classifier` to accept a plain `{"job_id", "repo"}` payload — it
@@ -82,7 +111,7 @@ on the repo.
 
 | Env var | Required | Purpose |
 | --- | --- | --- |
-| `GITHUB_APP_ID` | no | App id used to mint installation tokens (e.g. `4550824`, `pytorch-bot-preview`) |
+| `GITHUB_APP_ID` | no | Numeric app id used to mint installation tokens, e.g. `4550824` — the id of the `pytorch-bot-preview` app. Must be the number: it goes through `int()`, so an app slug fails |
 | `GITHUB_APP_PRIVATE_KEY` | no | The app's private key, base64-encoded PEM (same encoding torchci uses) |
 | `GITHUB_TOKENS` | yes | Comma-separated PAT pool, used as the fallback and when no app is configured |
 
@@ -109,16 +138,17 @@ Notes on the app path:
 Not done by CI. Needed before the deploy workflow can run.
 
 1. Create the function: python3.12, x86_64, handler `lambda_function.lambda_handler`,
-   512 MB, **900s timeout** — matching `github-status-test`, because the
-   synchronous classifier call means a slow classification is a slow invocation.
+   512 MB, **300s timeout** — every step is individually bounded, so this does
+   not need `github-status-test`'s 900s. See Classification above.
 2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`
    plus the usual CloudWatch Logs permissions. No `lambda:InvokeFunction` is
    needed while the classifier is reached over its function URL.
 3. Set the env vars above. Prefer fresh credentials over copying
    `github-status-test`'s, whose PATs sit in plaintext env vars and are due for
    rotation.
-4. Configure an on-failure destination or DLQ, and alarm on it. That queue is the
-   only signal that a trunk-only job lost its log.
+4. Configure an on-failure destination or DLQ, and alarm on it. For a trunk-only
+   job that is the only signal its log went missing — Dr.CI's self-heal only
+   covers PR jobs. See "What fails how" for what does and does not land there.
 5. Add the invoke grant for torchci, and nothing else:
    ```
    aws lambda add-permission --function-name gha-log-uploader \
