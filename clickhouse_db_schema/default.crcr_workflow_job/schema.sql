@@ -38,4 +38,5 @@ CREATE TABLE default.crcr_workflow_job
 )
 ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 ORDER BY (downstream_repo, delivery_id, dynamoKey)
+TTL toDate(_inserted_at) + toIntervalDay(100)
 SETTINGS index_granularity = 8192
