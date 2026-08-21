@@ -736,6 +736,13 @@
       "rocm"
     ]
   ],
+  "test_one_shot_all_reduce (__main__.SymmMemCollectiveTest)": [
+    "194403",
+    "https://github.com/pytorch/pytorch/issues/194403",
+    [
+      "rocm"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
