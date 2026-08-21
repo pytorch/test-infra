@@ -25,8 +25,14 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: pip3 install -r requirements.txt pytest
+      - run: pip3 install -r requirements.txt pytest==7.4.0
       - run: pytest -v test_lambda_function.py
+      # Build the deployment package too. `prepare` resolves manylinux wheels for
+      # the lambda's platform rather than the runner's, and `verify` refuses a zip
+      # that is missing a vendored module -- neither of which the plain install
+      # above exercises. Without this a bad requirements.txt only fails at deploy
+      # time, which is to say on main.
+      - run: make prepare
 
   deploy:
     needs: test
@@ -35,6 +41,13 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    # Serialise deploys: two merges in quick succession would otherwise race on
+    # update-function-code, and if the older run finishes last the function is
+    # left on the older commit. Queue rather than cancel -- cancelling a deploy
+    # mid-flight is worse than waiting for it.
+    concurrency:
+      group: ${{ github.workflow }}-deploy
+      cancel-in-progress: false
     steps:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
