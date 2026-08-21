@@ -55,8 +55,16 @@ class TestClassifyLog(unittest.TestCase):
             self.assertTrue(classify_log("pytorch/pytorch", 123))
 
         urlopen.assert_called_once_with(
-            f"{lambda_function.LOG_CLASSIFIER_URL}/?job_id=123&repo=pytorch/pytorch"
+            f"{lambda_function.LOG_CLASSIFIER_URL}/?job_id=123&repo=pytorch/pytorch",
+            timeout=lambda_function.CLASSIFIER_TIMEOUT,
         )
+
+    def test_waits_a_bounded_time(self):
+        # Without a timeout there is none at all, and a hung classifier burns the
+        # whole function timeout -- which Lambda then treats as a failed async
+        # invocation and replays, re-downloading the log every time.
+        self.assertIsNotNone(lambda_function.CLASSIFIER_TIMEOUT)
+        self.assertLess(lambda_function.CLASSIFIER_TIMEOUT, 300)
 
     def test_a_failed_call_is_reported_not_raised(self):
         # Raising would make Lambda retry the whole function and re-download a
@@ -64,6 +72,25 @@ class TestClassifyLog(unittest.TestCase):
         with patch.object(lambda_function, "urlopen") as urlopen:
             urlopen.side_effect = RuntimeError("connection reset")
             self.assertFalse(classify_log("pytorch/pytorch", 123))
+
+    def test_a_hang_is_reported_not_raised(self):
+        # The case the timeout exists for: urlopen raises TimeoutError once it
+        # fires, which must come back down the same branch as any other failure.
+        with patch.object(lambda_function, "urlopen") as urlopen:
+            urlopen.side_effect = TimeoutError("timed out")
+            self.assertFalse(classify_log("pytorch/pytorch", 123))
+
+    def test_a_hang_still_leaves_the_log_stored(self):
+        # Giving up on the reply must not undo the upload or fail the invocation.
+        with patch.object(lambda_function, "s3"), patch.object(
+            lambda_function, "download_log", return_value=True
+        ), patch.object(lambda_function, "urlopen", side_effect=TimeoutError):
+            result = lambda_function.lambda_handler(
+                {"repo": "pytorch/pytorch", "job_id": 5}, None
+            )
+
+        self.assertTrue(result["stored"])
+        self.assertFalse(result["classified"])
 
 
 class TestInstallationToken(unittest.TestCase):
@@ -221,6 +248,29 @@ class TestDownloadLog(unittest.TestCase):
 
         s3.Object.assert_not_called()
 
+    def test_a_terminal_status_does_not_retry(self, s3):
+        # GitHub drops logs after a couple of months, and no number of retries
+        # brings one back -- nor does replaying an auth failure fix it.
+        for status in (401, 403, 404, 410, 422):
+            with self.subTest(status=status), patch.object(
+                lambda_function, "installation_token", return_value=None
+            ), patch.object(
+                lambda_function, "fetch_log", return_value=make_response(status)
+            ):
+                self.assertFalse(download_log("pytorch/pytorch", "failure", 123))
+
+    def test_a_transient_status_raises_so_lambda_retries(self, s3):
+        for status in (429, 500, 502, 503, 504):
+            with self.subTest(status=status), patch.object(
+                lambda_function, "installation_token", return_value=None
+            ), patch.object(
+                lambda_function, "fetch_log", return_value=make_response(status)
+            ):
+                with self.assertRaises(lambda_function.RetryableDownloadError):
+                    download_log("pytorch/pytorch", "failure", 123)
+
+        s3.Object.assert_not_called()
+
     def test_non_pytorch_repo_is_prefixed(self, s3):
         with patch.object(
             lambda_function, "installation_token", return_value=None
@@ -231,13 +281,16 @@ class TestDownloadLog(unittest.TestCase):
             "ossci-raw-job-status", "log/pytorch/executorch/999"
         )
 
-    def test_no_credentials_at_all_is_a_noop(self, s3):
+    def test_no_credentials_at_all_reaches_the_dlq(self, s3):
+        # Retries will not conjure a credential, but this costs every repo every
+        # log, so it has to fail loudly rather than report a successful no-op.
         with patch.object(
             lambda_function, "installation_token", return_value=None
         ), patch.object(lambda_function, "GITHUB_TOKENS", None), patch.object(
             lambda_function, "fetch_log"
         ) as fetch_log:
-            self.assertFalse(download_log("pytorch/pytorch", "failure", 123))
+            with self.assertRaises(lambda_function.RetryableDownloadError):
+                download_log("pytorch/pytorch", "failure", 123)
 
         fetch_log.assert_not_called()
         s3.Object.assert_not_called()
