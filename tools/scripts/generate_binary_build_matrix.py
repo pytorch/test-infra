@@ -44,8 +44,8 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["12.6", "13.0", "13.2", "13.4"],
-    "test": ["12.6", "13.0", "13.2", "13.4"],
+    "nightly": ["12.6", "13.0", "13.2"],
+    "test": ["12.6", "13.0", "13.2"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
@@ -60,7 +60,6 @@ CUDA_CUDNN_VERSIONS = {
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
-    "13.4": {"cuda": "13.4.0", "cudnn": "9"},
 }
 
 STABLE_CUDA_VERSIONS = {
@@ -69,11 +68,11 @@ STABLE_CUDA_VERSIONS = {
     "release": "13.0",
 }
 
-CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64", "13.4-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64"]
 
 # CUDA versions with no Windows torch build to depend on; see
 # CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
-CUDA_ARCHES_NO_WINDOWS = ["13.4"]
+CUDA_ARCHES_NO_WINDOWS: list[str] = []
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
