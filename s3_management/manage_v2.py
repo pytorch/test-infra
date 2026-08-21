@@ -286,12 +286,7 @@ PACKAGE_ALLOW_LIST = {
         "flash_attn_3",
         # vllm
         "ninja",
-        "cuda_python",
-        "cuda_bindings",
-        "cuda_pathfinder",
-        "cuda_toolkit",
         "pynvml",
-        "nvidia_ml_py",
         "einops",
         "packaging",
         "nvidia_cudnn_frontend",
