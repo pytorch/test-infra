@@ -1,7 +1,12 @@
 """JWT utilities for the cross-repo CI relay.
 
-Supports multiple OIDC issuers (GitHub Actions, Buildkite) so downstream
-repos running on any supported CI can authenticate callbacks.
+Supports multiple OIDC issuers so downstream repos running on any
+supported CI can authenticate callbacks.
+
+Trust anchors (issuer URLs and JWKS endpoints) are compiled into this
+module.  The runtime-fetched ci_providers.yml supplies only mutable
+authorization data — repo mappings for providers that lack a native
+"repository" claim (e.g., Buildkite).
 """
 
 from __future__ import annotations
@@ -17,21 +22,14 @@ from utils.misc import HTTPException
 
 logger = logging.getLogger(__name__)
 
-GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
-BUILDKITE_ISSUER = "https://agent.buildkite.com"
 AUDIENCE = "pytorch-cross-repo-ci-relay"
 
-_ISSUER_CONFIG: Dict[str, dict] = {
-    GITHUB_ISSUER: {
-        "jwks_uri": f"{GITHUB_ISSUER}/.well-known/jwks",
-    },
-    BUILDKITE_ISSUER: {
-        "jwks_uri": f"{BUILDKITE_ISSUER}/.well-known/jwks",
-    },
-}
+GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
+BUILDKITE_ISSUER = "https://agent.buildkite.com"
 
 _jwks_clients: Dict[str, jwt.PyJWKClient] = {
-    issuer: jwt.PyJWKClient(cfg["jwks_uri"]) for issuer, cfg in _ISSUER_CONFIG.items()
+    GITHUB_ISSUER: jwt.PyJWKClient(f"{GITHUB_ISSUER}/.well-known/jwks"),
+    BUILDKITE_ISSUER: jwt.PyJWKClient(f"{BUILDKITE_ISSUER}/.well-known/jwks"),
 }
 
 # Runtime-populated mapping from Buildkite (organization_id, pipeline_id) to
@@ -45,57 +43,72 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
 BUILDKITE_REPO_MAP: Dict[Tuple[str, str], dict] = {}
 
 
-def load_ci_provider_mappings(raw: dict) -> None:
-    """Populate provider repo maps from parsed ci_providers.yml content.
+def _load_buildkite_repo_map(repo_map: dict) -> None:
+    """Parse a repo_map dict into BUILDKITE_REPO_MAP entries."""
+    for bk_key, value in repo_map.items():
+        bk_key_str = str(bk_key).strip()
+        if "/" not in bk_key_str:
+            logger.warning("Skipping buildkite entry without /: %s", bk_key)
+            continue
+        org, pipeline = bk_key_str.split("/", 1)
 
-    Buildkite entries support two formats:
-      org_id/pipeline_id: owner/repo              # simple
-      org_id/pipeline_id:                         # with constraints
-        repo: owner/repo
-        required_claims:
-          build_branch: [main, nightly]
+        if isinstance(value, str):
+            repo_str = value.strip()
+            if "/" not in repo_str:
+                logger.warning(
+                    "Skipping invalid buildkite entry: %s -> %s", bk_key, value
+                )
+                continue
+            BUILDKITE_REPO_MAP[(org, pipeline)] = {
+                "repo": repo_str,
+                "required_claims": {},
+            }
+        elif isinstance(value, dict):
+            repo_str = str(value.get("repo", "")).strip()
+            if "/" not in repo_str:
+                logger.warning("Skipping buildkite entry with invalid repo: %s", bk_key)
+                continue
+            required = value.get("required_claims", {})
+            if not isinstance(required, dict):
+                required = {}
+            normalized = {}
+            for k, v in required.items():
+                if isinstance(v, list):
+                    normalized[k] = [str(x) for x in v]
+                else:
+                    normalized[k] = [str(v)]
+            BUILDKITE_REPO_MAP[(org, pipeline)] = {
+                "repo": repo_str,
+                "required_claims": normalized,
+            }
+
+
+def load_ci_provider_mappings(raw: dict) -> None:
+    """Populate repo maps from ci_providers.yml.
+
+    Only mutable authorization data (Buildkite pipeline-to-repo
+    mappings) is loaded from config.  Trust anchors (issuer URLs,
+    JWKS endpoints) are compiled into this module and cannot be
+    overridden at runtime.
+
+    Supports both the new ``providers.buildkite.repo_map`` format
+    and the legacy flat ``buildkite:`` section.
     """
     BUILDKITE_REPO_MAP.clear()
-    bk_section = raw.get("buildkite")
-    if bk_section and isinstance(bk_section, dict):
-        for bk_key, value in bk_section.items():
-            bk_key_str = str(bk_key).strip()
-            if "/" not in bk_key_str:
-                logger.warning("Skipping buildkite entry without /: %s", bk_key)
-                continue
-            org, pipeline = bk_key_str.split("/", 1)
 
-            if isinstance(value, str):
-                repo_str = value.strip()
-                if "/" not in repo_str:
-                    logger.warning(
-                        "Skipping invalid buildkite entry: %s -> %s", bk_key, value
-                    )
-                    continue
-                BUILDKITE_REPO_MAP[(org, pipeline)] = {
-                    "repo": repo_str,
-                    "required_claims": {},
-                }
-            elif isinstance(value, dict):
-                repo_str = str(value.get("repo", "")).strip()
-                if "/" not in repo_str:
-                    logger.warning(
-                        "Skipping buildkite entry with invalid repo: %s", bk_key
-                    )
-                    continue
-                required = value.get("required_claims", {})
-                if not isinstance(required, dict):
-                    required = {}
-                normalized = {}
-                for k, v in required.items():
-                    if isinstance(v, list):
-                        normalized[k] = [str(x) for x in v]
-                    else:
-                        normalized[k] = [str(v)]
-                BUILDKITE_REPO_MAP[(org, pipeline)] = {
-                    "repo": repo_str,
-                    "required_claims": normalized,
-                }
+    providers = raw.get("providers")
+    if providers and isinstance(providers, dict):
+        bk = providers.get("buildkite")
+        if bk and isinstance(bk, dict):
+            repo_map = bk.get("repo_map")
+            if repo_map and isinstance(repo_map, dict):
+                _load_buildkite_repo_map(repo_map)
+
+    if not BUILDKITE_REPO_MAP:
+        bk_section = raw.get("buildkite")
+        if bk_section and isinstance(bk_section, dict):
+            _load_buildkite_repo_map(bk_section)
+
     if BUILDKITE_REPO_MAP:
         logger.info(
             "Loaded %d Buildkite repo mapping(s) from ci_providers",
@@ -124,11 +137,7 @@ def _fetch_github_file(url: str) -> str:
 
 
 def load_ci_providers(config) -> None:
-    """Load CI provider mappings from the configured URL, with Redis caching.
-
-    ``config`` is a ``RelayConfig`` instance (imported lazily to avoid
-    pulling heavy dependencies at module-import time during testing).
-    """
+    """Load CI provider config from the configured URL, with Redis caching."""
     if not config.ci_providers_url:
         return
 
@@ -233,7 +242,9 @@ def verify_oidc_token(token: str) -> dict:
                 f"but was routed as '{detected_issuer}'",
             )
 
-        extractor = _REPO_EXTRACTORS[detected_issuer]
+        extractor = _REPO_EXTRACTORS.get(detected_issuer)
+        if not extractor:
+            raise HTTPException(401, f"No repo extractor for issuer: {detected_issuer}")
         repo = extractor(claims)
         claims["repository"] = repo
 
