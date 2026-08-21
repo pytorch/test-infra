@@ -23,6 +23,7 @@ WITH possible_queued_jobs as (
 ec2_queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP()) AS queue_s,
+        job.created_at AS created_at,
         CONCAT(workflow.name, ' / ', job.name) AS name,
         job.html_url,
         IF(
@@ -56,6 +57,7 @@ ec2_queued_jobs AS (
 arc_queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP()) AS queue_s,
+        job.created_at AS created_at,
         CONCAT(workflow.name, ' / ', job.name) AS name,
         job.html_url,
         IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ]) AS machine_type
@@ -85,17 +87,49 @@ arc_queued_jobs AS (
              AND LENGTH(job.steps) <= 2
              AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
         )
+),
+--- Last time a runner of each machine type actually picked up work.
+--- Not filtered by repository: these runner pools are shared across the org,
+--- so any repo's job starting proves the pool was serving that label.
+last_started_by_label AS (
+    SELECT
+        IF(LENGTH(labels) > 1, labels [ 2 ], labels [ 1 ]) AS machine_type,
+        MAX(started_at) AS last_started_at
+    FROM default.workflow_job
+    WHERE
+        started_at > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
+        AND status != 'queued'
+        AND LENGTH(labels) > 0
+    GROUP BY machine_type
+),
+--- A queued row is stale when the pool for its label has already started a job
+--- that was created later than this one. Dispatch within a label is roughly
+--- FIFO, so being overtaken means this row was orphaned (typically a dropped
+--- terminating webhook), not that capacity is unavailable. When a pool is
+--- genuinely starved nothing newer starts, so real backlogs stay unflagged.
+classified_jobs AS (
+    SELECT
+        q.queue_s AS queue_s,
+        q.machine_type AS machine_type,
+        l.last_started_at > q.created_at AS is_stale
+    FROM (
+        SELECT queue_s, created_at, machine_type FROM ec2_queued_jobs
+        UNION ALL
+        SELECT queue_s, created_at, machine_type FROM arc_queued_jobs
+    ) AS q
+    LEFT JOIN last_started_by_label AS l ON l.machine_type = q.machine_type
 )
 SELECT
     COUNT(*) AS count,
+    --- Unchanged: max over all rows. Kept under the historical name so the
+    --- persisted queue_times_historical column and its consumers still work.
     MAX(queue_s) AS avg_queue_s,
+    --- Same statistic with stale rows removed: the queue signal to trust.
+    MAX(IF(is_stale, 0, queue_s)) AS active_queue_s,
+    countIf(is_stale) AS stale_count,
     machine_type,
     CURRENT_TIMESTAMP() AS time
-FROM (
-    SELECT queue_s, machine_type FROM ec2_queued_jobs
-    UNION ALL
-    SELECT queue_s, machine_type FROM arc_queued_jobs
-)
+FROM classified_jobs
 GROUP BY
     machine_type
 ORDER BY

@@ -864,7 +864,9 @@ export default function Page() {
             columns={[
               { field: "count", headerName: "Count", flex: 1 },
               {
-                field: "avg_queue_s",
+                // Excludes rows the query flagged as stale, so an orphaned
+                // record cannot colour a machine type red on its own.
+                field: "active_queue_s",
                 headerName: "Queue time",
                 flex: 1,
                 valueFormatter: (params: number) => durationDisplay(params),
@@ -875,13 +877,28 @@ export default function Page() {
                   return "";
                 },
               },
+              {
+                // MAX over every queued row, stale ones included. Named
+                // avg_queue_s for historical reasons; it has never been a mean.
+                field: "avg_queue_s",
+                headerName: "Oldest queued",
+                flex: 1,
+                valueFormatter: (params: number) => durationDisplay(params),
+              },
+              {
+                field: "stale_count",
+                headerName: "Stale",
+                flex: 1,
+                description:
+                  "Queued rows the pool has already overtaken - almost always a dropped webhook rather than real queueing.",
+              },
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
             dataGridProps={{
               getRowId: (el: any) => el.machine_type,
               initialState: {
                 sorting: {
-                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
+                  sortModel: [{ field: "active_queue_s", sort: "desc" }],
                 },
               },
               onRowClick: (params: any) => {
