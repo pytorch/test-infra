@@ -1,3 +1,23 @@
+WITH deduped AS (
+    SELECT
+        pr_number,
+        job_name,
+        conclusion,
+        queue_time,
+        execution_time,
+        ROW_NUMBER() OVER (
+            PARTITION BY pr_number, job_name
+            ORDER BY run_attempt DESC
+        ) AS rn
+    FROM
+        default.crcr_workflow_job FINAL
+    WHERE
+        downstream_repo = {repo: String}
+        AND started_at > now() - INTERVAL {days: UInt64} DAY
+        AND status = 'completed'
+        AND pr_number > 0
+)
+
 SELECT
     countIf(
         conclusion = 'success'
@@ -37,9 +57,6 @@ SELECT
         0
     ) AS timeout_rate
 FROM
-    default.crcr_workflow_job FINAL
+    deduped
 WHERE
-    downstream_repo = {repo: String}
-    AND started_at > now() - INTERVAL {days: UInt64} DAY
-    AND status = 'completed'
-    AND pr_number > 0
+    rn = 1
