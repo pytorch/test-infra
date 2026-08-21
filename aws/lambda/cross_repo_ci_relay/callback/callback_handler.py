@@ -121,8 +121,15 @@ def _update_state_and_compute_metrics(
 
     Writes IN_PROGRESS or COMPLETED state (with the current timestamp), then
     reads back the stored record to compute:
-    - ``queue_time``:     dispatch → in_progress  (set on "in_progress" callbacks)
-    - ``execution_time``: in_progress → completed  (set on "completed" callbacks)
+    - ``queue_time``:     dispatch → first job's in_progress in the run (set on
+                          "in_progress" callbacks). Workflow-level, not
+                          per-job: a run's jobs commonly wait on one another
+                          (e.g. tests waiting on a build job), but they all
+                          share one dispatch timestamp, so every job in the run
+                          is given the same queue_time, anchored to whichever
+                          job started first. See ``record_workflow_started``.
+    - ``execution_time``: in_progress → completed  (set on "completed"
+                          callbacks). Stays per-job: each job's own duration.
 
     Both metrics default to None when the required prior state is unavailable
     (e.g. Redis cache miss or rerun without matching prior record).
@@ -175,9 +182,21 @@ def _update_state_and_compute_metrics(
         return ci_metrics
 
     if state == CallbackState.IN_PROGRESS:
+        # Anchor queue_time to the first job in the run to start, not to this
+        # job's own in_progress time -- otherwise a job that waits on an
+        # earlier one (e.g. tests waiting on a build) would have that wait
+        # folded into its queue_time.
+        workflow_start_ts = redis_helper.record_workflow_started(
+            config,
+            delivery_id,
+            verified_repo,
+            run_id,
+            run_attempt,
+            updated_workflow_record.timestamp,
+        )
         ci_metrics["queue_time"] = _safe_delta(
             dispatch_record.timestamp,
-            updated_workflow_record.timestamp,
+            workflow_start_ts,
             "queue_time",
         )
     else:

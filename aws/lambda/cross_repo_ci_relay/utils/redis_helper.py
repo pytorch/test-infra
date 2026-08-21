@@ -22,6 +22,7 @@ _RATE_LIMIT_PREFIX = "crcr:rate:"
 _IN_PROGRESS_ZSET = "crcr:in_progress"
 _DISPATCH_JOB_PREFIX = "crcr:dispatch_job:"
 _CHECK_RUN_WANTED_PREFIX = "crcr:check_run_wanted:"
+_WORKFLOW_START_PREFIX = "crcr:workflow_start:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -464,6 +465,62 @@ def set_callback_state(
     except Exception:
         logger.exception("redis set_callback_state failed")
         raise
+
+
+def _workflow_start_key(
+    delivery_id: str, downstream_repo: str, run_id: int, run_attempt: int
+) -> str:
+    """Redis key for the workflow-level "first job started" marker.
+
+    Keyed by delivery_id + repo + run_id + run_attempt, with no job_name:
+    every job within one run shares this single timestamp.
+    """
+    return (
+        f"{_WORKFLOW_START_PREFIX}{delivery_id}:{downstream_repo}:"
+        f"{run_id}:{run_attempt}"
+    )
+
+
+def record_workflow_started(
+    config: RelayConfig,
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+    timestamp: float,
+    client: redis_lib.Redis | None = None,
+) -> float:
+    """Claim or read the workflow-level "first job started" timestamp.
+
+    A run's jobs commonly form a dependency chain (e.g. a build job that later
+    test jobs wait on), but every job shares the same dispatch timestamp. If
+    queue_time were computed per job against that shared dispatch timestamp,
+    later jobs would have the earlier jobs' build/wait time folded into their
+    queue_time. Instead, queue_time is measured once per workflow run, from
+    dispatch to the first job's in_progress: this uses SET NX so the first
+    caller's timestamp "wins" and is stored; every later job in the same run
+    reads that same stored value back instead of recording its own (later)
+    in_progress time.
+
+    Falls back to returning ``timestamp`` unchanged on Redis errors or a
+    malformed stored value, so a transient outage degrades to (rare) per-job
+    queue_time rather than blocking the callback.
+    """
+    key = _workflow_start_key(delivery_id, downstream_repo, run_id, run_attempt)
+    try:
+        if client is None:
+            client = create_client(config)
+        won = client.set(key, timestamp, nx=True, ex=config.crcr_status_ttl)
+        if won:
+            return timestamp
+        existing = client.get(key)
+        return float(existing) if existing is not None else timestamp
+    except RedisError:
+        logger.exception("record_workflow_started: redis error key=%s", key)
+        return timestamp
+    except (TypeError, ValueError):
+        logger.exception("record_workflow_started: malformed stored value key=%s", key)
+        return timestamp
 
 
 def _in_progress_member(
