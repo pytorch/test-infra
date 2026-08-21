@@ -1,7 +1,7 @@
 /**
  * Authed API shim: /api/authed/<path> mirrors /api/<path> but requires the same
- * GitHub gate as flambeau / gcx-token (write access to pytorch/pytorch, or the
- * allow list), then forwards to the real endpoint. Lets the `hud` CLI / agents
+ * GitHub gate as gcx-token (write access to pytorch/pytorch, or the allow
+ * list), then forwards to the real endpoint. Lets the `hud` CLI / agents
  * reach HUD APIs without the browser bot challenge.
  *
  * One Vercel firewall bypass rule is needed: Request Path starts with

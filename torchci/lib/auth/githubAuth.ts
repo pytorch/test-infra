@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "../GeneralUtils";
 import { getOctokitWithUserToken } from "../github";
 // Give access to people who do not have write permissions to pytorch/pytorch
-import allowList from "../torchagent/allowList.json";
+import allowList from "./allowList.json";
 
 const REPO_OWNER = "pytorch";
 const REPO_NAME = "pytorch";
@@ -40,9 +40,9 @@ export async function resolveGithubToken(
 }
 
 /**
- * The shared Flambeau gate: given a GitHub token, return the login if the user
- * has write access to pytorch/pytorch (or is on the allow list), otherwise a
- * tagged failure with the HTTP status the caller should return.
+ * The shared HUD GitHub gate: given a GitHub token, return the login if the
+ * user has write access to pytorch/pytorch (or is on the allow list),
+ * otherwise a tagged failure with the HTTP status the caller should return.
  */
 export async function authorizeGithubToken(
   token: string
