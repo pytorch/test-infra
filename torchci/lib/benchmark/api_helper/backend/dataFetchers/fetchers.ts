@@ -1,5 +1,6 @@
 import {
   BenchmarkDataQuery,
+  BetterBenchmarkDataFetcher,
   PytorchAoMicroApiBenchmarkDataFetcher,
   PytorchHelionDataFetcher,
   PytorchOperatorMicroBenchmarkDataFetcher,
@@ -29,6 +30,7 @@ import {
 
 // Register benchmark data fetchers, this is mainly used in get_benchmark_data api and get_time_series api
 const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
+  better_benchmark_summary: BetterBenchmarkDataFetcher,
   pytorch_operator_microbenchmark: PytorchOperatorMicroBenchmarkDataFetcher,
   pytorch_helion: PytorchHelionDataFetcher,
   torchao_micro_api_benchmark: PytorchAoMicroApiBenchmarkDataFetcher,

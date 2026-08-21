@@ -10,6 +10,7 @@ import {
   AutoBenchmarkTimeSeriesChartGroup,
   AutoBenchmarkTimeSeriesTable,
 } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
+import { AutoBetterBenchmarkSummary } from "components/benchmark_v3/configs/teams/compilers/BetterBenchmarkSummary";
 
 export type AutoComponentProps = {
   config?: any;
@@ -48,6 +49,9 @@ export class AutoComponentRegistry {
 
   private constructor() {
     const registry: Record<string, AutoComponentConfig> = {
+      AutoBetterBenchmarkSummary: {
+        Component: AutoBetterBenchmarkSummary,
+      },
       AutoBenchmarkTimeSeriesTable: {
         Component: AutoBenchmarkTimeSeriesTable,
       },
