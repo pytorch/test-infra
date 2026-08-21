@@ -499,13 +499,6 @@
       "linux"
     ]
   ],
-  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
-    "190883",
-    "https://github.com/pytorch/pytorch/issues/190883",
-    [
-      "linux"
-    ]
-  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
