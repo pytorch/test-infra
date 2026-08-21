@@ -265,9 +265,8 @@ class TestDownloadLog(unittest.TestCase):
                 lambda_function, "installation_token", return_value=None
             ), patch.object(
                 lambda_function, "fetch_log", return_value=make_response(status)
-            ):
-                with self.assertRaises(lambda_function.RetryableDownloadError):
-                    download_log("pytorch/pytorch", "failure", 123)
+            ), self.assertRaises(lambda_function.RetryableDownloadError):
+                download_log("pytorch/pytorch", "failure", 123)
 
         s3.Object.assert_not_called()
 
@@ -288,9 +287,8 @@ class TestDownloadLog(unittest.TestCase):
             lambda_function, "installation_token", return_value=None
         ), patch.object(lambda_function, "GITHUB_TOKENS", None), patch.object(
             lambda_function, "fetch_log"
-        ) as fetch_log:
-            with self.assertRaises(lambda_function.RetryableDownloadError):
-                download_log("pytorch/pytorch", "failure", 123)
+        ) as fetch_log, self.assertRaises(lambda_function.RetryableDownloadError):
+            download_log("pytorch/pytorch", "failure", 123)
 
         fetch_log.assert_not_called()
         s3.Object.assert_not_called()
