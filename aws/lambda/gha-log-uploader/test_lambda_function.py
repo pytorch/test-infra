@@ -2,12 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import lambda_function
-from lambda_function import (
-    classify_log,
-    download_log,
-    installation_token,
-    parse_event,
-)
+from lambda_function import classify_log, download_log, installation_token, parse_event
 
 
 def make_response(status_code, content=b"log data", headers=None):
@@ -296,11 +291,10 @@ class TestLambdaHandler(unittest.TestCase):
             lambda_function,
             "download_log",
             side_effect=lambda_function.requests.RequestException("boom"),
-        ):
-            with self.assertRaises(lambda_function.requests.RequestException):
-                lambda_function.lambda_handler(
-                    {"repo": "pytorch/pytorch", "job_id": 5}, None
-                )
+        ), self.assertRaises(lambda_function.requests.RequestException):
+            lambda_function.lambda_handler(
+                {"repo": "pytorch/pytorch", "job_id": 5}, None
+            )
 
 
 if __name__ == "__main__":
