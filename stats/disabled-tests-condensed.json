@@ -499,6 +499,13 @@
       "linux"
     ]
   ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
+    "190883",
+    "https://github.com/pytorch/pytorch/issues/190883",
+    [
+      "linux"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
@@ -509,14 +516,6 @@
     "https://github.com/pytorch/pytorch/issues/159113",
     [
       "linux"
-    ]
-  ],
-  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
-    "186867",
-    "https://github.com/pytorch/pytorch/issues/186867",
-    [
-      "mac",
-      "macos"
     ]
   ],
   "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
