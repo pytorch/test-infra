@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from utils.jwt_helper import (
+    _jwks_clients,
     AUDIENCE,
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
@@ -259,7 +260,7 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         BUILDKITE_REPO_MAP.clear()
         BUILDKITE_REPO_MAP.update(self._orig_map)
 
-    def test_loads_valid_buildkite_entries(self):
+    def test_loads_valid_buildkite_entries_legacy(self):
         raw = {
             "buildkite": {
                 "org-id-1/pipe-id-1": "vllm-project/vllm",
@@ -275,7 +276,7 @@ class TestLoadCIProviderMappings(unittest.TestCase):
             BUILDKITE_REPO_MAP[("org-id-2", "pipe-id-2")]["repo"], "acme/repo"
         )
 
-    def test_loads_constrained_entries(self):
+    def test_loads_constrained_entries_legacy(self):
         raw = {
             "buildkite": {
                 "org-id/pipe-id": {
@@ -292,6 +293,59 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         self.assertEqual(entry["repo"], "myorg/myrepo")
         self.assertEqual(entry["required_claims"]["build_branch"], ["main", "nightly"])
         self.assertEqual(entry["required_claims"]["cluster_id"], ["cluster-uuid"])
+
+    def test_providers_section_loads_repo_map(self):
+        raw = {
+            "providers": {
+                "buildkite": {
+                    "repo_map": {
+                        "org-id/pipe-id": "vllm-project/vllm",
+                    },
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertEqual(
+            BUILDKITE_REPO_MAP[("org-id", "pipe-id")]["repo"], "vllm-project/vllm"
+        )
+
+    def test_providers_section_loads_constrained_repo_map(self):
+        raw = {
+            "providers": {
+                "buildkite": {
+                    "repo_map": {
+                        "org-id/pipe-id": {
+                            "repo": "myorg/myrepo",
+                            "required_claims": {"build_branch": ["main"]},
+                        },
+                    },
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        entry = BUILDKITE_REPO_MAP[("org-id", "pipe-id")]
+        self.assertEqual(entry["repo"], "myorg/myrepo")
+        self.assertEqual(entry["required_claims"]["build_branch"], ["main"])
+
+    def test_providers_ignores_issuer_jwks_fields(self):
+        """Config may still contain issuer/jwks_uri for documentation but they
+        are ignored — trust anchors are compiled in."""
+        raw = {
+            "providers": {
+                "buildkite": {
+                    "issuer": "https://evil.example.com",
+                    "jwks_uri": "https://evil.example.com/.well-known/jwks",
+                    "repo_map": {
+                        "org-id/pipe-id": "vllm-project/vllm",
+                    },
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertNotIn("https://evil.example.com", _jwks_clients)
+        self.assertEqual(
+            BUILDKITE_REPO_MAP[("org-id", "pipe-id")]["repo"], "vllm-project/vllm"
+        )
 
     def test_empty_config_clears_map(self):
         BUILDKITE_REPO_MAP[("old", "entry")] = {
@@ -317,6 +371,18 @@ class TestLoadCIProviderMappings(unittest.TestCase):
         self.assertNotIn(("noslash", ""), BUILDKITE_REPO_MAP)
         self.assertEqual(BUILDKITE_REPO_MAP[("ok-id", "pipe-id")]["repo"], "ok/repo")
 
+    def test_legacy_fallback_when_providers_has_no_repo_map(self):
+        """If providers section exists but has no buildkite repo_map,
+        fall back to legacy flat buildkite section."""
+        raw = {
+            "providers": {"github": {}},
+            "buildkite": {"org-id/pipe-id": "legacy/repo"},
+        }
+        load_ci_provider_mappings(raw)
+        self.assertEqual(
+            BUILDKITE_REPO_MAP[("org-id", "pipe-id")]["repo"], "legacy/repo"
+        )
+
 
 class TestUnsupportedIssuer(unittest.TestCase):
     """Tests for tokens from unsupported issuers."""
@@ -340,6 +406,29 @@ class TestUnsupportedIssuer(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             verify_oidc_token("garbage.token")
         self.assertEqual(ctx.exception.status_code, 401)
+
+
+class TestTrustAnchorsCompiledIn(unittest.TestCase):
+    """Verify that JWKS clients are hardcoded and not modifiable via config."""
+
+    def test_jwks_clients_contain_known_issuers(self):
+        self.assertIn(GITHUB_ISSUER, _jwks_clients)
+        self.assertIn(BUILDKITE_ISSUER, _jwks_clients)
+
+    def test_jwks_clients_not_expandable_via_config(self):
+        """Loading config with a rogue issuer must not add a JWKS client."""
+        fake_issuer = "https://rogue.example.com"
+        raw = {
+            "providers": {
+                "rogue": {
+                    "issuer": fake_issuer,
+                    "jwks_uri": f"{fake_issuer}/.well-known/jwks",
+                    "repo_map": {"org/pipe": "owner/repo"},
+                },
+            }
+        }
+        load_ci_provider_mappings(raw)
+        self.assertNotIn(fake_issuer, _jwks_clients)
 
 
 if __name__ == "__main__":
