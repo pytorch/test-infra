@@ -1,11 +1,11 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import { Analytics } from "@vercel/analytics/react";
-import GitHubIncidentBanner from "components/githubIncident/GithubIncident";
 import AnnouncementBanner from "components/layout/AnnouncementBanner";
 import TitleProvider from "components/layout/DynamicTitle";
 import NavBar from "components/layout/NavBar";
 import SevReport from "components/sevReport/SevReport";
+import StatusPageIncidentBanner from "components/statusPageIncidentBanner/StatusPageIncidentBanner";
 import { DarkModeProvider } from "lib/DarkModeContext";
 import { setupGAAttributeEventTracking } from "lib/tracking/eventTrackingHandler";
 import {
@@ -72,7 +72,14 @@ function AppContent({
         <NavBar />
         <AnnouncementBanner />
         <SevReport />
-        <GitHubIncidentBanner />
+        <StatusPageIncidentBanner
+          statusPageUrl="https://www.githubstatus.com"
+          serviceName="GitHub"
+        />
+        <StatusPageIncidentBanner
+          statusPageUrl="https://status.claude.com"
+          serviceName="Claude"
+        />
         <div style={{ margin: "2px" }}>
           <Component {...pageProps} />
           <Analytics />
