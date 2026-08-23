@@ -44,7 +44,12 @@ def generate_docker_matrix(
     else:
         docker_image_version = f"{prefix}-nightly:{generate_binary_build_matrix.CURRENT_NIGHTLY_VERSION}.dev{datetime.today().strftime('%Y%m%d')}"
 
-    for cuda in generate_binary_build_matrix.CUDA_ARCHES_DICT[channel]:
+    cuda_arches = [
+        cuda
+        for cuda in generate_binary_build_matrix.CUDA_ARCHES_DICT[channel]
+        if cuda not in generate_binary_build_matrix.CUDA_ARCHES_NO_DOCKER
+    ]
+    for cuda in cuda_arches:
         version = generate_binary_build_matrix.CUDA_CUDNN_VERSIONS[cuda]
         for image in DOCKER_IMAGE_TYPES:
             ret.append(

@@ -84,6 +84,14 @@ CUDA_ARCHES_NO_WINDOWS = ["13.4"]
 # and release builds and their validation are unchanged.
 CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
 
+# CUDA versions with no official Docker image, mirroring the omissions from
+# CUDA_ARCHES_FULL_VERSION in pytorch/pytorch, which drives the docker build
+# matrix. Only affects the docker matrix; wheel and libtorch builds and their
+# validation are unchanged. 13.4 is here because cuda-toolkit-13-4 ships only
+# in NVIDIA's preview channel (packages.nvidia.com), not in the CUDA apt repo
+# that pytorch/pytorch's release Dockerfile installs the devel toolkit from.
+CUDA_ARCHES_NO_DOCKER = ["13.4"]
+
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
