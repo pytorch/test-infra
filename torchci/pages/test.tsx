@@ -1,3 +1,4 @@
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   Alert,
   Box,
@@ -16,7 +17,9 @@ import {
   useTheme,
 } from "@mui/material";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { encodeTestIdentity } from "lib/testIdentity";
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import useSWR from "swr";
@@ -85,6 +88,9 @@ export default function TestPage() {
   const emptyBackgroundColor = isDarkMode
     ? theme.palette.grey[900]
     : theme.palette.grey[50];
+  const rowHoverColor = isDarkMode
+    ? theme.palette.action.selected
+    : theme.palette.action.hover;
 
   useEffect(() => {
     if (router.isReady) setSearchInput(searchQuery);
@@ -114,6 +120,15 @@ export default function TestPage() {
   const clearSearch = () => {
     setSearchInput("");
     navigate("");
+  };
+
+  const getTestHref = (test: DistinctTest) => {
+    const id = encodeTestIdentity({
+      file: test.file ?? "",
+      classname: test.classname,
+      name: test.name,
+    });
+    return `/test/${id}`;
   };
 
   const content = (() => {
@@ -192,13 +207,20 @@ export default function TestPage() {
                     {label}
                   </TableCell>
                 ))}
+                <TableCell
+                  aria-label="Open test details"
+                  sx={{
+                    width: 48,
+                    backgroundColor: headerBackgroundColor,
+                  }}
+                />
               </TableRow>
             </TableHead>
             <TableBody>
               {tests.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     align="center"
                     sx={{ py: 8, backgroundColor: emptyBackgroundColor }}
                   >
@@ -210,37 +232,80 @@ export default function TestPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                tests.map((test, index) => (
-                  <TableRow
-                    hover
-                    key={`${test.name}\u0000${test.classname}\u0000${
-                      test.file ?? ""
-                    }\u0000${index}`}
-                  >
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {test.file ? (
-                        test.file
-                      ) : (
-                        <Typography
-                          component="span"
-                          color="text.secondary"
-                          fontStyle="italic"
+                tests.map((test) => {
+                  const href = getTestHref(test);
+                  return (
+                    <TableRow
+                      hover
+                      key={`${test.name}\u0000${test.classname}\u0000${
+                        test.file ?? ""
+                      }`}
+                      onClick={() => void router.push(href)}
+                      sx={{
+                        cursor: "pointer",
+                        transition: theme.transitions.create(
+                          "background-color",
+                          { duration: theme.transitions.duration.shortest }
+                        ),
+                        "&:hover, &:focus-within": {
+                          backgroundColor: rowHoverColor,
+                        },
+                        "&:hover .test-name-link, &:focus-within .test-name-link":
+                          {
+                            textDecoration: "underline",
+                          },
+                        "& .row-chevron": {
+                          color: theme.palette.text.secondary,
+                          transition: theme.transitions.create(
+                            ["color", "transform"],
+                            { duration: theme.transitions.duration.shortest }
+                          ),
+                        },
+                        "&:hover .row-chevron, &:focus-within .row-chevron": {
+                          color: theme.palette.primary.main,
+                          transform: "translateX(2px)",
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ overflowWrap: "anywhere" }}>
+                        {test.file ? (
+                          test.file
+                        ) : (
+                          <Typography
+                            component="span"
+                            color="text.secondary"
+                            fontStyle="italic"
+                          >
+                            Not reported
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ overflowWrap: "anywhere" }}>
+                        {test.classname}
+                      </TableCell>
+                      <TableCell sx={{ overflowWrap: "anywhere" }}>
+                        <Link
+                          href={href}
+                          className="test-name-link"
+                          onClick={(event) => event.stopPropagation()}
+                          style={{ color: theme.palette.primary.main }}
                         >
-                          Not reported
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {test.classname}
-                    </TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {test.name}
-                    </TableCell>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {formatLastRun(test.lastRun)}
-                    </TableCell>
-                  </TableRow>
-                ))
+                          {test.name || "Not reported"}
+                        </Link>
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {formatLastRun(test.lastRun)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ width: 48, px: 1 }}>
+                        <ChevronRightIcon
+                          className="row-chevron"
+                          fontSize="small"
+                          aria-hidden="true"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
