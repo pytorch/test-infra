@@ -103,8 +103,10 @@ def handle_test_run_s3_small(table, bucket, key) -> List[Dict[str, Any]]:
 
     # Cannot use general_adapter due to custom field for now()::DateTime64(9)
     # time_inserted
+    # This feed has a best-effort materialized view. A failure while writing to
+    # that view must not fail the primary all_test_runs insert.
     query = f"""
-    insert into {table}
+    insert into {table} settings materialized_views_ignore_errors=1
     select
         classname,
         duration,
