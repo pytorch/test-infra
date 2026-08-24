@@ -9,7 +9,7 @@
 aioboto3
 aiobotocore
 aiofile
-aiohttp
+aiohttp>=3.13.3
 pandas
 python-dateutil
 pytest
