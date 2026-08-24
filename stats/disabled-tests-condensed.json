@@ -1133,6 +1133,13 @@
       "rocm"
     ]
   ],
+  "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
+    "194562",
+    "https://github.com/pytorch/pytorch/issues/194562",
+    [
+      "xpu"
+    ]
+  ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
     "187000",
     "https://github.com/pytorch/pytorch/issues/187000",
