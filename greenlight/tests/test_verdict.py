@@ -163,7 +163,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
 
     verdict.run(
         req,
-        make_config(github_token="tok"),
+        make_config(github_token="tok", drci_renders_status_comment=True),
         build_github=build_github,
         emit=emit,
         now=lambda: _FIXED,
@@ -173,7 +173,9 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert captured["token"] == "tok"
     assert gh.get_repo_names == ["pytorch/pytorch"]
     assert repo.get_pull_numbers == [7]
-    assert rec.events == ["emit", "review:APPROVE", "comment"]
+    # Both gate halves are on for pytorch/pytorch here, so only the merge gate acts.
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert pr.comments == []
     assert _decode(emit.row_gzip) == {
         "repo": "pytorch/pytorch",
         "pr_number": 7,
@@ -192,10 +194,142 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
     assert body == verdict._LAND_REVIEW_BODY == ""
+
+
+def test_full_land_on_non_delegating_repo_approves_then_comments(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("headsha", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=7, head_sha="headsha", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # Everywhere except the delegating repos, greenlight still owns the status comment.
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
     comment = pr.comments[0]
     assert comment_format.COMMENT_MARKER in comment
     assert f"**{comment_format.LAND_HEADLINE}**" in comment
     assert "LGTM" in comment
+
+
+def test_full_no_land_on_delegating_repo_dismisses_without_commenting(make_config, tmp_path, caplog):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=8, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(
+            req,
+            make_config(github_token="tok", drci_renders_status_comment=True),
+            build_github=lambda t: gh,
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    # The dismissal is the merge gate and must survive the comment gate untouched.
+    assert rec.events == ["emit", "dismiss:1"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert pr.comments == []
+    assert any("skipping upsert" in record.getMessage() for record in caplog.records)
+
+
+def test_marker_on_delegating_repo_emits_row_without_commenting(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=12,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        eval_job_url="https://run",
+        run_id=123,
+    )
+
+    verdict.run(
+        req,
+        make_config(github_token="tok", drci_renders_status_comment=True),
+        build_github=lambda t: gh,
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert rec.events == ["emit"]
+    assert pr.comments == []
+
+
+def test_full_land_on_delegating_repo_comments_while_drci_render_is_off(make_config, tmp_path):
+    # The suppression default: shipping this code must not, on its own, take the status away from
+    # pytorch/pytorch. Until the HUD's own flag is on, greenlight keeps posting.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+    assert f"**{comment_format.LAND_HEADLINE}**" in pr.comments[0]
+
+
+def test_marker_on_delegating_repo_comments_while_drci_render_is_off(make_config):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=12,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        eval_job_url="https://run",
+        run_id=123,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "comment"]
+    assert f"**{comment_format.REVIEWING_HEADLINE}**" in pr.comments[0]
+
+
+def test_drci_render_flag_alone_does_not_suppress_on_non_delegating_repo(make_config, tmp_path):
+    # The flag is global but Dr. CI only renders the listed repos, so it must never suppress
+    # elsewhere -- the two halves are ANDed, not ORed.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(
+        req,
+        make_config(github_token="tok", drci_renders_status_comment=True),
+        build_github=lambda t: gh,
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
 
 
 def test_full_land_scrubs_secret_in_both_row_and_comment(make_config, tmp_path):
@@ -338,7 +472,7 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
         message=f"@pytorchbot please split; token {secret}",
     )
     req = VerdictRequest(
-        repo="pytorch/pytorch",
+        repo="pytorch/vision",
         pr_number=8,
         head_sha="headsha",
         eval_hash=_HASH,
@@ -359,7 +493,7 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
     assert payload["status"] == "NO_LAND"
     assert payload["reason"] == "scope_too_large"
     assert payload["eval_job"] == "https://eval-run"
-    assert emit.key == f"greenlight_pr_state/pytorch/pytorch/8/{_VERSION_COMPACT}-{payload['emit_id']}.json.gz"
+    assert emit.key == f"greenlight_pr_state/pytorch/vision/8/{_VERSION_COMPACT}-{payload['emit_id']}.json.gz"
     # The upserted comment is defanged: marker + headline + <details> why, @ neutralized, fenced.
     body = pr.comments[0]
     assert body.startswith(comment_format.COMMENT_MARKER)
@@ -552,7 +686,7 @@ def test_marker_ai_review_started_with_bot_login_emits_row_then_upserts_reviewin
     gh = _FakeGithub(_FakeRepo(pr))
     captured: dict[str, object] = {}
     req = VerdictRequest(
-        repo="pytorch/pytorch",
+        repo="pytorch/vision",
         pr_number=12,
         head_sha="h",
         status="AI_REVIEW_STARTED",
@@ -570,7 +704,7 @@ def test_marker_ai_review_started_with_bot_login_emits_row_then_upserts_reviewin
     # The row is authoritative and emitted first; the reviewing comment is the follow-up.
     assert rec.events == ["emit", "comment"]
     assert captured["token"] == "tok"
-    assert gh.get_repo_names == ["pytorch/pytorch"]
+    assert gh.get_repo_names == ["pytorch/vision"]
     body = pr.comments[0]
     assert body.startswith(comment_format.COMMENT_MARKER)
     assert github_client.format_run_marker(123) in body

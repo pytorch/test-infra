@@ -1,0 +1,9 @@
+#!/bin/bash
+
+export PYTORCH_GREENLIGHT_GITHUB_TOKEN="$GITHUB_TOKEN"
+
+export CLICKHOUSE_USERNAME="$CLICKHOUSE_HUD_USER_USERNAME"
+export CLICKHOUSE_PASSWORD="$CLICKHOUSE_HUD_USER_PASSWORD"
+
+just review --max 1 --ref jeanschmidt/hardening_bot --pr 191819 --force 
+

@@ -3,18 +3,25 @@ name: Green Light PR Review
 # Three jobs for reviewing a pytorch/pytorch PR and recording a verdict. Privileges are
 # split so the untrusted model never shares a job with the App key:
 #   announce_start — emits the AI_REVIEW_STARTED in-flight marker at run start so the
-#             scanner does not re-dispatch a PR whose review is running, and posts the
-#             "review in progress" status comment. Mints a pull-requests:write App token
-#             for that comment and writes the S3 row via OIDC role/arc; runs no model, so
-#             the untrusted model is still confined to the read-only review job.
+#             scanner does not re-dispatch a PR whose review is running, and unless the
+#             status comment is delegated (below) posts the "review in progress" one.
+#             Mints a pull-requests:write App token for that comment and writes the S3
+#             row via OIDC role/arc; runs no model, so the untrusted model is still
+#             confined to the read-only review job.
 #   review  — UNPRIVILEGED. Runs the AI model over untrusted PR content. Has Bedrock
 #             (OIDC) access only; it can read code and emit a verdict file, nothing more.
 #   record  — PRIVILEGED. No model. Validates the verdict, mints the Green Light App
-#             token, and posts the outcome: the LAND/NO_LAND verdict on success, or a
-#             "did not complete" status comment when the review was cancelled or failed.
+#             token, and acts on the PR: the LAND approval or the NO_LAND dismissal of
+#             greenlight's prior approval, plus the status comment unless it is delegated.
 #             Uploads the verdict row to s3://gha-artifacts/greenlight_pr_state/ (via
 #             OIDC role/arc) for the clickhouse-replicator-s3 Lambda to ingest. Kept
 #             separate so untrusted PR content never runs in a job that holds the App key.
+#
+# Who shows the run status on pytorch/pytorch is switched by
+# PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT on the two greenlight-record jobs below. With it
+# off greenlight upserts its own status comment; with it on Dr. CI renders the same state from the
+# uploaded row and greenlight stays quiet. Either way both row-uploading jobs poke Dr. CI
+# (`greenlight drci-poke`) so that render refreshes without waiting for the 15-minute sweep.
 
 on:
   workflow_dispatch:
@@ -51,6 +58,11 @@ jobs:
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
+      # Must not outrun the HUD's own DRCI_GREENLIGHT_COMMENT_ENABLED (Vercel env): while this is
+      # true and that one is false, a pytorch/pytorch PR gets an auto-approval with its status
+      # shown nowhere. A literal rather than `vars.*` for the same reason as MAX_DIFF_* below --
+      # the actionlint pinned in .lintrunner.toml is 1.6.21, which predates the `vars` context.
+      PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT: "false"
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -82,7 +94,7 @@ jobs:
           repositories: pytorch
           permission-pull-requests: write
 
-      - name: Emit AI_REVIEW_STARTED marker and post reviewing comment
+      - name: Emit AI_REVIEW_STARTED marker
         env:
           PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
@@ -102,6 +114,21 @@ jobs:
         run: |
           set -euo pipefail
           aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"
+
+      - name: Poke Dr. CI to refresh the PR comment
+        # After the upload, so the row is on its way to ClickHouse before Dr. CI re-reads it.
+        # Best-effort: a stale comment must never fail the job, and the 15-minute Dr. CI sweep
+        # rebuilds it anyway. Without this the probot handler's push-time blanking leaves the PR
+        # with no greenlight content for the whole review window.
+        continue-on-error: true
+        env:
+          PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
+          PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          uv run --project greenlight greenlight drci-poke \
+            --repo pytorch/pytorch \
+            --pr "$PR_NUMBER"
 
   review:
     environment: bedrock
@@ -411,6 +438,9 @@ jobs:
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
+      # Keep in lockstep with announce_start's copy above, which carries the rationale: the two
+      # jobs comment on the same PR, so a split value would post one status and suppress the other.
+      PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT: "false"
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -537,3 +567,17 @@ jobs:
         run: |
           set -euo pipefail
           aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"
+
+      - name: Poke Dr. CI to refresh the PR comment
+        # No `if:` for the same reason as the upload above: the default success() ties this to
+        # whichever record branch ran. Best-effort — the verdict is already recorded and the
+        # 15-minute Dr. CI sweep rebuilds the comment regardless.
+        continue-on-error: true
+        env:
+          PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
+          PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          uv run --project greenlight greenlight drci-poke \
+            --repo pytorch/pytorch \
+            --pr "$PR_NUMBER"

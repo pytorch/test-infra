@@ -11,6 +11,7 @@ NUMERIC_VARS = [
     ("PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS", "backoff_max_seconds"),
     ("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "merge_rules_ttl_seconds"),
     ("PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", "review_window_hours"),
+    ("PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", "drci_poke_delay_seconds"),
 ]
 
 POSITIVE_VARS = [
@@ -34,7 +35,11 @@ def test_defaults_when_env_empty():
     assert cfg.backoff_max_seconds == 60.0
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
+    assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.drci_renders_status_comment is False
     assert cfg.github_token is None
+    assert cfg.drci_token is None
+    assert cfg.drci_internal_token is None
     assert cfg == Config()
 
 
@@ -48,7 +53,11 @@ def test_direct_construction_defaults():
     assert cfg.backoff_max_seconds == 60.0
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
+    assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.drci_renders_status_comment is False
     assert cfg.github_token is None
+    assert cfg.drci_token is None
+    assert cfg.drci_internal_token is None
 
 
 def test_from_env_parses_all_vars():
@@ -61,7 +70,11 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS": "45",
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
+        "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
+        "PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": "true",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
+        "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
+        "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
     }
     cfg = Config.from_env(env)
     assert cfg.interval_seconds == 30.5
@@ -72,7 +85,11 @@ def test_from_env_parses_all_vars():
     assert cfg.backoff_max_seconds == 45.0
     assert cfg.merge_rules_ttl_seconds == 900.0
     assert cfg.review_window_hours == 48.0
+    assert cfg.drci_poke_delay_seconds == 3.0
+    assert cfg.drci_renders_status_comment is True
     assert cfg.github_token == "ghp_abc123"
+    assert cfg.drci_token == "drci-key"
+    assert cfg.drci_internal_token == "hud-key"
 
 
 @pytest.mark.parametrize("blank", BLANK_VALUES)
@@ -85,6 +102,42 @@ def test_blank_lock_path_becomes_none(blank):
 def test_blank_github_token_becomes_none(blank):
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_GITHUB_TOKEN": blank})
     assert cfg.github_token is None
+
+
+@pytest.mark.parametrize("var", ["PYTORCH_GREENLIGHT_DRCI_TOKEN", "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"])
+@pytest.mark.parametrize("blank", BLANK_VALUES)
+def test_blank_drci_tokens_become_none(var, blank):
+    cfg = Config.from_env({var: blank})
+    assert cfg.drci_token is None
+    assert cfg.drci_internal_token is None
+
+
+@pytest.mark.parametrize("raw", ["true", "TRUE", " True ", "1", "yes", "on", "\tON\n"])
+def test_drci_renders_status_comment_truthy_values(raw):
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
+    assert cfg.drci_renders_status_comment is True
+
+
+@pytest.mark.parametrize("raw", ["false", "FALSE", " False ", "0", "no", "off"])
+def test_drci_renders_status_comment_falsy_values(raw):
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
+    assert cfg.drci_renders_status_comment is False
+
+
+@pytest.mark.parametrize("blank", BLANK_VALUES)
+def test_blank_drci_renders_status_comment_uses_default(blank):
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": blank})
+    assert cfg.drci_renders_status_comment is False
+
+
+@pytest.mark.parametrize("raw", ["maybe", "2", "tru", "enabled", "y"])
+def test_unparseable_drci_renders_status_comment_raises_naming_var(raw):
+    # A value this gate does not understand must not silently read as one side or the other:
+    # both directions are wrong (no status anywhere, or two comments saying the same thing).
+    with pytest.raises(ValueError) as excinfo:
+        Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
+    assert "PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT" in str(excinfo.value)
+    assert repr(raw) in str(excinfo.value)
 
 
 @pytest.mark.parametrize("blank", BLANK_VALUES)
@@ -106,6 +159,14 @@ def test_github_token_with_surrounding_spaces_preserved_unstripped():
 def test_github_token_excluded_from_repr():
     cfg = Config(github_token="secret-xyz")
     assert "secret-xyz" not in repr(cfg)
+
+
+def test_drci_tokens_excluded_from_repr():
+    # review.py logs the whole Config with %r, so every credential field must stay out of repr.
+    cfg = Config(drci_token="drci-secret", drci_internal_token="hud-secret")
+    rendered = repr(cfg)
+    assert "drci-secret" not in rendered
+    assert "hud-secret" not in rendered
 
 
 def test_lock_path_preserved():
@@ -141,6 +202,12 @@ def test_negative_value_raises(var, field):
 def test_zero_accepted_for_max_runtime():
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS": "0"})
     assert cfg.max_runtime_seconds == 0.0
+
+
+def test_zero_accepted_for_drci_poke_delay():
+    # 0 is a meaningful setting: poke immediately, no ingestion wait.
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "0"})
+    assert cfg.drci_poke_delay_seconds == 0.0
 
 
 @pytest.mark.parametrize(("var", "field"), POSITIVE_VARS)
