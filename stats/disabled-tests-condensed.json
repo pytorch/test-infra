@@ -97,13 +97,6 @@
       "linux"
     ]
   ],
-  "test_bidirectional_stream_sync (__main__.TestUserStreamCompile)": [
-    "188513",
-    "https://github.com/pytorch/pytorch/issues/188513",
-    [
-      "linux"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -117,6 +110,13 @@
     [
       "inductor",
       "rocm"
+    ]
+  ],
+  "test_bmm_shared_a_offered_when_eligible_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "194599",
+    "https://github.com/pytorch/pytorch/issues/194599",
+    [
+      "inductor"
     ]
   ],
   "test_bmm_shared_a_offered_when_eligible_cuda (__main__.AOTInductorTestDualWrapper)": [
@@ -187,13 +187,6 @@
       "linux"
     ]
   ],
-  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
-    "181318",
-    "https://github.com/pytorch/pytorch/issues/181318",
-    [
-      "linux"
-    ]
-  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
     "180017",
     "https://github.com/pytorch/pytorch/issues/180017",
@@ -206,13 +199,6 @@
     "https://github.com/pytorch/pytorch/issues/180023",
     [
       "rocm"
-    ]
-  ],
-  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
-    "187202",
-    "https://github.com/pytorch/pytorch/issues/187202",
-    [
-      "linux"
     ]
   ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
@@ -298,6 +284,16 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
+    ]
+  ],
+  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
+    "127536",
+    "https://github.com/pytorch/pytorch/issues/127536",
+    [
+      "dynamo",
+      "inductor",
+      "linux",
+      "slow"
     ]
   ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
@@ -524,13 +520,6 @@
     "https://github.com/pytorch/pytorch/issues/159113",
     [
       "linux"
-    ]
-  ],
-  "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
-    "192735",
-    "https://github.com/pytorch/pytorch/issues/192735",
-    [
-      "rocm"
     ]
   ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
@@ -1094,11 +1083,13 @@
       "slow"
     ]
   ],
-  "test_trace_return_namedtuple (__main__.TestFX)": [
-    "176966",
-    "https://github.com/pytorch/pytorch/issues/176966",
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
     [
-      "dynamo"
+      "asan",
+      "linux",
+      "slow"
     ]
   ],
   "test_transformer_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
