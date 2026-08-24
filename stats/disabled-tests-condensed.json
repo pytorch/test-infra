@@ -133,6 +133,15 @@
       "mac"
     ]
   ],
+  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186872",
+    "https://github.com/pytorch/pytorch/issues/186872",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
