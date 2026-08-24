@@ -111,6 +111,14 @@
       "inductor"
     ]
   ],
+  "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "194554",
+    "https://github.com/pytorch/pytorch/issues/194554",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_bmm_shared_a_offered_when_eligible_cuda (__main__.AOTInductorTestDualWrapper)": [
     "194141",
     "https://github.com/pytorch/pytorch/issues/194141",
@@ -123,15 +131,6 @@
     "https://github.com/pytorch/pytorch/issues/69179",
     [
       "mac"
-    ]
-  ],
-  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186872",
-    "https://github.com/pytorch/pytorch/issues/186872",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
@@ -1073,6 +1072,16 @@
     [
       "asan",
       "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
       "slow"
     ]
   ],
