@@ -47,6 +47,14 @@ inputs:
       Full test results should be uploaded as artifacts and referenced via `artifact-url`.
     required: false
     default: ''
+  failed-tests-detail:
+    description: >
+      Optional JSON array of failed/errored test details. Each element should
+      have at minimum a "name" field. Supported fields: name, classname,
+      message, duration. Capped at 50 entries; message truncated to 500 chars.
+      Example: [{"name":"test_foo","classname":"TestBar","message":"AssertionError"}]
+    required: false
+    default: ''
   callback-url:
     description: >
       Base URL of the result callback server.
@@ -96,6 +104,7 @@ runs:
         WORKFLOW_NAME: ${{ github.workflow }}
         WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         TEST_RESULTS: ${{ inputs.test-results }}
+        FAILED_TESTS_DETAIL: ${{ inputs.failed-tests-detail }}
         CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}

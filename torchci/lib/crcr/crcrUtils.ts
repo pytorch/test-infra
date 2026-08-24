@@ -32,6 +32,12 @@ export interface RelayWorkflow {
     skipped?: number;
     total?: number;
   };
+  failed_tests_detail?: Array<{
+    name: string;
+    classname?: string;
+    message?: string;
+    duration?: number;
+  }>;
   artifact_url?: string;
 }
 
@@ -83,6 +89,7 @@ export interface CrcrWorkflowJobRecord {
   downstream_repo_level?: string;
   event_type?: string;
   artifact_url?: string;
+  failed_tests_json?: string;
   environment?: string;
 }
 
@@ -200,6 +207,20 @@ export function extractDynamoRecord(
         typeof tr.total === "number"
           ? tr.total
           : (tr.passed ?? 0) + (tr.failed ?? 0) + (tr.skipped ?? 0);
+    }
+
+    if (wf.failed_tests_detail && Array.isArray(wf.failed_tests_detail)) {
+      const MAX_ENTRIES = 50;
+      const MAX_MESSAGE_LEN = 500;
+      const capped = wf.failed_tests_detail.slice(0, MAX_ENTRIES).map((t) => ({
+        name: String(t.name ?? ""),
+        ...(t.classname && { classname: String(t.classname) }),
+        ...(t.message && {
+          message: String(t.message).slice(0, MAX_MESSAGE_LEN),
+        }),
+        ...(t.duration != null && { duration: Number(t.duration) }),
+      }));
+      record.failed_tests_json = JSON.stringify(capped);
     }
   }
 
