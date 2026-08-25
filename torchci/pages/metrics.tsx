@@ -875,10 +875,47 @@ export default function Page() {
                   return "";
                 },
               },
-              { field: "machine_type", headerName: "Machine Type", flex: 4 },
+              {
+                field: "stale_count",
+                headerName: "Suspected stuck",
+                description:
+                  "A hint, not a verdict. Counts jobs where the workflow run " +
+                  "is over 6h old and its recorded update time still equals " +
+                  "its creation time; the job is still queued with no runner " +
+                  "and no steps recorded, and asks for a non-empty label set; " +
+                  "and some job created in the last hour with exactly those " +
+                  "labels did get a runner. Labels are not the whole of what a " +
+                  "job is scheduled against, so this can be wrong in either " +
+                  "direction. Count and Queue time still include these jobs, " +
+                  "and nothing is hidden or reordered by default. Sort by this " +
+                  "column to group them.",
+                flex: 1,
+                // COUNTIf is a UInt64. It should arrive as a JSON number, but
+                // that was not verifiable end-to-end, and a string here would
+                // sort "10" below "2" once someone sorts on the column. Coerce
+                // and declare the type rather than rely on it.
+                type: "number",
+                valueGetter: (value: any) => Number(value),
+                // Descending first: an ascending click would push every
+                // suspected row below the blanks, which is the one ordering a
+                // reader would not expect from a column about exceptions.
+                sortingOrder: ["desc", "asc", null],
+                // Blank rather than "0" so the column reads as an exception
+                // marker.
+                valueFormatter: (params: number, row: any) =>
+                  params > 0
+                    ? `${params} · ${durationDisplay(row.oldest_stale_s)}`
+                    : "",
+              },
+              { field: "machine_type", headerName: "Machine Type", flex: 3 },
             ]}
             dataGridProps={{
               getRowId: (el: any) => el.machine_type,
+              // Deliberately still sorted on avg_queue_s. Demoting a row
+              // because it looks abandoned would put a heuristic in charge of
+              // what an oncaller reads first, and this one cannot tell an
+              // abandoned run from one whose every job is starving. The new
+              // column labels those rows; it does not move them.
               initialState: {
                 sorting: {
                   sortModel: [{ field: "avg_queue_s", sort: "desc" }],

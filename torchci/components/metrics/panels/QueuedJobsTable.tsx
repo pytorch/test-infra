@@ -54,7 +54,10 @@ export default function QueuedJobsTable({
           field: "queue_s",
           headerName: "Time in Queue",
           flex: 1,
-          valueFormatter: (params: number) => durationDisplay(params),
+          valueFormatter: (params: number, row: any) =>
+            row.is_stale
+              ? `${durationDisplay(params)} (suspected stuck)`
+              : durationDisplay(params),
         },
         { field: "machine_type", headerName: "Machine Type", flex: 1 },
         {
@@ -151,6 +154,7 @@ export default function QueuedJobsTable({
         { field: "event" },
         { field: "source_type" },
         { field: "ciflow_id" },
+        { field: "is_stale" },
       ]}
       dataGridProps={{
         columnVisibilityModel: {
@@ -160,6 +164,7 @@ export default function QueuedJobsTable({
           event: false,
           source_type: false,
           ciflow_id: false,
+          is_stale: false,
         },
         getRowId: (el: any) => el.html_url,
       }}
