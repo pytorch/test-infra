@@ -314,83 +314,20 @@ check_wheel_size() {
 # wheels and exists to enforce a ceiling: this runs for every build on every OS
 # and never fails, so windows/macos/ROCm sizes are visible too.
 #
-# Two sizes are reported because they answer different questions:
-#   wheel     -- compressed download size, what users pull from the index.
-#                Only available when pip printed it (absent on the uv/variants
-#                path and when the wheel was already satisfied).
-#   installed -- unpacked bytes on disk, measured from the installed package,
-#                so it is available on every install path.
-#
-# Runs while the env is still active: cleanup_conda_env removes it on non-linux.
-# Values are read from the installed packages rather than from the matrix, so a
-# mismatch between what was requested and what pip resolved shows up here.
+# The report itself is built by build_report.py; see that script for what the
+# two size figures mean. Runs while the env is still active, because
+# cleanup_conda_env removes it on non-linux.
 write_build_report() {
     local torch_wheel_mb="${1:-}" vision_wheel_mb="${2:-}"
     local report
 
-    # cd out of the repo: this runs from the pytorch/pytorch checkout, where
-    # `import torch` would pick up the source tree instead of the install.
-    report=$(cd "${TMPDIR:-/tmp}" 2>/dev/null || cd "${HOME}"; "${PYTHON_RUN}" - \
-        "${TARGET_OS}" "${MATRIX_PYTHON_VERSION:-?}" "${MATRIX_GPU_ARCH_TYPE:-cpu}" \
-        "${MATRIX_GPU_ARCH_VERSION:-}" "${torch_wheel_mb}" "${vision_wheel_mb}" <<'PY'
-import os
-import sys
-
-target_os, py, arch_type, arch_ver, torch_wheel, vision_wheel = sys.argv[1:7]
-
-
-def installed_mb(mod):
-    root = os.path.dirname(mod.__file__)
-    total = 0
-    for dirpath, _, names in os.walk(root):
-        for n in names:
-            try:
-                total += os.path.getsize(os.path.join(dirpath, n))
-            except OSError:
-                pass
-    return "%.1f MB" % (total / 1024 / 1024)
-
-
-def mb(value):
-    return "%s MB" % value if value else "-"
-
-
-rows = [("build", "%s / py%s / %s%s" % (target_os, py, arch_type,
-                                        " " + arch_ver if arch_ver else ""))]
-
-try:
-    import torch
-    rows.append(("torch", torch.__version__))
-    rows.append(("torch wheel", mb(torch_wheel)))
-    rows.append(("torch installed", installed_mb(torch)))
-    rows.append(("CUDA", torch.version.cuda or "-"))
-    try:
-        v = torch.backends.cudnn.version()
-        rows.append(("cuDNN", "%d.%d.%d" % (v // 10000, v % 10000 // 100, v % 100)
-                     if v else "-"))
-    except Exception:
-        rows.append(("cuDNN", "-"))
-    try:
-        rows.append(("NCCL", ".".join(str(p) for p in torch.cuda.nccl.version())))
-    except Exception:
-        rows.append(("NCCL", "-"))
-except Exception as e:  # never fail the build over a report
-    rows.append(("torch", "import failed: %s" % e))
-
-try:
-    import torchvision
-    rows.append(("torchvision", torchvision.__version__))
-    rows.append(("torchvision wheel", mb(vision_wheel)))
-    rows.append(("torchvision installed", installed_mb(torchvision)))
-except Exception:
-    rows.append(("torchvision", "-"))
-
-print("| field | value |")
-print("| --- | --- |")
-for k, v in rows:
-    print("| %s | %s |" % (k, v))
-PY
-) || report="| field | value |
+    report=$("${PYTHON_RUN}" "${SCRIPT_DIR}/build_report.py" \
+        --target-os "${TARGET_OS}" \
+        --python-version "${MATRIX_PYTHON_VERSION:-?}" \
+        --gpu-arch-type "${MATRIX_GPU_ARCH_TYPE:-cpu}" \
+        --gpu-arch-version "${MATRIX_GPU_ARCH_VERSION:-}" \
+        --torch-wheel-mb "${torch_wheel_mb}" \
+        --torchvision-wheel-mb "${vision_wheel_mb}") || report="| field | value |
 | --- | --- |
 | report | failed to collect |"
 
