@@ -95,29 +95,6 @@ function NavBar() {
       href: "/metrics",
     },
     {
-      name: (
-        <span style={{ position: "relative" }}>
-          Flambeau (PyTorch CI Agent)
-          <span
-            style={{
-              marginLeft: "4px",
-              padding: "2px 6px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              backgroundColor: "#FF6B35",
-              color: "white",
-              borderRadius: "8px",
-              textTransform: "uppercase",
-              lineHeight: "1",
-            }}
-          >
-            BETA
-          </span>
-        </span>
-      ),
-      href: "/flambeau",
-    },
-    {
       name: "vLLM CI metrics",
       href: "/metrics/vllm",
     },
