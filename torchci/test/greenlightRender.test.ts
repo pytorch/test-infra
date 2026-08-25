@@ -10,11 +10,15 @@ import {
   GREENLIGHT_PENDING_ALT_ATTR,
   GREENLIGHT_REVIEWING_HEADLINE,
   GreenlightState,
+  INLINE_BREAKERS_RE,
   renderGreenlightSection,
+  SHORT_SHA_LENGTH,
+  SWEEP_PREDICATE_MIN_LENGTH,
+  SWEEP_SENTINELS,
+  ZERO_WIDTH_SPACE,
 } from "lib/greenlight/greenlightRender";
 import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
 
-const ZERO_WIDTH_SPACE = "\u200b";
 const JOB_URL = "https://github.com/pytorch/test-infra/actions/runs/42";
 // The shape ClickHouse returns for a DateTime64(3) under
 // date_time_output_format='iso': ISO-like, UTC, no zone designator.
@@ -29,9 +33,33 @@ const OTHER_SHA = "def4567890def4567890def4567890def4567890";
 // live reviews and must render identically.
 const IN_FLIGHT_STATUSES = ["AI_REVIEW_STARTED", "AI_REVIEW_DISPATCHED"];
 const TERMINAL_STATUSES = ["LAND", "NO_LAND", "CANCELLED", "FAILED"];
-// Both raw-body sentinels getPRsNeedingCommentRefresh pins a PR on, either of
-// which a model-authored message can spell out literally.
-const SWEEP_SENTINELS = [GREENLIGHT_PENDING_ALT_ATTR, ADVISOR_PENDING_ALT_ATTR];
+// The shortest text the sweep's third predicate, the regex `\d Pending`, matches.
+const SHORTEST_PENDING_MATCH = "0 Pending";
+// One payload per sweep predicate, each the shortest text that trips it: what an
+// attacker has to smuggle whole into the raw comment body to pin the PR.
+const SWEEP_TARGETS = [...SWEEP_SENTINELS, SHORTEST_PENDING_MATCH];
+// Characters to break a target with. A deletion splices the text on either side
+// of it together, so a target broken by exactly one deleted character re-forms
+// the instant that deletion runs -- and if anything deletes after the defuse,
+// what it re-forms is live. Which characters get deleted is not fixed:
+// INLINE_BREAKERS_RE can widen, and inlineCode is shared with shortSha and could
+// be hardened against markup, so probe the whole of ASCII and the invisibles such
+// a pass reaches for, deleted today or not.
+const DELETION_PROBES = [
+  ...Array.from({ length: 0x80 }, (_, code) => String.fromCharCode(code)),
+  "\u00a0",
+  "\u061c",
+  "\u200b",
+  "\u200e",
+  "\u2028",
+  "\u2029",
+  "\ufeff",
+];
+// What the renderer deletes today, read off the class rather than spelled out, so
+// widening it carries the tests below with it.
+const INLINE_BREAKERS = DELETION_PROBES.filter(
+  (char) => char.replace(INLINE_BREAKERS_RE, "") === ""
+);
 
 function state(overrides: Partial<GreenlightState> = {}): GreenlightState {
   return {
@@ -71,6 +99,38 @@ function render(
   currentHeadSha: string = s.headSha
 ): string {
   return renderGreenlightSection(s, now, currentHeadSha);
+}
+
+// Everything getPRsNeedingCommentRefresh would still match in a finished render:
+// the sweep reads the raw body, so a survivor here pins the PR into every sweep
+// for as long as the comment stands.
+function liveSweepPredicates(rendered: string): string[] {
+  return [
+    ...SWEEP_SENTINELS.filter((sentinel) => rendered.includes(sentinel)),
+    ...(rendered.match(/\d Pending/g) ?? []),
+  ];
+}
+
+// The two model-authored fields, which reach the comment body by different paths:
+// the message through the cap, the fence and the wrap, the reason through an
+// inline code span. A payload that must not survive has to be tried against both.
+const PAYLOAD_FIELDS: Record<string, (payload: string) => GreenlightState> = {
+  message: (payload) => state({ status: "LAND", message: payload }),
+  reason: (payload) => state({ status: "LAND", reason: payload }),
+};
+
+// Every live predicate one payload leaves behind, tagged with the field it went
+// in through so a failure names the path that leaked and the payload that did it.
+function sweepLeaks(payload: string): string[] {
+  const leaks: string[] = [];
+  for (const [field, build] of Object.entries(PAYLOAD_FIELDS)) {
+    for (const live of liveSweepPredicates(render(build(payload), FRESH_NOW))) {
+      leaks.push(
+        `${field}=${JSON.stringify(payload)} left ${JSON.stringify(live)}`
+      );
+    }
+  }
+  return leaks;
 }
 
 describe("defangGreenlightMessage", () => {
@@ -161,6 +221,16 @@ describe("defangGreenlightMessage wrapping", () => {
     expect(lines[lines.length - 1]).toBe("short two");
     expect(lines[lines.length - 2]).toBe("");
     expect(lines.filter((line) => line === "")).toHaveLength(2);
+  });
+
+  // A break deletes the whitespace run it lands on, so a defuse seam that counted
+  // as whitespace would be dropped wherever a line wrapped across it, and only the
+  // newline the break leaves in its place would keep the halves of a marker apart.
+  // Which invisible character this is decides that, and not by any rule the wrap
+  // can state: U+200B escapes `\s` by being categorised Cf rather than Zs, while
+  // U+FEFF is Cf too and matches anyway, named in the whitespace production itself.
+  it("relies on its zero-width space not being whitespace to JavaScript", () => {
+    expect(/\s/.test(ZERO_WIDTH_SPACE)).toBe(false);
   });
 
   // Counting them would wrap a line short by however many @-mentions and defused
@@ -468,6 +538,23 @@ describe("renderGreenlightSection pending sentinel", () => {
     expect(out).not.toContain("```");
   });
 
+  // The reviewed-commit line is the one rendered value that never reaches the
+  // defuse. Nothing about a sha makes that safe -- head_sha is a ClickHouse String
+  // like any other -- only its length: seven characters cannot spell the shortest
+  // text any sweep predicate matches. Raise the truncation that far and the line
+  // becomes a defuse-free path into the raw comment body.
+  it("truncates the rendered sha too short to spell a sweep predicate", () => {
+    expect(SHORTEST_PENDING_MATCH).toMatch(/\d Pending/);
+    expect(SWEEP_PREDICATE_MIN_LENGTH).toBeLessThanOrEqual(
+      SHORTEST_PENDING_MATCH.length
+    );
+    for (const sentinel of SWEEP_SENTINELS) {
+      expect(SWEEP_PREDICATE_MIN_LENGTH).toBeLessThanOrEqual(sentinel.length);
+    }
+
+    expect(SHORT_SHA_LENGTH).toBeLessThan(SWEEP_PREDICATE_MIN_LENGTH);
+  });
+
   it("strips either forged sentinel out of a terminal message", () => {
     for (const status of ["LAND", "NO_LAND"]) {
       for (const sentinel of SWEEP_SENTINELS) {
@@ -501,21 +588,24 @@ describe("renderGreenlightSection pending sentinel", () => {
     }
   });
 
-  // Removing one sentinel closes the gap it left, so a forgery of the other can
-  // be hidden across it -- the strip has to keep going until no sentinel of any
-  // kind remains, not just re-run for each in turn.
-  it("strips an advisor sentinel spliced together by removing a greenlight one", () => {
-    const out = render(
-      state({
-        status: "LAND",
-        message: `alt="AI ver${GREENLIGHT_PENDING_ALT_ATTR}dict: pending"`,
-      }),
-      FRESH_NOW
-    );
-
-    for (const sentinel of SWEEP_SENTINELS) {
-      expect(out).not.toContain(sentinel);
+  // Removing one sentinel closes the gap it left, so a forgery of another can be
+  // hidden across it -- in either direction, and at any seam. The defuse makes one
+  // pass in a fixed order, so a splice the second substitution produces is never
+  // re-read by the first; what saves it is the zero-width space every substitution
+  // leaves behind, and that has to hold whichever sentinel is nested in which.
+  it("cannot splice one sentinel together by defusing another, either way round", () => {
+    const leaks: string[] = [];
+    for (const outer of SWEEP_SENTINELS) {
+      for (const inner of SWEEP_SENTINELS) {
+        for (let at = 0; at <= outer.length; at++) {
+          leaks.push(
+            ...sweepLeaks(`${outer.slice(0, at)}${inner}${outer.slice(at)}`)
+          );
+        }
+      }
     }
+
+    expect(leaks).toEqual([]);
   });
 
   it("strips either forged sentinel out of the reason too", () => {
@@ -530,26 +620,48 @@ describe("renderGreenlightSection pending sentinel", () => {
   });
 
   // The reason goes through inlineCode, which DELETES backticks and newlines, and
-  // a deletion splices the halves on either side together. A sentinel broken by
-  // exactly one of those characters is invisible to a defuse that runs first and
-  // whole by the time the strip is done, so the defuse has to run last.
-  it("defuses a reason whose sentinel only forms once the strip runs", () => {
-    for (const sentinel of SWEEP_SENTINELS) {
-      for (const breaker of ["`", "\n", "\r"]) {
-        const half = Math.floor(sentinel.length / 2);
-        const reason = `${sentinel.slice(0, half)}${breaker}${sentinel.slice(
-          half
-        )}`;
-
-        const out = render(state({ status: "LAND", reason }), FRESH_NOW);
-
-        expect(out).not.toContain(sentinel);
+  // a deletion splices the halves on either side together. A predicate broken by
+  // exactly one deleted character is invisible to a defuse that runs before the
+  // deletion and whole once it has run, so the defuse has to run last. Probing
+  // characters the renderer keeps as well as the ones it drops is what makes this
+  // still hold if the set it drops grows: inlineCode is shared with shortSha, and
+  // hardening it against markup would delete `<` from a reason too.
+  it("defuses a predicate that only forms once a deletion splices it", () => {
+    const leaks: string[] = [];
+    for (const probe of DELETION_PROBES) {
+      for (const target of SWEEP_TARGETS) {
+        for (let at = 0; at <= target.length; at++) {
+          leaks.push(
+            ...sweepLeaks(`${target.slice(0, at)}${probe}${target.slice(at)}`)
+          );
+        }
       }
     }
+
+    expect(leaks).toEqual([]);
+  });
+
+  // Those probes are worth only what they cover: a character added to
+  // INLINE_BREAKERS_RE but missing from them would go untested, and it is exactly
+  // a newly deleted character that reopens the splice.
+  it("probes every character the renderer is known to delete", () => {
+    const unprobed: string[] = [];
+    for (let code = 0; code <= 0xffff; code++) {
+      const char = String.fromCharCode(code);
+      if (
+        char.replace(INLINE_BREAKERS_RE, "") === "" &&
+        !DELETION_PROBES.includes(char)
+      ) {
+        unprobed.push(JSON.stringify(char));
+      }
+    }
+
+    expect(unprobed).toEqual([]);
+    expect(INLINE_BREAKERS.length).toBeGreaterThan(0);
   });
 
   it("defuses a pending count in the reason that the strip splices together", () => {
-    for (const breaker of ["`", "\n", "\r"]) {
+    for (const breaker of INLINE_BREAKERS) {
       const out = render(
         state({ status: "NO_LAND", reason: `9 Pen${breaker}ding` }),
         FRESH_NOW

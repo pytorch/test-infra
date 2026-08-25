@@ -45,7 +45,7 @@ export const GREENLIGHT_SECTION_HEADER = "GREEN LIGHT";
 
 // Mirrors _MESSAGE_CAP in comment_format.py.
 export const GREENLIGHT_MESSAGE_CAP = 4000;
-const ZERO_WIDTH_SPACE = "\u200b";
+export const ZERO_WIDTH_SPACE = "\u200b";
 
 // GitHub does not soft-wrap inside a code fence, so an unwrapped verdict renders
 // as one line behind a horizontal scrollbar. 80 is the conventional terminal and
@@ -76,13 +76,24 @@ const GREENLIGHT_PENDING_MARKER = `<!-- greenlight ${GREENLIGHT_PENDING_ALT_ATTR
 // characters themselves intact -- so a terminal render that carries one pins the
 // PR into every sweep forever, defeating the self-clearing the sentinel design
 // rests on.
-const SWEEP_SENTINELS = [GREENLIGHT_PENDING_ALT_ATTR, ADVISOR_PENDING_ALT_ATTR];
+export const SWEEP_SENTINELS = [
+  GREENLIGHT_PENDING_ALT_ATTR,
+  ADVISOR_PENDING_ALT_ATTR,
+];
 // The sweep's third predicate is the regex `\d Pending`, meant to match the
 // comment's own "3 Pending" job count. Text merely describing the PR's CI state
 // trips it with no adversary involved, so break the token rather than delete a
 // word the reader needs.
 const SWEEP_PENDING_WORD = "Pending";
 const SWEEP_PENDING_WORD_DEFUSED = `P${ZERO_WIDTH_SPACE}ending`;
+// Shortest raw-body text any of those predicates can match: both attributes are
+// far longer than a `\d Pending` match, which is a digit and a space ahead of the
+// word. Renderer output too short to reach this cannot carry a predicate however
+// it is crafted, which is the only thing that lets a value skip the defuse.
+export const SWEEP_PREDICATE_MIN_LENGTH = Math.min(
+  ...SWEEP_SENTINELS.map((sentinel) => sentinel.length),
+  SWEEP_PENDING_WORD.length + 2
+);
 
 // Rendered only when the URL cannot break out of the `[text](url)` link AND
 // points at github.com. The host anchor has to be literal `github.com/`: a
@@ -90,7 +101,10 @@ const SWEEP_PENDING_WORD_DEFUSED = `P${ZERO_WIDTH_SPACE}ending`;
 // (`https://github.com.example/`) both satisfy a mere "contains github.com".
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
 
-const SHORT_SHA_LENGTH = 7;
+// shortSha is the one rendered value that never reaches defuseSweepSentinels.
+// What makes that safe is arithmetic: kept under SWEEP_PREDICATE_MIN_LENGTH, no
+// sha it emits is long enough to spell a predicate, whatever the sha holds.
+export const SHORT_SHA_LENGTH = 7;
 
 export interface GreenlightState {
   prNumber: number;
@@ -198,7 +212,7 @@ function defuseSweepSentinels(text: string): string {
 }
 
 // Characters that would end an inline code span or the line holding it.
-const INLINE_BREAKERS_RE = /[`\r\n]/g;
+export const INLINE_BREAKERS_RE = /[`\r\n]/g;
 
 function stripInlineBreakers(value: string): string {
   return value.replace(INLINE_BREAKERS_RE, "");
@@ -239,13 +253,15 @@ function reviewedCommitLines(
 // Nothing may DELETE a character after the defuse: a deletion splices the text on
 // either side of it together, and `alt="Green Light: in` + a backtick +
 // ` progress"` carries no sentinel for defuseSweepSentinels to find yet becomes
-// one the instant inlineCode strips that backtick. So strip first, defuse second.
-// The strip inside inlineCode is then a no-op, and stays only so its other
-// callers keep it.
+// one the instant inlineCode strips that backtick. Defusing the finished line,
+// rather than the reason on its way into it, is what keeps that true whatever
+// inlineCode is made to delete later -- shortSha calls it too, so it can be
+// widened for reasons that never look at this line. The prefix and the backticks
+// the defuse now also covers hold no sentinel, so the wider reach changes nothing
+// it emits. Every reason the renderer shows is built here, constants included, so
+// no second path can grow that defuses differently, or not at all.
 function reasonLine(reason: string): string {
-  return `reason: ${inlineCode(
-    defuseSweepSentinels(stripInlineBreakers(reason || ""))
-  )}`;
+  return defuseSweepSentinels(`reason: ${inlineCode(reason || "")}`);
 }
 
 function renderSection(
@@ -316,7 +332,7 @@ export function renderGreenlightSection(
     if (isInProgressStale(state.version, now)) {
       return renderSection(
         GREENLIGHT_INCOMPLETE_HEADLINE,
-        [`reason: ${inlineCode(GREENLIGHT_STALLED_REASON)}`, ...commitLines],
+        [reasonLine(GREENLIGHT_STALLED_REASON), ...commitLines],
         evalJob,
         false,
         outdated
@@ -339,7 +355,7 @@ export function renderGreenlightSection(
   ) {
     return renderSection(
       GREENLIGHT_INCOMPLETE_HEADLINE,
-      [`reason: ${inlineCode(status.toLowerCase())}`, ...commitLines],
+      [reasonLine(status.toLowerCase()), ...commitLines],
       evalJob,
       false,
       outdated
