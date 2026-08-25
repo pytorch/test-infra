@@ -525,7 +525,10 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
               {t.stacktrace && (
                 <details style={{ marginLeft: 12, fontSize: "0.65rem" }}>
                   <summary
-                    style={{ color: "rgba(255,255,255,0.5)", cursor: "pointer" }}
+                    style={{
+                      color: "rgba(255,255,255,0.5)",
+                      cursor: "pointer",
+                    }}
                   >
                     stacktrace
                   </summary>
