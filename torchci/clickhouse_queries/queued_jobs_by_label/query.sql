@@ -113,19 +113,18 @@ ec2_queued_jobs AS (
         --- 18s against this table versus ~2s for the whole query, which is not
         --- affordable on a panel that refreshes every 5 minutes.
         ---
-        --- So this stays ADVISORY. It changes no default: count and avg_queue_s
-        --- still cover every queued job, the metrics page still shows them with
-        --- their usual red/yellow thresholds and still sorts on them by
-        --- default, and no row is hidden, greyed or demoted. A wrong guess
-        --- costs a wrong label and nothing else. A reader can sort or filter on
-        --- the new column like any other — that is their choice, made visibly
-        --- and undone by a click.
+        --- Because it is a guess, the rule is that a reader is never left
+        --- unaware that it fired. count and avg_queue_s here always cover every
+        --- queued job, and the metrics page's toggle for leaving the suspected
+        --- ones out states their number and oldest age on screen whenever any
+        --- exist, keeps every machine type in the table either way, and is
+        --- undone by one click. So the worst a wrong guess does is understate a
+        --- row beside a line saying so.
         ---
-        --- What must not happen is this deciding anything on its own. Resist
-        --- wiring it into an automatic filter, a default sort, or an alert
-        --- threshold: the moment it picks what an oncaller sees first without
-        --- being asked, every limitation above turns into a way to bury a real
-        --- outage.
+        --- What must not happen is this hiding something silently. Resist
+        --- wiring it into a query-side filter, a default sort, or an alert
+        --- threshold — anywhere its effect is not announced next to its result,
+        --- every limitation above turns into a way to bury a real outage.
         (
             workflow.updated_at = workflow.created_at
             AND workflow.created_at < (CURRENT_TIMESTAMP() - INTERVAL 6 HOUR)
@@ -200,14 +199,20 @@ arc_queued_jobs AS (
 --- Everything here is additive. count, avg_queue_s, machine_type, time and the
 --- row ordering are byte-for-byte what they were, because this query is served
 --- unauthenticated at /api/clickhouse/queued_jobs_by_label and out-of-repo
---- consumers cannot be enumerated. The two new columns are the whole change,
---- and nothing acts on them automatically: not the ordering here, and not the
---- metrics page, which sorts on avg_queue_s as it always did.
+--- consumers cannot be enumerated. The four new columns are the whole change,
+--- and the row ordering here does not use them.
+---
+--- live_count / live_max_queue_s are the same two figures with the suspected
+--- jobs left out. The metrics page offers them behind a toggle that names how
+--- many jobs it is leaving out and lets the reader put them back; both sets are
+--- returned so that choice is the page's to make and not this query's.
 SELECT
     COUNT(*) AS count,
     --- Misnamed since it was introduced: a MAX, not an average. Left alone for
     --- the same compatibility reason as count.
     MAX(queue_s) AS avg_queue_s,
+    COUNTIf(NOT is_stale) AS live_count,
+    MAXIf(queue_s, NOT is_stale) AS live_max_queue_s,
     COUNTIf(is_stale) AS stale_count,
     MAXIf(queue_s, is_stale) AS oldest_stale_s,
     machine_type,

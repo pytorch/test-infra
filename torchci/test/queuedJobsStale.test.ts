@@ -122,15 +122,25 @@ describe("the summary query only adds columns", () => {
     );
   });
 
-  test("the two new columns are the whole change", () => {
+  test("the four new columns are the whole change", () => {
+    // live_* are the same two figures with the suspected jobs left out. The
+    // metrics page offers them behind a toggle; both sets are returned so that
+    // choice belongs to the page, where it can be announced and undone, rather
+    // than to this query, where it could not be.
+    expect(BY_LABEL).toContain("COUNTIf(NOT is_stale) AS live_count");
+    expect(BY_LABEL).toContain(
+      "MAXIf(queue_s, NOT is_stale) AS live_max_queue_s"
+    );
     expect(BY_LABEL).toContain("COUNTIf(is_stale) AS stale_count");
     expect(BY_LABEL).toContain("MAXIf(queue_s, is_stale) AS oldest_stale_s");
   });
 
-  test("is_stale is read only by those two aggregates", () => {
-    // Anything else — a HAVING, a WHERE, an ORDER BY term — would let the guess
-    // decide which machine types appear or in what order.
+  test("is_stale is read only by those four aggregates", () => {
+    // Anything else — a HAVING, a WHERE, an ORDER BY term — would drop or
+    // reorder rows where no toggle could show the reader it had happened.
     expect(isStaleUses(BY_LABEL)).toEqual([
+      "COUNTIf(NOT is_stale) AS live_count,",
+      "MAXIf(queue_s, NOT is_stale) AS live_max_queue_s,",
       "COUNTIf(is_stale) AS stale_count,",
       "MAXIf(queue_s, is_stale) AS oldest_stale_s,",
       "SELECT queue_s, is_stale, machine_type FROM ec2_queued_jobs",

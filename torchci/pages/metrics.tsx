@@ -16,6 +16,7 @@ import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { durationDisplay } from "components/common/TimeUtils";
+import QueuedJobsByMachineTypeTable from "components/metrics/panels/QueuedJobsByMachineTypeTable";
 import QueuedJobsTable from "components/metrics/panels/QueuedJobsTable";
 import ScalarPanel, {
   ScalarPanelWithValue,
@@ -857,87 +858,8 @@ export default function Page() {
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Queued Jobs by Machine Type"}
-            queryName={"queued_jobs_by_label"}
-            queryParams={{}}
-            columns={[
-              { field: "count", headerName: "Count", flex: 1 },
-              {
-                field: "avg_queue_s",
-                headerName: "Queue time",
-                flex: 1,
-                valueFormatter: (params: number) => durationDisplay(params),
-                cellClassName: (params) => {
-                  const queueTimeHours = params.value / 3600;
-                  if (queueTimeHours >= 4) return "queue-time-red";
-                  if (queueTimeHours >= 1) return "queue-time-yellow";
-                  return "";
-                },
-              },
-              {
-                field: "stale_count",
-                headerName: "Suspected stuck",
-                description:
-                  "A hint, not a verdict. Counts jobs where the workflow run " +
-                  "is over 6h old and its recorded update time still equals " +
-                  "its creation time; the job is still queued with no runner " +
-                  "and no steps recorded, and asks for a non-empty label set; " +
-                  "and some job created in the last hour with exactly those " +
-                  "labels did get a runner. Labels are not the whole of what a " +
-                  "job is scheduled against, so this can be wrong in either " +
-                  "direction. Count and Queue time still include these jobs, " +
-                  "and nothing is hidden or reordered by default. Sort by this " +
-                  "column to group them.",
-                flex: 1,
-                // COUNTIf is a UInt64. It should arrive as a JSON number, but
-                // that was not verifiable end-to-end, and a string here would
-                // sort "10" below "2" once someone sorts on the column. Coerce
-                // and declare the type rather than rely on it.
-                type: "number",
-                valueGetter: (value: any) => Number(value),
-                // Descending first: an ascending click would push every
-                // suspected row below the blanks, which is the one ordering a
-                // reader would not expect from a column about exceptions.
-                sortingOrder: ["desc", "asc", null],
-                // Blank rather than "0" so the column reads as an exception
-                // marker.
-                valueFormatter: (params: number, row: any) =>
-                  params > 0
-                    ? `${params} · ${durationDisplay(row.oldest_stale_s)}`
-                    : "",
-              },
-              { field: "machine_type", headerName: "Machine Type", flex: 3 },
-            ]}
-            dataGridProps={{
-              getRowId: (el: any) => el.machine_type,
-              // Deliberately still sorted on avg_queue_s. Demoting a row
-              // because it looks abandoned would put a heuristic in charge of
-              // what an oncaller reads first, and this one cannot tell an
-              // abandoned run from one whose every job is starving. The new
-              // column labels those rows; it does not move them.
-              initialState: {
-                sorting: {
-                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
-                },
-              },
-              onRowClick: (params: any) => {
-                setMachineTypeFilter(params.row.machine_type);
-              },
-              sx: {
-                "& .queue-time-yellow": {
-                  backgroundColor: "#B8860B", // Dark goldenrod
-                  color: "white",
-                },
-                "& .queue-time-red": {
-                  backgroundColor: "#B22222", // Fire brick red
-                  color: "white",
-                },
-                "& .MuiDataGrid-row": {
-                  cursor: "pointer",
-                },
-              },
-            }}
+          <QueuedJobsByMachineTypeTable
+            onMachineTypeClick={setMachineTypeFilter}
           />
         </Grid>
 
