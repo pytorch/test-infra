@@ -187,6 +187,13 @@
       "linux"
     ]
   ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
+    ]
+  ],
   "test_combo_kernel_dynamic_shapes_grid_changes (__main__.ComboKernelTests)": [
     "180017",
     "https://github.com/pytorch/pytorch/issues/180017",
