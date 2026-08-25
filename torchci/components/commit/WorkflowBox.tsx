@@ -16,6 +16,7 @@ import {
 import { fetcher } from "lib/GeneralUtils";
 import { getConclusionSeverityForSorting } from "lib/JobClassifierUtil";
 import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
+import { describeWorkflowRun } from "lib/runOrigin";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
 import {
@@ -264,11 +265,17 @@ export default function WorkflowBox({
             >
               <option value={""}>Select Workflow ID</option>
               {allWorkflowIds.sort().map((id) => (
+                // A bare id says nothing about which run it is -- "which one of these was the
+                // autorevert restart" was the actual question asked in review. Every entry is
+                // named, not just the interesting ones, so the reader compares like with like
+                // rather than reading meaning into an absent label.
                 <option
                   key={`${id.id} ${id.attempt}`}
                   value={`${id.id} ${id.attempt}`}
                 >
-                  {id.id} (Attempt {id.attempt})
+                  {`${id.id} (Attempt ${id.attempt}) — ${describeWorkflowRun(
+                    id
+                  )}`}
                 </option>
               ))}
             </select>
