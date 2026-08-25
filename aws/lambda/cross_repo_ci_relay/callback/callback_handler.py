@@ -14,6 +14,7 @@ from utils.misc import (
     CallbackStateRecord,
     DISPATCH_RUN_ATTEMPT,
     DISPATCH_RUN_ID,
+    extract_pr_context,
     extract_pr_labels,
     HTTPException,
 )
@@ -406,9 +407,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     # the PR check. Without a head_sha there is neither a check run to create nor
     # a cache entry the label handler could ever look up.
     if repo_level.value >= AllowlistLevel.L3.value:
-        pr_field = (body.get("payload") or {}).get("pull_request") or {}
-        head_sha = (pr_field.get("head") or {}).get("sha", "")
-        pr_number = str(pr_field.get("number") or "")
+        pr_number, head_sha = extract_pr_context(body)
         if head_sha:
             conclusion = (body.get("workflow") or {}).get("conclusion")
             details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
@@ -427,8 +426,15 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
                 job_name=job_name,
             )
 
-            needs_cr = allowlist.needs_check_run(verified_repo, extract_pr_labels(body))
-            if not needs_cr and repo_level == AllowlistLevel.L3:
+            # A check run always mirrors a specific PR's status, so without a
+            # pr_number (e.g. a push straight to main -- the merge landing
+            # itself, not a ciflow/trunk/<pr> tag) there is no PR to attach
+            # one to, regardless of what needs_check_run/is_check_run_wanted
+            # would otherwise say.
+            needs_cr = bool(pr_number) and allowlist.needs_check_run(
+                verified_repo, extract_pr_labels(body)
+            )
+            if not needs_cr and pr_number and repo_level == AllowlistLevel.L3:
                 # The downstream's echoed payload labels may not reflect the PR's
                 # current state (e.g. on reopen). Fall back to the per-commit flag
                 # recorded at dispatch / label time for this (head_sha, repo).
