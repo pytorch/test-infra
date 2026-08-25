@@ -24,7 +24,7 @@ JOB_NAME_REGEX = re.compile(
     r"^(?P<job>.+)\s/\s.+\((?P<s_name>[^,]+),\s(?P<s_id>[^,]+),\s(?P<s_count>[^,]+),\s(?P<platform>[^,]+)\)$"
 )
 # One minute according to the rule https://pandas.pydata.org/docs/reference/api/pandas.Series.resample.html
-RESAMPLING_WINDOW = "1T"
+RESAMPLING_WINDOW = "1min"
 DATETIME_FORMAT = "%Y-%m-%d %X"
 # NB: This is a work around to handle the case where requested job is retried
 MAX_RUN_ATTEMPT_TO_SCAN = 10
