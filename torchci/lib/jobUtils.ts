@@ -1,6 +1,7 @@
 import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
+import { invokeLogUploader } from "lib/lambda";
 import {
   BasicJobData,
   IssueData,
@@ -262,33 +263,25 @@ export async function backfillMissingLog(
   repo: string,
   job: RecentWorkflowsData
 ): Promise<boolean> {
-  // This creates a mock GitHub workflow_job completion event to reupload the log
-  // to S3 and trigger log classifier. The action is set to backfill to tell the
-  // lambda code that this is a mock event body. Note that backfill is not a GitHub
-  // event actions
-  const body = {
-    action: "backfill",
-    repository: {
-      full_name: `${owner}/${repo}`,
-    },
-    workflow_job: {
+  // Ask gha-log-uploader to re-fetch the log from GitHub and put it back in S3;
+  // the S3 notification on log/ re-runs the classifier once it lands. This is a
+  // direct invoke rather than a POST to the /api/log-uploader/backfill route,
+  // because we are already inside HUD and a loopback request would only add a
+  // hop that can fail on its own.
+  try {
+    await invokeLogUploader({
+      repo: `${owner}/${repo}`,
+      job_id: job.id,
       conclusion: job.conclusion,
-      id: job.id,
-    },
-  };
-  const res = await fetch(
-    "https://jqogootqqe.execute-api.us-east-1.amazonaws.com/default/github-status-test",
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-GitHub-Event": "workflow_job",
-      },
-      body: JSON.stringify(body),
-    }
-  );
-  return res.status === 200;
+    });
+    return true;
+  } catch (error) {
+    console.error(
+      `Failed to queue a log backfill for ${owner}/${repo} job ${job.id}`,
+      error
+    );
+    return false;
+  }
 }
 
 export function isFailureFromPrevMergeCommit(
