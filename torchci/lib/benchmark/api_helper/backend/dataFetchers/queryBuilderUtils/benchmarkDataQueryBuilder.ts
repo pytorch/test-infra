@@ -1,6 +1,10 @@
 import { deepClone } from "@mui/x-data-grid/internals";
 import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 import { BenchmarkDataFetcher } from "../type";
+import {
+  buildBetterBenchmarkSummary,
+  RawBenchmarkRow,
+} from "./betterBenchmarkSummary";
 import { ExecutableQueryBase, QueryBuilder, SelectItem } from "./queryBuilder";
 
 const DEFAULT_TS_GROUP_KEY = [
@@ -115,6 +119,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       SELECT
         replaceOne(o.head_branch, 'refs/heads/', '') AS branch,
         o.workflow_id AS workflow_id,
+        o.run_attempt AS run_attempt,
         o.job_id AS job_id,
         o.repo AS repo,
         o.head_sha AS commit,
@@ -193,6 +198,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       `
            SELECT DISTINCT
             workflow_id,
+            run_attempt,
             repo,
             branch,
             commit,
@@ -377,6 +383,96 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 
     console.log("[benchmarkDatQueryBuilder] query calls to db:", params);
     return params;
+  }
+}
+
+export class BetterBenchmarkDataFetcher extends BenchmarkDataQuery {
+  private workflowIds: Array<string | number> = [];
+
+  constructor() {
+    super();
+    this.replaceValueSelectStatement(
+      "toFloat64(arrayAvg(o.metric.'benchmark_values'))"
+    );
+    this.addExtraInfos(
+      new Map(
+        [
+          "record_type",
+          "pattern_hash",
+          "shape_hash",
+          "kernel_name",
+          "suite",
+          "source_mode",
+          "example_model",
+          "included",
+          "exclusion_reasons",
+          "timing_policy",
+          "accounting_digest",
+          "model_accounting_digest",
+          "sweep_total_repros",
+          "sweep_failed_repros",
+          "sweep_invalid_measurements",
+          "sweep_missing_shape_files",
+          "sweep_unresolved_shape_metadata",
+        ].map((key) => [
+          key,
+          `tupleElement(o.benchmark, 'extra_info')['${key}']`,
+        ])
+      )
+    );
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = super.toQueryParams(inputs, id);
+    this.workflowIds = params.workflows ?? [];
+    return params;
+  }
+
+  applyFormat(
+    data: RawBenchmarkRow[],
+    formats: string[],
+    includesAllExtraKey: boolean = true,
+    groupByFields?: string[]
+  ): any {
+    const kernelRows = data.filter(
+      (row) =>
+        !row.extra_key?.record_type || row.extra_key.record_type === "kernel"
+    );
+    const standardFormats = formats.filter(
+      (format) => format !== "better_summary"
+    );
+    const timestamps = data
+      .map((row) => Date.parse(row.metadata_info?.timestamp ?? ""))
+      .filter(Number.isFinite);
+    const start = timestamps.length
+      ? new Date(Math.min(...timestamps)).toISOString()
+      : null;
+    const end = timestamps.length
+      ? new Date(Math.max(...timestamps)).toISOString()
+      : null;
+    const standard: any =
+      standardFormats.length > 0
+        ? super.applyFormat(
+            kernelRows,
+            standardFormats,
+            includesAllExtraKey,
+            groupByFields
+          )
+        : {
+            total_raw_rows: data.length,
+            time_range: {
+              start,
+              end,
+            },
+            data: {},
+          };
+    if (formats.includes("better_summary")) {
+      standard.data.better_summary = buildBetterBenchmarkSummary(
+        data,
+        this.workflowIds
+      );
+    }
+    return standard;
   }
 }
 

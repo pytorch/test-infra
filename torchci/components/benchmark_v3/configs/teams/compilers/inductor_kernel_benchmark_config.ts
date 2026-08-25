@@ -1,48 +1,17 @@
-import {
-  BenchmarkUIConfig,
-  SubSectionRenderConfig,
-  UIRenderConfig,
-} from "../../config_book_types";
-import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
+import { BenchmarkUIConfig } from "../../config_book_types";
 import {
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
   defaultDashboardBenchmarkUIConfig,
 } from "../defaults/default_dashboard_config";
 
 export const BETTER_BENCHMARK_ID = "better_benchmark";
-
-const LOWER_IS_BETTER_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "latency_us",
-  type: "ratio",
-  ratioPolicy: {
-    badRatio: 1.05,
-    goodRatio: 0.95,
-    direction: "down",
-  },
-};
-
-const COMPARISON_POLICY = {
-  latency_us: LOWER_IS_BETTER_POLICY,
-  gap_vs_sol: {
-    ...LOWER_IS_BETTER_POLICY,
-    target: "gap_vs_sol",
-  },
-};
-
-function withComparisonPolicy(render: UIRenderConfig): UIRenderConfig {
-  if (render.type !== "AutoBenchmarkTimeSeriesTable") {
-    return render;
-  }
-  return {
-    ...render,
-    config: {
-      ...render.config,
-      comparisonPolicy: COMPARISON_POLICY,
-    },
-  };
-}
+export const BETTER_BENCHMARK_SUMMARY_FETCHER_ID = "better_benchmark_summary";
 
 const defaultDataRender = defaultDashboardBenchmarkUIConfig.dataRender;
+const externalLinkRenders = (defaultDataRender.renders ?? []).filter(
+  (render: { type: string }) =>
+    render.type === "AutoBenchmarkComparisonGithubExternalLink"
+);
 
 export const BetterBenchmarkDashboardConfig: BenchmarkUIConfig = {
   ...defaultDashboardBenchmarkUIConfig,
@@ -64,20 +33,28 @@ export const BetterBenchmarkDashboardConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     ...defaultDataRender,
-    renders: (defaultDataRender.renders ?? []).map(withComparisonPolicy),
-    subSectionRenders: Object.fromEntries(
-      (
-        Object.entries(defaultDataRender.subSectionRenders ?? {}) as [
-          string,
-          SubSectionRenderConfig
-        ][]
-      ).map(([name, section]) => [
-        name,
-        {
-          ...section,
-          renders: section.renders.map(withComparisonPolicy),
+    renders: [
+      {
+        type: "AutoBetterBenchmarkSummary",
+        title: "Full performance rollup",
+        config: {
+          fetcherId: BETTER_BENCHMARK_SUMMARY_FETCHER_ID,
         },
-      ])
-    ),
+      },
+      ...externalLinkRenders,
+    ],
+    subSectionRenders: {
+      main: {
+        filterConstraint: {
+          mode: {
+            disableOptions: ["inference"],
+          },
+          dtype: {
+            disableOptions: ["unknown"],
+          },
+        },
+        renders: [],
+      },
+    },
   },
 };
