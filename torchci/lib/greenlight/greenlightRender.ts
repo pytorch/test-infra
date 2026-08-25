@@ -11,6 +11,7 @@
 // unit-testable as-is.
 
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 
 export const GREENLIGHT_STATUS_LAND = "LAND";
 export const GREENLIGHT_STATUS_NO_LAND = "NO_LAND";
@@ -46,6 +47,15 @@ export const GREENLIGHT_SECTION_HEADER = "GREEN LIGHT";
 export const GREENLIGHT_MESSAGE_CAP = 4000;
 const ZERO_WIDTH_SPACE = "\u200b";
 
+// GitHub does not soft-wrap inside a code fence, so an unwrapped verdict renders
+// as one line behind a horizontal scrollbar. 80 is the conventional terminal and
+// diff column: wide enough that wrapping a prose paragraph costs few lines,
+// narrow enough to clear the PR conversation column on a narrow viewport.
+// Readability only, and best-effort: a single word longer than this, or one
+// padded out with zero-width spaces, goes out unwrapped. Nothing may rely on a
+// rendered line being within the column.
+export const GREENLIGHT_MESSAGE_WRAP_WIDTH = 80;
+
 // The in-progress sentinel, shaped like the advisor's alt attribute (see
 // ADVISOR_PENDING_ALT_ATTR in lib/advisor/advisorBadge.ts) so both AI surfaces
 // in the comment are matched by the same cheap substring search. It is emitted
@@ -74,21 +84,6 @@ const SWEEP_SENTINELS = [GREENLIGHT_PENDING_ALT_ATTR, ADVISOR_PENDING_ALT_ATTR];
 const SWEEP_PENDING_WORD = "Pending";
 const SWEEP_PENDING_WORD_DEFUSED = `P${ZERO_WIDTH_SPACE}ending`;
 
-// An AI_REVIEW_STARTED row older than this renders as "did not complete" rather
-// than as a live review: the terminal emit was lost (the S3 -> ClickHouse
-// replicator drops rows silently and never retries) and the row would otherwise
-// show "in progress" forever.
-// Sized off the longest real path from the in-flight row to the terminal one. The
-// review job is capped at 40 minutes, bounding its 37-minute model step, and the
-// record job that emits the verdict only starts after it; the worst prior-row age
-// actually observed at record time is ~38 minutes. Deliberately WIDER than
-// DEFAULT_TIMEOUT_MINUTES (45) in greenlight/constants.py, which is a different
-// clock: that one governs when the scan re-dispatches, and a re-dispatch writes a
-// row with a higher run_id that the greenlight_pr_states query prefers. So the
-// extra width is only ever spent on a run nothing supersedes, while at 45 a
-// queued runner was enough to call a review stalled that was about to finish.
-export const GREENLIGHT_IN_PROGRESS_STALE_MS = 60 * 60 * 1000;
-
 // Rendered only when the URL cannot break out of the `[text](url)` link AND
 // points at github.com. The host anchor has to be literal `github.com/`: a
 // userinfo prefix (`https://u:p@github.com/`) and a lookalike host
@@ -96,10 +91,6 @@ export const GREENLIGHT_IN_PROGRESS_STALE_MS = 60 * 60 * 1000;
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
 
 const SHORT_SHA_LENGTH = 7;
-
-// ISO-shaped with an optional fractional part and NO zone designator.
-const CLICKHOUSE_DATETIME_RE =
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
 
 export interface GreenlightState {
   prNumber: number;
@@ -111,22 +102,80 @@ export interface GreenlightState {
   version: string;
 }
 
-// Faithful port of comment_format.defang: cap, neutralize @-mentions so the
-// comment cannot ping anyone or issue a bot command, then wrap in a fence longer
-// than any backtick run the text contains so it cannot break out of the block.
-// Deliberately NOT HTML-escaped -- the fence is the containment, and escaping
-// inside it would render `&amp;` literally to the reader.
+// Zero-width spaces are invisible, so counting them would wrap a line short by
+// however many @-mentions and defused sentinels it happened to contain.
+function displayWidth(text: string): number {
+  return Array.from(text.split(ZERO_WIDTH_SPACE).join("")).length;
+}
+
+// Greedy wrap of ONE existing line. Every line it emits is a contiguous slice of
+// its input, and the only characters it ever drops are the whitespace run a break
+// replaces, so every newline-free substring of the output is one of the input's.
+// That is the safety argument: a break cannot rebuild a sweep sentinel
+// defuseSweepSentinels already removed, and cannot manufacture the literal space
+// `\d Pending` matches on -- it only ever removes one.
+function wrapLine(line: string): string {
+  if (displayWidth(line) <= GREENLIGHT_MESSAGE_WRAP_WIDTH) {
+    return line;
+  }
+  // Odd indices are whitespace runs, even indices the words between them; only
+  // the first and last of those can be empty, since `\s+` is greedy.
+  const segments = line.split(/(\s+)/);
+  const wrapped: string[] = [];
+  let current = segments[0];
+  for (let i = 1; i < segments.length; i += 2) {
+    const word = segments[i + 1] ?? "";
+    const candidate = `${current}${segments[i]}${word}`;
+    // A word wider than the column on its own goes out intact: chopping a URL or
+    // a sha makes it silently wrong when copied, while an over-wide line is only
+    // ugly. Breaking here would also emit a blank or whitespace-only line.
+    const unbreakable = word === "" || current.trim() === "";
+    if (
+      unbreakable ||
+      displayWidth(candidate) <= GREENLIGHT_MESSAGE_WRAP_WIDTH
+    ) {
+      current = candidate;
+      continue;
+    }
+    wrapped.push(current);
+    current = word;
+  }
+  wrapped.push(current);
+  return wrapped.join("\n");
+}
+
+// Each existing line is wrapped on its own, never reflowed into its neighbours:
+// the model's paragraph breaks and blank lines are the only structure the reader
+// gets inside a fence, and a message already narrow enough comes out untouched.
+function wrapMessage(text: string): string {
+  return text.split("\n").map(wrapLine).join("\n");
+}
+
+// Cap, neutralize @-mentions so the comment cannot ping anyone or issue a bot
+// command, hard-wrap, then seal the result in a fence longer than any backtick
+// run it contains so it cannot break out of the block. Same defanging as
+// comment_format.defang, plus the wrap. Deliberately NOT HTML-escaped -- the
+// fence is the containment, and escaping inside it would render `&amp;`
+// literally to the reader.
 export function defangGreenlightMessage(text: string): string {
   // Cap on code points, matching Python's `text[:4000]`; a UTF-16 slice would
   // both count astral characters twice and be able to cut a surrogate pair.
+  // Capping before the wrap is what makes 4000 mean 4000 characters the model
+  // wrote: a break swallows the whitespace run it replaces, so wrapping first
+  // would shrink the text and let a different amount of it through.
   const capped = Array.from(text || "")
     .slice(0, GREENLIGHT_MESSAGE_CAP)
     .join("");
   const neutralized = capped.split("@").join(`@${ZERO_WIDTH_SPACE}`);
+  // Breaks land only on whitespace and a backtick run holds none, so the wrap
+  // leaves every run intact and this is the same fence either side of it. What
+  // the wrap does change is position: a run that was mid-line can end up at the
+  // start of one, where only a run at least as long as the fence could close the
+  // block -- and the fence is longer than every run in the text by construction.
   const runs = neutralized.match(/`+/g);
   const longest = runs ? Math.max(...runs.map((run) => run.length)) : 0;
   const fence = "`".repeat(Math.max(3, longest + 1));
-  return `${fence}\n${neutralized}\n${fence}`;
+  return `${fence}\n${wrapMessage(neutralized)}\n${fence}`;
 }
 
 // Substituting a zero-width space for each sentinel, rather than deleting it, is
@@ -148,47 +197,15 @@ function defuseSweepSentinels(text: string): string {
   return out.split(SWEEP_PENDING_WORD).join(SWEEP_PENDING_WORD_DEFUSED);
 }
 
+// Characters that would end an inline code span or the line holding it.
+const INLINE_BREAKERS_RE = /[`\r\n]/g;
+
+function stripInlineBreakers(value: string): string {
+  return value.replace(INLINE_BREAKERS_RE, "");
+}
+
 function inlineCode(value: string): string {
-  return `\`${value.replace(/[`\r\n]/g, "")}\``;
-}
-
-// ClickHouse serves this column under date_time_output_format='iso' (see
-// lib/clickhouse.ts), which for DateTime64 emits `2026-08-24T21:57:40.736000` --
-// ISO-shaped but carrying no zone designator, which Date.parse reads as LOCAL
-// time and would shift the staleness window by the host's offset. The HUD
-// ClickHouse server timezone is UTC, so build the epoch explicitly; the
-// Date.parse fallback only sees forms that do carry a zone. NaN when unparseable.
-function parseVersionMs(version: string): number {
-  const trimmed = (version || "").trim();
-  const parts = CLICKHOUSE_DATETIME_RE.exec(trimmed);
-  if (parts === null) {
-    return Date.parse(trimmed);
-  }
-  const millis = (parts[7] ?? "").slice(0, 3).padEnd(3, "0");
-  return Date.UTC(
-    Number(parts[1]),
-    Number(parts[2]) - 1,
-    Number(parts[3]),
-    Number(parts[4]),
-    Number(parts[5]),
-    Number(parts[6]),
-    Number(millis)
-  );
-}
-
-// Mirrors decision._aged_out, including its treatment of a missing version as
-// already aged out. Distance in either direction: a timestamp further ahead of
-// now than the window is as implausible as one that far behind it, and treating
-// it as fresh would render "in progress" -- and keep emitting the re-render
-// sentinel -- for as long as the row stands. Comparing the magnitude rather than
-// clamping every negative age keeps a few seconds of clock skew between the
-// writer and the HUD from reading as a stalled review.
-function isInProgressStale(version: string, now: Date): boolean {
-  const versionMs = parseVersionMs(version);
-  if (Number.isNaN(versionMs)) {
-    return true;
-  }
-  return Math.abs(now.getTime() - versionMs) >= GREENLIGHT_IN_PROGRESS_STALE_MS;
+  return `\`${stripInlineBreakers(value)}\``;
 }
 
 // Whether the verdict was reached on something other than the PR's current head.
@@ -219,8 +236,16 @@ function reviewedCommitLines(
   return [`${line} (NOT the current head ${shortSha(currentHeadSha)})`];
 }
 
+// Nothing may DELETE a character after the defuse: a deletion splices the text on
+// either side of it together, and `alt="Green Light: in` + a backtick +
+// ` progress"` carries no sentinel for defuseSweepSentinels to find yet becomes
+// one the instant inlineCode strips that backtick. So strip first, defuse second.
+// The strip inside inlineCode is then a no-op, and stays only so its other
+// callers keep it.
 function reasonLine(reason: string): string {
-  return `reason: ${inlineCode(defuseSweepSentinels(reason || ""))}`;
+  return `reason: ${inlineCode(
+    defuseSweepSentinels(stripInlineBreakers(reason || ""))
+  )}`;
 }
 
 function renderSection(

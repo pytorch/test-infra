@@ -1,10 +1,10 @@
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 import {
   defangGreenlightMessage,
-  GREENLIGHT_IN_PROGRESS_STALE_MS,
   GREENLIGHT_INCOMPLETE_HEADLINE,
   GREENLIGHT_LAND_HEADLINE,
   GREENLIGHT_MESSAGE_CAP,
+  GREENLIGHT_MESSAGE_WRAP_WIDTH,
   GREENLIGHT_NO_LAND_HEADLINE,
   GREENLIGHT_OUTDATED_HEADLINE_PREFIX,
   GREENLIGHT_PENDING_ALT_ATTR,
@@ -12,6 +12,7 @@ import {
   GreenlightState,
   renderGreenlightSection,
 } from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
 
 const ZERO_WIDTH_SPACE = "\u200b";
 const JOB_URL = "https://github.com/pytorch/test-infra/actions/runs/42";
@@ -43,6 +44,23 @@ function state(overrides: Partial<GreenlightState> = {}): GreenlightState {
     version: VERSION,
     ...overrides,
   };
+}
+
+// The lines between the fences defangGreenlightMessage emits, taken either from
+// its own output or from a whole rendered section.
+function fencedLines(rendered: string): string[] {
+  const lines = rendered.split("\n");
+  const open = lines.findIndex((line) => /^`{3,}$/.test(line));
+  // Without this a fenceless render slices to garbage and every caller's
+  // assertion quietly passes against it.
+  expect(open).toBeGreaterThanOrEqual(0);
+  return lines.slice(open + 1, lines.lastIndexOf(lines[open]));
+}
+
+// What the reader sees: the zero-width spaces the defanging inserts are invisible
+// and so must not count against the wrap column.
+function visibleWidth(text: string): number {
+  return Array.from(text.split(ZERO_WIDTH_SPACE).join("")).length;
 }
 
 // Default the PR's current head to the reviewed commit, so only the tests that
@@ -104,6 +122,144 @@ describe("defangGreenlightMessage", () => {
 
   it("preserves a trailing newline inside the fence", () => {
     expect(defangGreenlightMessage("abc\n")).toBe("```\nabc\n\n```");
+  });
+});
+
+// GitHub does not soft-wrap inside a code fence, so an unwrapped verdict renders
+// as one line behind a horizontal scrollbar.
+describe("defangGreenlightMessage wrapping", () => {
+  const PARAGRAPH = "lorem ipsum dolor sit amet consectetur ".repeat(8).trim();
+
+  it("wraps a long paragraph to the column on word boundaries", () => {
+    const lines = fencedLines(defangGreenlightMessage(PARAGRAPH));
+
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) {
+      expect(visibleWidth(line)).toBeLessThanOrEqual(
+        GREENLIGHT_MESSAGE_WRAP_WIDTH
+      );
+    }
+    // Reconstructing the source by re-joining on the single spaces the breaks
+    // replaced proves no word was split and no character other than those spaces
+    // was dropped.
+    expect(lines.join(" ")).toBe(PARAGRAPH);
+  });
+
+  it("leaves a message already inside the column byte-for-byte alone", () => {
+    const narrow = "Looks good.\n\n  Second thought, still short.\n";
+
+    expect(defangGreenlightMessage(narrow)).toBe(`\`\`\`\n${narrow}\n\`\`\``);
+  });
+
+  it("wraps each line on its own instead of reflowing them together", () => {
+    const lines = fencedLines(
+      defangGreenlightMessage(`short one\n\n${PARAGRAPH}\n\nshort two`)
+    );
+
+    expect(lines[0]).toBe("short one");
+    expect(lines[1]).toBe("");
+    expect(lines[lines.length - 1]).toBe("short two");
+    expect(lines[lines.length - 2]).toBe("");
+    expect(lines.filter((line) => line === "")).toHaveLength(2);
+  });
+
+  // Counting them would wrap a line short by however many @-mentions and defused
+  // sentinels it happened to contain -- invisibly, and differently per line.
+  it("does not count the zero-width spaces it inserts toward the column", () => {
+    const mentions = "@aa ".repeat(10).trim();
+    const filler = "b".repeat(
+      GREENLIGHT_MESSAGE_WRAP_WIDTH - mentions.length - 1
+    );
+    const line = `${mentions} ${filler}`;
+    expect(line).toHaveLength(GREENLIGHT_MESSAGE_WRAP_WIDTH);
+
+    const lines = fencedLines(defangGreenlightMessage(line));
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(`@${ZERO_WIDTH_SPACE}aa`);
+    expect(lines[0].length).toBeGreaterThan(GREENLIGHT_MESSAGE_WRAP_WIDTH);
+  });
+
+  // Chopping a URL or a sha makes it silently wrong when pasted somewhere else,
+  // which is worse than the scrollbar one over-wide line leaves behind.
+  it("puts a token wider than the column on its own line, intact", () => {
+    const url = `https://github.com/pytorch/pytorch/actions/runs/${"1".repeat(
+      60
+    )}`;
+
+    const lines = fencedLines(
+      defangGreenlightMessage(`see ${url} for the details`)
+    );
+
+    expect(visibleWidth(url)).toBeGreaterThan(GREENLIGHT_MESSAGE_WRAP_WIDTH);
+    expect(lines).toEqual(["see", url, "for the details"]);
+  });
+
+  // The only load-bearing boundary in the wrap: the whole-line check above it is
+  // a pure fast path, so `<=` here is the one place an off-by-one can hide.
+  it("fills to exactly the column before breaking", () => {
+    const head = `${Array(15).fill("abcd").join(" ")} eeeee`;
+    expect(head).toHaveLength(GREENLIGHT_MESSAGE_WRAP_WIDTH);
+
+    expect(fencedLines(defangGreenlightMessage(`${head} zzzz`))).toEqual([
+      head,
+      "zzzz",
+    ]);
+  });
+
+  it("swallows the whole whitespace run a break replaces", () => {
+    const head = "x".repeat(70);
+    const tail = "y".repeat(20);
+
+    const out = defangGreenlightMessage(`${head}${" ".repeat(9)}${tail}`);
+
+    expect(fencedLines(out)).toEqual([head, tail]);
+  });
+
+  it("keeps an indented over-wide token with its indent, on one line", () => {
+    const token = "z".repeat(GREENLIGHT_MESSAGE_WRAP_WIDTH + 20);
+
+    const lines = fencedLines(defangGreenlightMessage(`    ${token} tail`));
+
+    expect(lines).toEqual([`    ${token}`, "tail"]);
+  });
+
+  it("keeps a trailing whitespace run on the line it belongs to", () => {
+    const body = "x".repeat(GREENLIGHT_MESSAGE_WRAP_WIDTH - 5);
+    const line = `${body}${" ".repeat(11)}`;
+    expect(visibleWidth(line)).toBeGreaterThan(GREENLIGHT_MESSAGE_WRAP_WIDTH);
+
+    expect(fencedLines(defangGreenlightMessage(line))).toEqual([line]);
+  });
+
+  // The cap runs first so it buys 4000 characters of the model's own text. A
+  // break swallows one of the two spaces below, so wrapping first would shrink
+  // the text and let more words through under the same budget.
+  it("spends the cap on the model's characters, not on the wrap's", () => {
+    const unit = "word  ";
+
+    const out = defangGreenlightMessage(unit.repeat(1200));
+
+    expect(out.split("word").length - 1).toBe(
+      Math.ceil(GREENLIGHT_MESSAGE_CAP / unit.length)
+    );
+    expect(fencedLines(out).length).toBeGreaterThan(1);
+  });
+
+  // A break can move a backtick run to the start of a line, where a run at least
+  // as long as the opening fence would close the block early. Breaks land only on
+  // whitespace, so the run itself survives intact and the fence stays longer than
+  // every run in the text.
+  it("cannot wrap a backtick run into a line that closes the fence", () => {
+    const out = defangGreenlightMessage(`${"pad ".repeat(20)}\`\`\` tail`);
+    const fence = out.split("\n")[0];
+    const lines = fencedLines(out);
+
+    expect(fence).toBe("````");
+    expect(lines[lines.length - 1]).toBe("``` tail");
+    for (const line of lines) {
+      expect(line).not.toMatch(/^`{4,}/);
+    }
   });
 });
 
@@ -373,6 +529,37 @@ describe("renderGreenlightSection pending sentinel", () => {
     }
   });
 
+  // The reason goes through inlineCode, which DELETES backticks and newlines, and
+  // a deletion splices the halves on either side together. A sentinel broken by
+  // exactly one of those characters is invisible to a defuse that runs first and
+  // whole by the time the strip is done, so the defuse has to run last.
+  it("defuses a reason whose sentinel only forms once the strip runs", () => {
+    for (const sentinel of SWEEP_SENTINELS) {
+      for (const breaker of ["`", "\n", "\r"]) {
+        const half = Math.floor(sentinel.length / 2);
+        const reason = `${sentinel.slice(0, half)}${breaker}${sentinel.slice(
+          half
+        )}`;
+
+        const out = render(state({ status: "LAND", reason }), FRESH_NOW);
+
+        expect(out).not.toContain(sentinel);
+      }
+    }
+  });
+
+  it("defuses a pending count in the reason that the strip splices together", () => {
+    for (const breaker of ["`", "\n", "\r"]) {
+      const out = render(
+        state({ status: "NO_LAND", reason: `9 Pen${breaker}ding` }),
+        FRESH_NOW
+      );
+
+      expect(out).not.toMatch(/\d Pending/);
+      expect(out).not.toContain("Pending");
+    }
+  });
+
   it("defuses a pending job count, which the sweep matches by accident", () => {
     const out = render(
       state({ status: "LAND", message: "3 Pending checks were still running" }),
@@ -431,6 +618,23 @@ describe("renderGreenlightSection pending sentinel", () => {
 
     expect(out).not.toContain(GREENLIGHT_PENDING_ALT_ATTR);
     expect(elapsedMs).toBeLessThan(1_000);
+  });
+
+  // Every sweep predicate is a single-line literal, and wrapping only ever puts a
+  // newline where a space was -- it never inserts one, so it can neither rebuild a
+  // stripped sentinel nor manufacture the space `\d Pending` needs.
+  it("leaves every sweep predicate unmatched in a message long enough to wrap", () => {
+    const message =
+      `${"pad ".repeat(20)}${GREENLIGHT_PENDING_ALT_ATTR} between ` +
+      `${ADVISOR_PENDING_ALT_ATTR} ${"tail ".repeat(20)}9 Pending checks`;
+
+    const out = render(state({ status: "LAND", message }), FRESH_NOW);
+
+    for (const sentinel of SWEEP_SENTINELS) {
+      expect(out).not.toContain(sentinel);
+    }
+    expect(out).not.toMatch(/\d Pending/);
+    expect(fencedLines(out).length).toBeGreaterThan(1);
   });
 
   it("keeps a message from breaking out of the fence to forge markup", () => {
