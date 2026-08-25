@@ -36,6 +36,7 @@ export interface RelayWorkflow {
     name: string;
     classname?: string;
     message?: string;
+    stacktrace?: string;
     duration?: number;
   }>;
   artifact_url?: string;
@@ -210,13 +211,17 @@ export function extractDynamoRecord(
     }
 
     if (wf.failed_tests_detail && Array.isArray(wf.failed_tests_detail)) {
-      const MAX_ENTRIES = 50;
-      const MAX_MESSAGE_LEN = 500;
+      const MAX_ENTRIES = 1000;
+      const MAX_MESSAGE_LEN = 1024;
+      const MAX_STACKTRACE_LEN = 4096;
       const capped = wf.failed_tests_detail.slice(0, MAX_ENTRIES).map((t) => ({
         name: String(t.name ?? ""),
         ...(t.classname && { classname: String(t.classname) }),
         ...(t.message && {
           message: String(t.message).slice(0, MAX_MESSAGE_LEN),
+        }),
+        ...(t.stacktrace && {
+          stacktrace: String(t.stacktrace).slice(0, MAX_STACKTRACE_LEN),
         }),
         ...(t.duration != null && { duration: Number(t.duration) }),
       }));

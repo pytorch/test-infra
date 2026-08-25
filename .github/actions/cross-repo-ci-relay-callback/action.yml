@@ -51,7 +51,8 @@ inputs:
     description: >
       Optional JSON array of failed/errored test details. Each element should
       have at minimum a "name" field. Supported fields: name, classname,
-      message, duration. Capped at 50 entries; message truncated to 500 chars.
+      message, stacktrace, duration. Per RFC-0054: capped at 1000 entries,
+      message truncated to 1 KB, stacktrace truncated to 4 KB.
       Example: [{"name":"test_foo","classname":"TestBar","message":"AssertionError"}]
     required: false
     default: ''

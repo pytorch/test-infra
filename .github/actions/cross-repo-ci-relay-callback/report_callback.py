@@ -118,7 +118,7 @@ def build_payload() -> str:
             parsed = json.loads(failed_tests_detail)
             if not isinstance(parsed, list):
                 sys.exit("Error: FAILED_TESTS_DETAIL must be a JSON array")
-            workflow["failed_tests_detail"] = parsed[:50]
+            workflow["failed_tests_detail"] = parsed[:1000]
         except json.JSONDecodeError as exc:
             sys.exit(f"Error: FAILED_TESTS_DETAIL is not valid JSON: {exc}")
 
