@@ -480,6 +480,7 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
     name: string;
     classname?: string;
     message?: string;
+    stacktrace?: string;
   }> = [];
   if (job.failed_tests_json) {
     try {
@@ -520,6 +521,26 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
                 >
                   {t.message}
                 </div>
+              )}
+              {t.stacktrace && (
+                <details style={{ marginLeft: 12, fontSize: "0.65rem" }}>
+                  <summary
+                    style={{ color: "rgba(255,255,255,0.5)", cursor: "pointer" }}
+                  >
+                    stacktrace
+                  </summary>
+                  <pre
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      color: "rgba(255,255,255,0.5)",
+                      maxHeight: 120,
+                      overflow: "auto",
+                      margin: "2px 0",
+                    }}
+                  >
+                    {t.stacktrace}
+                  </pre>
+                </details>
               )}
             </div>
           ))}
