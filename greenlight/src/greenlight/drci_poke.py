@@ -11,9 +11,11 @@ Dr. CI reads the state from ClickHouse, which is fed by the S3 -> replicator pat
 only just written to, hence the configurable pre-POST delay: poking before the row is ingested
 re-renders the comment from the state the poke was meant to replace.
 
-The poke never raises. By the time it runs the merge gate has already fired and the state row is
-uploaded, so a failure has nothing left to protect: raising would only turn the job that gates
-auto-landing red over a cosmetic refresh, and the scheduled sweep still backstops a lost poke.
+The poke swallows every failure. By the time it runs the merge gate has already fired and the state
+row is uploaded, so a failure has nothing left to protect: raising would only turn the job that
+gates auto-landing red over a cosmetic refresh, and the scheduled sweep still backstops a lost poke.
+``IterationTimeout`` is the one exception: it is the caller's per-iteration watchdog signal, not a
+poke failure, and swallowing it would strand the scan past its deadline because SIGALRM is one-shot.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from greenlight.constants import DRCI_ENDPOINT
+from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -69,7 +72,8 @@ def poke(
 ) -> None:
     """Wait out the ingestion delay, then POST one refresh request for ``repo``#``pr_number``.
 
-    Logs and swallows every failure, including a non-2xx response.
+    Logs and swallows every failure, including a non-2xx response. ``IterationTimeout`` still
+    propagates so the caller's per-iteration watchdog can abort.
     """
     org, _, name = repo.partition("/")
     if not org or not name:
@@ -93,6 +97,8 @@ def poke(
             logger.info("waiting %ss for state ingestion before poking Dr. CI for %s#%d", delay, repo, pr_number)
             sleep(delay)
         status = post(url, body, headers)
+    except IterationTimeout:
+        raise
     except Exception as exc:
         logger.error("Dr. CI poke for %s#%d failed: %s", repo, pr_number, exc, exc_info=True)
         return

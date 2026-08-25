@@ -8,6 +8,7 @@ import pytest
 
 from greenlight import drci_poke
 from greenlight.constants import DRCI_ENDPOINT
+from greenlight.guards import IterationTimeout
 
 
 class _Recorder:
@@ -199,6 +200,32 @@ def test_poke_swallows_sleep_failure_without_posting(poke_config, caplog):
 
     assert post.calls == []
     assert any("Dr. CI poke for pytorch/pytorch#9 failed" in record.getMessage() for record in caplog.records)
+
+
+def test_poke_propagates_iteration_timeout_from_the_post(poke_config):
+    def timing_out_post(url: str, body: bytes, headers: dict[str, str]) -> NoReturn:
+        raise IterationTimeout("iteration exceeded")
+
+    # IterationTimeout is the caller's per-iteration watchdog signal, not a poke failure: SIGALRM is
+    # one-shot, so swallowing it would strand the scan past its deadline with the poke unretried.
+    with pytest.raises(IterationTimeout):
+        drci_poke.poke("pytorch/pytorch", 9, poke_config(), sleep=_boom_sleep, post=timing_out_post)
+
+
+def test_poke_propagates_iteration_timeout_from_the_sleep(poke_config):
+    rec = _Recorder()
+    post = _FakePost(rec)
+
+    def timing_out_sleep(seconds: float) -> NoReturn:
+        raise IterationTimeout("iteration exceeded")
+
+    # The delay is the longest stretch of the poke, so the alarm most often lands here.
+    with pytest.raises(IterationTimeout):
+        drci_poke.poke(
+            "pytorch/pytorch", 9, poke_config(drci_poke_delay_seconds=1.0), sleep=timing_out_sleep, post=post
+        )
+
+    assert post.calls == []
 
 
 class _FakeResponse:
