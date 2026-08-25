@@ -275,6 +275,7 @@ function constructResultsCommentHelper({
   owner = "pytorch",
   repo = "pytorch",
   prNumber = 123,
+  greenlightSection = "",
 }: {
   pending?: number;
   failedJobs?: RecentWorkflowsData[];
@@ -291,6 +292,7 @@ function constructResultsCommentHelper({
   owner?: string;
   repo?: string;
   prNumber?: number;
+  greenlightSection?: string;
 }) {
   return updateDrciBot.constructResultsComment(
     pending,
@@ -310,7 +312,9 @@ function constructResultsCommentHelper({
     hudBaseUrl,
     owner,
     repo,
-    prNumber
+    prNumber,
+    new Map(),
+    greenlightSection
   );
 }
 
@@ -666,6 +670,44 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
+  });
+
+  test("test the Green Light section is absent unless one is supplied", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      failedJobs: [failedA],
+    });
+    expect(failureInfoComment).not.toContain("GREEN LIGHT");
+  });
+
+  test("test the Green Light section renders above the failure sections", async () => {
+    const greenlightSection =
+      "\n<details open><summary><b>GREEN LIGHT</b> - PR requires human review:</summary><p>\n\nnope\n\n</p></details>";
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      failedJobs: [failedA],
+      flakyJobs: [failedB],
+      greenlightSection,
+    });
+
+    expect(failureInfoComment).toContain(greenlightSection);
+    // It is a PR-level verdict, so it must precede the per-bucket job lists but
+    // still follow the merge-base preamble.
+    expect(failureInfoComment.indexOf("GREEN LIGHT")).toBeGreaterThan(
+      failureInfoComment.indexOf("As of commit")
+    );
+    expect(failureInfoComment.indexOf("GREEN LIGHT")).toBeLessThan(
+      failureInfoComment.indexOf("The following job has failed")
+    );
+  });
+
+  test("test the Green Light section renders on a PR with no failures", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      greenlightSection: "\n<b>GREEN LIGHT</b> - all clear",
+    });
+    expect(failureInfoComment).toContain("No Failures");
+    expect(failureInfoComment).toContain("GREEN LIGHT");
   });
 
   test("test pending unstable job", async () => {

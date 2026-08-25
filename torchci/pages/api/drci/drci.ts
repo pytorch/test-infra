@@ -38,6 +38,8 @@ import {
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
+import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightRender";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -171,6 +173,30 @@ export async function updateDrciComments(
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
+  // The Green Light verdict is per-PR, not per-job, so it is read for the whole
+  // sweep in one batched query. This must stay outside forAllPRs, which fans out
+  // concurrently and would multiply the query by the PR count. It needs nothing
+  // but the PR set and their heads, both settled here, so it is started now and
+  // awaited after the serial chain below instead of adding its latency to it --
+  // that chain is on the critical path of every on-demand poke render. The catch
+  // is attached at creation, not at the await, so a rejection landing before then
+  // is never an unhandled one; failing to an empty map keeps a greenlight /
+  // ClickHouse error from breaking the comment.
+  const headShaByPr = new Map<number, string>(
+    Array.from(workflowsByPR.entries()).map(([prNumber, pr_info]) => [
+      prNumber,
+      pr_info.head_sha,
+    ])
+  );
+  const greenlightSectionsPromise = buildGreenlightSections(
+    owner,
+    repo,
+    headShaByPr
+  ).catch((e) => {
+    console.error("greenlight section build threw for", owner, repo, e);
+    return new Map<number, string>();
+  });
+
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, owner, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(
@@ -196,6 +222,8 @@ export async function updateDrciComments(
     repo,
     Array.from(workflowsByPR.keys())
   );
+
+  const greenlightSections = await greenlightSectionsPromise;
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -338,7 +366,8 @@ export async function updateDrciComments(
         owner,
         repo,
         pr_info.pr_number,
-        advisorLines
+        advisorLines,
+        greenlightSections.get(pr_info.pr_number) ?? ""
       );
 
       const comment = formDrciComment(
@@ -425,15 +454,15 @@ function removeFailureContext(failure: {
 }
 
 /**
- * Returns a list of PR numbers whose Dr. CI comments were updated recently and
- * contain the hourglass icon, indicating that there is a pending job. Used for
+ * Returns a list of PR numbers whose Dr. CI comment still renders an in-progress
+ * state, so it warrants a re-render even if nothing else woke the sweep. Used for
  * getting a list of PRs to backfill ex if Dr. CI fails to update the comment
  * due to an error
  * @param repo The repository to search for PRs in. E.g. "pytorch/pytorch"
  * @returns A list of PR numbers
  */
 // PRs whose Dr.CI comment is in a transient state that warrants a re-render
-// even with no recent (< NUM_MINUTES) workflow activity. Two cases:
+// even with no recent (< NUM_MINUTES) workflow activity. Three cases:
 //   - `\d Pending`: the comment still shows pending jobs that may resolve.
 //   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
 //     to the AI advisor but its verdict had not landed at the last render, so
@@ -444,7 +473,21 @@ function removeFailureContext(failure: {
 //     (no "pending"), so the PR self-clears from this set. We match the full
 //     alt attribute (not the bare phrase) so an escaped model summary can't
 //     false-match.
-// Both branches stay gated by the open-PR + 1-month freshness guards below.
+//   - the greenlight pending sentinel: the same problem for the PR-level Green
+//     Light verdict, which also lands out of band from any workflow event. Only
+//     an in-flight render emits it and every terminal one omits it, so the PR
+//     self-clears the same way (see GREENLIGHT_PENDING_ALT_ATTR).
+// All three stay gated by the open-PR + 1-month freshness guards below, and by
+// the comment author: the marker and both sentinels are plain text any user can
+// put in a comment body, and a comment Dr.CI does not own is one it cannot
+// refresh -- so without the author filter an arbitrary user could pin a PR into
+// every sweep indefinitely. Qualified as issue_comment.user.login because
+// pull_request carries a `user` column too.
+// These predicates read the RAW body, so the author filter is not the whole
+// story: the Green Light message is model output that Dr.CI embeds unescaped in
+// its own comment. Every literal matched here therefore has to be defused on the
+// way in -- see defuseSweepSentinels in lib/greenlight/greenlightRender.ts, which
+// any new predicate added below must also cover.
 async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
 select
@@ -454,14 +497,21 @@ from
     join default.pull_request on issue_comment.issue_url = pull_request.issue_url
 where
     body like '<!-- drci-comment-start -->%'
-    and (match(body, '\\d Pending') or position(body, {pendingAltAttr: String}) > 0)
+    and issue_comment.user.login = {drciCommentAuthor: String}
+    and (
+        match(body, '\\d Pending')
+        or position(body, {pendingAltAttr: String}) > 0
+        or position(body, {greenlightPendingAltAttr: String}) > 0
+    )
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
     and pull_request.state = 'open'
 `;
   const results = await queryClickhouse(query, {
     repo: `%${repo}%`,
+    drciCommentAuthor: DRCI_COMMENT_AUTHOR,
     pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
+    greenlightPendingAltAttr: GREENLIGHT_PENDING_ALT_ATTR,
   });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
@@ -797,7 +847,10 @@ export function constructResultsComment(
   repo: string,
   prNumber: number,
   // job.id -> pre-rendered "AI verdict:" line (empty unless advisor-enabled).
-  advisorLines: Map<number, string> = new Map()
+  advisorLines: Map<number, string> = new Map(),
+  // Pre-rendered Green Light section for this PR, already carrying its own
+  // leading newline (empty unless greenlight-enabled and this PR has state).
+  greenlightSection: string = ""
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -905,6 +958,10 @@ export function constructResultsComment(
   if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
+
+  // A verdict on the PR as a whole rather than a job bucket, so it reads before
+  // the per-bucket failure lists.
+  output += greenlightSection;
 
   if (awaitingApprovalJobs.length) {
     output += constructResultsJobsSections(
