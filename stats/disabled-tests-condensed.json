@@ -224,13 +224,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_logspace_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "193406",
-    "https://github.com/pytorch/pytorch/issues/193406",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_special_i1_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "194155",
     "https://github.com/pytorch/pytorch/issues/194155",
