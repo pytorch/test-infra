@@ -71,11 +71,12 @@ jobs:
             exit 1
           fi
           # Validate target matches expected patterns
-          if [[ ! "${TARGET}" =~ ^(cu[0-9]+|rocm[0-9]+\.[0-9]+)$ ]]; then
+          if [[ ! "${TARGET}" =~ ^(cu[0-9]+|rocm[0-9]+\.[0-9]+|[a-z0-9.]+-preview)$ ]]; then
             echo "ERROR: Invalid target format '${TARGET}'"
             echo "Valid formats:"
             echo "  - CUDA: cu118, cu121, cu126, cu128, cu129, cu130, etc."
             echo "  - ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2, etc."
+            echo "  - Preview: rocm-preview, etc."
             exit 1
           fi
           echo "Target '${TARGET}' is valid"

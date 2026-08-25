@@ -16,6 +16,7 @@ VALID_TARGET_PATTERNS = [
     r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130, cuXYZ
     r"^rocm[0-9]+\.[0-9]+$",  # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
     r"^xpu$",  # Intel XPU
+    r"^[a-z0-9.]+-preview$",  # Preview: rocm-preview
 ]
 
 # Cloudflare R2 configuration for writing indexes
