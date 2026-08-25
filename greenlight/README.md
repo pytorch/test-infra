@@ -157,7 +157,7 @@ PYTORCH_GREENLIGHT_DRCI_TOKEN="$DRCI_BOT_KEY" just run drci-poke --pr 123
 
 It waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` (default 10) first, because Dr. CI reads
 the state from ClickHouse and the row has only just been handed to the S3 -> replicator path.
-It never raises: by the time it runs the merge gate has already fired and the row is uploaded,
+It swallows every failure: by the time it runs the merge gate has already fired and the row is uploaded,
 so failing would only turn the job that gates auto-landing red over a cosmetic refresh — and
 the sweep still backstops a lost poke. The reviewer workflow runs it from both the
 `announce_start` and `record` jobs, right after each uploads its row, with
@@ -198,8 +198,9 @@ variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USE
 `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT`, default `8443`).
 
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default `600`, `0` = disabled) bounds every
-iteration in both one-shot and `--loop` mode. In `--loop` mode, SIGTERM/SIGINT are
-observed only between iterations, so the per-iteration timeout is what interrupts a
+iteration in both one-shot and `--loop` mode, the scan's in-process Dr. CI pokes included —
+those swallow their own failures but let the timeout through. In `--loop` mode, SIGTERM/SIGINT
+are observed only between iterations, so the per-iteration timeout is what interrupts a
 hung run.
 
 ## Deployment
@@ -217,9 +218,12 @@ under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead.
 
 The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
-`PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) in the function environment. Without it every poke
-logs a warning and no-ops, leaving the `AI_REVIEW_DISPATCHED` state to surface on Dr. CI's
-15-minute sweep — the scan itself still succeeds.
+`PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) wherever the scan runs: the Lambda reads both from its
+function environment, provisioned by the gha-infra terraform, and the manual /
+`@greenlight recheck` entry point (`greenlight-review.yml`) passes them from the `DRCI_BOT_KEY`
+and `HUD_API_TOKEN` secrets. Without the token every poke logs a warning and no-ops, leaving the
+`AI_REVIEW_DISPATCHED` state to surface on Dr. CI's 15-minute sweep — the scan itself still
+succeeds.
 
 The zip ships in test-infra's shared lambda release alongside every other lambda:
 
@@ -380,7 +384,7 @@ src/greenlight/
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
   dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
   verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss and (unless Dr. CI renders it) comment
-  drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); never raises
+  drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); swallows its own failures
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
   clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash

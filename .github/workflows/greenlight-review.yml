@@ -128,6 +128,8 @@ jobs:
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
+          PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
           IN_PR: ${{ inputs.pr }}
           IN_REQUESTER: ${{ inputs.requester }}
           IN_MAX: ${{ inputs.max }}
