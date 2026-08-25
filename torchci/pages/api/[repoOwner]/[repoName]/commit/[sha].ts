@@ -5,6 +5,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 export type WorkflowRunInfo = {
   id: number;
   attempt: number;
+  // Carried so the workflow picker can name a run rather than offer bare numeric ids a reader
+  // cannot tell apart. Same spellings as JobData: "autorevert" for a restart dispatched against a
+  // trunk/<sha> ref, "retry" for a re-run attempt.
+  // `null`, not just optional: commit_jobs_query ships a real SQL NULL for an ordinary push, and
+  // typing it `string | undefined` would have been a lie the runtime never tells.
+  runOrigin?: string | null;
 };
 
 export type CommitApiResponse = {
