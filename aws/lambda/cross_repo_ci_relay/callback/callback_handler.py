@@ -122,12 +122,16 @@ def _update_state_and_compute_metrics(
     Writes IN_PROGRESS or COMPLETED state (with the current timestamp), then
     reads back the stored record to compute:
     - ``queue_time``:     dispatch → first job's in_progress in the run (set on
-                          "in_progress" callbacks). Workflow-level, not
-                          per-job: a run's jobs commonly wait on one another
-                          (e.g. tests waiting on a build job), but they all
-                          share one dispatch timestamp, so every job in the run
-                          is given the same queue_time, anchored to whichever
-                          job started first. See ``record_workflow_started``.
+                          "in_progress" callbacks, only for the job that is
+                          first to report). Workflow-level, not per-job: a
+                          run's jobs commonly wait on one another (e.g. tests
+                          waiting on a build job), but they all share one
+                          dispatch timestamp, so per-job queue_time would fold
+                          the earlier job's wait into every later job's value.
+                          Instead only the first job to start reports
+                          queue_time; later jobs in the same run report
+                          ``None`` so each run contributes exactly one
+                          queue_time sample. See ``record_workflow_started``.
     - ``execution_time``: in_progress → completed  (set on "completed"
                           callbacks). Stays per-job: each job's own duration.
 
@@ -185,8 +189,10 @@ def _update_state_and_compute_metrics(
         # Anchor queue_time to the first job in the run to start, not to this
         # job's own in_progress time -- otherwise a job that waits on an
         # earlier one (e.g. tests waiting on a build) would have that wait
-        # folded into its queue_time.
-        workflow_start_ts = redis_helper.record_workflow_started(
+        # folded into its queue_time. Only the winner (first job to start)
+        # reports queue_time, so each run yields exactly one sample instead of
+        # one per job.
+        workflow_start_ts, won = redis_helper.record_workflow_started(
             config,
             delivery_id,
             verified_repo,
@@ -194,11 +200,24 @@ def _update_state_and_compute_metrics(
             run_attempt,
             updated_workflow_record.timestamp,
         )
-        ci_metrics["queue_time"] = _safe_delta(
-            dispatch_record.timestamp,
-            workflow_start_ts,
-            "queue_time",
-        )
+        if won:
+            ci_metrics["queue_time"] = _safe_delta(
+                dispatch_record.timestamp,
+                workflow_start_ts,
+                "queue_time",
+            )
+        else:
+            logger.info(
+                "queue_time anchored to earlier job in run "
+                "delivery_id=%s repo=%s run_id=%s run_attempt=%s "
+                "job_name=%s workflow_start_ts=%s",
+                delivery_id,
+                verified_repo,
+                run_id,
+                run_attempt,
+                job_name,
+                workflow_start_ts,
+            )
     else:
         if workflow_record is not None:
             ci_metrics["execution_time"] = _safe_delta(

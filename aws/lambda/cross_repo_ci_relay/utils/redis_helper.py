@@ -293,6 +293,21 @@ def is_check_run_wanted(
         return False
 
 
+def _run_scope_stem(
+    delivery_id: str,
+    downstream_repo: str,
+    run_id: int,
+    run_attempt: int,
+) -> str:
+    """Shared ``delivery_id:downstream_repo:run_id:run_attempt`` stem.
+
+    Identifies one workflow run, shared by every job within it. Used as the
+    base for `_state_key`, `_workflow_start_key`, and `_in_progress_member`,
+    each of which adds its own prefix and/or job_name suffix.
+    """
+    return f"{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+
+
 def _state_key(
     delivery_id: str,
     downstream_repo: str,
@@ -307,7 +322,7 @@ def _state_key(
     (they share run_id + run_attempt but have distinct job names).
     Omitted for DISPATCHED records which are per-repo, not per-job.
     """
-    key = f"{_STATE_PREFIX}{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    key = f"{_STATE_PREFIX}{_run_scope_stem(delivery_id, downstream_repo, run_id, run_attempt)}"
     if job_name:
         return f"{key}:{job_name}"
     return key
@@ -475,10 +490,7 @@ def _workflow_start_key(
     Keyed by delivery_id + repo + run_id + run_attempt, with no job_name:
     every job within one run shares this single timestamp.
     """
-    return (
-        f"{_WORKFLOW_START_PREFIX}{delivery_id}:{downstream_repo}:"
-        f"{run_id}:{run_attempt}"
-    )
+    return f"{_WORKFLOW_START_PREFIX}{_run_scope_stem(delivery_id, downstream_repo, run_id, run_attempt)}"
 
 
 def record_workflow_started(
@@ -489,7 +501,7 @@ def record_workflow_started(
     run_attempt: int,
     timestamp: float,
     client: redis_lib.Redis | None = None,
-) -> float:
+) -> tuple[float, bool]:
     """Claim or read the workflow-level "first job started" timestamp.
 
     A run's jobs commonly form a dependency chain (e.g. a build job that later
@@ -502,7 +514,13 @@ def record_workflow_started(
     reads that same stored value back instead of recording its own (later)
     in_progress time.
 
-    Falls back to returning ``timestamp`` unchanged on Redis errors or a
+    Returns ``(timestamp, won)``. ``won`` is True only for the caller that
+    claimed the marker — the caller uses this to report queue_time from a
+    single job per run (the winner) rather than once per job, so downstream
+    consumers averaging queue_time by row aren't over-weighted by a run's
+    job count.
+
+    Falls back to returning ``(timestamp, True)`` on Redis errors or a
     malformed stored value, so a transient outage degrades to (rare) per-job
     queue_time rather than blocking the callback.
     """
@@ -512,15 +530,15 @@ def record_workflow_started(
             client = create_client(config)
         won = client.set(key, timestamp, nx=True, ex=config.crcr_status_ttl)
         if won:
-            return timestamp
+            return timestamp, True
         existing = client.get(key)
-        return float(existing) if existing is not None else timestamp
+        return (float(existing) if existing is not None else timestamp), False
     except RedisError:
         logger.exception("record_workflow_started: redis error key=%s", key)
-        return timestamp
+        return timestamp, True
     except (TypeError, ValueError):
         logger.exception("record_workflow_started: malformed stored value key=%s", key)
-        return timestamp
+        return timestamp, True
 
 
 def _in_progress_member(
@@ -531,7 +549,7 @@ def _in_progress_member(
     job_name: str | None = None,
 ) -> str:
     """Build a ZSET member string from the state-key components."""
-    base = f"{delivery_id}:{downstream_repo}:{run_id}:{run_attempt}"
+    base = _run_scope_stem(delivery_id, downstream_repo, run_id, run_attempt)
     if job_name:
         return f"{base}:{job_name}"
     return base

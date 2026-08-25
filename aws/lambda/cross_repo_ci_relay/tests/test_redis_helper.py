@@ -286,7 +286,7 @@ class TestWorkflowStart(unittest.TestCase):
             _cfg(), "del-123", "org/repo", 99999, 1, 1030.0, client=client
         )
 
-        self.assertEqual(result, 1030.0)
+        self.assertEqual(result, (1030.0, True))
         client.set.assert_called_once_with(
             "crcr:workflow_start:del-123:org/repo:99999:1",
             1030.0,
@@ -297,7 +297,8 @@ class TestWorkflowStart(unittest.TestCase):
 
     def test_later_job_reads_back_first_jobs_timestamp(self):
         """SET NX fails once another job already claimed the marker; the
-        later job's own (later) timestamp is discarded for the stored one."""
+        later job's own (later) timestamp is discarded for the stored one,
+        and won=False so the caller knows not to report a queue_time sample."""
         client = MagicMock()
         client.set.return_value = None
         client.get.return_value = "1030.0"
@@ -306,14 +307,15 @@ class TestWorkflowStart(unittest.TestCase):
             _cfg(), "del-123", "org/repo", 99999, 1, 1200.0, client=client
         )
 
-        self.assertEqual(result, 1030.0)
+        self.assertEqual(result, (1030.0, False))
         client.get.assert_called_once_with(
             "crcr:workflow_start:del-123:org/repo:99999:1"
         )
 
     def test_redis_error_on_set_falls_back_to_own_timestamp(self):
         """A Redis outage degrades to per-job queue_time rather than blocking
-        the callback: the caller's own timestamp is returned unchanged."""
+        the callback: the caller's own timestamp is returned unchanged, with
+        won=True so the caller still reports a queue_time sample."""
         client = MagicMock()
         client.set.side_effect = redis_lib.exceptions.RedisError("boom")
 
@@ -321,7 +323,7 @@ class TestWorkflowStart(unittest.TestCase):
             _cfg(), "del-123", "org/repo", 99999, 1, 1200.0, client=client
         )
 
-        self.assertEqual(result, 1200.0)
+        self.assertEqual(result, (1200.0, True))
 
 
 class TestRateLimit(unittest.TestCase):

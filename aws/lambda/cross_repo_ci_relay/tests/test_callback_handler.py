@@ -68,10 +68,13 @@ class TestCallbackHandler(unittest.TestCase):
         self.mock_redis = self.patcher_redis.start()
         self.mock_redis.create_client.return_value = MagicMock()
 
-        # Default: workflow-level queue_time passthrough, i.e. this job is
-        # treated as the first (and only) job in its run. Tests exercising
-        # multiple jobs in one run override this explicitly.
-        self.mock_redis.record_workflow_started.side_effect = lambda *a, **kw: a[5]
+        # Default: this job is treated as the first (and only, i.e. winning)
+        # job in its run. Tests exercising multiple jobs in one run override
+        # this explicitly.
+        self.mock_redis.record_workflow_started.side_effect = lambda *a, **kw: (
+            a[5],
+            True,
+        )
 
         # Setup default: dispatch exists, workflow state is None (in_progress not yet reported)
         def default_get_state(
@@ -193,22 +196,46 @@ class TestCallbackHandler(unittest.TestCase):
         _, trusted_arg, _ = self.mock_hud.call_args[0]
         self.assertEqual(trusted_arg["ci_metrics"]["execution_time"], 30.0)
 
-    # --- queue_time is workflow-level (anchored to the first job to start) ---
+    # --- queue_time is workflow-level (only the first job to start reports it) ---
 
     def test_queue_time_uses_first_jobs_start_for_a_later_job(self):
-        """A later job (e.g. "test", waiting on a "build" job) gets queue_time
-        anchored to the first job's start, not its own (later) in_progress
-        time -- otherwise the wait on "build" would inflate its queue_time."""
+        """A later job (e.g. "test", waiting on a "build" job) that somehow
+        still won the marker would get queue_time anchored to the first
+        job's start, not its own (later) in_progress time -- otherwise the
+        wait on "build" would inflate its queue_time."""
         dispatch_record = CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
-        # This job reports in_progress at 1200 (long after dispatch), but the
-        # "build" job already claimed the workflow-start marker at 1030.
+        self.mock_redis.get_callback_state.side_effect = [
+            dispatch_record,  # dispatch lookup
+            None,  # workflow state: not yet set
+            CallbackStateRecord(CallbackState.IN_PROGRESS, 1030.0, {}),  # re-read
+        ]
+        self.mock_redis.record_workflow_started.side_effect = None
+        self.mock_redis.record_workflow_started.return_value = (1030.0, True)
+
+        handle(
+            _cfg(),
+            _body(status="in_progress", job_name="build"),
+            verified_repo="org/repo",
+        )
+
+        _, trusted_arg, _ = self.mock_hud.call_args[0]
+        self.assertEqual(trusted_arg["ci_metrics"]["queue_time"], 30.0)
+
+    def test_queue_time_is_none_for_a_later_job_that_lost_the_marker(self):
+        """A later job (e.g. "test", waiting on a "build" job) that reads back
+        an earlier job's workflow-start marker (won=False) reports
+        queue_time=None -- only the winning job reports a sample, so a
+        multi-job run doesn't skew averages by contributing one row per job."""
+        dispatch_record = CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
+        # This job reports in_progress at 1200, but the "build" job already
+        # claimed the workflow-start marker at 1030.
         self.mock_redis.get_callback_state.side_effect = [
             dispatch_record,  # dispatch lookup
             None,  # workflow state: not yet set
             CallbackStateRecord(CallbackState.IN_PROGRESS, 1200.0, {}),  # re-read
         ]
         self.mock_redis.record_workflow_started.side_effect = None
-        self.mock_redis.record_workflow_started.return_value = 1030.0
+        self.mock_redis.record_workflow_started.return_value = (1030.0, False)
 
         handle(
             _cfg(),
@@ -217,8 +244,7 @@ class TestCallbackHandler(unittest.TestCase):
         )
 
         _, trusted_arg, _ = self.mock_hud.call_args[0]
-        # dispatch (1000) -> first job's start (1030), NOT this job's own 1200.
-        self.assertEqual(trusted_arg["ci_metrics"]["queue_time"], 30.0)
+        self.assertIsNone(trusted_arg["ci_metrics"]["queue_time"])
 
     def test_execution_time_unaffected_by_workflow_level_queue_time(self):
         """execution_time stays purely job-level (in_progress -> completed for
@@ -348,7 +374,10 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
 
         self.patcher_redis = patch("callback.callback_handler.redis_helper")
         self.mock_redis = self.patcher_redis.start()
-        self.mock_redis.record_workflow_started.side_effect = lambda *a, **kw: a[5]
+        self.mock_redis.record_workflow_started.side_effect = lambda *a, **kw: (
+            a[5],
+            True,
+        )
 
         def _get_state(
             cfg,
