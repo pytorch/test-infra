@@ -918,6 +918,13 @@
       "linux"
     ]
   ],
+  "test_shrink_group_flags (__main__.ProcessGroupNCCLGroupTest)": [
+    "194679",
+    "https://github.com/pytorch/pytorch/issues/194679",
+    [
+      "linux"
+    ]
+  ],
   "test_single_dim_strategy_linalg_cond_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
