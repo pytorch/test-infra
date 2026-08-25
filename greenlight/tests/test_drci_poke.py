@@ -219,7 +219,6 @@ def test_poke_propagates_iteration_timeout_from_the_sleep(poke_config):
     def timing_out_sleep(seconds: float) -> NoReturn:
         raise IterationTimeout("iteration exceeded")
 
-    # The delay is the longest stretch of the poke, so the alarm most often lands here.
     with pytest.raises(IterationTimeout):
         drci_poke.poke(
             "pytorch/pytorch", 9, poke_config(drci_poke_delay_seconds=1.0), sleep=timing_out_sleep, post=post
