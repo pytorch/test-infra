@@ -31,6 +31,69 @@ export interface JobData extends BasicJobData {
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
   runAttempt?: number;
+  // Where this run came from. "autorevert" for a restart dispatched against a trunk/<sha> ref
+  // ("autorevert" matches the source_type spelling in queued_jobs/query.sql), "retry" for a re-run
+  // attempt, empty for a plain push — the default and overwhelming majority. REPORTED only: origin
+  // must never affect how runs are aggregated (see mergeCellRuns). Compare against the value rather
+  // than testing for presence.
+  // Both `null` and `undefined` occur and mean the same run: hud_query's rows reach the client with
+  // the key stripped, while commit_jobs_query ships a real SQL NULL.
+  runOrigin?: string | null;
+  // Login that dispatched the autorevert restart run.
+  restartDispatchedBy?: string | null;
+  // Login that triggered the latest attempt, set only when it differs from restartDispatchedBy —
+  // i.e. someone re-ran the restart.
+  restartRerunBy?: string;
+  // Attempt number of the autorevert restart run. Separate from runAttempt on purpose: that field
+  // carries the JOB's run_attempt from commit_jobs_query, and the HUD's crcr merge reads it.
+  restartRunAttempt?: number;
+  // Every run behind this cell, set by mergeCellRuns only when a cell really had more than one.
+  // The cell renders ONE run's per-row fields (see CellRun.isRepresentative), so without this the
+  // other runs have no route from the grid -- and on a flaky "F" cell, neither does the failure.
+  cellRuns?: CellRun[];
+}
+
+/**
+ * One run behind a HUD cell, carried so the tooltip can name it and show ITS diagnostics.
+ *
+ * Deliberately a compact subset of JobData rather than a nested JobData: it is only read by the
+ * cell tooltip, and embedding whole jobs would both grow the grid payload and couple the cell
+ * format to consumers (Dr.CI, the commit page) that have nothing to do with cell aggregation.
+ *
+ * The failure fields are the load-bearing ones. They are per-run, so a cell rendering a success
+ * holds none of the failed run's classification -- carrying them here is what lets the tooltip
+ * show the failure's log and captures rather than the passing run's (see detailJobForRun).
+ */
+export interface CellRun {
+  runOrigin?: string;
+  conclusion?: string;
+  id?: string;
+  htmlUrl?: string;
+  logUrl?: string;
+  durationS?: number;
+  // The autorevert restart RUN's attempt. There is deliberately no counterpart for the JOB's own
+  // run_attempt: hud_query does not project it, because the HUD page reads `runAttempt` when
+  // merging crcr rows and relies on it being undefined here (see the comment on that column in
+  // hud_query). So a "re-run attempt" line names the origin without an attempt number.
+  restartRunAttempt?: number;
+  restartDispatchedBy?: string;
+  restartRerunBy?: string;
+  failureLines?: string[];
+  failureLineNumbers?: number[];
+  failureCaptures?: string[];
+  failureContext?: string[];
+  // Carried so that picking a run rebinds EVERY id-bearing affordance in the tooltip, not just the
+  // ones on the row itself. `canShowODCCommand` reads (workflowId, id, failureLineNumbers) as one
+  // run's identity: with only `id` per-run, picking a sibling produced an ODC command pairing that
+  // run's job id with the REPRESENTATIVE's workflow id. `failureAnnotation` drives the classified
+  // styling, which is per-run for the same reason the classification text is.
+  workflowId?: string;
+  failureAnnotation?: string;
+  // The run whose per-row fields the cell itself renders. The cell's CONCLUSION is a function of
+  // the whole set, not of this run alone -- a mixed cell renders flaky "F" while this run passed.
+  // It is also what the tooltip shows before the reader picks anything, so the run list can render a
+  // default selection instead of a third "nothing is selected" state.
+  isRepresentative?: boolean;
 }
 
 // Used by Dr.CI

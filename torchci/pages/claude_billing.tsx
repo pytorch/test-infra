@@ -24,7 +24,7 @@ export default function ClaudeBillingPage() {
 
     setPermissionState("checking");
     try {
-      const response = await fetch("/api/torchagent-check-permissions", {
+      const response = await fetch("/api/check-write-permissions", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });

@@ -81,8 +81,8 @@ the bot comments for how to view.
 `GET /api/gcx-token` mints a **read-only (Viewer)** Grafana service-account
 token for the [`gcx`](https://github.com/grafana/gcx) CLI, so contributors can
 self-serve a `GRAFANA_TOKEN` instead of creating one by hand in the Grafana UI.
-Access is gated by GitHub identity exactly like Flambeau: the caller must have
-write access to `pytorch/pytorch` (or be on the Flambeau allow list).
+Access is gated by GitHub identity: the caller must have write access to
+`pytorch/pytorch` (or be on the allow list in `lib/auth/allowList.json`).
 
 Primary usage — reuse an existing GitHub token (no browser, nothing to install):
 
