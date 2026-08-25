@@ -8,6 +8,7 @@ import ciflowPushTrigger from "./ciflowPushTrigger";
 import codevNoWritePerm from "./codevNoWritePermBot";
 import crcrOncallBot from "./crcrOncallBot";
 import drciBot from "./drciBot";
+import logUploader from "./logUploader";
 import nitpickBot from "./nitpickBot";
 import pytorchBot from "./pytorchBot";
 import retryBot from "./retryBot";
@@ -25,6 +26,7 @@ export default function bot(app: Probot) {
   codevNoWritePerm(app);
   crcrOncallBot(app);
   drciBot(app);
+  logUploader(app);
   nitpickBot(app);
   pytorchBot(app);
   retryBot(app);
