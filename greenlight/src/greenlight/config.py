@@ -17,6 +17,7 @@ _DEFAULT_BACKOFF_BASE_SECONDS = 1.0
 _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 _DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
 _DEFAULT_REVIEW_WINDOW_HOURS = 24.0
+_DEFAULT_DRCI_POKE_DELAY_SECONDS = 10.0
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
@@ -28,7 +29,7 @@ _MAX_SECONDS = 2_592_000.0
 _MAX_REVIEW_WINDOW_HOURS = 8760.0
 
 _POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds", "merge_rules_ttl_seconds")
-_NON_NEGATIVE_FIELDS = ("max_runtime_seconds",)
+_NON_NEGATIVE_FIELDS = ("max_runtime_seconds", "drci_poke_delay_seconds")
 
 
 def _clean(raw: str | None) -> str | None:
@@ -74,13 +75,18 @@ class Config:
     backoff_max_seconds: float = _DEFAULT_BACKOFF_MAX_SECONDS
     merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
     review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
+    drci_poke_delay_seconds: float = _DEFAULT_DRCI_POKE_DELAY_SECONDS
     github_token: str | None = field(default=None, repr=False)
+    drci_token: str | None = field(default=None, repr=False)
+    drci_internal_token: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         # Canonicalize string options here so env, CLI, and direct construction share one rule.
         object.__setattr__(self, "log_level", _normalize_log_level(self.log_level))
         object.__setattr__(self, "lock_path", _clean(self.lock_path))
         object.__setattr__(self, "github_token", _clean(self.github_token))
+        object.__setattr__(self, "drci_token", _clean(self.drci_token))
+        object.__setattr__(self, "drci_internal_token", _clean(self.drci_internal_token))
         for name in _POSITIVE_FIELDS:
             value: float = getattr(self, name)
             _validate_bound(name, value, allow_zero=False)
@@ -113,5 +119,10 @@ class Config:
             review_window_hours=_read_float(
                 source, "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", _DEFAULT_REVIEW_WINDOW_HOURS
             ),
+            drci_poke_delay_seconds=_read_float(
+                source, "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", _DEFAULT_DRCI_POKE_DELAY_SECONDS
+            ),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
+            drci_token=source.get("PYTORCH_GREENLIGHT_DRCI_TOKEN"),
+            drci_internal_token=source.get("PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"),
         )

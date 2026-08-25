@@ -10,7 +10,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import github_client, merge_authz, review, verdict
+from greenlight import drci_poke, github_client, merge_authz, review, verdict
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -124,6 +124,21 @@ def build_parser() -> argparse.ArgumentParser:
     verdict_parser.add_argument(
         "--dry-run", action="store_true", help="log intended actions without writing or posting"
     )
+
+    drci_parser = subparsers.add_parser(
+        "drci-poke",
+        help="ask Dr. CI to rebuild one pull request's comment",
+        description=(
+            "Poke the Dr. CI endpoint for a single pull request so its Dr. CI comment -- which "
+            "renders greenlight's status on repositories that delegate it -- is rebuilt now instead "
+            "of at the next scheduled sweep. Waits PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS first "
+            "so the just-written state row has time to reach ClickHouse. Never fails: every error "
+            "is logged and swallowed."
+        ),
+    )
+    drci_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the repository")
+    drci_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
+    drci_parser.add_argument("--log-level", default=None, help="logging level name")
     return parser
 
 
@@ -164,7 +179,8 @@ def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock
     return EXIT_OK
 
 
-def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+def _one_shot_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Config:
+    """Build and apply the config for a subcommand that runs once, outside the daemon loop."""
     try:
         config = Config.from_env()
         if args.log_level is not None:
@@ -172,6 +188,17 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         configure_logging(config.log_level)
     except ValueError as exc:
         parser.error(str(exc))
+    return config
+
+
+def _run_drci_poke(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    config = _one_shot_config(args, parser)
+    drci_poke.poke(args.repo, args.pr, config)
+    return EXIT_OK
+
+
+def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    config = _one_shot_config(args, parser)
     request = verdict.VerdictRequest(
         repo=args.repo,
         pr_number=args.pr,
@@ -198,6 +225,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     if args.command == "verdict":
         return _run_verdict(args, parser)
+    if args.command == "drci-poke":
+        return _run_drci_poke(args, parser)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

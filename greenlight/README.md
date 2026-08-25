@@ -22,7 +22,7 @@ just setup      # uv sync -> create .venv with deps
 
 ## Usage
 
-PyTorch Green Light has two subcommands. `review` scans the open PRs from a fixed set of
+PyTorch Green Light has three subcommands. `review` scans the open PRs from a fixed set of
 trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
@@ -41,7 +41,8 @@ regardless of the PR's changed paths, bots excluded) or with changes requested b
 reviewer — without fingerprinting or dispatching it. No state is written for such a skip, so the
 scan resumes on its own once the situation changes (for example the changes-requested review is
 dismissed). `verdict` records a single
-PR-review verdict and acts on the PR (see below).
+PR-review verdict and acts on the PR, and `drci-poke` refreshes the Dr. CI comment that shows
+that verdict on `pytorch/pytorch` (both below).
 
 ```bash
 just run review                      # scan + dispatch once, then exit
@@ -95,8 +96,9 @@ changes-requested review, greenlight does not review; it posts a single comment 
 re-review while a reviewer's requested changes stand, and reconsiders once the reviewer dismisses
 or resolves that review (not merely on the next push).
 
-The user-facing `@greenlight recheck` hint is not yet advertised in the PR status comment; that
-is added once the `pytorch/pytorch` trigger is deployed.
+The user-facing `@greenlight recheck` hint is not yet advertised in the status surface — Dr. CI's
+Green Light section on `pytorch/pytorch`, greenlight's own comment elsewhere (see "Who posts the
+status comment"); that is added once the `pytorch/pytorch` trigger is deployed.
 
 ### Recording a verdict
 
@@ -106,10 +108,11 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. Then,
 for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves; `NO_LAND` dismisses greenlight's
-own prior approval and comments). `CANCELLED` and `FAILED` markers only emit the row. The
+own prior approval). `CANCELLED` and `FAILED` markers only emit the row. The
 model's message is secret-scrubbed at a single point before it fans out to both the emitted
-row and the posted comment; the comment is additionally defanged to neutralize formatting and
-@-mentions.
+row and the posted comment; whichever comment ultimately carries it — greenlight's own, or
+Dr. CI's Green Light section rendered from the row — additionally defangs it to neutralize
+formatting and @-mentions.
 
 ```bash
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
@@ -118,6 +121,52 @@ just run verdict --pr 123 --head-sha "$SHA" --status CANCELLED  # marker: emit r
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
   --eval-hash "$EVAL_HASH" --dry-run                            # offline; logs only
 ```
+
+### Who posts the status comment
+
+Every status the `verdict` command records — reviewing, did-not-complete, LAND, NO_LAND —
+goes into one canonical greenlight comment, upserted in place, unless Dr. CI is showing that
+state instead. Delegating it to Dr. CI takes one condition: the repo must be in
+`constants.DRCI_STATUS_COMMENT_REPOS` (today only `pytorch/pytorch`). Then the upsert is skipped
+entirely, because Dr. CI already renders the same state from the emitted row inside its own
+comment and two comments saying the same thing is worse than one. The `LAND` approving review
+and the `NO_LAND` dismissal are the merge gate and are unaffected on every repo. Only the status
+comment is delegated: the scan's `@greenlight recheck` refusal (its own marker, see "Rechecking
+a PR") is still posted by greenlight on every repo, `pytorch/pytorch` included.
+
+The two surfaces are wired by separate allowlists that must agree: greenlight suppresses on
+`constants.DRCI_STATUS_COMMENT_REPOS`, and the HUD renders on `GREENLIGHT_REPOS`
+(`torchci/lib/greenlight/greenlightConfig.ts`). A repo in the first but not the second is
+auto-approved by the merge gate with its status shown nowhere, so add and remove repos in both
+at once; `greenlight/tests/test_render_sync.py` fails when the two lists drift apart.
+
+Delegating also widens what the PR shows, because Dr. CI renders from the state row rather than
+from the `verdict` command's calls. Two states that never had a comment surface now get one:
+`AI_REVIEW_DISPATCHED`, written straight to S3 by the scan the moment it dispatches, and an
+`AI_REVIEW_STARTED` row older than the in-flight window, which renders as "did not complete"
+with reason `stalled` instead of claiming a review is still running.
+
+Dr. CI otherwise rebuilds that comment only on a 15-minute sweep, and its probot handler
+blanks the results section on every push — so a just-pushed or just-reviewed PR would show
+nothing for up to a quarter of an hour. The `drci-poke` subcommand closes that window by
+asking the endpoint to rebuild one PR's comment now:
+
+```bash
+PYTORCH_GREENLIGHT_DRCI_TOKEN="$DRCI_BOT_KEY" just run drci-poke --pr 123
+```
+
+It waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` (default 10) first, because Dr. CI reads
+the state from ClickHouse and the row has only just been handed to the S3 -> replicator path.
+It never raises: by the time it runs the merge gate has already fired and the row is uploaded,
+so failing would only turn the job that gates auto-landing red over a cosmetic refresh — and
+the sweep still backstops a lost poke. The reviewer workflow runs it from both the
+`announce_start` and `record` jobs, right after each uploads its row, with
+`continue-on-error: true`. The scan pokes for its own `AI_REVIEW_DISPATCHED` row too, calling
+`drci_poke.poke` in-process after each successful marker emit — with the delay forced to zero,
+because that delay covers the reviewer workflow's gap between writing the row to `/tmp` and a
+later step uploading it, whereas the scan has already put the object to S3 before it pokes.
+A failed emit is not poked: rebuilding the comment then would only re-render the state the
+marker was meant to replace.
 
 The command writes the gzipped row to `/tmp/greenlight-verdict-row.json.gz` and its
 bucket-relative key to `/tmp/greenlight-verdict-key.txt`; the workflow `aws s3 cp`s the
@@ -139,6 +188,9 @@ Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long a resolved `merge_rules.yaml` authorized-login set is cached before refetch |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
+| `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
+| `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
+| `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
 
 `review` additionally reads ClickHouse — any scan that finds at least one trusted-author
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -163,6 +215,11 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead.
+
+The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
+`PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) in the function environment. Without it every poke
+logs a warning and no-ops, leaving the `AI_REVIEW_DISPATCHED` state to surface on Dr. CI's
+15-minute sweep — the scan itself still succeeds.
 
 The zip ships in test-infra's shared lambda release alongside every other lambda:
 
@@ -222,8 +279,13 @@ both are best-effort defense-in-depth, not guarantees:
   credentials under `/proc`, the `$GITHUB_ENV` file, `./pytorch/.git`). `persist-credentials: false`
   on the `./pytorch` checkout additionally keeps the scoped token out of `./pytorch/.git/config`.
 - **Message scrubbing** — the verdict `message` is secret-scrubbed at a single fan-out point
-  before it reaches both the posted comment and the `misc.greenlight_pr_state` row (the comment
-  is additionally defanged for formatting and @-mentions).
+  before it reaches both the posted comment and the `misc.greenlight_pr_state` row, so a message
+  Dr. CI later renders back out of that row is scrubbed too (either comment additionally defangs
+  it for formatting and @-mentions). Nothing bypasses the scrub by being long: text past the input
+  cap is dropped rather than left unread, and the cap retreats to a whitespace boundary — the one
+  cut point that cannot fall inside a credential value — so the run it would otherwise sever is
+  redacted whole. A message with no whitespace to retreat to keeps its run minus any
+  credential-shaped tail.
 
 An oversized diff is also declined before the model runs: the reviewer gates on line count (the
 model's ~2000-line read window) with a byte-size backstop, emitting a `scope_too_large` NO_LAND
@@ -255,9 +317,11 @@ marker at run start; the `verdict` subcommand emits a PR-review verdict row (wit
 passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval and comment. `verdict` is a one-shot call for a
-privileged CI job and never writes ClickHouse directly. The service reads ClickHouse via
-`clickhouse_client.connect()` for both the review scan and its other SELECTs.
+dismiss greenlight's prior approval. `verdict` is a one-shot call for a
+privileged CI job and never writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI
+to rebuild one PR's comment, which is where the status is shown on the repos that delegate it.
+The service reads ClickHouse via `clickhouse_client.connect()` for both the review scan and its
+other SELECTs.
 
 `misc.greenlight_pr_state` is append-only-equivalent: it keeps its `SharedReplacingMergeTree`
 engine, but no verdict emit is ever collapsed because the sort key
@@ -308,14 +372,15 @@ All gates must pass before a change is complete.
 src/greenlight/
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
-  cli.py           # CLI parsing (review + verdict subcommands), dispatch, exit codes
+  cli.py           # CLI parsing (review + verdict + drci-poke subcommands), dispatch, exit codes
   lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # scan trusted-author PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
   dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
-  verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss/comment on the PR
+  verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss and (unless Dr. CI renders it) comment
+  drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); never raises
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
   clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
