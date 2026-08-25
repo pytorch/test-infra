@@ -34,10 +34,13 @@ async function fetchDatabaseInfo(
 
 /**
  * Get a mapping of workflow names to all workflow IDs from a list of job data.
+ *
+ * Exported for tests: this is where the run picker's labelling data is carried, and a formatter
+ * test alone would stay green if the propagation here were dropped (DP17, gpt-5.6-sol).
  * @param jobs
  * @returns
  */
-function getWorkflowIdsByName(
+export function getWorkflowIdsByName(
   jobs: JobData[]
 ): Record<string, [WorkflowRunInfo]> {
   return _(jobs)
@@ -48,6 +51,10 @@ function getWorkflowIdsByName(
           return {
             id: job.workflowId,
             attempt: job.runAttempt,
+            // Every job of one run carries the same origin, so taking it from whichever job wins
+            // the uniqBy below is safe -- that dedups by (id, attempt), and origin is a property of
+            // the run.
+            runOrigin: job.runOrigin,
           };
         })
         .filter(

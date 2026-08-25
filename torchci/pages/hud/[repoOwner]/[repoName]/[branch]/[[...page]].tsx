@@ -120,11 +120,26 @@ export function JobCell({
         tooltipContent={
           <JobTooltip
             job={job}
-            sha={pinnedId.sha || sha}
+            // This cell's own sha, always. It used to be `pinnedId.sha || sha`, which is either
+            // redundant (a pinned CELL is this cell, so the shas match) or wrong: clicking a commit
+            // pins {sha, name: undefined} and leaves hover tooltips live, so hovering a
+            // does-not-exist cell on another row handed SingleWorkflowDispatcher the PINNED row's
+            // sha -- offering to dispatch the job against the wrong commit (DP17, gpt-5.6-sol).
+            sha={sha}
             isAutorevertSignal={isAutorevertSignal}
             advisorVerdict={advisorVerdict}
             repoOwner={repoOwner}
             repoName={repoName}
+            // Deliberately NOT TooltipTarget's own "pin only when nothing is pinned" guard. Pinning a
+            // commit ROW sets {sha, name: undefined}, which leaves hover tooltips live -- so under
+            // that guard picking a run in a hovered tooltip would still be lost on mouse-out, which
+            // is the whole defect being fixed (DP17, gpt-5.6-sol). Moving the pin from the row to
+            // this cell is the intended effect: the reader just acted on this cell.
+            pinCell={() => {
+              if (pinnedId.sha !== sha || pinnedId.name !== job.name) {
+                setPinnedId({ sha: sha, name: job.name as string });
+              }
+            }}
           />
         }
         sha={sha as string}

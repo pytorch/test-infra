@@ -131,11 +131,64 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  build-greenlight-lambda:
+    name: Build greenlight lambda
+    runs-on: ubuntu-latest
+    # greenlight builds on its own mise/uv/just toolchain (cp313) rather than the
+    # `make deployment.zip` convention, so it gets its own job. Non-blocking for the
+    # same reason as the advisor-coverage leg: a greenlight build failure must not
+    # block publishing the shared lambda release (pytorch-auto-revert et al.). A
+    # failed continue-on-error job reports success to `release`'s `needs`, and simply
+    # omits its zip.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          working_directory: greenlight
+
+      - name: Sync dependencies
+        working-directory: greenlight
+        run: just setup
+
+      - name: Package lambda zip
+        working-directory: greenlight
+        run: just package
+
+      - name: Smoke-test the built zip imports on Python 3.13
+        # -S drops site-packages so imports resolve only from the extracted zip, not the
+        # project .venv that mise puts on sys.path; the test exercises the artifact itself.
+        working-directory: greenlight
+        run: |
+          set -euo pipefail
+          smoke_dir="$(mktemp -d)"
+          unzip -q dist/greenlight-scan.zip -d "${smoke_dir}"
+          PYTHONPATH="${smoke_dir}" mise exec -- python -S -c \
+            "import greenlight.lambda_handler, greenlight.cli, boto3, github, clickhouse_connect, yaml"
+
+      - name: Copy greenlight-scan.zip to root
+        run: cp greenlight/dist/greenlight-scan.zip greenlight-scan.zip
+
+      - name: Stage greenlight-scan zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lambda-greenlight-scan
+          path: greenlight-scan.zip
+          if-no-files-found: error
+          retention-days: 1
+
   release:
     name: Publish release
     needs:
       - build-runner-lambdas
       - build-python-lambdas
+      - build-greenlight-lambda
     runs-on: ubuntu-latest
     permissions:
       contents: write

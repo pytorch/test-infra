@@ -37,7 +37,21 @@ WITH job AS (
         job.torchci_classification_kg.'context' as context,
         job.runner_name AS runner_name,
         workflow.head_commit. 'author'.'email' AS authorEmail,
-        job.run_attempt AS run_attempt
+        job.run_attempt AS run_attempt,
+        -- Origin of the run, so the workflow picker can say what it is offering instead of a bare
+        -- numeric id. Same multiIf as hud_query's run_origin on purpose: one run must not read two
+        -- different ways on the grid and on this page. A plain push stays NULL -- it is the
+        -- overwhelming majority and the default reading.
+        multiIf(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            'autorevert',
+            job.run_attempt > 1,
+            'retry',
+            workflow.event = 'push',
+            NULL,
+            workflow.event
+        ) AS run_origin
     FROM
         workflow_job job final
         INNER JOIN workflow_run workflow final ON workflow.id = job.run_id
@@ -46,7 +60,15 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
+        -- KNOWN DIVERGENCE FROM hud_query, deliberate. hud_query no longer filters restarts by
+        -- conclusion at all: it admits every run and lets mergeCellRuns decide the cell
+        -- issuer-agnostically, so a restart that failed makes a passing cell render flaky instead of
+        -- vanishing. This surface cannot do that yet -- fetchCommit dedups by newest id and has no
+        -- flaky marker to render, so admitting a non-success restart here would silently REPLACE the
+        -- natural conclusion rather than combine with it. Until the commit page can express a flaky
+        -- result, the success-only filter stays, and the grid and the commit page will disagree about
+        -- a commit whose restart failed.
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%' AND job.conclusion_kg != 'success')
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND (
             {workflowId: Int64} = 0
@@ -88,13 +110,27 @@ WITH job AS (
         [ ] as context,
         '' AS runner_name,
         workflow.head_commit.author.email AS authorEmail,
-        workflow.run_attempt as run_attempt
+        workflow.run_attempt as run_attempt,
+        -- Same column as the branch above, because a UNION ALL needs matching shapes. These rows
+        -- carry workflow_id = 0, which fetchCommit normalizes to null and getWorkflowIdsByName then
+        -- filters out, so a startup-failure pseudo-row never reaches the picker -- this is
+        -- projected for the union, not for the dropdown.
+        multiIf(
+            workflow.event = 'workflow_dispatch'
+            AND workflow.head_branch LIKE 'trunk/%',
+            'autorevert',
+            workflow.run_attempt > 1,
+            'retry',
+            workflow.event = 'push',
+            NULL,
+            workflow.event
+        ) AS run_origin
     FROM
         workflow_run workflow final
     WHERE
         workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%' AND workflow.conclusion != 'success') -- Autorevert restart runs count only when they PASSED. This branch maps a still-queued run to 'failure', so admitting a restart here would put a red "Workflow Startup Failure / trunk" box on the commit page for the whole queue window
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
         AND (
             {workflowId: Int64} = 0
@@ -128,7 +164,8 @@ SELECT
     runner_name AS runnerName,
     authorEmail,
     time,
-    run_attempt AS runAttempt
+    run_attempt AS runAttempt,
+    run_origin AS runOrigin
 FROM
     job
 ORDER BY
