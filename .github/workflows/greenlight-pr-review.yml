@@ -17,11 +17,9 @@ name: Green Light PR Review
 #             OIDC role/arc) for the clickhouse-replicator-s3 Lambda to ingest. Kept
 #             separate so untrusted PR content never runs in a job that holds the App key.
 #
-# Who shows the run status on pytorch/pytorch is switched by
-# PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT on the two greenlight-record jobs below. With it
-# off greenlight upserts its own status comment; with it on Dr. CI renders the same state from the
-# uploaded row and greenlight stays quiet. Either way both row-uploading jobs poke Dr. CI
-# (`greenlight drci-poke`) so that render refreshes without waiting for the 15-minute sweep.
+# On pytorch/pytorch the status comment is delegated: Dr. CI renders it from the uploaded row and
+# greenlight stays quiet. Both row-uploading jobs poke Dr. CI (`greenlight drci-poke`) so that
+# render refreshes without waiting for the 15-minute sweep.
 
 on:
   workflow_dispatch:
@@ -58,11 +56,6 @@ jobs:
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
-      # Must not outrun the HUD's own DRCI_GREENLIGHT_COMMENT_ENABLED (Vercel env): while this is
-      # true and that one is false, a pytorch/pytorch PR gets an auto-approval with its status
-      # shown nowhere. A literal rather than `vars.*` for the same reason as MAX_DIFF_* below --
-      # the actionlint pinned in .lintrunner.toml is 1.6.21, which predates the `vars` context.
-      PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT: "false"
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -438,9 +431,6 @@ jobs:
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
-      # Keep in lockstep with announce_start's copy above, which carries the rationale: the two
-      # jobs comment on the same PR, so a split value would post one status and suppress the other.
-      PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT: "false"
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0

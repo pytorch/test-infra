@@ -26,20 +26,18 @@ one-shot `verdict` and `drci-poke` subcommands:
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
-  `pytorch/pytorch` with `PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` on, where Dr. CI
-  renders that state in its own comment instead. Runs once, never as a daemon.
+  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. Runs once,
+  never as a daemon.
 - `drci-poke` — ask Dr. CI to rebuild one PR's comment now rather than at its next
   15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
   just-written state row reaches ClickHouse. Never fails: every error is logged and
   swallowed. Runs once, never as a daemon.
 
 The delegation has a side the greenlight repo does not control: the HUD renders the Green Light
-section only when `DRCI_GREENLIGHT_COMMENT_ENABLED=true` (a Vercel environment variable) and the
-repo is in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`). Both that flag and
-greenlight's own `PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` default to off, which is the
-safe pairing. Turn the HUD one on first: suppressing greenlight's comment while the HUD flag is
-off leaves a `DRCI_STATUS_COMMENT_REPOS` repo auto-approved with no status anywhere, whereas the
-other order costs only a duplicate comment. Back out in the mirror order.
+section for the repos in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`), and
+greenlight suppresses its own comment for the repos in `constants.DRCI_STATUS_COMMENT_REPOS`. A
+repo in the second list but not the first is auto-approved with no status anywhere, so change
+both together; `greenlight/tests/test_render_sync.py` fails when they drift apart.
 
 ## Setup
 
@@ -126,7 +124,6 @@ and `--lock-path` override the matching env vars, and `review` adds the scan fla
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed) |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait) |
-| `PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` | `false` | On, `verdict` leaves the status comment to Dr. CI on the `DRCI_STATUS_COMMENT_REPOS` repos; off, greenlight posts it. `1/on/true/yes` or `0/off/false/no`; anything else is rejected. Never turn on ahead of the HUD's `DRCI_GREENLIGHT_COMMENT_ENABLED` |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for `drci-poke` (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
 

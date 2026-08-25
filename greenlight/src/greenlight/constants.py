@@ -53,11 +53,11 @@ def normalize_repo(repo: str) -> str:
     return repo.strip().lower()
 
 
-# Repos where Dr. CI is capable of rendering greenlight's recorded state inside its own comment.
-# This is only the repo half of the suppression gate: greenlight drops its own status comment
-# (and pokes DRCI_ENDPOINT instead) only when the repo is listed here AND
-# Config.drci_renders_status_comment says the Dr. CI side is switched on. Membership alone must
-# never suppress, or a repo whose Dr. CI render is off would show no status anywhere.
+# Repos where Dr. CI renders greenlight's recorded state inside its own comment. Membership is the
+# whole suppression gate: greenlight drops its own status comment (and pokes DRCI_ENDPOINT instead)
+# exactly for the repos listed here. Adding a repo whose HUD side does not render it leaves its PRs
+# with no status anywhere, so this set must stay in step with GREENLIGHT_REPOS in
+# torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
 # Entries are folded at construction, so a mixed-case addition cannot silently never match.
 DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
 
@@ -73,10 +73,9 @@ def is_app_login(value: str) -> bool:
 
 
 def delegates_status_comment_to_drci(repo: str) -> bool:
-    """True when ``repo`` is one whose greenlight status Dr. CI can render in its own comment.
+    """True when Dr. CI renders ``repo``'s greenlight status in its own comment.
 
-    The repo half of the suppression gate only; callers must also require
-    ``Config.drci_renders_status_comment``.
+    The whole suppression gate: greenlight posts no status comment of its own on these repos.
     """
     return normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
 

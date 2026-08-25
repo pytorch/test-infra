@@ -21,12 +21,11 @@ AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are b
 best-effort upsert that same canonical comment to show the run as in-progress (AI_REVIEW_STARTED)
 or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse directly.
 
-Every comment upsert above is suppressed only when both halves of the Dr. CI gate agree: the repo
-is in ``constants.DRCI_STATUS_COMMENT_REPOS`` and ``Config.drci_renders_status_comment`` says the
-Dr. CI render side is switched on. Then Dr. CI renders the same state from the emitted row, this
-command posts no comment, and the ``drci-poke`` command refreshes that render instead. With either
-half off greenlight keeps posting, so no PR is left with a recorded verdict and no visible status.
-The row emit, the LAND approving review, and the NO_LAND dismissal are unaffected on every repo.
+Every comment upsert above is suppressed on the repos in ``constants.DRCI_STATUS_COMMENT_REPOS``,
+where Dr. CI renders the same state from the emitted row and the ``drci-poke`` command refreshes
+that render instead. Everywhere else greenlight posts the comment itself, so no PR is left with a
+recorded verdict and no visible status. The row emit, the LAND approving review, and the NO_LAND
+dismissal are unaffected on every repo.
 """
 
 from __future__ import annotations
@@ -233,10 +232,9 @@ def _best_effort_upsert(
 ) -> None:
     """Upsert the canonical verdict comment as a best-effort, cosmetic write.
 
-    Skipped entirely once both halves of the Dr. CI gate agree -- the repo is one Dr. CI can render
-    (``constants.delegates_status_comment_to_drci``) and its render side is switched on
-    (``Config.drci_renders_status_comment``) -- because Dr. CI then shows the same state from the
-    emitted row and the ``drci-poke`` command refreshes that render instead.
+    Skipped entirely on the repos Dr. CI renders (``constants.delegates_status_comment_to_drci``),
+    because Dr. CI shows the same state from the emitted row and the ``drci-poke`` command
+    refreshes that render instead.
 
     The emitted row is authoritative; the comment is cosmetic. A raise here would fail the CLI
     and skip the workflow's ``success()``-gated S3 upload, losing the row -- so any failure is
@@ -244,7 +242,7 @@ def _best_effort_upsert(
     action (the LAND review / NO_LAND dismiss); otherwise the client and PR are fetched here so a
     transient fetch failure is swallowed too.
     """
-    if config.drci_renders_status_comment and constants.delegates_status_comment_to_drci(request.repo):
+    if constants.delegates_status_comment_to_drci(request.repo):
         logger.info("Dr. CI renders the status comment on %s; skipping upsert", request.repo)
         return
     try:

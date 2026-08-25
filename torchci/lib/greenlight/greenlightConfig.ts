@@ -26,16 +26,7 @@ export function greenlightRepoKey(owner: string, repo: string): string {
   return normalizeRepoFullName(`${owner}/${repo}`);
 }
 
-// Whether Dr.CI can render greenlight state for this repo at all, independent of whether
-// the section is currently switched on.
+// Whether Dr.CI renders greenlight state for this repo.
 export function isGreenlightRepo(owner: string, repo: string): boolean {
   return GREENLIGHT_REPOS.includes(greenlightRepoKey(owner, repo));
-}
-
-// Read at call time rather than module load so tests can mutate process.env.
-export function isGreenlightEnabled(owner: string, repo: string): boolean {
-  return (
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED === "true" &&
-    isGreenlightRepo(owner, repo)
-  );
 }

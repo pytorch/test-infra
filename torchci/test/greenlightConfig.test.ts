@@ -1,21 +1,10 @@
 import {
   GREENLIGHT_REPOS,
   greenlightRepoKey,
-  isGreenlightEnabled,
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 
 describe("greenlightConfig", () => {
-  const OLD_ENV = process.env;
-
-  beforeEach(() => {
-    process.env = { ...OLD_ENV };
-  });
-
-  afterEach(() => {
-    process.env = OLD_ENV;
-  });
-
   it("normalizes every configured repo at construction", () => {
     // Lookup folds case, so an entry that is not already folded could never match.
     for (const repo of GREENLIGHT_REPOS) {
@@ -45,6 +34,8 @@ describe("greenlightConfig", () => {
   });
 
   it("matches a greenlight repo regardless of case", () => {
+    // The asymmetry this pins: greenlight suppresses its own comment on PyTorch/PyTorch, so
+    // this side must render for it too rather than falling through to no status at all.
     expect(isGreenlightRepo("pytorch", "pytorch")).toBe(true);
     expect(isGreenlightRepo("PyTorch", "PyTorch")).toBe(true);
     expect(isGreenlightRepo("PYTORCH", "pytorch")).toBe(true);
@@ -53,30 +44,5 @@ describe("greenlightConfig", () => {
   it("rejects repos that are not greenlight repos", () => {
     expect(isGreenlightRepo("pytorch", "vision")).toBe(false);
     expect(isGreenlightRepo("some", "other")).toBe(false);
-  });
-
-  it("requires both the flag and repo membership", () => {
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED = "true";
-    expect(isGreenlightEnabled("pytorch", "pytorch")).toBe(true);
-    expect(isGreenlightEnabled("pytorch", "vision")).toBe(false);
-
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED = "false";
-    expect(isGreenlightEnabled("pytorch", "pytorch")).toBe(false);
-
-    delete process.env.DRCI_GREENLIGHT_COMMENT_ENABLED;
-    expect(isGreenlightEnabled("pytorch", "pytorch")).toBe(false);
-  });
-
-  it("gates a differently-cased repo the same way the Python side does", () => {
-    // The asymmetry this pins: greenlight suppresses its own comment on PyTorch/PyTorch, so
-    // this side must render for it too rather than falling through to no status at all.
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED = "true";
-    expect(isGreenlightEnabled("PyTorch", "PyTorch")).toBe(true);
-  });
-
-  it("treats membership as separable from the display flag", () => {
-    delete process.env.DRCI_GREENLIGHT_COMMENT_ENABLED;
-    expect(isGreenlightRepo("pytorch", "pytorch")).toBe(true);
-    expect(isGreenlightEnabled("pytorch", "pytorch")).toBe(false);
   });
 });

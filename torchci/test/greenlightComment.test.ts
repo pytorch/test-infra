@@ -65,36 +65,19 @@ function heads(
 }
 
 describe("buildGreenlightSections", () => {
-  const OLD_ENV = process.env;
   let queryClickhouseSaved: jest.SpyInstance;
 
   beforeEach(() => {
-    process.env = { ...OLD_ENV };
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED = "true";
     queryClickhouseSaved = jest
       .spyOn(clickhouse, "queryClickhouseSaved")
       .mockResolvedValue([]);
   });
 
   afterEach(() => {
-    process.env = OLD_ENV;
     jest.restoreAllMocks();
   });
 
-  it("issues no query when the comment flag is off", async () => {
-    process.env.DRCI_GREENLIGHT_COMMENT_ENABLED = "false";
-
-    const sections = await buildGreenlightSections(
-      "pytorch",
-      "pytorch",
-      heads(LAND_ROW)
-    );
-
-    expect(sections.size).toBe(0);
-    expect(queryClickhouseSaved).not.toHaveBeenCalled();
-  });
-
-  it("issues no query for a repo that is not greenlight-enabled", async () => {
+  it("issues no query for a repo that is not a greenlight repo", async () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "vision",

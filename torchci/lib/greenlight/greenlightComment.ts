@@ -5,7 +5,7 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   greenlightRepoKey,
-  isGreenlightEnabled,
+  isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 import {
   GreenlightState,
@@ -43,9 +43,9 @@ function toGreenlightState(row: GreenlightStateRow): GreenlightState {
  * Takes pr_number -> the PR's head sha at sweep time, which the renderer needs to
  * tell a verdict on the current commit from one left behind by a later push.
  * Returns pr_number -> rendered markdown, omitting PRs with no greenlight state and
- * those whose state renders to nothing. Empty (and issues no query) when the comment
- * flag is off, the repo isn't greenlight-enabled, or no PRs were passed. The caller
- * wraps this so a ClickHouse error can never break the Dr.CI comment.
+ * those whose state renders to nothing. Empty (and issues no query) when the repo isn't
+ * a greenlight repo or no PRs were passed. The caller wraps this so a ClickHouse error
+ * can never break the Dr.CI comment.
  */
 export async function buildGreenlightSections(
   owner: string,
@@ -54,7 +54,7 @@ export async function buildGreenlightSections(
 ): Promise<Map<number, string>> {
   const sections = new Map<number, string>();
   const prNumbers = Array.from(headShaByPr.keys());
-  if (!isGreenlightEnabled(owner, repo) || prNumbers.length === 0) {
+  if (!isGreenlightRepo(owner, repo) || prNumbers.length === 0) {
     return sections;
   }
 

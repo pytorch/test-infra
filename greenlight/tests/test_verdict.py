@@ -163,7 +163,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
 
     verdict.run(
         req,
-        make_config(github_token="tok", drci_renders_status_comment=True),
+        make_config(github_token="tok"),
         build_github=build_github,
         emit=emit,
         now=lambda: _FIXED,
@@ -173,7 +173,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert captured["token"] == "tok"
     assert gh.get_repo_names == ["pytorch/pytorch"]
     assert repo.get_pull_numbers == [7]
-    # Both gate halves are on for pytorch/pytorch here, so only the merge gate acts.
+    # pytorch/pytorch delegates its status comment to Dr. CI, so only the merge gate acts.
     assert rec.events == ["emit", "review:APPROVE"]
     assert pr.comments == []
     assert _decode(emit.row_gzip) == {
@@ -230,7 +230,7 @@ def test_full_no_land_on_delegating_repo_dismisses_without_commenting(make_confi
     with caplog.at_level(logging.INFO, logger="greenlight"):
         verdict.run(
             req,
-            make_config(github_token="tok", drci_renders_status_comment=True),
+            make_config(github_token="tok"),
             build_github=lambda t: gh,
             emit=emit,
             now=lambda: _FIXED,
@@ -258,78 +258,10 @@ def test_marker_on_delegating_repo_emits_row_without_commenting(make_config):
         run_id=123,
     )
 
-    verdict.run(
-        req,
-        make_config(github_token="tok", drci_renders_status_comment=True),
-        build_github=lambda t: gh,
-        emit=emit,
-        now=lambda: _FIXED,
-    )
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["emit"]
     assert pr.comments == []
-
-
-def test_full_land_on_delegating_repo_comments_while_drci_render_is_off(make_config, tmp_path):
-    # The suppression default: shipping this code must not, on its own, take the status away from
-    # pytorch/pytorch. Until the HUD's own flag is on, greenlight keeps posting.
-    rec = _Recorder()
-    emit = _FakeEmit(rec)
-    pr = _FakePR("h", rec)
-    gh = _FakeGithub(_FakeRepo(pr))
-    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
-    req = VerdictRequest(
-        repo="pytorch/pytorch", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
-    )
-
-    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
-
-    assert rec.events == ["emit", "review:APPROVE", "comment"]
-    assert f"**{comment_format.LAND_HEADLINE}**" in pr.comments[0]
-
-
-def test_marker_on_delegating_repo_comments_while_drci_render_is_off(make_config):
-    rec = _Recorder()
-    emit = _FakeEmit(rec)
-    pr = _FakePR("h", rec)
-    gh = _FakeGithub(_FakeRepo(pr))
-    req = VerdictRequest(
-        repo="pytorch/pytorch",
-        pr_number=12,
-        head_sha="h",
-        status="AI_REVIEW_STARTED",
-        bot_login=_BOT,
-        eval_job_url="https://run",
-        run_id=123,
-    )
-
-    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
-
-    assert rec.events == ["emit", "comment"]
-    assert f"**{comment_format.REVIEWING_HEADLINE}**" in pr.comments[0]
-
-
-def test_drci_render_flag_alone_does_not_suppress_on_non_delegating_repo(make_config, tmp_path):
-    # The flag is global but Dr. CI only renders the listed repos, so it must never suppress
-    # elsewhere -- the two halves are ANDed, not ORed.
-    rec = _Recorder()
-    emit = _FakeEmit(rec)
-    pr = _FakePR("h", rec)
-    gh = _FakeGithub(_FakeRepo(pr))
-    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
-    req = VerdictRequest(
-        repo="pytorch/vision", pr_number=7, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
-    )
-
-    verdict.run(
-        req,
-        make_config(github_token="tok", drci_renders_status_comment=True),
-        build_github=lambda t: gh,
-        emit=emit,
-        now=lambda: _FIXED,
-    )
-
-    assert rec.events == ["emit", "review:APPROVE", "comment"]
 
 
 def test_full_land_scrubs_secret_in_both_row_and_comment(make_config, tmp_path):

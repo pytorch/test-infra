@@ -126,25 +126,19 @@ just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
 
 Every status the `verdict` command records — reviewing, did-not-complete, LAND, NO_LAND —
 goes into one canonical greenlight comment, upserted in place, unless Dr. CI is showing that
-state instead. Delegating it to Dr. CI takes two conditions at once: the repo must be in
-`constants.DRCI_STATUS_COMMENT_REPOS` (today only `pytorch/pytorch`) **and**
-`PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` must be on. Then the upsert is skipped
+state instead. Delegating it to Dr. CI takes one condition: the repo must be in
+`constants.DRCI_STATUS_COMMENT_REPOS` (today only `pytorch/pytorch`). Then the upsert is skipped
 entirely, because Dr. CI already renders the same state from the emitted row inside its own
 comment and two comments saying the same thing is worse than one. The `LAND` approving review
 and the `NO_LAND` dismissal are the merge gate and are unaffected on every repo. Only the status
 comment is delegated: the scan's `@greenlight recheck` refusal (its own marker, see "Rechecking
 a PR") is still posted by greenlight on every repo, `pytorch/pytorch` included.
 
-Two independent surfaces decide what a PR shows, and neither knows about the other: greenlight
-stops posting on `PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` (this repo's reviewer
-workflow), and the HUD starts rendering on `DRCI_GREENLIGHT_COMMENT_ENABLED=true` plus
-membership in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`, deployed as a
-Vercel environment variable). Both default to off, which is the safe combination — greenlight
-posts, Dr. CI stays quiet. **Turn the HUD on first.** Switching greenlight's suppression on
-while the HUD flag is off leaves every PR in `DRCI_STATUS_COMMENT_REPOS` auto-approved by the
-merge gate with its status shown nowhere; the reverse order costs only a duplicate comment for
-as long as both are on. Backing out follows the mirror image: turn suppression off before the
-HUD flag.
+The two surfaces are wired by separate allowlists that must agree: greenlight suppresses on
+`constants.DRCI_STATUS_COMMENT_REPOS`, and the HUD renders on `GREENLIGHT_REPOS`
+(`torchci/lib/greenlight/greenlightConfig.ts`). A repo in the first but not the second is
+auto-approved by the merge gate with its status shown nowhere, so add and remove repos in both
+at once; `greenlight/tests/test_render_sync.py` fails when the two lists drift apart.
 
 Delegating also widens what the PR shows, because Dr. CI renders from the state row rather than
 from the `verdict` command's calls. Two states that never had a comment surface now get one:
@@ -191,7 +185,6 @@ Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long a resolved `merge_rules.yaml` authorized-login set is cached before refetch |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait) |
-| `PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT` | `false` | Whether Dr. CI's Green Light section is live. On, `verdict` posts no status comment on the `DRCI_STATUS_COMMENT_REPOS` repos and leaves the status to Dr. CI; off, greenlight posts it itself. Accepts `1/on/true/yes` and `0/off/false/no`; anything else is rejected. Must not be turned on ahead of the HUD's own `DRCI_GREENLIGHT_COMMENT_ENABLED` (see "Who posts the status comment") |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke`, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for `drci-poke` (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
 

@@ -36,7 +36,6 @@ def test_defaults_when_env_empty():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
-    assert cfg.drci_renders_status_comment is False
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -54,7 +53,6 @@ def test_direct_construction_defaults():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
-    assert cfg.drci_renders_status_comment is False
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -71,7 +69,6 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
-        "PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": "true",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
@@ -86,7 +83,6 @@ def test_from_env_parses_all_vars():
     assert cfg.merge_rules_ttl_seconds == 900.0
     assert cfg.review_window_hours == 48.0
     assert cfg.drci_poke_delay_seconds == 3.0
-    assert cfg.drci_renders_status_comment is True
     assert cfg.github_token == "ghp_abc123"
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
@@ -110,34 +106,6 @@ def test_blank_drci_tokens_become_none(var, blank):
     cfg = Config.from_env({var: blank})
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
-
-
-@pytest.mark.parametrize("raw", ["true", "TRUE", " True ", "1", "yes", "on", "\tON\n"])
-def test_drci_renders_status_comment_truthy_values(raw):
-    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
-    assert cfg.drci_renders_status_comment is True
-
-
-@pytest.mark.parametrize("raw", ["false", "FALSE", " False ", "0", "no", "off"])
-def test_drci_renders_status_comment_falsy_values(raw):
-    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
-    assert cfg.drci_renders_status_comment is False
-
-
-@pytest.mark.parametrize("blank", BLANK_VALUES)
-def test_blank_drci_renders_status_comment_uses_default(blank):
-    cfg = Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": blank})
-    assert cfg.drci_renders_status_comment is False
-
-
-@pytest.mark.parametrize("raw", ["maybe", "2", "tru", "enabled", "y"])
-def test_unparseable_drci_renders_status_comment_raises_naming_var(raw):
-    # A value this gate does not understand must not silently read as one side or the other:
-    # both directions are wrong (no status anywhere, or two comments saying the same thing).
-    with pytest.raises(ValueError) as excinfo:
-        Config.from_env({"PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT": raw})
-    assert "PYTORCH_GREENLIGHT_DRCI_RENDERS_STATUS_COMMENT" in str(excinfo.value)
-    assert repr(raw) in str(excinfo.value)
 
 
 @pytest.mark.parametrize("blank", BLANK_VALUES)
