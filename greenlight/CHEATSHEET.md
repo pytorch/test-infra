@@ -138,10 +138,10 @@ just package   # build dist/greenlight-scan.zip (linux x86_64 / cp313 wheels) fo
 
 In production the scheduled scan runs as the `greenlight-scan` AWS Lambda
 (`pytorch-gha-infra-2`, `us-east-1`, EventBridge `rate(5 minutes)`), not via the CLI or a GHA
-workflow. Ship a new build with `just package` -> run the `greenlight-lambda-release.yml`
-workflow (publishes a `greenlight-lambda-v<timestamp>` Release with the zip) -> pin that tag in
-the `pytorch-gha-infra-2` `runners/common/Terrafile` -> `terraform apply` in
-`runners/regions/us-east-1`.
+workflow. The zip ships in test-infra's shared lambda release: a push to `main` touching
+`greenlight/**` cuts a `v<timestamp>` tag whose Release carries `greenlight-scan.zip` alongside
+the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/common/Terrafile`
+-> `terraform apply` in `runners/regions/us-east-1`.
 
 ## Simulate a run
 

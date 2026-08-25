@@ -221,14 +221,20 @@ The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
 logs a warning and no-ops, leaving the `AI_REVIEW_DISPATCHED` state to surface on Dr. CI's
 15-minute sweep — the scan itself still succeeds.
 
-Shipping a new version is a manual four-step flow:
+The zip ships in test-infra's shared lambda release alongside every other lambda:
 
-1. `just package` builds `dist/greenlight-scan.zip` (linux x86_64 / cp313 wheels).
-2. The `greenlight-lambda-release.yml` workflow (test-infra, manual `workflow_dispatch`) builds
-   the zip and publishes a `greenlight-lambda-v<timestamp>` GitHub Release with it.
+1. `just package` builds `dist/greenlight-scan.zip` (linux x86_64 / cp313 wheels); the
+   `build-greenlight-lambda` job in `_lambda-do-release-runners.yml` runs the same recipe.
+2. Any push to `main` touching `greenlight/**` makes `lambda-release-tag-runners.yml` cut a
+   `v<timestamp>` tag, which publishes one GitHub Release carrying `greenlight-scan.zip` next to
+   the other lambda zips. `workflow_dispatch` on that workflow cuts a release on demand.
 3. An operator pins that release tag in `pytorch-gha-infra-2`'s `runners/common/Terrafile` (the
    `greenlight-scan` entry).
 4. `terraform apply` in `runners/regions/us-east-1` rolls it out.
+
+The greenlight build leg is `continue-on-error`, so a broken package step omits
+`greenlight-scan.zip` from the release rather than blocking the other lambdas — check that the
+asset is present before pinning a tag.
 
 ## Reviewer checkout sanitizing
 
