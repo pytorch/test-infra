@@ -25,11 +25,12 @@ FROM
     (
         SELECT
             pr_number,
+            run_id,
             job_name,
             started_at,
             conclusion,
             ROW_NUMBER() OVER (
-                PARTITION BY pr_number, job_name
+                PARTITION BY run_id, job_name
                 ORDER BY run_attempt DESC
             ) AS rn
         FROM

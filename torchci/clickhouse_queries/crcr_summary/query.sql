@@ -7,7 +7,7 @@ WITH deduped AS (
         duration_seconds,
         started_at,
         ROW_NUMBER() OVER (
-            PARTITION BY downstream_repo, pr_number, job_name
+            PARTITION BY run_id, job_name
             ORDER BY run_attempt DESC
         ) AS rn
     FROM
