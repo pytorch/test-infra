@@ -85,6 +85,14 @@ function fencedLines(rendered: string): string[] {
   return lines.slice(open + 1, lines.lastIndexOf(lines[open]));
 }
 
+// The section renders closed, so this line is the whole of what a reader sees
+// before expanding it.
+function summaryLine(rendered: string): string {
+  const match = rendered.match(/<summary>(.*)<\/summary>/);
+  expect(match).not.toBeNull();
+  return match![1];
+}
+
 // What the reader sees: the zero-width spaces the defanging inserts are invisible
 // and so must not count against the wrap column.
 function visibleWidth(text: string): number {
@@ -337,13 +345,26 @@ describe("renderGreenlightSection statuses", () => {
   it("renders LAND with headline, message, reason, sha and job link", () => {
     const out = render(state(), FRESH_NOW);
 
-    expect(out).toContain("<details open><summary><b>GREEN LIGHT</b>");
+    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
     expect(out).toContain(GREENLIGHT_LAND_HEADLINE);
     expect(out).toContain("Looks good.");
     expect(out).toContain("reason: `clean`");
     expect(out).toContain("Reviewed commit: `abc1234`");
     expect(out).toContain(`[Inference job](${JOB_URL})`);
     expect(out).toContain("</p></details>");
+  });
+
+  // The message is model prose that runs to dozens of wrapped lines. Left
+  // expanded it pushes the failure lists Dr.CI's comment exists for down past a
+  // screenful, so everything but the headline stays behind the fold.
+  it("renders collapsed, with only the headline above the fold", () => {
+    const out = render(state(), FRESH_NOW);
+
+    expect(summaryLine(out)).toContain(GREENLIGHT_LAND_HEADLINE);
+    expect(summaryLine(out)).not.toContain("Looks good.");
+    expect(summaryLine(out)).not.toContain("reason:");
+    expect(summaryLine(out)).not.toContain("Reviewed commit:");
+    expect(summaryLine(out)).not.toContain("[Inference job]");
   });
 
   it("renders NO_LAND with its own headline and the same scaffold", () => {
@@ -784,10 +805,13 @@ describe("renderGreenlightSection outdated verdict", () => {
     }
   });
 
-  it("keeps the verdict headline, behind the outdated marker", () => {
+  // The section is collapsed, so a marker anywhere but the summary is one the
+  // reader has to expand the block to find -- which is the one thing it exists to
+  // prevent.
+  it("keeps the verdict headline in the summary, behind the outdated marker", () => {
     const out = renderGreenlightSection(state(), FRESH_NOW, OTHER_SHA);
 
-    expect(out).toContain(
+    expect(summaryLine(out)).toContain(
       `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${GREENLIGHT_LAND_HEADLINE}`
     );
   });

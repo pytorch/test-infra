@@ -3,12 +3,13 @@
 // vocabulary and its defanging rules, so a misc.greenlight_pr_state row carries
 // the same meaning whichever surface renders it -- but the two are deliberately
 // not identical and are not meant to be kept so. Folding a row into the one Dr.CI
-// comment is a different job from posting a standalone one: this side uses
-// Dr.CI's open <details> scaffold rather than the CLI's collapsed one, names the
-// commit the verdict was reached on, renders AI_REVIEW_DISPATCHED (scan-only, so
-// the CLI never sees it), and has a stalled state for a terminal row that never
-// arrived. No ClickHouse / Octokit / server-only imports, so this is
-// unit-testable as-is.
+// comment is a different job from posting a standalone one: both sides collapse
+// the verdict behind a <details>, but this one puts the headline in the summary
+// alongside the section header, where Dr.CI's other sections keep theirs, rather
+// than on a bold line of its own above the block. It also names the commit the
+// verdict was reached on, renders AI_REVIEW_DISPATCHED (scan-only, so the CLI
+// never sees it), and has a stalled state for a terminal row that never arrived.
+// No ClickHouse / Octokit / server-only imports, so this is unit-testable as-is.
 
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
@@ -276,13 +277,15 @@ function renderSection(
     lines.push("", `[Inference job](${evalJob})`);
   }
   const marker = inProgress ? `${GREENLIGHT_PENDING_MARKER}\n` : "";
+  // The section renders closed, so the <summary> is all a reader sees without
+  // expanding: the outdated marker belongs on it, never in bodyLines.
   const summary = outdated
     ? `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${headline}`
     : headline;
   // Two newlines after <p> so the markdown body below is parsed as markdown
   // rather than raw HTML, matching constructResultsJobsSections in drci.ts.
   return (
-    `\n${marker}<details open><summary><b>${GREENLIGHT_SECTION_HEADER}</b> - ${summary}:</summary><p>\n\n` +
+    `\n${marker}<details><summary><b>${GREENLIGHT_SECTION_HEADER}</b> - ${summary}:</summary><p>\n\n` +
     `${lines.join("\n")}\n\n` +
     `</p></details>`
   );
