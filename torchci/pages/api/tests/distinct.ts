@@ -7,9 +7,33 @@ const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
-const CURSOR_VERSION = 4;
+const CURSOR_VERSION = 5;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_SEARCH_LENGTH = 200;
+
+const SORT_FIELDS = [
+  "file",
+  "classname",
+  "name",
+  "averageDuration",
+  "lastRun",
+] as const;
+type SortField = (typeof SORT_FIELDS)[number];
+type SortOrder = "asc" | "desc";
+
+const DEFAULT_SORT_FIELD: SortField = "averageDuration";
+
+function isSortField(value: unknown): value is SortField {
+  return typeof value === "string" && SORT_FIELDS.includes(value as SortField);
+}
+
+function isSortOrder(value: unknown): value is SortOrder {
+  return value === "asc" || value === "desc";
+}
+
+function defaultSortOrder(sort: SortField): SortOrder {
+  return sort === "averageDuration" || sort === "lastRun" ? "desc" : "asc";
+}
 
 export interface DistinctTest {
   name: string;
@@ -37,7 +61,10 @@ interface DistinctTestsCursor {
   anchorMs: number;
   hasAverageDuration: 0 | 1;
   averageDurationMs: number;
+  lastRunNs: string;
   search: string;
+  sort: SortField;
+  order: SortOrder;
   name: string;
   classname: string;
   file: string;
@@ -62,6 +89,8 @@ function encodeCursor(
   direction: CursorDirection,
   anchorMs: number,
   search: string,
+  sort: SortField,
+  order: SortOrder,
   test: DistinctTestQueryRow
 ): string {
   const cursor: DistinctTestsCursor = {
@@ -70,7 +99,10 @@ function encodeCursor(
     anchorMs,
     hasAverageDuration: test.has_average_duration === 1 ? 1 : 0,
     averageDurationMs: test.average_duration_ms,
+    lastRunNs: test.last_run_ns,
     search,
+    sort,
+    order,
     name: test.name,
     classname: test.classname,
     file: test.file,
@@ -102,6 +134,10 @@ function decodeCursor(value: string): DistinctTestsCursor {
   const cursor = parsed as Partial<DistinctTestsCursor>;
   const now = Date.now();
   const search = cursor.search ?? "";
+  const lastRunMs =
+    typeof cursor.lastRunNs === "string" && /^\d{1,19}$/.test(cursor.lastRunNs)
+      ? nanosecondsToMilliseconds(cursor.lastRunNs)
+      : Number.NaN;
   if (
     cursor.version !== CURSOR_VERSION ||
     (cursor.direction !== "forward" && cursor.direction !== "backward") ||
@@ -112,8 +148,13 @@ function decodeCursor(value: string): DistinctTestsCursor {
     !Number.isSafeInteger(cursor.averageDurationMs) ||
     (cursor.averageDurationMs ?? -1) < 0 ||
     (cursor.hasAverageDuration === 0 && cursor.averageDurationMs !== 0) ||
+    !Number.isSafeInteger(lastRunMs) ||
+    lastRunMs <= (cursor.anchorMs ?? 0) - LOOKBACK_MS ||
+    lastRunMs > (cursor.anchorMs ?? 0) ||
     typeof search !== "string" ||
     search.length > MAX_SEARCH_LENGTH ||
+    !isSortField(cursor.sort) ||
+    !isSortOrder(cursor.order) ||
     typeof cursor.name !== "string" ||
     typeof cursor.classname !== "string" ||
     typeof cursor.file !== "string"
@@ -135,7 +176,14 @@ export default async function handler(
 
   const cursorParam = req.query.cursor;
   const searchParam = req.query.q;
-  if (Array.isArray(cursorParam) || Array.isArray(searchParam)) {
+  const sortParam = req.query.sort;
+  const orderParam = req.query.order;
+  if (
+    Array.isArray(cursorParam) ||
+    Array.isArray(searchParam) ||
+    Array.isArray(sortParam) ||
+    Array.isArray(orderParam)
+  ) {
     return res.status(400).json({ error: "Invalid query parameters" });
   }
 
@@ -143,6 +191,16 @@ export default async function handler(
   if (requestedSearch.length > MAX_SEARCH_LENGTH) {
     return res.status(400).json({ error: "Search query is too long" });
   }
+
+  if (sortParam !== undefined && !isSortField(sortParam)) {
+    return res.status(400).json({ error: "Invalid sort field" });
+  }
+  const sort: SortField = sortParam ?? DEFAULT_SORT_FIELD;
+
+  if (orderParam !== undefined && !isSortOrder(orderParam)) {
+    return res.status(400).json({ error: "Invalid sort order" });
+  }
+  const order: SortOrder = orderParam ?? defaultSortOrder(sort);
 
   let cursor: DistinctTestsCursor | null = null;
   if (cursorParam !== undefined) {
@@ -153,8 +211,13 @@ export default async function handler(
     }
   }
 
-  if (cursor && cursor.search !== requestedSearch) {
-    return res.status(400).json({ error: "Cursor does not match search" });
+  if (
+    cursor &&
+    (cursor.search !== requestedSearch ||
+      cursor.sort !== sort ||
+      cursor.order !== order)
+  ) {
+    return res.status(400).json({ error: "Cursor does not match query" });
   }
 
   const anchorMs =
@@ -173,8 +236,11 @@ export default async function handler(
       queryName,
       {
         has_cursor: cursor === null ? 0 : 1,
+        sort_field: sort,
+        sort_ascending: order === "asc" ? 1 : 0,
         cursor_has_average_duration: cursor?.hasAverageDuration ?? 0,
         cursor_average_duration_ms: cursor?.averageDurationMs ?? 0,
+        cursor_last_run_ns: cursor?.lastRunNs ?? "0",
         cursor_name: cursor?.name ?? "",
         cursor_classname: cursor?.classname ?? "",
         cursor_file: cursor?.file ?? "",
@@ -219,11 +285,11 @@ export default async function handler(
         hasPreviousPage,
         nextCursor:
           hasNextPage && lastTest
-            ? encodeCursor("forward", anchorMs, search, lastTest)
+            ? encodeCursor("forward", anchorMs, search, sort, order, lastTest)
             : null,
         previousCursor:
           hasPreviousPage && firstTest
-            ? encodeCursor("backward", anchorMs, search, firstTest)
+            ? encodeCursor("backward", anchorMs, search, sort, order, firstTest)
             : null,
       },
     });

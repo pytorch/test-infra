@@ -1,8 +1,11 @@
 {
   "params": {
     "has_cursor": "UInt8",
+    "sort_field": "String",
+    "sort_ascending": "UInt8",
     "cursor_has_average_duration": "UInt8",
     "cursor_average_duration_ms": "UInt64",
+    "cursor_last_run_ns": "String",
     "cursor_name": "String",
     "cursor_classname": "String",
     "cursor_file": "String",

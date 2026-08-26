@@ -12,6 +12,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
   useTheme,
@@ -43,6 +44,41 @@ type DistinctTestsResponse = {
   };
 };
 
+type SortField = "file" | "classname" | "name" | "averageDuration" | "lastRun";
+type SortOrder = "asc" | "desc";
+
+const DEFAULT_SORT_FIELD: SortField = "averageDuration";
+const DEFAULT_SORT_ORDER: SortOrder = "desc";
+const TEST_COLUMNS: {
+  field: SortField;
+  label: string;
+  width: string;
+  align?: "left" | "right";
+}[] = [
+  { field: "file", label: "File", width: "25%" },
+  { field: "classname", label: "Classname", width: "22%" },
+  { field: "name", label: "Name", width: "26%" },
+  {
+    field: "averageDuration",
+    label: "Avg duration",
+    width: "12%",
+    align: "right",
+  },
+  { field: "lastRun", label: "Last run", width: "15%" },
+];
+
+function isSortField(value: unknown): value is SortField {
+  return TEST_COLUMNS.some(({ field }) => field === value);
+}
+
+function isSortOrder(value: unknown): value is SortOrder {
+  return value === "asc" || value === "desc";
+}
+
+function defaultSortOrder(sort: SortField): SortOrder {
+  return sort === "averageDuration" || sort === "lastRun" ? "desc" : "asc";
+}
+
 const PAGE_SIZE = 100;
 const lastRunFormatter = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
@@ -67,10 +103,20 @@ export default function TestsPage() {
     typeof router.query.q === "string" ? router.query.q.trim() : "";
   const cursor =
     typeof router.query.cursor === "string" ? router.query.cursor : undefined;
+  const sortField = isSortField(router.query.sort)
+    ? router.query.sort
+    : DEFAULT_SORT_FIELD;
+  const sortOrder = isSortOrder(router.query.order)
+    ? router.query.order
+    : defaultSortOrder(sortField);
   const [searchInput, setSearchInput] = useState("");
   const apiParams = new URLSearchParams();
   if (searchQuery) apiParams.set("q", searchQuery);
   if (cursor) apiParams.set("cursor", cursor);
+  if (sortField !== DEFAULT_SORT_FIELD || sortOrder !== DEFAULT_SORT_ORDER) {
+    apiParams.set("sort", sortField);
+    apiParams.set("order", sortOrder);
+  }
   const apiQuery = apiParams.toString();
   const apiUrl = router.isReady
     ? `/api/tests/distinct${apiQuery ? `?${apiQuery}` : ""}`
@@ -98,12 +144,20 @@ export default function TestsPage() {
     if (router.isReady) setSearchInput(searchQuery);
   }, [router.isReady, searchQuery]);
 
-  const navigate = (nextSearch: string, nextCursor?: string) => {
+  const navigate = (
+    nextSearch: string,
+    nextCursor?: string,
+    nextSort = sortField,
+    nextOrder = sortOrder
+  ) => {
+    const isDefaultSort =
+      nextSort === DEFAULT_SORT_FIELD && nextOrder === DEFAULT_SORT_ORDER;
     void router.push({
       pathname: router.pathname,
       query: {
         ...(nextSearch ? { q: nextSearch } : {}),
         ...(nextCursor ? { cursor: nextCursor } : {}),
+        ...(!isDefaultSort ? { sort: nextSort, order: nextOrder } : {}),
       },
     });
   };
@@ -122,6 +176,16 @@ export default function TestsPage() {
   const clearSearch = () => {
     setSearchInput("");
     navigate("");
+  };
+
+  const handleSort = (field: SortField) => {
+    const nextOrder =
+      sortField === field
+        ? sortOrder === "asc"
+          ? "desc"
+          : "asc"
+        : defaultSortOrder(field);
+    navigate(searchQuery, undefined, field, nextOrder);
   };
 
   const getTestHref = (test: DistinctTest) => {
@@ -191,15 +255,11 @@ export default function TestsPage() {
           <Table size="small" aria-label="PyTorch tests">
             <TableHead>
               <TableRow>
-                {[
-                  { label: "File", width: "25%" },
-                  { label: "Classname", width: "22%" },
-                  { label: "Name", width: "26%" },
-                  { label: "Avg duration", width: "12%" },
-                  { label: "Last run", width: "15%" },
-                ].map(({ label, width }) => (
+                {TEST_COLUMNS.map(({ field, label, width, align }) => (
                   <TableCell
-                    key={label}
+                    key={field}
+                    align={align}
+                    sortDirection={sortField === field ? sortOrder : false}
                     sx={{
                       width,
                       backgroundColor: headerBackgroundColor,
@@ -207,7 +267,17 @@ export default function TestsPage() {
                       fontWeight: 600,
                     }}
                   >
-                    {label}
+                    <TableSortLabel
+                      active={sortField === field}
+                      direction={
+                        sortField === field
+                          ? sortOrder
+                          : defaultSortOrder(field)
+                      }
+                      onClick={() => handleSort(field)}
+                    >
+                      {label}
+                    </TableSortLabel>
                   </TableCell>
                 ))}
                 <TableCell
@@ -296,7 +366,7 @@ export default function TestsPage() {
                           {test.name || "Not reported"}
                         </Link>
                       </TableCell>
-                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                         {test.averageDurationSeconds === null ? (
                           <Typography
                             component="span"
@@ -374,7 +444,8 @@ export default function TestsPage() {
             Tests
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Sorted by average duration of successful runs over the last 30 days.
+            Average duration is based on successful runs over the last 30 days.
+            Select a column header to sort.
           </Typography>
         </Stack>
         <Box
