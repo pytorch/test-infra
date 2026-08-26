@@ -66,16 +66,28 @@ These are uploaded to S3 directly by the GitHub workflows in `pytorch/pytorch`.
 The PyTorch bot's `workflow_job` handler (`lib/bot/logUploader.ts`) asynchronously
 invokes the [`gha-log-uploader`] lambda when a job completes. That lambda
 downloads the log from GitHub, puts it in the [`ossci-raw-job-status`] bucket
-under `log/`, and then asynchronously invokes [`log-classifier`] to do the
-classification (more detail in the [README]).
+under `log/`, and then calls [`log-classifier`] through its function URL to do
+the classification (more detail in the [README]).
+
+That last call is synchronous — function URLs support only the
+`RequestResponse` invocation type — so the uploader waits for the reply, but only
+up to `CLASSIFIER_TIMEOUT` (30s). Disconnecting does not cancel the classifier,
+so giving up on the reply costs nothing and keeps the uploader's own duration
+bounded.
 
 [readme]: https://github.com/pytorch/test-infra/blob/main/aws/lambda/log-classifier/README.md
 
-Because this hangs off the App webhook rather than a per-repo one, every repo the
-bot is installed on gets log downloads and classifications without an admin
-configuring anything. Which repos are enabled is controlled by the
-`LOG_UPLOADER_REPOS` env var while the cutover from [`github-status-test`] is in
-progress; see https://github.com/pytorch/test-infra/issues/7549.
+Because this hangs off the App webhook rather than a per-repo one, no admin has
+to configure anything for a repo to get log downloads and classifications. Two
+gates decide which repos actually do:
+
+- The handler serves only the owners `pytorch`, `meta-pytorch`, `malfet` and
+  `vllm-project` (`isPyTorchbotSupportedOrg` / `isVLLM` in `lib/bot/utils.ts`),
+  the same set `webhookToDynamo` uses. This one is permanent.
+- Within those, the `LOG_UPLOADER_REPOS` env var lists the enabled repos as
+  `owner/repo` or `owner/*`. Unset means the handler does nothing. This one is
+  temporary, and exists to stage the cutover from [`github-status-test`] a repo
+  at a time; see https://github.com/pytorch/test-infra/issues/7549.
 
 Missing logs are re-requested through `backfillMissingLog` in `lib/jobUtils.ts`,
 which Dr.CI calls when it finds a failed job with no log. Callers outside HUD use
