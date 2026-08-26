@@ -9,6 +9,7 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -99,11 +100,13 @@ function StatCard({
   value,
   sub,
   color,
+  tooltip,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   color?: string;
+  tooltip?: string;
 }) {
   return (
     <Paper
@@ -118,6 +121,17 @@ function StatCard({
     >
       <Typography variant="caption" color="text.secondary">
         {label}
+        {tooltip && (
+          <Tooltip title={tooltip}>
+            <Box
+              component="span"
+              sx={{ cursor: "help", ml: 0.5 }}
+              aria-label={`About ${label}`}
+            >
+              ⓘ
+            </Box>
+          </Tooltip>
+        )}
       </Typography>
       <Typography variant="h5" sx={{ fontWeight: 600, color: color }}>
         {value}
@@ -203,6 +217,7 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
               ? "#d32f2f"
               : undefined
           }
+          tooltip="The single longest job run in this window. p95 = the run time 95% of jobs finish within — a steadier read than the max, which one outlier job can skew."
         />
         <StatCard
           label="End-to-End Time (P50)"
@@ -222,6 +237,7 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
               ? "#d32f2f"
               : undefined
           }
+          tooltip="P50 (median) time from dispatch to CI status: half of jobs are faster than this, half slower. p95 = the time 95% of jobs finish within."
         />
         <StatCard
           label="Timeout Rate"
