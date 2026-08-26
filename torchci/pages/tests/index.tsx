@@ -57,7 +57,7 @@ function formatLastRun(value: string): string {
   return Number.isNaN(date.getTime()) ? value : lastRunFormatter.format(date);
 }
 
-export default function TestPage() {
+export default function TestsPage() {
   const router = useRouter();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
