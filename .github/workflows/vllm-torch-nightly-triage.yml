@@ -6,8 +6,8 @@ name: vLLM torch-nightly triage
 # "Full CI run - nightly" from the same HEAD in the same cron slot, so the pair is a
 # controlled A/B. This job reports jobs that fail in the former and pass in the latter.
 #
-# Reports to the job log, the run summary, and an artifact. Issue filing is opt-in:
-# it runs only when the file_issues dispatch input is set, and files into
+# Reports to the job log, the run summary, and an artifact. Issues are filed by default
+# -- on the cron, and on a dispatch unless file_issues is unchecked -- into
 # pytorch/test-infra (not pytorch/pytorch).
 #
 # ClickHouse stores job metadata only (the tables carry log_url pointers, not log
@@ -18,9 +18,9 @@ on:
   workflow_dispatch:
     inputs:
       file_issues:
-        description: "File umbrella/child issues in test-infra (otherwise dry-run)"
+        description: "File umbrella/child issues in test-infra (uncheck for a dry-run)"
         type: boolean
-        default: false
+        default: true
       torch_version_override:
         description: "Torch minor version (e.g. 2.14) when detection fails"
         type: string
@@ -248,11 +248,15 @@ jobs:
   # be able to open issues. The agent emits data; this job files it with a script, so
   # what gets created is decided by code rather than by the model.
   #
-  # Opt-in: dry-runs unless the file_issues input says otherwise. A dry run prints the
-  # umbrella title and the child issues it would create, which is the cheap way to
-  # sanity-check agent output. Enabling this for the cron means flipping the input's
-  # default to true -- a repo variable would be nicer, but the `vars` context is not
-  # recognised by the actionlint pinned in this repo's lintrunner config.
+  # Files by default. Uncheck file_issues on a dispatch for a dry run, which prints the
+  # umbrella title and the child issues it would create -- the cheap way to sanity-check
+  # agent output before letting it write.
+  #
+  # The cron is handled by the explicit event_name check rather than by the input
+  # default: workflow_dispatch input defaults are not applied to schedule runs, so on a
+  # cron `inputs.file_issues` is empty and would dry-run forever. Same idiom as
+  # trigger_nightly.yml. (A repo variable would read better, but the `vars` context is
+  # not recognised by the actionlint pinned in this repo's lintrunner config.)
   file-issues:
     needs: [triage, root-cause]
     if: |
@@ -281,7 +285,7 @@ jobs:
         working-directory: tools
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EXECUTE: ${{ inputs.file_issues && '--execute' || '' }}
+          EXECUTE: ${{ (github.event_name == 'schedule' || inputs.file_issues) && '--execute' || '' }}
           OVERRIDE: ${{ inputs.torch_version_override }}
         run: |
           set -euo pipefail
