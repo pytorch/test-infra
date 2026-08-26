@@ -3,11 +3,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const PAGE_SIZE = 100;
 const QUERY_LIMIT = PAGE_SIZE + 1;
-const LOOKBACK_MS = 60 * 24 * 60 * 60 * 1000;
+const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
-const CURSOR_VERSION = 3;
+const CURSOR_VERSION = 4;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_SEARCH_LENGTH = 200;
 
@@ -15,6 +15,7 @@ export interface DistinctTest {
   name: string;
   classname: string;
   file: string;
+  averageDurationSeconds: number | null;
   lastRun: string;
 }
 
@@ -34,7 +35,8 @@ interface DistinctTestsCursor {
   version: typeof CURSOR_VERSION;
   direction: CursorDirection;
   anchorMs: number;
-  lastRunNs: string;
+  hasAverageDuration: 0 | 1;
+  averageDurationMs: number;
   search: string;
   name: string;
   classname: string;
@@ -47,6 +49,8 @@ interface DistinctTestQueryRow {
   name: string;
   classname: string;
   file: string;
+  has_average_duration: number;
+  average_duration_ms: number;
   last_run_ns: string;
 }
 
@@ -64,7 +68,8 @@ function encodeCursor(
     version: CURSOR_VERSION,
     direction,
     anchorMs,
-    lastRunNs: test.last_run_ns,
+    hasAverageDuration: test.has_average_duration === 1 ? 1 : 0,
+    averageDurationMs: test.average_duration_ms,
     search,
     name: test.name,
     classname: test.classname,
@@ -97,19 +102,16 @@ function decodeCursor(value: string): DistinctTestsCursor {
   const cursor = parsed as Partial<DistinctTestsCursor>;
   const now = Date.now();
   const search = cursor.search ?? "";
-  const lastRunMs =
-    typeof cursor.lastRunNs === "string" && /^\d{1,19}$/.test(cursor.lastRunNs)
-      ? nanosecondsToMilliseconds(cursor.lastRunNs)
-      : Number.NaN;
   if (
     cursor.version !== CURSOR_VERSION ||
     (cursor.direction !== "forward" && cursor.direction !== "backward") ||
     !Number.isSafeInteger(cursor.anchorMs) ||
     (cursor.anchorMs ?? 0) <= now - CURSOR_TTL_MS ||
     (cursor.anchorMs ?? 0) > now + CURSOR_CLOCK_SKEW_MS ||
-    !Number.isSafeInteger(lastRunMs) ||
-    lastRunMs <= (cursor.anchorMs ?? 0) - LOOKBACK_MS ||
-    lastRunMs > now + CURSOR_CLOCK_SKEW_MS ||
+    (cursor.hasAverageDuration !== 0 && cursor.hasAverageDuration !== 1) ||
+    !Number.isSafeInteger(cursor.averageDurationMs) ||
+    (cursor.averageDurationMs ?? -1) < 0 ||
+    (cursor.hasAverageDuration === 0 && cursor.averageDurationMs !== 0) ||
     typeof search !== "string" ||
     search.length > MAX_SEARCH_LENGTH ||
     typeof cursor.name !== "string" ||
@@ -171,12 +173,14 @@ export default async function handler(
       queryName,
       {
         has_cursor: cursor === null ? 0 : 1,
-        cursor_last_run_ns: cursor?.lastRunNs ?? "0",
+        cursor_has_average_duration: cursor?.hasAverageDuration ?? 0,
+        cursor_average_duration_ms: cursor?.averageDurationMs ?? 0,
         cursor_name: cursor?.name ?? "",
         cursor_classname: cursor?.classname ?? "",
         cursor_file: cursor?.file ?? "",
         search,
         cutoff_ms: cutoffMs,
+        anchor_ms: anchorMs,
         limit: QUERY_LIMIT,
       },
       true
@@ -188,10 +192,19 @@ export default async function handler(
       direction === "backward" ? pageRows.reverse() : pageRows;
     const firstTest = orderedRows[0];
     const lastTest = orderedRows[orderedRows.length - 1];
-    const tests = orderedRows.map(({ last_run_ns: lastRunNs, ...test }) => ({
-      ...test,
-      lastRun: new Date(nanosecondsToMilliseconds(lastRunNs)).toISOString(),
-    }));
+    const tests = orderedRows.map(
+      ({
+        has_average_duration: hasAverageDuration,
+        average_duration_ms: averageDurationMs,
+        last_run_ns: lastRunNs,
+        ...test
+      }) => ({
+        ...test,
+        averageDurationSeconds:
+          hasAverageDuration === 1 ? averageDurationMs / 1000 : null,
+        lastRun: new Date(nanosecondsToMilliseconds(lastRunNs)).toISOString(),
+      })
+    );
     const hasPreviousPage =
       tests.length > 0 &&
       (direction === "backward" ? hasExtraRow : cursor !== null);

@@ -16,6 +16,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import { durationDisplay } from "components/common/TimeUtils";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { encodeTestIdentity } from "lib/testIdentity";
 import Head from "next/head";
@@ -28,6 +29,7 @@ type DistinctTest = {
   name: string;
   classname: string;
   file: string | null;
+  averageDurationSeconds: number | null;
   lastRun: string;
 };
 
@@ -190,9 +192,10 @@ export default function TestsPage() {
             <TableHead>
               <TableRow>
                 {[
-                  { label: "File", width: "30%" },
-                  { label: "Classname", width: "25%" },
-                  { label: "Name", width: "30%" },
+                  { label: "File", width: "25%" },
+                  { label: "Classname", width: "22%" },
+                  { label: "Name", width: "26%" },
+                  { label: "Avg duration", width: "12%" },
                   { label: "Last run", width: "15%" },
                 ].map(({ label, width }) => (
                   <TableCell
@@ -220,7 +223,7 @@ export default function TestsPage() {
               {tests.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     align="center"
                     sx={{ py: 8, backgroundColor: emptyBackgroundColor }}
                   >
@@ -294,6 +297,19 @@ export default function TestsPage() {
                         </Link>
                       </TableCell>
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {test.averageDurationSeconds === null ? (
+                          <Typography
+                            component="span"
+                            color="text.secondary"
+                            fontStyle="italic"
+                          >
+                            N/A
+                          </Typography>
+                        ) : (
+                          durationDisplay(test.averageDurationSeconds)
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
                         {formatLastRun(test.lastRun)}
                       </TableCell>
                       <TableCell align="right" sx={{ width: 48, px: 1 }}>
@@ -356,6 +372,9 @@ export default function TestsPage() {
         <Stack spacing={0.5} sx={{ mb: 3 }}>
           <Typography variant="h4" component="h1">
             Tests
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Sorted by average duration of successful runs over the last 30 days.
           </Typography>
         </Stack>
         <Box
