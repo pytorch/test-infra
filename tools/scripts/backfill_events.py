@@ -1,77 +1,86 @@
 #!/usr/bin/env python3
 
-import gzip
 import json
 import os
 from typing import Any
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from warnings import warn
 
 import boto3
 from octokit import Octokit
 
 
-S3 = boto3.resource("s3")
-BUCKET_NAME = "ossci-raw-job-status"
-BUCKET = S3.Bucket(BUCKET_NAME)
-
 DYNAMO = boto3.resource("dynamodb")
 
+# torchci's authenticated backfill route, which hands the job to the
+# gha-log-uploader lambda. That lambda owns log downloading now; re-implementing
+# it here is how this script and github-status-test used to drift apart.
+HUD_URL = os.environ.get("HUD_URL", "https://hud.pytorch.org")
+LOG_UPLOADER_BOT_KEY = os.environ.get("LOG_UPLOADER_BOT_KEY", "")
 
-def json_dumps(body: Any) -> str:
-    # This logic is copied from github-status-test lambda function
-    return json.dumps(body, sort_keys=True, indent=4, separators=(",", ": "))
+
+class LogUploadAuthError(Exception):
+    """The backfill route rejected our credentials.
+
+    Fatal rather than per-job: every subsequent upload would be rejected the same
+    way, and a run that keeps going writes DynamoDB rows while silently
+    uploading nothing.
+    """
 
 
-def upload_log(
-    client: Octokit, owner: str, repo: str, job_id: int, conclusion: str
-) -> None:
-    # This logic is copied from github-status-test lambda function
-    log = client.actions.download_job_logs_for_workflow_run(
-        owner=owner, repo=repo, job_id=job_id
-    ).json
+def upload_log(owner: str, repo: str, job_id: int, conclusion: str) -> None:
+    print(f"..Requesting a log upload for {owner}/{repo} job {job_id}")
+    request = Request(
+        f"{HUD_URL}/api/log-uploader/backfill",
+        method="POST",
+        data=json.dumps(
+            {
+                "repo": f"{owner}/{repo}",
+                "job_id": job_id,
+                "conclusion": conclusion,
+            }
+        ).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": LOG_UPLOADER_BOT_KEY,
+        },
+    )
 
-    log_path = f"log/{job_id}"
-    if repo != "pytorch":
-        log_path = f"log/{owner}/{repo}/{job_id}"
-
-    print(f"..Uploading log to {log_path}")
     try:
-        # This needs to be in try catch because GitHub doesn't keep log older than 60 days I think
-        S3.Object(BUCKET_NAME, log_path).put(
-            Body=gzip.compress(log.encode(encoding="UTF-8")),
-            ContentType="text/plain",
-            ContentEncoding="gzip",
-            Metadata={"conclusion": conclusion},
-        )
-
-        # Invoke log classifier
-        urlopen(
-            f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={job_id}&repo={owner}/{repo}"
-        )
-    except Exception as error:
+        # A 200 only means the upload was queued for the lambda. Whether GitHub
+        # still has the log is decided there and shows up in its logs, not here,
+        # so the only failures visible at this call site are the POST's own.
+        with urlopen(request, timeout=30) as response:
+            if response.status != 200:
+                warn(f"Log upload for job {job_id} returned {response.status}")
+    except HTTPError as error:
+        if error.code in (401, 403):
+            raise LogUploadAuthError(
+                f"{HUD_URL}/api/log-uploader/backfill rejected "
+                f"LOG_UPLOADER_BOT_KEY with {error.code}"
+            ) from error
         warn(
-            f"Failed to upload {log} for job {job_id} from repo {owner}/{repo}: "
-            + f"{error}, skipping..."
+            f"Failed to request a log upload for job {job_id} from repo "
+            f"{owner}/{repo}: {error}, skipping..."
+        )
+    except OSError as error:
+        warn(
+            f"Failed to request a log upload for job {job_id} from repo "
+            f"{owner}/{repo}: {error}, skipping..."
         )
 
 
 def process_event(owner: str, repo: str, event: str, body: Any) -> None:
-    # This logic is copied from github-status-test lambda function
-    if repo == "pytorch":
-        repo_prefix = ""
-    else:
-        repo_prefix = f"{owner}/{repo}/"
-
+    # Only DynamoDB, which is what clickhouse-replicator-dynamo reads. The raw
+    # event archive github-status-test used to write to S3 was never read by
+    # anything and is not reproduced here.
     if "id" not in body:
         warn(f"Missing ID in {body}, skipping...")
         return
 
     id = body["id"]
-    print(f"{event}/{repo_prefix}{id}")
-    S3.Object(BUCKET_NAME, f"{event}/{repo_prefix}{id}").put(
-        Body=json_dumps(body), ContentType="application/json"
-    )
+    print(f"{event} {owner}/{repo}/{id}")
 
     dynamodb_table = ""
     if event == "workflow_run":
@@ -131,7 +140,7 @@ def process_workflow_run(
             conclusion = workflow_job["conclusion"]
 
             process_event(owner, repo, "workflow_job", workflow_job)
-            upload_log(client, owner, repo, job_id, conclusion)
+            upload_log(owner, repo, job_id, conclusion)
 
         if not count or count >= total_count:
             # Finish processing all events
@@ -143,6 +152,17 @@ def process_workflow_run(
 def backfill(
     owner: str, repo: str, event: str, branch: str = "", limit: int = 0
 ) -> None:
+    # Check the credential before the loop rather than per job. warnings.warn
+    # dedupes an identical message to one line per process, so a missing key
+    # would otherwise print once, early, among thousands of progress lines --
+    # and the run would still write DynamoDB rows, upload no logs, and exit 0.
+    if not LOG_UPLOADER_BOT_KEY:
+        raise LogUploadAuthError(
+            "LOG_UPLOADER_BOT_KEY is not set, so no logs could be uploaded. "
+            "Set it, or comment out the upload_log call to backfill only the "
+            "DynamoDB rows."
+        )
+
     token = os.environ.get("GITHUB_TOKEN", "")
     client = Octokit(auth="token", token=token)
     count = 0
