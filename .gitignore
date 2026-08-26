@@ -4,6 +4,8 @@
 .lintbin
 .linttemp
 
+.claude/settings.local.json
+
 *.env
 *.zip
 *.swp

@@ -1,7 +1,8 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextApiRequest } from "next";
 import * as authModule from "../lib/auth/auth";
 import * as crcrUtils from "../lib/crcr/crcrUtils";
 import handler from "../pages/api/crcr/results";
+import { mockRes } from "./nextApiMocks";
 
 jest.mock("../lib/crcr/crcrUtils", () => {
   const actual = jest.requireActual("../lib/crcr/crcrUtils");
@@ -50,22 +51,6 @@ function mockReq(overrides: Partial<NextApiRequest> = {}): NextApiRequest {
     },
     ...overrides,
   } as unknown as NextApiRequest;
-}
-
-function mockRes(): NextApiResponse & { _status: number; _json: any } {
-  const res: any = {
-    _status: 0,
-    _json: null,
-    status(code: number) {
-      res._status = code;
-      return res;
-    },
-    json(data: any) {
-      res._json = data;
-      return res;
-    },
-  };
-  return res;
 }
 
 describe("POST /api/crcr/results", () => {

@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, github_client, merge_authz, review, verdict
+from greenlight import cli, drci_poke, github_client, merge_authz, review, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
@@ -494,6 +494,91 @@ def test_main_verdict_applies_log_level_override(monkeypatch):
     assert isinstance(config, Config)
     assert config.log_level == "DEBUG"
     configure_mock.assert_called_once_with("DEBUG")
+
+
+def test_drci_poke_parser_parses_all_args():
+    parser = cli.build_parser()
+    args = parser.parse_args(["drci-poke", "--repo", "owner/name", "--pr", "42", "--log-level", "DEBUG"])
+    assert args.command == "drci-poke"
+    assert args.repo == "owner/name"
+    assert args.pr == 42
+    assert args.log_level == "DEBUG"
+
+
+def test_drci_poke_parser_defaults():
+    parser = cli.build_parser()
+    args = parser.parse_args(["drci-poke", "--pr", "42"])
+    assert args.repo == TARGET_REPO
+    assert args.log_level is None
+
+
+def test_drci_poke_parser_requires_pr():
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["drci-poke"])
+
+
+def test_main_drci_poke_dispatches_with_repo_and_pr(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_poke(repo, pr_number, config):
+        captured["repo"] = repo
+        captured["pr_number"] = pr_number
+        captured["config"] = config
+
+    monkeypatch.setattr(drci_poke, "poke", fake_poke)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    lock_mock = Mock()
+    monkeypatch.setattr(cli, "single_instance_lock", lock_mock)
+
+    rc = cli.main(["drci-poke", "--repo", "pytorch/pytorch", "--pr", "42"])
+
+    assert rc == EXIT_OK
+    assert captured["repo"] == "pytorch/pytorch"
+    assert captured["pr_number"] == 42
+    assert isinstance(captured["config"], Config)
+    # Like verdict, the poke is one-shot and must never touch the daemon single-instance lock.
+    lock_mock.assert_not_called()
+
+
+def test_main_drci_poke_reads_tokens_from_env(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_DRCI_TOKEN", "drci-key")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN", "hud-key")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", "2")
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(drci_poke, "poke", lambda repo, pr, config: captured.update(config=config))
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["drci-poke", "--pr", "42"])
+
+    assert rc == EXIT_OK
+    config = captured["config"]
+    assert isinstance(config, Config)
+    assert config.drci_token == "drci-key"
+    assert config.drci_internal_token == "hud-key"
+    assert config.drci_poke_delay_seconds == 2.0
+
+
+def test_main_drci_poke_applies_log_level_override(monkeypatch):
+    monkeypatch.setattr(drci_poke, "poke", Mock())
+    configure_mock = Mock()
+    monkeypatch.setattr(cli, "configure_logging", configure_mock)
+
+    rc = cli.main(["drci-poke", "--pr", "42", "--log-level", "debug"])
+
+    assert rc == EXIT_OK
+    configure_mock.assert_called_once_with("DEBUG")
+
+
+def test_main_drci_poke_bad_env_is_usage_error(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", "not-a-number")
+    poke_mock = Mock()
+    monkeypatch.setattr(drci_poke, "poke", poke_mock)
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["drci-poke", "--pr", "42"])
+    assert excinfo.value.code == 2
+    poke_mock.assert_not_called()
 
 
 def test_review_parser_parses_scan_flags():

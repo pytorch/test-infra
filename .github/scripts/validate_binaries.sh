@@ -200,19 +200,7 @@ run_smoke_tests() {
 
     # For pip install also test with latest numpy
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
-        # PyPI publishes no cp315/cp315t numpy wheels, so a plain
-        # `pip install numpy` falls back to building from source: slow on Linux
-        # and macOS, and a hard failure on Windows, where MSVC cannot find
-        # stdalign.h ("fatal error C1083") while compiling numpy's SIMD headers.
-        # Preview wheels for every platform, Windows included, are on the
-        # nightly index -- take those instead, and never a source build.
-        if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
-            pip3 install --pre numpy --upgrade --force-reinstall \
-                --only-binary=:all: \
-                --index-url https://download.pytorch.org/whl/nightly
-        else
-            pip3 install numpy --upgrade --force-reinstall
-        fi
+        pip3 install numpy --upgrade --force-reinstall
         ${PYTHON_RUN} ./smoke_test/smoke_test.py ${test_suffix} ${compile_check}
     fi
 
