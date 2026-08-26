@@ -35,6 +35,8 @@ import { default as useSWR, default as useSWRImmutable } from "swr";
 const DISABLED_TESTS_CONDENSED_URL =
   "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
 
+const QUEUE_REPOSITORIES = ["pytorch/pytorch", "pytorch/executorch"];
+
 function getGranularityForDays(days: number): Granularity {
   if (days >= 90) return "week";
   if (days >= 14) return "day";
@@ -484,6 +486,8 @@ export default function Page() {
   const [machineTypeFilter, setMachineTypeFilter] = useState<string | null>(
     null
   );
+  const [queueRepository, setQueueRepository] =
+    useState<string>("pytorch/pytorch");
   const [usePercentage, setUsePercentage] = useState<boolean>(false);
 
   // For custom time range, calculate actual days; otherwise use the preset timeRange
@@ -856,11 +860,39 @@ export default function Page() {
           </Stack>
         </Grid>
 
+        <Grid size={{ xs: 12 }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              Live job queue
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel id="queue-repository-select-label">
+                Repository
+              </InputLabel>
+              <Select
+                labelId="queue-repository-select-label"
+                value={queueRepository}
+                label="Repository"
+                onChange={(event: SelectChangeEvent<string>) => {
+                  setQueueRepository(event.target.value);
+                  setMachineTypeFilter(null);
+                }}
+              >
+                {QUEUE_REPOSITORIES.map((repository) => (
+                  <MenuItem key={repository} value={repository}>
+                    {repository}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </Grid>
+
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Queued Jobs by Machine Type"}
             queryName={"queued_jobs_by_label"}
-            queryParams={{}}
+            queryParams={{ repo: queueRepository }}
             columns={[
               { field: "count", headerName: "Count", flex: 1 },
               {
@@ -906,6 +938,7 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <QueuedJobsTable
+            repository={queueRepository}
             machineTypeFilter={machineTypeFilter}
             onClearFilter={() => setMachineTypeFilter(null)}
           />
@@ -913,7 +946,7 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Queue times historical"}
+            title={"PyTorch queue times historical"}
             queryName={"queue_times_historical"}
             queryParams={{
               ...timeParams,
