@@ -51,6 +51,16 @@ SELECT
     uniqExact(pr_number) AS total_prs,
     avg(queue_time) AS avg_queue_time_s,
     avg(execution_time) AS avg_exec_time_s,
+    max(execution_time) AS max_exec_time_s,
+    quantile(0.95)(execution_time) AS p95_exec_time_s,
+    -- End-to-end = queue_time + execution_time. RFC-0050's L3 gate defines
+    -- this as the P50 (median) time-to-signal. queue_time is null
+    -- on retries (dispatch-relative queue time is meaningless once a re-run
+    -- reuses the original delivery_id), so it's coalesced to 0 -- a retried
+    -- job's execution_time still counts toward the aggregate instead of the
+    -- whole row dropping out.
+    median(coalesce(queue_time, 0) + execution_time) AS median_e2e_time_s,
+    quantile(0.95)(coalesce(queue_time, 0) + execution_time) AS p95_e2e_time_s,
     if(
         total_jobs > 0,
         timed_out / total_jobs,
