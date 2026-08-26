@@ -7,8 +7,7 @@ name: vLLM torch-nightly triage
 # controlled A/B. This job reports jobs that fail in the former and pass in the latter.
 #
 # Reports to the job log, the run summary, and an artifact. Issues are filed by default
-# -- on the cron, and on a dispatch unless file_issues is unchecked -- into
-# pytorch/test-infra (not pytorch/pytorch).
+# into pytorch/test-infra (not pytorch/pytorch).
 #
 # ClickHouse stores job metadata only (the tables carry log_url pointers, not log
 # bodies), so this answers *which* jobs regressed, not *why*. Root-causing means
@@ -248,15 +247,10 @@ jobs:
   # be able to open issues. The agent emits data; this job files it with a script, so
   # what gets created is decided by code rather than by the model.
   #
-  # Files by default. Uncheck file_issues on a dispatch for a dry run, which prints the
-  # umbrella title and the child issues it would create -- the cheap way to sanity-check
-  # agent output before letting it write.
+  # Files by default; uncheck file_issues on a dispatch for a dry run.
   #
-  # The cron is handled by the explicit event_name check rather than by the input
-  # default: workflow_dispatch input defaults are not applied to schedule runs, so on a
-  # cron `inputs.file_issues` is empty and would dry-run forever. Same idiom as
-  # trigger_nightly.yml. (A repo variable would read better, but the `vars` context is
-  # not recognised by the actionlint pinned in this repo's lintrunner config.)
+  # The schedule is checked explicitly because workflow_dispatch input defaults do not
+  # apply to cron runs -- `inputs.file_issues` is empty there and would dry-run forever.
   file-issues:
     needs: [triage, root-cause]
     if: |
