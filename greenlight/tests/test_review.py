@@ -5,12 +5,12 @@ import queue
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 from unittest.mock import Mock
 
 import pytest
 
-from greenlight import github_client, review, scan_runner, state_emit
+from greenlight import drci_poke, github_client, review, scan_runner, state_emit
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -66,6 +66,10 @@ def _open_pr(
     )
 
 
+def _boom_poke(repo: str, pr_number: int, poke_config: Config) -> NoReturn:
+    raise AssertionError(f"poke should not be called for {repo}#{pr_number}")
+
+
 def _state(number: int, status: str, eval_hash: str, version: datetime, run_id: int = 0) -> PRState:
     return PRState(
         pr_number=number, status=status, eval_hash=eval_hash, head_sha=f"rec{number}", version=version, run_id=run_id
@@ -80,6 +84,19 @@ def _no_real_s3_upload(monkeypatch):
     monkeypatch.setattr(state_emit, "_default_upload", lambda _row, _key: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_drci_post(monkeypatch):
+    # Same guard for review.run's default poke_drci seam, which POSTs to the live Dr. CI endpoint.
+    # Both its own `post` default and review.run's `poke_drci` default are bound at import, so the
+    # only interceptable layer is urllib3 itself. Tests asserting the poke inject their own seam.
+    import urllib3
+
+    def unreachable(**_kwargs: object) -> object:
+        raise AssertionError("a test reached the live Dr. CI endpoint")
+
+    monkeypatch.setattr(urllib3, "PoolManager", unreachable)
+
+
 @dataclass
 class _Scan:
     dispatched: list[tuple[int, str, str, str]]
@@ -92,6 +109,8 @@ class _Scan:
     skip_on_approval_seen: list[bool]
     refusals: list[tuple[int, str, str, str]]
     emitted: list[tuple[str, int, str, str, int]]
+    poked: list[tuple[str, int, Config]]
+    events: list[str]
 
 
 def _run_scan(
@@ -124,6 +143,8 @@ def _run_scan(
     skip_on_approval_seen: list[bool] = []
     refusals: list[tuple[int, str, str, str]] = []
     emitted: list[tuple[str, int, str, str, int]] = []
+    poked: list[tuple[str, int, Config]] = []
+    events: list[str] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
@@ -142,6 +163,7 @@ def _run_scan(
 
     def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
+        events.append(f"dispatch:{number}")
 
     def fake_resolve_authorized():
         resolver_calls.append(1)
@@ -160,6 +182,11 @@ def _run_scan(
 
     def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id):
         emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
+        events.append(f"emit:{pr_number}")
+
+    def fake_poke(repo, pr_number, poke_config):
+        poked.append((repo, pr_number, poke_config))
+        events.append(f"poke:{pr_number}")
 
     review.run(
         make_config(github_token="t", **(config_kwargs or {})),
@@ -178,6 +205,7 @@ def _run_scan(
         read_state=fake_read_state,
         dispatch=fake_dispatch,
         emit_dispatched=fake_emit,
+        poke_drci=fake_poke,
         get_pr=fake_get_pr,
         upsert_comment=fake_upsert,
         resolve_authorized=fake_resolve_authorized,
@@ -194,6 +222,8 @@ def _run_scan(
         skip_on_approval_seen,
         refusals,
         emitted,
+        poked,
+        events,
     )
 
 
@@ -238,6 +268,51 @@ def test_skip_does_not_emit_dispatched_marker(make_config):
     # A decided PR with an unchanged hash is neither dispatched nor marked in-flight.
     assert scan.dispatched == []
     assert scan.emitted == []
+    assert scan.poked == []
+
+
+def test_dispatch_pokes_drci_after_the_marker_emit(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        config_kwargs={"drci_token": "drci-key"},
+    )
+
+    # Dr. CI re-reads the state row when poked, so each poke must follow its own marker emit;
+    # without the poke the PR shows no in-flight marker until Dr. CI's next 15-minute sweep.
+    assert scan.events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
+    assert [(repo, number) for repo, number, _ in scan.poked] == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+
+
+def test_poke_drops_the_ingestion_delay_but_keeps_the_credentials(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        config_kwargs={
+            "drci_token": "drci-key",
+            "drci_internal_token": "hud-key",
+            "drci_poke_delay_seconds": 30.0,
+        },
+    )
+
+    # The configured delay covers the verdict path's write-then-upload-in-a-later-step gap. The scan
+    # has already PUT the row to S3 by the time it pokes, and one such sleep per dispatch would
+    # accumulate against the Lambda's function timeout, so this path waits zero. Everything else the
+    # poke needs must survive the override -- a dropped token silently downgrades it to a warning.
+    (_, _, poke_config) = scan.poked[0]
+    assert poke_config.drci_poke_delay_seconds == 0.0
+    assert poke_config.drci_token == "drci-key"
+    assert poke_config.drci_internal_token == "hud-key"
+
+
+def test_run_default_poke_seam_is_drci_poke():
+    import inspect
+
+    # The injected fakes above cannot see the production wiring; pin it here so the seam cannot be
+    # left pointing at a stub.
+    assert inspect.signature(review.run).parameters["poke_drci"].default is drci_poke.poke
 
 
 def test_decided_same_hash_skips(make_config):
@@ -1363,6 +1438,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             dispatch=fake_dispatch,
+            poke_drci=_boom_poke,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )

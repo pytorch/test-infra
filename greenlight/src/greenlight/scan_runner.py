@@ -252,7 +252,9 @@ def _fingerprint_until_dispatchable(
     return pending
 
 
-def _emit_dispatch_marker(candidate: _Candidate, emit_dispatched: Callable[..., None]) -> None:
+def _emit_dispatch_marker(
+    candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None]
+) -> None:
     # run_id is prior_run_id + 1 so this AI_REVIEW_DISPATCHED row supersedes the PR's prior row,
     # while the reviewer run's own later, higher github.run_id supersedes it in turn once that run
     # starts. A None state (never-reviewed PR) has no prior run, so it bases at 0 -> run_id 1.
@@ -274,6 +276,10 @@ def _emit_dispatch_marker(candidate: _Candidate, emit_dispatched: Callable[..., 
         logger.error(
             "failed to emit AI_REVIEW_DISPATCHED marker for PR #%d: %s", candidate.pr_number, exc, exc_info=True
         )
+    else:
+        # Success arm only: Dr. CI rebuilds its comment from the row this emit just wrote, so poking
+        # after a failed emit would re-render the very state the marker was meant to replace.
+        poke(candidate.pr_number)
 
 
 def _dispatch_pending(
@@ -284,6 +290,7 @@ def _dispatch_pending(
     max_dispatches: int | None,
     dispatch: Callable[[Github, int, str, str, str], None],
     emit_dispatched: Callable[..., None],
+    poke: Callable[[int], None],
 ) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
@@ -298,7 +305,7 @@ def _dispatch_pending(
             dispatch_failed.append(candidate.pr_number)
             continue
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
-        _emit_dispatch_marker(candidate, emit_dispatched)
+        _emit_dispatch_marker(candidate, emit_dispatched, poke)
     for candidate in ordered[limit:]:
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
     return dispatch_failed
