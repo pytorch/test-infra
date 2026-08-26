@@ -3,9 +3,10 @@ WITH
         {sort_field: String} = 'file', toUInt8({cursor_file: String} = ''),
         {sort_field: String} = 'classname', toUInt8({cursor_classname: String} = ''),
         {sort_field: String} = 'name', toUInt8({cursor_name: String} = ''),
+        {sort_field: String} = 'health', {cursor_health_sort_bucket: UInt8},
         {sort_field: String} = 'averageDuration', {cursor_has_average_duration: UInt8} = 0,
         toUInt8(0)
-    ) AS cursor_sort_is_missing,
+    ) AS cursor_sort_bucket,
     multiIf(
         {sort_field: String} = 'file', lowerUTF8({cursor_file: String}),
         {sort_field: String} = 'classname', lowerUTF8({cursor_classname: String}),
@@ -13,6 +14,7 @@ WITH
         ''
     ) AS cursor_sort_text,
     multiIf(
+        {sort_field: String} = 'health', {cursor_failure_rate_ppm: UInt64},
         {sort_field: String} = 'averageDuration', {cursor_average_duration_ms: UInt64},
         {sort_field: String} = 'lastRun', toUInt64({cursor_last_run_ns: String}),
         toUInt64(0)
@@ -28,6 +30,24 @@ WITH
                 AND skipped_count = 0
                 AND rerun_count = 0
             ) AS successful_run_count,
+            countIf(
+                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                AND (failure_count > 0 OR error_count > 0)
+            ) AS failure_runs_7d,
+            countIf(
+                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                AND failure_count = 0
+                AND error_count = 0
+                AND skipped_count > 0
+            ) AS skipped_runs_7d,
+            countIf(
+                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                AND NOT (
+                    failure_count = 0
+                    AND error_count = 0
+                    AND skipped_count > 0
+                )
+            ) AS executed_runs_7d,
             avgOrNullIf(
                 toFloat64(time),
                 failure_count = 0
@@ -57,6 +77,20 @@ WITH
             name,
             classname,
             file,
+            failure_runs_7d,
+            executed_runs_7d,
+            skipped_runs_7d,
+            multiIf(
+                executed_runs_7d > 0, toUInt8(0),
+                skipped_runs_7d > 0, toUInt8(1),
+                toUInt8(2)
+            ) AS health_sort_bucket,
+            toUInt8(executed_runs_7d > 0) AS has_failure_rate,
+            if(
+                executed_runs_7d > 0,
+                intDiv(failure_runs_7d * 1000000, executed_runs_7d),
+                toUInt64(0)
+            ) AS failure_rate_ppm,
             toUInt8(successful_run_count > 0) AS has_average_duration,
             ifNull(
                 toUInt64(round(average_duration_seconds * 1000)),
@@ -70,6 +104,12 @@ WITH
             name,
             classname,
             file,
+            failure_runs_7d,
+            executed_runs_7d,
+            skipped_runs_7d,
+            health_sort_bucket,
+            has_failure_rate,
+            failure_rate_ppm,
             has_average_duration,
             average_duration_ms,
             last_run_ns_value,
@@ -77,9 +117,10 @@ WITH
                 {sort_field: String} = 'file', toUInt8(file = ''),
                 {sort_field: String} = 'classname', toUInt8(classname = ''),
                 {sort_field: String} = 'name', toUInt8(name = ''),
+                {sort_field: String} = 'health', health_sort_bucket,
                 {sort_field: String} = 'averageDuration', has_average_duration = 0,
                 toUInt8(0)
-            ) AS sort_is_missing,
+            ) AS sort_bucket,
             multiIf(
                 {sort_field: String} = 'file', lowerUTF8(file),
                 {sort_field: String} = 'classname', lowerUTF8(classname),
@@ -87,6 +128,7 @@ WITH
                 ''
             ) AS sort_text,
             multiIf(
+                {sort_field: String} = 'health', failure_rate_ppm,
                 {sort_field: String} = 'averageDuration', average_duration_ms,
                 {sort_field: String} = 'lastRun', last_run_ns_value,
                 toUInt64(0)
@@ -97,15 +139,21 @@ SELECT
     name,
     classname,
     file,
+    health_sort_bucket,
+    has_failure_rate,
+    failure_rate_ppm,
+    failure_runs_7d,
+    executed_runs_7d,
+    skipped_runs_7d,
     has_average_duration,
     average_duration_ms,
     toString(last_run_ns_value) AS last_run_ns
 FROM sortable_tests
 WHERE
     {has_cursor: UInt8} = 0
-    OR sort_is_missing > cursor_sort_is_missing
+    OR sort_bucket > cursor_sort_bucket
     OR (
-        sort_is_missing = cursor_sort_is_missing
+        sort_bucket = cursor_sort_bucket
         AND (
             (
                 {sort_ascending: UInt8} = 1
@@ -138,7 +186,7 @@ WHERE
         )
     )
 ORDER BY
-    sort_is_missing ASC,
+    sort_bucket ASC,
     if({sort_ascending: UInt8} = 1, sort_text, '') ASC,
     if({sort_ascending: UInt8} = 0, sort_text, '') DESC,
     if({sort_ascending: UInt8} = 1, sort_number, toUInt64(0)) ASC,

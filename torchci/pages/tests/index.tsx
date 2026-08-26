@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Paper,
   Stack,
@@ -30,6 +31,11 @@ type DistinctTest = {
   name: string;
   classname: string;
   file: string | null;
+  healthStatus: "healthy" | "unhealthy" | "alwaysSkipped" | "noData";
+  failureRate7d: number | null;
+  failureRuns7d: number;
+  executedRuns7d: number;
+  skippedRuns7d: number;
   averageDurationSeconds: number | null;
   lastRun: string;
 };
@@ -44,7 +50,13 @@ type DistinctTestsResponse = {
   };
 };
 
-type SortField = "file" | "classname" | "name" | "averageDuration" | "lastRun";
+type SortField =
+  | "file"
+  | "classname"
+  | "name"
+  | "health"
+  | "averageDuration"
+  | "lastRun";
 type SortOrder = "asc" | "desc";
 
 const DEFAULT_SORT_FIELD: SortField = "averageDuration";
@@ -55,16 +67,17 @@ const TEST_COLUMNS: {
   width: string;
   align?: "left" | "right";
 }[] = [
-  { field: "file", label: "File", width: "25%" },
-  { field: "classname", label: "Classname", width: "22%" },
-  { field: "name", label: "Name", width: "26%" },
+  { field: "file", label: "File", width: "20%" },
+  { field: "classname", label: "Classname", width: "18%" },
+  { field: "name", label: "Name", width: "22%" },
+  { field: "health", label: "Health (7d)", width: "16%" },
   {
     field: "averageDuration",
     label: "Avg duration",
-    width: "12%",
+    width: "11%",
     align: "right",
   },
-  { field: "lastRun", label: "Last run", width: "15%" },
+  { field: "lastRun", label: "Last run", width: "13%" },
 ];
 
 function isSortField(value: unknown): value is SortField {
@@ -76,7 +89,61 @@ function isSortOrder(value: unknown): value is SortOrder {
 }
 
 function defaultSortOrder(sort: SortField): SortOrder {
-  return sort === "averageDuration" || sort === "lastRun" ? "desc" : "asc";
+  return sort === "health" || sort === "averageDuration" || sort === "lastRun"
+    ? "desc"
+    : "asc";
+}
+
+function formatFailureRate(test: DistinctTest): string {
+  const roundedRate = (test.failureRate7d! * 100).toFixed(1);
+  return test.healthStatus === "unhealthy" && Number(roundedRate) <= 25
+    ? ">25.0%"
+    : `${roundedRate}%`;
+}
+
+function HealthCell({ test }: { test: DistinctTest }) {
+  if (test.healthStatus === "alwaysSkipped") {
+    const runLabel = test.skippedRuns7d === 1 ? "run" : "runs";
+    return (
+      <Stack alignItems="flex-start" spacing={0.25}>
+        <Chip
+          label="Always skipped"
+          color="warning"
+          size="small"
+          variant="outlined"
+        />
+        <Typography variant="caption" color="text.secondary">
+          All {test.skippedRuns7d.toLocaleString("en-US")} {runLabel} skipped
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (test.healthStatus === "noData" || test.failureRate7d === null) {
+    return (
+      <Stack alignItems="flex-start" spacing={0.25}>
+        <Chip label="No data" size="small" variant="outlined" />
+        <Typography variant="caption" color="text.secondary">
+          No runs in 7d
+        </Typography>
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack alignItems="flex-start" spacing={0.25}>
+      <Chip
+        label={test.healthStatus === "unhealthy" ? "Unhealthy" : "Healthy"}
+        color={test.healthStatus === "unhealthy" ? "error" : "success"}
+        size="small"
+        variant="outlined"
+      />
+      <Typography variant="caption" color="text.secondary" whiteSpace="nowrap">
+        {formatFailureRate(test)} · {test.failureRuns7d.toLocaleString("en-US")}
+        /{test.executedRuns7d.toLocaleString("en-US")} failed
+      </Typography>
+    </Stack>
+  );
 }
 
 const PAGE_SIZE = 100;
@@ -293,7 +360,7 @@ export default function TestsPage() {
               {tests.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     align="center"
                     sx={{ py: 8, backgroundColor: emptyBackgroundColor }}
                   >
@@ -365,6 +432,9 @@ export default function TestsPage() {
                         >
                           {test.name || "Not reported"}
                         </Link>
+                      </TableCell>
+                      <TableCell>
+                        <HealthCell test={test} />
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                         {test.averageDurationSeconds === null ? (
@@ -445,6 +515,9 @@ export default function TestsPage() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Average duration is based on successful runs over the last 30 days.
+            Health is based on failures and errors among executed runs over the
+            last 7 days; skipped runs are excluded, and rates above 25% are
+            unhealthy. Tests with only skipped runs are marked always skipped.
             Select a column header to sort.
           </Typography>
         </Stack>

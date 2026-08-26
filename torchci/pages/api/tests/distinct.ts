@@ -7,7 +7,7 @@ const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
-const CURSOR_VERSION = 5;
+const CURSOR_VERSION = 7;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_SEARCH_LENGTH = 200;
 
@@ -15,6 +15,7 @@ const SORT_FIELDS = [
   "file",
   "classname",
   "name",
+  "health",
   "averageDuration",
   "lastRun",
 ] as const;
@@ -32,13 +33,26 @@ function isSortOrder(value: unknown): value is SortOrder {
 }
 
 function defaultSortOrder(sort: SortField): SortOrder {
-  return sort === "averageDuration" || sort === "lastRun" ? "desc" : "asc";
+  return sort === "health" || sort === "averageDuration" || sort === "lastRun"
+    ? "desc"
+    : "asc";
 }
+
+export type TestHealthStatus =
+  | "healthy"
+  | "unhealthy"
+  | "alwaysSkipped"
+  | "noData";
 
 export interface DistinctTest {
   name: string;
   classname: string;
   file: string;
+  healthStatus: TestHealthStatus;
+  failureRate7d: number | null;
+  failureRuns7d: number;
+  executedRuns7d: number;
+  skippedRuns7d: number;
   averageDurationSeconds: number | null;
   lastRun: string;
 }
@@ -61,6 +75,8 @@ interface DistinctTestsCursor {
   anchorMs: number;
   hasAverageDuration: 0 | 1;
   averageDurationMs: number;
+  healthSortBucket: 0 | 1 | 2;
+  failureRatePpm: number;
   lastRunNs: string;
   search: string;
   sort: SortField;
@@ -78,6 +94,12 @@ interface DistinctTestQueryRow {
   file: string;
   has_average_duration: number;
   average_duration_ms: number;
+  health_sort_bucket: 0 | 1 | 2;
+  has_failure_rate: number;
+  failure_rate_ppm: number;
+  failure_runs_7d: number;
+  executed_runs_7d: number;
+  skipped_runs_7d: number;
   last_run_ns: string;
 }
 
@@ -99,6 +121,8 @@ function encodeCursor(
     anchorMs,
     hasAverageDuration: test.has_average_duration === 1 ? 1 : 0,
     averageDurationMs: test.average_duration_ms,
+    healthSortBucket: test.health_sort_bucket,
+    failureRatePpm: test.failure_rate_ppm,
     lastRunNs: test.last_run_ns,
     search,
     sort,
@@ -148,6 +172,13 @@ function decodeCursor(value: string): DistinctTestsCursor {
     !Number.isSafeInteger(cursor.averageDurationMs) ||
     (cursor.averageDurationMs ?? -1) < 0 ||
     (cursor.hasAverageDuration === 0 && cursor.averageDurationMs !== 0) ||
+    (cursor.healthSortBucket !== 0 &&
+      cursor.healthSortBucket !== 1 &&
+      cursor.healthSortBucket !== 2) ||
+    !Number.isSafeInteger(cursor.failureRatePpm) ||
+    (cursor.failureRatePpm ?? -1) < 0 ||
+    (cursor.failureRatePpm ?? 0) > 1_000_000 ||
+    (cursor.healthSortBucket !== 0 && cursor.failureRatePpm !== 0) ||
     !Number.isSafeInteger(lastRunMs) ||
     lastRunMs <= (cursor.anchorMs ?? 0) - LOOKBACK_MS ||
     lastRunMs > (cursor.anchorMs ?? 0) ||
@@ -224,6 +255,7 @@ export default async function handler(
     cursor?.anchorMs ??
     Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
   const cutoffMs = anchorMs - LOOKBACK_MS;
+  const healthCutoffMs = anchorMs - 7 * 24 * 60 * 60 * 1000;
   const search = cursor?.search ?? requestedSearch;
   const direction = cursor?.direction ?? "forward";
   const queryName =
@@ -240,12 +272,15 @@ export default async function handler(
         sort_ascending: order === "asc" ? 1 : 0,
         cursor_has_average_duration: cursor?.hasAverageDuration ?? 0,
         cursor_average_duration_ms: cursor?.averageDurationMs ?? 0,
+        cursor_health_sort_bucket: cursor?.healthSortBucket ?? 0,
+        cursor_failure_rate_ppm: cursor?.failureRatePpm ?? 0,
         cursor_last_run_ns: cursor?.lastRunNs ?? "0",
         cursor_name: cursor?.name ?? "",
         cursor_classname: cursor?.classname ?? "",
         cursor_file: cursor?.file ?? "",
         search,
         cutoff_ms: cutoffMs,
+        health_cutoff_ms: healthCutoffMs,
         anchor_ms: anchorMs,
         limit: QUERY_LIMIT,
       },
@@ -262,14 +297,38 @@ export default async function handler(
       ({
         has_average_duration: hasAverageDuration,
         average_duration_ms: averageDurationMs,
+        health_sort_bucket: healthSortBucket,
+        has_failure_rate: hasFailureRate,
+        failure_rate_ppm: failureRatePpm,
+        failure_runs_7d: failureRuns7d,
+        executed_runs_7d: executedRuns7d,
+        skipped_runs_7d: skippedRuns7d,
         last_run_ns: lastRunNs,
         ...test
-      }) => ({
-        ...test,
-        averageDurationSeconds:
-          hasAverageDuration === 1 ? averageDurationMs / 1000 : null,
-        lastRun: new Date(nanosecondsToMilliseconds(lastRunNs)).toISOString(),
-      })
+      }) => {
+        const failureRuns = Number(failureRuns7d);
+        const executedRuns = Number(executedRuns7d);
+        const skippedRuns = Number(skippedRuns7d);
+        return {
+          ...test,
+          healthStatus:
+            healthSortBucket === 1
+              ? ("alwaysSkipped" as const)
+              : healthSortBucket === 2
+              ? ("noData" as const)
+              : failureRuns * 4 > executedRuns
+              ? ("unhealthy" as const)
+              : ("healthy" as const),
+          failureRate7d:
+            hasFailureRate === 1 ? Number(failureRatePpm) / 1_000_000 : null,
+          failureRuns7d: failureRuns,
+          executedRuns7d: executedRuns,
+          skippedRuns7d: skippedRuns,
+          averageDurationSeconds:
+            hasAverageDuration === 1 ? averageDurationMs / 1000 : null,
+          lastRun: new Date(nanosecondsToMilliseconds(lastRunNs)).toISOString(),
+        };
+      }
     );
     const hasPreviousPage =
       tests.length > 0 &&
