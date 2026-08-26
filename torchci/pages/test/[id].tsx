@@ -2,18 +2,31 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Link,
   Paper,
   Skeleton,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
-import { durationDisplay } from "components/common/TimeUtils";
+import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { decodeTestIdentity } from "lib/testIdentity";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import type { TestMetricsResponse } from "pages/api/tests/[id]/metrics";
+import type {
+  TestRunsResponse,
+  TestRunStatus,
+} from "pages/api/tests/[id]/runs";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 function MetricCard({
@@ -66,13 +79,43 @@ function HeaderField({ label, value }: { label: string; value: string }) {
   );
 }
 
+const RUN_STATUS: Record<
+  TestRunStatus,
+  {
+    label: string;
+    color: "success" | "error" | "default" | "warning";
+  }
+> = {
+  success: { label: "Success", color: "success" },
+  failure: { label: "Failure", color: "error" },
+  skipped: { label: "Skipped", color: "default" },
+  flaky: { label: "Flaky", color: "warning" },
+};
+
+function RunStatusChip({ status }: { status: TestRunStatus }) {
+  const config = RUN_STATUS[status];
+  return <Chip label={config.label} color={config.color} size="small" />;
+}
+
 export default function TestDetailsPage() {
   const router = useRouter();
   const id = typeof router.query.id === "string" ? router.query.id : null;
   const test = id ? decodeTestIdentity(id) : null;
+  const [runsCursor, setRunsCursor] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRunsCursor(null);
+  }, [id]);
+
   const metricsUrl =
     router.isReady && test && id
       ? `/api/tests/${encodeURIComponent(id)}/metrics`
+      : null;
+  const runsUrl =
+    router.isReady && test && id
+      ? `/api/tests/${encodeURIComponent(id)}/runs${
+          runsCursor ? `?cursor=${encodeURIComponent(runsCursor)}` : ""
+        }`
       : null;
   const {
     data: metrics,
@@ -80,6 +123,16 @@ export default function TestDetailsPage() {
     isLoading: metricsLoading,
     mutate: refreshMetrics,
   } = useSWR<TestMetricsResponse>(metricsUrl, fetcherHandleError, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+  const {
+    data: runsData,
+    error: runsError,
+    isLoading: runsLoading,
+    isValidating: runsValidating,
+    mutate: refreshRuns,
+  } = useSWR<TestRunsResponse>(runsUrl, fetcherHandleError, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
@@ -216,6 +269,195 @@ export default function TestDetailsPage() {
               )}
             </>
           )}
+
+          <Box sx={{ mt: 4 }}>
+            <Typography id="recent-runs-heading" variant="h6" component="h2">
+              Recent runs
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Newest first, 20 runs per page. Flaky runs retried before passing.
+              They count toward total runs but are excluded from successful runs
+              and the average duration.
+            </Typography>
+
+            {runsError ? (
+              <Alert
+                severity="error"
+                action={
+                  <Stack direction="row" spacing={0.5}>
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => void refreshRuns()}
+                    >
+                      Retry
+                    </Button>
+                    {runsCursor && (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => setRunsCursor(null)}
+                      >
+                        Latest
+                      </Button>
+                    )}
+                  </Stack>
+                }
+              >
+                Unable to load recent runs. Please try again.
+              </Alert>
+            ) : runsLoading || !runsData ? (
+              <Skeleton variant="rounded" height={260} />
+            ) : (
+              <>
+                <TableContainer
+                  component={Paper}
+                  variant="outlined"
+                  sx={{ maxHeight: 36 + 6 * 52, overflow: "auto" }}
+                >
+                  <Table
+                    stickyHeader
+                    size="small"
+                    aria-labelledby="recent-runs-heading"
+                  >
+                    <TableHead>
+                      <TableRow sx={{ height: 36 }}>
+                        <TableCell>Result</TableCell>
+                        <TableCell>Workflow / job</TableCell>
+                        <TableCell align="right">Duration</TableCell>
+                        <TableCell>Recorded</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {runsData.runs.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            align="center"
+                            sx={{ py: 4, color: "text.secondary" }}
+                          >
+                            No runs recorded in the past 30 days.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        runsData.runs.map((run, index) => {
+                          const jobLabel = run.jobName || `Job ${run.jobId}`;
+                          const workflowLabel =
+                            run.workflowName || `Workflow ${run.workflowId}`;
+                          const attempt =
+                            run.workflowRunAttempt > 1
+                              ? ` · Attempt ${run.workflowRunAttempt}`
+                              : "";
+
+                          return (
+                            <TableRow
+                              key={`${run.recordedAt}-${run.jobId}-${index}`}
+                              hover
+                              sx={{ height: 52 }}
+                            >
+                              <TableCell>
+                                <RunStatusChip status={run.status} />
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 280 }}>
+                                {run.jobUrl ? (
+                                  <Link
+                                    href={run.jobUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{
+                                      display: "block",
+                                      fontSize: "0.875rem",
+                                      lineHeight: 1.4,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {jobLabel}
+                                  </Link>
+                                ) : (
+                                  <Typography
+                                    component="span"
+                                    sx={{
+                                      display: "block",
+                                      fontSize: "0.875rem",
+                                      lineHeight: 1.4,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {jobLabel}
+                                  </Typography>
+                                )}
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{
+                                    display: "block",
+                                    lineHeight: 1.4,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {workflowLabel}
+                                  {attempt}
+                                </Typography>
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ whiteSpace: "nowrap" }}
+                              >
+                                {durationDisplay(run.durationSeconds)}
+                              </TableCell>
+                              <TableCell sx={{ whiteSpace: "nowrap" }}>
+                                <LocalTimeHuman timestamp={run.recordedAt} />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  spacing={2}
+                  sx={{ mt: 1.5 }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    Page {runsData.pageInfo.page}
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="outlined"
+                      disabled={
+                        runsValidating ||
+                        !runsData.pageInfo.hasPreviousPage ||
+                        !runsData.pageInfo.previousCursor
+                      }
+                      onClick={() =>
+                        setRunsCursor(runsData.pageInfo.previousCursor)
+                      }
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="contained"
+                      disabled={
+                        runsValidating ||
+                        !runsData.pageInfo.hasNextPage ||
+                        !runsData.pageInfo.nextCursor
+                      }
+                      onClick={() =>
+                        setRunsCursor(runsData.pageInfo.nextCursor)
+                      }
+                    >
+                      Next
+                    </Button>
+                  </Stack>
+                </Stack>
+              </>
+            )}
+          </Box>
         </Box>
       </Box>
     </>
