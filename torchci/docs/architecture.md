@@ -86,8 +86,9 @@ gates decide which repos actually do:
   which is the same one `webhookToDynamo` uses. This gate is permanent.
 - Within those, the `LOG_UPLOADER_REPOS` env var lists the enabled repos as
   `owner/repo` or `owner/*`. Unset means the handler does nothing. This one is
-  temporary, and exists to stage the cutover from [`github-status-test`] a repo
-  at a time; see https://github.com/pytorch/test-infra/issues/7549.
+  temporary — it staged the cutover from the retired `github-status-test` webhook
+  a repo at a time, and can go once every repo is enabled; see
+  https://github.com/pytorch/test-infra/issues/7549.
 
 Missing logs are re-requested through `backfillMissingLog` in `lib/jobUtils.ts`,
 which Dr.CI calls when it finds a failed job with no log. Callers outside HUD use
@@ -109,16 +110,13 @@ an example.
 
 ### Raw webhook payloads
 
-The [`github-status-test`] lambda archives raw webhook payloads to the
-[`ossci-raw-job-status`] S3 bucket, under a prefix per event type. Nothing reads
-them: `clickhouse-replicator-s3` has no `SUPPORTED_PATHS` entry for
-`workflow_job/`, `workflow_run/`, or `full_workflow_*/`, and ClickHouse gets jobs
-from DynamoDB through `clickhouse-replicator-dynamo`.
+The retired `github-status-test` lambda used to archive raw webhook payloads to
+the [`ossci-raw-job-status`] S3 bucket, under a prefix per event type. Nothing
+ever read them — `clickhouse-replicator-s3` has no `SUPPORTED_PATHS` entry for
+`workflow_job/`, `workflow_run/` or `full_workflow_*/`, and ClickHouse gets jobs
+from DynamoDB through `clickhouse-replicator-dynamo` — so [`gha-log-uploader`]
+does not reproduce it. The historical objects are still in the bucket.
 
-This archive goes away with the lambda. It is not reproduced in
-[`gha-log-uploader`].
-
-[`github-status-test`]: https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/github-status-test?tab=code
 [`gha-log-uploader`]: https://github.com/pytorch/test-infra/blob/main/aws/lambda/gha-log-uploader/README.md
 [`ossci-raw-job-status`]: https://s3.console.aws.amazon.com/s3/buckets/ossci-raw-job-status?region=us-east-1&tab=overview
 

@@ -14,8 +14,8 @@ from octokit import Octokit
 DYNAMO = boto3.resource("dynamodb")
 
 # torchci's authenticated backfill route, which hands the job to the
-# gha-log-uploader lambda. That lambda owns log downloading now; re-implementing
-# it here is how this script and github-status-test used to drift apart.
+# gha-log-uploader lambda. That lambda owns log downloading; re-implementing it
+# here is how this script drifted from the uploader it was meant to mirror.
 HUD_URL = os.environ.get("HUD_URL", "https://hud.pytorch.org")
 LOG_UPLOADER_BOT_KEY = os.environ.get("LOG_UPLOADER_BOT_KEY", "")
 
@@ -73,8 +73,8 @@ def upload_log(owner: str, repo: str, job_id: int, conclusion: str) -> None:
 
 def process_event(owner: str, repo: str, event: str, body: Any) -> None:
     # Only DynamoDB, which is what clickhouse-replicator-dynamo reads. The raw
-    # event archive github-status-test used to write to S3 was never read by
-    # anything and is not reproduced here.
+    # event archive that used to be written to S3 alongside this was never read
+    # by anything, and is not reproduced here.
     if "id" not in body:
         warn(f"Missing ID in {body}, skipping...")
         return

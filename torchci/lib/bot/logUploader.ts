@@ -7,10 +7,12 @@ import { isPyTorchbotSupportedOrg, isVLLM } from "./utils";
  * either `owner/repo` or `owner/*`; an empty or unset value disables the
  * handler entirely.
  *
- * This exists so the cutover from the github-status-test webhook can be done a
- * repo at a time. While a repo still has that webhook, both paths write the same
- * S3 key -- harmless, but it doubles classifier calls, so the allowlist is what
- * bounds the overlap. Rolling back is editing this variable.
+ * This exists so the cutover from the old per-repo webhook could be done a repo
+ * at a time. Nothing sits behind it any more, so dropping a repo from the list
+ * does not fall back to anything -- it stops uploading that repo's logs on job
+ * completion. Dr.CI still repairs individual PR jobs through backfillMissingLog,
+ * which invokes the uploader directly and ignores this list, but nothing covers
+ * trunk-only jobs. The variable can go once every supported repo is listed.
  */
 export function parseRepoAllowlist(raw: string | undefined): Set<string> {
   return new Set(
