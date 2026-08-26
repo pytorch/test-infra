@@ -20,11 +20,16 @@ HUD_URL = os.environ.get("HUD_URL", "https://hud.pytorch.org")
 LOG_UPLOADER_BOT_KEY = os.environ.get("LOG_UPLOADER_BOT_KEY", "")
 
 
-def upload_log(owner: str, repo: str, job_id: int, conclusion: str) -> None:
-    if not LOG_UPLOADER_BOT_KEY:
-        warn("LOG_UPLOADER_BOT_KEY is not set, skipping the log upload...")
-        return
+class LogUploadAuthError(Exception):
+    """The backfill route rejected our credentials.
 
+    Fatal rather than per-job: every subsequent upload would be rejected the same
+    way, and a run that keeps going writes DynamoDB rows while silently
+    uploading nothing.
+    """
+
+
+def upload_log(owner: str, repo: str, job_id: int, conclusion: str) -> None:
     print(f"..Requesting a log upload for {owner}/{repo} job {job_id}")
     request = Request(
         f"{HUD_URL}/api/log-uploader/backfill",
@@ -43,12 +48,23 @@ def upload_log(owner: str, repo: str, job_id: int, conclusion: str) -> None:
     )
 
     try:
-        # GitHub drops logs after around 60 days, so an old job simply has
-        # nothing to fetch. That is a warning, not a reason to stop the backfill.
+        # A 200 only means the upload was queued for the lambda. Whether GitHub
+        # still has the log is decided there and shows up in its logs, not here,
+        # so the only failures visible at this call site are the POST's own.
         with urlopen(request, timeout=30) as response:
             if response.status != 200:
                 warn(f"Log upload for job {job_id} returned {response.status}")
-    except (HTTPError, OSError) as error:
+    except HTTPError as error:
+        if error.code in (401, 403):
+            raise LogUploadAuthError(
+                f"{HUD_URL}/api/log-uploader/backfill rejected "
+                f"LOG_UPLOADER_BOT_KEY with {error.code}"
+            ) from error
+        warn(
+            f"Failed to request a log upload for job {job_id} from repo "
+            f"{owner}/{repo}: {error}, skipping..."
+        )
+    except OSError as error:
         warn(
             f"Failed to request a log upload for job {job_id} from repo "
             f"{owner}/{repo}: {error}, skipping..."
@@ -136,6 +152,17 @@ def process_workflow_run(
 def backfill(
     owner: str, repo: str, event: str, branch: str = "", limit: int = 0
 ) -> None:
+    # Check the credential before the loop rather than per job. warnings.warn
+    # dedupes an identical message to one line per process, so a missing key
+    # would otherwise print once, early, among thousands of progress lines --
+    # and the run would still write DynamoDB rows, upload no logs, and exit 0.
+    if not LOG_UPLOADER_BOT_KEY:
+        raise LogUploadAuthError(
+            "LOG_UPLOADER_BOT_KEY is not set, so no logs could be uploaded. "
+            "Set it, or comment out the upload_log call to backfill only the "
+            "DynamoDB rows."
+        )
+
     token = os.environ.get("GITHUB_TOKEN", "")
     client = Octokit(auth="token", token=token)
     count = 0

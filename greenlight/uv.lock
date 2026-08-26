@@ -253,6 +253,7 @@ dependencies = [
     { name = "clickhouse-connect" },
     { name = "pygithub" },
     { name = "pyyaml" },
+    { name = "urllib3" },
 ]
 
 [package.dev-dependencies]
@@ -272,6 +273,7 @@ requires-dist = [
     { name = "clickhouse-connect", specifier = ">=0.10" },
     { name = "pygithub", specifier = ">=2.6.1" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "urllib3", specifier = ">=2" },
 ]
 
 [package.metadata.requires-dev]

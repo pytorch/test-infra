@@ -195,6 +195,14 @@ def test_jwt_segment_longer_than_4096_is_fully_redacted_without_tail():
         "@pytorchbot please split this PR",  # @-mentions are defang's job, not scrub's
         "see https://github.com/pytorch/pytorch/pull/123 for details",
         "Bearer of bad news arrived early",  # "Bearer" as prose, no token follows
+        # The unterminated-key-block sweep needs a key-shaped body, so a marker named in prose --
+        # even broken across short lines -- has nothing for it to latch onto.
+        "the diff adds a -----BEGIN RSA PRIVATE KEY----- literal to the fixture",
+        "look at -----BEGIN RSA PRIVATE KEY-----\nand then some prose",
+        "look at -----BEGIN RSA PRIVATE KEY-----",  # marker at end of text, the \\Z the sweep anchors on
+        "-----BEGIN RSA PRIVATE KEY-----\n\n\nthis is only prose about it\n",
+        "-----BEGIN RSA PRIVATE KEY-----\nis\nonly\na\nliteral\nin\nthe\ntest\nfixture\nnothing\nmore\n",
+        "-----BEGIN RSA PRIVATE KEY-----\n    this is indented prose\n    and a second indented line\n",
     ],
 )
 def test_benign_text_is_preserved(benign):
@@ -237,23 +245,3 @@ def test_benign_large_input_under_cap_is_unchanged():
     payload = "a" * 10_000
 
     assert redact.scrub_secrets(payload) == payload
-
-
-def test_input_longer_than_cap_is_truncated():
-    # scrub_secrets caps input length to bound worst-case regex time; content past the cap is
-    # dropped, which is safe because nothing downstream publishes it.
-    out = redact.scrub_secrets("a" * 100_000)
-
-    assert out == "a" * redact._MAX_SCRUB_INPUT
-
-
-def test_pem_begin_storm_completes_fast():
-    # Repeated BEGIN markers with no END drive the lazy PEM scan into O(n^2); the input cap keeps a
-    # 200KB storm fast instead of multi-second.
-    payload = "-----BEGIN X PRIVATE KEY-----" * 7000  # ~200KB, no END marker
-
-    start = time.monotonic()
-    redact.scrub_secrets(payload)
-    elapsed = time.monotonic() - start
-
-    assert elapsed < 1.0

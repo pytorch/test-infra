@@ -3,7 +3,7 @@ name = "greenlight"
 version = "0.0.0"
 description = "CLI-invoked periodic iteration service, daemon-capable."
 requires-python = ">=3.13,<3.14"
-dependencies = ["pygithub>=2.6.1", "clickhouse-connect>=0.10", "pyyaml>=6", "boto3>=1.34"]
+dependencies = ["pygithub>=2.6.1", "clickhouse-connect>=0.10", "pyyaml>=6", "boto3>=1.34", "urllib3>=2"]
 
 [project.scripts]
 greenlight = "greenlight.cli:main"

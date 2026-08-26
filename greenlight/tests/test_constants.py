@@ -113,3 +113,54 @@ def test_dispatch_constants_values():
 def test_merge_rules_constants_values():
     assert constants.TARGET_REPO == "pytorch/pytorch"
     assert constants.MERGE_RULES_PATH == ".github/merge_rules.yaml"
+
+
+def test_drci_endpoint_value():
+    assert constants.DRCI_ENDPOINT == "https://hud.pytorch.org/api/drci/drci"
+
+
+def test_drci_status_comment_repos_is_only_target_repo():
+    # Only pytorch/pytorch delegates its status comment today; every other repo keeps the
+    # greenlight-authored comment, so widening this set changes behaviour for real repos.
+    assert sorted(constants.DRCI_STATUS_COMMENT_REPOS) == ["pytorch/pytorch"]
+    assert constants.TARGET_REPO in constants.DRCI_STATUS_COMMENT_REPOS
+
+
+def test_drci_status_comment_repos_entries_are_normalized():
+    # Lookup folds case, so an entry that is not already folded could never match. This pins
+    # the fold to set construction rather than to whoever happens to add the next repo.
+    for repo in constants.DRCI_STATUS_COMMENT_REPOS:
+        assert repo == constants.normalize_repo(repo)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("pytorch/pytorch", "pytorch/pytorch"),
+        ("PyTorch/PyTorch", "pytorch/pytorch"),
+        ("  PYTORCH/PyTorch  ", "pytorch/pytorch"),
+        ("\tPytorch/Vision\n", "pytorch/vision"),
+    ],
+)
+def test_normalize_repo_folds_case_and_surrounding_space(raw, expected):
+    # greenlightRepoKey in torchci/lib/greenlight/greenlightConfig.ts mirrors this exactly;
+    # the two gates disagreeing on the key leaves a PR with no status on either surface.
+    assert constants.normalize_repo(raw) == expected
+
+
+def test_normalize_repo_does_not_repair_whitespace_around_the_separator():
+    # The whole key is folded, not its halves, so interior space survives and the gate fails
+    # closed. Pinned on both sides: repairing it here alone would suppress greenlight's comment
+    # on a key the HUD's own gate still misses.
+    assert constants.normalize_repo("  pytorch  /  pytorch  ") == "pytorch  /  pytorch"
+    assert constants.delegates_status_comment_to_drci("  pytorch  /  pytorch  ") is False
+
+
+@pytest.mark.parametrize("repo", ["pytorch/pytorch", "PyTorch/PyTorch", "  pytorch/pytorch  "])
+def test_delegates_status_comment_to_drci_accepts_target_repo(repo):
+    assert constants.delegates_status_comment_to_drci(repo) is True
+
+
+@pytest.mark.parametrize("repo", ["pytorch/vision", "pytorch/test-infra", "", "pytorch", "pytorch/pytorch-fork"])
+def test_delegates_status_comment_to_drci_rejects_other_repos(repo):
+    assert constants.delegates_status_comment_to_drci(repo) is False
