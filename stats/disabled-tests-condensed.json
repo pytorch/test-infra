@@ -572,6 +572,13 @@
       "rocm"
     ]
   ],
+  "test_local_stream_nested_enter_exit_cuda (__main__.TestStreamsCUDA)": [
+    "194835",
+    "https://github.com/pytorch/pytorch/issues/194835",
+    [
+      "linux"
+    ]
+  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
     "188706",
     "https://github.com/pytorch/pytorch/issues/188706",
@@ -1003,13 +1010,11 @@
       "linux"
     ]
   ],
-  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
-    "145189",
-    "https://github.com/pytorch/pytorch/issues/145189",
+  "test_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
+    "194837",
+    "https://github.com/pytorch/pytorch/issues/194837",
     [
-      "inductor",
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
@@ -1069,6 +1074,16 @@
     "https://github.com/pytorch/pytorch/issues/185452",
     [
       "linux"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
+    "123890",
+    "https://github.com/pytorch/pytorch/issues/123890",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
