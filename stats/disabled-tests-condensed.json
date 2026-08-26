@@ -573,8 +573,8 @@
     ]
   ],
   "test_local_stream_nested_enter_exit_cuda (__main__.TestStreamsCUDA)": [
-    "194835",
-    "https://github.com/pytorch/pytorch/issues/194835",
+    "194836",
+    "https://github.com/pytorch/pytorch/issues/194836",
     [
       "linux"
     ]
@@ -1041,6 +1041,13 @@
   "test_to_float64_after_init (__main__.TestFullyShardCastAfterInit)": [
     "193470",
     "https://github.com/pytorch/pytorch/issues/193470",
+    [
+      "rocm"
+    ]
+  ],
+  "test_to_float64_after_init (__main__.TestReplicateCastAfterInit)": [
+    "194860",
+    "https://github.com/pytorch/pytorch/issues/194860",
     [
       "rocm"
     ]
