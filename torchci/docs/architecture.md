@@ -81,9 +81,9 @@ Because this hangs off the App webhook rather than a per-repo one, no admin has
 to configure anything for a repo to get log downloads and classifications. Two
 gates decide which repos actually do:
 
-- The handler serves only the owners `pytorch`, `meta-pytorch`, `malfet` and
-  `vllm-project` (`isPyTorchbotSupportedOrg` / `isVLLM` in `lib/bot/utils.ts`),
-  the same set `webhookToDynamo` uses. This one is permanent.
+- The handler serves the `pytorch` and `meta-pytorch` orgs — see
+  `isPyTorchbotSupportedOrg` / `isVLLM` in `lib/bot/utils.ts` for the exact set,
+  which is the same one `webhookToDynamo` uses. This gate is permanent.
 - Within those, the `LOG_UPLOADER_REPOS` env var lists the enabled repos as
   `owner/repo` or `owner/*`. Unset means the handler does nothing. This one is
   temporary, and exists to stage the cutover from [`github-status-test`] a repo

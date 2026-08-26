@@ -157,7 +157,9 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
         sections.append(f"## Representative jobs\n\n{jobs}")
     sections.append(
         f"## Suggested routing\n\n{cause.get('routing', 'undetermined')} "
-        f"(agent confidence: {cause.get('confidence', 'unknown')})"
+        f"(agent confidence: classification "
+        f"{classification_confidence(cause) or 'unknown'}, new-failure "
+        f"{new_failure_confidence(cause) or 'unknown'})"
     )
     sections.append(
         "---\n\n"
@@ -169,16 +171,45 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
     return "\n\n".join(sections) + "\n"
 
 
+def _level(value: Any) -> str:
+    """Normalise a confidence level. ``med`` and ``medium`` are both in use."""
+    level = str(value or "").strip().lower()
+    return "medium" if level == "med" else level
+
+
+def classification_confidence(cause: Dict[str, Any]) -> str:
+    """How sure the agent is that the routing is right.
+
+    The agent's schema renamed the original ``confidence`` to
+    ``classification_confidence`` and added ``new_failure_confidence``; the old
+    name is still read so archived findings.json artifacts keep gating correctly.
+    """
+    return _level(cause.get("classification_confidence") or cause.get("confidence"))
+
+
+def new_failure_confidence(cause: Dict[str, Any]) -> str:
+    """How sure the agent is that this is a new regression, not a known variant.
+
+    Absent in the pre-rename schema, where "" reads as "not stated" and does not
+    disqualify a cause.
+    """
+    return _level(cause.get("new_failure_confidence"))
+
+
 def eligible(cause: Dict[str, Any]) -> bool:
     """High-confidence torch/triton causes only.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
     the tracker: at three runs a week, filing uncertain causes would bury the real
     ones. They remain visible in the run summary and the umbrella's context section.
+
+    ``new_failure_confidence: low`` means "likely a variant of an existing known
+    issue", so filing it would duplicate a child issue that already exists.
     """
     return (
         bool(cause.get("determined"))
-        and str(cause.get("confidence", "")).lower() == "high"
+        and classification_confidence(cause) == "high"
+        and new_failure_confidence(cause) != "low"
         and str(cause.get("routing", "")).strip().lower() == "pytorch/pytorch"
     )
 
@@ -234,6 +265,17 @@ def main() -> int:
         )
         return 0
 
+    # A schema change on the agent side silently zeroes out the gate, which reads
+    # as a quiet "nothing to file" run. Say so instead.
+    unscored = [c for c in causes if not classification_confidence(c)]
+    if unscored:
+        print(
+            f"WARNING: {len(unscored)} of {len(causes)} cause(s) carry no "
+            "classification_confidence (nor legacy confidence) field. No cause can "
+            "be eligible without it -- the agent's findings schema may have changed.",
+            file=sys.stderr,
+        )
+
     selected = [c for c in causes if eligible(c)]
     skipped = [c for c in causes if not eligible(c)]
     print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
@@ -241,7 +283,9 @@ def main() -> int:
         print(
             f"  skip: {c.get('title', '<untitled>')!r} "
             f"(determined={c.get('determined')}, "
-            f"confidence={c.get('confidence')}, routing={c.get('routing')})"
+            f"classification_confidence={classification_confidence(c) or None}, "
+            f"new_failure_confidence={new_failure_confidence(c) or None}, "
+            f"routing={c.get('routing')})"
         )
     if len(selected) > args.max_issues:
         print(
