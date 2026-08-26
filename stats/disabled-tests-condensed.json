@@ -1144,13 +1144,6 @@
       "rocm"
     ]
   ],
-  "test_transformer_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
-    "190166",
-    "https://github.com/pytorch/pytorch/issues/190166",
-    [
-      "rocm"
-    ]
-  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
