@@ -2,7 +2,7 @@ import logging
 import queue
 import threading
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 import pytest
 
@@ -322,6 +322,14 @@ def _candidate(number: int, *, run_id: int | None) -> scan_runner._Candidate:
     )
 
 
+def _noop_poke(_pr_number: int) -> None:
+    return None
+
+
+def _boom_poke(pr_number: int) -> NoReturn:
+    raise AssertionError(f"poke should not be called for PR #{pr_number}")
+
+
 def test_dispatch_pending_emits_marker_with_next_run_id():
     dispatched: list[int] = []
     emitted: list[dict[str, object]] = []
@@ -334,7 +342,13 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
 
     pending = [_candidate(1, run_id=None), _candidate(2, run_id=4), _candidate(3, run_id=0)]
     failed = scan_runner._dispatch_pending(
-        _CLIENT, pending, ref="main", max_dispatches=None, dispatch=dispatch, emit_dispatched=emit
+        _CLIENT,
+        pending,
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=_noop_poke,
     )
 
     # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
@@ -350,6 +364,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
 
 def test_dispatch_pending_does_not_emit_when_dispatch_fails():
     emitted: list[dict[str, object]] = []
+    poked: list[int] = []
 
     def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
         raise RuntimeError(f"dispatch boom {number}")
@@ -364,16 +379,20 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
         max_dispatches=None,
         dispatch=boom_dispatch,
         emit_dispatched=emit,
+        poke=poked.append,
     )
 
-    # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it.
+    # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it --
+    # and with no marker written there is nothing for Dr. CI to re-render, so no poke either.
     assert failed == [1]
     assert emitted == []
+    assert poked == []
 
 
 def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
     dispatched: list[int] = []
     emitted: list[int] = []
+    poked: list[int] = []
 
     def dispatch(_client, number, _head_sha, _eval_hash, _ref):
         dispatched.append(number)
@@ -391,6 +410,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
             max_dispatches=None,
             dispatch=dispatch,
             emit_dispatched=boom_emit,
+            poke=poked.append,
         )
 
     # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
@@ -398,6 +418,9 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
     assert failed == []
     assert dispatched == [1, 2]
     assert emitted == [2]
+    # PR1 wrote no marker, so poking it would rebuild the comment from the state the marker was
+    # meant to replace; only PR2's successful emit earns a poke.
+    assert poked == [2]
     assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
     assert any(record.exc_info is not None for record in caplog.records)
 
@@ -421,6 +444,59 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
             max_dispatches=None,
             dispatch=dispatch,
             emit_dispatched=timeout_emit,
+            poke=_boom_poke,
         )
 
     assert dispatched == [1]
+
+
+def test_dispatch_pending_pokes_drci_after_each_successful_emit():
+    events: list[str] = []
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+        events.append(f"dispatch:{number}")
+
+    def emit(*, pr_number, **_kwargs):
+        events.append(f"emit:{pr_number}")
+
+    def poke(pr_number):
+        events.append(f"poke:{pr_number}")
+
+    failed = scan_runner._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None), _candidate(2, run_id=4)],
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=poke,
+    )
+
+    # Ordering is the contract: Dr. CI re-reads the row on poke, so each PR's poke must follow its
+    # own emit, and one candidate must be fully handled before the next is dispatched.
+    assert failed == []
+    assert events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
+
+
+def test_dispatch_pending_does_not_poke_deferred_candidates():
+    poked: list[int] = []
+
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref):
+        return None
+
+    def emit(**_kwargs):
+        return None
+
+    failed = scan_runner._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        ref="main",
+        max_dispatches=1,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=poked.append,
+    )
+
+    # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
+    assert failed == []
+    assert poked == [1]

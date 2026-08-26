@@ -6,8 +6,8 @@ directory. `just` is the front-end for every workflow — run `just` or
 
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
 loops as a daemon with `--loop`; in production the scheduled scan runs as the `greenlight-scan`
-AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has a
-one-shot `verdict` subcommand:
+AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has the
+one-shot `verdict` and `drci-poke` subcommands:
 
 - `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
   for each, compute its fingerprint (`eval_hash`), read its latest state from
@@ -25,7 +25,19 @@ one-shot `verdict` subcommand:
   (`CLICKHOUSE_*`).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
-  dismiss greenlight's prior approval and comment). Runs once, never as a daemon.
+  dismiss greenlight's prior approval). It also upserts the status comment, except on
+  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. Runs once,
+  never as a daemon.
+- `drci-poke` — ask Dr. CI to rebuild one PR's comment now rather than at its next
+  15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
+  just-written state row reaches ClickHouse. Never fails: every error is logged and
+  swallowed. Runs once, never as a daemon.
+
+The delegation has a side the greenlight repo does not control: the HUD renders the Green Light
+section for the repos in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`), and
+greenlight suppresses its own comment for the repos in `constants.DRCI_STATUS_COMMENT_REPOS`. A
+repo in the second list but not the first is auto-approved with no status anywhere, so change
+both together; `greenlight/tests/test_render_sync.py` fails when they drift apart.
 
 ## Setup
 
@@ -81,7 +93,9 @@ unless the commenter is trusted too (case-insensitive; a refusal is a clean exit
 input. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
 has a changes-requested review it does not review but posts a single comment that it will not
 re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or
-resolves that review. The command is not yet advertised in the PR status comment.
+resolves that review. That refusal comment carries its own marker and is posted by greenlight on
+every repo, `pytorch/pytorch` included — only the status comment is delegated to Dr. CI. The
+command is not yet advertised in the status surface.
 
 Daemon mode loops the phase on an interval:
 
@@ -109,6 +123,9 @@ and `--lock-path` override the matching env vars, and `review` adds the scan fla
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed) |
+| `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
+| `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
+| `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
@@ -141,7 +158,9 @@ The end-to-end flow, per trusted-author PR:
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow
-   (`greenlight-pr-review.yml` on `pytorch/test-infra`).
+   (`greenlight-pr-review.yml` on `pytorch/test-infra`) and emits an `AI_REVIEW_DISPATCHED`
+   row, then pokes Dr. CI in-process (no ingestion wait — the row is already in S3) so that
+   first state surfaces immediately instead of on the next sweep.
 4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
    the next scan sees the review as in-flight and does not re-dispatch it.
 5. Before the model runs, the workflow sanitizes the untrusted `./pytorch` checkout —
@@ -150,7 +169,11 @@ The end-to-end flow, per trusted-author PR:
    `./pytorch` (see the README's "Reviewer checkout sanitizing"). It then reviews the PR and
    records its verdict through `verdict`, which emits a row to
    `s3://gha-artifacts/greenlight_pr_state/` (ingested into `misc.greenlight_pr_state`) and,
-   for `LAND`/`NO_LAND`, approves or dismisses-and-comments on the PR.
+   for `LAND`/`NO_LAND`, approves or dismisses greenlight's prior approval.
+6. Both row-uploading jobs then run `drci-poke`, so Dr. CI rebuilds its comment — where the
+   run's status is shown on `pytorch/pytorch` once both sides of the delegation gate are on —
+   without waiting for its 15-minute sweep. The step is `continue-on-error`, and the sweep
+   backstops a lost poke.
 
 Only the land-time verifier — the pytorchbot side that reads the recorded state back at
 land time — is not built yet.
