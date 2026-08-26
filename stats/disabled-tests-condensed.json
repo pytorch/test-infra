@@ -14,13 +14,6 @@
       "rocm"
     ]
   ],
-  "test_LSTM_dropout_per_call_randomness_dropout_p_0_5_training_True_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "186868",
-    "https://github.com/pytorch/pytorch/issues/186868",
-    [
-      "rocm"
-    ]
-  ],
   "test_Sparse_to_Sparse_copy__mps_bfloat16 (__main__.TestSparseMPS)": [
     "189842",
     "https://github.com/pytorch/pytorch/issues/189842",
@@ -323,13 +316,6 @@
       "dynamo"
     ]
   ],
-  "test_del_attr_multi_stream_sync_dealloc (__main__.TestStreams)": [
-    "188234",
-    "https://github.com/pytorch/pytorch/issues/188234",
-    [
-      "linux"
-    ]
-  ],
   "test_del_multi_stream_sync_dealloc (__main__.TestStreams)": [
     "191414",
     "https://github.com/pytorch/pytorch/issues/191414",
@@ -561,6 +547,20 @@
   "test_launch_elastic_worker_raise_exception (__main__.ElasticLaunchTest)": [
     "188896",
     "https://github.com/pytorch/pytorch/issues/188896",
+    [
+      "linux"
+    ]
+  ],
+  "test_layout_TN_dynamic_k (__main__.LayoutCoverageWildcardTest)": [
+    "194899",
+    "https://github.com/pytorch/pytorch/issues/194899",
+    [
+      "linux"
+    ]
+  ],
+  "test_layout_TT_dynamic_k (__main__.LayoutCoverageWildcardTest)": [
+    "194900",
+    "https://github.com/pytorch/pytorch/issues/194900",
     [
       "linux"
     ]
@@ -905,6 +905,13 @@
       "xpu"
     ]
   ],
+  "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
+    "194896",
+    "https://github.com/pytorch/pytorch/issues/194896",
+    [
+      "xpu"
+    ]
+  ],
   "test_save_with_kwargs (__main__.TestCheckpointer)": [
     "190613",
     "https://github.com/pytorch/pytorch/issues/190613",
@@ -1008,6 +1015,15 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
     ]
   ],
   "test_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
@@ -1119,6 +1135,13 @@
       "asan",
       "linux",
       "slow"
+    ]
+  ],
+  "test_trace_only_export_matches_default_use_cuda_True (__main__.TestProfiler)": [
+    "186909",
+    "https://github.com/pytorch/pytorch/issues/186909",
+    [
+      "rocm"
     ]
   ],
   "test_transformer_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
