@@ -7,6 +7,13 @@ import {
   isFailureFromPrevMergeCommit,
   isSameFailure,
 } from "lib/jobUtils";
+import {
+  extractPrStatusSection,
+  fetchPrStatusState,
+  hasPrStatusLabel,
+  renderPrStatusSection,
+  splicePrStatusSection,
+} from "lib/prStatus";
 import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -219,12 +226,15 @@ export async function upsertDrCiComment(
   const sev = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
+  // Open and synchronize events do not recalculate status, so preserve it while
+  // rebuilding the rest of the comment.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
     "",
-    formDrciSevBody(sev)
+    formDrciSevBody(sev),
+    extractPrStatusSection(existingDrciComment)
   );
 
   if (existingDrciComment === drciComment) {
@@ -256,6 +266,60 @@ export async function upsertDrCiComment(
       `Updated comment with "${drciComment}" for pull request ${prUrl}`
     );
   }
+}
+
+/**
+ * Updates only PR Status after a label or review webhook. Does nothing until
+ * the sweep creates the Dr.CI comment, avoiding a resultless placeholder.
+ */
+export async function upsertPrStatusSection(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNum: number,
+  labels: string[],
+  // Used to exclude the author from recovered reviewers if PR lookup fails.
+  authorLogin?: string
+) {
+  if (!isPyTorchPyTorch(owner, repo)) {
+    return;
+  }
+
+  // No workflow label means remove stale status without fetching reviews.
+  let section = "";
+  if (hasPrStatusLabel(labels)) {
+    const state = await fetchPrStatusState(
+      octokit,
+      owner,
+      repo,
+      prNum,
+      labels,
+      authorLogin
+    );
+    // Preserve published status when review state is unavailable.
+    if (state === null) {
+      return;
+    }
+    section = renderPrStatusSection(state);
+  }
+
+  // Read the comment last to reduce lost updates from the concurrent CI sweep.
+  const { id, body } = await getDrciComment(octokit, owner, repo, prNum);
+  if (id === 0) {
+    return;
+  }
+
+  const updated = splicePrStatusSection(body, section, DRCI_COMMENT_START);
+  if (updated === body) {
+    return;
+  }
+
+  await octokit.rest.issues.updateComment({
+    body: updated,
+    owner,
+    repo,
+    comment_id: id,
+  });
 }
 
 export async function hasSimilarFailures(

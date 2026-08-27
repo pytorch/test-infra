@@ -10,6 +10,7 @@ import crcrOncallBot from "./crcrOncallBot";
 import drciBot from "./drciBot";
 import logUploader from "./logUploader";
 import nitpickBot from "./nitpickBot";
+import prStatusBot from "./prStatusBot";
 import pytorchBot from "./pytorchBot";
 import retryBot from "./retryBot";
 import stripApprovalBot from "./stripApprovalBot";
@@ -28,6 +29,7 @@ export default function bot(app: Probot) {
   drciBot(app);
   logUploader(app);
   nitpickBot(app);
+  prStatusBot(app);
   pytorchBot(app);
   retryBot(app);
   stripApprovalBot(app);

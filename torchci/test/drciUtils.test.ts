@@ -16,6 +16,7 @@ import {
   isInfraFlakyJob,
   isLogClassifierFailed,
   MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
+  upsertPrStatusSection,
 } from "../lib/drciUtils";
 import * as jobUtils from "../lib/jobUtils";
 import {
@@ -660,5 +661,119 @@ describe("splice and full render agree", () => {
       );
       expect(extractPrStatusSection(full)).toBe(section);
     }
+  });
+});
+
+describe("upsertPrStatusSection", () => {
+  test("is disabled outside pytorch/pytorch", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          listComments: jest.fn(),
+          updateComment: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "vision",
+      123,
+      ["triaged"],
+      "author"
+    );
+
+    expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  test("leaves the existing section untouched when reviews are unavailable", async () => {
+    const existing = formDrciComment(
+      123,
+      "pytorch",
+      "pytorch",
+      "results",
+      "",
+      renderPrStatusSection({
+        labels: [],
+        isApproved: true,
+        assignedReviewers: [],
+      })
+    );
+    const octokit = {
+      paginate: jest.fn().mockRejectedValue(new Error("reviews unavailable")),
+      rest: {
+        issues: {
+          listComments: jest.fn().mockResolvedValue({
+            data: [
+              {
+                id: 456,
+                body: existing,
+                user: { login: "pytorch-bot[bot]" },
+              },
+            ],
+          }),
+          updateComment: jest.fn(),
+        },
+        pulls: {
+          listReviews: jest.fn(),
+          get: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "pytorch",
+      123,
+      ["in progress"],
+      "author"
+    );
+
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  test("fetches status inputs before reading the Dr.CI comment", async () => {
+    const apiCallOrder: string[] = [];
+    const octokit = {
+      paginate: jest.fn(async () => {
+        apiCallOrder.push("fetch status inputs");
+        return [];
+      }),
+      rest: {
+        issues: {
+          listComments: jest.fn(async () => {
+            apiCallOrder.push("read Dr.CI comment");
+            return {
+              data: [
+                {
+                  id: 456,
+                  body: formDrciComment(123, "pytorch", "pytorch"),
+                  user: { login: "pytorch-bot[bot]" },
+                },
+              ],
+            };
+          }),
+          updateComment: jest.fn(),
+        },
+        pulls: {
+          listReviews: jest.fn(),
+          get: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "pytorch",
+      123,
+      ["in progress"],
+      "author"
+    );
+
+    expect(apiCallOrder).toEqual(["fetch status inputs", "read Dr.CI comment"]);
   });
 });
