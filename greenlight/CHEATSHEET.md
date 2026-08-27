@@ -13,8 +13,9 @@ one-shot `verdict` and `drci-poke` subcommands:
   for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. Draft PRs are
-  dropped from the listing scan entirely — never fingerprinted or dispatched — though an explicit
-  `@greenlight recheck` (the `--pr` path) still reviews a draft. A PR whose
+  dropped from the listing scan entirely — never fingerprinted or dispatched. The drop is in the
+  listing fetch alone, so `--pr N` reviews a draft; the bot turns a draft down rather than
+  dispatching one, so a draft never reaches that path via `@greenlight recheck`. A PR whose
   `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries
   the `Stale` label, is skipped without fingerprinting unless a review is in-flight or retry-eligible
   (cancelled/failed); an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. A PR a
@@ -64,6 +65,7 @@ just review --pr 123 --requester alice  # recheck PR #123 for alice (author and 
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
+just review --pr 123 --force         # re-dispatch PR #123 even if already decided (needs --pr, not --loop)
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
 ```
 
@@ -78,24 +80,61 @@ holds the lock (`2` is an argparse usage error).
 
 The scan flags combine: `--pr N` restricts the scan to one PR, `--max N` caps how many
 dispatches a single iteration issues, `--ref` sets the `pytorch/test-infra` ref the
-reviewer workflow is dispatched at (default `main`), and `--timeout-minutes` (default 45)
-is how long an `AI_REVIEW_STARTED` review counts as in-flight before it is re-dispatched.
+reviewer workflow is dispatched at (default `main`), `--timeout-minutes` (default 45)
+is how long an `AI_REVIEW_STARTED` review counts as in-flight before it is re-dispatched,
+and `--force` skips the dispatch decision altogether (it needs `--pr` and rejects `--loop`).
 That 45 is above the reviewer workflow's own ~37-40 min budget, so with the default the
 scanner lets a running review finish (or time out and record a verdict) before it
 re-dispatches, rather than cancelling and restarting one that is still running; lower
 `--timeout-minutes` in the deployment if you need a stuck review reclaimed sooner.
 
-`@greenlight recheck` on a `pytorch/pytorch` PR (via the separately deployed trigger) dispatches
-`greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`. The scan
-is the sole authorizer: `--pr` refuses unless PR N's author is trusted, and `--requester` refuses
-unless the commenter is trusted too (case-insensitive; a refusal is a clean exit 0). The local-only
+The greenlight Probot bot in torchci understands two commands. `@greenlight help` replies with the
+list of available commands and has no other effect — no label change, no dispatch.
+
+`@greenlight recheck` on a `pytorch/pytorch` PR makes the bot remove the `Stale` label if present,
+dispatch `greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`,
+and only then acknowledge, with a comment plus a reaction on the triggering comment. The
+acknowledgment comes last so it describes work already done — a delivery cut short partway leaves
+no comment claiming otherwise — and it states only what the bot did, never that a review has
+started. The mention must open its line, mention and command name are both case-insensitive
+(matching `pr_hash.is_bot_command`, which lowercases the body), and a mention inside a fence, an
+HTML comment, a `<pre>` block or an indented code block is ignored — closed or not.
+
+The bot declines on the PR when the PR is merged, closed, a draft, or not in `pytorch/pytorch`,
+and when the requester is not a greenlight trusted author — it checks that last one itself, before
+touching the PR, because the scan's own refusal is a silent green no-op that would leave the
+requester with no feedback at all. A comment notifies every PR subscriber, so comments are
+reserved for commenters who already hold write access on the repo; anyone else, and any
+unrecognized command, gets a reaction instead. Write access is the coarse gate and covers every
+command, `help` included; the trusted-author list is the narrow one that decides whether a recheck
+runs. Two gates sit above those: the bot serves only a fixed set of orgs — a comment anywhere else
+is ignored outright — and, within those, only the repos its allowlist enables. Separately, a
+repeated recheck of the same PR inside a short in-memory window is silently dropped rather than
+dispatched twice.
+
+`--force` exists as a CLI flag but is not a `greenlight-review.yml` input, so a recheck cannot
+reach it and goes through `decide` like any other scan. `decide` dispatches on more than a changed
+fingerprint — never reviewed, changed `eval_hash`, an in-flight marker past `--timeout-minutes`,
+or a `CANCELLED`/`FAILED` row past the same window — so a recheck after a cancelled or failed
+review dispatches even if nothing changed. Only a terminal verdict with an unchanged `eval_hash`
+is skipped.
+
+Removing the `Stale` label is what keeps the PR in the periodic scan, which skips a
+`Stale`-labeled PR once its recorded verdict is terminal; `pytorch/pytorch`'s stale bot also
+closes a `Stale` PR outright after 30 further days without an update. The unlabel delivers
+`pull_request.unlabeled` to the pytorch-bot App, so `checkLabelsBot` frequently adds its own
+"needs a `release notes:` label" comment to the same PR — expected, not a greenlight bug.
+
+The scan authorizes independently of the bot: `--pr` refuses unless PR N's author is trusted, and
+`--requester` refuses unless the commenter is trusted too (case-insensitive; a refusal is a clean
+exit 0). The local-only
 `--allow-untrusted-author` skips the target-author check for iteration and is never a workflow
 input. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
 has a changes-requested review it does not review but posts a single comment that it will not
 re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or
 resolves that review. That refusal comment carries its own marker and is posted by greenlight on
 every repo, `pytorch/pytorch` included — only the status comment is delegated to Dr. CI. The
-command is not yet advertised in the status surface.
+status surface carries no `@greenlight recheck` hint.
 
 Daemon mode loops the phase on an interval:
 
@@ -148,7 +187,8 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 The end-to-end flow, per trusted-author PR:
 
 1. `review` scans the open PRs, dropping any draft PR from the listing outright — never
-   fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. For
+   fingerprinted or dispatched. The drop is in the listing fetch alone, so `--pr N` reviews a
+   draft, but the bot turns a draft down rather than dispatching one. For
    each remaining PR it computes its fingerprint (`eval_hash`) — unless
    the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) or it
    carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,

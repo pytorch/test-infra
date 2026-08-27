@@ -1,11 +1,11 @@
 name: Green Light Scan
 
 # The periodic pytorch/pytorch PR scan runs as the `greenlight-scan` AWS Lambda
-# (pytorch-gha-infra-2, us-east-1, EventBridge rate(5 minutes)). This workflow is now the manual /
-# `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
-# by hand), it runs the same greenlight scanner (`greenlight review`) — lists open pytorch/pytorch
-# PRs from trusted authors and dispatches greenlight-pr-review.yml for each new or changed PR.
-# Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
+# (pytorch-gha-infra-2, us-east-1, EventBridge rate(5 minutes)). This workflow is the
+# `@greenlight recheck` / manual entry point: dispatched by filename by the greenlight Probot bot
+# in torchci (or run by hand), it runs the same greenlight scanner (`greenlight review`) — lists
+# open pytorch/pytorch PRs from trusted authors and dispatches greenlight-pr-review.yml for each
+# new or changed PR. Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
 
 on:
   workflow_dispatch:
