@@ -177,12 +177,19 @@ export default function TestDetailsPage() {
     );
   }
 
-  const totalRuns = metrics?.totalRuns.toLocaleString("en-US") ?? "0";
-  const runCount = (count: number) =>
-    `${count.toLocaleString("en-US")} / ${totalRuns}`;
-  const runPercentage = (count: number) =>
-    metrics && metrics.totalRuns > 0
-      ? `${((count / metrics.totalRuns) * 100).toFixed(1)}% of total`
+  const totalRuns = metrics?.totalRuns ?? 0;
+  const executedRuns = metrics
+    ? Math.max(metrics.totalRuns - metrics.skippedRuns, 0)
+    : 0;
+  const runCount = (count: number, denominator: number) =>
+    `${count.toLocaleString("en-US")} / ${denominator.toLocaleString("en-US")}`;
+  const runPercentage = (
+    count: number,
+    denominator: number,
+    denominatorLabel: string
+  ) =>
+    denominator > 0
+      ? `${((count / denominator) * 100).toFixed(1)}% of ${denominatorLabel}`
       : "N/A";
   const metricCards = metrics
     ? [
@@ -195,18 +202,30 @@ export default function TestDetailsPage() {
         },
         {
           label: "Successful runs",
-          value: runCount(metrics.successfulRuns),
-          percentage: runPercentage(metrics.successfulRuns),
+          value: runCount(metrics.successfulRuns, executedRuns),
+          percentage: runPercentage(
+            metrics.successfulRuns,
+            executedRuns,
+            "executed runs"
+          ),
         },
         {
           label: "Failures",
-          value: runCount(metrics.failureRuns),
-          percentage: runPercentage(metrics.failureRuns),
+          value: runCount(metrics.failureRuns, executedRuns),
+          percentage: runPercentage(
+            metrics.failureRuns,
+            executedRuns,
+            "executed runs"
+          ),
         },
         {
           label: "Skips",
-          value: runCount(metrics.skippedRuns),
-          percentage: runPercentage(metrics.skippedRuns),
+          value: runCount(metrics.skippedRuns, totalRuns),
+          percentage: runPercentage(
+            metrics.skippedRuns,
+            totalRuns,
+            "total runs"
+          ),
         },
       ]
     : [];
