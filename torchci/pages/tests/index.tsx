@@ -1,10 +1,12 @@
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
+  IconButton,
   Paper,
   Stack,
   Table,
@@ -15,6 +17,7 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -67,14 +70,14 @@ const TEST_COLUMNS: {
   width: string;
   align?: "left" | "right";
 }[] = [
-  { field: "file", label: "File", width: "20%" },
-  { field: "classname", label: "Classname", width: "18%" },
-  { field: "name", label: "Name", width: "22%" },
+  { field: "file", label: "File", width: "19%" },
+  { field: "classname", label: "Classname", width: "17%" },
+  { field: "name", label: "Name", width: "21%" },
   { field: "health", label: "Health", width: "16%" },
   {
     field: "averageDuration",
     label: "Avg duration",
-    width: "11%",
+    width: "14%",
     align: "right",
   },
   { field: "lastRun", label: "Last run", width: "13%" },
@@ -141,6 +144,44 @@ function HealthCell({ test }: { test: DistinctTest }) {
       <Typography variant="caption" color="text.secondary" whiteSpace="nowrap">
         {formatFailureRate(test)} · {test.failureRuns7d.toLocaleString("en-US")}
         /{test.executedRuns7d.toLocaleString("en-US")} failed
+      </Typography>
+    </Stack>
+  );
+}
+
+function HealthTooltipContent() {
+  return (
+    <Stack spacing={0.5} sx={{ py: 0.5 }}>
+      <Typography variant="subtitle2">Health over the last 7 days</Typography>
+      <Typography variant="caption">
+        Healthy: at least one run was executed, and at most 25% failed or
+        errored.
+      </Typography>
+      <Typography variant="caption">
+        Unhealthy: more than 25% of executed runs failed or errored.
+      </Typography>
+      <Typography variant="caption">
+        Always skipped: no runs were executed, and at least one was skipped.
+      </Typography>
+      <Typography variant="caption">
+        No data: no runs were reported in this period.
+      </Typography>
+    </Stack>
+  );
+}
+
+function AverageDurationTooltipContent() {
+  return (
+    <Stack spacing={0.5} sx={{ py: 0.5 }}>
+      <Typography variant="subtitle2">
+        Average duration over the last 7 days
+      </Typography>
+      <Typography variant="caption">
+        Includes successful runs only. Failed, errored, skipped, and rerun
+        results are excluded.
+      </Typography>
+      <Typography variant="caption">
+        N/A means there were no successful runs in this period.
       </Typography>
     </Stack>
   );
@@ -359,17 +400,51 @@ export default function TestsPage() {
                       fontWeight: 600,
                     }}
                   >
-                    <TableSortLabel
-                      active={sortField === field}
-                      direction={
-                        sortField === field
-                          ? sortOrder
-                          : defaultSortOrder(field)
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent={
+                        align === "right" ? "flex-end" : "flex-start"
                       }
-                      onClick={() => handleSort(field)}
+                      spacing={0.5}
                     >
-                      {label}
-                    </TableSortLabel>
+                      <TableSortLabel
+                        active={sortField === field}
+                        direction={
+                          sortField === field
+                            ? sortOrder
+                            : defaultSortOrder(field)
+                        }
+                        onClick={() => handleSort(field)}
+                      >
+                        {label}
+                      </TableSortLabel>
+                      {field === "health" && (
+                        <Tooltip title={<HealthTooltipContent />} arrow>
+                          <IconButton
+                            aria-label="Health status definitions"
+                            size="small"
+                            sx={{ color: "text.secondary", p: 0.25 }}
+                          >
+                            <InfoOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {field === "averageDuration" && (
+                        <Tooltip
+                          title={<AverageDurationTooltipContent />}
+                          arrow
+                        >
+                          <IconButton
+                            aria-label="Average duration definition"
+                            size="small"
+                            sx={{ color: "text.secondary", p: 0.25 }}
+                          >
+                            <InfoOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
                   </TableCell>
                 ))}
                 <TableCell
