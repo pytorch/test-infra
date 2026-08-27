@@ -5,9 +5,14 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  FormControl,
   FormControlLabel,
+  InputLabel,
   Link,
+  MenuItem,
   Paper,
+  Select,
+  SelectChangeEvent,
   Skeleton,
   Stack,
   Table,
@@ -20,6 +25,11 @@ import {
 } from "@mui/material";
 import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import {
+  DEFAULT_TEST_HISTORY_DAYS,
+  TEST_HISTORY_DAY_OPTIONS,
+  TestHistoryDays,
+} from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -105,6 +115,9 @@ export default function TestDetailsPage() {
   const test = id ? decodeTestIdentity(id) : null;
   const [runsCursor, setRunsCursor] = useState<string | null>(null);
   const [hideSkippedRuns, setHideSkippedRuns] = useState(true);
+  const [historyDays, setHistoryDays] = useState<TestHistoryDays>(
+    DEFAULT_TEST_HISTORY_DAYS
+  );
 
   useEffect(() => {
     setRunsCursor(null);
@@ -112,9 +125,10 @@ export default function TestDetailsPage() {
 
   const metricsUrl =
     router.isReady && test && id
-      ? `/api/tests/${encodeURIComponent(id)}/metrics`
+      ? `/api/tests/${encodeURIComponent(id)}/metrics?days=${historyDays}`
       : null;
   const runsParams = new URLSearchParams();
+  runsParams.set("days", String(historyDays));
   if (runsCursor) runsParams.set("cursor", runsCursor);
   if (hideSkippedRuns) runsParams.set("exclude_skipped", "true");
   const runsQuery = runsParams.toString();
@@ -196,6 +210,9 @@ export default function TestDetailsPage() {
         },
       ]
     : [];
+  const historyRangeLabel = `${historyDays} ${
+    historyDays === 1 ? "day" : "days"
+  }`;
 
   return (
     <>
@@ -226,9 +243,35 @@ export default function TestDetailsPage() {
         </Box>
 
         <Box component="section">
-          <Typography variant="h6" component="h2" sx={{ mb: 1.5 }}>
-            Last 30 days
-          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            spacing={2}
+            sx={{ mb: 1.5 }}
+          >
+            <Typography variant="h6" component="h2">
+              Last {historyRangeLabel}
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel id="test-history-range-label">Time range</InputLabel>
+              <Select
+                labelId="test-history-range-label"
+                value={historyDays}
+                label="Time range"
+                onChange={(event: SelectChangeEvent<number>) => {
+                  setHistoryDays(Number(event.target.value) as TestHistoryDays);
+                  setRunsCursor(null);
+                }}
+              >
+                {TEST_HISTORY_DAY_OPTIONS.map((days) => (
+                  <MenuItem key={days} value={days}>
+                    {days} {days === 1 ? "day" : "days"}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
           {metricsError ? (
             <Alert
               severity="error"
@@ -271,7 +314,7 @@ export default function TestDetailsPage() {
                   color="text.secondary"
                   sx={{ mt: 1.5 }}
                 >
-                  No runs recorded in the past 30 days.
+                  No runs recorded in the past {historyRangeLabel}.
                 </Typography>
               )}
             </>
@@ -364,8 +407,8 @@ export default function TestDetailsPage() {
                             sx={{ py: 4, color: "text.secondary" }}
                           >
                             {hideSkippedRuns
-                              ? "No non-skipped runs recorded in the past 30 days."
-                              : "No runs recorded in the past 30 days."}
+                              ? `No non-skipped runs recorded in the past ${historyRangeLabel}.`
+                              : `No runs recorded in the past ${historyRangeLabel}.`}
                           </TableCell>
                         </TableRow>
                       ) : (

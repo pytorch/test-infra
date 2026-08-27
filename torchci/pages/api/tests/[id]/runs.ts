@@ -1,14 +1,19 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
+import {
+  DEFAULT_TEST_HISTORY_DAYS,
+  parseTestHistoryDays,
+  TEST_HISTORY_DAY_OPTIONS,
+  TestHistoryDays,
+} from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const PAGE_SIZE = 20;
 const QUERY_LIMIT = PAGE_SIZE + 1;
-const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
-const CURSOR_VERSION = 2;
+const CURSOR_VERSION = 3;
 const MAX_TEST_ID_LENGTH = 8_192;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_OFFSET = PAGE_SIZE * 5_000;
@@ -48,6 +53,7 @@ interface TestRunsCursor {
   offset: number;
   testId: string;
   excludeSkipped: boolean;
+  days: TestHistoryDays;
 }
 
 interface TestRunQueryRow {
@@ -72,7 +78,8 @@ function encodeCursor(
   anchorMs: number,
   offset: number,
   testId: string,
-  excludeSkipped: boolean
+  excludeSkipped: boolean,
+  days: TestHistoryDays
 ): string {
   const cursor: TestRunsCursor = {
     version: CURSOR_VERSION,
@@ -80,6 +87,7 @@ function encodeCursor(
     offset,
     testId,
     excludeSkipped,
+    days,
   };
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
@@ -116,7 +124,8 @@ function decodeCursor(value: string, testId: string): TestRunsCursor {
     (cursor.offset ?? 0) % PAGE_SIZE !== 0 ||
     (cursor.offset ?? 0) > MAX_OFFSET ||
     cursor.testId !== testId ||
-    typeof cursor.excludeSkipped !== "boolean"
+    typeof cursor.excludeSkipped !== "boolean" ||
+    !TEST_HISTORY_DAY_OPTIONS.includes(cursor.days as TestHistoryDays)
   ) {
     throw new Error("Invalid cursor");
   }
@@ -146,12 +155,14 @@ export default async function handler(
   const id = req.query.id;
   const cursorParam = req.query.cursor;
   const excludeSkippedParam = req.query.exclude_skipped;
+  const daysParam = req.query.days;
   if (
     typeof id !== "string" ||
     id.length === 0 ||
     id.length > MAX_TEST_ID_LENGTH ||
     Array.isArray(cursorParam) ||
     Array.isArray(excludeSkippedParam) ||
+    Array.isArray(daysParam) ||
     (excludeSkippedParam !== undefined &&
       excludeSkippedParam !== "true" &&
       excludeSkippedParam !== "false")
@@ -160,6 +171,13 @@ export default async function handler(
   }
 
   const excludeSkipped = excludeSkippedParam === "true";
+  const days =
+    daysParam === undefined
+      ? DEFAULT_TEST_HISTORY_DAYS
+      : parseTestHistoryDays(daysParam);
+  if (days === null) {
+    return res.status(400).json({ error: "Invalid time range" });
+  }
 
   const test = decodeTestIdentity(id);
   if (!test) {
@@ -175,14 +193,17 @@ export default async function handler(
     }
   }
 
-  if (cursor && cursor.excludeSkipped !== excludeSkipped) {
+  if (
+    cursor &&
+    (cursor.excludeSkipped !== excludeSkipped || cursor.days !== days)
+  ) {
     return res.status(400).json({ error: "Cursor does not match filters" });
   }
 
   const anchorMs =
     cursor?.anchorMs ??
     Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
-  const cutoffMs = anchorMs - LOOKBACK_MS;
+  const cutoffMs = anchorMs - days * 24 * 60 * 60 * 1000;
   const offset = cursor?.offset ?? 0;
 
   try {
@@ -227,14 +248,15 @@ export default async function handler(
         hasNextPage,
         hasPreviousPage,
         nextCursor: hasNextPage
-          ? encodeCursor(anchorMs, offset + PAGE_SIZE, id, excludeSkipped)
+          ? encodeCursor(anchorMs, offset + PAGE_SIZE, id, excludeSkipped, days)
           : null,
         previousCursor: hasPreviousPage
           ? encodeCursor(
               anchorMs,
               Math.max(0, offset - PAGE_SIZE),
               id,
-              excludeSkipped
+              excludeSkipped,
+              days
             )
           : null,
       },

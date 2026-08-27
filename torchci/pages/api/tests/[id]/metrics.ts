@@ -1,8 +1,11 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
+import {
+  DEFAULT_TEST_HISTORY_DAYS,
+  parseTestHistoryDays,
+} from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
 
 export interface TestMetricsResponse {
@@ -33,8 +36,17 @@ export default async function handler(
   }
 
   const id = req.query.id;
-  if (typeof id !== "string") {
-    return res.status(400).json({ error: "Invalid test identifier" });
+  const daysParam = req.query.days;
+  if (typeof id !== "string" || Array.isArray(daysParam)) {
+    return res.status(400).json({ error: "Invalid query parameters" });
+  }
+
+  const days =
+    daysParam === undefined
+      ? DEFAULT_TEST_HISTORY_DAYS
+      : parseTestHistoryDays(daysParam);
+  if (days === null) {
+    return res.status(400).json({ error: "Invalid time range" });
   }
 
   const test = decodeTestIdentity(id);
@@ -43,7 +55,7 @@ export default async function handler(
   }
 
   const anchorMs = Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
-  const cutoffMs = anchorMs - LOOKBACK_MS;
+  const cutoffMs = anchorMs - days * 24 * 60 * 60 * 1000;
 
   try {
     const rows = (await queryClickhouseSaved(
