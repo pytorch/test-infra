@@ -82,6 +82,23 @@ interface SummaryStats {
   timeout_rate: number;
 }
 
+interface RepoTenure {
+  current_level: string;
+  level_since: string;
+}
+
+// "2 months ago" / "5 days ago"; caps at "100+ days ago" since level_since
+// itself floors there (see query.sql).
+function tenureDisplay(sinceIso: string): string {
+  const days = Math.floor(
+    (Date.now() - new Date(sinceIso).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  if (days >= 100) return "100+ days ago";
+  if (days < 60) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months === 1 ? "" : "s"} ago`;
+}
+
 // ---- Summary Stat Cards ----
 
 function StatCard({
@@ -1309,6 +1326,21 @@ export default function CrcrBackendPage() {
   );
   const stats = summaryData?.[0] ?? null;
 
+  // Not scoped by the days selector -- tenure at the current level is a
+  // full-history question (RFC-0050: "operating at L2 for at least 1 month").
+  const tenureUrl =
+    repoFullName && !isNightly
+      ? `/api/clickhouse/crcr_repo_tenure?parameters=${encodeURIComponent(
+          JSON.stringify({ repo: repoFullName })
+        )}`
+      : null;
+  const { data: tenureData } = useSWR<RepoTenure[]>(
+    tenureUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
+  const tenure = tenureData?.[0] ?? null;
+
   const isCrcrTest = repoFullName === "pytorch/crcr-test";
   const healthUrl =
     isCrcrTest && !isNightly
@@ -1404,6 +1436,12 @@ export default function CrcrBackendPage() {
                   >
                     GitHub ↗
                   </Link>
+                  {!isNightly && tenure && tenure.current_level && (
+                    <Typography variant="body2" color="text.secondary">
+                      {tenure.current_level} since{" "}
+                      {tenureDisplay(tenure.level_since)}
+                    </Typography>
+                  )}
                 </Stack>
               </Stack>
               <Stack direction="row" spacing={2} alignItems="center">
@@ -1418,6 +1456,7 @@ export default function CrcrBackendPage() {
                   >
                     <MenuItem value={1}>Last 24h</MenuItem>
                     <MenuItem value={7}>Last 7 days</MenuItem>
+                    <MenuItem value={14}>Last 14 days</MenuItem>
                     <MenuItem value={30}>Last 30 days</MenuItem>
                   </Select>
                 </FormControl>

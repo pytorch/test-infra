@@ -1,0 +1,10 @@
+{
+  "params": {
+    "repo": "String"
+  },
+  "tests": [
+    {
+      "repo": "<company>/<repo>"
+    }
+  ]
+}
