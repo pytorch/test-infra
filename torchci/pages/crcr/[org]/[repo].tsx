@@ -243,7 +243,13 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
           label="Timeout Rate"
           value={`${(stats.timeout_rate * 100).toFixed(1)}%`}
           sub={`${stats.timed_out} timed out / ${stats.total_jobs} jobs`}
-          color={stats.timeout_rate >= L3_TIMEOUT_RATE ? "#d32f2f" : undefined}
+          color={
+            stats.timeout_rate >= L3_TIMEOUT_RATE
+              ? "#d32f2f"
+              : stats.timeout_rate > 0
+              ? "#ed6c02"
+              : undefined
+          }
         />
       </Box>
     </Stack>
