@@ -1,7 +1,8 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
-  DEFAULT_TEST_HISTORY_DAYS,
-  parseTestHistoryDays,
+  DEFAULT_TEST_HISTORY_RANGE,
+  getTestHistoryRange,
+  parseTestHistoryRange,
 } from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -36,16 +37,16 @@ export default async function handler(
   }
 
   const id = req.query.id;
-  const daysParam = req.query.days;
-  if (typeof id !== "string" || Array.isArray(daysParam)) {
+  const rangeParam = req.query.range;
+  if (typeof id !== "string" || Array.isArray(rangeParam)) {
     return res.status(400).json({ error: "Invalid query parameters" });
   }
 
-  const days =
-    daysParam === undefined
-      ? DEFAULT_TEST_HISTORY_DAYS
-      : parseTestHistoryDays(daysParam);
-  if (days === null) {
+  const range =
+    rangeParam === undefined
+      ? DEFAULT_TEST_HISTORY_RANGE
+      : parseTestHistoryRange(rangeParam);
+  if (range === null) {
     return res.status(400).json({ error: "Invalid time range" });
   }
 
@@ -55,7 +56,7 @@ export default async function handler(
   }
 
   const anchorMs = Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
-  const cutoffMs = anchorMs - days * 24 * 60 * 60 * 1000;
+  const cutoffMs = anchorMs - getTestHistoryRange(range).durationMs;
 
   try {
     const rows = (await queryClickhouseSaved(

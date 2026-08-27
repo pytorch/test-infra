@@ -1,9 +1,10 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
-  DEFAULT_TEST_HISTORY_DAYS,
-  parseTestHistoryDays,
-  TEST_HISTORY_DAY_OPTIONS,
-  TestHistoryDays,
+  DEFAULT_TEST_HISTORY_RANGE,
+  getTestHistoryRange,
+  parseTestHistoryRange,
+  TEST_HISTORY_RANGE_OPTIONS,
+  TestHistoryRange,
 } from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -13,7 +14,7 @@ const QUERY_LIMIT = PAGE_SIZE + 1;
 const CACHE_BUCKET_MS = 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
-const CURSOR_VERSION = 3;
+const CURSOR_VERSION = 4;
 const MAX_TEST_ID_LENGTH = 8_192;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_OFFSET = PAGE_SIZE * 5_000;
@@ -53,7 +54,7 @@ interface TestRunsCursor {
   offset: number;
   testId: string;
   excludeSkipped: boolean;
-  days: TestHistoryDays;
+  range: TestHistoryRange;
 }
 
 interface TestRunQueryRow {
@@ -79,7 +80,7 @@ function encodeCursor(
   offset: number,
   testId: string,
   excludeSkipped: boolean,
-  days: TestHistoryDays
+  range: TestHistoryRange
 ): string {
   const cursor: TestRunsCursor = {
     version: CURSOR_VERSION,
@@ -87,7 +88,7 @@ function encodeCursor(
     offset,
     testId,
     excludeSkipped,
-    days,
+    range,
   };
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
@@ -125,7 +126,7 @@ function decodeCursor(value: string, testId: string): TestRunsCursor {
     (cursor.offset ?? 0) > MAX_OFFSET ||
     cursor.testId !== testId ||
     typeof cursor.excludeSkipped !== "boolean" ||
-    !TEST_HISTORY_DAY_OPTIONS.includes(cursor.days as TestHistoryDays)
+    !TEST_HISTORY_RANGE_OPTIONS.some((option) => option.value === cursor.range)
   ) {
     throw new Error("Invalid cursor");
   }
@@ -155,14 +156,14 @@ export default async function handler(
   const id = req.query.id;
   const cursorParam = req.query.cursor;
   const excludeSkippedParam = req.query.exclude_skipped;
-  const daysParam = req.query.days;
+  const rangeParam = req.query.range;
   if (
     typeof id !== "string" ||
     id.length === 0 ||
     id.length > MAX_TEST_ID_LENGTH ||
     Array.isArray(cursorParam) ||
     Array.isArray(excludeSkippedParam) ||
-    Array.isArray(daysParam) ||
+    Array.isArray(rangeParam) ||
     (excludeSkippedParam !== undefined &&
       excludeSkippedParam !== "true" &&
       excludeSkippedParam !== "false")
@@ -171,11 +172,11 @@ export default async function handler(
   }
 
   const excludeSkipped = excludeSkippedParam === "true";
-  const days =
-    daysParam === undefined
-      ? DEFAULT_TEST_HISTORY_DAYS
-      : parseTestHistoryDays(daysParam);
-  if (days === null) {
+  const range =
+    rangeParam === undefined
+      ? DEFAULT_TEST_HISTORY_RANGE
+      : parseTestHistoryRange(rangeParam);
+  if (range === null) {
     return res.status(400).json({ error: "Invalid time range" });
   }
 
@@ -195,7 +196,7 @@ export default async function handler(
 
   if (
     cursor &&
-    (cursor.excludeSkipped !== excludeSkipped || cursor.days !== days)
+    (cursor.excludeSkipped !== excludeSkipped || cursor.range !== range)
   ) {
     return res.status(400).json({ error: "Cursor does not match filters" });
   }
@@ -203,7 +204,7 @@ export default async function handler(
   const anchorMs =
     cursor?.anchorMs ??
     Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
-  const cutoffMs = anchorMs - days * 24 * 60 * 60 * 1000;
+  const cutoffMs = anchorMs - getTestHistoryRange(range).durationMs;
   const offset = cursor?.offset ?? 0;
 
   try {
@@ -248,7 +249,13 @@ export default async function handler(
         hasNextPage,
         hasPreviousPage,
         nextCursor: hasNextPage
-          ? encodeCursor(anchorMs, offset + PAGE_SIZE, id, excludeSkipped, days)
+          ? encodeCursor(
+              anchorMs,
+              offset + PAGE_SIZE,
+              id,
+              excludeSkipped,
+              range
+            )
           : null,
         previousCursor: hasPreviousPage
           ? encodeCursor(
@@ -256,7 +263,7 @@ export default async function handler(
               Math.max(0, offset - PAGE_SIZE),
               id,
               excludeSkipped,
-              days
+              range
             )
           : null,
       },

@@ -26,9 +26,10 @@ import {
 import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
-  DEFAULT_TEST_HISTORY_DAYS,
-  TEST_HISTORY_DAY_OPTIONS,
-  TestHistoryDays,
+  DEFAULT_TEST_HISTORY_RANGE,
+  getTestHistoryRange,
+  TEST_HISTORY_RANGE_OPTIONS,
+  TestHistoryRange,
 } from "lib/testHistory";
 import { decodeTestIdentity } from "lib/testIdentity";
 import Head from "next/head";
@@ -115,8 +116,8 @@ export default function TestDetailsPage() {
   const test = id ? decodeTestIdentity(id) : null;
   const [runsCursor, setRunsCursor] = useState<string | null>(null);
   const [hideSkippedRuns, setHideSkippedRuns] = useState(true);
-  const [historyDays, setHistoryDays] = useState<TestHistoryDays>(
-    DEFAULT_TEST_HISTORY_DAYS
+  const [historyRange, setHistoryRange] = useState<TestHistoryRange>(
+    DEFAULT_TEST_HISTORY_RANGE
   );
 
   useEffect(() => {
@@ -125,10 +126,10 @@ export default function TestDetailsPage() {
 
   const metricsUrl =
     router.isReady && test && id
-      ? `/api/tests/${encodeURIComponent(id)}/metrics?days=${historyDays}`
+      ? `/api/tests/${encodeURIComponent(id)}/metrics?range=${historyRange}`
       : null;
   const runsParams = new URLSearchParams();
-  runsParams.set("days", String(historyDays));
+  runsParams.set("range", historyRange);
   if (runsCursor) runsParams.set("cursor", runsCursor);
   if (hideSkippedRuns) runsParams.set("exclude_skipped", "true");
   const runsQuery = runsParams.toString();
@@ -229,9 +230,7 @@ export default function TestDetailsPage() {
         },
       ]
     : [];
-  const historyRangeLabel = `${historyDays} ${
-    historyDays === 1 ? "day" : "days"
-  }`;
+  const historyRangeLabel = getTestHistoryRange(historyRange).label;
 
   return (
     <>
@@ -276,16 +275,16 @@ export default function TestDetailsPage() {
               <InputLabel id="test-history-range-label">Time range</InputLabel>
               <Select
                 labelId="test-history-range-label"
-                value={historyDays}
+                value={historyRange}
                 label="Time range"
-                onChange={(event: SelectChangeEvent<number>) => {
-                  setHistoryDays(Number(event.target.value) as TestHistoryDays);
+                onChange={(event: SelectChangeEvent<TestHistoryRange>) => {
+                  setHistoryRange(event.target.value as TestHistoryRange);
                   setRunsCursor(null);
                 }}
               >
-                {TEST_HISTORY_DAY_OPTIONS.map((days) => (
-                  <MenuItem key={days} value={days}>
-                    {days} {days === 1 ? "day" : "days"}
+                {TEST_HISTORY_RANGE_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
                   </MenuItem>
                 ))}
               </Select>
