@@ -8,8 +8,12 @@
 // state; the bots that APPLY those labels live elsewhere. This module only
 // reports the stage, it never infers one the labels do not claim.
 //
-// Pure -- no Octokit, no ClickHouse -- so the stage logic and the exact
-// contributor-facing strings are testable without mocking anything.
+// Rendering stays pure and testable; GitHub reads are isolated for fetching.
+
+import { PullRequestReview } from "@octokit/webhooks-types";
+import { isPyTorchPyTorch } from "lib/bot/utils";
+import { getApprovalStatusFromReviews, PR_APPROVED } from "lib/reviewApproval";
+import { Octokit } from "octokit";
 
 // The three mutually-exclusive status labels of the PR workflow. A PR carrying
 // none of them has not been triaged yet and gets no section at all -- an empty
@@ -203,4 +207,111 @@ export function splicePrStatusSection(
   }
   const at = marker + insertAfter.length;
   return base.slice(0, at) + section + base.slice(at);
+}
+
+// Use live, webhook-backed data so status updates do not wait for the
+// ClickHouse mirror or a later CI sweep. Callers limit these requests to PRs
+// carrying workflow labels.
+
+/**
+ * Combines current reviewer requests with people who already responded, because
+ * GitHub removes a user from `requested_reviewers` after any review. Teams
+ * cannot be recovered after GitHub removes their request.
+ */
+export function buildAssignedReviewers(
+  owner: string,
+  requestedReviewers: { login?: string }[],
+  requestedTeams: { slug?: string }[],
+  reviews: PullRequestReview[],
+  authorLogin: string
+): string[] {
+  // CONTRIBUTOR is excluded because a past contribution does not prove review
+  // access.
+  const ASSIGNABLE_REVIEWER_ASSOCIATIONS = ["COLLABORATOR", "MEMBER", "OWNER"];
+  const users = requestedReviewers
+    .map((user) => user?.login)
+    .filter((login): login is string => Boolean(login));
+  const reviewers = reviews
+    .filter((review) =>
+      ASSIGNABLE_REVIEWER_ASSOCIATIONS.includes(review.author_association)
+    )
+    .map((review) => review.user?.login)
+    .filter(
+      (login): login is string => Boolean(login) && login !== authorLogin
+    );
+  const teams = requestedTeams
+    .map((team) => team?.slug)
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => `${owner}/${slug}`);
+  return Array.from(new Set([...users, ...reviewers, ...teams]));
+}
+
+/**
+ * Fetches approval for every stage and reviewer assignments for triaged PRs.
+ * Returns null when reviews are unavailable so callers preserve current status.
+ * A failed PR lookup still returns approval but may omit assigned reviewers.
+ */
+export async function fetchPrStatusState(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  labels: string[],
+  // Used to exclude the author from recovered reviewers if the PR lookup fails.
+  authorLogin?: string
+): Promise<PrStatusState | null> {
+  const needsReviewers = labels.includes(PR_STATUS_LABEL_TRIAGED);
+
+  const [reviewsResult, pullResult] = await Promise.allSettled([
+    octokit.paginate(octokit.rest.pulls.listReviews, {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }),
+    needsReviewers
+      ? octokit.rest.pulls.get({ owner, repo, pull_number: prNumber })
+      : Promise.resolve(undefined),
+  ]);
+
+  if (pullResult.status === "rejected") {
+    console.warn(
+      `fetchPrStatusState: reviewer lookup failed for ${owner}/${repo}#${prNumber}`,
+      pullResult.reason
+    );
+  }
+
+  if (reviewsResult.status === "rejected") {
+    console.warn(
+      `fetchPrStatusState: review lookup failed for ${owner}/${repo}#${prNumber}`,
+      reviewsResult.reason
+    );
+    return null;
+  }
+
+  const reviews = reviewsResult.value;
+  const pull = pullResult.status === "fulfilled" ? pullResult.value : undefined;
+
+  const isApproved =
+    getApprovalStatusFromReviews(
+      reviews as any,
+      isPyTorchPyTorch(owner, repo)
+    ) === PR_APPROVED;
+
+  // Without a known author, omit recovered reviewers rather than risk listing
+  // the author as responsible for reviewing their own PR.
+  const author = authorLogin ?? pull?.data.user?.login;
+
+  const assignedReviewers =
+    needsReviewers && author
+      ? buildAssignedReviewers(
+          owner,
+          pull?.data.requested_reviewers ?? [],
+          pull?.data.requested_teams ?? [],
+          reviews as any,
+          author
+        )
+      : [];
+
+  return { labels, isApproved, assignedReviewers };
 }
