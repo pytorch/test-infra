@@ -42,7 +42,7 @@ export function getApprovalStatusFromReviews(
 
   // Find the latest review offered by each authorized reviewer
   // But first sort them in case Github ever returns the list unsorted
-  var latest_reviews: { [user: string]: string } = reviews
+  var latest_reviews: { [user: string]: string } = [...reviews]
     .sort((a: PullRequestReview, b: PullRequestReview) => {
       return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
         ? -1
@@ -63,6 +63,10 @@ export function getApprovalStatusFromReviews(
           )
         ) {
           // Not an authorized approver
+          return latest_reviews;
+        }
+
+        if (!curr_review.user) {
           return latest_reviews;
         }
 

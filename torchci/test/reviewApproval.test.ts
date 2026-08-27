@@ -123,6 +123,49 @@ describe("per-reviewer decisions", () => {
       PR_CHANGES_REQUESTED
     );
   });
+
+  test("a review with no user is skipped rather than throwing", () => {
+    // The association check alone can pass for a review with a null user, and
+    // the webhook path has no catch above this -- a throw would fail the
+    // delivery outright.
+    expect(() =>
+      getApprovalStatusFromReviews(
+        [
+          {
+            user: null,
+            state: "APPROVED",
+            author_association: "MEMBER",
+            submitted_at: "2026-01-01T00:00:00Z",
+          } as any,
+        ],
+        false
+      )
+    ).not.toThrow();
+    expect(
+      getApprovalStatusFromReviews(
+        [
+          {
+            user: null,
+            state: "DISMISSED",
+            author_association: "MEMBER",
+            submitted_at: "2026-01-01T00:00:00Z",
+          } as any,
+          review("a", "APPROVED"),
+        ],
+        false
+      )
+    ).toBe(PR_APPROVED);
+  });
+
+  test("does not mutate the caller's array", () => {
+    const reviews = [
+      review("a", "APPROVED", { submitted_at: "2026-01-02T00:00:00Z" }),
+      review("b", "APPROVED", { submitted_at: "2026-01-01T00:00:00Z" }),
+    ];
+    const order = reviews.map((r) => r.user.login);
+    getApprovalStatusFromReviews(reviews, false);
+    expect(reviews.map((r) => r.user.login)).toEqual(order);
+  });
 });
 
 describe("aggregation", () => {
