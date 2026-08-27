@@ -4,8 +4,11 @@ name: torchci preview
 # cannot produce one (the Vercel Git integration requires a role on the
 # fbopensource team that outside contributors do not have).
 #
-# Triggered by a maintainer adding the `preview` label. While the label is on,
-# subsequent pushes redeploy automatically; remove the label to stop.
+# Triggered by a maintainer adding the `preview-ready` label. Every deploy needs
+# that label applied afresh: on any push the label is swapped for
+# `preview-out-of-date`, so a contributor cannot get a later commit published off
+# an earlier authorization. `is:pr label:preview-out-of-date` lists PRs waiting
+# for a re-deploy.
 #
 # Security: this is a pull_request_target workflow, so it runs in the base repo
 # context with access to secrets. The PR's code is therefore built in a job that
@@ -25,12 +28,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Any push invalidates an existing authorization. Swaps the label rather than
+  # redeploying, so each deployed commit is one a maintainer explicitly labelled.
+  # Runs none of the PR's code and holds no deploy credentials.
+  invalidate:
+    if: >
+      github.event.action == 'synchronize' &&
+      contains(github.event.pull_request.labels.*.name, 'preview-ready')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Mark the preview out of date
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Tolerate a 404: someone may have removed the label between the push
+          # and this job starting. Adding the marker still matters.
+          gh api -X DELETE \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels/preview-ready" \
+            >/dev/null 2>&1 || true
+          gh api -X POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels" \
+            -f "labels[]=preview-out-of-date" >/dev/null
+          echo "preview-ready removed; re-apply it to deploy this commit." \
+            >> "${GITHUB_STEP_SUMMARY}"
+
   # Privileged, but runs none of the PR's code: fetches project settings only.
   config:
     if: >
-      (github.event.action == 'labeled' && github.event.label.name == 'preview') ||
-      (github.event.action == 'synchronize' &&
-       contains(github.event.pull_request.labels.*.name, 'preview'))
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'preview-ready'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: torchci-preview
@@ -130,6 +161,11 @@ jobs:
           set -euo pipefail
           body="torchci preview for \`${SHA:0:7}\`: ${URL}
 
-          Redeploys automatically while the \`preview\` label is on this PR."
+          Pushing to this PR clears \`preview-ready\`; re-apply it to deploy the
+          new commit."
           gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
             -f body="${body}" >/dev/null
+          # This commit now has a current preview.
+          gh api -X DELETE \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels/preview-out-of-date" \
+            >/dev/null 2>&1 || true
