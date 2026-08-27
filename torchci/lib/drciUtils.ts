@@ -104,10 +104,15 @@ export function formDrciComment(
   owner: string = OWNER,
   repo: string = REPO,
   pr_results: string = "",
-  sevs: string = ""
+  sevs: string = "",
+  // Pre-rendered PR Status section, carrying its own delimiters and trailing
+  // newline (empty unless the PR is in the contributor workflow). It leads the
+  // comment: it is the one line telling the contributor what stage the PR is at
+  // and who owes the next step, so it must not sit below the CI results.
+  prStatusSection: string = ""
 ): string {
   const header = formDrciHeader(owner, repo, pr_num);
-  const comment = `${DRCI_COMMENT_START}
+  const comment = `${DRCI_COMMENT_START}${prStatusSection}
 ${header}
 ${sevs}
 ${pr_results}
