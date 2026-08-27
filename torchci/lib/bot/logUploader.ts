@@ -1,36 +1,7 @@
 import { invokeLogUploader } from "lib/lambda";
 import { Context, Probot } from "probot";
+import { isRepoEnabled, parseRepoAllowlist } from "./repoAllowlist";
 import { isPyTorchbotSupportedOrg, isVLLM } from "./utils";
-
-/**
- * Comma-separated list of repos whose logs this handler uploads. Entries are
- * either `owner/repo` or `owner/*`; an empty or unset value disables the
- * handler entirely.
- *
- * This exists so the cutover from the github-status-test webhook can be done a
- * repo at a time. While a repo still has that webhook, both paths write the same
- * S3 key -- harmless, but it doubles classifier calls, so the allowlist is what
- * bounds the overlap. Rolling back is editing this variable.
- */
-export function parseRepoAllowlist(raw: string | undefined): Set<string> {
-  return new Set(
-    (raw ?? "")
-      .split(",")
-      .map((entry) => entry.trim().toLowerCase())
-      .filter((entry) => entry.length > 0)
-  );
-}
-
-export function isRepoEnabled(
-  allowlist: Set<string>,
-  owner: string,
-  repo: string
-): boolean {
-  return (
-    allowlist.has(`${owner}/${repo}`.toLowerCase()) ||
-    allowlist.has(`${owner.toLowerCase()}/*`)
-  );
-}
 
 async function handleCompletedJob(event: Context<"workflow_job">) {
   if (event.payload.action !== "completed") {
@@ -44,6 +15,10 @@ async function handleCompletedJob(event: Context<"workflow_job">) {
     return;
   }
 
+  // The allowlist exists so the cutover from the github-status-test webhook can
+  // be done a repo at a time. While a repo still has that webhook, both paths
+  // write the same S3 key -- harmless, but it doubles classifier calls, so the
+  // allowlist is what bounds the overlap. Rolling back is editing this variable.
   const allowlist = parseRepoAllowlist(process.env.LOG_UPLOADER_REPOS);
   if (!isRepoEnabled(allowlist, owner, repo)) {
     return;
