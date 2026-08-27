@@ -5,7 +5,7 @@ import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import { getHelp, getParser } from "./cliParser";
-import { cherryPickClassifications } from "./Constants";
+import { BOT_MANAGED_PR_LABELS, cherryPickClassifications } from "./Constants";
 import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
@@ -474,8 +474,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // remove unnecessary spaces from labels
     const labelsToAdd = labels.map((s: string) => s.trim());
 
-    const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
-    const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
+    const botManagedLabels = labelsToAdd.filter((l: string) =>
+      BOT_MANAGED_PR_LABELS.has(l)
+    );
+    const filteredLabels = labelsToAdd.filter(
+      (l: string) => repoLabels.has(l) && !BOT_MANAGED_PR_LABELS.has(l)
+    );
+    const invalidLabels = labelsToAdd.filter(
+      (l: string) => !repoLabels.has(l) && !BOT_MANAGED_PR_LABELS.has(l)
+    );
     const ciflowLabels = labelsToAdd.filter((l: string) =>
       l.startsWith("ciflow/")
     );
@@ -483,6 +490,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       return await this.handleConfused(
         true,
         "Can't add ciflow labels to an Issue."
+      );
+    }
+
+    if (botManagedLabels.length > 0) {
+      await this.addComment(
+        "These pull request lifecycle labels are managed automatically by " +
+          "pytorch-bot and cannot be added manually: " +
+          botManagedLabels.join(", ") +
+          "."
       );
     }
 

@@ -7,6 +7,8 @@ export const revertClassifications = {
   autorevert: "Auto Revert",
 };
 
+export const BOT_MANAGED_PR_LABELS = new Set(["in progress"]);
+
 interface CherryPickClassification {
   help: string;
   requiresIssue: boolean;
