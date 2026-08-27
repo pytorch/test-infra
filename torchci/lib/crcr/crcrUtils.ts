@@ -211,21 +211,39 @@ export function extractDynamoRecord(
     }
 
     if (wf.failed_tests_detail && Array.isArray(wf.failed_tests_detail)) {
-      const MAX_ENTRIES = 1000;
       const MAX_MESSAGE_LEN = 1024;
       const MAX_STACKTRACE_LEN = 4096;
-      const capped = wf.failed_tests_detail.slice(0, MAX_ENTRIES).map((t) => ({
-        name: String(t.name ?? ""),
-        ...(t.classname && { classname: String(t.classname) }),
-        ...(t.message && {
-          message: String(t.message).slice(0, MAX_MESSAGE_LEN),
-        }),
-        ...(t.stacktrace && {
-          stacktrace: String(t.stacktrace).slice(0, MAX_STACKTRACE_LEN),
-        }),
-        ...(t.duration != null && { duration: Number(t.duration) }),
-      }));
-      record.failed_tests_json = JSON.stringify(capped);
+      const MAX_JSON_BYTES = 256 * 1024; // 256 KB budget for failed_tests_json
+
+      const entries: Array<Record<string, unknown>> = [];
+      let totalBytes = 2; // account for opening/closing brackets "[]"
+
+      for (const t of wf.failed_tests_detail) {
+        if (typeof t !== "object" || t === null) continue;
+
+        const entry: Record<string, unknown> = {
+          name: String(t.name ?? ""),
+        };
+        if (t.classname) entry.classname = String(t.classname);
+        if (t.message) {
+          entry.message = String(t.message).slice(0, MAX_MESSAGE_LEN);
+        }
+        if (t.stacktrace) {
+          entry.stacktrace = String(t.stacktrace).slice(0, MAX_STACKTRACE_LEN);
+        }
+        if (t.duration != null) entry.duration = Number(t.duration);
+
+        const entryJson = JSON.stringify(entry);
+        const entryBytes = Buffer.byteLength(entryJson, "utf-8");
+        const separator = entries.length > 0 ? 1 : 0; // comma between entries
+        if (totalBytes + separator + entryBytes > MAX_JSON_BYTES) break;
+        totalBytes += separator + entryBytes;
+        entries.push(entry);
+      }
+
+      if (entries.length > 0) {
+        record.failed_tests_json = JSON.stringify(entries);
+      }
     }
   }
 
