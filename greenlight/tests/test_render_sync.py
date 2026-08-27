@@ -1,9 +1,9 @@
-"""Pins the values Dr. CI's TypeScript renderer re-declares from greenlight's Python source.
+"""Pins the values torchci's TypeScript re-declares from greenlight's Python source.
 
-``torchci/lib/greenlight/greenlightRender.ts`` renders the same greenlight state the Python
-comment writer does, but re-declares the shared vocabulary as its own constants and nothing at
-build time links the two. Python is the source of truth: these tests fail when the TypeScript
-stops matching it, in either direction.
+Dr. CI's renderer and the ``@greenlight`` bot both re-state greenlight's shared vocabulary --
+statuses, headlines, the repo allowlist, the trusted-author list, the stale label -- as their
+own constants, and nothing at build time links the two sides. Python is the source of truth:
+these tests fail when the TypeScript stops matching it, in either direction.
 """
 
 import re
@@ -12,21 +12,29 @@ from urllib.parse import urlparse
 
 import pytest
 
-from greenlight import comment_format, constants
+from greenlight import comment_format, constants, review
 
 ROOT = Path(__file__).resolve().parents[2]
 
 _TS_RENDER = "torchci/lib/greenlight/greenlightRender.ts"
 _TS_CONFIG = "torchci/lib/greenlight/greenlightConfig.ts"
+_TS_TRUSTED = "torchci/lib/bot/greenlightTrustedAuthors.ts"
+_TS_BOT_HANDLER = "torchci/lib/bot/greenlightBotHandler.ts"
 _PY_RENDER = "greenlight/src/greenlight/comment_format.py"
 _PY_CONSTANTS = "greenlight/src/greenlight/constants.py"
+_PY_REVIEW = "greenlight/src/greenlight/review.py"
 
 assert (ROOT / _TS_RENDER).is_file()
 assert (ROOT / _TS_CONFIG).is_file()
+assert (ROOT / _TS_TRUSTED).is_file()
+assert (ROOT / _TS_BOT_HANDLER).is_file()
 
 _TS_UNICODE_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
 _TS_STATUS_RE = re.compile(r'^export const GREENLIGHT_STATUS_(\w+) =\s*"([^"]*)";$', re.MULTILINE)
 _TS_REPOS_RE = re.compile(r"^export const GREENLIGHT_REPOS: string\[\] =\s*\[([^\]]*)\]", re.MULTILINE)
+_TS_TRUSTED_AUTHORS_RE = re.compile(
+    r"^export const GREENLIGHT_TRUSTED_AUTHORS: string\[\] =\s*\[([^\]]*)\]", re.MULTILINE
+)
 _TS_QUOTED_RE = re.compile(r'"([^"]*)"')
 _TS_JOB_LINK_RE = re.compile(r"\[([^\]]+)\]\(\$\{\w+\}\)")
 _TS_REASON_PREFIX_RE = re.compile(r"`([^`$]*)\$\{inlineCode\(")
@@ -90,6 +98,14 @@ def _ts_repos() -> frozenset[str]:
     repos = frozenset(constants.normalize_repo(repo) for repo in _TS_QUOTED_RE.findall(m.group(1)))
     assert repos, f"`GREENLIGHT_REPOS` in {_TS_CONFIG} holds no entries: {_RESTRUCTURED}"
     return repos
+
+
+def _ts_trusted_authors() -> frozenset[str]:
+    m = _TS_TRUSTED_AUTHORS_RE.search(_read(_TS_TRUSTED))
+    assert m is not None, f"no `GREENLIGHT_TRUSTED_AUTHORS: string[] = [...]` in {_TS_TRUSTED}: {_RESTRUCTURED}"
+    authors = frozenset(_TS_QUOTED_RE.findall(m.group(1)))
+    assert authors, f"`GREENLIGHT_TRUSTED_AUTHORS` in {_TS_TRUSTED} holds no entries: {_RESTRUCTURED}"
+    return authors
 
 
 def _ts_job_link_labels() -> set[str]:
@@ -188,6 +204,27 @@ def test_repo_allowlist_matches_python() -> None:
         _TS_CONFIG,
         _PY_CONSTANTS,
         f"symmetric difference: {sorted(extracted ^ constants.DRCI_STATUS_COMMENT_REPOS)}",
+    )
+
+
+def test_trusted_authors_match_python() -> None:
+    extracted = _ts_trusted_authors()
+    # Exact-case on purpose: both sides lowercase only inside their own membership test, so the
+    # literal lists still have to agree. A login on one side alone is a live authz gap -- the bot
+    # and the backend would disagree about who may request a review.
+    assert extracted == review.TRUSTED_AUTHORS, _drift(
+        _TS_TRUSTED,
+        _PY_REVIEW,
+        f"symmetric difference: {sorted(extracted ^ review.TRUSTED_AUTHORS)}",
+    )
+
+
+def test_stale_label_matches_python() -> None:
+    extracted = _ts_string(_TS_BOT_HANDLER, "STALE_LABEL")
+    assert extracted == constants.STALE_LABEL, _drift(
+        _TS_BOT_HANDLER,
+        _PY_CONSTANTS,
+        f"STALE_LABEL is {extracted!r}, Python has {constants.STALE_LABEL!r}",
     )
 
 
