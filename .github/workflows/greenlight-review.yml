@@ -46,10 +46,12 @@ on:
           - WARNING
           - ERROR
 
-# Singleton: only one scan runs at a time, and a new dispatch waits rather than
-# cancelling an in-flight scan (which could leave dispatch bookkeeping half-done).
+# One run at a time per target: each recheck gets its own group keyed on the PR number, and the
+# listing scan (empty `pr`) gets the `scan` group, so rechecks never contend with each other or
+# with the scan. Within a group a new dispatch waits rather than cancelling an in-flight run
+# (which could leave dispatch bookkeeping half-done).
 concurrency:
-  group: ${{ github.workflow }}-singleton
+  group: ${{ github.workflow }}-${{ inputs.pr || 'scan' }}
   cancel-in-progress: false
 
 permissions:
