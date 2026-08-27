@@ -162,6 +162,12 @@ function formatLastRun(value: string): string {
   return Number.isNaN(date.getTime()) ? value : lastRunFormatter.format(date);
 }
 
+function formatElapsedTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+}
+
 export default function TestsPage() {
   const router = useRouter();
   const theme = useTheme();
@@ -177,6 +183,7 @@ export default function TestsPage() {
     ? router.query.order
     : defaultSortOrder(sortField);
   const [searchInput, setSearchInput] = useState("");
+  const [loadingElapsedSeconds, setLoadingElapsedSeconds] = useState(0);
   const apiParams = new URLSearchParams();
   if (searchQuery) apiParams.set("q", searchQuery);
   if (cursor) apiParams.set("cursor", cursor);
@@ -210,6 +217,21 @@ export default function TestsPage() {
   useEffect(() => {
     if (router.isReady) setSearchInput(searchQuery);
   }, [router.isReady, searchQuery]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingElapsedSeconds(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    setLoadingElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      setLoadingElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [apiUrl, isLoading]);
 
   const navigate = (
     nextSearch: string,
@@ -275,6 +297,9 @@ export default function TestsPage() {
         >
           <CircularProgress />
           <Typography color="text.secondary">Loading tests…</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Waiting {formatElapsedTime(loadingElapsedSeconds)}
+          </Typography>
         </Stack>
       );
     }
