@@ -1,5 +1,6 @@
 import {
   getApprovalStatusFromReviews,
+  getReviewerLogins,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
 } from "lib/reviewApproval";
@@ -196,5 +197,48 @@ describe("aggregation", () => {
 
   test("no reviews means no verdict", () => {
     expect(getApprovalStatusFromReviews([], false)).toBe("");
+  });
+});
+
+describe("getReviewerLogins", () => {
+  test("dedupes, and keeps comment-only reviews from authorized reviewers", () => {
+    // A comment review is exactly the case this recovers: GitHub drops that
+    // reviewer from requested_reviewers, so without them the @-list would lose
+    // a genuinely assigned reviewer for engaging with the PR.
+    expect(
+      getReviewerLogins([
+        review("a", "APPROVED"),
+        review("a", "COMMENTED"),
+        review("b", "COMMENTED"),
+      ])
+    ).toEqual(["a", "b"]);
+  });
+
+  test("an unauthorized user cannot insert themselves into the reviewer list", () => {
+    // Otherwise one review comment from any GitHub account is enough to be
+    // named, permanently, in a bot-authored sentence about who must sign off.
+    expect(
+      getReviewerLogins([
+        review("drive-by", "COMMENTED", { association: "NONE" }),
+      ])
+    ).toEqual([]);
+  });
+
+  test("the PR author is excluded even though they can leave comment reviews", () => {
+    expect(
+      getReviewerLogins(
+        [review("author", "COMMENTED"), review("alice", "COMMENTED")],
+        ["author"]
+      )
+    ).toEqual(["alice"]);
+  });
+
+
+  test("skips reviews with no user", () => {
+    expect(
+      getReviewerLogins([
+        { state: "COMMENTED", author_association: "MEMBER" } as any,
+      ])
+    ).toEqual([]);
   });
 });

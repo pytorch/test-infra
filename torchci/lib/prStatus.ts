@@ -8,8 +8,17 @@
 // bots that APPLY those labels live elsewhere. This module only reports the
 // stage, it never infers one the labels do not claim.
 //
-// Pure -- no Octokit, no ClickHouse -- so the stage logic and the exact
-// contributor-facing strings are testable without mocking anything.
+// The rendering half below is pure -- no Octokit, no ClickHouse -- so the stage
+// logic and the exact contributor-facing strings are testable without mocking
+// anything. The fetching half at the bottom is where the GitHub reads live.
+
+import { isPyTorchPyTorch } from "lib/bot/utils";
+import {
+  getApprovalStatusFromReviews,
+  getReviewerLogins,
+  PR_APPROVED,
+} from "lib/reviewApproval";
+import { Octokit } from "octokit";
 
 // The three mutually-exclusive status labels of the PR workflow. A PR carrying
 // none of them has not been triaged yet and gets no section at all -- an empty
@@ -227,4 +236,136 @@ export function splicePrStatusSection(
   }
   const at = marker + insertAfter.length;
   return base.slice(0, at) + section + base.slice(at);
+}
+
+// ---------------------------------------------------------------------------
+// Fetching the inputs the section needs beyond the PR's labels.
+// ---------------------------------------------------------------------------
+//
+// Every input here is one a webhook fires on -- reviews and review requests --
+// so the section is correct the moment it is rendered and the Dr.CI sweep is a
+// backstop rather than the only thing that can repair it. That is a deliberate
+// constraint, not an accident: an earlier design subtracted reviewers who had
+// reacted to the PR description, and GitHub emits no webhook for reactions, so
+// the @-list could stay wrong indefinitely on a PR whose CI had gone quiet.
+// Anything added here should keep that property.
+//
+// Both reads come from the GitHub API rather than the ClickHouse mirror.
+// default.pull_request and default.pull_request_review do carry this data and a
+// batched read would be cheaper, but a column mismatch there fails open to "no
+// status", which is worse than a bounded fan-out -- and the mirror lags, which
+// is the exact failure this module is shaped to avoid. The fan-out IS bounded:
+// callers gate on hasPrStatusLabel, so only PRs actually in the workflow cost a
+// request.
+/**
+ * The reviewers assigned to the PR, as GitHub logins and "org/team" slugs.
+ *
+ * GitHub's `requested_reviewers` alone is NOT the assigned set: it holds only
+ * reviewers with an outstanding request, and a reviewer is dropped from it the
+ * moment they submit any review -- including a plain comment. Taking it at face
+ * value would make a reviewer silently vanish from the @-list for engaging with
+ * the PR, which is the opposite of what the list is for. So the people who have
+ * already reviewed are unioned back in.
+ *
+ * `requested_teams` is included as "org/team". A team is emptied out of that
+ * list once any member reviews, and GitHub gives no way to attribute a member's
+ * review back to the team, so a team that disappears that way is not recovered.
+ */
+export function buildAssignedReviewers(
+  owner: string,
+  requestedReviewers: { login?: string }[],
+  requestedTeams: { slug?: string }[],
+  reviewerLogins: string[]
+): string[] {
+  const users = requestedReviewers
+    .map((user) => user?.login)
+    .filter((login): login is string => Boolean(login));
+  const teams = requestedTeams
+    .map((team) => team?.slug)
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => `${owner}/${slug}`);
+  return Array.from(new Set([...users, ...reviewerLogins, ...teams]));
+}
+
+/**
+ * Build the PR Status state for one PR. `labels` is the caller's already-fetched
+ * label list.
+ *
+ * The reviews read serves both fields, and the reviewer list is only fetched for
+ * a triaged PR, which is the one stage whose message names reviewers. So this
+ * costs one request for an in-progress or ready-for-review PR and two for a
+ * triaged one.
+ *
+ * Each read degrades independently rather than failing the section: a failed
+ * approval lookup reports the PR as unapproved, which falls back to the
+ * label-derived stage -- the state the PR was in a moment ago -- instead of
+ * dropping the status line entirely.
+ */
+export async function fetchPrStatusState(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  labels: string[],
+  // The PR author, when the caller already knows it. Only used to keep them out
+  // of their own reviewer list; see the degradation note below.
+  authorLogin?: string
+): Promise<PrStatusState> {
+  const needsReviewers = labels.includes(PR_STATUS_LABEL_TRIAGED);
+
+  const [reviewsResult, pullResult] = await Promise.allSettled([
+    octokit.paginate(octokit.rest.pulls.listReviews, {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    }),
+    needsReviewers
+      ? octokit.rest.pulls.get({ owner, repo, pull_number: prNumber })
+      : Promise.resolve(undefined),
+  ]);
+
+  if (reviewsResult.status === "rejected") {
+    console.warn(
+      `fetchPrStatusState: review lookup failed for ${owner}/${repo}#${prNumber}`,
+      reviewsResult.reason
+    );
+  }
+  if (pullResult.status === "rejected") {
+    console.warn(
+      `fetchPrStatusState: reviewer lookup failed for ${owner}/${repo}#${prNumber}`,
+      pullResult.reason
+    );
+  }
+
+  const reviews =
+    reviewsResult.status === "fulfilled" ? reviewsResult.value : [];
+  const pull = pullResult.status === "fulfilled" ? pullResult.value : undefined;
+
+  const allowBots = isPyTorchPyTorch(owner, repo);
+  const isApproved =
+    getApprovalStatusFromReviews(reviews as any, allowBots) === PR_APPROVED;
+
+  // The author is not a reviewer of their own PR, however many inline comments
+  // they leave on it -- GitHub blocks self-approval but allows self-COMMENT
+  // reviews, and those clear the authorization bar.
+  //
+  // Preferring the caller's value matters because the fallback comes from the
+  // very request being degraded around: if pulls.get failed and nobody passed
+  // an author, excluding them is impossible, so the list is dropped rather than
+  // published with the author in it. An empty list understates who is assigned;
+  // a list naming the author for owing agreement on their own change is wrong.
+  const author = authorLogin ?? pull?.data.user?.login;
+
+  const assignedReviewers =
+    needsReviewers && author
+      ? buildAssignedReviewers(
+          owner,
+          pull?.data.requested_reviewers ?? [],
+          pull?.data.requested_teams ?? [],
+          getReviewerLogins(reviews as any, [author])
+        )
+      : [];
+
+  return { labels, isApproved, assignedReviewers };
 }

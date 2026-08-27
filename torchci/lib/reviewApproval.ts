@@ -137,3 +137,45 @@ export function getApprovalStatusFromReviews(
     getLatestReviewDecisions(reviews, allowBots, log)
   );
 }
+
+/**
+ * The logins of reviewers who could plausibly have been assigned to the PR.
+ *
+ * This exists because GitHub drops a reviewer from `requested_reviewers` as soon
+ * as they submit a review of ANY kind -- including a plain comment -- so
+ * reconstructing the assigned set needs the people who have already been
+ * through it.
+ *
+ * That recovery is the only purpose, so the same authorization bar as an
+ * approval applies. Without it, `author_association: NONE` is enough for any
+ * GitHub user to leave one review comment and permanently insert themselves
+ * into a bot-authored sentence naming who must sign off on the PR -- and
+ * nothing ever removes them, since there is no dismissal for a comment. The bar
+ * costs nothing for the case this recovers: a genuinely assigned reviewer
+ * clears it by definition.
+ *
+ * `excludeLogins` drops people who cannot be their own reviewer, i.e. the PR
+ * author. GitHub blocks self-approval but permits self-COMMENT reviews, so an
+ * author replying inline to feedback would otherwise be listed as owing
+ * agreement on their own change.
+ *
+ * The App-bot exemption is deliberately NOT applied: a bot is not an assigned
+ * reviewer anyone is waiting on, and a login like `pytorchgreenlight[bot]` could
+ * not be rendered into the @-list anyway.
+ */
+export function getReviewerLogins(
+  reviews: PullRequestReview[],
+  excludeLogins: string[] = []
+): string[] {
+  const excluded = new Set(excludeLogins);
+  return Array.from(
+    new Set(
+      reviews
+        .filter((review) => isAuthorizedApprover(review, /*allowBots*/ false))
+        .map((review) => review.user?.login)
+        .filter(
+          (login): login is string => Boolean(login) && !excluded.has(login!)
+        )
+    )
+  );
+}
