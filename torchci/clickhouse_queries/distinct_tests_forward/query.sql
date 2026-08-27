@@ -31,17 +31,17 @@ WITH
                 AND rerun_count = 0
             ) AS successful_run_count,
             countIf(
-                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                time_inserted > fromUnixTimestamp64Milli({cutoff_ms: Int64})
                 AND (failure_count > 0 OR error_count > 0)
             ) AS failure_runs_7d,
             countIf(
-                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                time_inserted > fromUnixTimestamp64Milli({cutoff_ms: Int64})
                 AND failure_count = 0
                 AND error_count = 0
                 AND skipped_count > 0
             ) AS skipped_runs_7d,
             countIf(
-                time_inserted > fromUnixTimestamp64Milli({health_cutoff_ms: Int64})
+                time_inserted > fromUnixTimestamp64Milli({cutoff_ms: Int64})
                 AND NOT (
                     failure_count = 0
                     AND error_count = 0

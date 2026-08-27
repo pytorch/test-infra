@@ -3,11 +3,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const PAGE_SIZE = 100;
 const QUERY_LIMIT = PAGE_SIZE + 1;
-const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+const AGGREGATION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
-const CURSOR_VERSION = 7;
+const CURSOR_VERSION = 8;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_SEARCH_LENGTH = 200;
 
@@ -180,7 +180,7 @@ function decodeCursor(value: string): DistinctTestsCursor {
     (cursor.failureRatePpm ?? 0) > 1_000_000 ||
     (cursor.healthSortBucket !== 0 && cursor.failureRatePpm !== 0) ||
     !Number.isSafeInteger(lastRunMs) ||
-    lastRunMs <= (cursor.anchorMs ?? 0) - LOOKBACK_MS ||
+    lastRunMs <= (cursor.anchorMs ?? 0) - AGGREGATION_WINDOW_MS ||
     lastRunMs > (cursor.anchorMs ?? 0) ||
     typeof search !== "string" ||
     search.length > MAX_SEARCH_LENGTH ||
@@ -254,8 +254,7 @@ export default async function handler(
   const anchorMs =
     cursor?.anchorMs ??
     Math.floor(Date.now() / CACHE_BUCKET_MS) * CACHE_BUCKET_MS;
-  const cutoffMs = anchorMs - LOOKBACK_MS;
-  const healthCutoffMs = anchorMs - 7 * 24 * 60 * 60 * 1000;
+  const cutoffMs = anchorMs - AGGREGATION_WINDOW_MS;
   const search = cursor?.search ?? requestedSearch;
   const direction = cursor?.direction ?? "forward";
   const queryName =
@@ -280,7 +279,6 @@ export default async function handler(
         cursor_file: cursor?.file ?? "",
         search,
         cutoff_ms: cutoffMs,
-        health_cutoff_ms: healthCutoffMs,
         anchor_ms: anchorMs,
         limit: QUERY_LIMIT,
       },

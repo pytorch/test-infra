@@ -514,11 +514,11 @@ export default function TestsPage() {
             Tests
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Average duration is based on successful runs over the last 30 days.
-            Health is based on failures and errors among executed runs over the
-            last 7 days; skipped runs are excluded, and rates above 25% are
-            unhealthy. Tests with only skipped runs are marked always skipped.
-            Select a column header to sort.
+            Average duration and health are based on runs over the last 7 days.
+            Duration includes successful runs only. Health includes failures and
+            errors among executed runs; skipped runs are excluded, and rates
+            above 25% are unhealthy. Tests with only skipped runs are marked
+            always skipped. Select a column header to sort.
           </Typography>
         </Stack>
         <Box

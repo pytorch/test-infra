@@ -12,7 +12,6 @@
     "cursor_file": "String",
     "search": "String",
     "cutoff_ms": "Int64",
-    "health_cutoff_ms": "Int64",
     "anchor_ms": "Int64",
     "limit": "UInt32"
   },
