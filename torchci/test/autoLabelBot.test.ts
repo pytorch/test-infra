@@ -1881,6 +1881,60 @@ describe("auto-label-bot: label restrictions", () => {
 
     handleScope(scope);
   });
+
+  test("remove in progress label when added manually", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload["label"] = { name: "in progress" };
+    payload["pull_request"]["labels"] = [{ name: "in progress" }];
+    payload["sender"] = {
+      ...payload["sender"],
+      id: 54816060,
+      login: "pytorch-bot[bot]",
+      type: "Bot",
+    };
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ])
+      .delete("/repos/seemethere/test-repo/issues/20/labels/in%20progress")
+      .reply(200)
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("managed automatically by pytorch-bot");
+        expect(body.body).toContain("has been removed");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("keep in progress label when its latest labeled event is from pytorch-bot", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload["label"] = { name: "in progress" };
+    payload["pull_request"]["labels"] = [{ name: "in progress" }];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 54816060, login: "pytorch-bot[bot]" },
+        },
+      ]);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(scope);
+  });
 });
 
 describe("auto-label-bot: check-labels integration", () => {

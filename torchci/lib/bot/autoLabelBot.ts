@@ -4,6 +4,7 @@ import {
   hasRequiredLabels,
   isBotAuthor,
 } from "./checkLabelsUtils";
+import { BOT_MANAGED_PR_LABELS } from "./Constants";
 import {
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
@@ -21,6 +22,18 @@ import {
 } from "./utils";
 
 export { getLabelsFromLabelerConfig };
+
+const PYTORCH_BOT_USER_ID = 54816060;
+const PYTORCH_BOT_LOGINS = new Set(["pytorch-bot", "pytorch-bot[bot]"]);
+
+type LabelActor = { id?: number; login?: string } | null | undefined;
+
+function isPytorchBotActor(actor: LabelActor): boolean {
+  return (
+    actor?.id === PYTORCH_BOT_USER_ID ||
+    (actor?.login !== undefined && PYTORCH_BOT_LOGINS.has(actor.login))
+  );
+}
 
 // List of regex patterns for assigning labels to both Pull Requests and Issues
 const IssueAndPRRegexToLabel: [RegExp, string][] = [
@@ -345,17 +358,16 @@ function getReleaseNotesCategoryAndTopic(
   return ["uncategorized", topic];
 }
 
-async function getBotAppliedLabels(
+async function getLabelsLastAppliedBy(
   context: Context,
-  owner: string,
-  repo: string,
   issueNumber: number,
-  labelNames: string[]
+  labelNames: string[],
+  matchesActor: (actor: LabelActor) => boolean
 ): Promise<Set<string>> {
   if (labelNames.length === 0) {
     return new Set();
   }
-  const lastLabeledBy = new Map<string, string>();
+  const lastLabeledBy = new Map<string, LabelActor>();
   const events = await context.octokit.paginate(
     context.octokit.issues.listEventsForTimeline,
     context.repo({
@@ -365,17 +377,16 @@ async function getBotAppliedLabels(
   );
   for (const event of events) {
     if (event.event === "labeled" && event.label?.name) {
-      lastLabeledBy.set(event.label.name, event.actor?.login ?? "");
+      lastLabeledBy.set(event.label.name, event.actor);
     }
   }
-  const botApplied = new Set<string>();
+  const matchingLabels = new Set<string>();
   for (const label of labelNames) {
-    const actor = lastLabeledBy.get(label) ?? "";
-    if (isBotAuthor(actor)) {
-      botApplied.add(label);
+    if (matchesActor(lastLabeledBy.get(label))) {
+      matchingLabels.add(label);
     }
   }
-  return botApplied;
+  return matchingLabels;
 }
 
 export async function wasLabelRecentlyRemoved(
@@ -619,12 +630,11 @@ function myBot(app: Probot): void {
         filesChanged,
         isDraft
       ).filter((label) => labels.includes(label));
-      const botAppliedLabels = await getBotAppliedLabels(
+      const botAppliedLabels = await getLabelsLastAppliedBy(
         context,
-        owner,
-        repo,
         context.payload.pull_request.number,
-        draftGatedToRemove
+        draftGatedToRemove,
+        (actor) => isBotAuthor(actor?.login ?? "")
       );
       for (const label of draftGatedToRemove) {
         if (!botAppliedLabels.has(label)) {
@@ -686,6 +696,7 @@ function myBot(app: Probot): void {
 
   app.on("pull_request.labeled", async (context) => {
     const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
     if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
@@ -693,6 +704,37 @@ function myBot(app: Probot): void {
 
     const addedLabel = context.payload.label!.name;
     context.log({ addedLabel });
+
+    if (
+      isPyTorchPyTorch(owner, repo) &&
+      BOT_MANAGED_PR_LABELS.has(addedLabel)
+    ) {
+      const labelsLastAppliedByPytorchBot = await getLabelsLastAppliedBy(
+        context,
+        context.payload.pull_request.number,
+        [addedLabel],
+        isPytorchBotActor
+      );
+      if (labelsLastAppliedByPytorchBot.has(addedLabel)) {
+        return;
+      }
+      context.log(
+        `Removing bot-managed label "${addedLabel}" from ${owner}/${repo}#${context.payload.pull_request.number} because its latest labeled event was not created by pytorch-bot`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot and cannot be added manually, so it has been removed.`,
+        })
+      );
+      return;
+    }
 
     // Remove issue-only labels from PRs
     if (addedLabel.startsWith("oncall:")) {
