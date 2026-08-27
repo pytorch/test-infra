@@ -7,11 +7,10 @@ Invoked asynchronously (``InvocationType: "Event"``) by the PyTorch bot's
 API Gateway integration and no Lambda function URL: the only way in is
 ``lambda:InvokeFunction``, which is IAM-authenticated.
 
-Classification is kicked off through log_classifier's function URL, as
-``github-status-test`` does it, but with a bounded wait for the reply so a hung
-classifier cannot burn this function's whole timeout. Switching to an async
-``lambda:InvokeFunction`` needs log_classifier to accept a plain payload first;
-see the README.
+Classification is kicked off through log_classifier's function URL, with a
+bounded wait for the reply so a hung classifier cannot burn this function's whole
+timeout. Switching to an async ``lambda:InvokeFunction`` needs log_classifier to
+accept a plain payload first; see the README.
 """
 
 import base64
@@ -153,19 +152,18 @@ def log_object_path(full_name, job_id):
 def classify_log(full_name, job_id):
     """Kick off classification for a log we just stored.
 
-    Same call github-status-test makes, except that it waits a bounded time for
-    the reply. The function URL only supports the RequestResponse invocation
-    type, so there is no way to ask for fire-and-forget -- but giving up on the
-    reply is close enough, because a client disconnect does not cancel the
-    classifier. It runs to completion either way; we just stop waiting.
+    The function URL only supports the RequestResponse invocation type, so there
+    is no way to ask for fire-and-forget -- but giving up on the reply is close
+    enough, because a client disconnect does not cancel the classifier. It runs
+    to completion either way; we just stop waiting.
 
     That bound matters. `urlopen` with no `timeout` has none at all, so a
     connection that is accepted and never answered raises nothing and instead
     burns the whole function timeout. Callers invoke this asynchronously, which
     means Lambda would count that as a failure and replay the entire invocation
-    twice more, re-downloading the same multi-megabyte log each time -- and
-    github-status-test really does hit its 900s ceiling, so this is an observed
-    tail rather than a theoretical one.
+    twice more, re-downloading the same multi-megabyte log each time. This is an
+    observed tail rather than a theoretical one: the predecessor made the same
+    call unbounded and regularly hit its 900s ceiling.
 
     Returns True when the classifier answered. False means we stopped waiting or
     the call failed, and only the second of those actually skips classification.

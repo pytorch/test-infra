@@ -1,13 +1,10 @@
 # gha-log-uploader
 
 Downloads a completed GitHub Actions job log and archives it to
-`s3://ossci-raw-job-status/log/`. This is the log-download half of the old
-`github-status-test` lambda, moved behind the PyTorch bot so onboarding a repo to
-HUD no longer needs an admin to add a repo webhook. See
+`s3://ossci-raw-job-status/log/`. This replaced the retired `github-status-test`
+lambda, moving log downloading behind the PyTorch bot so onboarding a repo to HUD
+no longer needs an admin to add a repo webhook. See
 https://github.com/pytorch/test-infra/issues/7549.
-
-`github-status-test` still exists and is untouched. It is deleted after the
-cutover, not edited into this shape.
 
 ## How it is invoked
 
@@ -56,33 +53,31 @@ back to the PAT pool, which is a path that then usually succeeds.
 
 ## Classification
 
-After a log is stored, `log_classifier` is called through its function URL —
-byte for byte the call `github-status-test` makes today.
+After a log is stored, `log_classifier` is called through its function URL.
 
 Function URLs only support the `RequestResponse` invocation type, so there is no
 way to ask for fire-and-forget. `CLASSIFIER_TIMEOUT` gets close enough: after 30s
 this stops waiting for the reply. Disconnecting does not cancel the classifier —
-it runs to completion regardless — so nothing is lost by hanging up, and
-`github-status-test`'s 274s/344s/400s/900s duration maxima do not carry over.
+it runs to completion regardless — so nothing is lost by hanging up.
 
 That bound is load-bearing, not tidiness. `urlopen` with no `timeout` has none at
 all, so a connection that is accepted and never answered raises nothing and burns
 the entire function timeout. Since callers invoke asynchronously, Lambda counts
 that as a failure and replays the whole invocation twice more, re-downloading the
 same log each time and eventually DLQ-ing a job whose log was archived fine on
-the first attempt. `github-status-test` does hit its 900s ceiling, so this is an
-observed tail, not a theoretical one.
+the first attempt. This is an observed tail rather than a theoretical one: the
+predecessor made the same call unbounded and regularly hit its 900s ceiling.
 
 With the wait bounded, every step has an explicit ceiling — two 30s log fetches
 at most, then a 30s classifier call — so a **300s function timeout** is
-comfortable, rather than the 900s `github-status-test` needs.
+comfortable.
 
 The way out is `lambda:InvokeFunction` with `InvocationType: "Event"`, which
 needs `log_classifier` to accept a plain `{"job_id", "repo"}` payload — it
 currently only parses the API Gateway request its `lambda_http` handler expects.
 That change also lets its `AuthType: NONE` function URL be retired, once
-`backfillJobs.mjs`, `keep-going-call-log-classifier` and `github-status-test`
-move off it. Worth doing on its own, not as a rider on this migration.
+`backfillJobs.mjs` and `keep-going-call-log-classifier` move off it. Worth doing
+on its own, not as a rider on this migration.
 
 A failed handoff is logged and reported as `classified: false`, not raised.
 Raising would make Lambda retry the whole function, re-downloading a
@@ -133,19 +128,19 @@ Notes on the app path:
   works without it because pytorch repos are public, but the permission should be
   granted before any private repo is onboarded.
 
-## One-time AWS setup
+## AWS setup
 
-Not done by CI. Needed before the deploy workflow can run.
+Already provisioned; recorded here because none of it is done by CI, so it has to
+be reproduced by hand if the function is ever rebuilt.
 
 1. Create the function: python3.12, x86_64, handler `lambda_function.lambda_handler`,
-   512 MB, **300s timeout** — every step is individually bounded, so this does
-   not need `github-status-test`'s 900s. See Classification above.
+   512 MB, **300s timeout** — every step is individually bounded, so it needs no
+   more. See Classification above.
 2. Give its execution role `s3:PutObject` on `arn:aws:s3:::ossci-raw-job-status/log/*`
    plus the usual CloudWatch Logs permissions. No `lambda:InvokeFunction` is
    needed while the classifier is reached over its function URL.
-3. Set the env vars above. Prefer fresh credentials over copying
-   `github-status-test`'s, whose PATs sit in plaintext env vars and are due for
-   rotation.
+3. Set the env vars above, with credentials minted for this function rather than
+   inherited from anything else.
 4. Configure an on-failure destination or DLQ, and alarm on it. For a trunk-only
    job that is the only signal its log went missing — Dr.CI's self-heal only
    covers PR jobs. See "What fails how" for what does and does not land there.
@@ -158,7 +153,8 @@ Not done by CI. Needed before the deploy workflow can run.
    Confirm that user really is the principal behind torchci's
    `OUR_AWS_ACCESS_KEY_ID` before granting.
 6. Create the `gha_workflow_gha-log-uploader-lambda` IAM role the deploy workflow
-   assumes, mirroring `gha_workflow_github-status-test-lambda`.
+   assumes. It lives in pytorch-gha-infra's `gha_roles.tf`, alongside the other
+   lambda deploy roles.
 7. Nothing to wire for classification: the classifier is called over its existing
    function URL, so there is no notification or extra permission to add.
 

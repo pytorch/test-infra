@@ -4,10 +4,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 /**
  * Re-upload a job's log to S3.
  *
- * Replaces the synthetic `action: "backfill"` event that used to be POSTed at
- * github-status-test's API Gateway. That endpoint was public and unauthenticated;
- * gha-log-uploader has no public endpoint at all, so this route is the way in for
- * callers outside HUD (tools/scripts/backfill_events.py, manual ops).
+ * Replaces the synthetic `action: "backfill"` event that used to be POSTed at a
+ * public, unauthenticated API Gateway. gha-log-uploader has no public endpoint at
+ * all, so this route is the way in for callers outside HUD
+ * (tools/scripts/backfill_events.py, manual ops).
  *
  * Code inside HUD should call invokeLogUploader directly rather than looping back
  * through here -- see backfillMissingLog in lib/jobUtils.

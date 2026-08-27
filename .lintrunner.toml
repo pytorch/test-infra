@@ -232,7 +232,6 @@ exclude_patterns = [
     ".github/scripts/validate_pipy.sh",
     ".github/scripts/validate_test_ops.sh",
     ".github/workflows/build_wheels_macos.yml",
-    ".github/workflows/github-status-test-lambda.yml",
     ".github/workflows/log-classifier-lambda.yml",
     ".github/workflows/validate-linux-binaries.yml",
 ]
