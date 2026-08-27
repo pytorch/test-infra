@@ -99,8 +99,9 @@ describe("logUploader", () => {
     ["the Lambda API is unreachable", "TimeoutError"],
     ["Lambda throttles us", "TooManyRequestsException"],
   ])("a failed invoke does not fail the webhook when %s", async (_l, name) => {
-    // Throwing here would make GitHub redeliver the event and re-run every other
-    // handler, to retry something Dr.CI repairs on its own.
+    // Throwing here buys nothing: GitHub does not redeliver a webhook it failed
+    // to process, so the only effect is a delivery marked failed for something
+    // Dr.CI repairs on its own.
     const error = new Error(name);
     error.name = name;
     invoke.mockRejectedValue(error);

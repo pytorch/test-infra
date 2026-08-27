@@ -31,9 +31,10 @@ async function handleCompletedJob(event: Context<"workflow_job">) {
       conclusion: event.payload.workflow_job.conclusion,
     });
   } catch (error) {
-    // Never fail the webhook over a log. GitHub would redeliver the whole event,
-    // re-running every other handler, to retry something Dr.CI already repairs
-    // on its own via backfillMissingLog.
+    // Never fail the webhook over a log. Rejecting marks the whole delivery
+    // failed -- one delivery shared with every other workflow_job handler -- and
+    // GitHub does not redeliver automatically, so throwing buys no retry either.
+    // Dr.CI re-requests a missing log through backfillMissingLog on its next run.
     event.log.error(
       `Failed to queue a log upload for ${event.payload.repository.full_name} ` +
         `job ${event.payload.workflow_job.id}: ${error}`
