@@ -1,0 +1,135 @@
+name: torchci preview
+
+# Deploys a torchci preview for a PR on demand, for contributors whose own PRs
+# cannot produce one (the Vercel Git integration requires a role on the
+# fbopensource team that outside contributors do not have).
+#
+# Triggered by a maintainer adding the `preview` label. While the label is on,
+# subsequent pushes redeploy automatically; remove the label to stop.
+#
+# Security: this is a pull_request_target workflow, so it runs in the base repo
+# context with access to secrets. The PR's code is therefore built in a job that
+# has no secrets and no environment, and only the resulting `.vercel/output` is
+# handed to the privileged deploy job. VERCEL_TOKEN is never present in a job
+# that executes contributor code.
+
+on:
+  pull_request_target:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: torchci-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Privileged, but runs none of the PR's code: fetches project settings only.
+  config:
+    if: >
+      (github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+      (github.event.action == 'synchronize' &&
+       contains(github.event.pull_request.labels.*.name, 'preview'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: torchci-preview
+    steps:
+      - name: Pull Vercel project settings
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@59.7.0 pull --yes --environment=preview \
+            --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Strip anything credential-shaped before sharing
+        run: |
+          # project.json carries orgId/projectId only, but never ship a token
+          # into an artifact the unprivileged job can read.
+          rm -f .vercel/auth.json .vercel/*.token 2>/dev/null || true
+          echo "--- .vercel contents ---"
+          find .vercel -type f -exec echo {} \;
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vercel-config
+          path: .vercel
+          include-hidden-files: true
+
+  # Unprivileged: this is where contributor code runs. No secrets, no environment.
+  build:
+    needs: config
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Build exactly the commit under review, and do not leave a usable
+          # credential in the checkout for PR code to pick up.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vercel-config
+          path: .vercel
+
+      - name: Build
+        run: npx --yes vercel@59.7.0 build
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vercel-output
+          path: .vercel/output
+          include-hidden-files: true
+
+  # Privileged again, and runs none of the PR's code: uploads the prebuilt output.
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: torchci-preview
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vercel-config
+          path: .vercel
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vercel-output
+          path: .vercel/output
+
+      - name: Deploy prebuilt output
+        id: deploy
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          url="$(npx --yes vercel@59.7.0 deploy --prebuilt \
+            --token="${{ secrets.VERCEL_TOKEN }}" | tail -n1)"
+          if [[ ! "${url}" =~ ^https:// ]]; then
+            echo "deploy did not return a URL: ${url}" >&2
+            exit 1
+          fi
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+          echo "Preview: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Comment the preview URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ steps.deploy.outputs.url }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          body="torchci preview for \`${SHA:0:7}\`: ${URL}
+
+          Redeploys automatically while the \`preview\` label is on this PR."
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+            -f body="${body}" >/dev/null
