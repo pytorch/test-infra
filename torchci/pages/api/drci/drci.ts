@@ -52,6 +52,12 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
+import {
+  fetchPrStatusState,
+  hasPrStatusLabel,
+  PR_STATUS_START,
+  renderPrStatusSection,
+} from "lib/prStatus";
 import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
@@ -241,6 +247,79 @@ export async function updateDrciComments(
         pr_info.pr_number
       );
 
+      // The contributor-workflow stage line.
+      //
+      // The labels above come from the ClickHouse mirror, which lags GitHub by
+      // an indeterminate amount. Every other consumer of them tolerates that,
+      // but this one cannot: the label-event webhook splices a fresh status line
+      // into the comment within seconds, and this sweep REBUILDS the whole
+      // comment -- so a stale label set here silently deletes the line the
+      // webhook just wrote, and puts it back once the mirror catches up. That
+      // reads as the section flapping on and off. So the status render gets its
+      // labels from GitHub.
+      //
+      // The cheap gate decides only whether the live read is WORTH making, never
+      // what gets rendered: the render re-gates on the live set below. Both
+      // directions of mirror lag have to clear it, and the labels alone only
+      // cover one:
+      //
+      //  * label just REMOVED -- the mirror still lists it, so the cheap gate
+      //    passes, the live read returns nothing, and the second gate renders
+      //    "". Without that gate the stage is approval-first, so an approved PR
+      //    would have its section deleted by the unlabeled webhook and put back
+      //    by this sweep.
+      //  * label just ADDED -- the mirror has not seen it, so a labels-only gate
+      //    would skip the read and rebuild the comment WITHOUT the section the
+      //    webhook just spliced in, deleting it until the mirror caught up. The
+      //    existing comment already carrying a section is the tell, so it opens
+      //    the gate too. A section that is present is positive evidence in a way
+      //    absent labels are not, and it is only true for PRs already in the
+      //    workflow -- so this costs no extra fan-out on the PRs that dominate a
+      //    sweep.
+      //
+      //    This NARROWS that direction rather than closing it. The comment body
+      //    comes from default.issue_comment while the labels come from
+      //    default.pull_request, and the splice necessarily happens after the
+      //    label event -- so the disjunct only helps when the comment mirror is
+      //    the fresher of the two. When both lag together the section is dropped
+      //    for one sweep and restored by the next, which is the pre-existing
+      //    transient, not a permanent wrong state.
+      //
+      // Wrapped so a GitHub error can never break the comment: an omitted status
+      // line is recoverable on the next sweep, a missing comment is not.
+      let prStatusSection = "";
+      try {
+        const renderedSection =
+          existingDrCiComments.get(pr_info.pr_number)?.body ?? "";
+        if (
+          hasPrStatusLabel(labels || []) ||
+          renderedSection.includes(PR_STATUS_START)
+        ) {
+          const liveLabels = (
+            await octokit.paginate(octokit.rest.issues.listLabelsOnIssue, {
+              owner,
+              repo,
+              issue_number: pr_info.pr_number,
+              per_page: 100,
+            })
+          ).map((label) => label.name);
+
+          if (hasPrStatusLabel(liveLabels)) {
+            prStatusSection = renderPrStatusSection(
+              await fetchPrStatusState(
+                octokit,
+                owner,
+                repo,
+                pr_info.pr_number,
+                liveLabels
+              )
+            );
+          }
+        }
+      } catch (e) {
+        console.error("PR status build threw for PR", pr_info.pr_number, e);
+      }
+
       const {
         pending,
         failedJobs,
@@ -375,7 +454,8 @@ export async function updateDrciComments(
         owner,
         repo,
         failureInfo,
-        formDrciSevBody(sevs)
+        formDrciSevBody(sevs),
+        prStatusSection
       );
 
       const { id, body } =
