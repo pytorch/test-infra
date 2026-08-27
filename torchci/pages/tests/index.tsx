@@ -70,7 +70,7 @@ const TEST_COLUMNS: {
   { field: "file", label: "File", width: "20%" },
   { field: "classname", label: "Classname", width: "18%" },
   { field: "name", label: "Name", width: "22%" },
-  { field: "health", label: "Health (7d)", width: "16%" },
+  { field: "health", label: "Health", width: "16%" },
   {
     field: "averageDuration",
     label: "Avg duration",
