@@ -948,12 +948,16 @@ def is_amd_package(pkg_name: str) -> bool:
     return "rocm" in name or "amd" in name
 
 
-def get_package_source_url(pkg_name: str) -> str:
+def get_package_source_url(pkg_name: str, prefix: str) -> str:
     """Get the source URL for a package based on its type"""
     if uses_nvidia_index(pkg_name):
         return f"https://pypi.nvidia.com/{pkg_name}/"
     if is_amd_package(pkg_name):
-        return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
+        # ROCm7.14 had older index url
+        if "rocm7.14" in prefix:
+            return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
+        else:
+            return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
     return f"https://pypi.org/simple/{pkg_name}/"
 
 
@@ -1134,7 +1138,7 @@ def upload_package_using_simple_index(
     Simply copies the index.html with absolute links - no wheel uploads or version filtering.
     Works for both NVIDIA and non-NVIDIA packages.
     """
-    source_url = get_package_source_url(pkg_name)
+    source_url = get_package_source_url(pkg_name, prefix)
     if uses_nvidia_index(pkg_name):
         source_label = "NVIDIA"
     elif is_amd_package(pkg_name):
