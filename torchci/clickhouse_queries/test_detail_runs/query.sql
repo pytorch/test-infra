@@ -32,6 +32,12 @@ WITH
             AND name = {name: String}
             AND time_inserted > fromUnixTimestamp64Milli({cutoff_ms: Int64})
             AND time_inserted <= fromUnixTimestamp64Milli({anchor_ms: Int64})
+            AND (
+                {exclude_skipped: UInt8} = 0
+                OR failure_count > 0
+                OR error_count > 0
+                OR skipped_count = 0
+            )
         ORDER BY
             time_inserted DESC,
             job_id DESC,

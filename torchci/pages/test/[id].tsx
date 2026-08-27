@@ -2,8 +2,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
+  FormControlLabel,
   Link,
   Paper,
   Skeleton,
@@ -102,6 +104,7 @@ export default function TestDetailsPage() {
   const id = typeof router.query.id === "string" ? router.query.id : null;
   const test = id ? decodeTestIdentity(id) : null;
   const [runsCursor, setRunsCursor] = useState<string | null>(null);
+  const [hideSkippedRuns, setHideSkippedRuns] = useState(true);
 
   useEffect(() => {
     setRunsCursor(null);
@@ -111,10 +114,14 @@ export default function TestDetailsPage() {
     router.isReady && test && id
       ? `/api/tests/${encodeURIComponent(id)}/metrics`
       : null;
+  const runsParams = new URLSearchParams();
+  if (runsCursor) runsParams.set("cursor", runsCursor);
+  if (hideSkippedRuns) runsParams.set("exclude_skipped", "true");
+  const runsQuery = runsParams.toString();
   const runsUrl =
     router.isReady && test && id
       ? `/api/tests/${encodeURIComponent(id)}/runs${
-          runsCursor ? `?cursor=${encodeURIComponent(runsCursor)}` : ""
+          runsQuery ? `?${runsQuery}` : ""
         }`
       : null;
   const {
@@ -274,11 +281,31 @@ export default function TestDetailsPage() {
             <Typography id="recent-runs-heading" variant="h6" component="h2">
               Recent runs
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Newest first, 20 runs per page. Flaky runs retried before passing.
-              They count toward total runs but are excluded from successful runs
-              and the average duration.
-            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+              spacing={1}
+              sx={{ mb: 1.5 }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Flaky runs retried before passing count toward total runs but
+                are excluded from successful runs and the average duration.
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={hideSkippedRuns}
+                    onChange={(event) => {
+                      setHideSkippedRuns(event.target.checked);
+                      setRunsCursor(null);
+                    }}
+                  />
+                }
+                label="Hide skipped runs"
+                sx={{ flexShrink: 0, m: 0 }}
+              />
+            </Stack>
 
             {runsError ? (
               <Alert
@@ -336,7 +363,9 @@ export default function TestDetailsPage() {
                             align="center"
                             sx={{ py: 4, color: "text.secondary" }}
                           >
-                            No runs recorded in the past 30 days.
+                            {hideSkippedRuns
+                              ? "No non-skipped runs recorded in the past 30 days."
+                              : "No runs recorded in the past 30 days."}
                           </TableCell>
                         </TableRow>
                       ) : (

@@ -5,6 +5,7 @@
     "name": "String",
     "cutoff_ms": "Int64",
     "anchor_ms": "Int64",
+    "exclude_skipped": "UInt8",
     "limit": "UInt32",
     "offset": "UInt64"
   },

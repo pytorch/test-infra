@@ -8,7 +8,7 @@ const LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_BUCKET_MS = 60 * 1000;
 const CURSOR_TTL_MS = 24 * 60 * 60 * 1000;
 const CURSOR_CLOCK_SKEW_MS = 60 * 1000;
-const CURSOR_VERSION = 1;
+const CURSOR_VERSION = 2;
 const MAX_TEST_ID_LENGTH = 8_192;
 const MAX_CURSOR_LENGTH = 16_384;
 const MAX_OFFSET = PAGE_SIZE * 5_000;
@@ -47,6 +47,7 @@ interface TestRunsCursor {
   anchorMs: number;
   offset: number;
   testId: string;
+  excludeSkipped: boolean;
 }
 
 interface TestRunQueryRow {
@@ -70,13 +71,15 @@ type ErrorResponse = { error: string };
 function encodeCursor(
   anchorMs: number,
   offset: number,
-  testId: string
+  testId: string,
+  excludeSkipped: boolean
 ): string {
   const cursor: TestRunsCursor = {
     version: CURSOR_VERSION,
     anchorMs,
     offset,
     testId,
+    excludeSkipped,
   };
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
@@ -112,7 +115,8 @@ function decodeCursor(value: string, testId: string): TestRunsCursor {
     (cursor.offset ?? -1) < 0 ||
     (cursor.offset ?? 0) % PAGE_SIZE !== 0 ||
     (cursor.offset ?? 0) > MAX_OFFSET ||
-    cursor.testId !== testId
+    cursor.testId !== testId ||
+    typeof cursor.excludeSkipped !== "boolean"
   ) {
     throw new Error("Invalid cursor");
   }
@@ -141,14 +145,21 @@ export default async function handler(
 
   const id = req.query.id;
   const cursorParam = req.query.cursor;
+  const excludeSkippedParam = req.query.exclude_skipped;
   if (
     typeof id !== "string" ||
     id.length === 0 ||
     id.length > MAX_TEST_ID_LENGTH ||
-    Array.isArray(cursorParam)
+    Array.isArray(cursorParam) ||
+    Array.isArray(excludeSkippedParam) ||
+    (excludeSkippedParam !== undefined &&
+      excludeSkippedParam !== "true" &&
+      excludeSkippedParam !== "false")
   ) {
     return res.status(400).json({ error: "Invalid query parameters" });
   }
+
+  const excludeSkipped = excludeSkippedParam === "true";
 
   const test = decodeTestIdentity(id);
   if (!test) {
@@ -162,6 +173,10 @@ export default async function handler(
     } catch {
       return res.status(400).json({ error: "Invalid cursor" });
     }
+  }
+
+  if (cursor && cursor.excludeSkipped !== excludeSkipped) {
+    return res.status(400).json({ error: "Cursor does not match filters" });
   }
 
   const anchorMs =
@@ -179,6 +194,7 @@ export default async function handler(
         name: test.name,
         cutoff_ms: cutoffMs,
         anchor_ms: anchorMs,
+        exclude_skipped: excludeSkipped ? 1 : 0,
         limit: QUERY_LIMIT,
         offset,
       },
@@ -211,10 +227,15 @@ export default async function handler(
         hasNextPage,
         hasPreviousPage,
         nextCursor: hasNextPage
-          ? encodeCursor(anchorMs, offset + PAGE_SIZE, id)
+          ? encodeCursor(anchorMs, offset + PAGE_SIZE, id, excludeSkipped)
           : null,
         previousCursor: hasPreviousPage
-          ? encodeCursor(anchorMs, Math.max(0, offset - PAGE_SIZE), id)
+          ? encodeCursor(
+              anchorMs,
+              Math.max(0, offset - PAGE_SIZE),
+              id,
+              excludeSkipped
+            )
           : null,
       },
     });
