@@ -7,6 +7,13 @@ import {
   isFailureFromPrevMergeCommit,
   isSameFailure,
 } from "lib/jobUtils";
+import {
+  extractPrStatusSection,
+  fetchPrStatusState,
+  hasPrStatusLabel,
+  renderPrStatusSection,
+  splicePrStatusSection,
+} from "lib/prStatus";
 import { MAX_SIZE, OLDEST_FIRST, querySimilarFailures } from "lib/searchUtils";
 import { RecentWorkflowsData } from "lib/types";
 import _ from "lodash";
@@ -219,12 +226,19 @@ export async function upsertDrCiComment(
   const sev = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
+  // This render has no status inputs of its own -- it runs on open/synchronize,
+  // neither of which can change the stage -- so the existing section is carried
+  // across verbatim. Rebuilding without it would delete the status line on every
+  // push and leave it gone until the next sweep, which would undo the whole
+  // point of the section being webhook-maintained. Resetting the CI results the
+  // same way is long-standing behaviour and is left alone.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
     "",
-    formDrciSevBody(sev)
+    formDrciSevBody(sev),
+    extractPrStatusSection(existingDrciComment)
   );
 
   if (existingDrciComment === drciComment) {
@@ -256,6 +270,64 @@ export async function upsertDrCiComment(
       `Updated comment with "${drciComment}" for pull request ${prUrl}`
     );
   }
+}
+
+/**
+ * Refresh only the PR Status section of an existing Dr.CI comment, leaving the
+ * rest of the body -- above all the CI results the sweep rendered -- untouched.
+ *
+ * Called from the label and review webhooks, which fire between sweeps and have
+ * no CI classification of their own to render. A PR with no Dr.CI comment yet is
+ * a no-op: creating a resultless one here would race the sweep that is about to
+ * write the real thing.
+ */
+export async function upsertPrStatusSection(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNum: number,
+  labels: string[],
+  // The PR author, so they are never listed as a reviewer of their own PR even
+  // if the reviewer read degrades. The webhook payload always carries it.
+  authorLogin?: string
+) {
+  if (!isDrCIEnabled(owner, repo)) {
+    return;
+  }
+
+  const { id, body } = await getDrciComment(octokit, owner, repo, prNum);
+  if (id === 0) {
+    return;
+  }
+
+  // An unlabelled PR renders an empty section, which the splice uses to REMOVE
+  // a stale one -- so this cannot be short-circuited on "no status label" the
+  // way the sweep's render is. The GitHub reads behind the state are still
+  // skipped in that case, since an empty section needs no inputs.
+  const section = hasPrStatusLabel(labels)
+    ? renderPrStatusSection(
+        await fetchPrStatusState(
+          octokit,
+          owner,
+          repo,
+          prNum,
+          labels,
+          authorLogin
+        )
+      )
+    : "";
+
+  const updated = splicePrStatusSection(body, section, DRCI_COMMENT_START);
+  if (updated === body) {
+    return;
+  }
+
+  await octokit.rest.issues.updateComment({
+    body: updated,
+    owner,
+    repo,
+    comment_id: id,
+  });
 }
 
 export async function hasSimilarFailures(
