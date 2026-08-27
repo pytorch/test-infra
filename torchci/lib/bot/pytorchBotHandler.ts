@@ -4,6 +4,13 @@ import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
+// lib/reviewApproval owns the approval rules, so the merge command and the
+// Dr.CI PR Status line cannot disagree about whether a PR is approved.
+import {
+  getApprovalStatusFromReviews,
+  PR_APPROVED,
+  PR_CHANGES_REQUESTED,
+} from "../reviewApproval";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
@@ -34,11 +41,6 @@ export interface PytorchbotParams {
   useReactions: boolean;
   cachedConfigTracker: CachedConfigTracker;
 }
-
-const PR_COMMENTED = "commented";
-const PR_DISMISSED = "dismissed";
-const PR_CHANGES_REQUESTED = "changes_requested";
-const PR_APPROVED = "approved";
 
 class PytorchBotHandler {
   ctx: any;
@@ -165,7 +167,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async getApprovalStatus(): Promise<string> {
-    var reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
+    const reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
       this.ctx.octokit.pulls.listReviews,
       {
         owner: this.owner,
@@ -180,91 +182,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       return "no_reviews";
     }
 
-    // From https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
-    const ALLOWED_APPROVER_ASSOCIATIONS = [
-      "COLLABORATOR",
-      "CONTRIBUTOR",
-      "MEMBER",
-      "OWNER",
-    ];
-
-    // GitHub App bots authenticate via installations rather than as repo
-    // collaborators, so their reviews always carry author_association=NONE.
-    // Allowlist trusted App identities so their approvals are still honored,
-    // but only on pytorch/pytorch since that is the sole repo these bots
-    // review -- other supported orgs/repos must not honor the exemption.
-    const ALLOWED_APPROVER_BOT_LOGINS = ["pytorchgreenlight[bot]"];
-    const isPyTorchPyTorchRepo = isPyTorchPyTorch(this.owner, this.repo);
-
-    // Find the latest review offered by each authroized reviewer
-    // But first sort them in case Github ever returns the list unsorted
-    var latest_reviews: { [user: string]: string } = reviews
-      .sort((a: PullRequestReview, b: PullRequestReview) => {
-        return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
-          ? -1
-          : 1;
-      })
-      .reduce(
-        (
-          latest_reviews: { [user: string]: string },
-          curr_review: PullRequestReview
-        ) => {
-          if (
-            !ALLOWED_APPROVER_ASSOCIATIONS.includes(
-              curr_review.author_association
-            ) &&
-            !(
-              isPyTorchPyTorchRepo &&
-              ALLOWED_APPROVER_BOT_LOGINS.includes(
-                curr_review.user?.login ?? ""
-              )
-            )
-          ) {
-            // Not an authorized approver
-            return latest_reviews;
-          }
-
-          // Casing is werid here. The typescript defintion says state will be lower case, yet github
-          // returns upper case. We can't trust that to remain that way, so always conver the state
-          // to lowercase before any comparisons
-          switch (curr_review.state.toLocaleLowerCase()) {
-            case PR_COMMENTED: // Ignore mere comments
-              break;
-            case PR_DISMISSED: // Ignore previous reviews by this person
-              delete latest_reviews[curr_review.user.login];
-              break;
-            case PR_CHANGES_REQUESTED:
-              latest_reviews[curr_review.user.login] = curr_review.state;
-              break;
-            case PR_APPROVED:
-              latest_reviews[curr_review.user.login] = curr_review.state;
-              break;
-            default:
-              this.ctx.log(
-                `Found an invalid review state '${curr_review.state}' on review id ${curr_review.id}. See ${curr_review.html_url}`
-              );
-          }
-
-          return latest_reviews;
-        },
-        {}
-      );
-
-    // Aggregate the reviews to figure out the overall status.
-    // One approval is all that's needed
-    // If there are any changes requested, the status is changes requested
-    let approval_status = "";
-    for (let [_, review_state] of Object.entries(latest_reviews)) {
-      if (review_state.toLocaleLowerCase() == PR_APPROVED) {
-        approval_status = review_state;
-      } else if (review_state.toLocaleLowerCase() == PR_CHANGES_REQUESTED) {
-        // If there are any changes requested, we exit early and just return changes requested
-        approval_status = review_state;
-        break;
-      }
-    }
-
-    return approval_status.toLocaleLowerCase();
+    // The rules themselves live in lib/reviewApproval so the Dr.CI PR Status
+    // line reaches the same verdict this does; see the note there.
+    return getApprovalStatusFromReviews(
+      reviews,
+      isPyTorchPyTorch(this.owner, this.repo),
+      (message: string) => this.ctx.log(message)
+    );
   }
 
   async handleMerge(
