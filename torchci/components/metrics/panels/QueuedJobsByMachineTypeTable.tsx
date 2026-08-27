@@ -1,4 +1,4 @@
-import { Link, Typography } from "@mui/material";
+import { Link, Tooltip, Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 import { durationDisplay } from "components/common/TimeUtils";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -6,30 +6,29 @@ import { fetcher } from "lib/GeneralUtils";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 
-// "Queued Jobs by Machine Type", with the option to leave out jobs whose
-// workflow run looks abandoned by GitHub.
+// "Queued Jobs by Machine Type", with jobs whose workflow run looks abandoned
+// by GitHub left out by default.
 //
-// Those jobs are real rows in ClickHouse that no runner will ever pick up, and
-// they can sit in this table for a week showing multi-day queue times for a
-// pool that is actually healthy. Leaving them out is the default, because the
-// number a reader wants is "how long is the wait right now".
+// Those jobs are real rows in ClickHouse that in all likelihood no runner will
+// pick up, and they can sit in this table for a week showing multi-day queue
+// times for a pool that is actually healthy. Leaving them out is the default,
+// because the number a reader wants is "how long is the wait right now". A
+// machine type with nothing left once they are gone has no queue to report, so
+// its row is dropped rather than shown as a zero.
 //
 // It is only a guess — see clickhouse_queries/queued_jobs_by_label/query.sql
-// for what the classifier can and cannot establish — so two rules constrain it.
+// for what the classifier can and cannot establish — so it never acts
+// unannounced. The panel title is the whole of that promise now that there is
+// no per-row marker: while anything is being left out it says how many jobs,
+// how old, and NAMES every machine type that left the table with them. One
+// click puts all of it back.
 //
-// It never acts unannounced. While any job is being left out, the panel title
-// says how many and how old, one click puts them back, and every machine type
-// stays in the table either way.
-//
-// And it never decides the reading order. The DEFAULT sort is the hidden
-// sort_queue_s below, which is always the raw queue time, so while that sort is
-// active — which is every unattended view of this page — flipping the toggle
-// cannot move a machine type down the table or off the bottom of it. That is
-// how a mistaken guess would hide a real outage from someone scanning the top.
-// A reader who clicks a header is then sorting on what they can actually see,
-// and rows do move when they toggle after that: they changed the definition of
-// the figure they sorted by, and holding the old order would be the misleading
-// choice.
+// The classifier's own liveness condition is what usually keeps a real outage
+// on screen: a job is only suspect when some other job asking for exactly its
+// labels reached a runner in the last hour, so a pool serving nothing keeps
+// every job counted. It is not a guarantee — labels are not the whole of what
+// a job is scheduled against, and a pool that fails outright can stay inside
+// that one-hour window — which is why the title names what it hid.
 export default function QueuedJobsByMachineTypeTable({
   onMachineTypeClick,
 }: {
@@ -105,6 +104,26 @@ export default function QueuedJobsByMachineTypeTable({
   const shownQueueS = (row: any) =>
     leaveOutStuck ? Number(row.live_max_queue_s) : Number(row.avg_queue_s);
 
+  // A machine type with no jobs left has no queue to report, so it leaves the
+  // table until the toggle brings it back. `data` rather than `rows` so
+  // `undefined` still reaches TablePanelWithData as the loading state.
+  const shownRows = leaveOutStuck
+    ? rows.filter((row) => shownCount(row) > 0)
+    : data;
+  // Named, not counted. A row is the only per-machine-type signal this panel
+  // has, so an oncall reading a title that says two pools vanished still has to
+  // guess which — and the one they are looking for is the one most likely to be
+  // missing.
+  const hiddenTypes: string[] = leaveOutStuck
+    ? rows.filter((row) => shownCount(row) === 0).map((row) => row.machine_type)
+    : [];
+  const hiddenList =
+    hiddenTypes.length <= 3
+      ? hiddenTypes.join(", ")
+      : `${hiddenTypes.slice(0, 3).join(", ")} and ${
+          hiddenTypes.length - 3
+        } more`;
+
   const columns: GridColDef[] = useMemo(
     () => [
       {
@@ -119,73 +138,24 @@ export default function QueuedJobsByMachineTypeTable({
         headerName: "Queue time",
         flex: 1,
         type: "number",
-        // A machine type with nothing left once the suspected jobs are removed
-        // has no queue time, which is not the same as a queue time of zero.
-        // null rather than 0 keeps that distinction in the value itself, so
-        // sorting, "is empty" and the absence of a colour all agree with the
-        // dash on screen.
-        valueGetter: (_value: any, row: any) =>
-          shownCount(row) === 0 ? null : shownQueueS(row),
-        valueFormatter: (params: number | null) =>
-          params == null ? "—" : durationDisplay(params),
+        valueGetter: (_value: any, row: any) => shownQueueS(row),
+        valueFormatter: (params: number) => durationDisplay(params),
         cellClassName: (params) => {
-          if (params.value == null) return "";
           const queueTimeHours = params.value / 3600;
           if (queueTimeHours >= 4) return "queue-time-red";
           if (queueTimeHours >= 1) return "queue-time-yellow";
           return "";
         },
       },
-      {
-        field: "stale_count",
-        headerName: "Suspected stuck",
-        description:
-          "How many of this machine type's queued jobs match the " +
-          "abandoned-run heuristic: the workflow run is over 6h old and its " +
-          "recorded update time still equals its creation time, the job is " +
-          "still queued with no runner and no steps recorded, and some job " +
-          "created in the last hour with exactly the same labels did get a " +
-          "runner. Labels are not the whole of what a job is scheduled " +
-          "against, so this can be wrong in either direction. Use the link in " +
-          "the title to count these jobs again.",
-        flex: 1,
-        type: "number",
-        // COUNTIf is a UInt64 and should arrive as a JSON number, but that was
-        // not verifiable end-to-end; a string would sort "10" below "2".
-        valueGetter: (value: any) => Number(value),
-        // Descending first: an ascending click would push every affected row
-        // below the blanks, the one ordering a reader would not expect from a
-        // column about exceptions.
-        sortingOrder: ["desc", "asc", null],
-        // Blank rather than "0" so the column reads as an exception marker.
-        // NaN, from a payload without the column, is blank for the same reason.
-        valueFormatter: (params: number, row: any) =>
-          params > 0
-            ? `${params} · ${durationDisplay(Number(row.oldest_stale_s))}`
-            : "",
-      },
-      { field: "machine_type", headerName: "Machine Type", flex: 3 },
-      // Not displayed. Carries the raw queue time so the DEFAULT ordering is
-      // the same in both modes; see the note at the top of the file. Hiding a
-      // column does not by itself keep it out of the filter panel, the column
-      // chooser or an all-columns export, and a filter on a value nobody can
-      // see is worse than no filter — hence the opt-outs. `sortable: false`
-      // only disables sorting by header interaction; the initial sort model
-      // below still orders by this column.
-      {
-        field: "sort_queue_s",
-        sortable: false,
-        filterable: false,
-        hideable: false,
-        disableExport: true,
-        disableColumnMenu: true,
-        valueGetter: (_value: any, row: any) => Number(row.avg_queue_s),
-      },
+      { field: "machine_type", headerName: "Machine Type", flex: 4 },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [leaveOutStuck]
   );
 
+  // The whole of what tells a reader something is missing, so it names both
+  // things that can be: the jobs left out of every figure, and the machine
+  // types that lost their last job and left the table with it.
   const title =
     stuckJobs === 0 ? (
       "Queued Jobs by Machine Type"
@@ -195,15 +165,30 @@ export default function QueuedJobsByMachineTypeTable({
         <Typography component="span" fontSize="13px" fontWeight="400">
           — {stuckJobs} job{stuckJobs === 1 ? "" : "s"} look stuck (oldest{" "}
           {durationDisplay(oldestStuckS)}),{" "}
-          {leaveOutStuck ? "not counted below" : "counted below"}.{" "}
-          <Link
-            component="button"
-            underline="always"
-            fontSize="13px"
-            onClick={() => setCountSuspectedStuck(!countSuspectedStuck)}
+          {leaveOutStuck ? "left out" : "counted below"}
+          {leaveOutStuck && hiddenTypes.length > 0
+            ? `; ${hiddenList} hidden`
+            : ""}
+          .{" "}
+          <Tooltip
+            title={
+              "A queued job is called stuck when its workflow run is over 6h " +
+              "old and has never been updated, the job itself never reached a " +
+              "runner, and some other job asking for exactly the same labels " +
+              "did reach one in the last hour. Labels are not the whole of " +
+              "what a job is scheduled against, so this can be wrong in " +
+              "either direction."
+            }
           >
-            {leaveOutStuck ? "Count them" : "Leave them out"}
-          </Link>
+            <Link
+              component="button"
+              underline="always"
+              fontSize="13px"
+              onClick={() => setCountSuspectedStuck(!countSuspectedStuck)}
+            >
+              {leaveOutStuck ? "Show them" : "Leave them out"}
+            </Link>
+          </Tooltip>
         </Typography>
       </span>
     );
@@ -211,17 +196,13 @@ export default function QueuedJobsByMachineTypeTable({
   return (
     <TablePanelWithData
       title={title}
-      data={data}
+      data={shownRows}
       columns={columns}
       dataGridProps={{
         getRowId: (el: any) => el.machine_type,
-        // Both under initialState. As a controlled `columnVisibilityModel` prop
-        // with no change handler, this would freeze visibility for EVERY column
-        // and leave the column chooser unable to hide anything.
         initialState: {
-          columns: { columnVisibilityModel: { sort_queue_s: false } },
           sorting: {
-            sortModel: [{ field: "sort_queue_s", sort: "desc" }],
+            sortModel: [{ field: "avg_queue_s", sort: "desc" }],
           },
         },
         onRowClick: (params: any) => {
