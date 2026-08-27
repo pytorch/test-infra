@@ -13,7 +13,7 @@ import {
   shouldReadAdvisorVerdicts,
 } from "lib/advisor/advisorVerdictSource";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
-import { fetchJSON, isTime0 } from "lib/bot/utils";
+import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
@@ -61,6 +61,13 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
+import {
+  extractPrStatusSection,
+  fetchPrStatusState,
+  hasPrStatusLabel,
+  PR_STATUS_START,
+  renderPrStatusSection,
+} from "lib/prStatus";
 import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
@@ -480,12 +487,56 @@ export async function updateDrciComments(
         greenlightSections.get(pr_info.pr_number) ?? ""
       );
 
+      // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
+      // newer webhook update. Mirrored labels and an existing section only gate
+      // the GitHub read; live labels determine what renders. On an API failure,
+      // preserve the existing section and let a later update retry.
+      let prStatusSection = "";
+      if (isPyTorchPyTorch(owner, repo)) {
+        const existingComment =
+          existingDrCiComments.get(pr_info.pr_number)?.body ?? "";
+        prStatusSection = extractPrStatusSection(existingComment);
+        try {
+          if (
+            hasPrStatusLabel(labels || []) ||
+            existingComment.includes(PR_STATUS_START)
+          ) {
+            const liveLabels = (
+              await octokit.paginate(octokit.rest.issues.listLabelsOnIssue, {
+                owner,
+                repo,
+                issue_number: pr_info.pr_number,
+                per_page: 100,
+              })
+            ).map((label) => label.name);
+
+            if (hasPrStatusLabel(liveLabels)) {
+              const state = await fetchPrStatusState(
+                octokit,
+                owner,
+                repo,
+                pr_info.pr_number,
+                liveLabels
+              );
+              if (state !== null) {
+                prStatusSection = renderPrStatusSection(state);
+              }
+            } else {
+              prStatusSection = "";
+            }
+          }
+        } catch (e) {
+          console.error("PR status build threw for PR", pr_info.pr_number, e);
+        }
+      }
+
       const comment = formDrciComment(
         pr_info.pr_number,
         owner,
         repo,
         failureInfo,
-        formDrciSevBody(sevs)
+        formDrciSevBody(sevs),
+        prStatusSection
       );
 
       const { id, body } =
