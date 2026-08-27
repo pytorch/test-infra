@@ -15,6 +15,7 @@
     - [stripApprovalBot.ts](#stripapprovalbotts)
     - [codevNoWritePermBot.ts](#codevnowritepermbotts)
     - [drciBot.ts](#drcibotts)
+    - [greenlightBot.ts](#greenlightbotts)
   - [External Integrations](#external-integrations)
     - [Data Storage](#data-storage)
     - [CI Systems](#ci-systems)
@@ -32,7 +33,7 @@
 
 The PyTorch bot is a GitHub webhook automation system built with **Probot** that manages CI/CD workflows, code reviews, and development operations for the PyTorch ecosystem. It's deployed as a Next.js application on Vercel and integrates with multiple external services.
 
-- **Main Entry**: `lib/bot/index.ts:17` - Registers all bot modules with Probot
+- **Main Entry**: `lib/bot/index.ts:19` - Registers the PyTorch Bot app's modules with Probot, served at `/api/github/webhooks`. `greenlightBot.ts` is deliberately _not_ registered here: it runs as a second Probot instance under a second GitHub App on its own route (see [greenlightBot.ts](#greenlightbotts))
 
 ## Bot Modules
 
@@ -267,6 +268,43 @@ ciflow_push_tags:
 - `pull_request.opened`, `pull_request.synchronize`
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
+
+### greenlightBot.ts
+
+**Primary Purpose:** Handles `@greenlight` commands on pull requests, so a trusted author can ask the Green Light AI reviewer to look at a PR again without leaving GitHub.
+
+**Separate Probot instance:** Unlike every other module on this page, this bot is not registered in `index.ts` and is not served by `/api/github/webhooks`. It runs as its own Probot instance under its own GitHub App (the Green Light App), mounted on its own route at `pages/api/greenlight/webhooks.ts`. The two apps have separate app IDs, private keys, webhook secrets and installations, so installing the PyTorch Bot app on a repo does nothing for this bot — the Green Light App has to be installed there separately.
+
+**Supported Commands (via `greenlightCliParser`):**
+
+- `recheck` — Ask Green Light to review the pull request again.
+- `help` — List the available commands. Has no other effect.
+
+**GitHub Webhooks:**
+
+- `issue_comment.created` — Pull requests only, and never on `edited`, so touching an old comment cannot re-run the command it holds. Comments authored by bots are ignored. Only a line that _starts_ with the mention is parsed, so quoting an earlier comment does not re-run its command. Both the mention and the command name are matched case-insensitively, which keeps the bot in step with greenlight's `is_bot_command` (`greenlight/src/greenlight/pr_hash.py`): that lowercases the body before looking for the trigger, so a differently-cased mention is dropped from the PR's fingerprint whether or not the bot acts on it. A mention that renders as sample text rather than as a live instruction is skipped — indented far enough to be a markdown code block, or inside a fence, an HTML comment or a `<pre>` block. Closing delimiters are optional, because CommonMark does not require them: an unclosed opener runs to the end of the comment, which matters most for an unterminated `<!--`, where nothing renders at all. A multiline `<code>` element is the one such region not skipped; inline `<code>` is already covered by the line-start anchor.
+
+**Key Features:**
+
+- **Least-privilege writes**: every write mints a fresh installation token scoped to a single repo and a single permission, instead of reusing the broad token Probot hands the handler.
+- **Two-layer authorization**: a coarse write-permission check gates every command, and a commenter without write access — or one using an unrecognized command — gets a reaction rather than a comment, since a comment notifies every subscriber on the PR. A `recheck` additionally requires the requester to be on Green Light's trusted-author list (`greenlightTrustedAuthors.ts`, mirroring `TRUSTED_AUTHORS` in `greenlight/src/greenlight/review.py`), checked before the bot changes anything.
+- **Org and repo gating**: only the orgs `isPyTorchbotSupportedOrg` allows, and within those only the repos named in the `GREENLIGHT_BOT_REPOS` allowlist. Enabling a repo is a configuration change rather than a code change, but Vercel applies environment variable changes only to new deployments, so it still takes a redeploy. An unset `GREENLIGHT_BOT_REPOS` enables the bot on nothing, and the route refuses to start without it.
+- **Duplicate suppression**: a repeated `recheck` of the same PR inside a short in-memory window is dropped rather than starting a second reviewer run.
+- **Workflow dispatch**: an accepted `recheck` removes the `Stale` label if present, dispatches `greenlight-review.yml` in `pytorch/test-infra` with the PR number and the commenter's login, then posts its acknowledgment comment and reacts to the triggering comment. The acknowledgment is written after the work it describes, so a delivery cut short partway leaves no comment claiming something that never happened.
+
+**Special Logic:** `greenlight-review.yml` dispatches a reviewer that hard-codes `pytorch/pytorch`, so a `recheck` anywhere else is declined rather than dispatched against an unrelated PR of the same number. Removing the `Stale` label emits `pull_request.unlabeled` to the PyTorch Bot app, where `checkLabelsBot.ts` posts its `release notes:` label reminder if the PR lacks one — a common, expected side effect of a recheck on a long-idle PR.
+
+**Related files:**
+
+- `greenlightBot.ts` — Probot registration; bot-author, org and repo filtering.
+- `greenlightBotHandler.ts` — Command handling, refusals, label removal, dispatch.
+- `greenlightCliParser.ts` — Command vocabulary and the help text generated from it.
+- `greenlightTrustedAuthors.ts` — The logins the bot and the Green Light backend will act for.
+- `greenlightBotConfig.ts` — Required environment variables and the repo allowlist accessor.
+- `greenlightAppAuth.ts` — Private-key handling and scoped installation-token minting.
+- `greenlightWriter.ts` — The comment/react/label write surface and the workflow dispatcher.
+- `repoAllowlist.ts` — `GREENLIGHT_BOT_REPOS` parsing and matching.
+- `pages/api/greenlight/webhooks.ts` — The route and the Probot instance for the Green Light App.
 
 ## External Integrations
 

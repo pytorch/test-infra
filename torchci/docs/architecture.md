@@ -17,6 +17,11 @@ flowchart LR
    dynamodb --> replicatorlambda@{ shape: das, label: "AWS Lambda
    clickhouse-replicator-dynamo"}
    replicatorlambda --> ClickHouse
+   greenlightapp[Github App
+   Green Light] --> greenlightvercel@{ shape: das, label: "vercel
+   /api/greenlight/webhooks" }
+   greenlightvercel --> dispatch[Actions workflow_dispatch
+   greenlight-review.yml]
 ```
 
 Whenever something happens on GitHub, a [webhook event] is created and sent to
@@ -37,12 +42,20 @@ written to `torchci-workflow-job`.
 ClickHouse [ingests from DynamoDB using an AWS Lambda][ch_dynamo] to automatically pick up
 changes in the tables.
 
+`torchci` serves a second GitHub App, Green Light, on a second endpoint
+([`/api/greenlight/webhooks`]). It is a separate Probot instance with its own
+app id, private key and webhook secret, and it writes nothing to DynamoDB: it
+answers `@greenlight` comments on pull requests by dispatching the Green Light
+reviewer workflow in `pytorch/test-infra`. The two apps are installed
+independently of each other, so a repo can have either one without the other.
+
 [webhook event]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks
 [webhook payload]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads
 [`issues`]: https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#issues
 [github apps]: https://docs.github.com/en/developers/apps/getting-started-with-apps/about-apps
 [pytorch bot]: https://github.com/apps/pytorch-bot
 [`/api/github/webhooks`]: https://github.com/pytorch/test-infra/blob/main/torchci/pages/api/github/webhooks.ts
+[`/api/greenlight/webhooks`]: https://github.com/pytorch/test-infra/blob/main/torchci/pages/api/greenlight/webhooks.ts
 [ch_dynamo]: https://github.com/pytorch/test-infra/tree/6abfc539d0ce7daf0fcd07533de37b8723e6454a/aws/lambda/clickhouse-replicator-dynamo
 
 ## Secondary write paths
@@ -109,5 +122,16 @@ To get the basic HUD working, you will need to:
 
 You won't get any of the other goodies listed in "Secondary write paths" above,
 but other than that, things should work!
+
+The Green Light app is installed separately, and step 1 does nothing for it. To
+get `@greenlight` commands working on a repo you also need to:
+
+1. Install the Green Light app on that repo, so the bot can comment, react and
+   remove labels there.
+2. Install the Green Light app on `pytorch/test-infra` as well. The bot mints a
+   token scoped to that repo to dispatch the reviewer workflow, so without this
+   install every `@greenlight recheck` fails at the dispatch.
+3. Add the repo to the bot's allowlist (`GREENLIGHT_BOT_REPOS` on the Vercel
+   project). A repo missing from it is refused even with both installs in place.
 
 [build/ci pocs]: https://pytorch.org/docs/master/community/persons_of_interest.html#build-ci
