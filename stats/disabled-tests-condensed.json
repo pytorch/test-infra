@@ -217,6 +217,14 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "152893",
+    "https://github.com/pytorch/pytorch/issues/152893",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
   "test_comprehensive_special_i1_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "194155",
     "https://github.com/pytorch/pytorch/issues/194155",
@@ -506,6 +514,13 @@
     "https://github.com/pytorch/pytorch/issues/159113",
     [
       "linux"
+    ]
+  ],
+  "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
+    "192735",
+    "https://github.com/pytorch/pytorch/issues/192735",
+    [
+      "rocm"
     ]
   ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
