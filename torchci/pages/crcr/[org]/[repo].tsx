@@ -125,6 +125,7 @@ function StatCard({
           <Tooltip title={tooltip}>
             <Box
               component="span"
+              tabIndex={0}
               sx={{ cursor: "help", ml: 0.5 }}
               aria-label={`About ${label}`}
             >

@@ -73,13 +73,14 @@ SELECT
     avg(queue_time) AS avg_queue_time_s,
     avg(execution_time) AS avg_exec_time_s,
     max(execution_time) AS max_exec_time_s,
-    quantile(0.95)(execution_time) AS p95_exec_time_s,
+    quantileExact(0.95)(execution_time) AS p95_exec_time_s,
     -- E2E time is per-run (RFC-0050); run_rn = 1 keeps one sample per run.
-    medianIf(
+    -- Exact (not sampled) quantiles since this gates L3 promotion decisions.
+    quantileExactIf(0.5)(
         run_queue_time_s + run_span_s,
         run_rn = 1 AND run_queue_time_s IS NOT NULL
     ) AS median_e2e_time_s,
-    quantileIf(0.95)(
+    quantileExactIf(0.95)(
         run_queue_time_s + run_span_s,
         run_rn = 1 AND run_queue_time_s IS NOT NULL
     ) AS p95_e2e_time_s,
