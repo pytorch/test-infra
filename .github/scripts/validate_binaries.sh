@@ -161,6 +161,37 @@ install_wheel_variants() {
     uv pip install --index "${variant_index_url}" ${variant_packages} --force-reinstall --verbose
 }
 
+# Replace the installed triton with the one published to PyPI.
+#
+# torch declares `triton~=3.8.0; platform_system == "Linux" and python_version <
+# "3.15"`, but the wheel install runs with `--index-url download.pytorch.org/...`,
+# so that dependency resolves to the mirrored build. Reinstalling from PyPI is
+# what actually puts the published artifact under test -- on aarch64 it is not
+# even the same wheel (PyPI ships manylinux_2_27_aarch64, the mirror linux_aarch64).
+#
+# Must run *after* the torch install: USE_FORCE_REINSTALL makes pip reinstall
+# dependencies too, so a triton installed beforehand would just be overwritten.
+#
+# PyPI has no cp315/cp315t triton, which is why 3.15 is skipped here as well as
+# by torch's own marker.
+install_triton_from_pypi() {
+    local triton_version="3.8.0"
+
+    if [[ ${TARGET_OS} != 'linux' && ${TARGET_OS} != 'linux-aarch64' ]]; then
+        return 0
+    fi
+    if [[ ${ORIGINAL_GPU_ARCH_TYPE:-} != 'cuda' && ${ORIGINAL_GPU_ARCH_TYPE:-} != 'cuda-aarch64' ]]; then
+        return 0
+    fi
+    if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
+        return 0
+    fi
+
+    echo "Installing triton==${triton_version} from PyPI, replacing the download.pytorch.org build"
+    pip3 install --force-reinstall --no-deps --index-url https://pypi.org/simple "triton==${triton_version}"
+    (cd /tmp && ${PYTHON_RUN} -c "import triton; print('triton', triton.__version__, triton.__file__)")
+}
+
 # Install numpy 1.x for Python < 3.13
 install_numpy_1x() {
     local minor_version
@@ -303,6 +334,10 @@ check_wheel_size() {
 # Main Script
 #######################################
 
+# handle_aarch64_cuda_override rewrites MATRIX_GPU_ARCH_TYPE to "cpu" for aarch64
+# CUDA builds, so record the matrix's own value while it is still intact.
+export ORIGINAL_GPU_ARCH_TYPE="${MATRIX_GPU_ARCH_TYPE:-}"
+
 handle_aarch64_cuda_override
 
 # torchvision wheels are not published for Python 3.15 / 3.15t yet, so validate
@@ -405,6 +440,7 @@ else
     eval "${INSTALLATION}" 2>&1 | tee "${WHEEL_INSTALL_LOG}"
     check_wheel_size "${WHEEL_INSTALL_LOG}"
     rm -f "${WHEEL_INSTALL_LOG}"
+    install_triton_from_pypi
 fi
 
 # Install numpy 1.x after torch install
