@@ -566,6 +566,18 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
           </a>
         </div>
       )}
+      {job.artifact_url && (
+        <div style={{ marginTop: 2 }}>
+          <a
+            href={job.artifact_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--link-color, #58a6ff)" }}
+          >
+            View artifacts ›
+          </a>
+        </div>
+      )}
     </div>
   );
 }
