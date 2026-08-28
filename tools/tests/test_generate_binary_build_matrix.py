@@ -241,7 +241,10 @@ class GenerateBuildMatrixTest(TestCase):
         self.assertIn(GETTING_STARTED_ROCM_ARCH, ROCM_ARCHES_DICT["nightly"])
 
     def test_getting_started_falls_back_to_newest_rocm(self):
-        with patch.dict(ROCM_ARCHES_DICT, {"nightly": ["8.0", "10.0"]}, clear=False):
+        with patch.dict(ROCM_ARCHES_DICT, {"nightly": ["7.14", "10.0"]}, clear=False), patch(
+            "tools.scripts.generate_binary_build_matrix.GETTING_STARTED_ROCM_ARCH",
+            "7.2",
+        ):
             versions = self._rocm_versions("nightly", "true")
         self.assertEqual(versions, {"10.0"})
 
