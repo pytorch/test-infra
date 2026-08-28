@@ -178,6 +178,40 @@ describe("extractDynamoRecord", () => {
     expect(record.pytorch_head_sha).toBe("delivery-abc-123");
   });
 
+  test("push event with ciflow/trunk/<pr> ref recovers pr_number and head_sha", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        callback: {
+          event_type: "push",
+          payload: {
+            repository: { full_name: "pytorch/pytorch" },
+            ref: "refs/tags/ciflow/trunk/12345",
+            after: "def4567890abcdef",
+          },
+        },
+      })
+    );
+    expect(record.pr_number).toBe(12345);
+    expect(record.pytorch_head_sha).toBe("def4567890abcdef");
+  });
+
+  test("push event to a non-ciflow ref (e.g. landed merge on main) has no PR", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        callback: {
+          event_type: "push",
+          payload: {
+            repository: { full_name: "pytorch/pytorch" },
+            ref: "refs/heads/main",
+            after: "def4567890abcdef",
+          },
+        },
+      })
+    );
+    expect(record.pr_number).toBe(0);
+    expect(record.pytorch_head_sha).toBe("def4567890abcdef");
+  });
+
   test("uses payload.head_sha for nightly callbacks", () => {
     const record = extractDynamoRecord(
       makePayload({
