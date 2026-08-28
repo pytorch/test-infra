@@ -20,6 +20,7 @@ from greenlight.decision import Decision, decide
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
+from greenlight.state import next_run_id
 
 if TYPE_CHECKING:
     import queue
@@ -255,20 +256,16 @@ def _fingerprint_until_dispatchable(
 def _emit_dispatch_marker(
     candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None]
 ) -> None:
-    # run_id is prior_run_id + 1 so this AI_REVIEW_DISPATCHED row supersedes the PR's prior row,
-    # while the reviewer run's own later, higher github.run_id supersedes it in turn once that run
-    # starts. A None state (never-reviewed PR) has no prior run, so it bases at 0 -> run_id 1.
     # The workflow was already fired, so an emit failure is logged and swallowed: a missing marker
     # self-heals (next scan re-dispatches, the reviewer's per-PR concurrency group cancels the dup),
     # and must not fail the scan or block dispatching the remaining candidates.
-    prior_run_id = candidate.state.run_id if candidate.state else 0
     try:
         emit_dispatched(
             repo=constants.TARGET_REPO,
             pr_number=candidate.pr_number,
             head_sha=candidate.head_sha,
             eval_hash=candidate.eval_hash,
-            run_id=prior_run_id + 1,
+            run_id=next_run_id(candidate.state),
         )
     except IterationTimeout:
         raise
