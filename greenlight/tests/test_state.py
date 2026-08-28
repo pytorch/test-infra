@@ -207,6 +207,99 @@ def test_query_error_propagates_and_closes_connection():
     assert client.closed == 1
 
 
+def test_reverted_query_asks_for_existence_not_the_authoritative_row():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    state.read_reverted_pr_numbers(_REPO, connect=connect)
+
+    query, params = client.queries[0]
+    # Existence, not recency: a later AI_REVIEW_STARTED row outranks a REVERTED one in
+    # read_latest_states' selection, so this read must carry none of that ordering/limit.
+    assert "SELECT DISTINCT pr_number" in query
+    assert "status = %(status)s" in query
+    assert "ORDER BY" not in query
+    assert "LIMIT" not in query
+    assert "pr_number IN" not in query
+    assert params == {"repo": _REPO, "status": "REVERTED"}
+
+
+def test_reverted_pr_filter_and_tuple_param_applied_only_when_pr_numbers_given():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    state.read_reverted_pr_numbers(_REPO, [7, 9], connect=connect)
+
+    query, params = client.queries[0]
+    assert "pr_number IN %(pr_numbers)s" in query
+    assert params == {"repo": _REPO, "status": "REVERTED", "pr_numbers": (7, 9)}
+
+
+def test_reverted_rows_map_to_a_set_of_ints():
+    client = _FakeClient([{"pr_number": 7}, {"pr_number": "9"}])
+    connect, _ = _connect_seam(client)
+
+    assert state.read_reverted_pr_numbers(_REPO, [7, 9], connect=connect) == {7, 9}
+
+
+def test_reverted_empty_rows_returns_empty_set():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    assert state.read_reverted_pr_numbers(_REPO, [7], connect=connect) == set()
+
+
+def test_reverted_empty_pr_numbers_returns_empty_set_without_connecting():
+    client = _FakeClient([{"pr_number": 7}])
+    connect, calls = _connect_seam(client)
+
+    assert state.read_reverted_pr_numbers(_REPO, [], connect=connect) == set()
+    assert calls["count"] == 0
+    assert client.queries == []
+
+
+def test_reverted_connection_is_closed_after_read():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    state.read_reverted_pr_numbers(_REPO, [7], connect=connect)
+
+    assert client.closed == 1
+
+
+def test_reverted_query_error_propagates_and_closes_connection():
+    client = _RaisingClient([])
+    connect, _ = _connect_seam(client)
+
+    # The read gates a permanent exclusion, so a failed query must fail the scan rather than
+    # silently read as "nothing was ever reverted".
+    with pytest.raises(RuntimeError, match="query boom"):
+        state.read_reverted_pr_numbers(_REPO, [7], connect=connect)
+
+    assert client.closed == 1
+
+
+@pytest.mark.parametrize(
+    ("recorded", "expected"),
+    [
+        pytest.param(None, 1, id="never-reviewed-bases-at-zero"),
+        pytest.param(0, 1, id="legacy-zero-run-id"),
+        pytest.param(4, 5, id="supersedes-prior-row"),
+        pytest.param(19283746, 19283747, id="supersedes-a-real-github-run-id"),
+    ],
+)
+def test_next_run_id_is_one_above_the_prior_row(recorded, expected):
+    # The write-side counterpart of the ORDER BY run_id DESC selection: one above the prior row is
+    # what makes a scan-written row the one read_latest_states returns.
+    prior = (
+        None
+        if recorded is None
+        else PRState(pr_number=1, status="LAND", eval_hash="a" * 64, head_sha="sha", version=_V1, run_id=recorded)
+    )
+
+    assert state.next_run_id(prior) == expected
+
+
 def test_prstate_is_frozen():
     st = PRState(pr_number=1, status="LAND", eval_hash="a" * 64, head_sha="sha", version=_V1, run_id=3)
 

@@ -8,6 +8,8 @@ import {
   GREENLIGHT_NO_LAND_HEADLINE,
   GREENLIGHT_OUTDATED_HEADLINE_PREFIX,
   GREENLIGHT_PENDING_ALT_ATTR,
+  GREENLIGHT_REVERTED_BODY,
+  GREENLIGHT_REVERTED_HEADLINE,
   GREENLIGHT_REVIEWING_HEADLINE,
   GreenlightState,
   INLINE_BREAKERS_RE,
@@ -398,6 +400,23 @@ describe("renderGreenlightSection statuses", () => {
     expect(failed).toContain("reason: `failed`");
   });
 
+  // The scan writes this row with no reason, message or job of its own, so the
+  // blank-field handling the retry statuses get applies here too: a rendered
+  // `reason: ``` or an empty fence would be noise the reader has to expand to.
+  it("renders REVERTED with its own headline and body, and no blank fields", () => {
+    const out = render(
+      state({ status: "REVERTED", reason: "", message: "", evalJob: "" }),
+      FRESH_NOW
+    );
+
+    expect(summaryLine(out)).toContain(GREENLIGHT_REVERTED_HEADLINE);
+    expect(out).toContain(GREENLIGHT_REVERTED_BODY);
+    expect(out).not.toContain(GREENLIGHT_LAND_HEADLINE);
+    expect(out).not.toContain(GREENLIGHT_INCOMPLETE_HEADLINE);
+    expect(out).not.toContain("reason:");
+    expect(out).not.toContain("```");
+  });
+
   it("returns empty for statuses it cannot render", () => {
     expect(render(state({ status: "" }), FRESH_NOW)).toBe("");
     expect(render(state({ status: "SOMETHING_NEW" }), FRESH_NOW)).toBe("");
@@ -543,7 +562,7 @@ describe("renderGreenlightSection pending sentinel", () => {
         GREENLIGHT_PENDING_ALT_ATTR
       );
     }
-    for (const status of ["LAND", "NO_LAND", "CANCELLED", "FAILED"]) {
+    for (const status of [...TERMINAL_STATUSES, "REVERTED"]) {
       expect(render(state({ status }), FRESH_NOW)).not.toContain(
         GREENLIGHT_PENDING_ALT_ATTR
       );
@@ -814,6 +833,24 @@ describe("renderGreenlightSection outdated verdict", () => {
     expect(summaryLine(out)).toContain(
       `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${GREENLIGHT_LAND_HEADLINE}`
     );
+  });
+
+  // The one status the marker must never reach. A revert stands whatever is
+  // pushed next, so calling it outdated once the author fixes the PR reads as an
+  // invitation to wait for the re-review that greenlight will never run -- and
+  // the reviewed-commit line, which says the same thing in longer form below the
+  // fold, has to go with it.
+  it("never marks REVERTED outdated, however far the head has moved on", () => {
+    const out = renderGreenlightSection(
+      state({ status: "REVERTED" }),
+      FRESH_NOW,
+      OTHER_SHA
+    );
+
+    expect(out).toContain(GREENLIGHT_REVERTED_HEADLINE);
+    expect(out).not.toContain(GREENLIGHT_OUTDATED_HEADLINE_PREFIX);
+    expect(out).not.toContain("Reviewed commit:");
+    expect(out).not.toContain("NOT the current head");
   });
 
   it("leaves a verdict on the current head unmarked", () => {

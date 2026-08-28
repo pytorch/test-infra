@@ -65,8 +65,9 @@ jobs:
     runs-on: ubuntu-latest
     # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
     # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
-    # Actions: write and Pull requests: read so the minted token can dispatch the
-    # reviewer workflow and read PRs across pytorch/pytorch and pytorch/test-infra.
+    # Actions: write and Pull requests: write so the minted token can dispatch the
+    # reviewer workflow, read PRs across pytorch/pytorch and pytorch/test-infra, and
+    # revoke greenlight's own approval on a reverted PR.
     environment: greenlight-record
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -74,27 +75,11 @@ jobs:
         with:
           working_directory: greenlight
 
-      # Least privilege: the listing scan only reads PRs, so it mints a pull-requests:read token.
-      # The --pr recheck may post a refusal comment, so it mints pull-requests:write instead.
-      # Exactly one of these runs per invocation (keyed on whether a PR number was given); both
-      # keep actions:write to dispatch the reviewer workflow.
-      - name: Mint Green Light app token (read-only listing scan)
-        id: app-token-ro
-        if: inputs.pr == ''
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
-        with:
-          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
-          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
-          owner: pytorch
-          repositories: pytorch,test-infra
-          permission-pull-requests: read
-          permission-actions: write
-          permission-contents: read
-          permission-members: read
-
-      - name: Mint Green Light app token (recheck, can comment)
-        id: app-token-rw
-        if: inputs.pr != ''
+      # pull-requests:write on every invocation, not just the --pr recheck: the listing scan
+      # dismisses greenlight's approving review on any PR that has been reverted. Keep the
+      # permission set in sync with _TOKEN_PERMISSIONS in greenlight/src/greenlight/lambda_handler.py.
+      - name: Mint Green Light app token
+        id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
@@ -119,12 +104,11 @@ jobs:
 
       - name: Scan and dispatch
         env:
-          # Whichever token step ran (exactly one does): read-only for the listing scan,
-          # pull-requests:write for a --pr recheck so it can post a refusal comment.
-          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token-ro.outputs.token || steps.app-token-rw.outputs.token }}
-          # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment. Only the
-          # write token step exposes app-slug, so this is empty on the read-only listing scan.
-          BOT_LOGIN: ${{ steps.app-token-rw.outputs.app-slug && format('{0}[bot]', steps.app-token-rw.outputs.app-slug) || '' }}
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment and picks
+          # out greenlight's own approvals to revoke on a reverted PR. An empty app-slug yields the
+          # bare "[bot]", which the CLI rejects as not App-shaped rather than silently matching nothing.
+          BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
