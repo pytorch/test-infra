@@ -17,7 +17,7 @@ from utils import gh_helper
 from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
-from utils.misc import CallbackState, extract_pr_labels
+from utils.misc import CallbackState, extract_pr_context, extract_pr_labels
 
 
 logger = logging.getLogger(__name__)
@@ -81,10 +81,11 @@ def _finalize_timed_out_check_run(
     if level is None or level.value < AllowlistLevel.L3.value:
         return
 
-    pr_field = (body.get("payload") or {}).get("pull_request") or {}
-    head_sha = (pr_field.get("head") or {}).get("sha", "")
-    pr_number = str(pr_field.get("number") or "")
-    if not head_sha:
+    # A check run always mirrors a specific PR, so a zombie with no
+    # resolvable pr_number (e.g. it was dispatched by a plain push to main,
+    # not a ciflow/trunk/<pr> tag) has no check run to finalize.
+    pr_number, head_sha = extract_pr_context(body)
+    if not head_sha or not pr_number:
         return
 
     # Only finalize repos that actually had a check run at in_progress time —

@@ -404,11 +404,13 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
 
     # L3+: cache the job and create its upstream check run. Runs after state
     # validation (above) but before HUD forwarding, so a HUD error cannot block
-    # the PR check. Without a head_sha there is neither a check run to create nor
-    # a cache entry the label handler could ever look up.
+    # the PR check. Both the cache entry and the check run always belong to a
+    # specific PR -- get_dispatch_jobs is only ever looked up by a PR's head
+    # SHA (see event_handler._handle_pr_labeled) -- so without a pr_number,
+    #  there is nothing to cache and no check run to create.
     if repo_level.value >= AllowlistLevel.L3.value:
         pr_number, head_sha = extract_pr_context(body)
-        if head_sha:
+        if head_sha and pr_number:
             conclusion = (body.get("workflow") or {}).get("conclusion")
             details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
 
@@ -426,15 +428,8 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
                 job_name=job_name,
             )
 
-            # A check run always mirrors a specific PR's status, so without a
-            # pr_number (e.g. a push straight to main -- the merge landing
-            # itself, not a ciflow/trunk/<pr> tag) there is no PR to attach
-            # one to, regardless of what needs_check_run/is_check_run_wanted
-            # would otherwise say.
-            needs_cr = bool(pr_number) and allowlist.needs_check_run(
-                verified_repo, extract_pr_labels(body)
-            )
-            if not needs_cr and pr_number and repo_level == AllowlistLevel.L3:
+            needs_cr = allowlist.needs_check_run(verified_repo, extract_pr_labels(body))
+            if not needs_cr and repo_level == AllowlistLevel.L3:
                 # The downstream's echoed payload labels may not reflect the PR's
                 # current state (e.g. on reopen). Fall back to the per-commit flag
                 # recorded at dispatch / label time for this (head_sha, repo).
