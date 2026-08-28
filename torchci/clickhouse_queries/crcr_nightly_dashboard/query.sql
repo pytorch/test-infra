@@ -18,7 +18,8 @@ SELECT
     workflow_run_url,
     artifact_url,
     queue_time,
-    execution_time
+    execution_time,
+    failed_tests_json
 FROM
     default.crcr_workflow_job FINAL
 WHERE

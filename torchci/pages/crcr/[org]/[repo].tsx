@@ -69,6 +69,7 @@ interface CrcrJobRow {
   artifact_url: string;
   queue_time: number | null;
   execution_time: number | null;
+  failed_tests_json: string;
 }
 
 interface SummaryStats {
@@ -475,9 +476,84 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
     job.queue_time != null ? `Queue: ${job.queue_time.toFixed(1)}s` : null,
   ].filter(Boolean);
 
+  let failedTests: Array<{
+    name: string;
+    classname?: string;
+    message?: string;
+    stacktrace?: string;
+  }> = [];
+  if (job.failed_tests_json) {
+    try {
+      failedTests = JSON.parse(job.failed_tests_json);
+    } catch {
+      // ignore malformed JSON
+    }
+  }
+
   return (
     <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
       {lines.join("\n")}
+      {failedTests.length > 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+            paddingTop: 6,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            Failed tests ({failedTests.length}):
+          </div>
+          {failedTests.slice(0, 10).map((t, i) => (
+            <div key={i} style={{ marginBottom: 3 }}>
+              <span style={{ color: "#f85149" }}>✗</span>{" "}
+              {t.classname ? `${t.classname}::${t.name}` : t.name}
+              {t.message && (
+                <div
+                  style={{
+                    fontSize: "0.7rem",
+                    color: "rgba(255,255,255,0.6)",
+                    marginLeft: 12,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 300,
+                  }}
+                >
+                  {t.message}
+                </div>
+              )}
+              {t.stacktrace && (
+                <details style={{ marginLeft: 12, fontSize: "0.65rem" }}>
+                  <summary
+                    style={{
+                      color: "rgba(255,255,255,0.5)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    stacktrace
+                  </summary>
+                  <pre
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      color: "rgba(255,255,255,0.5)",
+                      maxHeight: 120,
+                      overflow: "auto",
+                      margin: "2px 0",
+                    }}
+                  >
+                    {t.stacktrace}
+                  </pre>
+                </details>
+              )}
+            </div>
+          ))}
+          {failedTests.length > 10 && (
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem" }}>
+              … and {failedTests.length - 10} more
+            </div>
+          )}
+        </div>
+      )}
       {url && (
         <div style={{ marginTop: 4 }}>
           <a
