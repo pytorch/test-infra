@@ -134,14 +134,23 @@ jobs:
       options: ${{ inputs.gpu-arch-type == 'cuda' && '--gpus all' || '' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
-      - name: Clean workspace
+      - name: Fix workspace permissions
         shell: bash
         run: |
           set -euxo pipefail
-          echo "::group::Cleanup debug output"
-          rm -rfv "${GITHUB_WORKSPACE}"
-          mkdir -p "${GITHUB_WORKSPACE}"
-          echo "::endgroup::"
+          # An OSDC pod is ephemeral, so the workspace starts empty and there is
+          # nothing to clean. What a job does need is to be able to write into it:
+          # the GH hook creates it as uid 1001
+          # (https://github.com/actions/runner-images/issues/10936), which an
+          # image defaulting to a uid 1000 ec2-user mirror cannot do -- pytorch's
+          # `USER jenkins` and executorch's `USER ci-user` both are that shape.
+          # Same fix as pytorch/pytorch's setup-linux, and chmod rather than
+          # recreating the directory keeps the GH hook (uid 1001, gid 1001) able
+          # to clean up after the job.
+          #
+          # An image running as root can already write and often ships no sudo,
+          # so a failure here is not fatal.
+          sudo chmod -R 777 "${GITHUB_WORKSPACE}" 2>/dev/null || true
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
