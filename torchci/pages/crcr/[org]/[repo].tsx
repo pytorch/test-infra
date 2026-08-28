@@ -322,6 +322,7 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
         borderTop: `3px solid ${borderColor}`,
         textAlign: "center",
         minWidth: 200,
+        flex: 1,
       }}
     >
       <Typography variant="caption" color="text.secondary">
@@ -331,7 +332,8 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
         {label}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {passedCount}/{shasByTime.length} recent nightlies passed
+        {passedCount}/{shasByTime.length} of last {NIGHTLY_HEALTH_COUNT}{" "}
+        nightlies passed
       </Typography>
     </Paper>
   );
