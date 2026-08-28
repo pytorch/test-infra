@@ -112,6 +112,16 @@ def build_payload() -> str:
         except json.JSONDecodeError as exc:
             sys.exit(f"Error: TEST_RESULTS is not valid JSON: {exc}")
 
+    failed_tests_detail = os.environ.get("FAILED_TESTS_DETAIL", "").strip()
+    if failed_tests_detail:
+        try:
+            parsed = json.loads(failed_tests_detail)
+            if not isinstance(parsed, list):
+                sys.exit("Error: FAILED_TESTS_DETAIL must be a JSON array")
+            workflow["failed_tests_detail"] = parsed[:1000]
+        except json.JSONDecodeError as exc:
+            sys.exit(f"Error: FAILED_TESTS_DETAIL is not valid JSON: {exc}")
+
     artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
     if artifact_url:
         workflow["artifact_url"] = artifact_url

@@ -394,3 +394,123 @@ describe("ApiError", () => {
     expect(err.message).toBe("Not found");
   });
 });
+
+describe("extractDynamoRecord - failed_tests_detail", () => {
+  test("does not set failed_tests_json when field is absent", () => {
+    const payload = makePayload({
+      workflow: { status: "completed", conclusion: "failure" },
+    });
+    const record = extractDynamoRecord(payload);
+    expect(record.failed_tests_json).toBeUndefined();
+  });
+
+  test("populates failed_tests_json from valid array", () => {
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: [
+          { name: "test_foo", classname: "TestBar", message: "AssertionError" },
+          { name: "test_baz", duration: 1.5 },
+        ],
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    expect(record.failed_tests_json).toBeDefined();
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].name).toBe("test_foo");
+    expect(parsed[0].classname).toBe("TestBar");
+    expect(parsed[0].message).toBe("AssertionError");
+    expect(parsed[1].name).toBe("test_baz");
+    expect(parsed[1].duration).toBe(1.5);
+  });
+
+  test("truncates message longer than 1024 chars", () => {
+    const longMessage = "x".repeat(2000);
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: [{ name: "test_msg", message: longMessage }],
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed[0].message).toHaveLength(1024);
+  });
+
+  test("truncates stacktrace longer than 4096 chars", () => {
+    const longStacktrace = "s".repeat(5000);
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: [
+          { name: "test_stack", stacktrace: longStacktrace },
+        ],
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed[0].stacktrace).toHaveLength(4096);
+  });
+
+  test("filters out non-object elements", () => {
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: [
+          1,
+          "string",
+          null,
+          { name: "valid_test" },
+          undefined,
+        ],
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].name).toBe("valid_test");
+  });
+
+  test("stops accumulating when byte budget (256 KB) is exceeded", () => {
+    const bigMessage = "m".repeat(1024);
+    const bigStacktrace = "s".repeat(4096);
+    const entries = Array.from({ length: 200 }, (_, i) => ({
+      name: `test_${i}`,
+      message: bigMessage,
+      stacktrace: bigStacktrace,
+    }));
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: entries,
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    expect(record.failed_tests_json).toBeDefined();
+    const byteLen = Buffer.byteLength(record.failed_tests_json!, "utf-8");
+    expect(byteLen).toBeLessThanOrEqual(256 * 1024);
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed.length).toBeLessThan(200);
+    expect(parsed.length).toBeGreaterThan(0);
+  });
+
+  test("handles element with missing name gracefully", () => {
+    const payload = makePayload({
+      workflow: {
+        status: "completed",
+        conclusion: "failure",
+        failed_tests_detail: [{ classname: "TestNoName", message: "oops" }],
+      },
+    });
+    const record = extractDynamoRecord(payload);
+    const parsed = JSON.parse(record.failed_tests_json!);
+    expect(parsed[0].name).toBe("");
+    expect(parsed[0].classname).toBe("TestNoName");
+  });
+});

@@ -32,6 +32,13 @@ export interface RelayWorkflow {
     skipped?: number;
     total?: number;
   };
+  failed_tests_detail?: Array<{
+    name: string;
+    classname?: string;
+    message?: string;
+    stacktrace?: string;
+    duration?: number;
+  }>;
   artifact_url?: string;
 }
 
@@ -83,6 +90,7 @@ export interface CrcrWorkflowJobRecord {
   downstream_repo_level?: string;
   event_type?: string;
   artifact_url?: string;
+  failed_tests_json?: string;
   environment?: string;
 }
 
@@ -200,6 +208,42 @@ export function extractDynamoRecord(
         typeof tr.total === "number"
           ? tr.total
           : (tr.passed ?? 0) + (tr.failed ?? 0) + (tr.skipped ?? 0);
+    }
+
+    if (wf.failed_tests_detail && Array.isArray(wf.failed_tests_detail)) {
+      const MAX_MESSAGE_LEN = 1024;
+      const MAX_STACKTRACE_LEN = 4096;
+      const MAX_JSON_BYTES = 256 * 1024; // 256 KB budget for failed_tests_json
+
+      const entries: Array<Record<string, unknown>> = [];
+      let totalBytes = 2; // account for opening/closing brackets "[]"
+
+      for (const t of wf.failed_tests_detail) {
+        if (typeof t !== "object" || t === null) continue;
+
+        const entry: Record<string, unknown> = {
+          name: String(t.name ?? ""),
+        };
+        if (t.classname) entry.classname = String(t.classname);
+        if (t.message) {
+          entry.message = String(t.message).slice(0, MAX_MESSAGE_LEN);
+        }
+        if (t.stacktrace) {
+          entry.stacktrace = String(t.stacktrace).slice(0, MAX_STACKTRACE_LEN);
+        }
+        if (t.duration != null) entry.duration = Number(t.duration);
+
+        const entryJson = JSON.stringify(entry);
+        const entryBytes = Buffer.byteLength(entryJson, "utf-8");
+        const separator = entries.length > 0 ? 1 : 0; // comma between entries
+        if (totalBytes + separator + entryBytes > MAX_JSON_BYTES) break;
+        totalBytes += separator + entryBytes;
+        entries.push(entry);
+      }
+
+      if (entries.length > 0) {
+        record.failed_tests_json = JSON.stringify(entries);
+      }
     }
   }
 
