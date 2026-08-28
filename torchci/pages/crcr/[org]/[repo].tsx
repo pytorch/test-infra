@@ -9,6 +9,7 @@ import {
   SelectChangeEvent,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -79,21 +80,33 @@ interface SummaryStats {
   total_prs: number;
   avg_queue_time_s: number | null;
   avg_exec_time_s: number | null;
+  max_exec_time_s: number | null;
+  median_e2e_time_s: number | null;
+  p95_exec_time_s: number | null;
+  p95_e2e_time_s: number | null;
   timeout_rate: number;
 }
 
 // ---- Summary Stat Cards ----
+
+// RFC-0050 L3 promotion/demotion infrastructure gates (rfcs#102, ratified).
+const L3_AVG_QUEUE_TIME_S = 30 * 60; // < 30 min
+const L3_MAX_EXEC_TIME_S = 3 * 3600; // < 3 h
+const L3_E2E_TIME_S = 3 * 3600; // < 3 h (P50 time-to-signal)
+const L3_TIMEOUT_RATE = 0.01; // < 1%
 
 function StatCard({
   label,
   value,
   sub,
   color,
+  tooltip,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   color?: string;
+  tooltip?: string;
 }) {
   return (
     <Paper
@@ -108,6 +121,18 @@ function StatCard({
     >
       <Typography variant="caption" color="text.secondary">
         {label}
+        {tooltip && (
+          <Tooltip title={tooltip}>
+            <Box
+              component="span"
+              tabIndex={0}
+              sx={{ cursor: "help", ml: 0.5 }}
+              aria-label={`About ${label}`}
+            >
+              ⓘ
+            </Box>
+          </Tooltip>
+        )}
       </Typography>
       <Typography variant="h5" sx={{ fontWeight: 600, color: color }}>
         {value}
@@ -159,6 +184,12 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
               : "–"
           }
           sub="dispatch to start"
+          color={
+            stats.avg_queue_time_s != null &&
+            stats.avg_queue_time_s > L3_AVG_QUEUE_TIME_S
+              ? "#d32f2f"
+              : undefined
+          }
         />
         <StatCard
           label="Avg Execution Time"
@@ -170,11 +201,51 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
           sub="start to completion"
         />
         <StatCard
+          label="Max Execution Time"
+          value={
+            stats.max_exec_time_s != null
+              ? durationDisplay(Math.round(stats.max_exec_time_s))
+              : "–"
+          }
+          sub={
+            stats.p95_exec_time_s != null
+              ? `p95: ${durationDisplay(Math.round(stats.p95_exec_time_s))}`
+              : "start to completion"
+          }
+          color={
+            stats.max_exec_time_s != null &&
+            stats.max_exec_time_s > L3_MAX_EXEC_TIME_S
+              ? "#d32f2f"
+              : undefined
+          }
+          tooltip="The single longest job run in this window. p95 = the run time 95% of jobs finish within — a steadier read than the max, which one outlier job can skew."
+        />
+        <StatCard
+          label="End-to-End Time (P50)"
+          value={
+            stats.median_e2e_time_s != null
+              ? durationDisplay(Math.round(stats.median_e2e_time_s))
+              : "–"
+          }
+          sub={
+            stats.p95_e2e_time_s != null
+              ? `p95: ${durationDisplay(Math.round(stats.p95_e2e_time_s))}`
+              : "dispatch to CI status"
+          }
+          color={
+            stats.median_e2e_time_s != null &&
+            stats.median_e2e_time_s > L3_E2E_TIME_S
+              ? "#d32f2f"
+              : undefined
+          }
+          tooltip="P50 (median) time from dispatch to CI status: half of jobs are faster than this, half slower. p95 = the time 95% of jobs finish within."
+        />
+        <StatCard
           label="Timeout Rate"
           value={`${(stats.timeout_rate * 100).toFixed(1)}%`}
           sub={`${stats.timed_out} timed out / ${stats.total_jobs} jobs`}
           color={
-            stats.timeout_rate >= 0.1
+            stats.timeout_rate >= L3_TIMEOUT_RATE
               ? "#d32f2f"
               : stats.timeout_rate > 0
               ? "#ed6c02"

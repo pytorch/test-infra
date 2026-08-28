@@ -5,6 +5,9 @@ WITH deduped AS (
         conclusion,
         queue_time,
         execution_time,
+        run_id,
+        started_at,
+        completed_at,
         ROW_NUMBER() OVER (
             PARTITION BY run_id, job_name
             ORDER BY run_attempt DESC
@@ -16,6 +19,24 @@ WITH deduped AS (
         AND started_at > now() - INTERVAL {days: UInt64} DAY
         AND status = 'completed'
         AND pr_number > 0
+),
+
+base AS (
+    SELECT
+        conclusion,
+        job_name,
+        pr_number,
+        queue_time,
+        execution_time,
+        max(queue_time) OVER (PARTITION BY run_id) AS run_queue_time_s,
+        dateDiff(
+            'second',
+            min(started_at) OVER (PARTITION BY run_id),
+            max(completed_at) OVER (PARTITION BY run_id)
+        ) AS run_span_s,
+        row_number() OVER (PARTITION BY run_id ORDER BY job_name) AS run_rn
+    FROM deduped
+    WHERE rn = 1
 )
 
 SELECT
@@ -51,12 +72,21 @@ SELECT
     uniqExact(pr_number) AS total_prs,
     avg(queue_time) AS avg_queue_time_s,
     avg(execution_time) AS avg_exec_time_s,
+    max(execution_time) AS max_exec_time_s,
+    quantileExact(0.95)(execution_time) AS p95_exec_time_s,
+    -- E2E time is per-run (RFC-0050); run_rn = 1 keeps one sample per run.
+    -- Exact (not sampled) quantiles since this gates L3 promotion decisions.
+    quantileExactIf(0.5)(
+        run_queue_time_s + run_span_s,
+        run_rn = 1 AND run_queue_time_s IS NOT NULL
+    ) AS median_e2e_time_s,
+    quantileExactIf(0.95)(
+        run_queue_time_s + run_span_s,
+        run_rn = 1 AND run_queue_time_s IS NOT NULL
+    ) AS p95_e2e_time_s,
     if(
         total_jobs > 0,
         timed_out / total_jobs,
         0
     ) AS timeout_rate
-FROM
-    deduped
-WHERE
-    rn = 1
+FROM base
