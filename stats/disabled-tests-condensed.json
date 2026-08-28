@@ -353,9 +353,9 @@
       "linux"
     ]
   ],
-  "test_del_same_stream_no_sync_dealloc (__main__.TestStreams)": [
-    "193582",
-    "https://github.com/pytorch/pytorch/issues/193582",
+  "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195166",
+    "https://github.com/pytorch/pytorch/issues/195166",
     [
       "linux"
     ]
@@ -694,6 +694,13 @@
       "win"
     ]
   ],
+  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190142",
+    "https://github.com/pytorch/pytorch/issues/190142",
+    [
+      "linux"
+    ]
+  ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
     "190748",
     "https://github.com/pytorch/pytorch/issues/190748",
@@ -831,14 +838,6 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
-    ]
-  ],
-  "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
-    "84886",
-    "https://github.com/pytorch/pytorch/issues/84886",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
