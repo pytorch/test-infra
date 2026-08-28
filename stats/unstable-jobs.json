@@ -47,14 +47,6 @@
     "pallas-tpu-py3.12-inductor",
     "test (inductor-pallas-tpu)"
   ],
-  "inductor-periodic / cuda12.8-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
-    "zou3519",
-    "161295",
-    "https://github.com/pytorch/pytorch/issues/161295",
-    "inductor-periodic",
-    "cuda12.8-py3.10-gcc9-sm80",
-    "test (inductor_torchbench_smoketest_perf)"
-  ],
   "inductor-rocm-mi200 / linux-jammy-rocm-py3.10-mi200 / test": [
     "jithunnair-amd",
     "169966",
