@@ -121,6 +121,11 @@ jobs:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: release/2.14
+      # validate_binaries.sh is sourced from the test-infra checkout that
+      # linux_job_v2.yml makes, NOT from the branch this workflow runs on.
+      # Without this the script would come from linux_job_v2's default
+      # (release/2.14) and changes on this branch would be silently ignored.
+      test-infra-ref: release-2.14-triton
       job-name: ${{ matrix.build_name }}
       # ROCm validates on the regular almalinux image (like CUDA) to confirm
       # the wheels are self-contained. Only XPU still needs its own container.
