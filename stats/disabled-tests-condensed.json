@@ -216,6 +216,13 @@
       "rocm"
     ]
   ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
+    [
+      "linux"
+    ]
+  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -335,13 +342,6 @@
   "test_dataclass_mismatching_tensor_field_msg (__main__.TestAssertCloseContainer)": [
     "192316",
     "https://github.com/pytorch/pytorch/issues/192316",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_dataclass_with_tensor_fields (__main__.TestAssertCloseContainer)": [
-    "193522",
-    "https://github.com/pytorch/pytorch/issues/193522",
     [
       "dynamo"
     ]
@@ -609,6 +609,13 @@
       "rocm"
     ]
   ],
+  "test_local_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
+    "195130",
+    "https://github.com/pytorch/pytorch/issues/195130",
+    [
+      "linux"
+    ]
+  ],
   "test_local_stream_nested_enter_exit_cuda (__main__.TestStreamsCUDA)": [
     "194836",
     "https://github.com/pytorch/pytorch/issues/194836",
@@ -685,13 +692,6 @@
       "macos",
       "rocm",
       "win"
-    ]
-  ],
-  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190142",
-    "https://github.com/pytorch/pytorch/issues/190142",
-    [
-      "linux"
     ]
   ],
   "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
