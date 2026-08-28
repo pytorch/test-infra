@@ -10,11 +10,11 @@ name: torchci preview
 # an earlier authorization. `is:pr label:preview-out-of-date` lists PRs waiting
 # for a re-deploy.
 #
-# Security: this is a pull_request_target workflow, so it runs in the base repo
-# context with access to secrets. The PR's code is therefore built in a job that
-# has no secrets and no environment, and only the resulting `.vercel/output` is
-# handed to the privileged deploy job. VERCEL_TOKEN is never present in a job
-# that executes contributor code.
+# Vercel builds the source itself rather than us building here and uploading a
+# prebuilt artifact. `vercel pull` would write the project's Preview environment
+# variables to .vercel/.env.preview.local, and a local build can bake those into
+# .vercel/output -- neither belongs on a GitHub runner. Uploading source keeps
+# both the variables and the build inside Vercel.
 
 on:
   pull_request_target:
@@ -57,93 +57,69 @@ jobs:
           echo "preview-ready removed; re-apply it to deploy this commit." \
             >> "${GITHUB_STEP_SUMMARY}"
 
-  # Privileged, but runs none of the PR's code: fetches project settings only.
-  config:
+  deploy:
     if: >
       github.event.action == 'labeled' &&
       github.event.label.name == 'preview-ready'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    environment: torchci-preview
-    steps:
-      - name: Pull Vercel project settings
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          npx --yes vercel@59.7.0 pull --yes --environment=preview \
-            --token="${{ secrets.VERCEL_TOKEN }}"
-
-      - name: Strip anything credential-shaped before sharing
-        run: |
-          # project.json carries orgId/projectId only, but never ship a token
-          # into an artifact the unprivileged job can read.
-          rm -f .vercel/auth.json .vercel/*.token 2>/dev/null || true
-          echo "--- .vercel contents ---"
-          find .vercel -type f -exec echo {} \;
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: vercel-config
-          path: .vercel
-          include-hidden-files: true
-
-  # Unprivileged: this is where contributor code runs. No secrets, no environment.
-  build:
-    needs: config
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          # Build exactly the commit under review, and do not leave a usable
-          # credential in the checkout for PR code to pick up.
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: vercel-config
-          path: .vercel
-
-      - name: Build
-        run: npx --yes vercel@59.7.0 build
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: vercel-output
-          path: .vercel/output
-          include-hidden-files: true
-
-  # Privileged again, and runs none of the PR's code: uploads the prebuilt output.
-  deploy:
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: torchci-preview
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: vercel-config
-          path: .vercel
+      # Write access is a wide grant in this repo, so the label alone is not
+      # proof a maintainer authorized this commit. Runs before the checkout so
+      # an unauthorized label never reaches the PR's source. Fails closed: any
+      # API error aborts under `set -e` rather than allowing the deploy.
+      - name: Verify labeler
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABELER: ${{ github.event.sender.login }}
+        run: |
+          set -euo pipefail
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: vercel-output
-          path: .vercel/output
+          trusted="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/collaborators/${LABELER}/permission" \
+              --jq '.user.permissions.admin or .user.permissions.maintain'
+          )"
 
-      - name: Deploy prebuilt output
+          if [ "$trusted" != "true" ]; then
+            echo "::error::@${LABELER} cannot authorize previews"
+            exit 1
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Deploy exactly the commit that was head when the label was applied,
+          # and leave no usable credential in the checkout.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      # Uploads the source; Vercel builds it. The PR's code is never executed on
+      # this runner, so having the token here does not expose it to contributor
+      # code the way a local build would.
+      - name: Deploy approved source
         id: deploy
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          url="$(npx --yes vercel@59.7.0 deploy --prebuilt \
-            --token="${{ secrets.VERCEL_TOKEN }}" | tail -n1)"
+
+          # The project's Ignored Build Step would skip this deploy; exit 1
+          # means "do build" and overrides it for this authorized run only.
+          config="$RUNNER_TEMP/approved-vercel.json"
+          printf '%s\n' '{"ignoreCommand":"exit 1"}' > "$config"
+
+          url="$(npx --yes vercel@59.7.0 deploy \
+            --yes \
+            --force \
+            --scope=fbopensource \
+            --local-config="$config" | tail -n1)"
+
           if [[ ! "${url}" =~ ^https:// ]]; then
             echo "deploy did not return a URL: ${url}" >&2
             exit 1
