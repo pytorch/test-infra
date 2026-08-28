@@ -55,8 +55,6 @@ ROCM_ARCHES_DICT = {
     "release": ["7.1", "7.2"],
 }
 
-GETTING_STARTED_ROCM_ARCH = "7.14"
-
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
@@ -200,11 +198,7 @@ def initialize_globals(
         ]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if getting_started and channel == NIGHTLY:
-        ROCM_ARCHES = [
-            GETTING_STARTED_ROCM_ARCH
-            if GETTING_STARTED_ROCM_ARCH in ROCM_ARCHES
-            else max(ROCM_ARCHES, key=parse_version)
-        ]
+        ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
         PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
