@@ -772,6 +772,13 @@
       "rocm"
     ]
   ],
+  "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
+    "195219",
+    "https://github.com/pytorch/pytorch/issues/195219",
+    [
+      "linux"
+    ]
+  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
