@@ -29,6 +29,13 @@
       "rocm"
     ]
   ],
+  "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "188897",
+    "https://github.com/pytorch/pytorch/issues/188897",
+    [
+      "rocm"
+    ]
+  ],
   "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
     "192616",
     "https://github.com/pytorch/pytorch/issues/192616",
@@ -339,9 +346,9 @@
       "dynamo"
     ]
   ],
-  "test_del_multi_stream_sync_dealloc (__main__.TestStreams)": [
-    "191414",
-    "https://github.com/pytorch/pytorch/issues/191414",
+  "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195094",
+    "https://github.com/pytorch/pytorch/issues/195094",
     [
       "linux"
     ]
@@ -426,6 +433,13 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_dynamo_trace_allgather_coalesced (__main__.TestCollectivesInductor)": [
+    "195095",
+    "https://github.com/pytorch/pytorch/issues/195095",
+    [
+      "rocm"
     ]
   ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
@@ -627,11 +641,6 @@
     "https://github.com/pytorch/pytorch/issues/188710",
     []
   ],
-  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188711",
-    "https://github.com/pytorch/pytorch/issues/188711",
-    []
-  ],
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188712",
     "https://github.com/pytorch/pytorch/issues/188712",
@@ -822,6 +831,14 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
+    ]
+  ],
+  "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
+    "84886",
+    "https://github.com/pytorch/pytorch/issues/84886",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
