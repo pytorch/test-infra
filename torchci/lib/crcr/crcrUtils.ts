@@ -41,6 +41,8 @@ export interface RelayCallbackPayload {
   payload: {
     pull_request?: { number: number; head?: { sha: string } };
     repository?: { full_name: string };
+    ref?: string;
+    after?: string;
     [key: string]: any;
   };
   workflow: RelayWorkflow;
@@ -94,13 +96,38 @@ export function validatePayloadSize(bodyString: string): void {
 
 // ---- Extraction ----
 
+// The tag `@pytorchbot merge` pushes to trigger trunk validation before
+// landing, e.g. refs/tags/ciflow/trunk/12345 -- the PR number is the
+// trailing path segment.
+const CIFLOW_TRUNK_REF_RE = /\/ciflow\/trunk\/(\d+)$/;
+
+// Returns (prNumber, headSha) for a callback's payload. Prefers the
+// pull_request shape. Falls back to a push event: PR number is recovered
+// only from a ciflow/trunk/<pr> ref, head SHA from payload.after. A push to
+// a non-ciflow ref (e.g. a landed merge on main) has no PR to attach to, so
+// this returns (0, "") for it -- same as no pull_request at all.
+function extractPrContext(payload: RelayCallbackPayload["payload"]): {
+  prNumber: number;
+  headSha: string;
+} {
+  const pr = payload?.pull_request;
+  if (pr?.number && pr?.head?.sha) {
+    return { prNumber: pr.number, headSha: pr.head.sha };
+  }
+  if (payload?.after) {
+    const match = CIFLOW_TRUNK_REF_RE.exec(payload?.ref ?? "");
+    return { prNumber: match ? Number(match[1]) : 0, headSha: payload.after };
+  }
+  return { prNumber: 0, headSha: "" };
+}
+
 export function extractDynamoRecord(
   payload: RelayPayload
 ): CrcrWorkflowJobRecord {
   const { trusted, untrusted } = payload;
   const cb = untrusted.callback_payload;
   const wf = cb.workflow;
-  const pr = cb.payload?.pull_request;
+  const { prNumber, headSha } = extractPrContext(cb.payload);
   const upstreamRepo = cb.payload?.repository?.full_name ?? "pytorch/pytorch";
 
   if (!wf.job_name) {
@@ -119,9 +146,8 @@ export function extractDynamoRecord(
     status: wf.status,
     downstream_repo: trusted.verified_repo,
     upstream_repo: upstreamRepo,
-    pr_number: pr?.number ?? 0,
-    pytorch_head_sha:
-      pr?.head?.sha ?? cb.payload?.head_sha ?? cb.delivery_id ?? "",
+    pr_number: prNumber,
+    pytorch_head_sha: headSha || cb.payload?.head_sha || cb.delivery_id || "",
     delivery_id: cb.delivery_id,
     workflow_run_url: wf.url ?? "",
     workflow_name: wf.name,
