@@ -7,14 +7,16 @@ import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 
 export default function QueuedJobsTable({
+  repository,
   machineTypeFilter,
   onClearFilter,
 }: {
+  repository: string;
   machineTypeFilter: string | null;
   onClearFilter: () => void;
 }) {
   const url = `/api/clickhouse/queued_jobs?parameters=${encodeURIComponent(
-    JSON.stringify({})
+    JSON.stringify({ repo: repository })
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -82,7 +84,7 @@ export default function QueuedJobsTable({
             const fullSha = row.head_sha || "";
             const sourceType = row.source_type;
             const ciflowId = row.ciflow_id;
-            const hudCommitUrl = `https://hud.pytorch.org/pytorch/pytorch/commit/${fullSha}`;
+            const hudCommitUrl = `https://hud.pytorch.org/${row.repository}/commit/${fullSha}`;
 
             if (sourceType === "autorevert") {
               return (
@@ -103,7 +105,7 @@ export default function QueuedJobsTable({
                 <span>
                   ciflow{" "}
                   <a
-                    href={`https://github.com/pytorch/pytorch/pull/${ciflowId}`}
+                    href={`https://github.com/${row.repository}/pull/${ciflowId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

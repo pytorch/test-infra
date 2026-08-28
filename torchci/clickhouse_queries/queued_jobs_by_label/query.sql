@@ -44,7 +44,7 @@ ec2_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository. 'full_name' = {repo: String}
         AND job.status = 'queued'
         AND job.created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         AND LENGTH(job.steps) = 0
@@ -65,7 +65,7 @@ arc_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository. 'full_name' = {repo: String}
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'

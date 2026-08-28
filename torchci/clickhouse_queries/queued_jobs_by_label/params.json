@@ -1,4 +1,16 @@
 {
-  "params": {},
-  "tests": []
+  "params": {
+    "repo": "String"
+  },
+  "defaults": {
+    "repo": "pytorch/pytorch"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch"
+    },
+    {
+      "repo": "pytorch/executorch"
+    }
+  ]
 }

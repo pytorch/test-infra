@@ -44,6 +44,7 @@ ec2_queued_jobs AS (
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
+        workflow.repository.'full_name' AS repository,
         CASE
             WHEN
                 workflow.head_branch LIKE 'trunk/%'
@@ -68,7 +69,7 @@ ec2_queued_jobs AS (
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        AND workflow.repository.'full_name' = {repo: String}
         AND job.status = 'queued'
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
@@ -93,6 +94,7 @@ arc_queued_jobs AS (
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
+        workflow.repository.'full_name' AS repository,
         CASE
             WHEN
                 workflow.head_branch LIKE 'trunk/%'
@@ -117,7 +119,7 @@ arc_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository. 'full_name' = {repo: String}
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'
