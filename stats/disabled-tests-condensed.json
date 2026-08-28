@@ -225,6 +225,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_combinations_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "195071",
+    "https://github.com/pytorch/pytorch/issues/195071",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
@@ -1167,6 +1174,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
+    "190009",
+    "https://github.com/pytorch/pytorch/issues/190009",
+    [
+      "rocm"
     ]
   ],
   "test_unbacked_bindings_for_divisible_u_symint_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
