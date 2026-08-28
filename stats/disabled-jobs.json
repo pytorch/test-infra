@@ -63,6 +63,22 @@
     "3d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
     ""
   ],
+  "test_grouped_gemm_compiled_op_3d/2d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
+    "pytorch-bot",
+    "195092",
+    "https://github.com/pytorch/pytorch/issues/195092",
+    "test_grouped_gemm_compiled_op_3d",
+    "2d_a_row_major_True_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
+    ""
+  ],
+  "test_grouped_gemm_compiled_op_3d/2d_a_row_major_True_b_row_major_True_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
+    "pytorch-bot",
+    "195093",
+    "https://github.com/pytorch/pytorch/issues/195093",
+    "test_grouped_gemm_compiled_op_3d",
+    "2d_a_row_major_True_b_row_major_True_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)",
+    ""
+  ],
   "test_grouped_gemm_compiled_op_3d/3d_a_row_major_False_b_row_major_False_max_autotune_True_cuda (__main__.TestMatmulCudaCUDA)": [
     "pytorch-bot",
     "193912",
