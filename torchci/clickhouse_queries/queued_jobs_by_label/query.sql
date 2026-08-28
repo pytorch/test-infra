@@ -5,6 +5,13 @@
 ---   initialization time (before actual work starts). Phase 2 captures jobs that
 ---   are in_progress but still initializing containers (<=2 steps completed).
 ---   Jobs with a recorded conclusion are excluded to avoid counting stale entries.
+---
+--- This query additionally reports how many of a machine type's queued jobs
+--- look like they belong to a workflow run GitHub abandoned (stale_count /
+--- oldest_stale_s). That is ADVISORY only: count and avg_queue_s still cover
+--- every queued job exactly as they always have, so no consumer and no reader
+--- loses an alarm because the heuristic guessed wrong. See the is_stale
+--- definition below for what it can and cannot establish.
 WITH possible_queued_jobs as (
     select id, run_id from default.workflow_job where
     created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
@@ -18,6 +25,38 @@ WITH possible_queued_jobs as (
          AND conclusion = ''
          AND arrayExists(x -> x LIKE '%l-%', labels))
     )
+),
+--- Runner pools that are demonstrably serving work: a job created in the last
+--- hour asking for this exact label set has since been picked up by a runner.
+--- runner_name is the reliable "did this actually start" test — status and
+--- started_at both lie on jobs whose webhooks went missing, which is the very
+--- population being classified below.
+---
+--- This is the guard that keeps a genuine outage visible. A pool with no
+--- eligible runners, no capacity, or a broken runner group ALSO leaves its jobs
+--- untouched and its parent runs frozen, and would otherwise be written off as
+--- abandoned exactly when someone needs to see it. Requiring the pool to be
+--- alive can only ever REMOVE the stale label, never add one.
+---
+--- Keyed on the whole `labels` array rather than on the displayed machine_type,
+--- because that array is what the job is actually scheduled against;
+--- machine_type is one element of it, so two different pools can share one.
+--- runner_group_name deliberately plays no part: it is empty while a job is
+--- queued and only filled in once a runner takes it, so including it would mean
+--- a queued job could never match anything (measured 2026-08-25 — every started
+--- ubuntu-24.04 job reads 'GitHub Actions', every queued one reads '').
+---
+--- Two consequences worth knowing. A job whose label set nothing else has run
+--- in the last hour is never called abandoned, so ghosts do linger on very
+--- low-volume pools; that is the safe direction. And classification is
+--- workload-dependent — an unchanged job can move between live and abandoned
+--- as unrelated work enters and leaves the window.
+live_runner_pools AS (
+    SELECT DISTINCT labels
+    FROM default.workflow_job
+    WHERE
+        created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 HOUR)
+        AND runner_name != ''
 ),
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
@@ -37,7 +76,64 @@ ec2_queued_jobs AS (
                 'N/A'
             ),
             IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ])
-        ) AS machine_type
+        ) AS machine_type,
+        --- Abandoned run: pytorch/pytorch creates each workflow twice per
+        --- ghstack push and the concurrency group cancels the loser seconds
+        --- later. When GitHub drops that cancellation the losing run is
+        --- orphaned — it stays 'queued' forever and its updated_at never moves
+        --- off created_at, because not one of its jobs ever transitioned. Its
+        --- jobs then sit here until the 1 WEEK window above ages them out,
+        --- which is days of a permanent 5d+ row on the metrics page.
+        ---
+        --- Three independent things all have to hold, because no one of them
+        --- is conclusive on its own:
+        ---   1. the run never made any progress at all, and is old enough that
+        ---      "not yet" is not an explanation. A run created minutes ago
+        ---      also has updated_at = created_at. Measured on the live
+        ---      population 2026-08-25, frozen runs are either younger than 6h
+        ---      (legitimately waiting; 164 jobs, none queued over 1h) or older
+        ---      than 24h (abandoned; 11 jobs, oldest queued 6.8 days) — the
+        ---      6h-to-24h band was empty.
+        ---   2. this job in particular never started. Without this an
+        ---      in_progress ARC job (which arc_queued_jobs deliberately admits
+        ---      while containers initialise) could inherit the label from its
+        ---      parent's timestamps alone.
+        ---   3. the job asks for a non-empty label set that something else has
+        ---      run recently — see live_runner_pools above. An empty label
+        ---      array carries no pool identity at all, so it is excluded
+        ---      rather than matched against whatever else happens to be empty.
+        ---
+        --- None of that is proof, and the gap is not closable from this data.
+        --- A run every one of whose jobs is starving looks identical, and
+        --- `labels` is the job's REQUEST, not the pool's identity — GitHub also
+        --- matches on runner group and repository access, and runner_group_name
+        --- is empty until a runner picks the job up, so it cannot be part of
+        --- the key. The one signal that would be conclusive is the completed
+        --- duplicate run, and joining workflow_run to itself by head_sha took
+        --- 18s against this table versus ~2s for the whole query, which is not
+        --- affordable on a panel that refreshes every 5 minutes.
+        ---
+        --- Because it is a guess, the rule is that a reader is never left
+        --- unaware that it fired. count and avg_queue_s here always cover every
+        --- queued job, and the metrics page's toggle for leaving the suspected
+        --- ones out states their number and oldest age on screen whenever any
+        --- exist, keeps every machine type in the table either way, and is
+        --- undone by one click. So the worst a wrong guess does is understate a
+        --- row beside a line saying so.
+        ---
+        --- What must not happen is this hiding something silently. Resist
+        --- wiring it into a query-side filter, a default sort, or an alert
+        --- threshold — anywhere its effect is not announced next to its result,
+        --- every limitation above turns into a way to bury a real outage.
+        (
+            workflow.updated_at = workflow.created_at
+            AND workflow.created_at < (CURRENT_TIMESTAMP() - INTERVAL 6 HOUR)
+            AND job.status = 'queued'
+            AND job.runner_name = ''
+            AND LENGTH(job.steps) = 0
+            AND LENGTH(job.labels) > 0
+            AND job.labels IN (SELECT labels FROM live_runner_pools)
+        ) AS is_stale
     FROM
         default.workflow_job job final
         JOIN default.workflow_run workflow final ON workflow.id = job.run_id
@@ -58,7 +154,18 @@ arc_queued_jobs AS (
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP()) AS queue_s,
         CONCAT(workflow.name, ' / ', job.name) AS name,
         job.html_url,
-        IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ]) AS machine_type
+        IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ]) AS machine_type,
+        --- Same abandoned-run discriminator as ec2_queued_jobs above. Keep the
+        --- two textually identical; test/queuedJobsStale.test.ts enforces it.
+        (
+            workflow.updated_at = workflow.created_at
+            AND workflow.created_at < (CURRENT_TIMESTAMP() - INTERVAL 6 HOUR)
+            AND job.status = 'queued'
+            AND job.runner_name = ''
+            AND LENGTH(job.steps) = 0
+            AND LENGTH(job.labels) > 0
+            AND job.labels IN (SELECT labels FROM live_runner_pools)
+        ) AS is_stale
     FROM
         default.workflow_job job final
         JOIN default.workflow_run workflow final ON workflow.id = job.run_id
@@ -86,15 +193,34 @@ arc_queued_jobs AS (
              AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
         )
 )
+--- Classify per JOB and then aggregate. Judging a whole machine_type at once
+--- would let one suspect job speak for a healthy live queue sharing its name.
+---
+--- Everything here is additive. count, avg_queue_s, machine_type, time and the
+--- row ordering are byte-for-byte what they were, because this query is served
+--- unauthenticated at /api/clickhouse/queued_jobs_by_label and out-of-repo
+--- consumers cannot be enumerated. The four new columns are the whole change,
+--- and the row ordering here does not use them.
+---
+--- live_count / live_max_queue_s are the same two figures with the suspected
+--- jobs left out. The metrics page offers them behind a toggle that names how
+--- many jobs it is leaving out and lets the reader put them back; both sets are
+--- returned so that choice is the page's to make and not this query's.
 SELECT
     COUNT(*) AS count,
+    --- Misnamed since it was introduced: a MAX, not an average. Left alone for
+    --- the same compatibility reason as count.
     MAX(queue_s) AS avg_queue_s,
+    COUNTIf(NOT is_stale) AS live_count,
+    MAXIf(queue_s, NOT is_stale) AS live_max_queue_s,
+    COUNTIf(is_stale) AS stale_count,
+    MAXIf(queue_s, is_stale) AS oldest_stale_s,
     machine_type,
     CURRENT_TIMESTAMP() AS time
 FROM (
-    SELECT queue_s, machine_type FROM ec2_queued_jobs
+    SELECT queue_s, is_stale, machine_type FROM ec2_queued_jobs
     UNION ALL
-    SELECT queue_s, machine_type FROM arc_queued_jobs
+    SELECT queue_s, is_stale, machine_type FROM arc_queued_jobs
 )
 GROUP BY
     machine_type

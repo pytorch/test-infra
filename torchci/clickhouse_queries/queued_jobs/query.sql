@@ -4,6 +4,14 @@
 --- For ARC runners (labels containing l-): jobs in 'queued' status + jobs in 'in_progress'
 ---   still initializing containers (<=2 steps completed). Jobs with a recorded
 ---   conclusion are excluded to avoid counting stale entries.
+---
+--- Each row additionally carries is_stale, an ADVISORY flag marking a job whose
+--- parent workflow run looks abandoned by GitHub. The discriminator, and the
+--- reasons it cannot be treated as proof, are documented in
+--- clickhouse_queries/queued_jobs_by_label/query.sql; it must stay in sync with
+--- that query, since the metrics page uses one to summarise the other. This
+--- query neither filters nor reorders on it, and the metrics page does not
+--- either by default; it only annotates the row.
 WITH possible_queued_jobs AS (
     SELECT
         id,
@@ -21,6 +29,17 @@ WITH possible_queued_jobs AS (
              AND conclusion = ''
              AND arrayExists(x -> x LIKE '%l-%', labels))
         )
+),
+--- Runner pools demonstrably serving work — see queued_jobs_by_label/query.sql
+--- for why the abandoned label is withheld from a pool that is not, and why the
+--- key is the whole label array. Keep this CTE identical to the one there;
+--- test/queuedJobsStale.test.ts enforces that.
+live_runner_pools AS (
+    SELECT DISTINCT labels
+    FROM default.workflow_job
+    WHERE
+        created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 HOUR)
+        AND runner_name != ''
 ),
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
@@ -41,6 +60,15 @@ ec2_queued_jobs AS (
                 job.labels[1]
             )
         ) AS machine_type,
+        (
+            workflow.updated_at = workflow.created_at
+            AND workflow.created_at < (CURRENT_TIMESTAMP() - INTERVAL 6 HOUR)
+            AND job.status = 'queued'
+            AND job.runner_name = ''
+            AND LENGTH(job.steps) = 0
+            AND LENGTH(job.labels) > 0
+            AND job.labels IN (SELECT labels FROM live_runner_pools)
+        ) AS is_stale,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
@@ -90,6 +118,15 @@ arc_queued_jobs AS (
             job.labels[2],
             job.labels[1]
         ) AS machine_type,
+        (
+            workflow.updated_at = workflow.created_at
+            AND workflow.created_at < (CURRENT_TIMESTAMP() - INTERVAL 6 HOUR)
+            AND job.status = 'queued'
+            AND job.runner_name = ''
+            AND LENGTH(job.steps) = 0
+            AND LENGTH(job.labels) > 0
+            AND job.labels IN (SELECT labels FROM live_runner_pools)
+        ) AS is_stale,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,

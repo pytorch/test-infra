@@ -16,6 +16,7 @@ import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { durationDisplay } from "components/common/TimeUtils";
+import QueuedJobsByMachineTypeTable from "components/metrics/panels/QueuedJobsByMachineTypeTable";
 import QueuedJobsTable from "components/metrics/panels/QueuedJobsTable";
 import ScalarPanel, {
   ScalarPanelWithValue,
@@ -857,50 +858,8 @@ export default function Page() {
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Queued Jobs by Machine Type"}
-            queryName={"queued_jobs_by_label"}
-            queryParams={{}}
-            columns={[
-              { field: "count", headerName: "Count", flex: 1 },
-              {
-                field: "avg_queue_s",
-                headerName: "Queue time",
-                flex: 1,
-                valueFormatter: (params: number) => durationDisplay(params),
-                cellClassName: (params) => {
-                  const queueTimeHours = params.value / 3600;
-                  if (queueTimeHours >= 4) return "queue-time-red";
-                  if (queueTimeHours >= 1) return "queue-time-yellow";
-                  return "";
-                },
-              },
-              { field: "machine_type", headerName: "Machine Type", flex: 4 },
-            ]}
-            dataGridProps={{
-              getRowId: (el: any) => el.machine_type,
-              initialState: {
-                sorting: {
-                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
-                },
-              },
-              onRowClick: (params: any) => {
-                setMachineTypeFilter(params.row.machine_type);
-              },
-              sx: {
-                "& .queue-time-yellow": {
-                  backgroundColor: "#B8860B", // Dark goldenrod
-                  color: "white",
-                },
-                "& .queue-time-red": {
-                  backgroundColor: "#B22222", // Fire brick red
-                  color: "white",
-                },
-                "& .MuiDataGrid-row": {
-                  cursor: "pointer",
-                },
-              },
-            }}
+          <QueuedJobsByMachineTypeTable
+            onMachineTypeClick={setMachineTypeFilter}
           />
         </Grid>
 
