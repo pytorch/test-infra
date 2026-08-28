@@ -4,9 +4,11 @@ Two producers write state rows and MUST agree byte-for-byte on the JSONEachRow f
 order/values and the object-key layout, or the positional S3 -> ClickHouse replicator
 silently drops rows. This module is that single source: ``emit_row`` serializes the row and
 ``object_key`` computes its bucket-relative key. The ``verdict`` command feeds its rows
-through here; the scan calls ``emit_ai_review_dispatched`` the instant it fires the reviewer
-workflow, so a queued run (which can sit in GitHub's Actions queue well past a scan interval)
-is recorded as in-flight immediately and never re-dispatched while it waits.
+through here; the scan emits two marker rows of its own. ``emit_ai_review_dispatched`` fires
+the instant the reviewer workflow is dispatched, so a queued run (which can sit in GitHub's
+Actions queue well past a scan interval) is recorded as in-flight immediately and never
+re-dispatched while it waits. ``emit_reverted`` records that a PR is permanently out of
+review, so the exclusion outlives the ``Reverted`` label that triggered it.
 
 ``verdict`` writes the row to a fixed local path that its workflow ``aws s3 cp``s after a
 ``success()`` gate; the scan has no such gate, so its default ``upload`` puts the object to
@@ -22,12 +24,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, cast
 
-from greenlight.constants import S3_BUCKET, S3_KEY_PREFIX, STATUS_AI_REVIEW_DISPATCHED
+from greenlight.constants import S3_BUCKET, S3_KEY_PREFIX, STATUS_AI_REVIEW_DISPATCHED, STATUS_REVERTED
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-__all__ = ["default_emit_id", "emit_ai_review_dispatched", "emit_row", "object_key"]
+__all__ = ["default_emit_id", "emit_ai_review_dispatched", "emit_reverted", "emit_row", "object_key"]
 
 
 class _S3Putter(Protocol):
@@ -110,6 +112,34 @@ def _default_upload(row_gzip: bytes, key: str) -> None:
     _s3_client().put_object(Bucket=S3_BUCKET, Key=key, Body=row_gzip)
 
 
+def _emit_marker(
+    *,
+    repo: str,
+    pr_number: int,
+    head_sha: str,
+    status: str,
+    eval_hash: str,
+    run_id: int,
+    upload: Callable[[bytes, str], None] | None,
+) -> None:
+    """Emit one scan-written marker row: reason/message and the job URLs are always empty."""
+    emit_row(
+        repo=repo,
+        pr_number=pr_number,
+        head_sha=head_sha,
+        status=status,
+        reason="",
+        eval_hash=eval_hash,
+        message="",
+        eval_job="",
+        agent_job="",
+        run_id=run_id,
+        now=_utcnow,
+        emit=upload if upload is not None else _default_upload,
+        new_emit_id=default_emit_id,
+    )
+
+
 def emit_ai_review_dispatched(
     *,
     repo: str,
@@ -121,22 +151,41 @@ def emit_ai_review_dispatched(
 ) -> None:
     """Emit an ``AI_REVIEW_DISPATCHED`` row the instant the scan fires the reviewer workflow.
 
-    ``run_id`` is supplied by the caller (the scan computes the next run id); reason/message and
-    the job URLs are empty, matching the ``AI_REVIEW_STARTED`` marker. ``upload`` is an injectable
+    ``run_id`` is supplied by the caller (the scan computes the next run id); the empty
+    reason/message and job URLs match the ``AI_REVIEW_STARTED`` marker. ``upload`` is an injectable
     ``(gzip_bytes, key)`` seam for tests; the default puts the object via boto3.
     """
-    emit_row(
+    _emit_marker(
         repo=repo,
         pr_number=pr_number,
         head_sha=head_sha,
         status=STATUS_AI_REVIEW_DISPATCHED,
-        reason="",
         eval_hash=eval_hash,
-        message="",
-        eval_job="",
-        agent_job="",
         run_id=run_id,
-        now=_utcnow,
-        emit=upload if upload is not None else _default_upload,
-        new_emit_id=default_emit_id,
+        upload=upload,
+    )
+
+
+def emit_reverted(
+    *,
+    repo: str,
+    pr_number: int,
+    head_sha: str,
+    run_id: int,
+    upload: Callable[[bytes, str], None] | None = None,
+) -> None:
+    """Emit the ``REVERTED`` row that permanently excludes a PR from review.
+
+    ``eval_hash`` is empty: no fingerprint is computed for an excluded PR, and an empty hash can
+    never match one a land-time verifier recomputes. ``run_id`` and ``upload`` behave as for
+    ``emit_ai_review_dispatched``.
+    """
+    _emit_marker(
+        repo=repo,
+        pr_number=pr_number,
+        head_sha=head_sha,
+        status=STATUS_REVERTED,
+        eval_hash="",
+        run_id=run_id,
+        upload=upload,
     )
