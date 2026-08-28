@@ -50,12 +50,12 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["7.2", "7.14"],
+    "nightly": ["7.14", "10.0"],
     "test": ["7.2", "7.14"],
     "release": ["7.1", "7.2"],
 }
 
-GETTING_STARTED_ROCM_ARCH = "7.2"
+GETTING_STARTED_ROCM_ARCH = "7.14"
 
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
