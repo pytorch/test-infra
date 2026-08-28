@@ -90,6 +90,18 @@ jobs:
             exit 1
           fi
 
+      # Runs before the checkout, so nothing in the PR -- an `.npmrc` pointing at
+      # another registry, a `package.json` or lockfile entry for `vercel` -- can
+      # change which package this fetches. No Vercel credential is in scope while
+      # npm runs, so a compromised install script cannot read the token.
+      - name: Install Vercel CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund \
+            --registry=https://registry.npmjs.org/ \
+            vercel@59.7.0
+          vercel --version
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Deploy exactly the commit that was head when the label was applied,
@@ -114,7 +126,7 @@ jobs:
           config="$RUNNER_TEMP/approved-vercel.json"
           printf '%s\n' '{"ignoreCommand":"exit 1"}' > "$config"
 
-          url="$(npx --yes vercel@59.7.0 deploy \
+          url="$(vercel deploy \
             --yes \
             --force \
             --scope=fbopensource \
@@ -126,6 +138,30 @@ jobs:
           fi
           echo "url=${url}" >> "${GITHUB_OUTPUT}"
           echo "Preview: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+
+      # Previews are behind Vercel Authentication, so the contributor this
+      # workflow exists for cannot open the URL. Lift protection on this one
+      # deployment; everything it serves is already public in the PR.
+      - name: Make the preview viewable
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+
+          # protection-bypass takes a deployment id, not a hostname.
+          id="$(curl -sSf \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${URL#https://}?teamId=${VERCEL_ORG_ID}" \
+            | jq -re '.id')"
+
+          curl -sSf -X PATCH \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.vercel.com/aliases/${id}/protection-bypass?teamId=${VERCEL_ORG_ID}" \
+            -d '{"override":{"scope":"alias-protection-override","action":"create"}}' \
+            >/dev/null
 
       - name: Comment the preview URL
         env:
