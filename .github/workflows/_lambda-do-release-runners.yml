@@ -192,6 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -228,3 +229,12 @@ jobs:
           name: ${{ inputs.tag }}
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
+
+      # `release: published` events created with the default GITHUB_TOKEN don't
+      # trigger other workflows (GitHub's anti-recursion rule), so
+      # update-crcr-terrafile.yml would never see this release. workflow_dispatch
+      # is exempt from that rule, so dispatch it directly instead.
+      - name: Trigger update-crcr-terrafile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-crcr-terrafile.yml --repo "${{ github.repository }}" -f tag="${{ inputs.tag }}"
