@@ -407,7 +407,7 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     # the PR check. Both the cache entry and the check run always belong to a
     # specific PR -- get_dispatch_jobs is only ever looked up by a PR's head
     # SHA (see event_handler._handle_pr_labeled) -- so without a pr_number,
-    #  there is nothing to cache and no check run to create.
+    # there is nothing to cache and no check run to create.
     if repo_level.value >= AllowlistLevel.L3.value:
         pr_number, head_sha = extract_pr_context(body)
         if head_sha and pr_number:

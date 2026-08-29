@@ -19,3 +19,16 @@ class TestExtractPrContext(unittest.TestCase):
     def test_push_non_ciflow_ref(self):
         envelope = {"payload": {"ref": "refs/heads/main", "after": "def456"}}
         self.assertEqual(extract_pr_context(envelope), ("", "def456"))
+
+    def test_push_deleted_ciflow_trunk_ref_ignored(self):
+        """Deleting the ciflow/trunk/<pr> tag (e.g. label removed, PR closed)
+        reports the null SHA with the ref unchanged -- must not be treated
+        as a real (pr_number, head_sha), or GitHub 422s on the fake SHA."""
+        envelope = {
+            "payload": {
+                "ref": "refs/tags/ciflow/trunk/42",
+                "after": "0" * 40,
+                "deleted": True,
+            }
+        }
+        self.assertEqual(extract_pr_context(envelope), ("", ""))
