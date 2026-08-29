@@ -72,13 +72,6 @@
       "rocm"
     ]
   ],
-  "test_avx_py_load_falls_back_to_import_torch (__main__.TestVecISACheckBuild)": [
-    "193670",
-    "https://github.com/pytorch/pytorch/issues/193670",
-    [
-      "xpu"
-    ]
-  ],
   "test_backend_simple (__main__.PrivateUse1BackendTest)": [
     "188688",
     "https://github.com/pytorch/pytorch/issues/188688",
