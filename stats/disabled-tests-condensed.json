@@ -367,11 +367,6 @@
       "rocm"
     ]
   ],
-  "test_dropout_parity_dynamic_shapes (__main__.TestDropoutAlignRandomEager)": [
-    "188836",
-    "https://github.com/pytorch/pytorch/issues/188836",
-    []
-  ],
   "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
