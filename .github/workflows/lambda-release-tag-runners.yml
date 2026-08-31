@@ -60,6 +60,7 @@ jobs:
   call-release:
     permissions:
       contents: write
+      actions: write
     needs: tag
     uses: ./.github/workflows/_lambda-do-release-runners.yml
     with:
