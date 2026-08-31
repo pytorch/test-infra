@@ -1,10 +1,10 @@
 """AWS Lambda entry point for the greenlight review scan.
 
 Fetches the GitHub App private key and ClickHouse password from AWS Secrets Manager,
-mints a least-privilege App installation token, and runs one ``review`` scan through the
-same CLI used on the command line. The Lambda function timeout is the runtime backstop, so
-the in-process guards are disabled here (their hard watchdog force-exits via ``os._exit``,
-which is wrong under the Lambda runtime).
+mints a least-privilege App installation token, resolves the App's own ``<slug>[bot]`` login,
+and runs one ``review`` scan through the same CLI used on the command line. The Lambda function
+timeout is the runtime backstop, so the in-process guards are disabled here (their hard watchdog
+force-exits via ``os._exit``, which is wrong under the Lambda runtime).
 """
 
 from __future__ import annotations
@@ -13,20 +13,26 @@ import base64
 import json
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from greenlight import cli
+from greenlight.constants import BOT_LOGIN_SUFFIX, is_app_login
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_OK
+
+if TYPE_CHECKING:
+    from github import GithubIntegration
 
 logger = logging.getLogger(__name__)
 
 _AWS_REGION = "us-east-1"
 
 # Least-privilege scope for the installation token: only the repos and permissions the scan
-# needs, even though the App itself holds broader org-level grants.
+# needs, even though the App itself holds broader org-level grants. pull_requests is write, not
+# read: the scan revokes greenlight's own approval on a reverted PR.
 # Keep in sync with the actions/create-github-app-token scope in .github/workflows/greenlight-review.yml.
 _TOKEN_PERMISSIONS = {
     "actions": "write",
-    "pull_requests": "read",
+    "pull_requests": "write",
     "contents": "read",
     "members": "read",
 }
@@ -60,19 +66,38 @@ def _load_secret(secret_store_name: str) -> dict[str, str]:
     return secret
 
 
-def _mint_installation_token(app_id: str, pem: str, installation_id: int) -> str:
+def _github_integration(app_id: str, pem: str) -> GithubIntegration:
     import github  # lazy: keeps this module importable without PyGithub
 
+    return github.GithubIntegration(auth=github.Auth.AppAuth(app_id, pem))
+
+
+def _mint_installation_token(integration: GithubIntegration, installation_id: int) -> str:
     # PyGithub 2.9.1's GithubIntegration.get_access_token sends only ``permissions`` and cannot
     # scope ``repositories``; the token is minted through the integration's public requester
     # (its documented escape hatch for endpoints PyGithub does not model) so both are applied.
-    integration = github.GithubIntegration(auth=github.Auth.AppAuth(app_id, pem))
     _, data = integration.requester.requestJsonAndCheck(
         "POST",
         f"/app/installations/{installation_id}/access_tokens",
         input={"permissions": _TOKEN_PERMISSIONS, "repositories": _TOKEN_REPOSITORIES},
     )
     return _require_key(data, "token", "installation token response")
+
+
+def _resolve_bot_login(integration: GithubIntegration) -> str:
+    """Return the App's own ``<slug>[bot]`` account login, read from ``GET /app``.
+
+    The scan matches greenlight's own approving reviews by this login before revoking them on a
+    reverted PR, so a wrong or empty one would dismiss nothing while reporting success. Anything
+    that is not ``<slug>[bot]`` raises here rather than reaching the scan.
+    """
+    slug = integration.get_app().slug
+    # PyGithub annotates GithubApp.slug as str but returns None when the response omits it (the
+    # unset attribute's .value), and interpolating that yields the App-shaped literal "None[bot]".
+    login = f"{slug}{BOT_LOGIN_SUFFIX}" if slug else ""
+    if not is_app_login(login):
+        raise ValueError(f"GET /app returned an unusable app slug {slug!r} for the greenlight bot login")
+    return login
 
 
 def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noqa: ARG001
@@ -87,7 +112,9 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     pem_b64 = _require_key(secret, "GITHUB_APP_SECRET", secret_source)
     pem = base64.b64decode(pem_b64).decode("utf-8")
     os.environ["CLICKHOUSE_PASSWORD"] = _require_key(secret, "CLICKHOUSE_PASSWORD", secret_source)
-    os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] = _mint_installation_token(app_id, pem, installation_id)
+    integration = _github_integration(app_id, pem)
+    os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] = _mint_installation_token(integration, installation_id)
+    os.environ["BOT_LOGIN"] = _resolve_bot_login(integration)
 
     # The Lambda function timeout is the runtime backstop; a zero max-runtime disables both the
     # SIGALRM soft timeout and the hard watchdog (whose os._exit would abort the runtime uncleanly).
