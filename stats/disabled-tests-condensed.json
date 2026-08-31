@@ -842,12 +842,26 @@
       "linux"
     ]
   ],
+  "test_philox_state_graph_capture (__main__.TestCuda)": [
+    "195480",
+    "https://github.com/pytorch/pytorch/issues/195480",
+    [
+      "rocm"
+    ]
+  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_race_pipeline (__main__.TestStreamOrderingStress)": [
+    "195479",
+    "https://github.com/pytorch/pytorch/issues/195479",
+    [
+      "linux"
     ]
   ],
   "test_range_based_static_shape_no_cond_dispatch (__main__.TestCustomOpAutoTune)": [
