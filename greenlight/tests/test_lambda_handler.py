@@ -20,10 +20,11 @@ _TOKEN = "ghs_minted_installation_token"
 _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
 _INSTALLATION_ID = 42
+_APP_SLUG = "pytorchgreenlight"
 _EXPECTED_ARGV = ["review", "--ref", "main"]
 _EXPECTED_PERMISSIONS = {
     "actions": "write",
-    "pull_requests": "read",
+    "pull_requests": "write",
     "contents": "read",
     "members": "read",
 }
@@ -57,6 +58,7 @@ def fakes(monkeypatch):
         {},
         {"token": _TOKEN},
     )
+    fake_github.GithubIntegration.return_value.get_app.return_value.slug = _APP_SLUG
 
     monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
     # Ensure the real github module is in sys.modules before replacing it, so monkeypatch restores
@@ -91,8 +93,30 @@ def test_handler_happy_path(monkeypatch, fakes):
     )
     assert os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] == _TOKEN
     assert os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] == "0"
+    # pull_requests is write, not read: the scan revokes greenlight's own approval on a reverted PR,
+    # and identifies it by the <slug>[bot] login resolved from GET /app on the same integration.
+    assert os.environ["BOT_LOGIN"] == f"{_APP_SLUG}[bot]"
+    fake_github.GithubIntegration.return_value.get_app.assert_called_once_with()
 
     main_mock.assert_called_once_with(_EXPECTED_ARGV)
+
+
+@pytest.mark.parametrize("slug", [pytest.param("", id="empty"), pytest.param(None, id="absent")])
+def test_handler_unusable_app_slug_raises(monkeypatch, fakes, slug):
+    _fake_boto3, fake_github = fakes
+    fake_github.GithubIntegration.return_value.get_app.return_value.slug = slug
+    main_mock = Mock()
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    # An empty or missing slug yields a login that matches none of greenlight's reviews, so the
+    # dismissal would report success having revoked nothing. The scheduled path fails loudly here
+    # instead of handing the scan a login it cannot act on. None is the value PyGithub hands back
+    # for an absent slug, and it is the dangerous one: "None[bot]" is App-shaped.
+    with pytest.raises(ValueError, match="unusable app slug"):
+        lambda_handler.handler({}, object())
+
+    assert "BOT_LOGIN" not in os.environ
+    main_mock.assert_not_called()
 
 
 def test_handler_decodes_base64_pem(monkeypatch, fakes):

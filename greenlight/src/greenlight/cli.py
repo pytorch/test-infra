@@ -239,10 +239,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--force requires --pr")
     if args.force and args.loop:
         parser.error("--force cannot be combined with --loop")
-    # The bot login is the App's <slug>[bot] account, supplied via BOT_LOGIN (empty on the
-    # read-only listing scan, set only on the write-capable --pr recheck). It author-scopes the
-    # recheck-refusal comment; when set it must be App-shaped, or a copied marker in a third
-    # party's comment could be hijacked. An empty value is allowed and handled downstream.
+    # The bot login is the App's <slug>[bot] account, supplied via BOT_LOGIN. It author-scopes the
+    # recheck-refusal comment and identifies greenlight's own approvals for the reverted-PR
+    # dismissal; when set it must be App-shaped, or a copied marker in a third party's comment could
+    # be hijacked. An empty value parses (the reverted-PR path refuses it where it would matter).
     bot_login = os.environ.get("BOT_LOGIN", "").strip()
     if bot_login and not is_app_login(bot_login):
         parser.error(
