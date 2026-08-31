@@ -1207,19 +1207,21 @@ export function constructResultsComment(
     owner,
     repo,
     prNumber,
-    "NOT RELATED TO THIS PR (non-blocking)",
+    // Covers three advisor verdicts, not just `not_related` -- see
+    // SUPPRESSIBLE_VERDICTS. Naming only one of them here would state something
+    // false about a job cleared as an infra fault or an unusable signal.
+    "CLEARED BY THE AI CI ADVISOR (non-blocking)",
     `The following ${pluralize(
       "job",
       aiNotRelatedJobs.length
-    )} failed but the AI CI Advisor judged ${pluralize(
-      "it",
-      aiNotRelatedJobs.length,
-      "them"
-    )} unrelated to this PR, so ${pluralize(
+    )} failed, but the AI CI Advisor judged the ${pluralize(
+      "failure",
+      aiNotRelatedJobs.length
+    )} not to be evidence against this PR -- unrelated to the change, a CI infrastructure fault, or an unusable signal -- so ${pluralize(
       "it is",
       aiNotRelatedJobs.length,
       "they are"
-    )} non-blocking`,
+    )} non-blocking. The verdict on each job is shown beside it.`,
     aiNotRelatedJobs,
     "",
     true,

@@ -3,6 +3,7 @@ import {
   confidentEnoughToSuppress,
   extractSuppressed,
   isSuppressible,
+  SUPPRESSIBLE_VERDICTS,
   suppressibleJobIds,
 } from "lib/advisor/advisorSuppression";
 import { AdvisorVerdictRow, resolveVerdict } from "lib/advisorVerdictUtils";
@@ -125,18 +126,42 @@ describe("resolveVerdict", () => {
 });
 
 describe("isSuppressible", () => {
-  test("a confident, fresh not_related verdict clears the job", () => {
-    expect(isSuppressible(job(), [row()])).toBe(true);
-  });
+  test.each(["not_related", "infra_issue", "garbage"])(
+    "a confident, fresh %s verdict clears the job",
+    (verdict) => {
+      expect(isSuppressible(job(), [row({ verdict })])).toBe(true);
+    }
+  );
 
   test("no verdict keeps the job blocking", () => {
     expect(isSuppressible(job(), [])).toBe(false);
   });
 
-  test.each(["related", "revert", "unsure", "garbage", "infra_issue"])(
+  test.each(["related", "revert", "unsure"])(
     "%s keeps the job blocking",
     (verdict) => {
       expect(isSuppressible(job(), [row({ verdict })])).toBe(false);
+    }
+  );
+
+  // The set is the whole policy, so pin it: adding a verdict to
+  // AdvisorVerdictType without deciding which side it falls on turns this red.
+  test("the suppressible set is exactly the three cleared verdicts", () => {
+    expect([...SUPPRESSIBLE_VERDICTS].sort()).toEqual([
+      "garbage",
+      "infra_issue",
+      "not_related",
+    ]);
+  });
+
+  // Widening the verdict set must not widen the outcome gate with it: an infra
+  // fault that stopped the job before it concluded `failure` still blocks.
+  test.each(["cancelled", "timed_out", "action_required", "neutral"])(
+    "an infra_issue verdict on a %s job still keeps it blocking",
+    (conclusion) => {
+      expect(
+        isSuppressible(job({ conclusion }), [row({ verdict: "infra_issue" })])
+      ).toBe(false);
     }
   );
 

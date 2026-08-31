@@ -16,6 +16,7 @@ import {
 import { advisorSuppressionEnabled } from "lib/advisor/advisorFlags";
 import {
   AdvisorVerdictRow,
+  AdvisorVerdictType,
   headRowsBySignalKey,
   resolveVerdict,
 } from "lib/advisorVerdictUtils";
@@ -24,10 +25,49 @@ import { RecentWorkflowsData } from "lib/types";
 
 dayjs.extend(utc);
 
-// The only verdict that stops a failure from blocking. `infra_issue` is
-// excluded on purpose: it means CI broke before producing a test outcome, so
-// suppressing it would convert untested into green.
-export const SUPPRESSIBLE_VERDICT = "not_related";
+// Every advisor verdict and whether it stops a failure from blocking.
+//
+// Written as a TOTAL map rather than a list of the cleared ones: adding a member
+// to AdvisorVerdictType then fails to compile here until someone decides which
+// side it falls on, which is the decision most likely to be skipped.
+//
+//   not_related  the failure exists independently of this change
+//   infra_issue  the environment broke -- credentials, image pull, runner loss
+//   garbage      the signal itself is noise: it flips red/green across unrelated
+//                commits, and the baselines fail the same way
+//   related      the opposite claim -- this change caused it
+//   revert       the trunk-side spelling of `related`
+//   unsure       no claim was reached
+//
+// `garbage` sits with the cleared ones rather than with `unsure` because it is
+// an EVIDENCED claim about the signal, not an absence of one: the advisor
+// reaches it by comparing the job against its own baselines. `unsure` is the
+// real "cannot tell", and it blocks.
+//
+// LIMIT, stated because the confidence and freshness gates do not cover it: a
+// verdict says the failure looks environmental, not that the PR is innocent of
+// causing it. A change to CI config, a Dockerfile, or a submodule pin can
+// produce a genuine infrastructure-shaped failure that IS the PR's fault, and
+// `infra_issue` is where that lands. `producedATestOutcome` below narrows this
+// -- it gates on the job's own conclusion rather than the advisor's opinion, so
+// an infra fault that left the job `cancelled` never reaches here -- but it does
+// not close it, since a job can conclude `failure` having tested nothing. The
+// remaining exposure is bounded by the merge-side cap on how many gates one
+// merge may skip, and by this shipping behind a flag.
+const VERDICT_DISPOSITION: Record<AdvisorVerdictType, "clear" | "block"> = {
+  not_related: "clear",
+  infra_issue: "clear",
+  garbage: "clear",
+  related: "block",
+  revert: "block",
+  unsure: "block",
+};
+
+export const SUPPRESSIBLE_VERDICTS: ReadonlySet<string> = new Set(
+  Object.entries(VERDICT_DISPOSITION)
+    .filter(([, disposition]) => disposition === "clear")
+    .map(([verdict]) => verdict)
+);
 
 // Clear only what the badge scale calls high confidence. Asks advisorBadge for
 // the bucket rather than restating its threshold, so retuning the scale moves
@@ -85,7 +125,7 @@ export function isSuppressible(
     return false;
   }
   return (
-    resolved.verdict === SUPPRESSIBLE_VERDICT &&
+    SUPPRESSIBLE_VERDICTS.has(resolved.verdict) &&
     confidentEnoughToSuppress(resolved.confidence) &&
     verdictDescribesThisRun(job, resolved.timestamp)
   );
