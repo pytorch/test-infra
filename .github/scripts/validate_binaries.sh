@@ -334,10 +334,10 @@ write_build_report() {
     echo "--- Build report"
     echo "${report}"
 
-    # The job summary file is not reachable from inside the validation
-    # container, so only append when the runner actually exposes a writable one.
-    # stderr is redirected before the append so a non-writable path fails quietly
-    if [[ -n ${GITHUB_STEP_SUMMARY:-} ]] && : 2>/dev/null >>"${GITHUB_STEP_SUMMARY}"; then
+    # linux_job_v2 passes GITHUB_STEP_SUMMARY into the container and bind-mounts
+    # the file at the same absolute path, so it is writable there. The guard is
+    # for the paths that do not set it at all -- e.g. running this script by hand.
+    if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
         {
             echo "### ${MATRIX_PACKAGE_TYPE:-wheel}: ${TARGET_OS} / py${MATRIX_PYTHON_VERSION:-?} / ${MATRIX_GPU_ARCH_TYPE:-cpu} ${MATRIX_GPU_ARCH_VERSION:-}"
             echo "${report}"
@@ -461,11 +461,13 @@ fi
 # Install numpy 1.x after torch install
 install_numpy_1x
 
+# Report versions and sizes for this build. Before the smoke tests on purpose:
+# everything the report describes is already installed, and a failing smoke test
+# is exactly when the versions and sizes are worth having in the summary.
+write_build_report "${TORCH_WHEEL_MB}" "${TORCHVISION_WHEEL_MB}"
+
 # Run tests
 run_smoke_tests "${TEST_SUFFIX}"
-
-# Report versions and sizes for this build
-write_build_report "${TORCH_WHEEL_MB}" "${TORCHVISION_WHEEL_MB}"
 
 # Restore PATH for macos-arm64
 if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
