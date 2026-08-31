@@ -13,11 +13,12 @@ Recording keys on the *latest* row not being ``REVERTED``, because that row is t
 renders: a review that lands its verdict after the exclusion was recorded carries the real
 ``github.run_id`` and outranks it, and only re-recording puts the exclusion back on top.
 
-Two orderings are load-bearing:
+Two invariants are load-bearing:
 
-- The dismissal runs BEFORE the row is written, and the row is skipped when the dismissal raises.
-  The row is what stops later scans retrying, so writing it after a failed dismissal would freeze
-  a live approval on a reverted PR.
+- The row is written whatever the dismissal returns. Recording cannot suppress a retry -- an
+  excluded PR is dismissed again on every scan, before any recorded state is read -- whereas
+  skipping the row after a failed dismissal loses the exclusion outright the moment the label
+  comes off, leaving a candidate PR still carrying the approval nothing revoked.
 - A missing row is never read as "no approval". The reviewer workflow posts its approving review a
   step before it uploads the row, so a lost upload, a cancelled job, or replication lag all leave a
   live approval with nothing recorded -- hence the dismissal is attempted whatever the state says.
@@ -69,6 +70,13 @@ def _carries_reverted_label(
     return constants.carries_any_label(labels, REVERTED_LABELS)
 
 
+def _note_revoke_failure(number: int, exc: Exception, *, failed: list[int], cancel_event: threading.Event) -> None:
+    if is_rate_limit_error(exc):
+        cancel_event.set()
+    logger.error("failed to revoke greenlight approval on reverted PR #%d: %s", number, exc, exc_info=True)
+    failed.append(number)
+
+
 def _revoke_and_record(
     client: Github,
     number: int,
@@ -82,7 +90,7 @@ def _revoke_and_record(
     failed: list[int],
     cancel_event: threading.Event,
 ) -> None:
-    """Revoke greenlight's approval on one reverted PR, then record its row unless one already wins.
+    """Attempt to revoke greenlight's approval on one reverted PR, then record its row unless one wins.
 
     The row is stamped with ``state.next_run_id``, so Dr. CI -- which renders a PR's latest row --
     shows the exclusion. Writing whenever the latest row is not ``REVERTED`` is self-limiting: the
@@ -91,15 +99,19 @@ def _revoke_and_record(
     """
     try:
         pr = get_pr(client, TARGET_REPO, number)
+    except IterationTimeout:
+        raise
+    except Exception as exc:
+        # The only failure that costs the row: its ``head_sha`` is read off this PR.
+        _note_revoke_failure(number, exc, failed=failed, cancel_event=cancel_event)
+        return
+    try:
         dismissed = dismiss(pr, bot_login=bot_login, message=_DISMISS_MESSAGE)
     except IterationTimeout:
         raise
     except Exception as exc:
-        if is_rate_limit_error(exc):
-            cancel_event.set()
-        logger.error("failed to revoke greenlight approval on reverted PR #%d: %s", number, exc, exc_info=True)
-        failed.append(number)
-        return
+        _note_revoke_failure(number, exc, failed=failed, cancel_event=cancel_event)
+        dismissed = []
     if dismissed:
         logger.info("dismissed %d greenlight approval(s) on reverted PR #%d", len(dismissed), number)
     if recorded_state is not None and recorded_state.status == STATUS_REVERTED:
@@ -158,8 +170,9 @@ def exclude_reverted(
     if not excluded:
         return frozenset()
     # Dismissal matches greenlight's own reviews by login, so an empty or non-App login silently
-    # dismisses nothing while reporting success -- which would then let the row be written and
-    # suppress every retry. Refuse the whole scan instead of writing anything.
+    # dismisses nothing while reporting success -- every scan would then report a clean revocation
+    # while the approval stays live on a reverted PR. Refuse the whole scan instead of writing
+    # anything.
     if not constants.is_app_login(bot_login):
         raise ValueError(
             f"BOT_LOGIN must be the greenlight App login (<app-slug>{constants.BOT_LOGIN_SUFFIX}) to revoke "

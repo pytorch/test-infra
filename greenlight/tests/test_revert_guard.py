@@ -175,8 +175,8 @@ def test_label_excludes_dismisses_records_and_pokes():
     # state is run_id 1.
     assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
     assert guard.poked == [1]
-    # The dismissal runs BEFORE the row: the row is what stops later scans retrying, so writing it
-    # after a failed dismissal would freeze a live approval on a reverted PR.
+    # The poke comes after the row: Dr. CI re-reads the table, so poking first would only
+    # re-render the state the row is replacing.
     assert guard.events == ["dismiss:1", "emit:1", "poke:1"]
 
 
@@ -255,21 +255,35 @@ def test_row_supersedes_the_prior_row_by_run_id():
     assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 8)]
 
 
-def test_failed_dismissal_writes_no_row_and_still_drops_the_pr(caplog):
+def test_failed_dismissal_still_records_the_row_and_still_drops_the_pr(caplog):
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         guard = _exclude([1], known_labels={1: ("Reverted",)}, dismiss_errors={1: RuntimeError("dismiss boom")})
 
-    # No row is written, so the next scan re-reads the label, finds no REVERTED row, and retries the
-    # dismissal. The PR is still dropped this pass -- an exclusion never lapses because a step failed.
-    assert guard.emitted == []
-    assert guard.poked == []
+    # Recording is what makes the exclusion outlive the label: without the row, taking the label off
+    # before the next scan would make this a candidate again, still carrying the unrevoked approval.
+    # The row costs no retry -- the next scan dismisses it again, before reading any state.
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert guard.poked == [1]
     assert guard.failed == [1]
     assert guard.excluded == frozenset({1})
     assert "failed to revoke greenlight approval on reverted PR #1" in caplog.text
     assert any(record.exc_info is not None for record in caplog.records)
 
 
-def test_failed_pr_read_is_handled_as_a_dismissal_failure(caplog):
+def test_recorded_row_survives_a_failed_dismissal_and_the_label_coming_off():
+    first = _exclude([1], known_labels={1: ("Reverted",)}, dismiss_errors={1: RuntimeError("dismiss boom")})
+
+    assert first.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+
+    second = _exclude([1], recorded=frozenset({1}), known_labels={1: ()}, dismissed_ids={1: [901]})
+
+    # The scan the failure hands off to: the label is gone, and only the row written despite that
+    # failure keeps the PR excluded long enough for the retried dismissal to land.
+    assert second.excluded == frozenset({1})
+    assert second.dismissals == [(1, _BOT, revert_guard._DISMISS_MESSAGE)]
+
+
+def test_failed_pr_read_records_nothing_because_the_row_needs_its_head_sha(caplog):
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         guard = _exclude([1], known_labels={1: ("Reverted",)}, get_pr_errors={1: RuntimeError("get_pr boom")})
 
@@ -307,7 +321,7 @@ def test_non_rate_limit_dismissal_failure_leaves_the_cancel_event_clear():
     assert not guard.cancelled
 
 
-@pytest.mark.parametrize("stage", ["dismiss", "emit"])
+@pytest.mark.parametrize("stage", ["get_pr", "dismiss", "emit"])
 def test_iteration_timeout_propagates(stage):
     errors = {1: IterationTimeout("iteration exceeded")}
 
@@ -317,6 +331,7 @@ def test_iteration_timeout_propagates(stage):
         _exclude(
             [1],
             known_labels={1: ("Reverted",)},
+            get_pr_errors=errors if stage == "get_pr" else None,
             dismiss_errors=errors if stage == "dismiss" else None,
             emit_errors=errors if stage == "emit" else None,
         )
@@ -325,8 +340,8 @@ def test_iteration_timeout_propagates(stage):
 @pytest.mark.parametrize("bot_login", ["", "[bot]", "greenlight"])
 def test_non_app_bot_login_refuses_the_whole_scan(bot_login):
     # Dismissal matches greenlight's own reviews by login, so a login that is not <slug>[bot]
-    # silently dismisses nothing while reporting success -- which would then let the row be written
-    # and suppress every retry.
+    # silently dismisses nothing while reporting success -- every scan would then report a clean
+    # revocation while the approval stays live on a reverted PR.
     with pytest.raises(ValueError, match="BOT_LOGIN must be the greenlight App login"):
         _exclude([1], known_labels={1: ("Reverted",)}, bot_login=bot_login)
 
@@ -369,10 +384,11 @@ def test_each_reverted_pr_is_acted_on_independently():
         dismiss_errors={1: RuntimeError("dismiss boom")},
     )
 
-    # PR1's failure isolates: PR3 is still dismissed and recorded, and clean PR2 is left alone.
+    # PR1's failure isolates: it is recorded anyway, PR3 is still dismissed and recorded, and clean
+    # PR2 is left alone.
     assert guard.excluded == frozenset({1, 3})
     assert guard.failed == [1]
-    assert guard.emitted == [(TARGET_REPO, 3, "headsha3", 1)]
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1), (TARGET_REPO, 3, "headsha3", 1)]
 
 
 def test_no_candidates_returns_empty_without_reading_labels():
