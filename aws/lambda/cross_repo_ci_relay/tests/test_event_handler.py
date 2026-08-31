@@ -37,6 +37,15 @@ def _payload_with_labels(action="synchronize", labels=None):
     return payload
 
 
+def _push_payload(ref="refs/tags/ciflow/trunk/42", after="def456"):
+    return {
+        "ref": ref,
+        "after": after,
+        "repository": {"full_name": "pytorch/pytorch"},
+        "installation": {"id": 99},
+    }
+
+
 class TestEventHandler(unittest.TestCase):
     def test_ignored_action(self):
         self.assertEqual(
@@ -128,6 +137,26 @@ class TestDispatchCheckRunCreation(unittest.TestCase):
         handle(_cfg(), _payload(), "pull_request", "del-2")
 
         mock_create_cr.assert_not_called()
+
+    @patch("webhook.event_handler.redis_helper.mark_check_run_wanted")
+    @patch("webhook.event_handler.redis_helper.set_callback_state")
+    @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
+    @patch("webhook.event_handler.gh_helper.get_repo_access_token", return_value="tok")
+    @patch("webhook.event_handler.load_allowlist")
+    def test_push_ciflow_trunk_marks_check_run_wanted(
+        self, mock_load, _tok, _dispatch, _state, mock_mark_wanted
+    ):
+        """A ciflow/trunk/<pr> push resolves head_sha from payload.after via
+        extract_pr_context, so the check-run-wanted marker still gets set."""
+        mock_map = MagicMock()
+        mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
+        mock_load.return_value = mock_map
+
+        handle(_cfg(), _push_payload(), "push", "del-3")
+
+        mock_mark_wanted.assert_called_once_with(
+            unittest.mock.ANY, "def456", "org/repo"
+        )
 
 
 class TestPrLabeledHandler(unittest.TestCase):

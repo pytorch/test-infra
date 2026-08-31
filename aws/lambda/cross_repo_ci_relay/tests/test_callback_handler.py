@@ -55,6 +55,27 @@ def _body(
     }
 
 
+def _push_body(status="in_progress", ref="refs/tags/ciflow/trunk/42", after="abc123"):
+    return {
+        "event_type": "push",
+        "delivery_id": "del-123",
+        "payload": {
+            "ref": ref,
+            "after": after,
+            "repository": {"full_name": "pytorch/pytorch"},
+        },
+        "workflow": {
+            "status": status,
+            "conclusion": "success" if status == "completed" else None,
+            "name": "CI",
+            "url": "http://ci.example.com/run/1",
+            "workflow_name": "default",
+            "run_id": 99999,
+            "run_attempt": 1,
+        },
+    }
+
+
 class TestCallbackHandler(unittest.TestCase):
     def setUp(self):
         self.patcher_allowlist = patch("callback.callback_handler.load_allowlist")
@@ -461,6 +482,30 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         kw = self.mock_gh.create_check_run.call_args[1]
         self.assertEqual(kw["head_sha"], "abc123")
         self.assertEqual(kw["status"], "in_progress")
+
+    def test_push_ciflow_trunk_l4_creates_check_run(self):
+        """The headline bug: a push-triggered L4 run must still get an
+        upstream check run, resolving head_sha/pr_number from the ref."""
+        self.mock_gh.create_check_run.return_value = 999
+
+        handle(_cfg(), _push_body(), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["head_sha"], "abc123")
+        self.assertEqual(kw["external_id"], "99999:42")  # run_id:pr_number
+
+    def test_push_to_main_skips_check_run_and_cache(self):
+        """A plain push to main (the merge landing itself) has no PR to
+        attach a check run to, and nothing will ever look up a cache entry
+        keyed by a merge commit's SHA, so neither happens."""
+        result = handle(
+            _cfg(), _push_body(ref="refs/heads/main"), verified_repo="org/repo"
+        )
+
+        self.assertEqual(result, {"ok": True, "status": "in_progress"})
+        self.mock_gh.create_check_run.assert_not_called()
+        self.mock_redis.set_dispatch_job.assert_not_called()
 
     def test_reopen_in_progress_creates_new_check_run(self):
         """Reopen scenario: prior completed CR exists; in_progress always creates a new one."""

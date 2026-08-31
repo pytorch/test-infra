@@ -13,6 +13,7 @@ from utils.misc import (
     DISPATCH_RUN_ATTEMPT,
     DISPATCH_RUN_ID,
     EventDispatchPayload,
+    extract_pr_context,
     extract_pr_labels,
     HTTPException,
 )
@@ -63,12 +64,8 @@ def _dispatch_one(
         # flag so the callback creates it even when the downstream echoes back a
         # dispatch payload whose labels don't reflect the PR's current state
         # (e.g. on reopen, where no new `labeled` event fires to set this flag).
-        head_sha = (
-            ((client_payload.get("payload") or {}).get("pull_request") or {})
-            .get("head", {})
-            .get("sha", "")
-        )
-        if head_sha:
+        pr_number, head_sha = extract_pr_context(client_payload)
+        if head_sha and pr_number:
             redis_helper.mark_check_run_wanted(config, head_sha, downstream_repo)
 
 

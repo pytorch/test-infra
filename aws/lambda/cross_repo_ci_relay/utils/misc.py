@@ -7,6 +7,7 @@ and there's no shared abstraction to organise them under.
 from __future__ import annotations
 
 import base64
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import TypedDict
@@ -63,9 +64,48 @@ def extract_pr_labels(envelope: dict) -> set[str]:
     Both the webhook dispatch ``client_payload`` and the downstream callback
     ``body`` carry the original webhook under ``payload.pull_request``, so the
     labels live at ``payload.pull_request.labels`` in either case.
+
+    Always empty for a ``push`` event (no ``pull_request`` key).
     """
     pull_request = (envelope.get("payload") or {}).get("pull_request") or {}
     return {lbl.get("name", "") for lbl in (pull_request.get("labels") or [])}
+
+
+_CIFLOW_TRUNK_REF_RE = re.compile(r"/ciflow/trunk/(\d+)$")
+_NULL_SHA = "0" * 40
+
+
+def extract_pr_context(envelope: dict) -> tuple[str, str]:
+    """Return (pr_number, head_sha) from a dispatch/callback envelope.
+
+    Prefers the ``pull_request`` event shape. Falls back to a ``push`` event:
+    PR number is recovered only from a ``ciflow/trunk/<pr_number>`` ref (the
+    tag ``@pytorchbot merge`` pushes to trigger trunk validation before
+    landing) -- other ``ciflow/<label>`` tags are equally PR-scoped but are
+    deliberately left unhandled here since trunk validation is the only one
+    this relay currently needs to recognize. head_sha comes from
+    ``payload.after``. Any other push ref (e.g. a landed merge on main) has
+    no PR to attach to, so this returns ``("", head_sha)`` for it, which
+    callers already treat as "no upstream check run" correctly.
+
+    A ref *deletion* push (``deleted: true``) reports ``after`` as the null
+    SHA with the ref left pointing at whatever was just deleted, so it's special-
+    cased to ("", "") rather than returning a pr_number paired with a SHA
+    that doesn't exist (GitHub's create-check-run API 422s on it).
+    """
+    payload = envelope.get("payload") or {}
+    pull_request = payload.get("pull_request") or {}
+    pr_number = str(pull_request.get("number") or "")
+    head_sha = (pull_request.get("head") or {}).get("sha", "")
+    if pr_number and head_sha:
+        return pr_number, head_sha
+
+    head_sha = payload.get("after", "")
+    if payload.get("deleted") or head_sha == _NULL_SHA:
+        return "", ""
+    match = _CIFLOW_TRUNK_REF_RE.search(payload.get("ref", ""))
+    pr_number = match.group(1) if match else ""
+    return pr_number, head_sha
 
 
 def parse_lambda_event(event: dict) -> tuple[str, str, bytes, dict]:

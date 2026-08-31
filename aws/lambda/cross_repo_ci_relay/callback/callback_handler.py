@@ -14,6 +14,7 @@ from utils.misc import (
     CallbackStateRecord,
     DISPATCH_RUN_ATTEMPT,
     DISPATCH_RUN_ID,
+    extract_pr_context,
     extract_pr_labels,
     HTTPException,
 )
@@ -403,13 +404,13 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
 
     # L3+: cache the job and create its upstream check run. Runs after state
     # validation (above) but before HUD forwarding, so a HUD error cannot block
-    # the PR check. Without a head_sha there is neither a check run to create nor
-    # a cache entry the label handler could ever look up.
+    # the PR check. Both the cache entry and the check run always belong to a
+    # specific PR -- get_dispatch_jobs is only ever looked up by a PR's head
+    # SHA (see event_handler._handle_pr_labeled) -- so without a pr_number,
+    # there is nothing to cache and no check run to create.
     if repo_level.value >= AllowlistLevel.L3.value:
-        pr_field = (body.get("payload") or {}).get("pull_request") or {}
-        head_sha = (pr_field.get("head") or {}).get("sha", "")
-        pr_number = str(pr_field.get("number") or "")
-        if head_sha:
+        pr_number, head_sha = extract_pr_context(body)
+        if head_sha and pr_number:
             conclusion = (body.get("workflow") or {}).get("conclusion")
             details_url = f"https://github.com/{verified_repo}/actions/runs/{run_id}"
 

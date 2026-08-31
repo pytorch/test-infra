@@ -309,6 +309,42 @@ class TestCleanupCheckRunFinalize(unittest.TestCase):
         self.assertEqual(kw["conclusion"], "timed_out")
         self.assertEqual(kw["head_sha"], "abc123")
 
+    def test_push_ciflow_trunk_l4_zombie_finalizes_check_run(self):
+        """A push-triggered (ciflow/trunk/<pr> tag) zombie resolves head_sha
+        from the ref instead of the pull_request shape."""
+        zombie = self._level_zombie("L4")
+        body = zombie["state_record"].payload["untrusted"]["callback_payload"]
+        body["event_type"] = "push"
+        body["payload"] = {
+            "ref": "refs/tags/ciflow/trunk/42",
+            "after": "def456",
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        self.mock_redis.scan_expired_in_progress.return_value = [zombie]
+
+        handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_called_once()
+        kw = self.mock_gh.create_check_run.call_args[1]
+        self.assertEqual(kw["head_sha"], "def456")
+
+    def test_push_to_main_zombie_does_not_finalize_check_run(self):
+        """A zombie from a plain push to main has no PR to attach a check
+        run to, so none is finalized."""
+        zombie = self._level_zombie("L4")
+        body = zombie["state_record"].payload["untrusted"]["callback_payload"]
+        body["event_type"] = "push"
+        body["payload"] = {
+            "ref": "refs/heads/main",
+            "after": "def456",
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        self.mock_redis.scan_expired_in_progress.return_value = [zombie]
+
+        handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_not_called()
+
     def test_l2_zombie_does_not_finalize_check_run(self):
         # Default zombie is L2 → the stored-level pre-check short-circuits, no
         # upstream check run and no per-repo allowlist lookup.
