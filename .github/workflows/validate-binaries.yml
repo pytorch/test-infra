@@ -47,6 +47,12 @@ on:
         default: false
         required: false
         type: boolean
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
   workflow_dispatch:
     inputs:
       os:
@@ -106,6 +112,12 @@ on:
         required: false
         type: boolean
 
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
 jobs:
   generate-release-matrix:
     uses: ./.github/workflows/generate_release_matrix.yml
@@ -125,6 +137,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
 
   linux:
     if:  inputs.os == 'linux' || inputs.os == 'all'
@@ -140,6 +153,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
 
   linux-aarch64:
     if:  inputs.os == 'linux-aarch64' || inputs.os == 'all'
@@ -154,6 +168,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
 
   mac-arm64:
     if:  inputs.os == 'macos' || inputs.os == 'all'
@@ -168,3 +183,4 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-wheel-variants: ${{ inputs.use-wheel-variants }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}

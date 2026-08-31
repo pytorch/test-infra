@@ -33,3 +33,8 @@ jobs:
     with:
       channel: nightly
       os: all
+      # The validation scripts are sourced from a checkout of test-infra, so a PR
+      # that changes them has to say which ref to source them from -- otherwise
+      # the PR run silently exercises the scripts on main and reports nothing new.
+      # Empty outside a PR, where github.sha is the branch being validated.
+      test-infra-ref: ${{ github.event.pull_request.head.sha || github.sha }}

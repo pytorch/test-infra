@@ -42,6 +42,12 @@ on:
         default: false
         required: false
         type: boolean
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
   workflow_dispatch:
     inputs:
       channel:
@@ -89,6 +95,12 @@ on:
         required: false
         type: boolean
 
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
 jobs:
   generate-macos-arm64-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -109,6 +121,7 @@ jobs:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: main
+      test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: ${{ matrix.build_name }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
