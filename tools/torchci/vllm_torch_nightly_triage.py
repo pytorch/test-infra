@@ -266,7 +266,12 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
         {"tn": tn_number, "base": base_number},
     )
 
-    buckets: Dict[str, List[Dict]] = {"regressed": [], "both": [], "baseline_only": []}
+    buckets: Dict[str, List[Dict]] = {
+        "regressed": [],
+        "both": [],
+        "baseline_only": [],
+        "unclassified": [],
+    }
     for (
         name,
         shard,
@@ -303,6 +308,8 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
             buckets["regressed"].append(job)
         elif base_state in BAD_STATES and not tn_bad:
             buckets["baseline_only"].append(job)
+        else:
+            buckets["unclassified"].append(job)
     return buckets
 
 
@@ -394,6 +401,7 @@ def render(
         f"\n- regressed (fails here, passes on baseline): **{len(regressed)}**\n"
         f"- fails on both (pre-existing, not torch): {len(buckets['both'])}\n"
         f"- fails on baseline only: {len(buckets['baseline_only'])}\n"
+        f"- failures unclassified: {len(buckets['unclassified'])}\n"
     )
 
     if not regressed and not regressed_tests:
