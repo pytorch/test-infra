@@ -166,6 +166,40 @@ def test_two_dispatched_emits_get_distinct_emit_ids():
     assert all(_EMIT_ID_RE.fullmatch(value) for value in ids)
 
 
+def test_emit_reverted_builds_row_with_empty_eval_hash(monkeypatch):
+    monkeypatch.setattr(state_emit, "_utcnow", lambda: _FIXED)
+    cap = _Capture()
+
+    state_emit.emit_reverted(repo="pytorch/pytorch", pr_number=42, head_sha="deadbeef", run_id=4, upload=cap)
+
+    row = cap.decoded()
+    assert cap.key == state_emit.object_key("pytorch/pytorch", 42, _VERSION, str(row["emit_id"]))
+    assert list(row.keys()) == _ROW_KEYS
+    assert row["status"] == constants.STATUS_REVERTED == "REVERTED"
+    assert row["repo"] == "pytorch/pytorch"
+    assert row["pr_number"] == 42
+    assert row["head_sha"] == "deadbeef"
+    assert row["run_id"] == 4
+    # No fingerprint is computed for an excluded PR, and an empty hash can never match one a
+    # land-time verifier recomputes.
+    assert row["eval_hash"] == ""
+    assert row["reason"] == ""
+    assert row["message"] == ""
+    assert row["eval_job"] == ""
+    assert row["agent_job"] == ""
+
+
+def test_emit_reverted_defaults_to_boto3_upload(monkeypatch):
+    cap = _Capture()
+    monkeypatch.setattr(state_emit, "_default_upload", cap)
+
+    state_emit.emit_reverted(repo="o/r", pr_number=1, head_sha="h", run_id=2)
+
+    assert cap.key is not None
+    assert cap.key.startswith("greenlight_pr_state/o/r/1/")
+    assert cap.decoded()["status"] == constants.STATUS_REVERTED
+
+
 def test_emit_ai_review_dispatched_defaults_to_boto3_upload(monkeypatch):
     # With no upload seam, the default boto3 uploader is used.
     cap = _Capture()

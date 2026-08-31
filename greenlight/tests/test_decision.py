@@ -127,3 +127,14 @@ def test_retry_past_timeout_dispatches_retry(status):
 
 def test_unknown_status_dispatches_unknown_status():
     assert _decide("SOMETHING_WEIRD", version=FRESH) == Outcome(Decision.DISPATCH, "unknown_status")
+
+
+def test_reverted_skips_reverted():
+    # REVERTED belongs to none of the status groupings, so without its own branch it would reach
+    # the unknown-status fallthrough and DISPATCH a reverted PR straight back into review.
+    assert _decide(constants.STATUS_REVERTED, version=FRESH) == Outcome(Decision.SKIP, "reverted")
+
+
+def test_reverted_skips_even_when_hash_changed():
+    # A push after the revert changes the fingerprint; the exclusion still holds.
+    assert _decide(constants.STATUS_REVERTED, latest=HASH_A, current=HASH_B) == Outcome(Decision.SKIP, "reverted")

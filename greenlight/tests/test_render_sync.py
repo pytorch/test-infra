@@ -126,6 +126,22 @@ def test_status_constants_match_python() -> None:
     )
 
 
+def test_every_status_is_branched_on_by_typescript() -> None:
+    source = _read(_TS_RENDER)
+    # A branched status names its constant at least once past the declaration line.
+    unwired = sorted(
+        name for name in _ts_statuses() if len(re.findall(rf"\bGREENLIGHT_STATUS_{re.escape(name)}\b", source)) < 2
+    )
+    assert not unwired, _drift(
+        _TS_RENDER,
+        _PY_CONSTANTS,
+        f"declared but never branched on: {unwired}. Declaring the constant is all "
+        f"test_status_constants_match_python asks for, so a status can satisfy it and still fall "
+        f'through renderGreenlightSection to "" -- which buildGreenlightSections drops, taking '
+        f"the whole GREEN LIGHT section out of the Dr. CI comment rather than showing the state.",
+    )
+
+
 _HEADLINES = {
     "GREENLIGHT_LAND_HEADLINE": comment_format.LAND_HEADLINE,
     "GREENLIGHT_NO_LAND_HEADLINE": comment_format.NO_LAND_HEADLINE,
