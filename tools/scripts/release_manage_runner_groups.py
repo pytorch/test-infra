@@ -535,12 +535,22 @@ def reconcile_repo_access(
     return True
 
 
+def resolve_token(explicit: Optional[str]) -> Tuple[str, str]:
+    """Return (token, where it came from) so errors can name the missing input."""
+    if explicit:
+        return explicit, "--token"
+    token = os.getenv("RUNNER_GROUP_TOKEN")
+    if token:
+        return token, "RUNNER_GROUP_TOKEN"
+    return os.getenv("GITHUB_TOKEN", ""), "GITHUB_TOKEN"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--token",
         type=str,
-        default=os.getenv("RUNNER_GROUP_TOKEN") or os.getenv("GITHUB_TOKEN", ""),
+        default=None,
         help="GitHub token for managing runner groups (or RUNNER_GROUP_TOKEN/GITHUB_TOKEN)",
     )
     parser.add_argument(
@@ -553,11 +563,24 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if not args.token:
+    token, token_source = resolve_token(args.token)
+    if not token:
         raise SystemExit(
             "A GitHub token is required (--token, RUNNER_GROUP_TOKEN or GITHUB_TOKEN)"
         )
-    client = GitHubClient(args.token)
+    # Managing runner groups hits /orgs/{org}/actions/runner-groups, which needs
+    # admin:org. The Actions-provided GITHUB_TOKEN is repo-scoped and can never
+    # have it, so --apply with that token always 403s. Fail here rather than
+    # after the discovery pass, and before any mutation has been attempted.
+    if args.apply and token_source == "GITHUB_TOKEN":
+        raise SystemExit(
+            "--apply needs a token with admin:org, but RUNNER_GROUP_TOKEN is "
+            "unset so the repo-scoped GITHUB_TOKEN was used, which cannot "
+            f"manage /orgs/{ORG}/actions/runner-groups. Check that the "
+            "RUNNER_GROUP_TOKEN secret exists in the 'runner-group' environment "
+            "and has not expired."
+        )
+    client = GitHubClient(token)
 
     refs = get_target_refs(client)
     log(f"Target refs: {refs}")
@@ -574,6 +597,13 @@ def main() -> None:
         if status == 403 and not args.apply:
             log("No access to runner groups; discovery-only run")
             return
+        if status == 403:
+            raise SystemExit(
+                f"403 reading /orgs/{ORG}/actions/runner-groups with the token "
+                f"from {token_source}. That token lacks admin:org -- if it is "
+                "RUNNER_GROUP_TOKEN, the secret is likely expired or was "
+                "re-issued without the scope."
+            ) from error
         raise
 
     repo_id = get_repo_id(client)
