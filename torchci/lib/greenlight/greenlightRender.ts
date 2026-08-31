@@ -20,6 +20,7 @@ export const GREENLIGHT_STATUS_AI_REVIEW_STARTED = "AI_REVIEW_STARTED";
 export const GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED = "AI_REVIEW_DISPATCHED";
 export const GREENLIGHT_STATUS_CANCELLED = "CANCELLED";
 export const GREENLIGHT_STATUS_FAILED = "FAILED";
+export const GREENLIGHT_STATUS_REVERTED = "REVERTED";
 
 export const GREENLIGHT_LAND_HEADLINE =
   "PR approved to be merged without human review";
@@ -27,7 +28,14 @@ export const GREENLIGHT_NO_LAND_HEADLINE = "PR requires human review";
 export const GREENLIGHT_REVIEWING_HEADLINE = "Green Light review in progress";
 export const GREENLIGHT_INCOMPLETE_HEADLINE =
   "Green Light review did not complete";
+export const GREENLIGHT_REVERTED_HEADLINE =
+  "PR was reverted - re-landing requires human review";
 export const GREENLIGHT_REVIEWING_BODY = "Green Light is reviewing this PR.";
+// Says only what the row itself establishes. The row is recorded for every reverted
+// candidate, including one Green Light never approved and one whose revocation
+// failed, so a body claiming the approval was dismissed would be wrong on both.
+export const GREENLIGHT_REVERTED_BODY =
+  "Green Light will not review this PR again, on this or any later commit; re-landing it needs a human approval.";
 
 // Leads the summary line whenever the verdict was reached on a commit that is no
 // longer the PR's head. The scan writes no new row once a human has decided,
@@ -322,6 +330,21 @@ export function renderGreenlightSection(
       evalJob,
       false,
       outdated
+    );
+  }
+
+  // A revert excludes the PR outright rather than judging one commit: it holds
+  // for the current head and every later one, and the row carries no reason,
+  // message or job of its own. Both the outdated marker and the reviewed-commit
+  // line would frame it as superseded by the next push, which is the one reading
+  // that leaves an author waiting on a re-review that never comes.
+  if (status === GREENLIGHT_STATUS_REVERTED) {
+    return renderSection(
+      GREENLIGHT_REVERTED_HEADLINE,
+      [GREENLIGHT_REVERTED_BODY],
+      evalJob,
+      false,
+      false
     );
   }
 

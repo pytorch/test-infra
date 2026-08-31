@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 STATUS_LAND = "LAND"
 STATUS_NO_LAND = "NO_LAND"
@@ -10,6 +14,10 @@ STATUS_CANCELLED = "CANCELLED"
 STATUS_FAILED = "FAILED"
 STATUS_AI_REVIEW_STARTED = "AI_REVIEW_STARTED"
 STATUS_AI_REVIEW_DISPATCHED = "AI_REVIEW_DISPATCHED"
+# REVERTED is deliberately a member of none of the groupings below. That keeps it out of
+# VERDICT_STATUSES (the verdict CLI can never emit it) and out of decide()'s status branches, which
+# must therefore match it explicitly rather than let it reach the unknown-status DISPATCH fallback.
+STATUS_REVERTED = "REVERTED"
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({STATUS_LAND, STATUS_NO_LAND})
 IN_FLIGHT_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_STARTED, STATUS_AI_REVIEW_DISPATCHED})
@@ -20,9 +28,24 @@ RETRY_STATUSES: frozenset[str] = frozenset({STATUS_CANCELLED, STATUS_FAILED})
 SCAN_ONLY_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_DISPATCHED})
 VERDICT_STATUSES: frozenset[str] = (TERMINAL_STATUSES | IN_FLIGHT_STATUSES | RETRY_STATUSES) - SCAN_ONLY_STATUSES
 
-# GitHub labels are case-sensitive; the pytorch stale bot uses the exact name "Stale".
+# GitHub labels are case-sensitive; pytorch's stale.yml both applies and case-sensitively tests
+# the exact name "Stale", so folding it here would diverge from the bot this filter tracks.
 STALE_LABEL = "Stale"
 EXCLUDED_LABELS: frozenset[str] = frozenset({STALE_LABEL})
+
+# The revert label is matched case-insensitively instead: pytorch's trymerge applies it as
+# lowercase "reverted" and GitHub resolves that to whichever canonical label the repo holds, so the
+# casing greenlight reads back is the label registry's, not the caller's. Folding cannot conflate
+# two distinct labels either -- GitHub rejects names differing only in case.
+REVERTED_LABEL = "Reverted"
+REVERTED_LABELS: frozenset[str] = frozenset({REVERTED_LABEL})
+
+
+def carries_any_label(labels: Iterable[str], wanted: Iterable[str]) -> bool:
+    """True when any name in ``labels`` matches one in ``wanted``, compared case-insensitively."""
+    folded = {name.casefold() for name in wanted}
+    return any(label.casefold() in folded for label in labels)
+
 
 # The reviewer and record workflows already write greenlight state rows to this bucket via
 # ``aws s3 cp``; the scan's direct boto3 upload targets the same bucket, single-sourced here.
@@ -61,9 +84,11 @@ def normalize_repo(repo: str) -> str:
 # Entries are folded at construction, so a mixed-case addition cannot silently never match.
 DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
 
-# A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. Both the verdict
-# writer and the scan's recheck-refusal poster author-scope their comment writes to this login,
-# so it must be App-shaped or a copied marker in a third party's comment could be hijacked.
+# A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
+# and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must
+# be App-shaped or a copied marker in a third party's comment could be hijacked; the scan also
+# matches greenlight's own approving reviews by it before revoking them on a reverted PR, where a
+# login that is not App-shaped would match nothing while reporting success.
 BOT_LOGIN_SUFFIX = "[bot]"
 
 

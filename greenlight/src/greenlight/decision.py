@@ -11,7 +11,7 @@ import enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from greenlight.constants import IN_FLIGHT_STATUSES, RETRY_STATUSES, TERMINAL_STATUSES
+from greenlight.constants import IN_FLIGHT_STATUSES, RETRY_STATUSES, STATUS_REVERTED, TERMINAL_STATUSES
 
 if TYPE_CHECKING:
     from datetime import datetime, timedelta
@@ -44,6 +44,12 @@ def decide(
 ) -> Outcome:
     if latest_status is None:
         return Outcome(Decision.DISPATCH, "never_reviewed")
+
+    # A reverted PR is never re-reviewed, whatever its fingerprint now says. The scan drops it
+    # long before this, so reaching here means that guard was bypassed -- and the fallthrough for
+    # an unrecognised status is DISPATCH, which would put a reverted PR straight back in review.
+    if latest_status == STATUS_REVERTED:
+        return Outcome(Decision.SKIP, "reverted")
 
     if latest_status in TERMINAL_STATUSES:
         if latest_eval_hash == current_eval_hash:
