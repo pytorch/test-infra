@@ -1,10 +1,11 @@
+import { confidenceBucket } from "lib/advisor/advisorBadge";
 import {
+  confidentEnoughToSuppress,
   extractSuppressed,
   isSuppressible,
-  MIN_SUPPRESSION_CONFIDENCE,
-  resolveVerdict,
+  suppressibleJobIds,
 } from "lib/advisor/advisorSuppression";
-import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
+import { AdvisorVerdictRow, resolveVerdict } from "lib/advisorVerdictUtils";
 import { RecentWorkflowsData } from "lib/types";
 
 const HEAD_SHA = "a".repeat(40);
@@ -82,6 +83,45 @@ describe("resolveVerdict", () => {
     ]);
     expect(resolved?.verdict).toBe("related");
   });
+
+  // "Least confident wins" is a comparison, and NaN loses every comparison, so
+  // an unusable row would be discarded in favour of the usable one -- the
+  // opposite of the safe direction. Both orderings are checked because the
+  // reducer is order-sensitive in exactly the way that would hide this.
+  test.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["above 1", 1.5],
+    ["negative", -0.2],
+  ])("a tied row with %s confidence makes the key ambiguous", (_label, bad) => {
+    expect(
+      resolveVerdict([
+        row({ timestamp: AFTER_JOB, confidence: bad }),
+        row({ timestamp: AFTER_JOB, confidence: 0.95 }),
+      ])
+    ).toBeNull();
+    expect(
+      resolveVerdict([
+        row({ timestamp: AFTER_JOB, confidence: 0.95 }),
+        row({ timestamp: AFTER_JOB, confidence: bad }),
+      ])
+    ).toBeNull();
+  });
+
+  test("a lone row with an unusable confidence is ambiguous too", () => {
+    expect(
+      resolveVerdict([row({ timestamp: AFTER_JOB, confidence: Number.NaN })])
+    ).toBeNull();
+  });
+
+  test("an older row with an unusable confidence does not poison a good newest row", () => {
+    expect(
+      resolveVerdict([
+        row({ timestamp: BEFORE_JOB, confidence: Number.NaN }),
+        row({ timestamp: AFTER_JOB, confidence: 0.95 }),
+      ])?.confidence
+    ).toBe(0.95);
+  });
 });
 
 describe("isSuppressible", () => {
@@ -100,12 +140,31 @@ describe("isSuppressible", () => {
     }
   );
 
-  test("confidence below the high bucket keeps the job blocking", () => {
-    expect(
-      isSuppressible(job(), [
-        row({ confidence: MIN_SUPPRESSION_CONFIDENCE - 0.01 }),
-      ])
-    ).toBe(false);
+  test.each([0.88, 0.71, 0.5])(
+    "confidence %s is below the badge scale's high bucket, so the job keeps blocking",
+    (confidence) => {
+      // Assert the premise: if the scale is retuned so this is `high` after
+      // all, the case below stops testing anything and should fail loudly.
+      expect(confidenceBucket(confidence)).not.toBe("high");
+      expect(isSuppressible(job(), [row({ confidence })])).toBe(false);
+    }
+  );
+
+  test("the gate follows the badge scale rather than a copied threshold", () => {
+    // The lowest confidence advisorBadge still labels "not related".
+    const lowestHigh = 0.89;
+    expect(confidenceBucket(lowestHigh)).toBe("high");
+    expect(isSuppressible(job(), [row({ confidence: lowestHigh })])).toBe(true);
+  });
+
+  // Deriving the gate from the badge scale is deliberate -- the comment must not
+  // say "not related" while the gate disagrees -- but it does mean a change to a
+  // UI scale moves a merge gate. Pin the number here so that change cannot be
+  // silent: retuning `confidenceBucket` turns this red and whoever does it has
+  // to decide the merge question on purpose.
+  test("the merge gate's effective floor is 0.89 -- retuning the badge scale must be deliberate", () => {
+    expect(confidentEnoughToSuppress(0.89)).toBe(true);
+    expect(confidentEnoughToSuppress(0.8899)).toBe(false);
   });
 
   test("a verdict older than the job's completion is a stale rerun verdict", () => {
@@ -140,6 +199,86 @@ describe("isSuppressible", () => {
         row(),
       ])
     ).toBe(false);
+  });
+});
+
+describe("suppressibleJobIds", () => {
+  const OWNER = "pytorch";
+  const REPO = "pytorch";
+  const OTHER_SHA = "b".repeat(40);
+
+  let savedFlag: string | undefined;
+  beforeEach(() => {
+    savedFlag = process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
+    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "true";
+  });
+  afterEach(() => {
+    if (savedFlag === undefined) {
+      delete process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
+    } else {
+      process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = savedFlag;
+    }
+  });
+
+  function ids(
+    jobs: RecentWorkflowsData[],
+    rows: AdvisorVerdictRow[],
+    headSha = HEAD_SHA
+  ): number[] {
+    return [...suppressibleJobIds(OWNER, REPO, headSha, jobs, rows)].sort(
+      (a, b) => a - b
+    );
+  }
+
+  test("a cleared job is returned when the flag is on", () => {
+    expect(ids([job()], [row()])).toEqual([1]);
+  });
+
+  test("the flag being off clears nothing", () => {
+    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "false";
+    expect(ids([job()], [row()])).toEqual([]);
+  });
+
+  test("an advisor-disabled repo clears nothing even with the flag on", () => {
+    expect([
+      ...suppressibleJobIds(
+        OWNER,
+        "not-an-advisor-repo",
+        HEAD_SHA,
+        [job()],
+        [row()]
+      ),
+    ]).toEqual([]);
+  });
+
+  test("a verdict for a different head does not clear this head's job", () => {
+    expect(ids([job()], [row({ sha: OTHER_SHA })])).toEqual([]);
+  });
+
+  test("a FixedString-padded sha still matches the head", () => {
+    expect(ids([job()], [row({ sha: `${HEAD_SHA}    ` })])).toEqual([1]);
+  });
+
+  test("rows are matched to jobs by the dr_ci_ signal key, not the bare name", () => {
+    // Same verdict, keyed by the raw job name instead of `dr_ci_<name>`.
+    expect(ids([job()], [row({ signal_key: job().name })])).toEqual([]);
+  });
+
+  test("a verdict for one job does not clear a different job", () => {
+    const cleared = job({ id: 1 });
+    const other = job({
+      id: 2,
+      name: "pull / linux-jammy-py3.10-gcc11 / build",
+    });
+    expect(ids([cleared, other], [row()])).toEqual([1]);
+  });
+
+  test("no rows at all clears nothing", () => {
+    expect(ids([job()], [])).toEqual([]);
+  });
+
+  test("an unnamed job is skipped rather than throwing", () => {
+    expect(ids([job({ name: undefined })], [row()])).toEqual([]);
   });
 });
 

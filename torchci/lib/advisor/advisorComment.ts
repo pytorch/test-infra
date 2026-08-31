@@ -10,34 +10,29 @@ import {
   AdvisorLineVerdict,
   selectAdvisorLines,
 } from "lib/advisor/advisorBadge";
-import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import {
   readDispatchStates,
   signalKeyForJob,
 } from "lib/advisor/advisorDispatch";
+import { advisorCommentEnabled } from "lib/advisor/advisorFlags";
 import {
   AdvisorVerdictRow,
-  deduplicateVerdicts,
+  headRowsBySignalKey,
+  resolveVerdict,
 } from "lib/advisorVerdictUtils";
-import { queryClickhouseSaved } from "lib/clickhouse";
 import { RecentWorkflowsData } from "lib/types";
-
-// Gate the inline verdict rendering behind its own flag so it ships dark and
-// can be enabled per deployment (Vercel env var), independently of the
-// auto-dispatch flag. Display-only, so it doesn't also require VERCEL_ENV
-// (unlike auto-dispatch, which fires real workflow_dispatches).
-export function advisorCommentEnabled(owner: string, repo: string): boolean {
-  return (
-    process.env.DRCI_ADVISOR_COMMENT_ENABLED === "true" &&
-    isAdvisorEnabled(owner, repo)
-  );
-}
 
 /**
  * Build the per-job "AI verdict:" line for a PR's new/unclassified failures.
  * Returns job.id -> rendered HTML (empty map when the comment flag is off, the
  * repo isn't advisor-enabled, or there are no jobs). The caller wraps this so a
  * ClickHouse error can never break the Dr.CI comment.
+ *
+ * Takes the PR's verdict rows rather than reading them, so this line and the
+ * suppression gate describe the same rows resolved the same way. A signal key
+ * whose newest rows disagree resolves to nothing here too, and the job falls
+ * through to the pending/in-progress treatment below -- an unusable answer
+ * should not render as a confident badge.
  */
 export async function buildAdvisorVerdictLines(
   hudBaseUrl: string,
@@ -45,24 +40,22 @@ export async function buildAdvisorVerdictLines(
   repo: string,
   prNumber: number,
   headSha: string,
-  jobs: RecentWorkflowsData[]
+  jobs: RecentWorkflowsData[],
+  verdictRows: AdvisorVerdictRow[]
 ): Promise<Map<number, string>> {
   if (!advisorCommentEnabled(owner, repo) || jobs.length === 0) {
     return new Map();
   }
 
   // Finalized verdicts for this PR, keyed by signal_key for the head commit.
-  const verdictRows = (await queryClickhouseSaved("advisor_verdicts_for_pr", {
-    repo: `${owner}/${repo}`,
-    prNumber,
-  })) as AdvisorVerdictRow[];
   const verdictByKey = new Map<string, AdvisorLineVerdict>();
-  for (const v of deduplicateVerdicts(verdictRows)) {
-    if (v.sha === headSha) {
-      verdictByKey.set(v.signalKey, {
-        verdict: v.verdict,
-        confidence: v.confidence,
-        summary: v.summary,
+  for (const [signalKey, rows] of headRowsBySignalKey(verdictRows, headSha)) {
+    const resolved = resolveVerdict(rows);
+    if (resolved !== null) {
+      verdictByKey.set(signalKey, {
+        verdict: resolved.verdict,
+        confidence: resolved.confidence,
+        summary: resolved.summary,
       });
     }
   }

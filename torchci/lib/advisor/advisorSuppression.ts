@@ -9,11 +9,17 @@
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { drciSignalKeyForJob } from "lib/advisor/advisorBadge";
-import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
-import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
+import {
+  confidenceBucket,
+  drciSignalKeyForJob,
+} from "lib/advisor/advisorBadge";
+import { advisorSuppressionEnabled } from "lib/advisor/advisorFlags";
+import {
+  AdvisorVerdictRow,
+  headRowsBySignalKey,
+  resolveVerdict,
+} from "lib/advisorVerdictUtils";
 import { isTime0 } from "lib/bot/utils";
-import { queryClickhouseSaved } from "lib/clickhouse";
 import { RecentWorkflowsData } from "lib/types";
 
 dayjs.extend(utc);
@@ -23,10 +29,13 @@ dayjs.extend(utc);
 // suppressing it would convert untested into green.
 export const SUPPRESSIBLE_VERDICT = "not_related";
 
-// The badge scale's `high` bucket. The UI already labels anything below this
-// "probably not related" or "not related (uncertain)", and an uncertain verdict
-// is not a basis for skipping a gate.
-export const MIN_SUPPRESSION_CONFIDENCE = 0.89;
+// Clear only what the badge scale calls high confidence. Asks advisorBadge for
+// the bucket rather than restating its threshold, so retuning the scale moves
+// the gate with it instead of leaving the comment saying "probably not related"
+// while this still suppresses.
+export function confidentEnoughToSuppress(confidence: number): boolean {
+  return confidenceBucket(confidence) === "high";
+}
 
 // A verdict describes one execution of a job, but is keyed only by (sha, job
 // name), so a rerun at the same head would otherwise inherit the previous run's
@@ -63,48 +72,6 @@ export function producedATestOutcome(job: RecentWorkflowsData): boolean {
   return job.conclusion === "failure";
 }
 
-export function advisorSuppressionEnabled(
-  owner: string,
-  repo: string
-): boolean {
-  return (
-    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED === "true" &&
-    isAdvisorEnabled(owner, repo)
-  );
-}
-
-/**
- * Pick the verdict for one signal key, keeping "ambiguous" distinct from
- * "absent". Rows tied at the newest timestamp with different verdicts mean an
- * answer arrived and is unusable, so the job keeps blocking rather than taking
- * whichever row sorted first. Tied rows that agree on the verdict but differ on
- * confidence resolve to the LOWEST, since confidence is part of the safety
- * decision too.
- *
- * Sorts rather than trusting the caller: the saved query orders by timestamp
- * with no tie-breaker, and "whatever ClickHouse returned first" is not a basis
- * for skipping a merge gate.
- */
-export function resolveVerdict(
-  rows: AdvisorVerdictRow[]
-): { verdict: string; confidence: number; timestamp: string } | null {
-  if (rows.length === 0) {
-    return null;
-  }
-  const newestTimestamp = rows
-    .map((r) => r.timestamp)
-    .reduce((a, b) => (a > b ? a : b));
-  const tied = rows.filter((r) => r.timestamp === newestTimestamp);
-  if (tied.some((r) => r.verdict !== tied[0].verdict)) {
-    return null;
-  }
-  return {
-    verdict: tied[0].verdict,
-    confidence: Math.min(...tied.map((r) => r.confidence)),
-    timestamp: newestTimestamp,
-  };
-}
-
 /** Whether one job's verdict clears it to stop blocking. Pure, for testing. */
 export function isSuppressible(
   job: RecentWorkflowsData,
@@ -119,41 +86,32 @@ export function isSuppressible(
   }
   return (
     resolved.verdict === SUPPRESSIBLE_VERDICT &&
-    resolved.confidence >= MIN_SUPPRESSION_CONFIDENCE &&
+    confidentEnoughToSuppress(resolved.confidence) &&
     verdictDescribesThisRun(job, resolved.timestamp)
   );
 }
 
 /**
  * Job ids among `jobs` that the advisor has cleared. Returns an empty set when
- * the flag is off, so the caller needs no separate check. The caller must also
- * wrap this: a ClickHouse error can never be allowed to break the comment.
+ * the flag is off, so the caller needs no separate check.
+ *
+ * Takes the PR's verdict rows rather than reading them: drci.ts reads once and
+ * shares them with the badge line, so the comment and the gate cannot disagree
+ * about a job. Rows for any other commit are dropped here, so a verdict from an
+ * earlier head can never clear a job at this one.
  */
-export async function fetchSuppressibleJobIds(
+export function suppressibleJobIds(
   owner: string,
   repo: string,
-  prNumber: number,
   headSha: string,
-  jobs: RecentWorkflowsData[]
-): Promise<Set<number>> {
+  jobs: RecentWorkflowsData[],
+  verdictRows: AdvisorVerdictRow[]
+): Set<number> {
   if (!advisorSuppressionEnabled(owner, repo) || jobs.length === 0) {
     return new Set();
   }
 
-  const allRows = (await queryClickhouseSaved("advisor_verdicts_for_pr", {
-    repo: `${owner}/${repo}`,
-    prNumber,
-  })) as AdvisorVerdictRow[];
-
-  // Rows arrive newest-first; keep only this head's, grouped by signal key.
-  const rowsByKey = new Map<string, AdvisorVerdictRow[]>();
-  for (const row of allRows) {
-    if (row.sha.trim() !== headSha) {
-      continue;
-    }
-    const key = row.signal_key;
-    rowsByKey.set(key, (rowsByKey.get(key) ?? []).concat(row));
-  }
+  const rowsByKey = headRowsBySignalKey(verdictRows, headSha);
 
   const suppressible = new Set<number>();
   for (const job of jobs) {

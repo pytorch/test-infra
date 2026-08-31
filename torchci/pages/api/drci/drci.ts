@@ -6,8 +6,13 @@ import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
 import {
   extractSuppressed,
-  fetchSuppressibleJobIds,
+  suppressibleJobIds,
 } from "lib/advisor/advisorSuppression";
+import {
+  fetchAdvisorVerdictRows,
+  shouldReadAdvisorVerdicts,
+} from "lib/advisor/advisorVerdictSource";
+import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
@@ -304,9 +309,39 @@ export async function updateDrciComments(
         );
       }
 
-      // Look up AI advisor verdicts / in-progress dispatches for this PR's new
-      // and unclassified failures, rendered as an inline "AI verdict:" line per
-      // job. Wrapped so an advisor / ClickHouse error can never break the comment.
+      // The failures either advisor consumer can say anything about.
+      const advisorJobs = [...failedJobs, ...unknownJobs];
+
+      // One read of this PR's advisor verdicts, shared by the inline "AI
+      // verdict:" line and the suppression gate below. Reading per consumer
+      // would let a verdict landing between the two reads make the badge and
+      // the merge gate describe the same job differently.
+      //
+      // A read that is skipped or fails yields an empty array, which both
+      // consumers treat as "no verdict": nothing is suppressed, so every job
+      // keeps blocking. Note the comment can still render an "analyzing" line
+      // for a job with a dispatch in flight, since that state is read
+      // separately and does not depend on these rows.
+      let advisorVerdictRows: AdvisorVerdictRow[] = [];
+      if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
+        try {
+          advisorVerdictRows = await fetchAdvisorVerdictRows(
+            owner,
+            repo,
+            pr_info.pr_number
+          );
+        } catch (e) {
+          console.error(
+            "advisor verdict fetch threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
+      // Render the verdicts for this PR's new and unclassified failures as an
+      // inline line per job. Wrapped so an advisor error can never break the
+      // comment.
       let advisorLines: Map<number, string> = new Map();
       try {
         advisorLines = await buildAdvisorVerdictLines(
@@ -315,7 +350,8 @@ export async function updateDrciComments(
           repo,
           pr_info.pr_number,
           pr_info.head_sha,
-          [...failedJobs, ...unknownJobs]
+          advisorJobs,
+          advisorVerdictRows
         );
       } catch (e) {
         console.error(
@@ -329,17 +365,17 @@ export async function updateDrciComments(
       // bucket, so they leave the NEW/UNCLASSIFIED sections and stop blocking
       // the merge. Runs BEFORE the CRCR block below on purpose: CRCR L4 jobs
       // are pushed into failedJobs there and were never advisor-analyzed, so
-      // they must not be eligible. Wrapped so a ClickHouse error can never
+      // they must not be eligible. Wrapped so an unexpected error can never
       // break the comment -- and failing to an empty set keeps everything
       // blocking, which is the safe direction.
       const aiNotRelatedJobs: RecentWorkflowsData[] = [];
       try {
-        const suppressible = await fetchSuppressibleJobIds(
+        const suppressible = suppressibleJobIds(
           owner,
           repo,
-          pr_info.pr_number,
           pr_info.head_sha,
-          [...failedJobs, ...unknownJobs]
+          advisorJobs,
+          advisorVerdictRows
         );
         aiNotRelatedJobs.push(
           ...extractSuppressed(failedJobs, suppressible),
