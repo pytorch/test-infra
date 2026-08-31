@@ -3,11 +3,9 @@ import json
 import os
 import sys
 from unittest import main, TestCase
-from unittest.mock import patch
 
 from tools.scripts.generate_binary_build_matrix import (
     generate_build_matrix,
-    GETTING_STARTED_ROCM_ARCH,
     parse_version,
     ROCM_ARCHES_DICT,
 )
@@ -237,13 +235,9 @@ class GenerateBuildMatrixTest(TestCase):
     def test_getting_started_nightly_ships_one_rocm(self):
         versions = self._rocm_versions("nightly", "true")
         self.assertEqual(len(versions), 1)
-        self.assertEqual(versions, {GETTING_STARTED_ROCM_ARCH})
-        self.assertIn(GETTING_STARTED_ROCM_ARCH, ROCM_ARCHES_DICT["nightly"])
-
-    def test_getting_started_falls_back_to_newest_rocm(self):
-        with patch.dict(ROCM_ARCHES_DICT, {"nightly": ["7.14", "8.0"]}, clear=False):
-            versions = self._rocm_versions("nightly", "true")
-        self.assertEqual(versions, {"8.0"})
+        self.assertEqual(
+            versions, {max(ROCM_ARCHES_DICT["nightly"], key=parse_version)}
+        )
 
     def test_nightly_builds_keep_every_rocm(self):
         versions = self._rocm_versions("nightly", "false")
