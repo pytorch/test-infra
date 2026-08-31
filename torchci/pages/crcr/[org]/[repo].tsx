@@ -85,6 +85,8 @@ interface SummaryStats {
 interface RepoTenure {
   current_level: string;
   level_since: string;
+  first_seen: string;
+  last_seen: string;
 }
 
 // "2 months ago" / "5 days ago"; caps at "100+ days ago" since level_since
@@ -97,6 +99,20 @@ function tenureDisplay(sinceIso: string): string {
   if (days < 60) return `${days} day${days === 1 ? "" : "s"} ago`;
   const months = Math.floor(days / 30);
   return `${months} month${months === 1 ? "" : "s"} ago`;
+}
+
+// "47 days of data" — spans first_seen -> last_seen across all levels, not
+// just the current one. Covers the L3 promotion prerequisite's second half
+// ("the HUD must have at least 2 weeks of recent data").
+function dataCoverageDisplay(
+  firstSeenIso: string,
+  lastSeenIso: string
+): string {
+  const days = Math.floor(
+    (new Date(lastSeenIso).getTime() - new Date(firstSeenIso).getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
+  return `${days} day${days === 1 ? "" : "s"} of data`;
 }
 
 // ---- Summary Stat Cards ----
@@ -1439,7 +1455,8 @@ export default function CrcrBackendPage() {
                   {!isNightly && tenure && tenure.current_level && (
                     <Typography variant="body2" color="text.secondary">
                       {tenure.current_level} since{" "}
-                      {tenureDisplay(tenure.level_since)}
+                      {tenureDisplay(tenure.level_since)} ·{" "}
+                      {dataCoverageDisplay(tenure.first_seen, tenure.last_seen)}
                     </Typography>
                   )}
                 </Stack>
