@@ -415,6 +415,9 @@ describe("renderGreenlightSection statuses", () => {
     expect(out).not.toContain(GREENLIGHT_INCOMPLETE_HEADLINE);
     expect(out).not.toContain("reason:");
     expect(out).not.toContain("```");
+    // The row says nothing about a dismissal having happened, and is written for
+    // PRs Green Light never approved, so the body may not assert one.
+    expect(GREENLIGHT_REVERTED_BODY).not.toMatch(/dismiss/i);
   });
 
   it("returns empty for statuses it cannot render", () => {
