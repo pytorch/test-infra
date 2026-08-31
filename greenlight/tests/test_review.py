@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import drci_poke, github_client, review, scan_runner, state_emit
+from greenlight import clickhouse_client, drci_poke, github_client, revert_guard, review, scan_runner, state_emit
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -19,6 +19,7 @@ from greenlight.constants import (
     STATUS_CANCELLED,
     STATUS_FAILED,
     STATUS_LAND,
+    STATUS_REVERTED,
     TARGET_REPO,
 )
 from greenlight.github_client import OpenPR
@@ -70,6 +71,21 @@ def _boom_poke(repo: str, pr_number: int, poke_config: Config) -> NoReturn:
     raise AssertionError(f"poke should not be called for {repo}#{pr_number}")
 
 
+def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
+    return set()
+
+
+@dataclass(frozen=True)
+class _FakeHead:
+    sha: str
+
+
+@dataclass(frozen=True)
+class _FakePR:
+    number: int
+    head: _FakeHead
+
+
 def _state(number: int, status: str, eval_hash: str, version: datetime, run_id: int = 0) -> PRState:
     return PRState(
         pr_number=number, status=status, eval_hash=eval_hash, head_sha=f"rec{number}", version=version, run_id=run_id
@@ -97,6 +113,17 @@ def _no_real_drci_post(monkeypatch):
     monkeypatch.setattr(urllib3, "PoolManager", unreachable)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_clickhouse_read(monkeypatch):
+    # Same guard for review.run's default read_reverted seam, which SELECTs from ClickHouse. That
+    # default and read_reverted_pr_numbers' own `connect` default are both bound at import, so the
+    # only interceptable layer is inside connect() itself. Every test injects its own read_reverted.
+    def unreachable() -> str:
+        raise AssertionError("a test reached the live ClickHouse endpoint")
+
+    monkeypatch.setattr(clickhouse_client, "_host_from_env", unreachable)
+
+
 @dataclass
 class _Scan:
     dispatched: list[tuple[int, str, str, str]]
@@ -111,6 +138,9 @@ class _Scan:
     emitted: list[tuple[str, int, str, str, int]]
     poked: list[tuple[str, int, Config]]
     events: list[str]
+    label_fetches: list[int]
+    dismissals: list[tuple[int, str, str]]
+    reverted_emitted: list[tuple[str, int, str, int]]
 
 
 def _run_scan(
@@ -131,8 +161,15 @@ def _run_scan(
     author: str | None = "albanD",
     bot_login: str = "",
     config_kwargs: dict[str, object] | None = None,
+    reverted: frozenset[int] = frozenset(),
+    fetched_labels: dict[int, tuple[str, ...]] | None = None,
+    dismissed_ids: dict[int, list[int]] | None = None,
+    dismiss_errors: dict[int, Exception] | None = None,
 ) -> _Scan:
     states = states or {}
+    fetched_labels = fetched_labels or {}
+    dismissed_ids = dismissed_ids or {}
+    dismiss_errors = dismiss_errors or {}
     dispatched: list[tuple[int, str, str, str]] = []
     read_calls: list[tuple[str, list[int]]] = []
     fingerprinted: list[int] = []
@@ -145,6 +182,9 @@ def _run_scan(
     emitted: list[tuple[str, int, str, str, int]] = []
     poked: list[tuple[str, int, Config]] = []
     events: list[str] = []
+    label_fetches: list[int] = []
+    dismissals: list[tuple[int, str, str]] = []
+    reverted_emitted: list[tuple[str, int, str, int]] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
@@ -174,11 +214,12 @@ def _run_scan(
         return author
 
     def fake_get_pr(_client, _repo, number):
-        # The comment upsert is faked, so the "PR" object need only carry its number back.
-        return number
+        # The comment upsert and the review dismissal are both faked, so the "PR" object need only
+        # carry back its number and the head_sha the reverted-PR row is written from.
+        return _FakePR(number, _FakeHead(f"headsha{number}"))
 
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
-        refusals.append((pr, marker, body, author_login))
+        refusals.append((pr.number, marker, body, author_login))
 
     def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id):
         emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
@@ -187,6 +228,25 @@ def _run_scan(
     def fake_poke(repo, pr_number, poke_config):
         poked.append((repo, pr_number, poke_config))
         events.append(f"poke:{pr_number}")
+
+    def fake_read_reverted(_repo, numbers):
+        return {n for n in numbers if n in reverted}
+
+    def fake_fetch_labels(_client, _repo, number):
+        label_fetches.append(number)
+        return fetched_labels.get(number, ())
+
+    def fake_dismiss(pr, *, bot_login, message):
+        dismissals.append((pr.number, bot_login, message))
+        events.append(f"dismiss:{pr.number}")
+        error = dismiss_errors.get(pr.number)
+        if error is not None:
+            raise error
+        return list(dismissed_ids.get(pr.number, ()))
+
+    def fake_emit_reverted(*, repo, pr_number, head_sha, run_id):
+        reverted_emitted.append((repo, pr_number, head_sha, run_id))
+        events.append(f"emit_reverted:{pr_number}")
 
     review.run(
         make_config(github_token="t", **(config_kwargs or {})),
@@ -201,12 +261,16 @@ def _run_scan(
         build_github=lambda _token, **_kwargs: _CLIENT,
         fetch=fake_fetch,
         fetch_author=fake_fetch_author,
+        fetch_labels=fake_fetch_labels,
         fingerprint=fake_fingerprint,
         read_state=fake_read_state,
+        read_reverted=fake_read_reverted,
         dispatch=fake_dispatch,
         emit_dispatched=fake_emit,
+        emit_reverted=fake_emit_reverted,
         poke_drci=fake_poke,
         get_pr=fake_get_pr,
+        dismiss_approvals=fake_dismiss,
         upsert_comment=fake_upsert,
         resolve_authorized=fake_resolve_authorized,
         now=lambda: now,
@@ -224,6 +288,9 @@ def _run_scan(
         emitted,
         poked,
         events,
+        label_fetches,
+        dismissals,
+        reverted_emitted,
     )
 
 
@@ -585,6 +652,112 @@ def test_stale_label_pr_target_is_exempt(make_config):
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
+def test_reverted_label_drops_pr_before_fingerprinting(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",)), _open_pr(2, updated_at=_NEW)],
+            fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+            bot_login="greenlight-app[bot]",
+            dismissed_ids={1: [901]},
+        )
+
+    # The reverted PR is dropped before the fingerprint stage -- its approval revoked, its exclusion
+    # recorded, Dr. CI poked -- while the healthy PR2 in the same batch is unaffected.
+    assert scan.fingerprinted == [2]
+    assert [number for number, *_ in scan.dispatched] == [2]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert 1 in [pr_number for _repo, pr_number, _config in scan.poked]
+    assert "excluding 1 reverted PR(s) from review: [1]" in caplog.text
+
+
+def test_reverted_row_still_excludes_after_the_label_is_removed(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, STATUS_REVERTED, _HASH_A, _NEW, run_id=3)},
+        reverted=frozenset({1}),
+        bot_login="greenlight-app[bot]",
+    )
+
+    # The no-escape guarantee: with the label gone the recorded row alone keeps the PR out, and the
+    # settled exclusion is not rewritten.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert scan.reverted_emitted == []
+    assert scan.poked == []
+
+
+def test_reverted_pr_target_is_not_exempt_and_is_dropped_silently(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        fetched_labels={5: ("Reverted",)},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # Unlike Stale, a revert is not waived by an explicit recheck. The --pr path has no listing to
+    # read labels from, so it fetches them for its one target; the PR is then dropped with no
+    # refusal comment -- the recheck is simply a no-op.
+    assert scan.label_fetches == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert scan.refusals == []
+    assert scan.reverted_emitted == [(TARGET_REPO, 5, "headsha5", 1)]
+
+
+def test_reverted_dismissal_failure_fails_the_scan_and_writes_no_row(make_config, caplog):
+    with (
+        caplog.at_level(logging.ERROR, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[1\]"),
+    ):
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+            fingerprints={1: ("headsha1", _HASH_A)},
+            bot_login="greenlight-app[bot]",
+            dismiss_errors={1: RuntimeError("dismiss boom")},
+        )
+
+    # No row is written, so the next scan retries the dismissal; the scan still fails closed.
+    assert "failed to revoke greenlight approval on reverted PR #1" in caplog.text
+
+
+def test_reverted_rate_limit_defers_the_fanout_and_the_dispatch_phase(make_config, caplog):
+    from github import RateLimitExceededException
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",)), _open_pr(2, updated_at=_NEW)],
+            fingerprints={2: ("headsha2", _HASH_A)},
+            bot_login="greenlight-app[bot]",
+            dismiss_errors={1: RateLimitExceededException(403)},
+        )
+
+    # A rate limit here is classified exactly as one in the fingerprint stage: it trips the same
+    # shared cancel event, so PR2 is abandoned unfingerprinted and the dispatch phase is skipped.
+    message = str(excinfo.value)
+    assert "1 PR(s) failed during scan: [1]" in message
+    assert "1 PR(s) abandoned due to rate limit: [2]" in message
+    assert "abandoned 1 of 1" in caplog.text
+
+
+def test_reverted_without_app_bot_login_raises(make_config):
+    # BOT_LOGIN is load-bearing for the dismissal, so the scheduled path fails loudly rather than
+    # "dismissing" nothing and then recording an exclusion that suppresses every retry.
+    with pytest.raises(ValueError, match="BOT_LOGIN must be the greenlight App login"):
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+            fingerprints={1: ("headsha1", _HASH_A)},
+            bot_login="",
+        )
+
+
 def test_max_caps_only_dispatches(make_config):
     scan = _run_scan(
         make_config,
@@ -697,6 +870,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             fetch=lambda _client: [_open_pr(n) for n in numbers],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -934,8 +1108,10 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client: [],
             fetch_author=lambda _client, _number: "albanD",
+            fetch_labels=lambda _client, _repo, _number: (),
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1034,6 +1210,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1068,6 +1245,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             fetch=lambda _client: [_open_pr(3), _open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1099,6 +1277,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=boom_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1128,6 +1307,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=boom_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1153,6 +1333,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=timeout_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1184,6 +1365,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=boom_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1232,6 +1414,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         fetch=lambda _client: [_open_pr(n) for n in numbers],
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
+        read_reverted=_no_reverted,
         dispatch=fake_dispatch,
         resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
@@ -1274,6 +1457,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
         fetch=lambda _client: [_open_pr(n) for n in numbers],
         fingerprint=recording_fingerprint,
         read_state=lambda _repo, _numbers: {},
+        read_reverted=_no_reverted,
         dispatch=fake_dispatch,
         resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
@@ -1313,6 +1497,7 @@ def test_run_closes_main_and_worker_clients(make_config):
         fetch=lambda _client: [_open_pr(1), _open_pr(2)],
         fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
+        read_reverted=_no_reverted,
         dispatch=lambda *_args: None,
         resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
@@ -1395,6 +1580,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1437,6 +1623,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             poke_drci=_boom_poke,
             resolve_authorized=lambda: _AUTHORIZED,
@@ -1486,6 +1673,7 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1527,6 +1715,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1561,6 +1750,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
             fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1585,6 +1775,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             fetch=boom_fetch,
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=lambda *_args: None,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
@@ -1658,6 +1849,7 @@ def test_run_cold_authorized_failure_propagates(make_config):
             fetch=lambda _client: [_open_pr(1)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
             dispatch=lambda *_args: None,
             resolve_authorized=boom_resolve,
             now=lambda: _NOW,

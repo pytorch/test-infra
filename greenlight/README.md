@@ -27,7 +27,14 @@ trusted authors in `pytorch/pytorch` and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
-their last review. Draft PRs are dropped from the listing scan entirely — never fingerprinted or
+their last review. A reverted PR is dropped from every path, permanently: greenlight revokes its
+own approving review, records a `REVERTED` row, and never reviews the PR again. A PR counts as
+reverted once it carries the `Reverted` label (matched case-insensitively) or has ever recorded a
+`REVERTED` row — removing the label does not restore eligibility, and an explicit `@greenlight
+recheck` (the `--pr` path) is not exempt, it is skipped silently with no comment posted. The
+revocation needs `BOT_LOGIN` and PR write access; a `BOT_LOGIN` that is not the App's
+`<slug>[bot]` fails the scan rather than silently revoking nothing.
+Draft PRs are dropped from the listing scan entirely — never fingerprinted or
 dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still reviews a draft.
 A PR whose `updated_at` is older than
 `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries the `Stale` label, is
@@ -175,11 +182,13 @@ are needed here; `verdict` needs `PYTORCH_GREENLIGHT_GITHUB_TOKEN` to post `LAND
 and `--dry-run` needs nothing. `--bot-login` (the greenlight GitHub App's `<slug>[bot]`
 account) is required for `NO_LAND`.
 
-Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables:
+Configuration is read from the environment via `PYTORCH_GREENLIGHT_*` variables, plus the
+unprefixed `BOT_LOGIN`:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR read on `pytorch/pytorch`, and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs |
+| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted PR. Must be App-shaped when set; the reverted-PR path refuses the whole scan without it |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted PR), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -210,7 +219,8 @@ In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in th
 schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
 300 s timeout, and `reserved_concurrent_executions = 1`. It runs the same one-shot
 `execute_once` / `review.run` path as `greenlight review` — no scan-logic change — after minting a
-least-privilege GitHub App installation token in-process and reading the App PEM and ClickHouse
+least-privilege GitHub App installation token in-process, resolving `BOT_LOGIN` from the App's own
+`GET /app` slug, and reading the App PEM and ClickHouse
 password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The handler sets
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`, so it runs with no single-instance lock and both
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
@@ -303,7 +313,13 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from a fixed set of trusted authors in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-PRs that are new or changed. Draft PRs are dropped from the listing scan entirely — never
+PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
+`REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
+own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
+pokes Dr. CI when either changed. The
+exclusion survives removal of the label, and `@greenlight recheck` is not exempt (it is skipped
+silently). This is the one path where `review` writes to `pytorch/pytorch`, so it needs PR write
+and the App's `BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never
 fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
 reviews a draft. PRs whose `updated_at` is older than the review window
 (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are

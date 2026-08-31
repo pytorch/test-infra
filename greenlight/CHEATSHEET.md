@@ -12,7 +12,11 @@ one-shot `verdict` and `drci-poke` subcommands:
 - `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
   for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
-  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. Draft PRs are
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A reverted PR —
+  labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
+  path: greenlight revokes its own approving review, records the `REVERTED` row unless it is
+  already the PR's latest, and drops the PR. Removing the label does not restore eligibility, and `@greenlight recheck` is not exempt (it
+  is skipped silently, with no comment). Needs PR write and the App's `BOT_LOGIN`. Draft PRs are
   dropped from the listing scan entirely — never fingerprinted or dispatched — though an explicit
   `@greenlight recheck` (the `--pr` path) still reviews a draft. A PR whose
   `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries
@@ -109,13 +113,14 @@ runs each iteration, and on SIGTERM/SIGINT stops cleanly after the current
 iteration (`INFO greenlight.runner daemon stopped`, exit `0`). Signals are observed
 only between iterations.
 
-Config comes from `PYTORCH_GREENLIGHT_*` env vars; CLI flags `--interval`, `--log-level`,
-and `--lock-path` override the matching env vars, and `review` adds the scan flags `--pr`,
-`--max`, `--ref`, and `--timeout-minutes`.
+Config comes from `PYTORCH_GREENLIGHT_*` env vars plus the unprefixed `BOT_LOGIN`; CLI flags
+`--interval`, `--log-level`, and `--lock-path` override the matching env vars, and `review` adds
+the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR read on `pytorch/pytorch` |
+| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login; author-scopes the recheck-refusal comment and picks out greenlight's approvals to revoke on a reverted PR. Must be App-shaped when set; the reverted-PR path refuses the scan without it |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted PR) |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -148,8 +153,12 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 The end-to-end flow, per trusted-author PR:
 
 1. `review` scans the open PRs, dropping any draft PR from the listing outright — never
-   fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. For
-   each remaining PR it computes its fingerprint (`eval_hash`) — unless
+   fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. It
+   also drops any reverted PR (labeled `Reverted`, or with a `REVERTED` row already recorded),
+   first revoking greenlight's own approving review and recording the `REVERTED` row unless it is
+   already the PR's latest, then poking Dr. CI if either changed anything. That exclusion is permanent, survives
+   removal of the label, and is not waived by `@greenlight recheck` (which is skipped silently).
+   For each remaining PR it computes its fingerprint (`eval_hash`) — unless
    the PR's `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24) or it
    carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,
    or a human has already decided it (approved by a `merge_rules.yaml` approver with bots excluded,
