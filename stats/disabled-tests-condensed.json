@@ -768,16 +768,16 @@
     ]
   ],
   "test_nll_loss_backward_1d_input_dynamic_shapes_mps (__main__.DynamicShapesGPUTests)": [
-    "195389",
-    "https://github.com/pytorch/pytorch/issues/195389",
+    "195390",
+    "https://github.com/pytorch/pytorch/issues/195390",
     [
       "mac",
       "macos"
     ]
   ],
   "test_nll_loss_backward_1d_input_mps (__main__.GPUTests)": [
-    "195391",
-    "https://github.com/pytorch/pytorch/issues/195391",
+    "195392",
+    "https://github.com/pytorch/pytorch/issues/195392",
     [
       "mac",
       "macos"
