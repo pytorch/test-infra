@@ -47,6 +47,12 @@ on:
         default: false
         required: false
         type: boolean
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
   workflow_dispatch:
     inputs:
       channel:
@@ -99,6 +105,12 @@ on:
         required: false
         type: boolean
 
+      test-infra-ref:
+        description: "Ref of pytorch/test-infra to source the validation scripts from"
+        default: "main"
+        required: false
+        type: string
+
 jobs:
   generate-linux-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -120,6 +132,7 @@ jobs:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: main
+      test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: ${{ matrix.build_name }}
       # ROCm validates on the regular almalinux image (like CUDA) to confirm
       # the wheels are self-contained. Only XPU still needs its own container.
@@ -157,6 +170,7 @@ jobs:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
       ref: main
+      test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "poetry-test"
       docker-image: 'pytorch/almalinux-builder:cpu-main'
       docker-build-dir: "skip-docker-build"
@@ -186,6 +200,7 @@ jobs:
       runner: "linux.g5.4xlarge.nvidia.gpu"
       repository: "pytorch/pytorch"
       ref: main
+      test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "amazon-linux-2023-test"
       docker-image: 'almalinux/9-base'
       docker-build-dir: "skip-docker-build"

@@ -235,6 +235,29 @@ cleanup_conda_env() {
     fi
 }
 
+# Read a wheel's compressed download size, in MB, out of a captured pip log.
+#
+# $1 = log file, $2 = distribution name as it appears in the wheel filename.
+# Prints the size, or nothing when that wheel is absent from the log (already
+# satisfied, or installed from a local file). "<dist>-[0-9]" keeps a request for
+# "torch" from matching the torchvision-/torchaudio- wheels.
+parse_wheel_size_mb() {
+    local log_file="$1" dist="$2" frag size unit
+    frag=$(grep -oiE "${dist}-[0-9][^ /]*\.whl \([0-9.]+ ?[kKmMgG]i?B\)" "${log_file}" | tail -1 || true)
+    if [[ -z ${frag} ]]; then
+        return 0
+    fi
+    size=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\1/')
+    unit=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\2/')
+    case ${unit} in
+        B)             awk "BEGIN{printf \"%.1f\", ${size}/1024/1024}" ;;
+        kB|KB|kiB|KiB) awk "BEGIN{printf \"%.1f\", ${size}/1024}" ;;
+        MB|MiB)        awk "BEGIN{printf \"%.1f\", ${size}}" ;;
+        GB|GiB)        awk "BEGIN{printf \"%.1f\", ${size}*1024}" ;;
+        *) echo "::warning::wheel-size: unrecognized size unit '${unit}' for ${dist}" >&2 ;;
+    esac
+}
+
 # Fail the build if the installed torch wheel exceeds a hard size ceiling.
 #
 # Scope: Linux x86_64 + aarch64 wheels only, excluding ROCm (whose wheels are
@@ -257,26 +280,12 @@ check_wheel_size() {
         return 0
     fi
 
-    # Pull the torch wheel's size off pip's Downloading/Using-cached line, e.g.
-    #   Downloading torch-2.10.0.dev...-linux_x86_64.whl (812.4 MB)
-    # torch-[0-9] isolates the torch wheel from torchvision-/torchaudio-.
-    local frag
-    frag=$(grep -oiE "torch-[0-9][^ /]*\.whl \([0-9.]+ ?[kKmMgG]i?B\)" "${log_file}" | tail -1 || true)
-    if [[ -z ${frag} ]]; then
+    local size_mb
+    size_mb=$(parse_wheel_size_mb "${log_file}" torch)
+    if [[ -z ${size_mb} ]]; then
         echo "::warning::wheel-size check: could not find the torch wheel size in the pip output; skipping"
         return 0
     fi
-
-    local size unit size_mb
-    size=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\1/')
-    unit=$(echo "${frag}" | sed -E 's/.*\(([0-9.]+) ?([A-Za-z]+)\)$/\2/')
-    case ${unit} in
-        B)             size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024/1024}") ;;
-        kB|KB|kiB|KiB) size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}/1024}") ;;
-        MB|MiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}}") ;;
-        GB|GiB)        size_mb=$(awk "BEGIN{printf \"%.1f\", ${size}*1024}") ;;
-        *) echo "::warning::wheel-size check: unrecognized size unit '${unit}'; skipping"; return 0 ;;
-    esac
 
     # Always surface the measured size (as an annotation) whether or not the
     # check passes, so it is visible on the run summary of a successful job too.
@@ -284,6 +293,44 @@ check_wheel_size() {
     if awk "BEGIN{exit !(${size_mb} > ${threshold_mb})}"; then
         echo "::error::torch wheel ${size_mb} MB exceeds the ${threshold_mb} MB ceiling (arch=${MATRIX_GPU_ARCH_TYPE:-cpu}, os=${TARGET_OS}, py=${MATRIX_PYTHON_VERSION:-?})"
         return 1
+    fi
+}
+
+# Report what this build actually installed, and how big it is.
+#
+# Complements check_wheel_size, which only measures linux/linux-aarch64 pip
+# wheels and exists to enforce a ceiling: this runs for every build on every OS
+# and never fails, so windows/macos/ROCm sizes are visible too.
+#
+# The report itself is built by build_report.py; see that script for what the
+# two size figures mean. Runs while the env is still active, because
+# cleanup_conda_env removes it on non-linux.
+write_build_report() {
+    local torch_wheel_mb="${1:-}" vision_wheel_mb="${2:-}"
+    local report
+
+    report=$("${PYTHON_RUN}" "${SCRIPT_DIR}/build_report.py" \
+        --target-os "${TARGET_OS}" \
+        --python-version "${MATRIX_PYTHON_VERSION:-?}" \
+        --gpu-arch-type "${MATRIX_GPU_ARCH_TYPE:-cpu}" \
+        --gpu-arch-version "${MATRIX_GPU_ARCH_VERSION:-}" \
+        --torch-wheel-mb "${torch_wheel_mb}" \
+        --torchvision-wheel-mb "${vision_wheel_mb}") || report="| field | value |
+| --- | --- |
+| report | failed to collect |"
+
+    echo "--- Build report"
+    echo "${report}"
+
+    # linux_job_v2 passes GITHUB_STEP_SUMMARY into the container and bind-mounts
+    # the file at the same absolute path, so it is writable there. The guard is
+    # for the paths that do not set it at all -- e.g. running this script by hand.
+    if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
+        {
+            echo "### ${MATRIX_PACKAGE_TYPE:-wheel}: ${TARGET_OS} / py${MATRIX_PYTHON_VERSION:-?} / ${MATRIX_GPU_ARCH_TYPE:-cpu} ${MATRIX_GPU_ARCH_VERSION:-}"
+            echo "${report}"
+            echo
+        } >> "${GITHUB_STEP_SUMMARY}"
     fi
 }
 
@@ -381,6 +428,8 @@ if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
 fi
 
 # Install packages
+TORCH_WHEEL_MB=""
+TORCHVISION_WHEEL_MB=""
 if [[ ${USE_WHEEL_VARIANTS:-} == 'true' ]]; then
     install_wheel_variants
 else
@@ -392,11 +441,18 @@ else
     WHEEL_INSTALL_LOG="$(mktemp)"
     eval "${INSTALLATION}" 2>&1 | tee "${WHEEL_INSTALL_LOG}"
     check_wheel_size "${WHEEL_INSTALL_LOG}"
+    TORCH_WHEEL_MB="$(parse_wheel_size_mb "${WHEEL_INSTALL_LOG}" torch)"
+    TORCHVISION_WHEEL_MB="$(parse_wheel_size_mb "${WHEEL_INSTALL_LOG}" torchvision)"
     rm -f "${WHEEL_INSTALL_LOG}"
 fi
 
 # Install numpy 1.x after torch install
 install_numpy_1x
+
+# Report versions and sizes for this build. Before the smoke tests on purpose:
+# everything the report describes is already installed, and a failing smoke test
+# is exactly when the versions and sizes are worth having in the summary.
+write_build_report "${TORCH_WHEEL_MB}" "${TORCHVISION_WHEEL_MB}"
 
 # Run tests
 run_smoke_tests "${TEST_SUFFIX}"
