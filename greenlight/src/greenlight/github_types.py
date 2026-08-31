@@ -115,6 +115,13 @@ if TYPE_CHECKING:
     class _VerdictRepo(Protocol):
         def get_pull(self, number: int) -> VerdictPR: ...
 
+    class _LabelledPR(Protocol):
+        @property
+        def labels(self) -> Iterable[_Label]: ...
+
+    class _LabelRepo(Protocol):
+        def get_pull(self, number: int) -> _LabelledPR: ...
+
 
 class VerdictClient(Protocol):
     """Structural GitHub client for the verdict path; the real ``github.Github`` satisfies it."""
@@ -126,3 +133,9 @@ class ScanClient(Protocol):
     """Structural GitHub client for the scan/fingerprint path; the real ``github.Github`` satisfies it."""
 
     def get_repo(self, full_name_or_id: str) -> _ScanRepo: ...
+
+
+class LabelClient(Protocol):
+    """Structural GitHub client for a single PR's label read; the real ``github.Github`` satisfies it."""
+
+    def get_repo(self, full_name_or_id: str) -> _LabelRepo: ...

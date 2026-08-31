@@ -7,6 +7,9 @@ one-shot and ``--loop`` paths behave identically -- nothing is remembered in mem
 between scans. All GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword
 seams so the loop is testable without any of them.
 
+Reverted PRs are excluded before any of that, on both the listing and ``--pr`` paths: greenlight
+revokes its own approval, records the exclusion, and drops the PR (see ``revert_guard``).
+
 The fingerprint step can also short-circuit: when a human has already decided a PR (an
 approval from a merge-authorized login, or changes requested by anyone), the scan skips
 its fingerprint and dispatch. On the listing path an approval or changes-requested skips;
@@ -24,14 +27,13 @@ import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from greenlight import candidate_filter, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
 from greenlight import dispatch as dispatch_module
-from greenlight import drci_poke, github_client, scan_runner, state, state_emit
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
     EXCLUDED_LABELS,
     TARGET_REPO,
-    TERMINAL_STATUSES,
 )
 
 if TYPE_CHECKING:
@@ -125,67 +127,24 @@ def _close_client(client: Github) -> None:
 
 def _candidate_numbers(
     client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]
-) -> tuple[list[int], dict[int, datetime | None], frozenset[int]]:
+) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]]]:
+    """Return the candidate PR numbers with their ``updated_at`` and, from the listing, their labels.
+
+    The ``--pr`` path has no listing to read labels from, so it returns none and leaves the one
+    caller that needs them (``revert_guard``) to fetch that single PR's.
+    """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}, frozenset()
+        return [pr], {}, {}
     open_prs = fetch(client)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
         logger.info("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-    stale_labeled_numbers = frozenset(
-        open_pr.number for open_pr in open_prs if not EXCLUDED_LABELS.isdisjoint(open_pr.labels)
-    )
     return (
         [open_pr.number for open_pr in open_prs],
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
-        stale_labeled_numbers,
+        {open_pr.number: open_pr.labels for open_pr in open_prs},
     )
-
-
-def _within_recency_window(updated_at: datetime | None, now: datetime, window: timedelta) -> bool:
-    # A missing updated_at is never treated as stale: absence must not hide recent activity.
-    if updated_at is None:
-        return True
-    return now - updated_at < window
-
-
-def _recency_filter(
-    pr_numbers: Sequence[int],
-    updated_at_by_number: dict[int, datetime | None],
-    states: dict[int, PRState],
-    stale_labeled_numbers: frozenset[int],
-    *,
-    now: datetime,
-    window: timedelta,
-) -> list[int]:
-    """Drop PRs the scan can safely leave alone this iteration.
-
-    A PR is kept when it was updated within ``window`` AND is not ``Stale``-labeled, OR its
-    recorded state is non-terminal (in-flight or retry-eligible), so ``decide`` can still
-    re-dispatch it on timeout/retry. A PR is skipped without fingerprinting when it is stale or
-    ``Stale``-labeled and either terminal (its eval_hash cannot have changed) or never reviewed
-    (an untouched PR is not worth a first review). The ``Stale`` label matters because the pytorch
-    stale bot bumps ``updated_at`` when it applies the label, which would otherwise drag an
-    abandoned never-reviewed PR back into the window.
-    """
-    kept: list[int] = []
-    for number in pr_numbers:
-        active = _within_recency_window(updated_at_by_number.get(number), now, window)
-        stale_labeled = number in stale_labeled_numbers
-        if active and not stale_labeled:
-            kept.append(number)
-            continue
-        recorded = states.get(number)
-        if recorded is not None and recorded.status not in TERMINAL_STATUSES:
-            kept.append(number)
-            continue
-        detail = recorded.status if recorded is not None else "never reviewed"
-        if stale_labeled:
-            logger.info("skipping PR #%d: Stale label (%s)", number, detail)
-        else:
-            logger.info("skipping stale PR #%d: no recent activity (%s)", number, detail)
-    return kept
 
 
 def run(
@@ -202,12 +161,16 @@ def run(
     build_github: _BuildClient = github_client.build_client,
     fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
     fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
+    fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
+    read_reverted: Callable[[str, Sequence[int]], set[int]] = state.read_reverted_pr_numbers,
     dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
     emit_dispatched: Callable[..., None] = state_emit.emit_ai_review_dispatched,
+    emit_reverted: Callable[..., None] = state_emit.emit_reverted,
     poke_drci: Callable[[str, int, Config], None] = drci_poke.poke,
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
+    dismiss_approvals: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
     resolve_authorized: Callable[[], frozenset[str]],
     now: Callable[[], datetime] = _utcnow,
@@ -240,26 +203,10 @@ def run(
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        pr_numbers, updated_at_by_number, stale_labeled_numbers = _candidate_numbers(client, pr=pr, fetch=fetch)
+        pr_numbers, updated_at_by_number, labels_by_number = _candidate_numbers(client, pr=pr, fetch=fetch)
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
         timeout = timedelta(minutes=timeout_minutes)
-        # A human approval skips only the listing scan; on --pr the recheck reviews anyway (an
-        # approval must never suppress a manual recheck). Changes-requested still skips on both.
-        skip_on_approval = pr is None
-        if pr is None:
-            # A single --pr target is always evaluated; the recency window only prunes the
-            # listed scan, where a stale untouched PR would waste a fingerprint.
-            fingerprint_numbers = _recency_filter(
-                pr_numbers,
-                updated_at_by_number,
-                states,
-                stale_labeled_numbers,
-                now=evaluated_at,
-                window=timedelta(hours=config.review_window_hours),
-            )
-        else:
-            fingerprint_numbers = pr_numbers
         failed: list[int] = []
         abandoned: list[int] = []
         skips: list[tuple[int, ReviewSkip]] = []
@@ -268,6 +215,43 @@ def run(
         # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
         # cancel (abandoned stays empty) yet must still skip dispatch.
         cancel_event = threading.Event()
+        # drci_poke's configured delay covers the verdict path's gap between writing the row to /tmp
+        # and a later workflow step uploading it. Both emits below have already PUT the object to S3
+        # before returning, and neither loop is capped, so keeping the wait would only multiply one
+        # sleep per PR into the Lambda's function timeout.
+        poke_config = dataclasses.replace(config, drci_poke_delay_seconds=0.0)
+        excluded = revert_guard.exclude_reverted(
+            client,
+            pr_numbers,
+            known_labels=labels_by_number,
+            states=states,
+            bot_login=bot_login,
+            read_reverted=read_reverted,
+            fetch_labels=fetch_labels,
+            get_pr=get_pr,
+            dismiss=dismiss_approvals,
+            emit=emit_reverted,
+            poke=lambda number: poke_drci(TARGET_REPO, number, poke_config),
+            failed=failed,
+            cancel_event=cancel_event,
+        )
+        pr_numbers = [number for number in pr_numbers if number not in excluded]
+        # A human approval skips only the listing scan; on --pr the recheck reviews anyway (an
+        # approval must never suppress a manual recheck). Changes-requested still skips on both.
+        skip_on_approval = pr is None
+        if pr is None:
+            # A single --pr target is always evaluated; the recency window only prunes the
+            # listed scan, where a stale untouched PR would waste a fingerprint.
+            fingerprint_numbers = candidate_filter.recency_filter(
+                pr_numbers,
+                updated_at_by_number,
+                states,
+                candidate_filter.labeled_with(labels_by_number, EXCLUDED_LABELS),
+                now=evaluated_at,
+                window=timedelta(hours=config.review_window_hours),
+            )
+        else:
+            fingerprint_numbers = pr_numbers
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
@@ -326,11 +310,6 @@ def run(
                 len(pending),
             )
         else:
-            # drci_poke's configured delay covers the verdict path's gap between writing the row to
-            # /tmp and a later workflow step uploading it. Here emit_dispatched has already PUT the
-            # object to S3 before returning, and this loop is uncapped, so keeping the wait would
-            # only multiply one sleep per dispatch into the Lambda's function timeout.
-            poke_config = dataclasses.replace(config, drci_poke_delay_seconds=0.0)
             dispatch_failed = scan_runner._dispatch_pending(
                 client,
                 pending,
