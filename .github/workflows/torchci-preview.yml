@@ -1,0 +1,183 @@
+name: torchci preview
+
+# Deploys a torchci preview for a PR on demand, for contributors whose own PRs
+# cannot produce one (the Vercel Git integration requires a role on the
+# fbopensource team that outside contributors do not have).
+#
+# Triggered by a maintainer adding the `preview-ready` label. Every deploy needs
+# that label applied afresh: on any push the label is swapped for
+# `preview-out-of-date`, so a contributor cannot get a later commit published off
+# an earlier authorization. `is:pr label:preview-out-of-date` lists PRs waiting
+# for a re-deploy.
+#
+# Vercel builds the source itself rather than us building here and uploading a
+# prebuilt artifact. `vercel pull` would write the project's Preview environment
+# variables to .vercel/.env.preview.local, and a local build can bake those into
+# .vercel/output -- neither belongs on a GitHub runner. Uploading source keeps
+# both the variables and the build inside Vercel.
+
+on:
+  pull_request_target:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: torchci-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Any push invalidates an existing authorization. Swaps the label rather than
+  # redeploying, so each deployed commit is one a maintainer explicitly labelled.
+  # Runs none of the PR's code and holds no deploy credentials.
+  invalidate:
+    if: >
+      github.event.action == 'synchronize' &&
+      contains(github.event.pull_request.labels.*.name, 'preview-ready')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Mark the preview out of date
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Tolerate a 404: someone may have removed the label between the push
+          # and this job starting. Adding the marker still matters.
+          gh api -X DELETE \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels/preview-ready" \
+            >/dev/null 2>&1 || true
+          gh api -X POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels" \
+            -f "labels[]=preview-out-of-date" >/dev/null
+          echo "preview-ready removed; re-apply it to deploy this commit." \
+            >> "${GITHUB_STEP_SUMMARY}"
+
+  deploy:
+    if: >
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'preview-ready'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: torchci-preview
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Write access is a wide grant in this repo, so the label alone is not
+      # proof a maintainer authorized this commit. Runs before the checkout so
+      # an unauthorized label never reaches the PR's source. Fails closed: any
+      # API error aborts under `set -e` rather than allowing the deploy.
+      - name: Verify labeler
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABELER: ${{ github.event.sender.login }}
+        run: |
+          set -euo pipefail
+
+          trusted="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/collaborators/${LABELER}/permission" \
+              --jq '.user.permissions.admin or .user.permissions.maintain'
+          )"
+
+          if [ "$trusted" != "true" ]; then
+            echo "::error::@${LABELER} cannot authorize previews"
+            exit 1
+          fi
+
+      # Runs before the checkout, so nothing in the PR -- an `.npmrc` pointing at
+      # another registry, a `package.json` or lockfile entry for `vercel` -- can
+      # change which package this fetches. No Vercel credential is in scope while
+      # npm runs, so a compromised install script cannot read the token.
+      - name: Install Vercel CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund \
+            --registry=https://registry.npmjs.org/ \
+            vercel@59.7.0
+          vercel --version
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Deploy exactly the commit that was head when the label was applied,
+          # and leave no usable credential in the checkout.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      # Uploads the source; Vercel builds it. The PR's code is never executed on
+      # this runner, so having the token here does not expose it to contributor
+      # code the way a local build would.
+      - name: Deploy approved source
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+
+          # The project's Ignored Build Step would skip this deploy; exit 1
+          # means "do build" and overrides it for this authorized run only.
+          config="$RUNNER_TEMP/approved-vercel.json"
+          printf '%s\n' '{"ignoreCommand":"exit 1"}' > "$config"
+
+          url="$(vercel deploy \
+            --yes \
+            --force \
+            --scope=fbopensource \
+            --local-config="$config" | tail -n1)"
+
+          if [[ ! "${url}" =~ ^https:// ]]; then
+            echo "deploy did not return a URL: ${url}" >&2
+            exit 1
+          fi
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+          echo "Preview: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+
+      # Previews are behind Vercel Authentication, so the contributor this
+      # workflow exists for cannot open the URL. Lift protection on this one
+      # deployment; everything it serves is already public in the PR.
+      - name: Make the preview viewable
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+
+          # protection-bypass takes a deployment id, not a hostname.
+          id="$(curl -sSf \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${URL#https://}?teamId=${VERCEL_ORG_ID}" \
+            | jq -re '.id')"
+
+          curl -sSf -X PATCH \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.vercel.com/aliases/${id}/protection-bypass?teamId=${VERCEL_ORG_ID}" \
+            -d '{"override":{"scope":"alias-protection-override","action":"create"}}' \
+            >/dev/null
+
+      - name: Comment the preview URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ steps.deploy.outputs.url }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          body="torchci preview for \`${SHA:0:7}\`: ${URL}
+
+          Pushing to this PR clears \`preview-ready\`; re-apply it to deploy the
+          new commit."
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+            -f body="${body}" >/dev/null
+          # This commit now has a current preview.
+          gh api -X DELETE \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels/preview-out-of-date" \
+            >/dev/null 2>&1 || true
