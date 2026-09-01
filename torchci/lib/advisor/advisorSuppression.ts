@@ -51,9 +51,10 @@ dayjs.extend(utc);
 // `infra_issue` is where that lands. `producedATestOutcome` below narrows this
 // -- it gates on the job's own conclusion rather than the advisor's opinion, so
 // an infra fault that left the job `cancelled` never reaches here -- but it does
-// not close it, since a job can conclude `failure` having tested nothing. The
-// remaining exposure is bounded by the merge-side cap on how many gates one
-// merge may skip, and by this shipping behind a flag.
+// not close it, since a job can conclude `failure` having tested nothing.
+// Nothing on this side bounds how many such jobs one merge may skip; a
+// per-merge cap is proposed in pytorch/pytorch#195503. Unless such a cap is
+// deployed, the flag being off is what holds this residue.
 const VERDICT_DISPOSITION: Record<AdvisorVerdictType, "clear" | "block"> = {
   not_related: "clear",
   infra_issue: "clear",
@@ -71,8 +72,16 @@ export const SUPPRESSIBLE_VERDICTS: ReadonlySet<string> = new Set(
 
 // Clear only what the badge scale calls high confidence. Asks advisorBadge for
 // the bucket rather than restating its threshold, so retuning the scale moves
-// the gate with it instead of leaving the comment saying "probably not related"
-// while this still suppresses.
+// the gate with it.
+//
+// That keeps badge and gate in step for `not_related` -- the only cleared
+// verdict whose label is hedged by confidence, so it is the only one that could
+// read "probably not related" while this suppressed. `verdictBadge` returns for
+// `garbage` and `infra_issue` before it consults the bucket, so those labels
+// never hedge: a sub-threshold `infra_issue` shows a flat "infra issue" beside a
+// job that still blocks, and about 6% of `infra_issue` rows in a recent 30-day
+// sample sit below the bar. Fixing that means changing labels in advisorBadge.ts,
+// which is on the already-live comment path -- a follow-up, not this change.
 export function confidentEnoughToSuppress(confidence: number): boolean {
   return confidenceBucket(confidence) === "high";
 }
@@ -136,9 +145,12 @@ export function isSuppressible(
  * the flag is off, so the caller needs no separate check.
  *
  * Takes the PR's verdict rows rather than reading them: drci.ts reads once and
- * shares them with the badge line, so the comment and the gate cannot disagree
- * about a job. Rows for any other commit are dropped here, so a verdict from an
- * earlier head can never clear a job at this one.
+ * shares them with the badge line, so the two cannot resolve the same job to
+ * different verdicts. They can still reach different DISPOSITIONS -- the gate
+ * adds the confidence, freshness and conclusion tests the badge does not, so a
+ * confident-looking badge beside a still-blocking job is expected. Rows for any
+ * other commit are dropped here, so a verdict from an earlier head can never
+ * clear a job at this one.
  */
 export function suppressibleJobIds(
   owner: string,

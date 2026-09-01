@@ -1090,13 +1090,18 @@ export function constructResultsComment(
     repo,
     prNumber,
     "NEW FAILURES SUPPRESSED BY AI (non-blocking)",
+    // "not evidence against this change" is the only claim true of all three
+    // cleared verdicts -- see SUPPRESSIBLE_VERDICTS. `infra_issue` says the
+    // environment broke, which a PR can itself cause, and `garbage` judges the
+    // signal rather than the change, so "unrelated to the change" would be
+    // false for both. Keep the umbrella wording if this gets shortened again.
     `The following ${pluralize(
       "job",
       aiNotRelatedJobs.length
     )} failed, but the AI CI Advisor judged the ${pluralize(
       "failure",
       aiNotRelatedJobs.length
-    )} unrelated to the change`,
+    )} not to be evidence against this change`,
     aiNotRelatedJobs,
     "",
     true,
