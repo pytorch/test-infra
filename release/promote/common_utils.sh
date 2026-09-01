@@ -226,7 +226,11 @@ CFG
                 export AWS_DEFAULT_REGION="${saved_aws_default_region}"
             fi
             ${AWS} s3 cp --quiet "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
-        ) || { touch "${fail_dir}/$$"; return 1; }
+        ) || {
+            echo "- FAILED download: ${PYTORCH_S3_BUCKET}/${s3_key}" >&2
+            touch "${fail_dir}/$$"
+            return 1
+        }
 
         sha256=$(sha256sum "${local_file}" | awk '{print $1}')
 
@@ -241,10 +245,15 @@ CFG
             ${AWS} s3 cp --quiet "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
-        ) || { rm -f "${local_file}"; touch "${fail_dir}/$$"; return 1; }
+        ) || {
+            echo "- FAILED upload: ${r2_target}" >&2
+            rm -f "${local_file}"
+            touch "${fail_dir}/$$"
+            return 1
+        }
 
         rm -f "${local_file}"
-        echo "+ ${rel_path}"
+        echo "+ ${PYTORCH_S3_BUCKET}/${s3_key} -> ${r2_target}"
     }
 
     echo "+ Promoting ${total_files} files to R2, ${parallel} at a time..."
