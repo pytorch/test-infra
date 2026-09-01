@@ -49,10 +49,11 @@ const REPOS = [
   "pytorch/ao",
 ];
 
-// pytorch/pytorch is the reference: it finished this migration, so it shows what
-// "done" looks like. It is not comparable to the repos above -- it reaches OSDC
-// through runtime label translation (.github/arc.yaml + map_ec2_to_arc.py) rather
-// than by editing runs-on, so its source YAML still reads as EC2.
+// pytorch/pytorch is the reference: furthest along, so it shows roughly what
+// "done" looks like -- though docker-release.yml still puts legacy jobs on
+// nightly/release tags. It is not comparable to the repos above either: it reaches
+// OSDC through runtime label translation (.github/arc.yaml + map_ec2_to_arc.py)
+// rather than by editing runs-on, so its source YAML still reads as EC2.
 const REFERENCE_REPOS = ["pytorch/pytorch"];
 
 const ROW_HEIGHT = 240;
@@ -238,21 +239,36 @@ export default function Page() {
     refreshInterval: 5 * 60 * 1000,
   });
 
-  // Real file list from the repo tree -- the denominator ClickHouse cannot supply.
-  // If this fails (app not installed on the repo, GitHub down) the page still
-  // works off observed files alone, but it is then undercounting, so say so.
-  const { data: tree, error: treeError } = useSWR<{ files: string[] }>(
+  // Current default-branch file inventory, which ClickHouse cannot supply. If
+  // this fails (app not installed on the repo, GitHub down), the page still works
+  // off observed files alone, but its current-file coverage is unknown.
+  const { data: tree, error: treeError } = useSWR<{
+    files: string[];
+    allFiles: string[];
+    truncated: boolean;
+  }>(
     `/api/osdc_migration/workflow_files?repo=${encodeURIComponent(repo)}`,
     fetcher
   );
-  const treeUnavailable = treeError !== undefined || tree?.files === undefined;
+  const treeLoading = tree === undefined && treeError === undefined;
+  const treeUnavailable =
+    treeError !== undefined ||
+    tree?.files === undefined ||
+    tree?.allFiles === undefined ||
+    tree?.truncated === true;
 
-  const loading = observed === undefined;
+  const loading = observed === undefined || treeLoading;
 
-  // Union the observed rows with the files that exist but did not run.
+  // Use the default-branch tree to keep deleted, branch-only, and GitHub-generated
+  // workflow paths out of the current-state summary. If the tree is unavailable,
+  // fall back to observed paths so the page remains useful (with a warning below).
   const observedByFile = new Map(
     (observed ?? []).map((r) => [r.workflowFile, r])
   );
+  const currentFileSet = new Set(tree?.allFiles ?? []);
+  const currentObserved = treeUnavailable
+    ? observed ?? []
+    : (observed ?? []).filter((r) => currentFileSet.has(r.workflowFile));
   const notRun: FileRow[] = (tree?.files ?? [])
     .filter((f) => !observedByFile.has(f))
     .map((f) => ({
@@ -274,7 +290,7 @@ export default function Page() {
 
   // Fold the active view's counters into the fields the table renders, so the
   // column definitions stay view-agnostic.
-  const rows: FileRow[] = [...(observed ?? []), ...notRun].map((r) => {
+  const rows: FileRow[] = [...currentObserved, ...notRun].map((r) => {
     if (!excludePrScoped || r.status === "not_run") {
       return r;
     }
@@ -499,7 +515,7 @@ export default function Page() {
       >
         <Box sx={{ flex: 1 }}>
           <ScalarPanelWithValue
-            title={"% of files migrated"}
+            title={"% of observed files migrated"}
             value={loading ? undefined : pct}
             valueRenderer={(v) =>
               v === undefined ? "n/a" : (v * 100).toFixed(0) + "%"
@@ -509,9 +525,17 @@ export default function Page() {
         </Box>
         <Box sx={{ flex: 1 }}>
           <ScalarPanelWithValue
-            title={"Files migrated / in scope"}
+            title={"Observed files migrated / in scope"}
             value={loading ? undefined : `${migrated.length}/${scoped}`}
             valueRenderer={(v) => String(v)}
+            badThreshold={() => false}
+          />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <ScalarPanelWithValue
+            title={"Current tracked files not run"}
+            value={loading ? undefined : notRun.length}
+            valueRenderer={(v) => Number(v).toLocaleString()}
             badThreshold={() => false}
           />
         </Box>
@@ -570,17 +594,20 @@ export default function Page() {
           variant="caption"
           sx={{ display: "block", mb: 1, color: "#c77700", fontWeight: 600 }}
         >
-          Could not read this repo&apos;s workflow file list from GitHub, so
-          only files that ran CI in the window are shown — files with no recent
-          CI are missing from the table.
+          Could not read this repo&apos;s complete workflow file list from
+          GitHub, so only files that ran CI in the window are shown — files with
+          no recent CI may be missing from the table and summary.
         </Typography>
       )}
       {REFERENCE_REPOS.includes(repo) && (
         <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
-          <b>Reference repo.</b> pytorch/pytorch has already completed this
-          migration, so it shows what &ldquo;done&rdquo; looks like. It is not
-          directly comparable to the repos above: it reaches OSDC via runtime
-          label translation (<code>.github/arc.yaml</code> +{" "}
+          <b>Reference repo.</b> pytorch/pytorch is furthest along, so it shows
+          roughly what &ldquo;done&rdquo; looks like — but it is not finished:{" "}
+          <code>docker-release.yml</code> still runs legacy jobs on{" "}
+          <code>nightly</code> and release tags, via test-infra&apos;s{" "}
+          <code>validate-docker-images.yml</code>. It is also not directly
+          comparable to the repos above: it reaches OSDC via runtime label
+          translation (<code>.github/arc.yaml</code> +{" "}
           <code>map_ec2_to_arc.py</code>), so its workflow YAML still reads as
           EC2 even where the jobs run on ARC.
         </Typography>
@@ -594,7 +621,10 @@ export default function Page() {
         equivalent yet — is excluded from the percentage as{" "}
         <b>Nothing to migrate</b>. Files with no CI activity in the window are
         listed as <b>Not run in window</b> and are also excluded — they are
-        unknown, not migrated. The file percentage counts a Partial file as not
+        unknown, not migrated. Deleted, branch-only, and GitHub-generated
+        workflow paths are excluded using the repo&apos;s current default-branch
+        file list. Underscore-prefixed reusable helpers are not tracked unless
+        they run standalone. The file percentage counts a Partial file as not
         yet migrated; the job percentage does not, which is why the two diverge
         as a repo nears the end.
       </Typography>

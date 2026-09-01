@@ -73,12 +73,15 @@ FROM
     FROM
     (
         SELECT
+            job.id AS jobId,
             run.path AS workflowFile,
-            job.labels[1] AS label,
+            -- scan every label, not just labels[1]: a job can be tagged
+            -- ['self-hosted', 'linux.4xlarge'] and the Linux label is not first
+            arrayFirst(l -> startsWith(l, 'linux'), job.labels) AS label,
             job.created_at AS createdAt,
             toUInt16(dateDiff('day', toDate(job.created_at), toDate({stopTime: DateTime64(3) }))) AS dayOffset,
             match(job.runner_name, '^i-[0-9a-f]{8,}$')
-                AND startsWith(job.labels[1], 'linux') AS isLegacy,
+                AND arrayExists(l -> startsWith(l, 'linux'), job.labels) AS isLegacy,
             match(job.runner_group_name, '^(meta|lf)-(prod|staging)-aws-') AS isOsdc,
             NOT (
                 run.event = 'pull_request'
@@ -96,6 +99,12 @@ FROM
             AND run.repository.'full_name' = {repo: String }
             -- drop jobs that never got a runner (queued / cancelled / skipped)
             AND job.runner_name != ''
+        -- Both tables are ReplacingMergeTree, so unmerged parts hold several rows
+        -- per job (one per webhook: in_progress, completed) and per run. Left as
+        -- is, every count and day-bucket is inflated ~4%. Dedupe to one row per
+        -- job id -- the versions carry the same runner, so any row is equivalent.
+        -- Cheaper than FINAL, which costs ~12x here for the same result.
+        LIMIT 1 BY jobId
     )
     GROUP BY workflowFile
 )
