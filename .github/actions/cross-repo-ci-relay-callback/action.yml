@@ -89,10 +89,35 @@ runs:
   steps:
     - name: Mint OIDC token
       id: oidc
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       with:
         script: |
-          const token = await core.getIDToken("pytorch-cross-repo-ci-relay");
+          // NB: Retry here because the ID token endpoint can fail with
+          // transient network errors.  github-script's `retries` input only
+          // covers requests made through the injected `github` octokit
+          // client, not core.getIDToken(), so the retry loop has to live in
+          // the script itself.
+          const MAX_ATTEMPTS = 4;
+
+          let token;
+          for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+              token = await core.getIDToken("pytorch-cross-repo-ci-relay");
+              break;
+            } catch (error) {
+              if (attempt === MAX_ATTEMPTS) throw error;
+              // Exponential backoff (1s, 2s, 4s) plus a small random jitter
+              // so that many matrix jobs retrying at once don't all hit the
+              // token service in the same instant.
+              const backoffMs = 1000 * 2 ** (attempt - 1) + Math.floor(Math.random() * 1000);
+              core.warning(
+                `Failed to mint OIDC token (attempt ${attempt}/${MAX_ATTEMPTS}): ` +
+                `${error.message.replace(/\s+/g, " ")}. ` +
+                `Retrying in ${Math.round(backoffMs / 1000)}s...`
+              );
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            }
+          }
           core.setSecret(token);
           core.setOutput('token', token);
 
