@@ -2,8 +2,8 @@
 //
 // The ClickHouse side of the OSDC migration page can only see files that ran CI
 // in the query window, so it undercounts: a workflow that has not fired recently
-// is absent entirely. This gives the page a real denominator, cheaply -- one tree
-// read per repo, no YAML parsing.
+// is absent entirely. This gives the page a current-file inventory, cheaply --
+// one tree read per repo, no YAML parsing.
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -44,9 +44,10 @@ export default async function handler(
     // are attributed to the caller's path -- so counting them in the denominator
     // would park permanently-unmigratable rows in every repo's percentage.
     //
-    // Safe because the page only uses this list to ADD files it did not observe:
-    // a `_` workflow that does run standalone (pytorch's
-    // _binary-build-flash-attention-wheel-*.yml) still arrives from ClickHouse.
+    // The API also returns `allFiles`, which the page uses to recognize current
+    // observed paths. A `_` workflow that does run standalone (pytorch's
+    // _binary-build-flash-attention-wheel-*.yml) therefore still arrives from
+    // ClickHouse and remains in the table.
     //
     // Convention-based, so it is not exhaustive -- callees without the prefix
     // (torchtitan's set-matrix.yaml, helion's compute-benchmark-matrix.yml) are
@@ -66,6 +67,7 @@ export default async function handler(
       defaultBranch: repoInfo.data.default_branch,
       truncated: tree.data.truncated,
       reusableExcluded,
+      allFiles: all,
       files,
     });
   } catch (e: any) {
