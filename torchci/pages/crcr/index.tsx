@@ -101,8 +101,8 @@ const CRCR_HEALTH_REPO = "pytorch/crcr-test";
 
 function PassRateChip({ rate }: { rate: number }) {
   const pct = (rate * 100).toFixed(1) + "%";
-  if (rate >= 0.95) return <Chip label={pct} color="success" size="small" />;
-  if (rate >= 0.8) return <Chip label={pct} color="warning" size="small" />;
+  if (rate >= 1.0) return <Chip label={pct} color="success" size="small" />;
+  if (rate >= 0.9) return <Chip label={pct} color="warning" size="small" />;
   return <Chip label={pct} color="error" size="small" />;
 }
 
@@ -353,9 +353,9 @@ function NightlyTable({
                       height: 8,
                       borderRadius: "50%",
                       bgcolor:
-                        row.pass_rate >= 0.95
+                        row.pass_rate >= 1.0
                           ? "success.main"
-                          : row.pass_rate >= 0.8
+                          : row.pass_rate >= 0.9
                           ? "warning.main"
                           : "error.main",
                       display: "inline-block",
