@@ -120,6 +120,13 @@
       "rocm"
     ]
   ],
+  "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "195556",
+    "https://github.com/pytorch/pytorch/issues/195556",
+    [
+      "inductor"
+    ]
+  ],
   "test_bmm_shared_a_offered_when_eligible_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "194599",
     "https://github.com/pytorch/pytorch/issues/194599",
@@ -286,6 +293,13 @@
       "rocm"
     ]
   ],
+  "test_ctc_loss_cudnn_tensor_cuda_cuda (__main__.TestNNDeviceTypeCUDA)": [
+    "195555",
+    "https://github.com/pytorch/pytorch/issues/195555",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -350,6 +364,13 @@
   "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195094",
     "https://github.com/pytorch/pytorch/issues/195094",
+    [
+      "linux"
+    ]
+  ],
+  "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195553",
+    "https://github.com/pytorch/pytorch/issues/195553",
     [
       "linux"
     ]
@@ -450,6 +471,13 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_even_k_k_15_dynamic_True (__main__.TestMaxAutotune)": [
+    "195554",
+    "https://github.com/pytorch/pytorch/issues/195554",
+    [
+      "inductor"
     ]
   ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -762,6 +790,13 @@
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
     "195219",
     "https://github.com/pytorch/pytorch/issues/195219",
+    [
+      "linux"
+    ]
+  ],
+  "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
+    "195552",
+    "https://github.com/pytorch/pytorch/issues/195552",
     [
       "linux"
     ]
@@ -1087,6 +1122,14 @@
       "linux"
     ]
   ],
+  "test_streaming_backwards_multiple_streams (__main__.TestCuda)": [
+    "135065",
+    "https://github.com/pytorch/pytorch/issues/135065",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1204,6 +1247,14 @@
     "190009",
     "https://github.com/pytorch/pytorch/issues/190009",
     [
+      "rocm"
+    ]
+  ],
+  "test_triton_template_generated_code_caching_mm_plus_mm (__main__.TestMaxAutotune)": [
+    "157878",
+    "https://github.com/pytorch/pytorch/issues/157878",
+    [
+      "inductor",
       "rocm"
     ]
   ],
