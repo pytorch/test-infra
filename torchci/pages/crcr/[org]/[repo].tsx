@@ -22,6 +22,7 @@ import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
   createContext,
+  ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -180,7 +181,13 @@ function StatCard({
   );
 }
 
-function SummaryCards({ stats }: { stats: SummaryStats }) {
+function SummaryCards({
+  stats,
+  healthCard,
+}: {
+  stats: SummaryStats;
+  healthCard?: ReactNode;
+}) {
   const passColor =
     stats.pass_rate >= 1.0
       ? "#2e7d32"
@@ -191,12 +198,15 @@ function SummaryCards({ stats }: { stats: SummaryStats }) {
   return (
     <Stack spacing={2}>
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        <StatCard
-          label="Pass Rate"
-          value={`${(stats.pass_rate * 100).toFixed(1)}%`}
-          sub={`${stats.successes}/${stats.total_jobs} jobs`}
-          color={passColor}
-        />
+        {healthCard}
+        {!healthCard && (
+          <StatCard
+            label="Pass Rate"
+            value={`${(stats.pass_rate * 100).toFixed(1)}%`}
+            sub={`${stats.successes}/${stats.total_jobs} jobs`}
+            color={passColor}
+          />
+        )}
         <StatCard
           label="Total PRs"
           value={stats.total_prs}
@@ -468,7 +478,7 @@ function RelayHealthCard({
         {label}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {passedCount}/{healthPrs.length} recent PRs passed
+        {passedCount}/{healthPrs.length} of last {healthPrs.length} PRs passed
       </Typography>
     </Paper>
   );
@@ -1643,13 +1653,15 @@ export default function CrcrBackendPage() {
 
             {!isNightly && (
               <>
-                {isCrcrTest && (
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <RelayHealthCard healthPrs={healthPrs} />
-                  </Box>
-                )}
                 {stats ? (
-                  <SummaryCards stats={stats} />
+                  <SummaryCards
+                    stats={stats}
+                    healthCard={
+                      isCrcrTest && healthPrs?.length ? (
+                        <RelayHealthCard healthPrs={healthPrs} />
+                      ) : undefined
+                    }
+                  />
                 ) : (
                   <Skeleton variant="rectangular" height={140} />
                 )}
