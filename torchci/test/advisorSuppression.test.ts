@@ -232,16 +232,26 @@ describe("suppressibleJobIds", () => {
   const REPO = "pytorch";
   const OTHER_SHA = "b".repeat(40);
 
-  let savedFlag: string | undefined;
+  // Suppression requires BOTH flags, so the default here is both on and the
+  // truth table below is what pins that.
+  let savedSuppression: string | undefined;
+  let savedComment: string | undefined;
   beforeEach(() => {
-    savedFlag = process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
+    savedSuppression = process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
+    savedComment = process.env.DRCI_ADVISOR_COMMENT_ENABLED;
     process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "true";
+    process.env.DRCI_ADVISOR_COMMENT_ENABLED = "true";
   });
   afterEach(() => {
-    if (savedFlag === undefined) {
-      delete process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
-    } else {
-      process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = savedFlag;
+    for (const [name, saved] of [
+      ["DRCI_ADVISOR_SUPPRESSION_ENABLED", savedSuppression],
+      ["DRCI_ADVISOR_COMMENT_ENABLED", savedComment],
+    ] as const) {
+      if (saved === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved;
+      }
     }
   });
 
@@ -255,12 +265,24 @@ describe("suppressibleJobIds", () => {
     );
   }
 
-  test("a cleared job is returned when the flag is on", () => {
-    expect(ids([job()], [row()])).toEqual([1]);
-  });
+  // The whole flag surface, because the interesting cell is the last one: a
+  // merge gate must not open while the comment that accounts for it is dark.
+  test.each([
+    ["true", "true", [1]],
+    ["true", "false", []],
+    ["false", "true", []],
+    ["false", "false", []],
+  ])(
+    "suppression=%s comment=%s clears %p",
+    (suppression, comment, expected) => {
+      process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = suppression;
+      process.env.DRCI_ADVISOR_COMMENT_ENABLED = comment;
+      expect(ids([job()], [row()])).toEqual(expected);
+    }
+  );
 
-  test("the flag being off clears nothing", () => {
-    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "false";
+  test("an unset comment flag is as good as off", () => {
+    delete process.env.DRCI_ADVISOR_COMMENT_ENABLED;
     expect(ids([job()], [row()])).toEqual([]);
   });
 

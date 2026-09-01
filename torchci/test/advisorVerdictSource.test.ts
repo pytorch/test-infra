@@ -41,9 +41,12 @@ describe("shouldReadAdvisorVerdicts", () => {
     });
   });
 
-  test("the suppression flag alone is enough to read", () => {
+  // "Suppression alone" is not a reachable state: advisorSuppressionEnabled
+  // requires the comment flag, so this reads nothing rather than reading for a
+  // gate that would then be inert anyway.
+  test("the suppression flag alone reads nothing", () => {
     withFlags("false", "true", () => {
-      expect(shouldReadAdvisorVerdicts("pytorch", "pytorch", JOBS)).toBe(true);
+      expect(shouldReadAdvisorVerdicts("pytorch", "pytorch", JOBS)).toBe(false);
     });
   });
 

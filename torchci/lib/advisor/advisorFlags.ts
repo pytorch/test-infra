@@ -20,15 +20,23 @@ export function advisorCommentEnabled(owner: string, repo: string): boolean {
   );
 }
 
-// Move advisor-cleared failures out of the blocking set. Separate from the
+// Move advisor-cleared failures out of the blocking set. Kept separate from the
 // display flag above because this one decides whether a merge is allowed, not
-// just what the comment says.
+// just what the comment says, so the display half can be enabled on its own
+// while the merge gate stays off.
+//
+// REQUIRES the comment flag, and is inert without it. Suppression with the
+// comment off would move a job into the non-blocking section while
+// buildAdvisorVerdictLines returns nothing, so the reader is told the AI
+// cleared the job but never which verdict cleared it or why. That combination
+// has no use -- a merge gate the comment cannot account for -- so it is
+// unreachable by construction rather than left to deployment discipline.
 export function advisorSuppressionEnabled(
   owner: string,
   repo: string
 ): boolean {
   return (
     process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED === "true" &&
-    isAdvisorEnabled(owner, repo)
+    advisorCommentEnabled(owner, repo)
   );
 }
