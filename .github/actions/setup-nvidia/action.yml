@@ -121,6 +121,18 @@ runs:
               )
           }
 
+          install_nvidia_docker2_ubuntu22() {
+              (
+                  set -x
+                  # Install nvidia-driver package if not installed
+                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+                    sudo apt-get install -y nvidia-container-toolkit-1.17.8
+                    sudo systemctl restart docker
+                  fi
+              )
+          }
+
           pre_install_nvidia_driver_amzn2() {
               (
                   # Purge any nvidia driver installed from RHEL repo
@@ -304,6 +316,9 @@ runs:
                   ;;
               ubuntu20.04)
                   install_nvidia_docker2_ubuntu20
+                  ;;
+              ubuntu22.04)
+                  install_nvidia_docker2_ubuntu22
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
