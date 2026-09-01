@@ -1,5 +1,6 @@
 **/report/assets/*.js
 *.report.html
+/report.html
 .venv/
 __pycache__/
 *.egg-info/
