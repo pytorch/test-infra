@@ -1,10 +1,11 @@
 -- level_since = earliest started_at at the repo's current level; floors at ~100 days due to crcr_workflow_job's TTL.
 -- current_level uses argMax to deterministically pick the level as of the most recent started_at.
 -- first_seen/last_seen span all levels, for the "2 weeks of recent data" L3 promotion prerequisite.
+-- started_at > 0 excludes rows with an epoch (1970-01-01) timestamp.
 WITH (
     SELECT argMax(downstream_repo_level, started_at)
     FROM default.crcr_workflow_job FINAL
-    WHERE downstream_repo = {repo: String}
+    WHERE downstream_repo = {repo: String} AND started_at > 0
 ) AS current_level
 SELECT
     current_level,
@@ -15,3 +16,4 @@ FROM
     default.crcr_workflow_job FINAL
 WHERE
     downstream_repo = {repo: String}
+    AND started_at > 0
