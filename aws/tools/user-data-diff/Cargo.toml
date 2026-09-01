@@ -1,0 +1,18 @@
+[package]
+name = "user-data-diff"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aws-config = "1.8.0"
+aws-sdk-ec2 = "1.81.0"
+clap = { version = "4.5.40", features = ["derive"] }
+tokio = { version = "1.45.1", features = ["full"] }
+base64 = "0.22"
+flate2 = "1.0"
+similar = { version = "2.6", features = ["text"] }
+colored = "2.1"
+async-trait = "0.1"
+
+[dev-dependencies]
+mockall = "0.12"
