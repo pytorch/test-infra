@@ -17,9 +17,12 @@ TO=${TO:-}
 PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
 
 # R2_ONLY: set to "true" to skip the S3-to-S3 copy and only promote to R2.
-# In that mode the S3 prod promotion has already happened, so mirror from the
-# prod (destination) location instead of the test channel, keeping R2 in sync
-# with what is actually live on S3.
+# The source stays the FROM channel. Mirroring from the prod destination instead
+# would keep R2 in sync with what is literally live on S3, but aws_promote
+# copies test -> prod server-side, so the two hold the same objects, and for a
+# stable release the prod prefix is whl/ -- the parent of whl/nightly/. Listing
+# that enumerates months of nightlies to find 282 files.
+# Set PYTORCH_S3_FROM explicitly if you do need to mirror from prod.
 R2_ONLY=${R2_ONLY:-false}
 
 # SKIP_CHECKSUMS: set to "true" to skip the SHA256 recomputation pass. Kept
@@ -31,8 +34,7 @@ SKIP_CHECKSUMS=${SKIP_CHECKSUMS:-false}
 if [[ "${R2_ONLY}" != "true" ]]; then
     aws_promote "${PACKAGE_NAME}"
 else
-    echo "+ R2_ONLY=true, skipping S3-to-S3 promotion; mirroring ${PYTORCH_S3_TO} to R2"
-    PYTORCH_S3_FROM="${PYTORCH_S3_TO}"
+    echo "+ R2_ONLY=true, skipping S3-to-S3 promotion; mirroring ${PYTORCH_S3_FROM} to R2"
 fi
 
 # Promote to R2 (Cloudflare) before the slow SHA256 recomputation step so R2
