@@ -22,13 +22,6 @@
       "macos"
     ]
   ],
-  "test_TransformerEncoderLayer_gelu_activation_cuda_tf32 (__main__.TestNN)": [
-    "155217",
-    "https://github.com/pytorch/pytorch/issues/155217",
-    [
-      "rocm"
-    ]
-  ],
   "test_addmm_relu_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
     "188897",
     "https://github.com/pytorch/pytorch/issues/188897",
@@ -312,6 +305,14 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
+    ]
+  ],
+  "test_cudnn_rnn_cuda_bfloat16 (__main__.TestNNDeviceTypeCUDA)": [
+    "195618",
+    "https://github.com/pytorch/pytorch/issues/195618",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
