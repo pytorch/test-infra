@@ -5,7 +5,15 @@ import {
   extractDynamoRecord,
   RelayPayload,
   validatePayloadSize,
+  writeToDynamo,
+  CrcrWorkflowJobRecord,
 } from "../lib/crcr/crcrUtils";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
+
+const mockUpdate = jest.fn();
+jest.mock("lib/dynamo", () => ({
+  getDynamoClient: () => ({ update: mockUpdate }),
+}));
 
 function makePayload(
   overrides: {
@@ -512,5 +520,85 @@ describe("extractDynamoRecord - failed_tests_detail", () => {
     const parsed = JSON.parse(record.failed_tests_json!);
     expect(parsed[0].name).toBe("");
     expect(parsed[0].classname).toBe("TestNoName");
+  });
+});
+
+describe("writeToDynamo - write-once guard", () => {
+  const baseRecord: CrcrWorkflowJobRecord = {
+    dynamoKey: "repo/delivery/wf/job/cr1",
+    status: "completed",
+    downstream_repo: "Ascend/pytorch",
+    upstream_repo: "pytorch/pytorch",
+    pr_number: 0,
+    pytorch_head_sha: "abc123",
+    delivery_id: "delivery-1",
+    workflow_run_url: "https://example.com",
+    workflow_name: "nightly-ci",
+    job_name: "build-and-test",
+    check_run_id: "cr1",
+    run_id: "100",
+    run_attempt: 1,
+    conclusion: "success",
+  };
+
+  beforeEach(() => {
+    mockUpdate.mockReset();
+  });
+
+  test("includes ConditionExpression in DynamoDB update", async () => {
+    mockUpdate.mockResolvedValueOnce({});
+    await writeToDynamo(baseRecord);
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    const args = mockUpdate.mock.calls[0][0];
+    expect(args.ConditionExpression).toBe(
+      "attribute_not_exists(#guard_status) OR #guard_status <> :guard_completed"
+    );
+    expect(args.ExpressionAttributeNames["#guard_status"]).toBe("status");
+    expect(args.ExpressionAttributeValues[":guard_completed"]).toBe(
+      "completed"
+    );
+  });
+
+  test("throws ApiError(409) on ConditionalCheckFailedException", async () => {
+    mockUpdate.mockRejectedValueOnce(
+      new ConditionalCheckFailedException({
+        message: "The conditional request failed",
+        $metadata: {},
+      })
+    );
+
+    await expect(writeToDynamo(baseRecord)).rejects.toThrow(ApiError);
+    try {
+      mockUpdate.mockRejectedValueOnce(
+        new ConditionalCheckFailedException({
+          message: "The conditional request failed",
+          $metadata: {},
+        })
+      );
+      await writeToDynamo(baseRecord);
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect(e.statusCode).toBe(409);
+      expect(e.message).toContain("already finalized");
+    }
+  });
+
+  test("re-throws non-conditional DynamoDB errors", async () => {
+    const genericError = new Error("DynamoDB unavailable");
+    mockUpdate.mockRejectedValueOnce(genericError);
+
+    await expect(writeToDynamo(baseRecord)).rejects.toThrow(
+      "DynamoDB unavailable"
+    );
+  });
+
+  test("succeeds for in_progress record when no prior exists", async () => {
+    mockUpdate.mockResolvedValueOnce({});
+    const record = { ...baseRecord, status: "in_progress" };
+    delete (record as any).conclusion;
+
+    await expect(writeToDynamo(record)).resolves.toBeUndefined();
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
   });
 });
