@@ -346,6 +346,14 @@
       "dynamo"
     ]
   ],
+  "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195525",
+    "https://github.com/pytorch/pytorch/issues/195525",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195094",
     "https://github.com/pytorch/pytorch/issues/195094",
@@ -723,15 +731,6 @@
     "https://github.com/pytorch/pytorch/issues/192012",
     [
       "xpu"
-    ]
-  ],
-  "test_memory_snapshot (__main__.TestCudaAllocator)": [
-    "179745",
-    "https://github.com/pytorch/pytorch/issues/179745",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_mempool_tensor_factory (__main__.NVSHMEMSymmetricMemoryTest)": [
