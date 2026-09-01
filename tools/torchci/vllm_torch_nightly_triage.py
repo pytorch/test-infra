@@ -308,7 +308,8 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
             buckets["regressed"].append(job)
         elif base_state in BAD_STATES and not tn_bad:
             buckets["baseline_only"].append(job)
-        else:
+        elif tn_bad:
+            # Fails on nightly, but the baseline neither passed nor failed
             buckets["unclassified"].append(job)
     return buckets
 
