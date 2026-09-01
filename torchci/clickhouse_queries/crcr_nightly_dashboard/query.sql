@@ -54,7 +54,11 @@ WHERE
     AND event_type = 'nightly'
     AND run_id IN (SELECT run_id FROM eligible_runs)
     AND (run_id, job_name, run_attempt) IN (
-        SELECT run_id, job_name, max_attempt FROM latest_attempts
+        SELECT
+            run_id,
+            job_name,
+            max_attempt
+        FROM latest_attempts
     )
 ORDER BY
     started_at DESC
