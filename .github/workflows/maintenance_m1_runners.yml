@@ -1,0 +1,14 @@
+name: Check Alerts
+on:
+  pull_request:
+    paths:
+      - .github/workflows/maintenance_m1_runners.yml
+
+
+jobs:
+  check-disk-space:
+    runs-on: i-00893d044c5434268
+    steps:
+      - name: Check disk space
+        run: |
+          df -h
