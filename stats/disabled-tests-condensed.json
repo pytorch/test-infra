@@ -569,6 +569,34 @@
       "rocm"
     ]
   ],
+  "test_index_add_bfloat16_deterministic (__main__.CudaReproTests)": [
+    "195558",
+    "https://github.com/pytorch/pytorch/issues/195558",
+    [
+      "xpu"
+    ]
+  ],
+  "test_index_add_bfloat16_dim0 (__main__.CudaReproTests)": [
+    "195559",
+    "https://github.com/pytorch/pytorch/issues/195559",
+    [
+      "xpu"
+    ]
+  ],
+  "test_index_add_bfloat16_direct (__main__.CudaReproTests)": [
+    "195560",
+    "https://github.com/pytorch/pytorch/issues/195560",
+    [
+      "xpu"
+    ]
+  ],
+  "test_index_add_bfloat16_scalar_index (__main__.CudaReproTests)": [
+    "195561",
+    "https://github.com/pytorch/pytorch/issues/195561",
+    [
+      "xpu"
+    ]
+  ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
     "191159",
     "https://github.com/pytorch/pytorch/issues/191159",
