@@ -181,9 +181,15 @@ CFG
     # List matching files from S3 first (using current OIDC credentials)
     echo "+ Listing matching files from S3..."
     local file_list="${tmp_dir}/file_list.txt"
+    # Largest first. The biggest artifacts (rocm wheels, multi-GB) are the ones
+    # that exhaust disk or trip R2's per-object throttle, so promoting them up
+    # front surfaces those failures in the first few files instead of after 240.
+    # It also front-loads peak disk, so a temp volume that is too small fails
+    # immediately rather than most of the way through.
     ${AWS} s3 ls "${s3_from_path}/" --recursive \
         | grep -E "${match_pattern}" \
         | grep -Ev "${sub_channel_exclude}" \
+        | sort -k3 -nr \
         | awk '{print $NF}' > "${file_list}" || true
 
     local total_files
@@ -208,7 +214,11 @@ CFG
     # workers cannot race each other's S3/R2 swap.
     _promote_one_file() {
         local s3_key="$1"
-        local filename local_file rel_path r2_target sha256
+        local filename local_file rel_path r2_target sha256 marker err_log
+        # Keyed on the object, not $$ -- $$ is the script's pid and is identical
+        # in every background job, so a shared marker collapsed N failures to 1.
+        marker="${fail_dir}/${s3_key//\//_}"
+        err_log="${marker}.err"
         filename=$(basename "${s3_key}")
         local_file="${tmp_dir}/${filename}"
         rel_path="${s3_key#"${s3_from_prefix}"/}"
@@ -226,9 +236,11 @@ CFG
                 export AWS_DEFAULT_REGION="${saved_aws_default_region}"
             fi
             ${AWS} s3 cp --quiet "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
-        ) || {
+        ) 2>"${err_log}" || {
             echo "- FAILED download: ${PYTORCH_S3_BUCKET}/${s3_key}" >&2
-            touch "${fail_dir}/$$"
+            sed 's/^/    /' "${err_log}" >&2
+            rm -f "${local_file}" "${err_log}"
+            touch "${marker}"
             return 1
         }
 
@@ -245,14 +257,15 @@ CFG
             ${AWS} s3 cp --quiet "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
-        ) || {
+        ) 2>"${err_log}" || {
             echo "- FAILED upload: ${r2_target}" >&2
-            rm -f "${local_file}"
-            touch "${fail_dir}/$$"
+            sed 's/^/    /' "${err_log}" >&2
+            rm -f "${local_file}" "${err_log}"
+            touch "${marker}"
             return 1
         }
 
-        rm -f "${local_file}"
+        rm -f "${local_file}" "${err_log}"
         echo "+ ${PYTORCH_S3_BUCKET}/${s3_key} -> ${r2_target}"
     }
 
@@ -269,7 +282,7 @@ CFG
     wait
 
     local failures
-    failures=$(find "${fail_dir}" -type f | wc -l)
+    failures=$(find "${fail_dir}" -type f ! -name '*.err' | wc -l)
     if [[ ${failures} -gt 0 ]]; then
         echo "- ERROR: ${failures} file(s) failed to promote to R2"
         return 1
