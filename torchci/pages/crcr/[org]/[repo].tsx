@@ -371,7 +371,7 @@ function RelayHealthCard({
         {label}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {passedCount}/{healthPrs.length} of last {HEALTH_COUNT} PRs passed
+        {passedCount}/{healthPrs.length} of last {healthPrs.length} PRs passed
       </Typography>
     </Paper>
   );
@@ -1440,7 +1440,7 @@ export default function CrcrBackendPage() {
                   <SummaryCards
                     stats={stats}
                     healthCard={
-                      isCrcrTest ? (
+                      isCrcrTest && healthPrs?.length ? (
                         <RelayHealthCard healthPrs={healthPrs} />
                       ) : undefined
                     }
