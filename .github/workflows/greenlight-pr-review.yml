@@ -131,6 +131,19 @@ jobs:
       contents: read
       pull-requests: read
       id-token: write
+    env:
+      # Wall-clock budget the budget-reminder hook paces the model against, in minutes.
+      # The hook itself only ever reads the absolute epochs derived below, so the step
+      # that derives them is the only place the deadlines are computed -- but not the
+      # only place the budget is stated: other files restate these figures in prose, one
+      # of them the skill the model reads, so a figure left behind paces the model against
+      # one number while telling it another. Every budget must also leave the agent room
+      # below the model step's timeout to write its verdict, since a timed-out step leaves
+      # it no turns at all. The drift guards in greenlight/tests/test_budget_reminder.py
+      # enforce both, so a value changed here fails loudly rather than desyncing in silence.
+      GREENLIGHT_REVIEW_TARGET_BUDGET_MIN: "20"
+      GREENLIGHT_REVIEW_SOFT_BUDGET_MIN: "25"
+      GREENLIGHT_REVIEW_HARD_BUDGET_MIN: "33"
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -276,6 +289,12 @@ jobs:
           # SessionStart writes the sentinel; InstructionsLoaded appends the loaded-
           # memory manifest that the detector step asserts on. $RUNNER_TEMP stays
           # literal (single-quoted heredoc) so the hook shell expands it at run time.
+          # PostToolUse (budget-reminder) is the one advisory hook here: it fires after
+          # the tool has already run and its output schema carries no permission
+          # decision, so a fault in it degrades pacing rather than the write sandbox or
+          # the verdict gate. Its timeout is pinned rather than left to the CLI default,
+          # which is measured in minutes: a hung reminder would spend the very budget it
+          # exists to protect, once per tool call.
           # INVARIANT: the SessionStart sentinel hook MUST stay co-located in THIS
           # settings file with the load-bearing PreToolUse (restrict-write) and Stop
           # (validate-on-stop) hooks. The sentinel is the detector's only runtime proof
@@ -303,6 +322,18 @@ jobs:
                     {
                       "type": "command",
                       "command": "python3 .claude/hooks/greenlight/restrict-read.py"
+                    }
+                  ]
+                }
+              ],
+              "PostToolUse": [
+                {
+                  "matcher": "*",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": ".claude/hooks/greenlight/budget-reminder.sh",
+                      "timeout": 5
                     }
                   ]
                 }
@@ -342,6 +373,95 @@ jobs:
           }
           EOF
 
+      - name: Compute review budget deadlines
+        # INVARIANT: MUST stay the last step before the model step: $GITHUB_ENV reaches
+        # only SUBSEQUENT steps, and the budget is meant to measure the model's own wall
+        # clock, not the checkout / sanitize / OIDC setup that precedes it.
+        # Same too_large guard as the model step: on the deterministic-decline path no
+        # model runs, so there is nothing to pace.
+        if: steps.sizecheck.outputs.too_large != 'true'
+        run: |
+          set -euo pipefail
+          # Upper bound on any single budget. No PR review is measured in days, and the
+          # cap is also what keeps the checks below sound: `[` errors outright on a digit
+          # string past int64 while $(( )) silently wraps one, so an unbounded value
+          # would reach the arithmetic and produce a deadline in the distant past or
+          # future. A shell literal rather than an env var on purpose -- a bound that is
+          # itself an unvalidated input is no bound at all.
+          max_budget_min=1440
+
+          # Shape-check every budget before any numeric test reads it: `[` errors on a
+          # non-numeric operand, and an error in an `if` condition is NOT fatal under
+          # `set -e` -- the branch is simply taken as false. That is the same silent
+          # fall-through the diff-size gate guards against; here it would disable the
+          # ordering checks rather than the size cap.
+          require_uint() {
+            local name=$1
+            # Defaulted rather than left to `set -u`: a budget deleted from the job env
+            # should abort naming itself, not as a bare "unbound variable".
+            local value=${!name-}
+            case "$value" in
+              '' | *[!0-9]*)
+                echo "invalid $name: '$value' (expected a non-negative integer)" >&2
+                exit 1
+                ;;
+            esac
+            # Length before value: ${#value} is small whatever arrives, so that
+            # comparison is the one `[` can always survive, and passing it is what makes
+            # the second comparison safe to run at all.
+            if [ "${#value}" -gt 9 ] || [ "$value" -gt "$max_budget_min" ]; then
+              echo "invalid $name: '$value' (expected at most $max_budget_min minutes)" >&2
+              exit 1
+            fi
+          }
+
+          # Out-of-order budgets leave the tiers overlapping, and which nudge the model
+          # sees then falls out of the hook's branch order rather than out of these
+          # values. Equal is coherent -- it just makes the tier between them empty.
+          require_ge() {
+            local hi_name=$1 lo_name=$2
+            if [ "${!hi_name}" -lt "${!lo_name}" ]; then
+              echo "invalid budget: $hi_name '${!hi_name}' is below $lo_name '${!lo_name}' (expected $hi_name >= $lo_name)" >&2
+              exit 1
+            fi
+          }
+
+          require_uint GREENLIGHT_REVIEW_TARGET_BUDGET_MIN
+          require_uint GREENLIGHT_REVIEW_SOFT_BUDGET_MIN
+          require_uint GREENLIGHT_REVIEW_HARD_BUDGET_MIN
+
+          # A zero target puts the very first tool call past the earliest deadline, so
+          # that tier never applies and the review is paced as if already behind. The
+          # later budgets inherit positivity from the ordering checks that follow.
+          if [ "$GREENLIGHT_REVIEW_TARGET_BUDGET_MIN" -le 0 ]; then
+            echo "invalid GREENLIGHT_REVIEW_TARGET_BUDGET_MIN: '$GREENLIGHT_REVIEW_TARGET_BUDGET_MIN' (expected a positive integer)" >&2
+            exit 1
+          fi
+
+          require_ge GREENLIGHT_REVIEW_SOFT_BUDGET_MIN GREENLIGHT_REVIEW_TARGET_BUDGET_MIN
+          require_ge GREENLIGHT_REVIEW_HARD_BUDGET_MIN GREENLIGHT_REVIEW_SOFT_BUDGET_MIN
+
+          # One clock reading for every deadline, so they cannot straddle a second
+          # boundary and disagree about when the review started.
+          now=$(date +%s)
+          # 10# forces base 10: the budgets arrive digit-validated but unnormalized, and a
+          # leading zero is octal to $(( )), so "033" would quietly mean 27 minutes while
+          # every check above reads it as 33. The `[ ]` tests need no such prefix -- test
+          # parses base 10 already, and 10# is a syntax error there.
+          target=$((now + 10#$GREENLIGHT_REVIEW_TARGET_BUDGET_MIN * 60))
+          soft=$((now + 10#$GREENLIGHT_REVIEW_SOFT_BUDGET_MIN * 60))
+          hard=$((now + 10#$GREENLIGHT_REVIEW_HARD_BUDGET_MIN * 60))
+          {
+            echo "GREENLIGHT_REVIEW_START_EPOCH=$now"
+            echo "GREENLIGHT_REVIEW_TARGET_DEADLINE=$target"
+            echo "GREENLIGHT_REVIEW_SOFT_DEADLINE=$soft"
+            echo "GREENLIGHT_REVIEW_HARD_DEADLINE=$hard"
+          } >>"$GITHUB_ENV"
+          echo "Review starts at $now"
+          echo "  target deadline $target (+${GREENLIGHT_REVIEW_TARGET_BUDGET_MIN}m)"
+          echo "  soft deadline   $soft (+${GREENLIGHT_REVIEW_SOFT_BUDGET_MIN}m)"
+          echo "  hard deadline   $hard (+${GREENLIGHT_REVIEW_HARD_BUDGET_MIN}m)"
+
       - name: Run Green Light review
         if: steps.sizecheck.outputs.too_large != 'true'
         timeout-minutes: 37
@@ -371,7 +491,7 @@ jobs:
             The change to review is the unified diff at /tmp/greenlight-pr.diff, already
             pinned to that commit. PR metadata and human comments, when available, are at
             /tmp/greenlight-pr.json. The full source tree at that commit is checked out
-            under ./pytorch for you to explore with Read/Glob/Grep.
+            under ./pytorch for you to consult with Read/Glob/Grep.
 
             Write your verdict as JSON to /tmp/greenlight-verdict.json with the Write
             tool. It MUST contain "status" (exactly "LAND" or "NO_LAND"), "reason", and
