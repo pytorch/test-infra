@@ -325,7 +325,12 @@ class TestRenderRegressedTests(unittest.TestCase):
 
     def test_section_present_when_regressed_tests(self) -> None:
         tn, base = self._tn_base()
-        buckets = {"regressed": [], "both": [], "baseline_only": []}
+        buckets = {
+            "regressed": [],
+            "both": [],
+            "baseline_only": [],
+            "unclassified": [],
+        }
         out = triage.render(tn, base, buckets, [_regressed_entry()])
         self.assertIn("Test-set regressions", out)
         self.assertIn("tests/test_b.py::test_bar", out)
@@ -335,7 +340,12 @@ class TestRenderRegressedTests(unittest.TestCase):
 
     def test_no_section_when_empty(self) -> None:
         tn, base = self._tn_base()
-        buckets = {"regressed": [], "both": [], "baseline_only": []}
+        buckets = {
+            "regressed": [],
+            "both": [],
+            "baseline_only": [],
+            "unclassified": [],
+        }
         out = triage.render(tn, base, buckets, [])
         self.assertNotIn("Test-set regressions", out)
 
@@ -364,6 +374,7 @@ class TestReportJsonWiring(unittest.TestCase):
             "regressed": [],
             "both": [_both_job("Job A", "u_tn#job", "u_base#job")],
             "baseline_only": [],
+            "unclassified": [],
         }
 
         def _fake_fetch_cluster_logs(
@@ -436,6 +447,7 @@ class TestBaselineLogAvailabilityGuard(unittest.TestCase):
             "regressed": [],
             "both": [_both_job("Job A", tn_url, base_url)],
             "baseline_only": [],
+            "unclassified": [],
         }
         with mock.patch.object(triage, "_fetch_job_log", side_effect=_fetch):
             return triage._fetch_both_clusters(buckets, token="tok")
