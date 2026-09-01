@@ -1,14 +1,14 @@
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import {
   ApiError,
   conclusionColor,
   conclusionLabel,
+  CrcrWorkflowJobRecord,
   extractDynamoRecord,
   RelayPayload,
   validatePayloadSize,
   writeToDynamo,
-  CrcrWorkflowJobRecord,
 } from "../lib/crcr/crcrUtils";
-import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 
 const mockUpdate = jest.fn();
 jest.mock("lib/dynamo", () => ({
