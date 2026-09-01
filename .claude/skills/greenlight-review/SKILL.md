@@ -123,7 +123,7 @@ As a community project, many documentation changes not only reflect relevant con
 
 ## Time budget
 
-A standard review should land near **20 minutes**; the verdict is due by **33**. You
+A standard review should land under **20 minutes**; the verdict is due by **33**. You
 have no clock — the review harness pushes reminders of the time left into your context
 as you work, and they are your only signal of elapsed time. Act on them rather than
 trying to work it out yourself.
