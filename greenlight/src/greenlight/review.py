@@ -67,6 +67,7 @@ TRUSTED_AUTHORS: set[str] = {
     "ezyang",  # Edward Yang
     "drisspg",  # Driss Guessous
     "janeyx99",  # Jane Xu
+    "bobrenjc93",  # Bob Ren
 }
 
 # Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
