@@ -35,6 +35,10 @@ function NavBar() {
       href: "/reliability",
     },
     {
+      name: "OSDC Migration",
+      href: "/osdc_migration",
+    },
+    {
       name: "Flaky Trunk",
       href: "/flaky_trunk",
     },

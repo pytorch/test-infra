@@ -1,0 +1,14 @@
+{
+  "params": {
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/vision",
+      "startTime": "2026-08-24 00:00:00.000",
+      "stopTime": "2026-08-31 00:00:00.000"
+    }
+  ]
+}
