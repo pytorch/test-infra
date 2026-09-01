@@ -22,6 +22,12 @@ PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
 # with what is actually live on S3.
 R2_ONLY=${R2_ONLY:-false}
 
+# SKIP_CHECKSUMS: set to "true" to skip the SHA256 recomputation pass. Kept
+# separate from R2_ONLY: re-running the R2 mirror after a failure is common, and
+# that says nothing about whether the checksum pass has run. It has not, if an
+# earlier attempt died in r2_promote -- the checksum pass is the step after it.
+SKIP_CHECKSUMS=${SKIP_CHECKSUMS:-false}
+
 if [[ "${R2_ONLY}" != "true" ]]; then
     aws_promote "${PACKAGE_NAME}"
 else
@@ -36,6 +42,6 @@ r2_promote "${PACKAGE_NAME}"
 # Finally, recompute SHA256 checksum metadata on the S3 destination wheels.
 # This is the slowest step (downloads every wheel from S3) and runs last so
 # it does not delay the R2 upload above.
-if [[ "${R2_ONLY}" != "true" ]]; then
+if [[ "${SKIP_CHECKSUMS}" != "true" ]]; then
     aws_set_checksums "${PACKAGE_NAME}"
 fi
