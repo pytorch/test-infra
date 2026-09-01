@@ -1082,6 +1082,30 @@ export function constructResultsComment(
     );
   }
 
+  // Directly after NEW FAILURES: these are the jobs lifted out of it, so they
+  // read as that section's footnote rather than as an unrelated bucket.
+  output += constructResultsJobsSections(
+    hudBaseUrl,
+    owner,
+    repo,
+    prNumber,
+    "NEW FAILURES SUPPRESSED BY AI (non-blocking)",
+    `The following ${pluralize(
+      "job",
+      aiNotRelatedJobs.length
+    )} failed, but the AI CI Advisor judged the ${pluralize(
+      "failure",
+      aiNotRelatedJobs.length
+    )} unrelated to the change`,
+    aiNotRelatedJobs,
+    "",
+    true,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo,
+    advisorLines
+  );
+
   if (unknownJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -1201,34 +1225,6 @@ export function constructResultsComment(
     relatedJobs,
     relatedIssues,
     relatedInfo
-  );
-  output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
-    // Covers three advisor verdicts, not just `not_related` -- see
-    // SUPPRESSIBLE_VERDICTS. Naming only one of them here would state something
-    // false about a job cleared as an infra fault or an unusable signal.
-    "CLEARED BY THE AI CI ADVISOR (non-blocking)",
-    `The following ${pluralize(
-      "job",
-      aiNotRelatedJobs.length
-    )} failed, but the AI CI Advisor judged the ${pluralize(
-      "failure",
-      aiNotRelatedJobs.length
-    )} not to be evidence against this PR -- unrelated to the change, a CI infrastructure fault, or an unusable signal -- so ${pluralize(
-      "it is",
-      aiNotRelatedJobs.length,
-      "they are"
-    )} non-blocking. The verdict on each job is shown beside it.`,
-    aiNotRelatedJobs,
-    "",
-    true,
-    relatedJobs,
-    relatedIssues,
-    relatedInfo,
-    advisorLines
   );
   return output;
 }
