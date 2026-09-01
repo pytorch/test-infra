@@ -414,7 +414,14 @@ function NightlySummaryCards({
     ).length;
     const total = completed.length;
     const passRate = total > 0 ? successes / total : 0;
-    return { successes, failures, timedOut, total, passRate, uniqueShas: rows.length };
+    return {
+      successes,
+      failures,
+      timedOut,
+      total,
+      passRate,
+      uniqueShas: rows.length,
+    };
   }, [rows, isCrcrTest]);
 
   const passColor =
