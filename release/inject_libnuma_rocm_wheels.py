@@ -30,8 +30,15 @@ This script:
      ``pip install --require-hashes``.
   5. Verifies the result before uploading: the two libs are present, readable
      and in RECORD, and *nothing else in the wheel changed*.
-  6. Uploads each wheel back over the original, to S3 and Cloudflare R2, with
+  6. Uploads each wheel to S3 and Cloudflare R2 with
      ``x-amz-meta-checksum-sha256`` set so the PEP 503 index picks it up.
+
+     By default the repacked wheel carries the PEP 427 build tag ``1``:
+     ``torch-2.14.0+rocm7.14-1-cp312-...whl``. The version is untouched, so
+     this is still 2.14.0; pip and uv prefer the highest build tag among
+     wheels matching a version, so the repaired wheel supersedes the original
+     without the original having to be deleted. Pass ``--build-tag ""`` to
+     overwrite in place instead.
 
 Why auditwheel and not the ``wheel`` CLI:
 
@@ -152,12 +159,44 @@ def validate_libnuma(path: Path) -> None:
     print(f"+ libnuma source: {path} ({len(data)} bytes)")
 
 
+def build_tagged_name(filename: str, build_tag: str) -> str:
+    """Insert a PEP 427 build tag into a wheel filename.
+
+    torch-2.14.0+rocm7.14-cp312-cp312-manylinux_2_28_x86_64.whl
+      -> torch-2.14.0+rocm7.14-1-cp312-cp312-manylinux_2_28_x86_64.whl
+
+    pip and uv prefer the highest build tag among wheels matching the same
+    version, so the repaired wheel supersedes the original without the release
+    version changing.
+    """
+    parts = filename.split("-")
+    if len(parts) == 6:
+        raise RuntimeError(f"{filename} already carries a build tag")
+    if len(parts) != 5:
+        raise RuntimeError(f"unexpected wheel filename shape: {filename}")
+    return "-".join(parts[:2] + [build_tag] + parts[2:])
+
+
+def set_wheel_build_tag(dist_info: Path, build_tag: str) -> None:
+    """Record the build tag in .dist-info/WHEEL, as PEP 427 requires."""
+    wheel_file = dist_info / "WHEEL"
+    lines = [
+        line
+        for line in wheel_file.read_text().splitlines()
+        if not line.startswith("Build:")
+    ]
+    lines.append(f"Build: {build_tag}")
+    wheel_file.write_text("\n".join(lines) + "\n")
+
+
 def has_libnuma(wheel_path: Path) -> bool:
     with zipfile.ZipFile(wheel_path) as zf:
         return f"{TARGET_DIR}/{BARE_NAME}" in zf.namelist()
 
 
-def inject(wheel_path: Path, libnuma: Path, output_dir: Path) -> Path:
+def inject(
+    wheel_path: Path, libnuma: Path, output_dir: Path, build_tag: str | None
+) -> Path:
     """Add libnuma to the wheel and repack it. Returns the new wheel.
 
     Uses only auditwheel's InWheelCtx: unpack, edit the tree, repack,
@@ -174,7 +213,10 @@ def inject(wheel_path: Path, libnuma: Path, output_dir: Path) -> Path:
 
     # InWheelCtx chdirs into its unpack dir, so both paths must be absolute
     # or they resolve against the wrong cwd on exit.
-    out = (output_dir / wheel_path.name).resolve()
+    out_name = (
+        build_tagged_name(wheel_path.name, build_tag) if build_tag else wheel_path.name
+    )
+    out = (output_dir / out_name).resolve()
     with InWheelCtx(wheel_path.resolve()) as ctx:
         ctx.out_wheel = out
         lib_dir = Path(ctx.path) / TARGET_DIR
@@ -183,6 +225,13 @@ def inject(wheel_path: Path, libnuma: Path, output_dir: Path) -> Path:
         for name in (VERSIONED_NAME, BARE_NAME):
             shutil.copy(libnuma, lib_dir / name)
             print(f"  + added {TARGET_DIR}/{name}")
+
+        if build_tag:
+            dist_infos = list(Path(ctx.path).glob("*.dist-info"))
+            if len(dist_infos) != 1:
+                raise RuntimeError(f"expected one .dist-info, got {dist_infos}")
+            set_wheel_build_tag(dist_infos[0], build_tag)
+            print(f"  + build tag {build_tag} -> {out.name}")
     return out
 
 
@@ -240,10 +289,10 @@ def verify_unchanged(original: Path, repacked: Path) -> None:
     if removed:
         raise RuntimeError(f"{repacked.name}: repack dropped members: {sorted(removed)}")
 
-    # RECORD legitimately changes (it lists the new files). Everything else
-    # must be byte-identical in content.
+    # RECORD lists the new files, and WHEEL gains the Build: line. Everything
+    # else must be byte-identical in content.
     for name, meta in before.items():
-        if name.endswith(".dist-info/RECORD"):
+        if name.endswith((".dist-info/RECORD", ".dist-info/WHEEL")):
             continue
         if after[name] != meta:
             raise RuntimeError(
@@ -336,6 +385,14 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="path to libnuma.so.1 to inject (see module docstring)",
     )
+    p.add_argument(
+        "--build-tag",
+        default="1",
+        help="PEP 427 build tag for the repacked wheel, e.g. 1 -> "
+        "torch-2.14.0+rocm7.14-1-cp312-...whl. pip prefers the highest build "
+        "tag for a given version. Pass an empty string to overwrite the "
+        "original filename instead. Default 1.",
+    )
     p.add_argument("--s3-bucket", default=DEFAULT_S3_BUCKET)
     p.add_argument(
         "--r2-bucket", default=os.environ.get("R2_BUCKET_NAME", "pytorch-downloads")
@@ -348,6 +405,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+
+    if args.build_tag and not args.build_tag[0].isdigit():
+        sys.exit(f"--build-tag {args.build_tag!r} must start with a digit (PEP 427)")
 
     if not args.libnuma.is_file():
         sys.exit(f"--libnuma {args.libnuma} does not exist")
@@ -375,7 +435,7 @@ def main() -> int:
                     print(f"+ already has {BARE_NAME}, skipping")
                     skipped += 1
                     continue
-                new_wheel = inject(src, libnuma, out_dir)
+                new_wheel = inject(src, libnuma, out_dir, args.build_tag)
                 verify_wheel(new_wheel)
                 verify_unchanged(src, new_wheel)
             finally:
