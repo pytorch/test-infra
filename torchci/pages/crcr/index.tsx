@@ -700,9 +700,11 @@ export default function CrcrSummaryPage() {
     refreshInterval: 60_000,
   });
 
-  const nightlyRepoCount = nightlyData
-    ? nightlyData.filter((r) => r.repo !== CRCR_HEALTH_REPO).length
-    : 0;
+  const visibleNightlyData = useMemo(
+    () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
+    [nightlyData],
+  );
+  const nightlyRepoCount = visibleNightlyData.length;
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -999,15 +1001,13 @@ export default function CrcrSummaryPage() {
               </Typography>
             </Paper>
 
-            {nightlyData && nightlyData.length > 0 ? (
+            {visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
                 <NightlyTable
-                  nightlyData={nightlyData.filter(
-                    (r) => r.repo !== CRCR_HEALTH_REPO
-                  )}
+                  nightlyData={visibleNightlyData}
                   days={days}
                 />
               </>
