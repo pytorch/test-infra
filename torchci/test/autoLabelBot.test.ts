@@ -1881,6 +1881,40 @@ describe("auto-label-bot: label restrictions", () => {
 
     handleScope(scope);
   });
+
+  test("remove in progress label when added manually", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload["label"] = { name: "in progress" };
+    payload["pull_request"]["labels"] = [{ name: "in progress" }];
+
+    const scope = nock("https://api.github.com")
+      .delete("/repos/seemethere/test-repo/issues/20/labels/in%20progress")
+      .reply(200)
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("managed automatically by pytorch-bot");
+        expect(body.body).toContain("has been removed");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("keep in progress label when added by pytorch-bot", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload["label"] = { name: "in progress" };
+    payload["pull_request"]["labels"] = [{ name: "in progress" }];
+    payload["sender"] = {
+      ...payload["sender"],
+      id: 54816060,
+      login: "pytorch-bot[bot]",
+      type: "Bot",
+    };
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+  });
 });
 
 describe("auto-label-bot: check-labels integration", () => {

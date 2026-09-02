@@ -4,6 +4,7 @@ import {
   hasRequiredLabels,
   isBotAuthor,
 } from "./checkLabelsUtils";
+import { BOT_MANAGED_PR_LABELS } from "./Constants";
 import {
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
@@ -21,6 +22,16 @@ import {
 } from "./utils";
 
 export { getLabelsFromLabelerConfig };
+
+const PYTORCH_BOT_USER_ID = 54816060;
+const PYTORCH_BOT_LOGINS = new Set(["pytorch-bot", "pytorch-bot[bot]"]);
+
+function isPytorchBotSender(sender: { id?: number; login?: string }): boolean {
+  return (
+    sender.id === PYTORCH_BOT_USER_ID ||
+    (sender.login !== undefined && PYTORCH_BOT_LOGINS.has(sender.login))
+  );
+}
 
 // List of regex patterns for assigning labels to both Pull Requests and Issues
 const IssueAndPRRegexToLabel: [RegExp, string][] = [
@@ -686,6 +697,7 @@ function myBot(app: Probot): void {
 
   app.on("pull_request.labeled", async (context) => {
     const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
     if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
@@ -693,6 +705,29 @@ function myBot(app: Probot): void {
 
     const addedLabel = context.payload.label!.name;
     context.log({ addedLabel });
+
+    if (
+      isPyTorchPyTorch(owner, repo) &&
+      BOT_MANAGED_PR_LABELS.has(addedLabel) &&
+      !isPytorchBotSender(context.payload.sender)
+    ) {
+      context.log(
+        `Removing bot-managed label "${addedLabel}" added by ${context.payload.sender.login} from ${owner}/${repo}#${context.payload.pull_request.number}`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot and cannot be added manually, so it has been removed.`,
+        })
+      );
+      return;
+    }
 
     // Remove issue-only labels from PRs
     if (addedLabel.startsWith("oncall:")) {

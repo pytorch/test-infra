@@ -319,6 +319,41 @@ describe("label-bot", () => {
     handleScope(scope);
   });
 
+  test("bot-managed labels cannot be added with the label command", async () => {
+    const event = JSON.parse(
+      JSON.stringify(require("./fixtures/pull_request_comment.json"))
+    );
+    event.payload.comment.body = "@pytorchbot label 'in progress'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const prNumber = event.payload.issue.number;
+    const repoLabels = [
+      ...existingRepoLabelsResponse,
+      {
+        name: "in progress",
+        color: "ededed",
+        description: "PR implementation is in progress",
+      },
+    ];
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
+      .reply(200, repoLabels)
+      .post(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, (body) => {
+        expect(body.body).toContain(
+          "lifecycle labels are managed automatically by pytorch-bot"
+        );
+        expect(body.body).toContain("in progress");
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("label with ciflow on issue should have no event", async () => {
     const event = require("./fixtures/issue_comment.json");
     event.payload.comment.body = "@pytorchbot label 'ciflow/trunk'";
