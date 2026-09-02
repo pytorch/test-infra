@@ -366,6 +366,7 @@ def generate_libtorch_matrix(
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
+    python_abi3: bool = False,
 ) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
 
@@ -462,6 +463,7 @@ def generate_wheels_matrix(
     getting_started: bool = False,
     python_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
+    python_abi3: bool = False,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
@@ -500,6 +502,15 @@ def generate_wheels_matrix(
 
         if with_xpu == ENABLE and os in (LINUX, WINDOWS):
             arches += [XPU]
+
+    if python_abi3:
+        # An abi3 wheel built against the oldest supported interpreter is installable
+        # on every later CPython, so only that one needs to be built. Free-threaded
+        # interpreters reject abi3 wheels (see packaging.tags._abi3_applies), so they
+        # still need a wheel each.
+        free_threaded = [v for v in python_versions if v.endswith("t")]
+        stable = [v for v in python_versions if not v.endswith("t")]
+        python_versions = stable[:1] + free_threaded
 
     if limit_pr_builds:
         python_versions = [python_versions[0]]
@@ -572,6 +583,7 @@ def generate_build_matrix(
     build_python_only: str,
     getting_started: str = "false",
     python_versions: Optional[List[str]] = None,
+    python_abi3: str = DISABLE,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -601,6 +613,7 @@ def generate_build_matrix(
                     use_only_dl_pytorch_org == "true",
                     getting_started == "true",
                     python_versions,
+                    python_abi3=python_abi3 == ENABLE,
                 )
             )
 
@@ -702,6 +715,17 @@ def main(args: List[str]) -> None:
         default=os.getenv("PYTHON_VERSIONS", "[]"),
     )
 
+    # For packages that build a Py_LIMITED_API extension and can therefore ship a
+    # single wheel (e.g. torchaudio-2.11.0-cp310-abi3-manylinux_2_28_x86_64.whl)
+    # instead of one per python version.
+    parser.add_argument(
+        "--python-abi3",
+        help="Build a single abi3 wheel instead of one wheel per python version",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("PYTHON_ABI3", DISABLE),
+    )
+
     options = parser.parse_args(args)
     try:
         python_versions = json.loads(options.python_versions)
@@ -725,6 +749,7 @@ def main(args: List[str]) -> None:
         options.build_python_only,
         options.getting_started,
         python_versions,
+        options.python_abi3,
     )
 
     print(json.dumps(build_matrix))
