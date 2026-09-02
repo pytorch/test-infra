@@ -1,12 +1,4 @@
 {
-  "test_64bit_binops (__main__.TestLargeTensors)": [
-    "190665",
-    "https://github.com/pytorch/pytorch/issues/190665",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
@@ -400,6 +392,13 @@
     "https://github.com/pytorch/pytorch/issues/189255",
     [
       "rocm"
+    ]
+  ],
+  "test_dlpack_exchange_api_cuda (__main__.TestTorchDlPackCUDA)": [
+    "195757",
+    "https://github.com/pytorch/pytorch/issues/195757",
+    [
+      "linux"
     ]
   ],
   "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
@@ -879,6 +878,13 @@
       "linux"
     ]
   ],
+  "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
+    "195756",
+    "https://github.com/pytorch/pytorch/issues/195756",
+    [
+      "linux"
+    ]
+  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
@@ -945,6 +951,13 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
+    ]
+  ],
+  "test_philox_state_advances_default_generator (__main__.TestCuda)": [
+    "195755",
+    "https://github.com/pytorch/pytorch/issues/195755",
+    [
+      "rocm"
     ]
   ],
   "test_philox_state_graph_capture (__main__.TestCuda)": [
