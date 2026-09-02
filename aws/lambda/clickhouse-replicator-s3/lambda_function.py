@@ -1,6 +1,9 @@
 import json
 import os
-import urllib
+
+# `import urllib` alone does not bind the `parse` submodule; encode_url_component
+# works today only because a dependency imports urllib.parse first.
+import urllib.parse
 from collections import defaultdict
 from enum import Enum
 from functools import lru_cache
@@ -390,13 +393,125 @@ def log_failure_to_clickhouse(table, bucket, key, error) -> None:
     )
 
 
+# The tuple recording which S3 object a row came from. Three tables predate the
+# `_meta` spelling and call it `meta`. A positional insert never had to know —
+# it matched by position — so naming the columns is what surfaces this.
+META_COLUMN = {
+    "default.merge_bases": "meta",
+    "default.queue_times_historical": "meta",
+    "default.rerun_disabled_tests": "meta",
+}
+
+
+def meta_column(table) -> str:
+    return META_COLUMN.get(table, "_meta")
+
+
+def quote_identifier(name) -> str:
+    return "`" + name.replace("`", "``") + "`"
+
+
+def _split_top_level(schema) -> List[str]:
+    """Split a structure string on commas at paren depth zero.
+
+    Quote-aware, because depth counting is only meaningful outside quotes: a
+    paren inside an Enum value — `Enum8('a)' = 1, 'b' = 2)` — would otherwise
+    unbalance the depth and split the rest of the schema in the wrong places.
+    """
+    parts, depth, buf = [], 0, []
+    in_identifier = in_string = False
+    i = 0
+    while i < len(schema):
+        char = schema[i]
+        if in_identifier:
+            if char == "`" and schema[i + 1 : i + 2] == "`":
+                buf.append("``")
+                i += 2
+                continue
+            if char == "`":
+                in_identifier = False
+        elif in_string:
+            if char == "\\" and i + 1 < len(schema):
+                buf.append(schema[i : i + 2])
+                i += 2
+                continue
+            if char == "'" and schema[i + 1 : i + 2] == "'":
+                buf.append("''")
+                i += 2
+                continue
+            if char == "'":
+                in_string = False
+        elif char == "`":
+            in_identifier = True
+        elif char == "'":
+            in_string = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+            i += 1
+            continue
+        buf.append(char)
+        i += 1
+    parts.append("".join(buf))
+    return parts
+
+
+def schema_columns(schema) -> List[str]:
+    """Top-level column names from a ClickHouse structure string.
+
+    Splitting per LINE instead looks equivalent and is not: the inner fields of
+    a nested `Tuple(...)` sit at the same indentation as real columns, so a
+    line-wise parse invents columns for oss_ci_benchmark_v3 (59 lines, 17
+    columns, `repo` appearing twice), oss_ci_utilization_metadata and
+    cloudwatch_metrics.
+    """
+    names = []
+    for part in _split_top_level(schema):
+        part = part.strip()
+        if not part:
+            continue
+        if not part.startswith("`"):
+            # Every schema here backtick-quotes its column names. Refuse rather
+            # than guess: a wrong name writes into the wrong column, and the
+            # deploy workflow runs test_lambda_function.py, so a schema this
+            # parser cannot read fails the deploy instead of reaching prod.
+            raise ValueError(f"column name is not backtick-quoted: {part!r}")
+        i, chars = 1, []
+        while i < len(part):
+            if part[i] == "`":
+                if part[i + 1 : i + 2] == "`":
+                    chars.append("`")
+                    i += 2
+                    continue
+                break
+            chars.append(part[i])
+            i += 1
+        else:
+            raise ValueError(f"unterminated column name: {part!r}")
+        names.append("".join(chars))
+    return names
+
+
 def general_adapter(table, bucket, key, schema, compressions, format) -> None:
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
 
     def get_insert_query(compression):
+        # Named, not positional. `insert into <table> select *` matches the
+        # destination by ORDER, so the table has to carry exactly these columns
+        # in exactly this sequence: adding one anywhere breaks every insert
+        # until this schema is edited to match, and the break is silent because
+        # the exception below goes to errors.gen_errors and nowhere else.
+        columns = ", ".join(
+            quote_identifier(name)
+            for name in [*schema_columns(schema), meta_column(table)]
+        )
         return f"""
-        insert into {table}
-        select *, ('{bucket}', '{key}') as _meta
+        insert into {table} ({columns})
+        select *, ('{bucket}', '{key}')
         from s3('{url}', '{format}', '{schema}', '{compression}',
             extra_credentials(
                 role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
