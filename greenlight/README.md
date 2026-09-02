@@ -275,8 +275,9 @@ both before the model runs and neither ever `continue-on-error`, close this off:
   only a FAILED marker, never a LAND.
 
 Both scripts live at `.claude/hooks/greenlight/`, alongside the reviewer's existing
-`restrict-read.py` (read-path guard), `restrict-write.sh` (write-path guard), and
-`validate-on-stop.sh` (verdict-schema guard).
+`restrict-read.py` (read-path guard), `restrict-write.sh` (write-path guard),
+`validate-on-stop.sh` (verdict-schema guard), and `budget-reminder.sh` (advisory
+time-budget nudge, see below).
 
 The detector depends on the hooks firing, so the first live dispatch must confirm the
 `SessionStart` and `InstructionsLoaded` hooks actually fire under the pinned
@@ -304,6 +305,27 @@ both are best-effort defense-in-depth, not guarantees:
 An oversized diff is also declined before the model runs: the reviewer gates on line count (the
 model's ~2000-line read window) with a byte-size backstop, emitting a `scope_too_large` NO_LAND
 rather than reviewing a change it cannot read in full.
+
+### Review time budget
+
+The reviewer has no Bash and so no clock; the workflow paces it. `greenlight-pr-review.yml` is the
+source of truth for the budget, declaring `GREENLIGHT_REVIEW_TARGET_BUDGET_MIN` (today 20 minutes),
+`GREENLIGHT_REVIEW_SOFT_BUDGET_MIN` (25) and `GREENLIGHT_REVIEW_HARD_BUDGET_MIN` (33), all clear of
+the model step's 37-minute timeout; the step immediately before the model step resolves them to
+absolute epochs in `$GITHUB_ENV`, and is skipped on the oversized-diff path above.
+`budget-reminder.sh` pushes the current tier to the model as `hookSpecificOutput.additionalContext`
+on `PostToolUse`, rate-limited through `$RUNNER_TEMP/greenlight-budget-reminder-last` to one nudge
+per `GREENLIGHT_REVIEW_REMINDER_INTERVAL_SEC` (180s), or per `GREENLIGHT_REVIEW_URGENT_INTERVAL_SEC`
+(60s) in the final tier, while the tier holds — escalating to a higher tier always nudges
+immediately, so a crossing never inherits the previous tier's cooldown. Tier 1 additionally stays
+silent for the first half of the target window (10 minutes today): the state file starts absent, so
+without that floor every run would nudge on its first tool call, and a review that finishes inside
+the floor sees no reminder at all. Neither interval is set by the workflow, nor is
+`GREENLIGHT_REVIEW_VERDICT_FILE` (default `/tmp/greenlight-verdict.json`),
+which the final tier stats to tell a verdict still due from one already written. The hook is
+advisory and always exits 0, but the final tier is not cosmetic: past the hard deadline the skill
+has the model decide on what it knows, NO_LAND if a critical question is still open — a review
+criterion it never examined counts as one — and LAND if only nits remain.
 
 ## Current status
 
