@@ -135,6 +135,7 @@ class GenerateBuildMatrixTest(TestCase):
         operating_system: str,
         channel: str = "test",
         python_abi3: bool = False,
+        getting_started: bool = False,
     ) -> set:
         out = generate_build_matrix(
             "wheel",
@@ -147,7 +148,7 @@ class GenerateBuildMatrixTest(TestCase):
             "false",
             "false",
             "disable",
-            "false",
+            "true" if getting_started else "false",
             None,
             "enable" if python_abi3 else "disable",
         )
@@ -169,15 +170,30 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertIn("3.15", versions)
                 self.assertIn("3.15t", versions)
 
-    def test_python_3_15_excluded_on_release_channel(self):
-        # 3.15 is still a CPython pre-release, so it must stay out of the
-        # release matrix and off the getting-started page.
+    def test_python_3_15_enabled_on_release_channel(self):
+        # 2.14 ships 3.15 / 3.15t wheels, so they belong in the release matrix.
         for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
             versions = self._test_channel_python_versions(
                 operating_system, channel="release"
             )
-            self.assertNotIn("3.15", versions)
-            self.assertNotIn("3.15t", versions)
+            self.assertIn("3.15", versions)
+            self.assertIn("3.15t", versions)
+
+    def test_python_3_15_excluded_from_getting_started(self):
+        # 3.15 is still a CPython pre-release, so it must stay off the
+        # getting-started page on every channel.
+        for channel in ("nightly", "test", "release"):
+            for operating_system in (
+                "linux",
+                "linux-aarch64",
+                "windows",
+                "macos-arm64",
+            ):
+                versions = self._test_channel_python_versions(
+                    operating_system, channel=channel, getting_started=True
+                )
+                self.assertNotIn("3.15", versions)
+                self.assertNotIn("3.15t", versions)
 
     def test_python_3_15_excluded_on_windows_arm64(self):
         # windows-arm64 pins its own short version list.
@@ -199,7 +215,7 @@ class GenerateBuildMatrixTest(TestCase):
                 self._test_channel_python_versions(
                     operating_system, channel="release", python_abi3=True
                 ),
-                {"3.10", "3.14t"},
+                {"3.10", "3.14t", "3.15t"},
             )
 
         # macOS pins .0 point versions, see MACOS_PYTHON_POINT_VERSIONS.
@@ -257,6 +273,61 @@ class GenerateBuildMatrixTest(TestCase):
             for entry in out["include"]
             if entry["gpu_arch_type"] == "rocm"
         }
+
+    def _cuda_versions(
+        self,
+        package_type: str,
+        operating_system: str,
+        channel: str,
+        getting_started: str,
+    ) -> set:
+        out = generate_build_matrix(
+            package_type,
+            operating_system,
+            channel,
+            "enable",
+            "enable",
+            "enable",
+            "enable",
+            "false",
+            "false",
+            "disable",
+            getting_started,
+            None,
+        )
+        return {entry["desired_cuda"] for entry in out["include"]}
+
+    def test_getting_started_excludes_cuda_13_4(self):
+        # Covers linux-aarch64 too: CUDA_AARCH64_ARCHES used to be a separate
+        # hand-maintained list that bypassed CUDA_ARCHES_NO_GETTING_STARTED.
+        for package_type in ("wheel", "libtorch"):
+            for operating_system in ("linux", "linux-aarch64"):
+                for channel in ("nightly", "test", "release"):
+                    self.assertNotIn(
+                        "cu134",
+                        self._cuda_versions(
+                            package_type, operating_system, channel, "true"
+                        ),
+                        f"{package_type}/{operating_system}/{channel}",
+                    )
+
+    def test_cuda_13_4_still_built_on_nightly_and_test(self):
+        for operating_system in ("linux", "linux-aarch64"):
+            for channel in ("nightly", "test"):
+                self.assertIn(
+                    "cu134",
+                    self._cuda_versions("wheel", operating_system, channel, "false"),
+                    f"{operating_system}/{channel}",
+                )
+
+    def test_release_channel_has_no_cuda_13_4(self):
+        # 13.4 is not published to download.pytorch.org prod.
+        for operating_system in ("linux", "linux-aarch64"):
+            self.assertNotIn(
+                "cu134",
+                self._cuda_versions("wheel", operating_system, "release", "false"),
+                operating_system,
+            )
 
     def test_parse_version_orders_double_digit_minors(self):
         self.assertGreater(parse_version("7.14"), parse_version("7.2"))
