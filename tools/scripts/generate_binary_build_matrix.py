@@ -65,8 +65,6 @@ STABLE_CUDA_VERSIONS = {
     "release": "13.0",
 }
 
-CUDA_AARCH64_ARCHES = ["12.6-aarch64", "13.0-aarch64", "13.2-aarch64", "13.4-aarch64"]
-
 # CUDA versions with no Windows torch build to depend on; see
 # CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
 CUDA_ARCHES_NO_WINDOWS = ["13.4"]
@@ -112,6 +110,10 @@ CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
 CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
+# aarch64 builds the same CUDA versions as x86, so derive rather than duplicate:
+# a hand-maintained copy silently escaped both the channel and the
+# getting-started filters below.
+CUDA_AARCH64_ARCHES = [f"{arch}-aarch64" for arch in CUDA_ARCHES]
 ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
@@ -196,6 +198,7 @@ def initialize_globals(
         CUDA_ARCHES = [
             arch for arch in CUDA_ARCHES if arch not in CUDA_ARCHES_NO_GETTING_STARTED
         ]
+    CUDA_AARCH64_ARCHES = [f"{arch}-aarch64" for arch in CUDA_ARCHES]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if getting_started and channel == NIGHTLY:
         ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]

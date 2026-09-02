@@ -274,6 +274,61 @@ class GenerateBuildMatrixTest(TestCase):
             if entry["gpu_arch_type"] == "rocm"
         }
 
+    def _cuda_versions(
+        self,
+        package_type: str,
+        operating_system: str,
+        channel: str,
+        getting_started: str,
+    ) -> set:
+        out = generate_build_matrix(
+            package_type,
+            operating_system,
+            channel,
+            "enable",
+            "enable",
+            "enable",
+            "enable",
+            "false",
+            "false",
+            "disable",
+            getting_started,
+            None,
+        )
+        return {entry["desired_cuda"] for entry in out["include"]}
+
+    def test_getting_started_excludes_cuda_13_4(self):
+        # Covers linux-aarch64 too: CUDA_AARCH64_ARCHES used to be a separate
+        # hand-maintained list that bypassed CUDA_ARCHES_NO_GETTING_STARTED.
+        for package_type in ("wheel", "libtorch"):
+            for operating_system in ("linux", "linux-aarch64"):
+                for channel in ("nightly", "test", "release"):
+                    self.assertNotIn(
+                        "cu134",
+                        self._cuda_versions(
+                            package_type, operating_system, channel, "true"
+                        ),
+                        f"{package_type}/{operating_system}/{channel}",
+                    )
+
+    def test_cuda_13_4_still_built_on_nightly_and_test(self):
+        for operating_system in ("linux", "linux-aarch64"):
+            for channel in ("nightly", "test"):
+                self.assertIn(
+                    "cu134",
+                    self._cuda_versions("wheel", operating_system, channel, "false"),
+                    f"{operating_system}/{channel}",
+                )
+
+    def test_release_channel_has_no_cuda_13_4(self):
+        # 13.4 is not published to download.pytorch.org prod.
+        for operating_system in ("linux", "linux-aarch64"):
+            self.assertNotIn(
+                "cu134",
+                self._cuda_versions("wheel", operating_system, "release", "false"),
+                operating_system,
+            )
+
     def test_parse_version_orders_double_digit_minors(self):
         self.assertGreater(parse_version("7.14"), parse_version("7.2"))
         self.assertEqual(
