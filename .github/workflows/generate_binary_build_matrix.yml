@@ -52,6 +52,10 @@ on:
         description: "A JSON-encoded list of python versions to build. An empty list means building all supported versions"
         default: "[]"
         type: string
+      python-abi3:
+        description: "Build a single abi3 wheel instead of one wheel per python version. Free-threaded versions still get one wheel each"
+        default: "disable"
+        type: string
       getting-started:
         description: "Release matrix for getting started page"
         required: false
@@ -97,6 +101,7 @@ jobs:
           BUILD_PYTHON_ONLY: ${{ inputs.build-python-only }}
           GETTING_STARTED: ${{ inputs.getting-started }}
           PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          PYTHON_ABI3: ${{ inputs.python-abi3 }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"

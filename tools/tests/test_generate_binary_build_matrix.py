@@ -134,6 +134,7 @@ class GenerateBuildMatrixTest(TestCase):
         self,
         operating_system: str,
         channel: str = "test",
+        python_abi3: bool = False,
     ) -> set:
         out = generate_build_matrix(
             "wheel",
@@ -148,6 +149,7 @@ class GenerateBuildMatrixTest(TestCase):
             "disable",
             "false",
             None,
+            "enable" if python_abi3 else "disable",
         )
         return {entry["python_version"] for entry in out["include"]}
 
@@ -182,6 +184,37 @@ class GenerateBuildMatrixTest(TestCase):
         versions = self._test_channel_python_versions("windows-arm64")
         self.assertNotIn("3.15", versions)
         self.assertNotIn("3.15t", versions)
+
+    def test_python_abi3_keeps_oldest_and_free_threaded(self):
+        # A single abi3 wheel covers every later CPython, but free-threaded
+        # interpreters reject abi3 wheels and still need one wheel each.
+        for operating_system in ("linux", "linux-aarch64", "windows"):
+            self.assertEqual(
+                self._test_channel_python_versions(
+                    operating_system, channel="nightly", python_abi3=True
+                ),
+                {"3.10", "3.14t", "3.15t"},
+            )
+            self.assertEqual(
+                self._test_channel_python_versions(
+                    operating_system, channel="release", python_abi3=True
+                ),
+                {"3.10", "3.14t"},
+            )
+
+        # macOS pins .0 point versions, see MACOS_PYTHON_POINT_VERSIONS.
+        self.assertEqual(
+            self._test_channel_python_versions(
+                "macos-arm64", channel="nightly", python_abi3=True
+            ),
+            {"3.10.19", "3.14t", "3.15t"},
+        )
+
+    def test_python_abi3_disabled_by_default(self):
+        self.assertEqual(
+            self._test_channel_python_versions("linux", channel="nightly"),
+            {"3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"},
+        )
 
     def test_torch_only_install_command_for_torch_only_arches(self):
         out = generate_build_matrix(
