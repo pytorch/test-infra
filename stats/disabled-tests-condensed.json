@@ -29,6 +29,13 @@
       "rocm"
     ]
   ],
+  "test_all_gather_fp32 (__main__.TestFullyShardCollectiveOps)": [
+    "195655",
+    "https://github.com/pytorch/pytorch/issues/195655",
+    [
+      "rocm"
+    ]
+  ],
   "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
     "192616",
     "https://github.com/pytorch/pytorch/issues/192616",
@@ -308,11 +315,17 @@
     ]
   ],
   "test_cudnn_rnn_cuda_bfloat16 (__main__.TestNNDeviceTypeCUDA)": [
-    "195618",
-    "https://github.com/pytorch/pytorch/issues/195618",
+    "195619",
+    "https://github.com/pytorch/pytorch/issues/195619",
     [
-      "linux",
-      "slow"
+      "linux"
+    ]
+  ],
+  "test_cudnn_rnn_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
+    "195656",
+    "https://github.com/pytorch/pytorch/issues/195656",
+    [
+      "linux"
     ]
   ],
   "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
@@ -484,7 +497,8 @@
     "195580",
     "https://github.com/pytorch/pytorch/issues/195580",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -512,6 +526,13 @@
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
     []
+  ],
+  "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
+    "134139",
+    "https://github.com/pytorch/pytorch/issues/134139",
+    [
+      "rocm"
+    ]
   ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
     "186907",
