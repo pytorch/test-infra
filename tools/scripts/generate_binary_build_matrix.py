@@ -21,10 +21,10 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
-# 3.15 / 3.15t are enabled by default on the nightly and test channels for every
-# operating system. They are deliberately absent from "release": 3.15 is still a
-# CPython pre-release, so it must not appear in the release matrix or on the
-# getting-started page until it ships final.
+# 3.15 / 3.15t are enabled on every channel and operating system. 3.15 is still
+# a CPython pre-release, so no wheels for it are published to PyPI -- see
+# PYPI_UNPUBLISHED_PYTHON_ARCHES below, which routes their release-channel
+# install command to download.pytorch.org.
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
@@ -35,6 +35,13 @@ PYTHON_ARCHES_DICT = {
 # wheels are not published for these versions yet, so the install command must
 # request torch alone.
 TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
+
+# Python versions with no torch wheels on PyPI. The release channel normally
+# validates via a bare `pip3 install torch`, which resolves against PyPI; for
+# these it must use --index-url download.pytorch.org instead. Same members as
+# TORCH_ONLY_PYTHON_ARCHES today but a different fact -- that one is about
+# torchvision not being published, this one about torch.
+PYPI_UNPUBLISHED_PYTHON_ARCHES = ["3.15", "3.15t"]
 
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
@@ -314,6 +321,7 @@ def get_wheel_install_command(
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
+        and python_version not in PYPI_UNPUBLISHED_PYTHON_ARCHES
         and (
             (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
