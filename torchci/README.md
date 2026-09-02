@@ -150,6 +150,121 @@ A test can set a parameter to be a dictionary with the field `from_now` to get a
 dynamic timestamp where the entry is the difference from now in days. For
 example `from_now: 0` is now and `from_now: -7` would be 7 days in the past.
 
+### Linting a query
+
+Two `lintrunner` linters cover a query folder: `SQLFLUFF` formats `query.sql`,
+and `SQL_PARAMS` checks `params.json` against the parameters the query actually
+uses. Install them with:
+
+```
+VIRTUAL_ENV=<path-to-your-venv> lintrunner init --take SQLFLUFF,SQL_PARAMS
+```
+
+`VIRTUAL_ENV` has to be set. `tools/linter/adapters/pip_init.py` appends
+`--user` to its `pip install` when neither `VIRTUAL_ENV` nor `CONDA_PREFIX` is
+in the environment, and pip refuses `--user` from inside a virtualenv.
+
+Then lint the two files by path:
+
+```
+lintrunner torchci/clickhouse_queries/<name>/query.sql torchci/clickhouse_queries/<name>/params.json
+```
+
+Pass the paths positionally like that, or `git add` the new folder before
+linting. `lintrunner -m main` takes its file list from `git diff-tree`, which
+never lists untracked files, so a new query folder is skipped in silence and the
+run reports no issues.
+
+#### What a clean run does and does not mean
+
+On a file sqlfluff can parse, the gate works: keyword casing and layout are
+enforced, and it will reject a genuine layout defect. Every
+`greenlight_quality_*` query parses, and mutating any of them is caught.
+Do not read the rest of this section as a reason to distrust it.
+
+Its reach on those files is still narrower than "sqlfluff passed", because the
+adapter shells out to `sqlfluff format`, which hardcodes a restricted rule set
+(`cli/commands.py`): all of `capitalisation` and `layout`, plus only
+`ambiguous.union`, `convention.not_equal`, `convention.coalesce`,
+`convention.select_trailing_comma`, `convention.is_null`, `jinja.padding` and
+`structure.distinct`. Rules outside that list are never invoked even when
+sqlfluff could fix them automatically, and `format` rejects `--rules`, so the
+set cannot be widened from `.sqlfluff`. Those same queries parse cleanly, are
+left untouched by `format`, and are still rewritten by
+`sqlfluff fix --force` — `structure.column_order`,
+`aliasing.self_alias.column` and `references.*` all fire outside the gate. Read
+a clean run as "clean under format's subset", not "clean under sqlfluff".
+
+The real limit is that **this gate has several ways of reporting clean when it
+never looked at your file, and none of them are distinguishable from a pass.**
+`ok No lint issues` means "nothing was reported", which is not the same as
+"nothing is wrong". The `SQLFLUFF` linter is declared `is_formatter = true`, so
+it reports a file only when `sqlfluff format` rewrites it — and anything that
+stops sqlfluff producing a rewrite produces silence instead of an error. The
+known ways in are an untracked path, an unparsable construct, a rule outside
+`format`'s subset, and an oversized file. Treat that list as open.
+
+**Unparsable constructs.** A region sqlfluff cannot parse makes every violation
+in the file unfixable, the formatter therefore changes nothing, and the file
+passes with no output — for the whole file, not just the unparsable part. A
+lowercase `SELECT` that is caught in a parsable file goes unreported once
+anything else in the same file fails to parse. This is not a rare edge case:
+**98 of the 194 committed `query.sql` files — 51% — currently report a parse
+error** under the exact transformation the adapter applies, and so are getting
+no structural or stylistic checking at all.
+
+**Oversized files.** sqlfluff refuses to look at any file over
+`large_file_skip_byte_limit` bytes, warning `Skipping to avoid parser lock` and
+reporting nothing; lintrunner renders that as a pass. The default is 20000. The
+same 22,505-byte query linted under a 20000 limit yields the warning and zero
+violations, and under a 32768 limit yields 175 — size alone is the discriminator.
+`.sqlfluff` raises the limit to 32768 for this repo, so nothing is currently
+skipped; the comment there explains why, and lowering it again silently unlints
+the largest query. A query file grows over time, so this one arrives on its own.
+
+Two known parse triggers, and the list is **not** exhaustive — assume any
+construct may be one until you have checked:
+
+- `ARRAY JOIN` with any clause after it. The clause parses on its own, and with
+  a following `ORDER BY`, but a following `WHERE`, `GROUP BY` or `LIMIT` does
+  not — in every form tested, including `LEFT ARRAY JOIN`, multi-column, an
+  array literal, inside a subquery and inside a CTE. Since a realistic query
+  filters or groups, treat `ARRAY JOIN` as unusable here and expand arrays with
+  the `arrayJoin(arrayZip(...))` function form instead; that parses.
+- A `{name: Type}` placeholder anywhere a bare string literal is not valid SQL.
+  The adapter rewrites `{` to `'{` and `}` to `}'` before handing the file to
+  sqlfluff, which makes placeholders parse in value positions
+  (`= {repo: String}`) but not elsewhere — `IN {prNumbers: Array(Int64)}` becomes
+  `IN '{prNumbers: Array(Int64)}'` and fails. **This one is not a defect in your
+  query**: the SQL ClickHouse receives is valid, and the unparsable text only
+  ever exists inside the linter. Do not contort a working query to satisfy it.
+
+To find out whether your file was actually examined, and what it would have
+been told, reproduce the substitution and run sqlfluff yourself. From the repo
+root:
+
+```
+sed "s/{/'{/g; s/}/}'/g" <file> > /tmp/q.sql
+sqlfluff lint  --config .sqlfluff --dialect clickhouse /tmp/q.sql | grep "over the limit"   # skipped for size?
+sqlfluff parse --config .sqlfluff --dialect clickhouse /tmp/q.sql | grep "Found unparsable" # unparsable?
+sqlfluff lint  --config .sqlfluff --dialect clickhouse /tmp/q.sql                           # everything the gate omits
+```
+
+Silence from the first two means the file was examined; the third then lists
+what the gate did not report.
+
+Two details make the difference between this telling you the truth and
+misleading you. The `sed` matters: run sqlfluff on the raw file and the bare
+`{name: Type}` placeholders are themselves unparsable, so 190 of the 194
+committed queries look broken. And these must run against a **file path**, not
+piped on stdin — sqlfluff does not apply the size limit to stdin, so the piped
+form lints a file the real gate skipped and reports it clean.
+
+Finally, do not run `.github/scripts/run_clickhouse_format.sh`. No workflow
+invokes it, it rewrites every folder under `clickhouse_queries/` in place, and
+the `clickhouse format` it shells out to strips every comment from the queries
+it touches.
+
 ## Alerts
 
 Code is in `test-infra/tools/torchci/check_alerts.py`. It queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
