@@ -77,6 +77,7 @@ jobs:
             --lookback-days 14 \
             --output "${RUNNER_TEMP}/report.md" \
             --json-output "${RUNNER_TEMP}/report.json" \
+            --compare-rows-output "${RUNNER_TEMP}/compare-rows.json" \
             --logs-dir "${RUNNER_TEMP}/cluster-logs"
           # No torch-nightly build with a same-commit baseline => no report written.
           if [[ -s "${RUNNER_TEMP}/report.md" ]]; then
@@ -106,6 +107,7 @@ jobs:
           name: vllm-torch-nightly-triage
           path: |
             ${{ runner.temp }}/report.*
+            ${{ runner.temp }}/compare-rows.json
             ${{ runner.temp }}/cluster-logs
           if-no-files-found: ignore
 

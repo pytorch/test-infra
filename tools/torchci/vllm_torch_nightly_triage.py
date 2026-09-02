@@ -55,6 +55,22 @@ BASELINE_MSGS = ("Full CI run - nightly", "Full CI run - daily")
 
 BAD_STATES = ("failed", "timed_out")
 
+# Must stay in the same order as the SELECT in get_rows() -- ClickHouse returns
+# positional tuples that compare() unpacks by position and write_compare_rows()
+# zips against these names. Reorder or add a column in one place, change all three.
+COMPARE_ROW_COLUMNS = (
+    "job_name",
+    "shard",
+    "tn_state",
+    "tn_exit",
+    "tn_url",
+    "tn_agent",
+    "base_state",
+    "base_url",
+    "in_tn",
+    "in_base",
+)
+
 # Job names are frequently sharded ("Multi-Modal Processor (CPU) 1..4") or
 # parameterised by hardware ("Fusion E2E TP2 (B200)"). Collapsing those into one
 # cluster keeps a single root cause from looking like N independent regressions.
@@ -217,8 +233,31 @@ def find_latest_pair(
     return None
 
 
-def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dict]]:
-    """Bucket every job by its outcome in the torch-nightly vs baseline build.
+def write_compare_rows(rows: List[Tuple], compare_rows_path: str) -> None:
+    """Write raw ClickHouse comparison rows to a self-describing JSON artifact.
+
+    Args:
+        rows: Direct result of get_rows()'s ClickHouse query.
+        compare_rows_path: Destination path for compare-rows.json.
+    """
+    with open(compare_rows_path, "w") as f:
+        json.dump(
+            {
+                "columns": COMPARE_ROW_COLUMNS,
+                "rows": [dict(zip(COMPARE_ROW_COLUMNS, row)) for row in rows],
+            },
+            f,
+            indent=2,
+            default=str,
+        )
+
+
+def get_rows(
+    client: Any,
+    tn_number: int,
+    base_number: int,
+) -> List[Tuple]:
+    """Fetch the raw job-comparison rows for the torch-nightly and baseline builds.
 
     ``retried`` jobs are excluded: a retried attempt is superseded and counting it
     double-reports. ``soft_failed`` jobs are non-blocking by design.
@@ -230,7 +269,7 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
     # immutable data yields a different verdict per run, and state, url and agent
     # can each resolve from a different row. argMax over finished_at makes the pick
     # deterministic (latest attempt wins) and keeps the fields mutually consistent.
-    rows = _rows(
+    return _rows(
         client,
         """
         SELECT
@@ -265,6 +304,14 @@ def compare(client: Any, tn_number: int, base_number: int) -> Dict[str, List[Dic
         """,
         {"tn": tn_number, "base": base_number},
     )
+
+
+def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
+    """Bucket every job by its outcome in the torch-nightly vs baseline build.
+
+    ``rows`` are the positional tuples from get_rows(), unpacked here in the order
+    defined by COMPARE_ROW_COLUMNS.
+    """
 
     buckets: Dict[str, List[Dict]] = {
         "regressed": [],
@@ -818,6 +865,10 @@ def main() -> int:
     parser.add_argument("--output", help="write the rendered markdown report here")
     parser.add_argument("--json-output", help="write the raw buckets here")
     parser.add_argument(
+        "--compare-rows-output",
+        help="write the raw ClickHouse job-comparison rows here",
+    )
+    parser.add_argument(
         "--logs-dir",
         help="fetch one representative Buildkite log per cluster into this directory "
         "(requires BUILDKITE_TOKEN)",
@@ -836,7 +887,10 @@ def main() -> int:
         return 0
 
     tn, base = pair
-    buckets = compare(client, tn["number"], base["number"])
+    rows = get_rows(client=client, tn_number=tn["number"], base_number=base["number"])
+    if args.compare_rows_output:
+        write_compare_rows(rows=rows, compare_rows_path=args.compare_rows_output)
+    buckets = compare(rows=rows)
 
     # Logs are fetched before the report is rendered/written: the torch version and
     # the red-on-both test-set regressions are only observable in the log bodies, and
