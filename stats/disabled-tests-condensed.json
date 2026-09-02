@@ -1037,13 +1037,6 @@
       "mac"
     ]
   ],
-  "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsNonPersistentTest)": [
-    "191078",
-    "https://github.com/pytorch/pytorch/issues/191078",
-    [
-      "xpu"
-    ]
-  ],
   "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsPersistentTest)": [
     "191000",
     "https://github.com/pytorch/pytorch/issues/191000",
