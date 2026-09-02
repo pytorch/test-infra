@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
 # Python versions for which only torch is validated (no torchvision). torchvision
@@ -52,7 +52,7 @@ CUDA_ARCHES_DICT = {
 ROCM_ARCHES_DICT = {
     "nightly": ["7.2", "7.14"],
     "test": ["7.2", "7.14"],
-    "release": ["7.1", "7.2"],
+    "release": ["7.2", "7.14"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -99,7 +99,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.14.0"
 CURRENT_CANDIDATE_VERSION = "2.14.0"
-CURRENT_STABLE_VERSION = "2.13.0"
+CURRENT_STABLE_VERSION = "2.14.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
