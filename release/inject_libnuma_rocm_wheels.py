@@ -20,30 +20,34 @@ already published, without a rebuild.
 This script:
   1. Discovers torch wheels of a given version on the ROCm channel index.
   2. Downloads each wheel.
-  3. Unpacks it with ``wheel unpack`` and adds ``torch/lib/libnuma.so.1`` and
-     ``torch/lib/libnuma.so`` from a libnuma the caller supplies. Both are
-     written as real files rather than one being a symlink: a correct build
-     produces a symlink, but ``wheel unpack``/``pack`` does not round-trip
-     symlinks and the two are equivalent to ``dlopen``. Wheels that already
-     contain libnuma are left alone, so re-running is safe.
-  4. Repacks with ``wheel pack``, which regenerates RECORD (hashes and sizes)
-     so the wheel still verifies under ``pip install --require-hashes``.
-  5. Verifies the result before uploading (see the ZIP64 note below).
+  3. Adds ``torch/lib/libnuma.so.1`` and ``torch/lib/libnuma.so`` from a
+     libnuma the caller supplies. Both are written as real files rather than
+     one being a symlink: a correct build produces a symlink, but the repack
+     does not round-trip symlinks and the two are equivalent to ``dlopen``.
+     Wheels that already contain libnuma are left alone, so re-running is safe.
+  4. Repacks with auditwheel's ``InWheelCtx``, which regenerates RECORD
+     (hashes and sizes) so the wheel still verifies under
+     ``pip install --require-hashes``.
+  5. Verifies the result before uploading: the two libs are present, readable
+     and in RECORD, and *nothing else in the wheel changed*.
   6. Uploads each wheel back over the original, to S3 and Cloudflare R2, with
      ``x-amz-meta-checksum-sha256`` set so the PEP 503 index picks it up.
 
-ZIP64 caveat, please read:
+Why auditwheel and not the ``wheel`` CLI:
 
-  ``wheel pack`` is known to emit an invalid ZIP64 header for archives over
-  4GB (pypa/wheel#692). ROCm wheels are ~1.4GB compressed but well over 4GB
-  unpacked, and pytorch#189748 tracked exactly this: wheels that installed
-  under pip but failed under stricter zip parsers such as uv. That is why
-  pytorch's own ``.ci/manywheel/repair_wheel.py`` repacks with auditwheel
-  instead.
+  ``wheel pack`` emits an invalid ZIP64 header for archives over 4GB
+  (pypa/wheel#692). ROCm wheels are ~1.4GB compressed but well over 4GB
+  unpacked, and pytorch#189748 tracked exactly that: wheels that installed
+  under pip but failed under stricter parsers such as uv. pytorch's own
+  ``.ci/manywheel/repair_wheel.py`` uses auditwheel for the same reason.
 
-  ``verify_wheel()`` therefore checks the ZIP64 records on every repacked
-  archive and refuses to upload if they are malformed. If it trips, repack
-  that wheel with auditwheel rather than working around the check.
+  Only ``InWheelCtx`` is used -- unpack, edit, repack, regenerate RECORD. The
+  repair path is never invoked, so no patchelf, no RPATH rewriting, no library
+  bundling and no platform retagging. ``verify_unchanged()`` enforces that:
+  the repacked wheel must differ from the original by exactly the two added
+  members. auditwheel itself needs only ``packaging`` and ``pyelftools``,
+  both pure Python; the patchelf binary is a requirement of
+  ``auditwheel repair``, which this does not use.
 
 Supplying libnuma:
 
@@ -79,8 +83,6 @@ import hashlib
 import os
 import re
 import shutil
-import struct
-import subprocess
 import sys
 import tempfile
 import urllib.parse
@@ -96,9 +98,6 @@ DEFAULT_S3_BUCKET = "pytorch"
 TARGET_DIR = "torch/lib"
 VERSIONED_NAME = "libnuma.so.1"
 BARE_NAME = "libnuma.so"
-
-ZIP64_THRESHOLD = 4 * 1024**3
-
 
 def channel_prefix(channel: str, rocm: str) -> str:
     """Bucket-relative prefix for a channel, e.g. ``whl/test/rocm7.14``."""
@@ -158,45 +157,33 @@ def has_libnuma(wheel_path: Path) -> bool:
         return f"{TARGET_DIR}/{BARE_NAME}" in zf.namelist()
 
 
-def run(cmd: list[str]) -> None:
-    print("  $ " + " ".join(cmd))
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
+def inject(wheel_path: Path, libnuma: Path, output_dir: Path) -> Path:
+    """Add libnuma to the wheel and repack it. Returns the new wheel.
 
+    Uses only auditwheel's InWheelCtx: unpack, edit the tree, repack,
+    regenerate RECORD. The repair path is never invoked, so nothing else about
+    the wheel is touched.
+    """
+    try:
+        from auditwheel.wheeltools import InWheelCtx
+    except ImportError:
+        sys.exit(
+            "Error: auditwheel is not installed. Install it with "
+            "'pip install auditwheel'."
+        )
 
-def inject(wheel_path: Path, libnuma: Path, work: Path, output_dir: Path) -> Path:
-    """Unpack, add libnuma, repack with ``wheel pack``. Returns the new wheel."""
-    unpack_dir = work / "unpacked"
-    if unpack_dir.exists():
-        shutil.rmtree(unpack_dir)
-    unpack_dir.mkdir()
-
-    run([sys.executable, "-m", "wheel", "unpack", str(wheel_path), "-d", str(unpack_dir)])
-
-    roots = [d for d in unpack_dir.iterdir() if d.is_dir()]
-    if len(roots) != 1:
-        raise RuntimeError(f"expected one unpacked root, got {roots}")
-    root = roots[0]
-
-    lib_dir = root / TARGET_DIR
-    if not lib_dir.is_dir():
-        raise RuntimeError(f"{TARGET_DIR} not found in {wheel_path.name}")
-    for name in (VERSIONED_NAME, BARE_NAME):
-        shutil.copy(libnuma, lib_dir / name)
-        print(f"  + added {TARGET_DIR}/{name}")
-
-    # wheel pack rewrites RECORD from the tree, so the added files get correct
-    # hashes and sizes and --require-hashes keeps working.
-    run([sys.executable, "-m", "wheel", "pack", str(root), "-d", str(output_dir)])
-    shutil.rmtree(unpack_dir)
-
-    produced = list(output_dir.glob(wheel_path.name))
-    if not produced:
-        # wheel pack derives the filename from .dist-info, which should match,
-        # but fall back to whatever landed rather than failing opaquely.
-        produced = sorted(output_dir.glob("*.whl"))
-        if not produced:
-            raise RuntimeError(f"wheel pack produced nothing for {wheel_path.name}")
-    return produced[0]
+    # InWheelCtx chdirs into its unpack dir, so both paths must be absolute
+    # or they resolve against the wrong cwd on exit.
+    out = (output_dir / wheel_path.name).resolve()
+    with InWheelCtx(wheel_path.resolve()) as ctx:
+        ctx.out_wheel = out
+        lib_dir = Path(ctx.path) / TARGET_DIR
+        if not lib_dir.is_dir():
+            raise RuntimeError(f"{TARGET_DIR} not found in {wheel_path.name}")
+        for name in (VERSIONED_NAME, BARE_NAME):
+            shutil.copy(libnuma, lib_dir / name)
+            print(f"  + added {TARGET_DIR}/{name}")
+    return out
 
 
 def verify_wheel(wheel_path: Path) -> None:
@@ -222,55 +209,48 @@ def verify_wheel(wheel_path: Path) -> None:
             if key not in text:
                 raise RuntimeError(f"{key} not listed in RECORD")
 
-    verify_zip64(wheel_path)
     print(f"+ verified {wheel_path.name}")
 
 
-def verify_zip64(wheel_path: Path) -> None:
-    """Guard against pypa/wheel#692: ``wheel pack`` writing a bad ZIP64 header
-    on archives over 4GB, which installs under pip but fails under stricter
-    parsers such as uv (pytorch#189748)."""
-    size = wheel_path.stat().st_size
-    with open(wheel_path, "rb") as f:
-        f.seek(max(0, size - 200000))
-        tail = f.read()
+def verify_unchanged(original: Path, repacked: Path) -> None:
+    """The repacked wheel must differ from the original by exactly the two
+    added members. Guards against the repack altering anything else -- extra
+    bundled libraries, a retagged platform, rewritten metadata."""
+    added = {f"{TARGET_DIR}/{VERSIONED_NAME}", f"{TARGET_DIR}/{BARE_NAME}"}
 
-    eocd = tail.rfind(b"PK\x05\x06")
-    if eocd < 0:
-        raise RuntimeError(f"{wheel_path.name}: no end-of-central-directory record")
-    total, cd_size, cd_off = struct.unpack("<HII", tail[eocd + 10 : eocd + 20])
+    def index(path: Path) -> dict[str, tuple[int, int]]:
+        # Skip directory entries: the repack writes explicit ones the original
+        # may not have. They carry no content.
+        with zipfile.ZipFile(path) as zf:
+            return {
+                i.filename: (i.CRC, i.file_size)
+                for i in zf.infolist()
+                if not i.filename.endswith("/")
+            }
 
-    needs_zip64 = (
-        size >= ZIP64_THRESHOLD
-        or total == 0xFFFF
-        or cd_size == 0xFFFFFFFF
-        or cd_off == 0xFFFFFFFF
-    )
-    if not needs_zip64:
-        return
+    before, after = index(original), index(repacked)
 
-    loc = tail.rfind(b"PK\x06\x07")
-    rec = tail.rfind(b"PK\x06\x06")
-    if loc < 0 or rec < 0:
+    new_members = set(after) - set(before)
+    if new_members != added:
         raise RuntimeError(
-            f"{wheel_path.name} needs ZIP64 but the ZIP64 "
-            f"end-of-central-directory {'locator' if loc < 0 else 'record'} is "
-            f"missing (pypa/wheel#692). Repack this wheel with auditwheel."
+            f"{repacked.name}: repack added unexpected members: "
+            f"{sorted(new_members - added)}"
         )
-    (rec_off,) = struct.unpack("<Q", tail[loc + 8 : loc + 16])
-    expected = size - (len(tail) - rec)
-    if rec_off != expected:
-        raise RuntimeError(
-            f"{wheel_path.name}: ZIP64 locator points at offset {rec_off} but the "
-            f"ZIP64 record is at {expected} (pypa/wheel#692). Repack with auditwheel."
-        )
-    z64_cd_size, z64_cd_off = struct.unpack("<QQ", tail[rec + 40 : rec + 56])
-    if z64_cd_off + z64_cd_size > size:
-        raise RuntimeError(
-            f"{wheel_path.name}: ZIP64 central directory at {z64_cd_off} "
-            f"+{z64_cd_size} overruns the {size}-byte archive (pypa/wheel#692). "
-            f"Repack with auditwheel."
-        )
+    removed = set(before) - set(after)
+    if removed:
+        raise RuntimeError(f"{repacked.name}: repack dropped members: {sorted(removed)}")
+
+    # RECORD legitimately changes (it lists the new files). Everything else
+    # must be byte-identical in content.
+    for name, meta in before.items():
+        if name.endswith(".dist-info/RECORD"):
+            continue
+        if after[name] != meta:
+            raise RuntimeError(
+                f"{repacked.name}: {name} changed during repack "
+                f"(crc/size {meta} -> {after[name]})"
+            )
+    print(f"+ {repacked.name}: only {len(added)} members added, nothing else changed")
 
 
 def sha256_of(file_path: Path) -> str:
@@ -395,8 +375,9 @@ def main() -> int:
                     print(f"+ already has {BARE_NAME}, skipping")
                     skipped += 1
                     continue
-                new_wheel = inject(src, libnuma, work, out_dir)
+                new_wheel = inject(src, libnuma, out_dir)
                 verify_wheel(new_wheel)
+                verify_unchanged(src, new_wheel)
             finally:
                 src.unlink(missing_ok=True)
 
