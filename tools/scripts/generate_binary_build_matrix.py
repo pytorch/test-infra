@@ -32,6 +32,13 @@ PYTHON_ARCHES_DICT = {
 # request torch alone.
 TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
 
+# Python versions with no torch wheels on PyPI. The release channel normally
+# validates via a bare `pip3 install torch`, which resolves against PyPI; for
+# these it must use --index-url download.pytorch.org instead. Same members as
+# TORCH_ONLY_PYTHON_ARCHES today but a different fact -- that one is about
+# torchvision not being published, this one about torch.
+PYPI_UNPUBLISHED_PYTHON_ARCHES = ["3.15", "3.15t"]
+
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
@@ -200,7 +207,9 @@ def initialize_globals(
         ]
     CUDA_AARCH64_ARCHES = [f"{arch}-aarch64" for arch in CUDA_ARCHES]
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
-    if getting_started and channel == NIGHTLY:
+    if getting_started:
+        # The getting-started page offers a single ROCm option per channel, and
+        # it should be the newest one the channel ships.
         ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
@@ -339,6 +348,7 @@ def get_wheel_install_command(
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
+        and python_version not in PYPI_UNPUBLISHED_PYTHON_ARCHES
         and (
             (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
