@@ -80,6 +80,73 @@ export function deduplicateVerdicts(
 }
 
 /**
+ * Group one commit's rows by signal key, dropping every other commit's.
+ *
+ * `sha` is trimmed because the column is FixedString-padded, and the caller's
+ * head sha is not.
+ */
+export function headRowsBySignalKey(
+  rows: AdvisorVerdictRow[],
+  headSha: string
+): Map<string, AdvisorVerdictRow[]> {
+  const byKey = new Map<string, AdvisorVerdictRow[]>();
+  for (const row of rows) {
+    if (row.sha.trim() !== headSha) {
+      continue;
+    }
+    byKey.set(row.signal_key, (byKey.get(row.signal_key) ?? []).concat(row));
+  }
+  return byKey;
+}
+
+/**
+ * Pick the row that speaks for one signal key, keeping "ambiguous" distinct
+ * from "absent" by returning null for both. Rows tied at the newest timestamp
+ * with different verdicts mean an answer arrived and is unusable, so callers
+ * get nothing rather than whichever row sorted first. Among tied rows that
+ * agree, the LEAST confident one represents them: confidence drives a merge
+ * gate, and the comment should describe the same row the gate judged.
+ *
+ * Picks the newest itself rather than trusting the caller's ordering: the saved
+ * query orders by timestamp with no tie-breaker, and "whatever ClickHouse
+ * returned first" is not a basis for skipping a merge gate. Rows that tie on
+ * timestamp, verdict AND confidence are interchangeable for every decision
+ * either caller makes, so which of those is returned is left unspecified.
+ *
+ * Shared by the Dr.CI badge line and the suppression gate so the two cannot
+ * describe the same job differently.
+ */
+export function resolveVerdict(
+  rows: AdvisorVerdictRow[]
+): AdvisorVerdictRow | null {
+  if (rows.length === 0) {
+    return null;
+  }
+  const newestTimestamp = rows
+    .map((r) => r.timestamp)
+    .reduce((a, b) => (a > b ? a : b));
+  const tied = rows.filter((r) => r.timestamp === newestTimestamp);
+  if (tied.some((r) => r.verdict !== tied[0].verdict)) {
+    return null;
+  }
+  // A confidence that is not a real number in [0, 1] means the row cannot be
+  // compared, and picking "the least confident" among incomparable values
+  // silently drops the bad row instead of the good one -- NaN loses every
+  // comparison, so a NaN row beside a 0.95 row would resolve to 0.95 and
+  // suppress. Refuse the whole key instead: unusable input is ambiguous, and
+  // ambiguous blocks.
+  if (
+    !tied.every(
+      (r) =>
+        Number.isFinite(r.confidence) && r.confidence >= 0 && r.confidence <= 1
+    )
+  ) {
+    return null;
+  }
+  return tied.reduce((a, b) => (a.confidence <= b.confidence ? a : b));
+}
+
+/**
  * Build a lookup map: sha -> array of verdicts for that commit.
  */
 export function buildVerdictsBySha(

@@ -4,6 +4,15 @@ import utc from "dayjs/plugin/utc";
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
+import {
+  extractSuppressed,
+  suppressibleJobIds,
+} from "lib/advisor/advisorSuppression";
+import {
+  fetchAdvisorVerdictRows,
+  shouldReadAdvisorVerdicts,
+} from "lib/advisor/advisorVerdictSource";
+import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
@@ -300,9 +309,39 @@ export async function updateDrciComments(
         );
       }
 
-      // Look up AI advisor verdicts / in-progress dispatches for this PR's new
-      // and unclassified failures, rendered as an inline "AI verdict:" line per
-      // job. Wrapped so an advisor / ClickHouse error can never break the comment.
+      // The failures either advisor consumer can say anything about.
+      const advisorJobs = [...failedJobs, ...unknownJobs];
+
+      // One read of this PR's advisor verdicts, shared by the inline "AI
+      // verdict:" line and the suppression gate below. Reading per consumer
+      // would let a verdict landing between the two reads make the badge and
+      // the merge gate describe the same job differently.
+      //
+      // A read that is skipped or fails yields an empty array, which both
+      // consumers treat as "no verdict": nothing is suppressed, so every job
+      // keeps blocking. Note the comment can still render an "analyzing" line
+      // for a job with a dispatch in flight, since that state is read
+      // separately and does not depend on these rows.
+      let advisorVerdictRows: AdvisorVerdictRow[] = [];
+      if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
+        try {
+          advisorVerdictRows = await fetchAdvisorVerdictRows(
+            owner,
+            repo,
+            pr_info.pr_number
+          );
+        } catch (e) {
+          console.error(
+            "advisor verdict fetch threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
+      // Render the verdicts for this PR's new and unclassified failures as an
+      // inline line per job. Wrapped so an advisor error can never break the
+      // comment.
       let advisorLines: Map<number, string> = new Map();
       try {
         advisorLines = await buildAdvisorVerdictLines(
@@ -311,7 +350,8 @@ export async function updateDrciComments(
           repo,
           pr_info.pr_number,
           pr_info.head_sha,
-          [...failedJobs, ...unknownJobs]
+          advisorJobs,
+          advisorVerdictRows
         );
       } catch (e) {
         console.error(
@@ -319,6 +359,38 @@ export async function updateDrciComments(
           pr_info.pr_number,
           e
         );
+      }
+
+      // Move failures the advisor cleared as `not_related` into their own
+      // bucket, so they leave the NEW/UNCLASSIFIED sections and stop blocking
+      // the merge. Runs BEFORE the CRCR block below on purpose: CRCR L4 jobs
+      // are pushed into failedJobs there and were never advisor-analyzed, so
+      // they must not be eligible. Wrapped so an unexpected error can never
+      // break the comment -- and failing to an empty set keeps everything
+      // blocking, which is the safe direction.
+      const aiNotRelatedJobs: RecentWorkflowsData[] = [];
+      try {
+        const suppressible = suppressibleJobIds(
+          owner,
+          repo,
+          pr_info.head_sha,
+          advisorJobs,
+          advisorVerdictRows
+        );
+        aiNotRelatedJobs.push(
+          ...extractSuppressed(failedJobs, suppressible),
+          ...extractSuppressed(unknownJobs, suppressible)
+        );
+      } catch (e) {
+        console.error(
+          "advisor suppression lookup threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
+
+      if (aiNotRelatedJobs.length > 0) {
+        failures[pr_info.pr_number].AI_NOT_RELATED = aiNotRelatedJobs;
       }
 
       // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
@@ -356,6 +428,7 @@ export async function updateDrciComments(
         unknownJobs,
         awaitingApprovalJobs,
         crcrL3Jobs,
+        aiNotRelatedJobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -836,6 +909,7 @@ export function constructResultsComment(
   unknownJobs: RecentWorkflowsData[],
   awaitingApprovalJobs: RecentWorkflowsData[],
   crcrL3Jobs: RecentWorkflowsData[],
+  aiNotRelatedJobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
   relatedInfo: Map<number, string>,
@@ -858,6 +932,7 @@ export function constructResultsComment(
     .concat(brokenTrunkJobs)
     .concat(unstableJobs)
     .concat(crcrL3Jobs)
+    .concat(aiNotRelatedJobs)
     .filter((job) => !isPending(job))
     .value().length;
   const newFailedJobs: RecentWorkflowsData[] = failedJobs.filter(
@@ -982,10 +1057,11 @@ export function constructResultsComment(
     );
   }
 
-  // advisorLines is threaded only into the NEW FAILURES and UNCLASSIFIED
-  // sections below -- those are the only failures the advisor dispatches on.
-  // Broken-trunk / flaky / unstable / awaiting-approval jobs are already
-  // explained by their own section, so they intentionally get no verdict line.
+  // advisorLines is threaded only into the NEW FAILURES, UNCLASSIFIED and
+  // advisor-cleared sections -- those are the only failures the advisor
+  // dispatches on. Broken-trunk / flaky / unstable / awaiting-approval jobs are
+  // already explained by their own section, so they intentionally get no
+  // verdict line.
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -1005,6 +1081,35 @@ export function constructResultsComment(
       advisorLines
     );
   }
+
+  // Directly after NEW FAILURES: these are the jobs lifted out of it, so they
+  // read as that section's footnote rather than as an unrelated bucket.
+  output += constructResultsJobsSections(
+    hudBaseUrl,
+    owner,
+    repo,
+    prNumber,
+    "NEW FAILURES SUPPRESSED BY AI (non-blocking)",
+    // "not evidence against this change" is the only claim true of all three
+    // cleared verdicts -- see SUPPRESSIBLE_VERDICTS. `infra_issue` says the
+    // environment broke, which a PR can itself cause, and `garbage` judges the
+    // signal rather than the change, so "unrelated to the change" would be
+    // false for both. Keep the umbrella wording if this gets shortened again.
+    `The following ${pluralize(
+      "job",
+      aiNotRelatedJobs.length
+    )} failed, but the AI CI Advisor judged the ${pluralize(
+      "failure",
+      aiNotRelatedJobs.length
+    )} not to be evidence against this change`,
+    aiNotRelatedJobs,
+    "",
+    true,
+    relatedJobs,
+    relatedIssues,
+    relatedInfo,
+    advisorLines
+  );
 
   if (unknownJobs.length) {
     output += constructResultsJobsSections(
