@@ -132,13 +132,27 @@ r2_promote() {
     local pkg_regex="${package_name//\*/.*}"
     local include_glob="${PACKAGE_INCLUDE_SUFFIX:-*}"
     local include_regex="${include_glob//\*/.*}"
-    local match_pattern="${pkg_regex}-${pytorch_version}${include_regex}"
+    # Escape the dots, or promoting 2.1 also matches 2.14.
+    local version_regex="${pytorch_version//./\\.}"
+    local match_pattern="${pkg_regex}-${version_regex}${include_regex}"
+
+    local s3_from_path="${PYTORCH_S3_FROM%/}"
+    # Bucket-relative source prefix (e.g. "libtorch/test"), used to preserve the
+    # per-arch subfolder layout (cpu/, cu126/, ...) when mapping keys onto R2.
+    local s3_from_prefix="${s3_from_path#"${PYTORCH_S3_BUCKET}"/}"
+    # A channel directory holds the other channels: whl/ (stable, TO empty) is
+    # the parent of whl/nightly/ and whl/test/, so a recursive listing sweeps
+    # them in. Harmless with the default FROM=test, but R2_ONLY=true points the
+    # source at the destination channel, which turned a 282-file promotion into
+    # 15764 -- nearly all of them nightlies already mirrored on R2.
+    local sub_channel_exclude="(^|[[:space:]])${s3_from_prefix}/(nightly|test)/"
 
     if [[ $DRY_RUN = "enabled" ]]; then
         echo "+ DRY RUN: Would copy matching files from ${PYTORCH_S3_FROM} to R2 ${r2_dest}"
         # List what would be copied
-        ${AWS} s3 ls "${PYTORCH_S3_FROM/\/$//}/" --recursive \
-            | grep -E "${match_pattern}" || true
+        ${AWS} s3 ls "${s3_from_path}/" --recursive \
+            | grep -E "${match_pattern}" \
+            | grep -Ev "${sub_channel_exclude}" || true
         return 0
     fi
 
@@ -153,15 +167,29 @@ r2_promote() {
     tmp_dir=$(mktemp -d)
     trap "rm -rf ${tmp_dir}" RETURN
 
+    # R2 rate-limits concurrent writes to a single key, and the CLI's default of
+    # 10 in-flight multipart parts trips it on the larger wheels. These are s3
+    # transfer settings, which the CLI reads only from a config file.
+    local r2_aws_config="${tmp_dir}/r2-aws-config"
+    cat > "${r2_aws_config}" <<CFG
+[default]
+s3 =
+    max_concurrent_requests = ${R2_MAX_CONCURRENT_REQUESTS:-1}
+    multipart_chunksize = ${R2_MULTIPART_CHUNKSIZE:-64MB}
+CFG
+
     # List matching files from S3 first (using current OIDC credentials)
     echo "+ Listing matching files from S3..."
-    local s3_from_path="${PYTORCH_S3_FROM%/}"
-    # Bucket-relative source prefix (e.g. "libtorch/test"), used to preserve the
-    # per-arch subfolder layout (cpu/, cu126/, ...) when mapping keys onto R2.
-    local s3_from_prefix="${s3_from_path#"${PYTORCH_S3_BUCKET}"/}"
     local file_list="${tmp_dir}/file_list.txt"
+    # Largest first. The biggest artifacts (rocm wheels, multi-GB) are the ones
+    # that exhaust disk or trip R2's per-object throttle, so promoting them up
+    # front surfaces those failures in the first few files instead of after 240.
+    # It also front-loads peak disk, so a temp volume that is too small fails
+    # immediately rather than most of the way through.
     ${AWS} s3 ls "${s3_from_path}/" --recursive \
         | grep -E "${match_pattern}" \
+        | grep -Ev "${sub_channel_exclude}" \
+        | sort -k3 -nr \
         | awk '{print $NF}' > "${file_list}" || true
 
     local total_files
@@ -173,73 +201,92 @@ r2_promote() {
         return 0
     fi
 
-    # Helper to restore S3 credentials
-    _restore_s3_creds() {
-        export AWS_ACCESS_KEY_ID="${saved_aws_access_key_id}"
-        export AWS_SECRET_ACCESS_KEY="${saved_aws_secret_access_key}"
-        if [[ -n "${saved_aws_session_token}" ]]; then
-            export AWS_SESSION_TOKEN="${saved_aws_session_token}"
-        else
-            unset AWS_SESSION_TOKEN 2>/dev/null || true
-        fi
-        if [[ -n "${saved_aws_default_region}" ]]; then
-            export AWS_DEFAULT_REGION="${saved_aws_default_region}"
-        else
-            unset AWS_DEFAULT_REGION 2>/dev/null || true
-        fi
-    }
+    # Promote files concurrently. R2's throttle is per-object -- "reduce your
+    # concurrent request rate for the same object" -- so parallelising across
+    # distinct keys is safe and recovers the throughput the serialised multipart
+    # above gives up. Disk stays bounded: each worker deletes its file as soon as
+    # it is uploaded, so peak usage is ~R2_PARALLEL_FILES x the largest wheel.
+    local parallel="${R2_PARALLEL_FILES:-4}"
+    local fail_dir="${tmp_dir}/failures"
+    mkdir -p "${fail_dir}"
 
-    # Helper to switch to R2 credentials
-    _set_r2_creds() {
-        export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
-        export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
-        unset AWS_SESSION_TOKEN 2>/dev/null || true
-        export AWS_DEFAULT_REGION="auto"
-    }
-
-    # Download and upload files one at a time to avoid running out of disk space
-    echo "+ Downloading and uploading files to R2 one by one..."
-    local file_count=0
-    while IFS= read -r s3_key; do
-        local filename
+    # Credentials are applied per subshell rather than exported, so concurrent
+    # workers cannot race each other's S3/R2 swap.
+    _promote_one_file() {
+        local s3_key="$1"
+        local filename local_file rel_path r2_target sha256 marker err_log
+        # Keyed on the object, not $$ -- $$ is the script's pid and is identical
+        # in every background job, so a shared marker collapsed N failures to 1.
+        marker="${fail_dir}/${s3_key//\//_}"
+        err_log="${marker}.err"
         filename=$(basename "${s3_key}")
-        local local_file="${tmp_dir}/${filename}"
+        local_file="${tmp_dir}/${filename}"
+        rel_path="${s3_key#"${s3_from_prefix}"/}"
+        r2_target="${r2_dest%/}/${rel_path}"
 
-        # Preserve the source subfolder layout relative to the promotion
-        # channel so per-arch directories (cpu/, cu126/, ...) are kept on R2
-        # instead of being flattened to the destination root.
-        local rel_path="${s3_key#"${s3_from_prefix}"/}"
-        local r2_target="${r2_dest%/}/${rel_path}"
-
-        # Download single file from S3 (using S3 credentials)
-        _restore_s3_creds
         (
-            set -x
-            ${AWS} s3 cp "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
-        )
+            export AWS_ACCESS_KEY_ID="${saved_aws_access_key_id}"
+            export AWS_SECRET_ACCESS_KEY="${saved_aws_secret_access_key}"
+            if [[ -n "${saved_aws_session_token}" ]]; then
+                export AWS_SESSION_TOKEN="${saved_aws_session_token}"
+            else
+                unset AWS_SESSION_TOKEN
+            fi
+            if [[ -n "${saved_aws_default_region}" ]]; then
+                export AWS_DEFAULT_REGION="${saved_aws_default_region}"
+            fi
+            ${AWS} s3 cp --quiet "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
+        ) 2>"${err_log}" || {
+            echo "- FAILED download: ${PYTORCH_S3_BUCKET}/${s3_key}" >&2
+            sed 's/^/    /' "${err_log}" >&2
+            rm -f "${local_file}" "${err_log}"
+            touch "${marker}"
+            return 1
+        }
 
-        # Compute sha256 checksum
-        local sha256
         sha256=$(sha256sum "${local_file}" | awk '{print $1}')
 
-        # Upload to R2
-        _set_r2_creds
         (
-            set -x
-            ${AWS} s3 cp "${local_file}" "${r2_target}" \
+            export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+            export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+            unset AWS_SESSION_TOKEN
+            export AWS_DEFAULT_REGION="auto"
+            export AWS_CONFIG_FILE="${r2_aws_config}"
+            export AWS_RETRY_MODE=adaptive
+            export AWS_MAX_ATTEMPTS="${R2_MAX_ATTEMPTS:-10}"
+            ${AWS} s3 cp --quiet "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
-        )
+        ) 2>"${err_log}" || {
+            echo "- FAILED upload: ${r2_target}" >&2
+            sed 's/^/    /' "${err_log}" >&2
+            rm -f "${local_file}" "${err_log}"
+            touch "${marker}"
+            return 1
+        }
 
-        # Remove local file to free disk space
-        rm -f "${local_file}"
+        rm -f "${local_file}" "${err_log}"
+        echo "+ ${PYTORCH_S3_BUCKET}/${s3_key} -> ${r2_target}"
+    }
 
+    echo "+ Promoting ${total_files} files to R2, ${parallel} at a time..."
+    local file_count=0
+    while IFS= read -r s3_key; do
+        _promote_one_file "${s3_key}" &
         file_count=$((file_count + 1))
-        echo "+ Progress: ${file_count}/${total_files} files uploaded"
+        if (( file_count % parallel == 0 )); then
+            wait
+            echo "+ Progress: ${file_count}/${total_files}"
+        fi
     done < "${file_list}"
+    wait
+
+    local failures
+    failures=$(find "${fail_dir}" -type f ! -name '*.err' | wc -l)
+    if [[ ${failures} -gt 0 ]]; then
+        echo "- ERROR: ${failures} file(s) failed to promote to R2"
+        return 1
+    fi
 
     echo "+ Uploaded ${file_count} files to R2"
-
-    # Restore original AWS credentials
-    _restore_s3_creds
 }
