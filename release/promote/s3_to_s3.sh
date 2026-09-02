@@ -12,9 +12,28 @@ PACKAGE_TYPE=${PACKAGE_TYPE:-whl}
 
 PYTORCH_S3_BUCKET=${PYTORCH_S3_BUCKET:-s3://pytorch}
 FROM=${FROM:-test}
-PYTORCH_S3_FROM=${PYTORCH_S3_FROM:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${FROM}}
 TO=${TO:-}
-PYTORCH_S3_TO=${PYTORCH_S3_TO:-${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}}
+DEFAULT_S3_FROM="${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${FROM}"
+DEFAULT_S3_TO="${PYTORCH_S3_BUCKET}/${PACKAGE_TYPE}/${TO}"
+PYTORCH_S3_FROM=${PYTORCH_S3_FROM:-${DEFAULT_S3_FROM}}
+PYTORCH_S3_TO=${PYTORCH_S3_TO:-${DEFAULT_S3_TO}}
+
+# An inherited PYTORCH_S3_FROM/TO silently wins over PACKAGE_TYPE. promote.sh
+# invokes this script once per package with a different PACKAGE_TYPE each time,
+# so a leftover export from an earlier shell command sends every later package to
+# the wrong channel -- libtorch copying whl/test -> whl/, matching nothing and
+# promoting nothing, while still exiting 0.
+if [[ "${PYTORCH_S3_FROM}" != "${DEFAULT_S3_FROM}" || "${PYTORCH_S3_TO}" != "${DEFAULT_S3_TO}" ]]; then
+    echo "- PYTORCH_S3_FROM/TO do not match PACKAGE_TYPE=${PACKAGE_TYPE}:"
+    echo "-   from: ${PYTORCH_S3_FROM}   (expected ${DEFAULT_S3_FROM})"
+    echo "-   to  : ${PYTORCH_S3_TO}   (expected ${DEFAULT_S3_TO})"
+    if [[ "${ALLOW_S3_PATH_OVERRIDE:-false}" != "true" ]]; then
+        echo "- ERROR: refusing to promote. Run 'unset PYTORCH_S3_FROM PYTORCH_S3_TO',"
+        echo "-        or set ALLOW_S3_PATH_OVERRIDE=true if the override is deliberate."
+        exit 1
+    fi
+    echo "- ALLOW_S3_PATH_OVERRIDE=true, continuing"
+fi
 
 # R2_ONLY: set to "true" to skip the S3-to-S3 copy and only promote to R2.
 # The source stays the FROM channel. Mirroring from the prod destination instead
