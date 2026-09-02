@@ -21,14 +21,10 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
-# 3.15 / 3.15t are enabled by default on the nightly and test channels for every
-# operating system. They are deliberately absent from "release": 3.15 is still a
-# CPython pre-release, so it must not appear in the release matrix or on the
-# getting-started page until it ships final.
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
 # Python versions for which only torch is validated (no torchvision). torchvision
@@ -52,7 +48,7 @@ CUDA_ARCHES_DICT = {
 ROCM_ARCHES_DICT = {
     "nightly": ["7.14", "10.0"],
     "test": ["7.2", "7.14"],
-    "release": ["7.1", "7.2"],
+    "release": ["7.2", "7.14"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -81,6 +77,10 @@ CUDA_ARCHES_NO_WINDOWS = ["13.4"]
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
 CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
+
+# Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
+# a pre-release, so it must not be offered on the getting-started page yet.
+PYTHON_ARCHES_NO_GETTING_STARTED = ["3.15", "3.15t"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -204,6 +204,10 @@ def initialize_globals(
         PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
     else:
         PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
+    if getting_started:
+        PYTHON_ARCHES = [
+            py for py in PYTHON_ARCHES if py not in PYTHON_ARCHES_NO_GETTING_STARTED
+        ]
     WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux2_28-builder:cuda{gpu_arch}"

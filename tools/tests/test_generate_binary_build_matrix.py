@@ -135,6 +135,7 @@ class GenerateBuildMatrixTest(TestCase):
         operating_system: str,
         channel: str = "test",
         python_abi3: bool = False,
+        getting_started: bool = False,
     ) -> set:
         out = generate_build_matrix(
             "wheel",
@@ -147,7 +148,7 @@ class GenerateBuildMatrixTest(TestCase):
             "false",
             "false",
             "disable",
-            "false",
+            "true" if getting_started else "false",
             None,
             "enable" if python_abi3 else "disable",
         )
@@ -169,15 +170,30 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertIn("3.15", versions)
                 self.assertIn("3.15t", versions)
 
-    def test_python_3_15_excluded_on_release_channel(self):
-        # 3.15 is still a CPython pre-release, so it must stay out of the
-        # release matrix and off the getting-started page.
+    def test_python_3_15_enabled_on_release_channel(self):
+        # 2.14 ships 3.15 / 3.15t wheels, so they belong in the release matrix.
         for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
             versions = self._test_channel_python_versions(
                 operating_system, channel="release"
             )
-            self.assertNotIn("3.15", versions)
-            self.assertNotIn("3.15t", versions)
+            self.assertIn("3.15", versions)
+            self.assertIn("3.15t", versions)
+
+    def test_python_3_15_excluded_from_getting_started(self):
+        # 3.15 is still a CPython pre-release, so it must stay off the
+        # getting-started page on every channel.
+        for channel in ("nightly", "test", "release"):
+            for operating_system in (
+                "linux",
+                "linux-aarch64",
+                "windows",
+                "macos-arm64",
+            ):
+                versions = self._test_channel_python_versions(
+                    operating_system, channel=channel, getting_started=True
+                )
+                self.assertNotIn("3.15", versions)
+                self.assertNotIn("3.15t", versions)
 
     def test_python_3_15_excluded_on_windows_arm64(self):
         # windows-arm64 pins its own short version list.
@@ -199,7 +215,7 @@ class GenerateBuildMatrixTest(TestCase):
                 self._test_channel_python_versions(
                     operating_system, channel="release", python_abi3=True
                 ),
-                {"3.10", "3.14t"},
+                {"3.10", "3.14t", "3.15t"},
             )
 
         # macOS pins .0 point versions, see MACOS_PYTHON_POINT_VERSIONS.
