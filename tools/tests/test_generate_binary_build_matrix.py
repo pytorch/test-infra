@@ -232,17 +232,20 @@ class GenerateBuildMatrixTest(TestCase):
             "7.14",
         )
 
-    def test_getting_started_nightly_ships_one_rocm(self):
-        versions = self._rocm_versions("nightly", "true")
-        self.assertEqual(len(versions), 1)
-        self.assertEqual(
-            versions, {max(ROCM_ARCHES_DICT["nightly"], key=parse_version)}
-        )
+    def test_getting_started_ships_newest_rocm_per_channel(self):
+        for channel in ("nightly", "test", "release"):
+            versions = self._rocm_versions(channel, "true")
+            self.assertEqual(
+                versions,
+                {max(ROCM_ARCHES_DICT[channel], key=parse_version)},
+                channel,
+            )
 
-    def test_nightly_builds_keep_every_rocm(self):
-        versions = self._rocm_versions("nightly", "false")
-        self.assertEqual(versions, set(ROCM_ARCHES_DICT["nightly"]))
-        self.assertGreater(len(versions), 1)
+    def test_builds_keep_every_rocm(self):
+        for channel in ("nightly", "test", "release"):
+            versions = self._rocm_versions(channel, "false")
+            self.assertEqual(versions, set(ROCM_ARCHES_DICT[channel]), channel)
+            self.assertGreater(len(versions), 1, channel)
 
 
 def parse_args():
