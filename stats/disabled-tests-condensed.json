@@ -501,6 +501,13 @@
       "rocm"
     ]
   ],
+  "test_extend_nccl_pg_timeout_backend0 (__main__.ProcessGroupNCCLGroupTest)": [
+    "195724",
+    "https://github.com/pytorch/pytorch/issues/195724",
+    [
+      "rocm"
+    ]
+  ],
   "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
     "188131",
     "https://github.com/pytorch/pytorch/issues/188131",
@@ -849,6 +856,13 @@
     "https://github.com/pytorch/pytorch/issues/189221",
     [
       "rocm"
+    ]
+  ],
+  "test_nested_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
+    "195723",
+    "https://github.com/pytorch/pytorch/issues/195723",
+    [
+      "linux"
     ]
   ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
