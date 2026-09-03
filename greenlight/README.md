@@ -61,7 +61,7 @@ just run review --pr 123 --requester alice  # recheck PR #123 for alice (author 
 just run review --max 5              # cap this iteration at 5 dispatches
 just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
 just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 45)
-just run review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
+just run review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an untrusted author's PR, in shadow
 ```
 
 `review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan that finds at least one
@@ -92,7 +92,10 @@ set (`review.TRUSTED_AUTHORS`), matched case-insensitively:
   for audit.
 
 A refusal is a clean no-op (exit 0), not a failure. `--allow-untrusted-author` is a **local-only**
-flag that skips the target-author gate for iteration; it is deliberately not exposed as a
+flag that waives that refusal — but not the author lookup, which still runs and still decides
+shadow. So an untrusted author's PR is reviewed and recorded **in shadow**: never approved, and a
+`LAND` or `NO_LAND` verdict dismisses any prior greenlight approval. A trusted author's PR behaves
+exactly as it does in production, flag or no flag. The flag is deliberately not exposed as a
 `greenlight-review.yml` input, is unreachable from the comment/dispatch path, and never affects the
 requester gate.
 
@@ -114,9 +117,10 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 `ALLOWED_REASONS` code) that the record workflow uploads to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. Then,
-for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves; `NO_LAND` dismisses greenlight's
-own prior approval). `CANCELLED` and `FAILED` markers only emit the row. The
-model's message is secret-scrubbed at a single point before it fans out to both the emitted
+for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves unless the verdict is shadow — recorded
+without authority, so it is never approved and never rendered by Dr. CI; `NO_LAND`, and any shadow
+verdict, dismisses greenlight's own prior approval). `CANCELLED` and `FAILED` markers only emit
+the row. The model's message is secret-scrubbed at a single point before it fans out to both the emitted
 row and the posted comment; whichever comment ultimately carries it — greenlight's own, or
 Dr. CI's Green Light section rendered from the row — additionally defangs it to neutralize
 formatting and @-mentions.
@@ -226,6 +230,13 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead.
+
+The handler caps each pass at `--max 30` (`_MAX_DISPATCHES_PER_SCAN`), and
+`greenlight-review.yml`'s `max` input defaults to the same 30. A dispatch costs 3-8 s of serial
+main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
+out of its 300 s clock and fire an unbounded burst of `workflow_dispatch` POSTs on one token —
+what GitHub's secondary rate limit punishes hardest. Deferring is free: no state row is written
+for a PR the cap never reaches, so the next scan re-evaluates and dispatches it.
 
 The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
 `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) wherever the scan runs: the Lambda reads both from its
@@ -359,7 +370,8 @@ marker at run start; the `verdict` subcommand emits a PR-review verdict row (wit
 passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval. `verdict` is a one-shot call for a
+dismiss greenlight's prior approval. A shadow verdict is never approved and always dismisses.
+`verdict` is a one-shot call for a
 privileged CI job and never writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI
 to rebuild one PR's comment, which is where the status is shown on the repos that delegate it.
 The service reads ClickHouse via `clickhouse_client.connect()` for both the review scan and its

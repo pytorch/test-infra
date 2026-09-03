@@ -4,6 +4,8 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
+
 from greenlight import constants, state_emit
 
 _FIXED = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
@@ -27,6 +29,7 @@ _ROW_KEYS = [
     "version",
     "run_id",
     "emit_id",
+    "shadow",
 ]
 
 
@@ -76,7 +79,11 @@ def test_utcnow_is_timezone_aware_utc():
     assert state_emit._utcnow().tzinfo is UTC
 
 
-def test_emit_row_is_byte_stable_golden():
+@pytest.mark.parametrize(
+    ("shadow", "shadow_literal"),
+    [pytest.param(False, "false", id="authoritative"), pytest.param(True, "true", id="shadow")],
+)
+def test_emit_row_is_byte_stable_golden(shadow: bool, shadow_literal: str) -> None:
     cap = _Capture()
 
     key = state_emit.emit_row(
@@ -90,6 +97,7 @@ def test_emit_row_is_byte_stable_golden():
         eval_job="ej",
         agent_job="aj",
         run_id=9,
+        shadow=shadow,
         now=lambda: _FIXED,
         emit=cap,
         new_emit_id=lambda: _EMIT_ID,
@@ -100,8 +108,22 @@ def test_emit_row_is_byte_stable_golden():
     assert gzip.decompress(cap.row).decode("utf-8") == (
         f'{{"repo":"o/r","pr_number":5,"head_sha":"h","status":"LAND","reason":"clean",'
         f'"eval_hash":"{_HASH}","message":"LGTM","eval_job":"ej","agent_job":"aj",'
-        f'"version":"{_VERSION}","run_id":9,"emit_id":"{_EMIT_ID}"}}\n'
+        f'"version":"{_VERSION}","run_id":9,"emit_id":"{_EMIT_ID}","shadow":{shadow_literal}}}\n'
     )
+
+
+def test_shadow_is_serialized_immediately_after_emit_id_and_last():
+    # The replicator inserts positionally and appends `_meta` itself, so `shadow` must sit
+    # between `emit_id` and the end of the row -- anywhere else shifts the whole insert.
+    cap = _Capture()
+
+    state_emit.emit_ai_review_dispatched(
+        repo="o/r", pr_number=1, head_sha="h", eval_hash=_HASH, run_id=1, shadow=True, upload=cap
+    )
+
+    keys = list(cap.decoded().keys())
+    assert keys[keys.index("emit_id") + 1] == "shadow"
+    assert keys[-1] == "shadow"
 
 
 def test_emit_ai_review_dispatched_builds_row_and_calls_upload(monkeypatch):
@@ -114,6 +136,7 @@ def test_emit_ai_review_dispatched_builds_row_and_calls_upload(monkeypatch):
         head_sha="deadbeef",
         eval_hash=_HASH,
         run_id=7,
+        shadow=False,
         upload=cap,
     )
 
@@ -135,6 +158,7 @@ def test_emit_ai_review_dispatched_builds_row_and_calls_upload(monkeypatch):
     assert row["agent_job"] == ""
     assert row["version"] == _VERSION
     assert _EMIT_ID_RE.fullmatch(str(row["emit_id"]))
+    assert row["shadow"] is False
 
 
 def test_emit_ai_review_dispatched_key_matches_row_version():
@@ -142,7 +166,7 @@ def test_emit_ai_review_dispatched_key_matches_row_version():
     cap = _Capture()
 
     state_emit.emit_ai_review_dispatched(
-        repo="o/r", pr_number=3, head_sha="h", eval_hash="b" * 64, run_id=1, upload=cap
+        repo="o/r", pr_number=3, head_sha="h", eval_hash="b" * 64, run_id=1, shadow=False, upload=cap
     )
 
     row = cap.decoded()
@@ -159,7 +183,7 @@ def test_two_dispatched_emits_get_distinct_emit_ids():
 
     for _ in range(2):
         state_emit.emit_ai_review_dispatched(
-            repo="o/r", pr_number=1, head_sha="h", eval_hash=_HASH, run_id=1, upload=upload
+            repo="o/r", pr_number=1, head_sha="h", eval_hash=_HASH, run_id=1, shadow=False, upload=upload
         )
 
     assert ids[0] != ids[1]
@@ -170,7 +194,9 @@ def test_emit_reverted_builds_row_with_empty_eval_hash(monkeypatch):
     monkeypatch.setattr(state_emit, "_utcnow", lambda: _FIXED)
     cap = _Capture()
 
-    state_emit.emit_reverted(repo="pytorch/pytorch", pr_number=42, head_sha="deadbeef", run_id=4, upload=cap)
+    state_emit.emit_reverted(
+        repo="pytorch/pytorch", pr_number=42, head_sha="deadbeef", run_id=4, shadow=True, upload=cap
+    )
 
     row = cap.decoded()
     assert cap.key == state_emit.object_key("pytorch/pytorch", 42, _VERSION, str(row["emit_id"]))
@@ -187,13 +213,14 @@ def test_emit_reverted_builds_row_with_empty_eval_hash(monkeypatch):
     assert row["message"] == ""
     assert row["eval_job"] == ""
     assert row["agent_job"] == ""
+    assert row["shadow"] is True
 
 
 def test_emit_reverted_defaults_to_boto3_upload(monkeypatch):
     cap = _Capture()
     monkeypatch.setattr(state_emit, "_default_upload", cap)
 
-    state_emit.emit_reverted(repo="o/r", pr_number=1, head_sha="h", run_id=2)
+    state_emit.emit_reverted(repo="o/r", pr_number=1, head_sha="h", run_id=2, shadow=False)
 
     assert cap.key is not None
     assert cap.key.startswith("greenlight_pr_state/o/r/1/")
@@ -205,7 +232,7 @@ def test_emit_ai_review_dispatched_defaults_to_boto3_upload(monkeypatch):
     cap = _Capture()
     monkeypatch.setattr(state_emit, "_default_upload", cap)
 
-    state_emit.emit_ai_review_dispatched(repo="o/r", pr_number=1, head_sha="h", eval_hash=_HASH, run_id=5)
+    state_emit.emit_ai_review_dispatched(repo="o/r", pr_number=1, head_sha="h", eval_hash=_HASH, run_id=5, shadow=False)
 
     assert cap.key is not None
     assert cap.key.startswith("greenlight_pr_state/o/r/1/")
@@ -271,6 +298,7 @@ def test_two_emits_same_version_get_distinct_object_keys():
             eval_job="",
             agent_job="",
             run_id=1,
+            shadow=False,
             now=lambda: _FIXED,
             emit=upload,
             new_emit_id=state_emit.default_emit_id,
