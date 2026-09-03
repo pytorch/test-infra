@@ -1072,13 +1072,6 @@
       "mac"
     ]
   ],
-  "test_rmsnorm_mxfp8_scale_swizzle_kernel_form (__main__.NestedReductionInternalsPersistentTest)": [
-    "191000",
-    "https://github.com/pytorch/pytorch/issues/191000",
-    [
-      "xpu"
-    ]
-  ],
   "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
     "194896",
     "https://github.com/pytorch/pytorch/issues/194896",
