@@ -84,7 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument(
         "--allow-untrusted-author",
         action="store_true",
-        help="LOCAL USE ONLY: skip the --pr target-author trusted check (never exposed as a workflow input)",
+        help=(
+            "LOCAL USE ONLY: review the --pr target even when its author is untrusted. The author is "
+            "still resolved and still decides shadow, so such a PR is reviewed in shadow and never "
+            "approved (never exposed as a workflow input)"
+        ),
     )
 
     verdict_parser = subparsers.add_parser(
@@ -119,6 +123,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="CI run id that owns the status comment; an older run never overwrites a newer run's comment",
+    )
+    verdict_parser.add_argument(
+        "--shadow",
+        action="store_true",
+        help=(
+            "record the verdict with no authority: never approve the PR, dismiss any prior greenlight "
+            "approval, and keep the row out of Dr. CI and the land-time merge gate"
+        ),
     )
     verdict_parser.add_argument("--log-level", default=None, help="logging level name")
     verdict_parser.add_argument(
@@ -210,6 +222,7 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         eval_job_url=args.eval_job_url,
         bot_login=args.bot_login,
         run_id=args.run_id,
+        shadow=args.shadow,
         dry_run=args.dry_run,
     )
     try:

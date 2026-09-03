@@ -21,9 +21,15 @@ on:
         default: ""
         type: string
       max:
-        description: "Max dispatches this run (empty = no cap)"
+        # Matches _MAX_DISPATCHES_PER_SCAN in greenlight/src/greenlight/lambda_handler.py. A
+        # dispatch costs 3-8s of serial main-thread work, so an uncapped pass over the whole
+        # evaluation cohort fires an unbounded burst of workflow_dispatch POSTs on one token --
+        # what GitHub's secondary rate limit punishes hardest, and why the scan already throttles
+        # its fingerprint fan-out. Deferring is free: no state row is written for a PR that is
+        # never reached, so the next run re-evaluates it.
+        description: "Max dispatches this run; matches the Lambda's cap (clear the field for no cap)"
         required: false
-        default: ""
+        default: "30"
         type: string
       ref:
         description: "Ref of greenlight-pr-review.yml to dispatch"

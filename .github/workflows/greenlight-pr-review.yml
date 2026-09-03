@@ -36,6 +36,11 @@ on:
         description: "Land-guard fingerprint of the evaluated inputs"
         required: true
         type: string
+      shadow:
+        description: "Record the verdict without approving the PR or rendering it in Dr. CI"
+        required: false
+        default: false
+        type: boolean
 
 # One in-flight review per PR; a newer dispatch supersedes an older one.
 concurrency:
@@ -54,9 +59,27 @@ jobs:
       PR_NUMBER: ${{ github.event.inputs.pr_number }}
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
+      SHADOW: ${{ github.event.inputs.shadow }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
     steps:
+      - name: Validate shadow input
+        # Shadow decides whether the row renders in Dr. CI and whether the PR may be
+        # approved, so a value that is neither literal aborts the job rather than falling
+        # through to visible-and-approvable. `--shadow` is a bare flag, so the false case
+        # must pass no argument at all -- hence an empty SHADOW_FLAG and the `:+` guard at
+        # every call site, which expands to nothing rather than to an empty argument.
+        run: |
+          set -euo pipefail
+          case "$SHADOW" in
+            true) echo "SHADOW_FLAG=--shadow" >>"$GITHUB_ENV" ;;
+            false) echo "SHADOW_FLAG=" >>"$GITHUB_ENV" ;;
+            *)
+              echo "invalid shadow input: '$SHADOW' (expected true or false)" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
@@ -101,7 +124,8 @@ jobs:
             --eval-hash "$EVAL_HASH" \
             --bot-login "$BOT_LOGIN" \
             --eval-job-url "$RUN_URL" \
-            --run-id "$RUN_ID"
+            --run-id "$RUN_ID" \
+            ${SHADOW_FLAG:+"$SHADOW_FLAG"}
 
       - name: Upload verdict row to S3
         run: |
@@ -113,6 +137,10 @@ jobs:
         # Best-effort: a stale comment must never fail the job, and the 15-minute Dr. CI sweep
         # rebuilds it anyway. Without this the probot handler's push-time blanking leaves the PR
         # with no greenlight content for the whole review window.
+        # Not for a shadow row: the Dr. CI query drops shadow rows in its WHERE, so the refresh
+        # would re-render whatever non-shadow row the PR already shows. A status-function-free
+        # `if:` keeps the implicit success() that ties this step to the upload above.
+        if: github.event.inputs.shadow != 'true'
         continue-on-error: true
         env:
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
@@ -549,9 +577,26 @@ jobs:
       PR_NUMBER: ${{ github.event.inputs.pr_number }}
       HEAD_SHA: ${{ github.event.inputs.head_sha }}
       EVAL_HASH: ${{ github.event.inputs.eval_hash }}
+      SHADOW: ${{ github.event.inputs.shadow }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN_ID: ${{ github.run_id }}
     steps:
+      - name: Validate shadow input
+        # Derived from the dispatch input again rather than carried over from
+        # announce_start: this job runs under always(), so an announce_start that failed
+        # would hand over an empty output, and empty reads as "not shadow" -- the one
+        # wrong answer, since it both renders the row and permits the approval.
+        run: |
+          set -euo pipefail
+          case "$SHADOW" in
+            true) echo "SHADOW_FLAG=--shadow" >>"$GITHUB_ENV" ;;
+            false) echo "SHADOW_FLAG=" >>"$GITHUB_ENV" ;;
+            *)
+              echo "invalid shadow input: '$SHADOW' (expected true or false)" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
@@ -632,7 +677,8 @@ jobs:
             --bot-login "$BOT_LOGIN" \
             --agent-job-url "$RUN_URL" \
             --eval-job-url "$RUN_URL" \
-            --run-id "$RUN_ID"
+            --run-id "$RUN_ID" \
+            ${SHADOW_FLAG:+"$SHADOW_FLAG"}
 
       - name: Record cancelled run
         if: ${{ needs.review.result == 'cancelled' }}
@@ -649,7 +695,8 @@ jobs:
             --eval-hash "$EVAL_HASH" \
             --bot-login "$BOT_LOGIN" \
             --eval-job-url "$RUN_URL" \
-            --run-id "$RUN_ID"
+            --run-id "$RUN_ID" \
+            ${SHADOW_FLAG:+"$SHADOW_FLAG"}
 
       - name: Record failed run
         if: ${{ needs.review.result == 'failure' }}
@@ -666,7 +713,8 @@ jobs:
             --eval-hash "$EVAL_HASH" \
             --bot-login "$BOT_LOGIN" \
             --eval-job-url "$RUN_URL" \
-            --run-id "$RUN_ID"
+            --run-id "$RUN_ID" \
+            ${SHADOW_FLAG:+"$SHADOW_FLAG"}
 
       - name: Upload verdict row to S3
         # Exactly one record step above produced the row + key at fixed /tmp paths.
@@ -679,9 +727,12 @@ jobs:
           aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"
 
       - name: Poke Dr. CI to refresh the PR comment
-        # No `if:` for the same reason as the upload above: the default success() ties this to
-        # whichever record branch ran. Best-effort — the verdict is already recorded and the
-        # 15-minute Dr. CI sweep rebuilds the comment regardless.
+        # Best-effort — the verdict is already recorded and the 15-minute Dr. CI sweep rebuilds
+        # the comment regardless. Not for a shadow row: the Dr. CI query drops shadow rows in its
+        # WHERE, so the refresh would re-render whatever non-shadow row the PR already shows.
+        # The guard carries no status function, so it keeps the implicit success() that ties this
+        # step to whichever record branch ran, exactly as the upload above relies on.
+        if: github.event.inputs.shadow != 'true'
         continue-on-error: true
         env:
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
