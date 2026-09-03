@@ -193,8 +193,11 @@ The end-to-end flow, per cohort PR:
    without waiting for its 15-minute sweep. The step is `continue-on-error`, and the sweep
    backstops a lost poke.
 
-Only the land-time verifier — the pytorchbot side that reads the recorded state back at
-land time — is not built yet.
+7. At land time, `pytorch/pytorch`'s merge path reads that recorded state back:
+   `.github/scripts/greenlight_guard.py` (called from `trymerge.py`) fetches the latest
+   non-shadow row over HTTP from `https://hud.pytorch.org/api/greenlight/pr_state` and compares
+   its `head_sha` against the commit about to land, allowing a `LAND` for that exact commit and
+   refusing or waiting otherwise.
 
 A scan is live: it makes real GitHub and ClickHouse calls and will really dispatch the
 reviewer workflow. Scope a trial run with `--pr N` and cap it with `--max N`; add
@@ -243,13 +246,18 @@ filename order — there is no automated migration tool (security does not permi
 automated DDL), so @clee2000 or @huydhn apply them manually:
 
 - `001_create_misc_greenlight_pr_state.sql` — create the table
-- `002_alter_greenlight_pr_state_version_default.sql` — set the `version` DEFAULT
+- `002_alter_greenlight_pr_state_version_default.sql` — set the `version` DEFAULT. Never applied
+  to production; the live `version` has no default, and nothing depends on one
 - `003_alter_greenlight_pr_state_add_meta.sql` — add the `_meta` column the replicator needs
 - `004_*.sql` — one in-place `ALTER` that adds the `run_id` and `emit_id` columns and
   extends the sort key to `(repo, pr_number, run_id, emit_id)`, keeping the
   `SharedReplacingMergeTree` engine (no new table, backfill, or `EXCHANGE`)
 - `005_alter_greenlight_pr_state_add_shadow.sql` — add the `shadow` Bool (`DEFAULT false`,
   `AFTER emit_id`, deliberately *not* in the sort key)
+
+Because a file exists here it does not follow that it was applied — confirm against
+`system.columns` for `(database = 'misc', table = 'greenlight_pr_state')` before relying on any
+column.
 
 The table is append-only-equivalent: the `SharedReplacingMergeTree` never collapses a row
 because the sort key `(repo, pr_number, run_id, emit_id)` ends in a per-emit UUID (`emit_id`),
@@ -274,6 +282,7 @@ clickhouse-replicator-s3 path ingests it into the table. greenlight reads ClickH
 `clickhouse_client.connect()` — the `review` scan looks up each PR's authoritative state
 here, by `(repo, pr_number)` — using the standard `CLICKHOUSE_*` connection variables
 (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
-`CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). The review-side fingerprint
-computation is wired; only the land-time verifier that reads this table back at land time
-is not built yet.
+`CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT` default `8443`). `pytorch/pytorch`'s land-time gate
+reads the same table, but never directly: it goes through the
+`https://hud.pytorch.org/api/greenlight/pr_state` route, which applies the same row selection
+plus a `shadow = false` filter. See the README's "Land-time verification".

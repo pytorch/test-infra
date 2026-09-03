@@ -4,6 +4,14 @@
 -- version DESC LIMIT 1 BY pr_number -- NOT FINAL/argMax. The CREATE TABLE below
 -- remains the base DDL applied to the live table.
 --
+-- That recipe selects the latest row, which is not the same as the latest row that carries
+-- authority. A reader asking an authority question ("did greenlight approve this commit")
+-- must ALSO filter shadow = false (005) in WHERE, ahead of the LIMIT 1 BY collapse: shadow
+-- rows have to be gone before the collapse picks a winner, or a PR whose newest row is
+-- shadow yields that row and then loses it instead of falling back to its newest
+-- non-shadow row. Readers asking "was a review dispatched, at what run_id" stay unfiltered
+-- (greenlight's own state.py does).
+--
 -- greenlight per-PR evaluation state, collapsed to one latest row per PR.
 --
 -- SharedReplacingMergeTree keyed on ORDER BY (repo, pr_number) keeps a single row

@@ -425,25 +425,42 @@ key — no new table, backfill, or `EXCHANGE`. At go-live that DDL and the
 clickhouse-replicator-s3 Lambda adapter must land together, since a schema skew between them
 drops rows.
 
-Not built yet: only the land-time verifier — the pytorchbot side that reads
-`misc.greenlight_pr_state` back at land time. The review-side scan, fingerprint, state
-read, and dispatch are all wired; nothing consumes the recorded state at land time yet.
+### Land-time verification
 
-When wired, the land-time verifier must look up stored state by `(repo, pr_number)`
-— the ledger's `ORDER BY` key — never by `eval_hash` alone: the fingerprint omits
-repo and PR number, so a hash-only lookup would let one PR's approval replay onto a
-different PR. The writer (greenlight) and the verifier (pytorchbot) run the identical
-`pr_hash` / `build_pr_fingerprint` code and upgrade hash schemes together.
+The land-time gate lives on `pytorch/pytorch`, not in this repo. `.github/scripts/greenlight_guard.py`,
+called from `trymerge.py`, decides on every merge whether the commit about to land is one
+greenlight actually reviewed; `.github/scripts/greenlight_ledger.py` is the client that reads the
+recorded state, and `.github/scripts/greenlight_preflight.py` refuses early on PRs greenlight
+will never produce a verdict for at all.
 
-The fingerprint also covers only comments authored by `pytorch/pytorch`'s
-merge-authorized set — every `approved_by` login in `.github/merge_rules.yaml`, with team
-refs expanded to members (see `merge_authz`). The land-time verifier MUST resolve that same
-set the same way — via `merge_authz.resolve_authorized_logins`, which lowercases every login
-and unions *all* `merge_rules.yaml` entries — and MUST NOT reuse pytorch's `trymerge.py`
-authorization check, which is case-sensitive and scoped to the rules whose file patterns
-match a single PR. A divergent set computes a different digest and refuses every land. A
-login entering or leaving the set re-fingerprints only the PRs where that login has
-commented.
+The ledger is read over HTTP from `https://hud.pytorch.org/api/greenlight/pr_state`, not by a
+direct ClickHouse query — the merge path holds no ClickHouse credentials. Row selection lives
+server-side in that route and mirrors `state.read_latest_states` (highest `run_id`, then latest
+`version`, `LIMIT 1 BY pr_number`), with one deliberate divergence: the route also filters
+`shadow = false`, so a shadow evaluation is invisible to the gate.
+
+The gate keys on `head_sha`, not on `eval_hash` — it compares the head SHA greenlight recorded
+against the PR's current head, both required to be full 40-hex shas so that two empty strings
+cannot compare equal and wave a merge through. The recorded `eval_hash` is not read back at land
+time. The gate also engages only where it is load-bearing: greenlight must be among the PR's
+approvers *and* no merge rule may still authorize the PR once greenlight's approval is dropped.
+On a match it allows a `LAND` and refuses a `NO_LAND` or `REVERTED`; on a SHA mismatch, a missing
+row, or a review still in flight it waits, up to a 60-minute budget, and refuses once that is
+spent. An unreadable ledger gets its own, much shorter 15-minute budget — that one buys the route
+time to recover, not a review time to finish.
+
+Looking state up by `(repo, pr_number)` and comparing the head SHA is what stops one PR's
+approval replaying onto another; a lookup by `eval_hash` alone could not, because the fingerprint
+deliberately omits both repo and PR number.
+
+The fingerprint itself covers only comments authored by `pytorch/pytorch`'s merge-authorized
+set — every `approved_by` login in `.github/merge_rules.yaml`, with team refs expanded to members
+(see `merge_authz`). `greenlight_preflight.py` mirrors that same flat, lowercased, all-rules union
+when it judges whether a human approval has already put the PR out of greenlight's reach, and it
+must not reuse pytorch's own `trymerge.py` authorization check, which is case-sensitive and scoped
+to the rules whose file patterns match a single PR. Drift between the two costs a merge a full
+wait for a verdict that was never coming, or refuses a PR greenlight would in fact have reviewed.
+A login entering or leaving the set re-fingerprints only the PRs where that login has commented.
 
 ## Development
 
@@ -465,13 +482,23 @@ src/greenlight/
   cli.py           # CLI parsing (review + verdict + drci-poke subcommands), dispatch, exit codes
   lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
-  review.py        # scan trusted-author PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
-  state.py         # read a PR's latest recorded state from misc.greenlight_pr_state
+  review.py        # scan evaluation-cohort PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
+  scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
+  cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (TRUSTED_AUTHORS / is_shadow)
+  candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
+  review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
+  revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
+  merge_authz.py   # resolve merge_rules.yaml's authorized-login set (the fingerprint comment allowlist), with TTL cache
+  state.py         # read a PR's latest recorded state from misc.greenlight_pr_state (deliberately shadow-unfiltered)
+  state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
   dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
   verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss and (unless Dr. CI renders it) comment
+  comment_format.py # render greenlight's PR comment bodies
+  redact.py        # scrub credential-shaped substrings out of untrusted, model-authored text
   drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); swallows its own failures
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
+  github_types.py  # structural (Protocol) contracts the GitHub client speaks
   clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
   config.py        # PYTORCH_GREENLIGHT_* environment configuration
