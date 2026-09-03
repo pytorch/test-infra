@@ -179,6 +179,14 @@
       "linux"
     ]
   ],
+  "test_codegen_per_stream_alignment_copy_one_per_stream (__main__.TestUserStreamCompile)": [
+    "192283",
+    "https://github.com/pytorch/pytorch/issues/192283",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
     "194332",
     "https://github.com/pytorch/pytorch/issues/194332",
