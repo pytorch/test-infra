@@ -47,6 +47,11 @@ def generate_docker_matrix(
     for cuda in generate_binary_build_matrix.CUDA_ARCHES_DICT[channel]:
         version = generate_binary_build_matrix.CUDA_CUDNN_VERSIONS[cuda]
         for image in DOCKER_IMAGE_TYPES:
+            if (
+                image == "devel"
+                and cuda in generate_binary_build_matrix.CUDA_ARCHES_RUNTIME_IMAGE_ONLY
+            ):
+                continue
             ret.append(
                 {
                     "cuda": cuda,
