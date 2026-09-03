@@ -3,9 +3,10 @@
 A PR is excluded when it carries the ``Reverted`` label OR has ever recorded a ``REVERTED`` row.
 The label can be taken off again, the row cannot, so the row is what makes the exclusion
 permanent. Every scan re-runs the same steps for each excluded PR -- revoke greenlight's own
-approval, record the row unless one already wins, poke Dr. CI if either changed anything -- and
-then drops the PR before it is fingerprinted or dispatched. Re-running is not redundant: a review
-already in flight when the revert landed can still post a LAND approval afterwards.
+approval, record the row unless one already wins, poke Dr. CI if either changed anything and the
+PR is not shadow -- and then drops the PR before it is fingerprinted or dispatched. Re-running is
+not redundant: a review already in flight when the revert landed can still post a LAND approval
+afterwards.
 
 Exclusion and recording deliberately ask different questions of the table. Exclusion keys on a
 ``REVERTED`` row *existing*, which no later row can outrank -- that is what makes it permanent.
@@ -97,6 +98,10 @@ def _revoke_and_record(
     shows the exclusion. Writing whenever the latest row is not ``REVERTED`` is self-limiting: the
     row it writes then *is* the latest, so a settled exclusion writes nothing, and one outranked by
     a later verdict is rewritten exactly once.
+
+    A ``shadow`` PR is revoked and recorded exactly the same way -- the revocation is what makes a
+    revert stick, and it is not conditional on the PR being rendered -- but Dr. CI is not poked: a
+    shadow row is filtered out of the query the rebuild would run, so it would rebuild nothing.
     """
     try:
         pr = get_pr(client, TARGET_REPO, number)
@@ -118,7 +123,7 @@ def _revoke_and_record(
     if recorded_state is not None and recorded_state.status == STATUS_REVERTED:
         # Dr. CI already renders this PR's REVERTED row, so a settled exclusion is worth a rebuild
         # only when an approval was actually revoked this pass.
-        if dismissed:
+        if dismissed and not shadow:
             poke(number)
         return
     try:
@@ -136,7 +141,8 @@ def _revoke_and_record(
         failed.append(number)
         return
     logger.info("recorded REVERTED for PR #%d", number)
-    poke(number)
+    if not shadow:
+        poke(number)
 
 
 def exclude_reverted(
