@@ -9,8 +9,9 @@ loops as a daemon with `--loop`; in production the scheduled scan runs as the `g
 AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has the
 one-shot `verdict` and `drci-poke` subcommands:
 
-- `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
-  for each, compute its fingerprint (`eval_hash`), read its latest state from
+- `review` — scan the open PRs from the evaluation cohort in `pytorch/pytorch` (every
+  `approved_by` login in `merge_rules.yaml`, team refs expanded, minus bots and minus greenlight
+  itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A reverted PR —
   labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
@@ -26,7 +27,11 @@ one-shot `verdict` and `drci-poke` subcommands:
   changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
   and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
-  (`CLICKHOUSE_*`).
+  (`CLICKHOUSE_*`). A PR whose author is outside the much narrower `cohort.TRUSTED_AUTHORS` is
+  evaluated in **shadow** — dispatched, reviewed and recorded like any other, but the row is
+  stamped `shadow`, so it is never approved, always dismisses any prior greenlight approval, is
+  filtered out of both Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI.
+  The `--pr` and `--requester` gates below stay bound to `TRUSTED_AUTHORS`, not to the cohort.
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
@@ -73,7 +78,7 @@ just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an untrusted author's PR, in shadow
 ```
 
-`just review` scans the trusted authors' open PRs and, for each PR that is new or changed
+`just review` scans the evaluation cohort's open PRs and, for each PR that is new or changed
 since its last recorded state, dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`); an in-flight review (marked
 `AI_REVIEW_STARTED`) is left alone until the `--timeout-minutes` window elapses. Without
@@ -154,7 +159,7 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 
 ## Simulate a run
 
-The end-to-end flow, per trusted-author PR:
+The end-to-end flow, per cohort PR:
 
 1. `review` scans the open PRs, dropping any draft PR from the listing outright — never
    fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. It

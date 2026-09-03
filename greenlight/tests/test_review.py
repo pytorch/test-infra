@@ -140,6 +140,7 @@ class _Scan:
     read_calls: list[tuple[str, list[int]]]
     fingerprinted: list[int]
     listed_calls: int
+    listed_authors: list[frozenset[str]]
     resolver_calls: int
     authorized_seen: list[frozenset[str]]
     author_fetched: list[int]
@@ -187,6 +188,7 @@ def _run_scan(
     read_calls: list[tuple[str, list[int]]] = []
     fingerprinted: list[int] = []
     listed_calls: list[int] = []
+    listed_authors: list[frozenset[str]] = []
     resolver_calls: list[int] = []
     authorized_seen: list[frozenset[str]] = []
     author_fetched: list[int] = []
@@ -202,8 +204,9 @@ def _run_scan(
     emit_shadow: list[tuple[int, bool]] = []
     reverted_shadow: list[tuple[int, bool]] = []
 
-    def fake_fetch(_client):
+    def fake_fetch(_client, authors):
         listed_calls.append(1)
+        listed_authors.append(authors)
         return list(listed)
 
     def fake_fingerprint(_client, number, authorized_logins, skip_on_approval):
@@ -299,6 +302,7 @@ def _run_scan(
         read_calls=read_calls,
         fingerprinted=fingerprinted,
         listed_calls=len(listed_calls),
+        listed_authors=listed_authors,
         resolver_calls=len(resolver_calls),
         authorized_seen=authorized_seen,
         author_fetched=author_fetched,
@@ -889,7 +893,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             make_config(github_token="t"),
             max_dispatches=1,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(n) for n in numbers],
+            fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1128,7 +1132,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             pr=7,
             force=True,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [],
+            fetch=lambda _client, _authors: [],
             fetch_author=lambda _client, _number: "albanD",
             fetch_labels=lambda _client, _repo, _number: (),
             fingerprint=boom_fingerprint,
@@ -1229,7 +1233,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             read_reverted=_no_reverted,
@@ -1264,7 +1268,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(3), _open_pr(1), _open_pr(2)],
+            fetch=lambda _client, _authors: [_open_pr(3), _open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1296,7 +1300,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1326,7 +1330,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1352,7 +1356,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1384,7 +1388,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1433,7 +1437,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
     review.run(
         make_config(github_token="t"),
         build_github=lambda _token, **_kwargs: _CLIENT,
-        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1476,7 +1480,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
         fingerprint=recording_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1516,7 +1520,7 @@ def test_run_closes_main_and_worker_clients(make_config):
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client: [_open_pr(1), _open_pr(2)],
+        fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2)],
         fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1599,7 +1603,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1642,7 +1646,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1692,7 +1696,7 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1734,7 +1738,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             make_config(github_token="t"),
             max_dispatches=5,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1769,7 +1773,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1787,7 +1791,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
 def test_fetch_failure_still_closes_main_client(make_config):
     client = Mock()
 
-    def boom_fetch(_client):
+    def boom_fetch(_client, _authors):
         raise RuntimeError("fetch boom")
 
     with pytest.raises(RuntimeError, match="fetch boom"):
@@ -1883,7 +1887,7 @@ def test_run_cold_authorized_failure_propagates(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1)],
+            fetch=lambda _client, _authors: [_open_pr(1)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1907,7 +1911,7 @@ def test_run_resolves_authorized_once_and_threads_to_fingerprints(make_config):
     assert scan.authorized_seen == [frozenset({"alice", "bob"})] * 3
 
 
-def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
+def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
     captured: dict[str, object] = {}
     expected = [_open_pr(1)]
 
@@ -1919,12 +1923,14 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
 
     monkeypatch.setattr(github_client, "list_open_prs_by_authors", fake_list)
 
-    result = review._default_fetch(_CLIENT)
+    result = review._default_fetch(_CLIENT, frozenset({"alice", "bob"}))
 
     assert result is expected
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
-    assert captured["authors"] == cohort.TRUSTED_AUTHORS
+    # The author set is the caller's, not a module constant: the listing follows the resolved
+    # evaluation cohort, while TRUSTED_AUTHORS stays reserved for the two authz gates.
+    assert captured["authors"] == {"alice", "bob"}
 
 
 def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
@@ -2080,13 +2086,56 @@ def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_conf
     assert "BOT_LOGIN is required to post" in caplog.text
 
 
-# An untrusted login: outside both authz gates, and therefore evaluated in shadow.
+# An approver merge_rules names but the trusted-author set does not: in the evaluation cohort,
+# outside both authz gates, and therefore evaluated in shadow.
 _COHORT_ONLY_AUTHOR = "alice"
 
 _TRUSTED_VS_SHADOW = [
     pytest.param("albanD", False, id="trusted-author"),
     pytest.param(_COHORT_ONLY_AUTHOR, True, id="cohort-author-outside-the-trusted-set"),
 ]
+
+
+def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_config):
+    authorized = frozenset({"Alice", "bob", "pytorchbot", cohort.GREENLIGHT_APP_SLUG})
+    scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=authorized)
+
+    # What reaches list_open_prs_by_authors is the resolved merge_rules approver set minus bots and
+    # greenlight itself -- not the eleven trusted authors, who no longer bound what is evaluated.
+    assert scan.listed_authors == [frozenset({"alice", "bob"})]
+    assert scan.listed_authors[0].isdisjoint({login.lower() for login in cohort.TRUSTED_AUTHORS})
+
+
+def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester=_COHORT_ONLY_AUTHOR,
+            author="albanD",
+        )
+
+    # Being in the cohort buys evaluation, never the right to command one: a merge_rules approver
+    # outside the trusted set is still refused, before any network work.
+    assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
+    assert scan.author_fetched == []
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert f"refusing review: requester '{_COHORT_ONLY_AUTHOR}'" in caplog.text
+
+
+def test_pr_target_author_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_COHORT_ONLY_AUTHOR)
+
+    # Same boundary from the other side: greenlight reviews this author's PRs on its own schedule,
+    # but nobody may point --pr at one, because that path is what leads to an approval.
+    assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
+    assert scan.author_fetched == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "refusing --pr 5" in caplog.text
 
 
 @pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
