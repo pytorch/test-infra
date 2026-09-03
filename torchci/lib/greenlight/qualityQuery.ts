@@ -43,6 +43,11 @@ export interface LatencyRow {
   n_review: number;
   n_review_over_threshold: number;
   review_visible_after_s: number;
+  n_review_runs: number;
+  n_review_runs_failed: number;
+  n_review_runs_timed: number;
+  n_review_runs_over_runtime: number;
+  review_runtime_cutoff_s: number;
   n_dispatch: number;
   dispatch_p50_s: number | null;
   n_dispatch_within_cutoff: number;

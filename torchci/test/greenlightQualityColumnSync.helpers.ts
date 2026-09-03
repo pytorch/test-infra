@@ -35,16 +35,16 @@ export function catalogQueries(): string[] {
 // would hold vacuously. They are floors against silence, not assertions about content.
 //
 // Each sits exactly one below its true value — 4 queries, 7 columns in the thinnest
-// query, 51 distinct reads, 14 fields in the thinnest row interface — so coverage cannot
+// query, 56 distinct reads, 19 fields in the thinnest row interface — so coverage cannot
 // shrink by more than a single item without tripping this. A floor with slack in it
-// cannot catch the thing it is for: at 40 reads against a true 51, eleven could disappear
+// cannot catch the thing it is for: at 40 reads against a true 56, sixteen could disappear
 // in silence. These track the true counts in both directions; a floor left behind when
 // the true count rises is as dead as one set too low. Re-baselining is a deliberate act,
 // not a way past a red suite.
 export const MIN_QUERIES = 3;
 export const MIN_COLUMNS_PER_QUERY = 6;
-export const MIN_READS_ACROSS_PAGE = 50;
-export const MIN_FIELDS_PER_INTERFACE = 13;
+export const MIN_READS_ACROSS_PAGE = 55;
+export const MIN_FIELDS_PER_INTERFACE = 18;
 
 // Which query each row interface describes. Stated rather than derived from the interface
 // name: guessing "RevertRow" -> "reverts" would quietly bind to the wrong query after a
@@ -254,7 +254,7 @@ export const READ_PATTERNS = [
   // defaultSortField is here because /\bfield:/ cannot reach it — there is no word
   // boundary inside the identifier — and it hands the name to the grid through a
   // variable, so no literal downstream is matchable either.
-  /(?:nField|p50Field|withinField|cutoffField|defaultSortField):\s*"([a-z0-9_]+)"/g,
+  /(?:nField|p50Field|withinField|cutoffField|countField|defaultSortField):\s*"([a-z0-9_]+)"/g,
   /\bfield:\s*"([a-z0-9_]+)"/g,
   // Any `<something>Col("column_name"` helper, not stampCol by name: a second
   // such helper is how a column quietly stops being covered by this check.

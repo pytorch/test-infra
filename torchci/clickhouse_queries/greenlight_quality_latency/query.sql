@@ -1,9 +1,11 @@
--- GreenLight Quality page, latency row: one row holding two reported clocks and a third interval
--- that is measured only to count how often the in-progress signal was visible.
+-- GreenLight Quality page: the latency row's two reported clocks and a third interval measured
+-- only to count how often the in-progress signal was visible, plus the review-run row's two
+-- counts of how often a review cycle ended badly or ran long.
 --
 --   e2e       commit timestamp -> first LAND/NO_LAND, per (pr_number, head_sha)
 --   dispatch  commit timestamp -> first AI_REVIEW_DISPATCHED, per (pr_number, head_sha)
 --   review    AI_REVIEW_DISPATCHED -> LAND/NO_LAND, per review cycle; counted, never summarised
+--   run       AI_REVIEW_STARTED -> terminal status, per review cycle; counted, never summarised
 --
 -- A review cycle is (pr_number, head_sha, eval_hash). That key is not one dispatch->verdict pass: a
 -- cycle can carry several dispatches and several verdicts, so its clock takes the earliest of each.
@@ -28,13 +30,52 @@
 -- rather than naming a duration of its own, keeping the figure on the page tied to the value that
 -- produced it.
 --
+-- A review run is a review cycle that reached a terminal status, and n_review_runs counts those
+-- whose terminal status lands in the window. It is a wider population than n_review, which is
+-- verdict-only and additionally requires a usable dispatch anchor, so the two denominators are
+-- never interchangeable. Which status is terminal follows the same rule the latency clocks use: a
+-- cycle carrying both a verdict and a CANCELLED/FAILED attempt is a verdict. The remaining cycles --
+-- dispatched, no terminal status yet -- are in flight and enter neither numerator nor denominator.
+--
+-- n_review_runs_failed counts FAILED and NOT CANCELLED. A cancelled run is the design working: the
+-- reviewer workflow runs in a singleton concurrency group and the scan cron supersedes an in-flight
+-- run when a newer dispatch arrives, so counting cancellations would report routine supersession as
+-- breakage and would dominate the figure -- all-time the ledger holds 15 cancelled cycles against 1
+-- that ended FAILED. Cancelled runs stay in the denominator, because CI did attempt them.
+--
+-- The numerator is per cycle, not per FAILED row, and the two differ by a lot: a cycle that keeps
+-- failing is re-emitted on every retry, so the 7 FAILED rows the ledger holds all-time are 3 cycles,
+-- one of which carries 5 of them. Two of those 3 went on to a verdict and are therefore verdicts,
+-- not failures. Counting rows here would report 7 where 1 run failed.
+--
+-- A cycle that recorded both CANCELLED and FAILED and no verdict counts as failed: a written error
+-- is a real fault, and reading it as supersession would hide it behind the concurrency group. The
+-- ledger has never yet held such a cycle, so this rule is a decision rather than an observation.
+--
+-- The run clock anchors on AI_REVIEW_STARTED and falls back to AI_REVIEW_DISPATCHED, the opposite
+-- of the dispatch clock's choice, because it answers the opposite question: the dispatch clock
+-- measures how long GreenLight took to act on a SHA, so it wants the earliest mark, while this one
+-- measures how long the reviewer workflow ran once it was running, and STARTED is written at that
+-- moment. It is the ledger's own view of the run, not the GitHub Actions job duration -- nothing
+-- here joins default.workflow_run -- so it carries whatever gap the ledger writes around the job.
+--
+-- n_review_runs_timed is a denominator of its own rather than a reuse of n_review_runs: a cycle
+-- with no STARTED and no DISPATCHED row has no clock to measure, and counting it in the
+-- denominator of a duration share would score an unmeasurable run as a fast one.
+--
+-- review_runtime_cutoff_s is a reporting cutoff, hardcoded for the same reason as the two above and
+-- emitted as a column so the caller renders it instead of naming a duration of its own. It is not
+-- read from any workflow timeout; nothing downstream of the ledger enforces it.
+--
 -- ClickHouse re-executes a named subquery at every reference site instead of materializing it once,
 -- so anchored is read exactly once: both push-anchored clocks and all three exclusion counters are
 -- conditional aggregates over that single pass. Splitting them back into separate SELECTs -- one per
 -- clock, or a subquery for the counters -- re-runs sha_units, pushes and the join underneath each
--- time. The review clock aggregates separately because it is a different grain, and the two one-row
--- results are cross-joined; both sides are unconditional aggregates, so each yields exactly one row
--- even when the window is empty.
+-- time. The review clock aggregates separately because it is a different grain, and cycles is read
+-- exactly once for the same reason: its two clocks and all six counters are conditional aggregates
+-- over one pass, with the window and anchor tests carried as per-row flags rather than as a WHERE
+-- that would admit only one of them. The two one-row results are cross-joined; neither side groups,
+-- so each yields exactly one row even when the window is empty.
 --
 -- The dispatch clock anchors on AI_REVIEW_DISPATCHED, not AI_REVIEW_STARTED. DISPATCHED is written
 -- by the scan the instant it fires the reviewer workflow; STARTED is written once that workflow is
@@ -49,8 +90,10 @@
 -- nothing. Duplicate emissions of the same (cycle, status) are collapsed here with min(version),
 -- which takes the first complete pass and keeps a re-emission from entering the aggregates twice.
 --
--- CANCELLED and FAILED never form an observation: only LAND/NO_LAND counts as a verdict. A cycle
--- that failed an attempt and then reached a real verdict keeps that verdict's latency.
+-- CANCELLED and FAILED never form a latency observation: only LAND/NO_LAND counts as a verdict, and
+-- every clock reported above ends on one. A cycle that failed an attempt and then reached a real
+-- verdict keeps that verdict's latency. The run counters are where they are read at all, as terminal
+-- marks rather than verdicts, which is what makes that population the wider one.
 --
 -- min(version) over an empty set returns 1970-01-01 rather than NULL, so ledger_start falls back to
 -- now64(3) for a repo with no ledger rows, collapsing the window to empty. The clamp has to fail
@@ -92,6 +135,7 @@ toDateTime64(0, 3) AS epoch,
 toFloat64(10800) AS e2e_cutoff_s,
 toFloat64(10800) AS dispatch_cutoff_s,
 toFloat64(900) AS review_visible_after_s,
+toFloat64(1980) AS review_runtime_cutoff_s,
 
 sha_units AS (
     SELECT
@@ -107,7 +151,10 @@ sha_units AS (
 cycles AS (
     SELECT
         minIf(version, status = 'AI_REVIEW_DISPATCHED') AS dispatch_at,
-        minIf(version, status IN ('LAND', 'NO_LAND')) AS verdict_at
+        minIf(version, status = 'AI_REVIEW_STARTED') AS started_at,
+        minIf(version, status IN ('LAND', 'NO_LAND')) AS verdict_at,
+        minIf(version, status IN ('CANCELLED', 'FAILED')) AS aborted_at,
+        minIf(version, status = 'FAILED') AS failed_at
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
     GROUP BY pr_number, head_sha, eval_hash
@@ -198,16 +245,43 @@ push_clocks AS (
 
 review_clock AS (
     SELECT
-        count() AS n_review,
-        countIf(secs > review_visible_after_s) AS n_review_over_threshold
+        countIf(review_ok) AS n_review,
+        countIf(
+            review_ok AND review_secs > review_visible_after_s
+        ) AS n_review_over_threshold,
+        countIf(run_in_window) AS n_review_runs,
+        countIf(run_in_window AND run_failed) AS n_review_runs_failed,
+        countIf(run_timed) AS n_review_runs_timed,
+        countIf(
+            run_timed AND run_secs > review_runtime_cutoff_s
+        ) AS n_review_runs_over_runtime
     FROM (
-        SELECT dateDiff('millisecond', dispatch_at, verdict_at) / 1000.0 AS secs
+        SELECT
+            (
+                verdict_at >= window_start
+                AND verdict_at < window_end
+                AND dispatch_at > epoch
+                AND verdict_at >= dispatch_at
+            ) AS review_ok,
+            (verdict_at > epoch) AS has_verdict,
+            (NOT has_verdict AND failed_at > epoch) AS run_failed,
+            if(has_verdict, verdict_at, aborted_at) AS terminal_at,
+            if(started_at > epoch, started_at, dispatch_at) AS run_start_at,
+            (
+                terminal_at > epoch
+                AND terminal_at >= window_start
+                AND terminal_at < window_end
+            ) AS run_in_window,
+            (
+                run_in_window
+                AND run_start_at > epoch
+                AND terminal_at >= run_start_at
+            ) AS run_timed,
+            dateDiff('millisecond', dispatch_at, verdict_at)
+            / 1000.0 AS review_secs,
+            dateDiff('millisecond', run_start_at, terminal_at)
+            / 1000.0 AS run_secs
         FROM cycles
-        WHERE
-            verdict_at >= window_start
-            AND verdict_at < window_end
-            AND dispatch_at > epoch
-            AND verdict_at >= dispatch_at
     )
 )
 
@@ -219,6 +293,11 @@ SELECT
     r.n_review AS n_review,
     r.n_review_over_threshold AS n_review_over_threshold,
     review_visible_after_s,
+    r.n_review_runs AS n_review_runs,
+    r.n_review_runs_failed AS n_review_runs_failed,
+    r.n_review_runs_timed AS n_review_runs_timed,
+    r.n_review_runs_over_runtime AS n_review_runs_over_runtime,
+    review_runtime_cutoff_s,
     p.n_dispatch AS n_dispatch,
     p.dispatch_p50_s AS dispatch_p50_s,
     p.n_dispatch_within_cutoff AS n_dispatch_within_cutoff,

@@ -8,6 +8,7 @@ import {
 import CoverageTiles from "components/greenlight/quality/CoverageTiles";
 import LatencyPanels from "components/greenlight/quality/LatencyPanels";
 import RevertedTable from "components/greenlight/quality/RevertedTable";
+import ReviewRunPanels from "components/greenlight/quality/ReviewRunPanels";
 import TrustPanels from "components/greenlight/quality/TrustPanels";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -90,6 +91,11 @@ export default function Page() {
       <Stack spacing={3}>
         <CoverageTiles coverage={coverage} />
         <LatencyPanels
+          startTime={windowStart}
+          stopTime={windowStop}
+          autoRefresh={autoRefresh}
+        />
+        <ReviewRunPanels
           startTime={windowStart}
           stopTime={windowStop}
           autoRefresh={autoRefresh}

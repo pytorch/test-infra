@@ -149,6 +149,52 @@ export const LATENCY_TILES: LatencyTileConfig[] = [
   },
 ];
 
+// Two shares over the same review-run grain: one counts the runs that ended
+// badly, one the runs that ended slowly. Both read a numerator and its own
+// denominator off the query rather than dividing here, and both name that
+// denominator on the face — they do not share one, so a bare percentage would
+// leave no way to tell which population each was taken over.
+export interface ReviewRunTileConfig {
+  key: string;
+  label: string;
+  countField: keyof LatencyRow;
+  nField: keyof LatencyRow;
+  subNote?: (_row: any) => string | undefined;
+  caveat: (_row: any) => string;
+}
+
+export function reviewRuntimeCutoff(row: any): string | undefined {
+  return hasCount(row?.review_runtime_cutoff_s)
+    ? `over ${secondsFormatter(row?.review_runtime_cutoff_s)}`
+    : undefined;
+}
+
+export const REVIEW_RUN_TILES: ReviewRunTileConfig[] = [
+  {
+    key: "runs_failed",
+    label: "Review CI runs that failed",
+    countField: "n_review_runs_failed",
+    nField: "n_review_runs",
+    caveat: (row) =>
+      `A run that ended FAILED and never went on to a verdict. Cancelled runs are not failures and are not counted here: the reviewer workflow runs in a singleton concurrency group, so a newer dispatch supersedes an in-flight run by design. They stay in the denominator, because CI did attempt them. A run that failed an attempt and then reached a verdict is a verdict, not a failure, and the count is per run rather than per FAILED row — a run that keeps failing is re-emitted on every retry. Runs still in flight are in neither the numerator nor the denominator, so a window ending mid-review reports slightly fewer runs than it dispatched. Denominator is review cycles that reached a terminal status in the window, a wider population than the ${intFormatter(
+        row?.n_review
+      )} on the latency clocks above.`,
+  },
+  {
+    key: "runs_over_runtime",
+    label: "Review CI runs that overran",
+    countField: "n_review_runs_over_runtime",
+    nField: "n_review_runs_timed",
+    subNote: reviewRuntimeCutoff,
+    caveat: (row) =>
+      `Measured from the ledger's AI_REVIEW_STARTED — or from AI_REVIEW_DISPATCHED where no start was written — to whichever terminal status the run reached, so a cancelled or failed run counts its own duration rather than being dropped. This is the ledger's view of the run and not the GitHub Actions job duration — nothing joins the workflow tables — so any gap between the job's clock and the ledger's writes lands inside this figure. Carries its own denominator: of the ${intFormatter(
+        row?.n_review_runs
+      )} runs that reached a terminal status, ${intFormatter(
+        row?.n_review_runs_timed
+      )} recorded a start to measure from. The rest recorded neither a start nor a dispatch, and counting a run with no clock would score it as a fast one. The cutoff is a reporting threshold, not a timeout anything enforces.`,
+  },
+];
+
 export function mergeAuthorityValue(row: any): string {
   return `${percentUnitsFormatter(row?.pct_gl_only)} · ${percentUnitsFormatter(
     row?.pct_of_all_merges
