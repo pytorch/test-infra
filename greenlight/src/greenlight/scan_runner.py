@@ -9,7 +9,7 @@ filter, and client lifecycle, and drives these helpers.
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
@@ -214,32 +214,42 @@ def _fingerprint_until_dispatchable(
     force: bool,
     cancel_event: threading.Event,
 ) -> list[_Candidate]:
+    """Fingerprint the stalest PRs first, submitting only until ``limit`` candidates are in hand.
+
+    The pool is kept saturated: each completion frees its slot immediately, so no task ever waits
+    on a slower sibling. Submission stops the moment the cap is reached or the fan-out is
+    cancelled, but whatever is already in flight is still evaluated -- its GitHub call is already
+    paid for, and dropping the result would lose a failure or a human-decision skip.
+    """
     ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
-    pending: list[_Candidate] = []
+    found: dict[int, _Candidate] = {}
     if worker_count:
+        queued = iter(ranked)
+        in_flight: dict[Future[tuple[str, str] | ReviewSkip | _Cancelled], int] = {}
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
-            for start in range(0, len(ranked), worker_count):
-                if len(pending) >= limit:
-                    break
-                if cancel_event.is_set():
-                    break
-                batch = ranked[start : start + worker_count]
-                futures = {
-                    number: pool.submit(
+            while True:
+                while len(in_flight) < worker_count and len(found) < limit and not cancel_event.is_set():
+                    queued_number = next(queued, None)
+                    if queued_number is None:
+                        break
+                    task = pool.submit(
                         _fingerprint_task,
                         fingerprint,
                         client_pool,
-                        number,
+                        queued_number,
                         authorized_logins,
                         skip_on_approval,
                         cancel_event,
                     )
-                    for number in batch
-                }
-                for number in batch:
+                    in_flight[task] = queued_number
+                if not in_flight:
+                    break
+                done, _unfinished = wait(in_flight, return_when=FIRST_COMPLETED)
+                for future in done:
+                    number = in_flight.pop(future)
                     candidate = _evaluate_pr(
                         number,
-                        futures[number],
+                        future,
                         states,
                         now=now,
                         timeout=timeout,
@@ -249,8 +259,11 @@ def _fingerprint_until_dispatchable(
                         force=force,
                     )
                     if candidate is not None:
-                        pending.append(candidate)
-    return pending
+                        found[number] = candidate
+    # Ranked order, not completion order: the dispatch cap is applied by a stable staleness sort,
+    # so returning these in whichever order the pool happened to finish would hand the last slot
+    # to the fastest task rather than the stalest PR.
+    return [found[number] for number in ranked if number in found]
 
 
 def _emit_dispatch_marker(
