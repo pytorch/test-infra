@@ -826,11 +826,20 @@ function buildMatrix(data: CrcrJobRow[]): {
       };
       prMap.set(prNum, row);
     }
-    // Track latest started_at for this PR
+    // Track latest started_at for this PR. A newer commit supersedes the
+    // row entirely -- different dispatches (a mid-PR push vs. the eventual
+    // post-merge pull_request run, say) share the same pr_number but aren't
+    // the same commit, so cells from the old commit must not linger once a
+    // newer one starts reporting.
     if (job.started_at > row.latestTime) {
       row.latestTime = job.started_at;
-      row.sha = job.pytorch_head_sha;
+      if (job.pytorch_head_sha !== row.sha) {
+        row.sha = job.pytorch_head_sha;
+        row.jobs.clear();
+      }
     }
+    // Ignore jobs for any commit other than the row's current one.
+    if (job.pytorch_head_sha !== row.sha) continue;
     // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
     if (!existing || job.run_attempt > existing.run_attempt) {
