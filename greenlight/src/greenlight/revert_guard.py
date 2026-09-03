@@ -3,9 +3,10 @@
 A PR is excluded when it carries the ``Reverted`` label OR has ever recorded a ``REVERTED`` row.
 The label can be taken off again, the row cannot, so the row is what makes the exclusion
 permanent. Every scan re-runs the same steps for each excluded PR -- revoke greenlight's own
-approval, record the row unless one already wins, poke Dr. CI if either changed anything -- and
-then drops the PR before it is fingerprinted or dispatched. Re-running is not redundant: a review
-already in flight when the revert landed can still post a LAND approval afterwards.
+approval, record the row unless one already wins, poke Dr. CI if either changed anything and the
+PR is not shadow -- and then drops the PR before it is fingerprinted or dispatched. Re-running is
+not redundant: a review already in flight when the revert landed can still post a LAND approval
+afterwards.
 
 Exclusion and recording deliberately ask different questions of the table. Exclusion keys on a
 ``REVERTED`` row *existing*, which no later row can outrank -- that is what makes it permanent.
@@ -82,6 +83,7 @@ def _revoke_and_record(
     number: int,
     *,
     recorded_state: PRState | None,
+    shadow: bool,
     bot_login: str,
     get_pr: Callable[[Github, str, int], VerdictPR],
     dismiss: Callable[..., list[int]],
@@ -96,6 +98,10 @@ def _revoke_and_record(
     shows the exclusion. Writing whenever the latest row is not ``REVERTED`` is self-limiting: the
     row it writes then *is* the latest, so a settled exclusion writes nothing, and one outranked by
     a later verdict is rewritten exactly once.
+
+    A ``shadow`` PR is revoked and recorded exactly the same way -- the revocation is what makes a
+    revert stick, and it is not conditional on the PR being rendered -- but Dr. CI is not poked: a
+    shadow row is filtered out of the query the rebuild would run, so it would rebuild nothing.
     """
     try:
         pr = get_pr(client, TARGET_REPO, number)
@@ -117,7 +123,7 @@ def _revoke_and_record(
     if recorded_state is not None and recorded_state.status == STATUS_REVERTED:
         # Dr. CI already renders this PR's REVERTED row, so a settled exclusion is worth a rebuild
         # only when an approval was actually revoked this pass.
-        if dismissed:
+        if dismissed and not shadow:
             poke(number)
         return
     try:
@@ -126,6 +132,7 @@ def _revoke_and_record(
             pr_number=number,
             head_sha=pr.head.sha,
             run_id=next_run_id(recorded_state),
+            shadow=shadow,
         )
     except IterationTimeout:
         raise
@@ -134,7 +141,8 @@ def _revoke_and_record(
         failed.append(number)
         return
     logger.info("recorded REVERTED for PR #%d", number)
-    poke(number)
+    if not shadow:
+        poke(number)
 
 
 def exclude_reverted(
@@ -150,16 +158,20 @@ def exclude_reverted(
     dismiss: Callable[..., list[int]],
     emit: Callable[..., None],
     poke: Callable[[int], None],
+    is_shadow: Callable[[int], bool],
     failed: list[int],
     cancel_event: threading.Event,
 ) -> frozenset[int]:
     """Act on every reverted PR in ``pr_numbers`` and return the set the caller must drop.
 
     ``known_labels`` holds the labels the caller already has; a PR absent from it has its labels
-    read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too. A
-    per-PR failure is collected into ``failed`` so the scan still fails closed, and a rate limit
-    additionally trips ``cancel_event`` so the fingerprint fan-out does not run on a throttled
-    token. Either way the PR is still dropped -- an exclusion never lapses because a step failed.
+    read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too.
+    ``is_shadow`` answers the same question for the PR's author, and is a caller-supplied lookup
+    rather than a fetch: the scan already has every listed PR's author, and paying a second GitHub
+    round trip per reverted PR to re-learn it would be pure cost. A per-PR failure is collected
+    into ``failed`` so the scan still fails closed, and a rate limit additionally trips
+    ``cancel_event`` so the fingerprint fan-out does not run on a throttled token. Either way the
+    PR is still dropped -- an exclusion never lapses because a step failed.
     """
     recorded = read_reverted(TARGET_REPO, pr_numbers)
     excluded = [
@@ -184,6 +196,7 @@ def exclude_reverted(
             client,
             number,
             recorded_state=states.get(number),
+            shadow=is_shadow(number),
             bot_login=bot_login,
             get_pr=get_pr,
             dismiss=dismiss,

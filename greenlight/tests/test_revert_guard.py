@@ -49,6 +49,7 @@ class _Guard:
     got_pr: list[int] = field(default_factory=list)
     dismissals: list[tuple[int, str, str]] = field(default_factory=list)
     emitted: list[tuple[str, int, str, int]] = field(default_factory=list)
+    shadow_stamped: list[tuple[int, bool]] = field(default_factory=list)
     poked: list[int] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     cancelled: bool = False
@@ -66,6 +67,7 @@ def _exclude(
     dismiss_errors: Mapping[int, Exception] | None = None,
     emit_errors: Mapping[int, Exception] | None = None,
     get_pr_errors: Mapping[int, Exception] | None = None,
+    shadow: Mapping[int, bool] | None = None,
 ) -> _Guard:
     known_labels = {} if known_labels is None else known_labels
     fetched_labels = {} if fetched_labels is None else fetched_labels
@@ -74,6 +76,7 @@ def _exclude(
     dismiss_errors = {} if dismiss_errors is None else dismiss_errors
     emit_errors = {} if emit_errors is None else emit_errors
     get_pr_errors = {} if get_pr_errors is None else get_pr_errors
+    shadow = {} if shadow is None else shadow
     result = _Guard(frozenset())
     cancel_event = threading.Event()
 
@@ -99,8 +102,9 @@ def _exclude(
             raise error
         return list(dismissed_ids.get(pr.number, ()))
 
-    def fake_emit(*, repo, pr_number, head_sha, run_id):
+    def fake_emit(*, repo, pr_number, head_sha, run_id, shadow):
         result.events.append(f"emit:{pr_number}")
+        result.shadow_stamped.append((pr_number, shadow))
         error = emit_errors.get(pr_number)
         if error is not None:
             raise error
@@ -109,6 +113,9 @@ def _exclude(
     def fake_poke(number):
         result.poked.append(number)
         result.events.append(f"poke:{number}")
+
+    def fake_is_shadow(number):
+        return shadow.get(number, False)
 
     result.excluded = revert_guard.exclude_reverted(
         _CLIENT,
@@ -122,6 +129,7 @@ def _exclude(
         dismiss=fake_dismiss,
         emit=fake_emit,
         poke=fake_poke,
+        is_shadow=fake_is_shadow,
         failed=result.failed,
         cancel_event=cancel_event,
     )
@@ -363,6 +371,7 @@ def test_non_app_bot_login_refuses_before_any_write():
             dismiss=boom,
             emit=boom,
             poke=boom,
+            is_shadow=boom,
             failed=[],
             cancel_event=threading.Event(),
         )
@@ -396,3 +405,57 @@ def test_no_candidates_returns_empty_without_reading_labels():
 
     assert guard.excluded == frozenset()
     assert guard.label_fetches == []
+
+
+@pytest.mark.parametrize(
+    ("shadow", "expected_pokes"),
+    [
+        pytest.param(True, [], id="shadow-author"),
+        pytest.param(False, [1], id="trusted-author"),
+    ],
+)
+def test_row_is_stamped_with_the_prs_shadow_and_only_visible_prs_are_poked(shadow, expected_pokes):
+    guard = _exclude([1], known_labels={1: ("Reverted",)}, shadow={1: shadow})
+
+    # One answer drives both: the row carries the caller's verdict verbatim, and a shadow row is
+    # filtered out of the query Dr. CI would rebuild from, so poking it would rebuild nothing.
+    assert guard.shadow_stamped == [(1, shadow)]
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert guard.poked == expected_pokes
+
+
+def test_shadow_pr_is_still_dismissed_and_still_recorded():
+    guard = _exclude([1], known_labels={1: ("Reverted",)}, dismissed_ids={1: [901]}, shadow={1: True})
+
+    # Shadow suppresses the render, never the revert: an approval greenlight already posted before
+    # the author moved into shadow is still live on the PR and must still be revoked, and the row is
+    # what makes the exclusion outlive the label.
+    assert guard.dismissals == [(1, _BOT, revert_guard._DISMISS_MESSAGE)]
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert guard.excluded == frozenset({1})
+
+
+def test_settled_shadow_exclusion_does_not_poke_even_when_an_approval_was_revoked():
+    guard = _exclude(
+        [1],
+        recorded=frozenset({1}),
+        states={1: _state(1, STATUS_REVERTED)},
+        dismissed_ids={1: [901]},
+        shadow={1: True},
+    )
+
+    # The settled-exclusion path pokes on a live revocation rather than on a new row; that poke is
+    # suppressed for a shadow PR too, or the one branch that skips the emit would leak a request.
+    assert guard.dismissals == [(1, _BOT, revert_guard._DISMISS_MESSAGE)]
+    assert guard.emitted == []
+    assert guard.poked == []
+
+
+def test_shadow_is_resolved_per_pr_not_once_for_the_batch():
+    guard = _exclude([1, 2], known_labels={1: ("Reverted",), 2: ("Reverted",)}, shadow={2: True})
+
+    # A mixed batch must not collapse to one answer: PR1's row stays visible and pokes, PR2's does
+    # neither, and both are still excluded.
+    assert guard.shadow_stamped == [(1, False), (2, True)]
+    assert guard.poked == [1]
+    assert guard.excluded == frozenset({1, 2})

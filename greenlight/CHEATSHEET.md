@@ -9,8 +9,9 @@ loops as a daemon with `--loop`; in production the scheduled scan runs as the `g
 AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has the
 one-shot `verdict` and `drci-poke` subcommands:
 
-- `review` — scan the open PRs from a fixed set of trusted authors in `pytorch/pytorch`;
-  for each, compute its fingerprint (`eval_hash`), read its latest state from
+- `review` — scan the open PRs from the evaluation cohort in `pytorch/pytorch` (every
+  `approved_by` login in `merge_rules.yaml`, team refs expanded, minus bots and minus greenlight
+  itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed PRs. A reverted PR —
   labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
@@ -26,12 +27,18 @@ one-shot `verdict` and `drci-poke` subcommands:
   changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
   and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
-  (`CLICKHOUSE_*`).
+  (`CLICKHOUSE_*`). A PR whose author is outside the much narrower `cohort.TRUSTED_AUTHORS` is
+  evaluated in **shadow** — dispatched, reviewed and recorded like any other, but the row is
+  stamped `shadow`, so it is never approved, always dismisses any prior greenlight approval, is
+  filtered out of both Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI.
+  The `--pr` and `--requester` gates below stay bound to `TRUSTED_AUTHORS`, not to the cohort.
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
-  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. Runs once,
-  never as a daemon.
+  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. `--shadow`
+  records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with a shadow
+  value derived from the PR's author at record time, so a disagreement withholds the approval.
+  Runs once, never as a daemon.
 - `drci-poke` — ask Dr. CI to rebuild one PR's comment now rather than at its next
   15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
   just-written state row reaches ClickHouse. Never fails: every error is logged and
@@ -68,10 +75,10 @@ just review --pr 123 --requester alice  # recheck PR #123 for alice (author and 
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
-just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
+just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an untrusted author's PR, in shadow
 ```
 
-`just review` scans the trusted authors' open PRs and, for each PR that is new or changed
+`just review` scans the evaluation cohort's open PRs and, for each PR that is new or changed
 since its last recorded state, dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`); an in-flight review (marked
 `AI_REVIEW_STARTED`) is left alone until the `--timeout-minutes` window elapses. Without
@@ -93,7 +100,9 @@ re-dispatches, rather than cancelling and restarting one that is still running; 
 `greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`. The scan
 is the sole authorizer: `--pr` refuses unless PR N's author is trusted, and `--requester` refuses
 unless the commenter is trusted too (case-insensitive; a refusal is a clean exit 0). The local-only
-`--allow-untrusted-author` skips the target-author check for iteration and is never a workflow
+`--allow-untrusted-author` waives that refusal but not the lookup: the author is still resolved and
+still decides shadow, so an untrusted author's PR is reviewed in shadow (recorded, never approved)
+while a trusted author's PR behaves exactly as in production. It is never a workflow
 input. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
 has a changes-requested review it does not review but posts a single comment that it will not
 re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or
@@ -150,7 +159,7 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 
 ## Simulate a run
 
-The end-to-end flow, per trusted-author PR:
+The end-to-end flow, per cohort PR:
 
 1. `review` scans the open PRs, dropping any draft PR from the listing outright — never
    fingerprinted or dispatched, though `@greenlight recheck` via `--pr` still reviews a draft. It
@@ -239,6 +248,8 @@ automated DDL), so @clee2000 or @huydhn apply them manually:
 - `004_*.sql` — one in-place `ALTER` that adds the `run_id` and `emit_id` columns and
   extends the sort key to `(repo, pr_number, run_id, emit_id)`, keeping the
   `SharedReplacingMergeTree` engine (no new table, backfill, or `EXCHANGE`)
+- `005_alter_greenlight_pr_state_add_shadow.sql` — add the `shadow` Bool (`DEFAULT false`,
+  `AFTER emit_id`, deliberately *not* in the sort key)
 
 The table is append-only-equivalent: the `SharedReplacingMergeTree` never collapses a row
 because the sort key `(repo, pr_number, run_id, emit_id)` ends in a per-emit UUID (`emit_id`),
@@ -248,6 +259,14 @@ race-proof, so a superseded slower dispatch that finishes with a later `version`
 the newer dispatch's higher `run_id`. Applying `004` and deploying the clickhouse-replicator-s3
 Lambda adapter (which gains the matching `run_id` and `emit_id` columns) is a lockstep go-live:
 a schema skew between them drops rows.
+
+`005` is not lockstep — it is strictly ordered, DDL first. Two torchci readers reference `shadow`
+unconditionally and deploy to Vercel on merge: `clickhouse_queries/greenlight_pr_states/query.sql`
+(Dr. CI's render) and `pages/api/greenlight/pr_state.ts` (the route pytorch's land-time merge gate
+reads). Against a table without the column that route returns 500, and since it is the gate's only
+data source, every greenlight-authorized merge waits out the gate's 15-minute transport budget and
+is then denied. Apply the DDL and verify the column via `system.columns` before merging either
+reader.
 
 The `verdict` subcommand does NOT write ClickHouse directly: it emits a gzipped JSON row
 that the record workflow uploads to `s3://gha-artifacts/greenlight_pr_state/`, and the

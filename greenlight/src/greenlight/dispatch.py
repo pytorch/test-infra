@@ -1,7 +1,7 @@
 """Dispatch the greenlight PR-review workflow via a ``workflow_dispatch`` event.
 
 The scanner calls ``dispatch_review`` to trigger a review run for a new-or-changed
-trusted-author PR. It issues the single ``workflow_dispatch`` POST and nothing else: no
+evaluation-cohort PR. It issues the single ``workflow_dispatch`` POST and nothing else: no
 run-status polling and no cancel call -- the workflow's own per-PR concurrency group
 supersedes any still-running review. The PyGithub client is injected, so this module never
 constructs one or holds credentials.
@@ -39,10 +39,14 @@ def dispatch_review(
     head_sha: str,
     eval_hash: str,
     ref: str = DEFAULT_DISPATCH_REF,
+    *,
+    shadow: bool,
 ) -> None:
     """Fire the PR-review workflow for one PR.
 
-    Every input is stringified because the workflow declares them ``type: string``. A
+    Every input is sent as a string, whatever type the workflow declares: GitHub's
+    ``workflow_dispatch`` REST payload types ``inputs`` as ``{[key: string]: string}``, so the
+    boolean ``shadow`` input travels as the lowercase literal the workflow's own YAML uses. A
     malformed ``eval_hash`` or ``head_sha`` raises before any GitHub call. The dispatch is
     issued with ``throw=True`` so a PyGithub API error propagates; a ``False`` return
     becomes a ``RuntimeError`` rather than being swallowed.
@@ -54,6 +58,7 @@ def dispatch_review(
         "pr_number": str(pr_number),
         "head_sha": head_sha,
         "eval_hash": eval_hash,
+        "shadow": "true" if shadow else "false",
     }
     workflow = client.get_repo(DISPATCH_REPO).get_workflow(WORKFLOW_FILE)
     dispatched = workflow.create_dispatch(ref, inputs=inputs, throw=True)
