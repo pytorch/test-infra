@@ -10,7 +10,16 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import clickhouse_client, drci_poke, github_client, revert_guard, review, scan_runner, state_emit
+from greenlight import (
+    clickhouse_client,
+    cohort,
+    drci_poke,
+    github_client,
+    revert_guard,
+    review,
+    scan_runner,
+    state_emit,
+)
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -1801,7 +1810,7 @@ def test_deferred_dispatch_is_logged(make_config, caplog):
 
 
 def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
+    with caplog.at_level(logging.DEBUG, logger="greenlight"):
         _run_scan(
             make_config,
             listed=[_open_pr(1), _open_pr(2)],
@@ -1814,6 +1823,21 @@ def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
     assert "open PR #1 by albanD" in messages
     assert "PR #1: DISPATCH (never_reviewed)" in messages
     assert "PR #2: SKIP (decided)" in messages
+
+
+def test_per_pr_listing_detail_is_below_info(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1), _open_pr(2)],
+            fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A)},
+        )
+
+    # One info line per open PR is affordable for the trusted-author set and not for the whole
+    # merge_rules approver cohort, which is an order of magnitude larger and rescanned every few
+    # minutes. The aggregate count stays at info; the per-PR detail is debug-only.
+    assert "found 2 open PR(s)" in caplog.text
+    assert "open PR #" not in caplog.text
 
 
 def test_run_without_token_raises(make_config):
@@ -1887,7 +1911,7 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
     assert result is expected
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
-    assert captured["authors"] == review.TRUSTED_AUTHORS
+    assert captured["authors"] == cohort.TRUSTED_AUTHORS
 
 
 def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
