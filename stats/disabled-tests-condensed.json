@@ -829,6 +829,13 @@
       "linux"
     ]
   ],
+  "test_no_xpu_device_query_on_inductor_import (__main__.TestXpu)": [
+    "195878",
+    "https://github.com/pytorch/pytorch/issues/195878",
+    [
+      "xpu"
+    ]
+  ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
     "195219",
     "https://github.com/pytorch/pytorch/issues/195219",
@@ -1013,6 +1020,20 @@
       "rocm",
       "win",
       "windows"
+    ]
+  ],
+  "test_regional_codegen_only_config_cpp_wrapper_xpu (__main__.GPUTests)": [
+    "195875",
+    "https://github.com/pytorch/pytorch/issues/195875",
+    [
+      "xpu"
+    ]
+  ],
+  "test_regional_fallback_by_default_invoke_subgraph_xpu (__main__.GPUTests)": [
+    "195876",
+    "https://github.com/pytorch/pytorch/issues/195876",
+    [
+      "xpu"
     ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
