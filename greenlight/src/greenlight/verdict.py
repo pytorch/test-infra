@@ -106,6 +106,7 @@ class VerdictRequest:
     eval_job_url: str = ""
     bot_login: str = ""
     run_id: int | None = None
+    shadow: bool = False
     dry_run: bool = False
 
 
@@ -192,6 +193,7 @@ def _emit_payload(
     reason: str,
     message: str,
     *,
+    shadow: bool,
     now: Callable[[], datetime],
     emit: Callable[[bytes, str], None],
     new_emit_id: Callable[[], str],
@@ -209,6 +211,7 @@ def _emit_payload(
         eval_job=request.eval_job_url,
         agent_job=request.agent_job_url,
         run_id=request.run_id or 0,
+        shadow=shadow,
         now=now,
         emit=emit,
         new_emit_id=new_emit_id,
@@ -277,7 +280,10 @@ def _run_marker(
     if request.dry_run:
         logger.info("[dry-run] would emit %s marker payload for %s#%d", status, request.repo, request.pr_number)
         return
-    key = _emit_payload(request, status, "", "", now=now, emit=emit, new_emit_id=new_emit_id)
+    # Markers take request.shadow verbatim and never look the author up. Both jobs that reach here
+    # mint the App token with continue-on-error, so a lookup can fail, and fail-closed derivation
+    # would hide a trusted author's in-flight marker from the merge gate -- a WAIT, then a DENY.
+    key = _emit_payload(request, status, "", "", shadow=request.shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s marker payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     if not request.bot_login:
         return
@@ -312,7 +318,9 @@ def _run_full(
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
-    key = _emit_payload(request, status, reason, message, now=now, emit=emit, new_emit_id=new_emit_id)
+    key = _emit_payload(
+        request, status, reason, message, shadow=request.shadow, now=now, emit=emit, new_emit_id=new_emit_id
+    )
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
     body = comment_format.verdict_body(status, reason, message, job_url, request.run_id)

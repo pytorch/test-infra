@@ -21,7 +21,9 @@ _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
 _INSTALLATION_ID = 42
 _APP_SLUG = "pytorchgreenlight"
-_EXPECTED_ARGV = ["review", "--ref", "main"]
+# Pinned, not derived from the handler's constant: the cap exists to keep a cold-start scan inside
+# the 300s Lambda timeout, so raising it must be a deliberate two-place edit.
+_EXPECTED_ARGV = ["review", "--ref", "main", "--max", "30"]
 _EXPECTED_PERMISSIONS = {
     "actions": "write",
     "pull_requests": "write",
@@ -99,6 +101,19 @@ def test_handler_happy_path(monkeypatch, fakes):
     fake_github.GithubIntegration.return_value.get_app.assert_called_once_with()
 
     main_mock.assert_called_once_with(_EXPECTED_ARGV)
+
+
+def test_handler_caps_dispatches_per_scan(monkeypatch, fakes):
+    main_mock = Mock(return_value=EXIT_OK)
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    lambda_handler.handler({}, object())
+
+    # The scheduled scan is the one path with a hard wall-clock budget, so it must never run
+    # uncapped: an uncapped pass over the evaluation cohort would spend the whole function timeout
+    # on serial workflow_dispatch POSTs and be killed mid-scan.
+    argv = main_mock.call_args.args[0]
+    assert argv[argv.index("--max") + 1] == str(lambda_handler._MAX_DISPATCHES_PER_SCAN)
 
 
 @pytest.mark.parametrize("slug", [pytest.param("", id="empty"), pytest.param(None, id="absent")])

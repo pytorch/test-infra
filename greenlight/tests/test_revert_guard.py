@@ -49,6 +49,7 @@ class _Guard:
     got_pr: list[int] = field(default_factory=list)
     dismissals: list[tuple[int, str, str]] = field(default_factory=list)
     emitted: list[tuple[str, int, str, int]] = field(default_factory=list)
+    shadow_stamped: list[tuple[int, bool]] = field(default_factory=list)
     poked: list[int] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     cancelled: bool = False
@@ -66,6 +67,7 @@ def _exclude(
     dismiss_errors: Mapping[int, Exception] | None = None,
     emit_errors: Mapping[int, Exception] | None = None,
     get_pr_errors: Mapping[int, Exception] | None = None,
+    shadow: Mapping[int, bool] | None = None,
 ) -> _Guard:
     known_labels = {} if known_labels is None else known_labels
     fetched_labels = {} if fetched_labels is None else fetched_labels
@@ -74,6 +76,7 @@ def _exclude(
     dismiss_errors = {} if dismiss_errors is None else dismiss_errors
     emit_errors = {} if emit_errors is None else emit_errors
     get_pr_errors = {} if get_pr_errors is None else get_pr_errors
+    shadow = {} if shadow is None else shadow
     result = _Guard(frozenset())
     cancel_event = threading.Event()
 
@@ -99,8 +102,9 @@ def _exclude(
             raise error
         return list(dismissed_ids.get(pr.number, ()))
 
-    def fake_emit(*, repo, pr_number, head_sha, run_id):
+    def fake_emit(*, repo, pr_number, head_sha, run_id, shadow):
         result.events.append(f"emit:{pr_number}")
+        result.shadow_stamped.append((pr_number, shadow))
         error = emit_errors.get(pr_number)
         if error is not None:
             raise error
@@ -109,6 +113,9 @@ def _exclude(
     def fake_poke(number):
         result.poked.append(number)
         result.events.append(f"poke:{number}")
+
+    def fake_is_shadow(number):
+        return shadow.get(number, False)
 
     result.excluded = revert_guard.exclude_reverted(
         _CLIENT,
@@ -122,6 +129,7 @@ def _exclude(
         dismiss=fake_dismiss,
         emit=fake_emit,
         poke=fake_poke,
+        is_shadow=fake_is_shadow,
         failed=result.failed,
         cancel_event=cancel_event,
     )
@@ -363,6 +371,7 @@ def test_non_app_bot_login_refuses_before_any_write():
             dismiss=boom,
             emit=boom,
             poke=boom,
+            is_shadow=boom,
             failed=[],
             cancel_event=threading.Event(),
         )
@@ -396,3 +405,32 @@ def test_no_candidates_returns_empty_without_reading_labels():
 
     assert guard.excluded == frozenset()
     assert guard.label_fetches == []
+
+
+@pytest.mark.parametrize("shadow", [pytest.param(True, id="shadow-author"), pytest.param(False, id="trusted-author")])
+def test_row_is_stamped_with_the_prs_shadow(shadow):
+    guard = _exclude([1], known_labels={1: ("Reverted",)}, shadow={1: shadow})
+
+    # The row carries the caller's verdict verbatim: revert_guard writes state for a PR it has no
+    # author of its own for, so the answer has to be threaded in rather than re-derived.
+    assert guard.shadow_stamped == [(1, shadow)]
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+
+
+def test_shadow_pr_is_still_dismissed_and_still_recorded():
+    guard = _exclude([1], known_labels={1: ("Reverted",)}, dismissed_ids={1: [901]}, shadow={1: True})
+
+    # Shadow suppresses the render, never the revert: an approval greenlight already posted before
+    # the author moved into shadow is still live on the PR and must still be revoked, and the row is
+    # what makes the exclusion outlive the label.
+    assert guard.dismissals == [(1, _BOT, revert_guard._DISMISS_MESSAGE)]
+    assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert guard.excluded == frozenset({1})
+
+
+def test_shadow_is_resolved_per_pr_not_once_for_the_batch():
+    guard = _exclude([1, 2], known_labels={1: ("Reverted",), 2: ("Reverted",)}, shadow={2: True})
+
+    # A mixed batch must not collapse to one answer, and both PRs are still excluded either way.
+    assert guard.shadow_stamped == [(1, False), (2, True)]
+    assert guard.excluded == frozenset({1, 2})

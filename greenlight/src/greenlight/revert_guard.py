@@ -82,6 +82,7 @@ def _revoke_and_record(
     number: int,
     *,
     recorded_state: PRState | None,
+    shadow: bool,
     bot_login: str,
     get_pr: Callable[[Github, str, int], VerdictPR],
     dismiss: Callable[..., list[int]],
@@ -126,6 +127,7 @@ def _revoke_and_record(
             pr_number=number,
             head_sha=pr.head.sha,
             run_id=next_run_id(recorded_state),
+            shadow=shadow,
         )
     except IterationTimeout:
         raise
@@ -150,16 +152,20 @@ def exclude_reverted(
     dismiss: Callable[..., list[int]],
     emit: Callable[..., None],
     poke: Callable[[int], None],
+    is_shadow: Callable[[int], bool],
     failed: list[int],
     cancel_event: threading.Event,
 ) -> frozenset[int]:
     """Act on every reverted PR in ``pr_numbers`` and return the set the caller must drop.
 
     ``known_labels`` holds the labels the caller already has; a PR absent from it has its labels
-    read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too. A
-    per-PR failure is collected into ``failed`` so the scan still fails closed, and a rate limit
-    additionally trips ``cancel_event`` so the fingerprint fan-out does not run on a throttled
-    token. Either way the PR is still dropped -- an exclusion never lapses because a step failed.
+    read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too.
+    ``is_shadow`` answers the same question for the PR's author, and is a caller-supplied lookup
+    rather than a fetch: the scan already has every listed PR's author, and paying a second GitHub
+    round trip per reverted PR to re-learn it would be pure cost. A per-PR failure is collected
+    into ``failed`` so the scan still fails closed, and a rate limit additionally trips
+    ``cancel_event`` so the fingerprint fan-out does not run on a throttled token. Either way the
+    PR is still dropped -- an exclusion never lapses because a step failed.
     """
     recorded = read_reverted(TARGET_REPO, pr_numbers)
     excluded = [
@@ -184,6 +190,7 @@ def exclude_reverted(
             client,
             number,
             recorded_state=states.get(number),
+            shadow=is_shadow(number),
             bot_login=bot_login,
             get_pr=get_pr,
             dismiss=dismiss,
