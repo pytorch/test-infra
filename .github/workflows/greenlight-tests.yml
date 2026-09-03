@@ -8,6 +8,10 @@ on:
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**
+      # Holds the other side of the greenlight_pr_state column contract
+      # (test_state_row_schema_sync.py). Its own workflow does not run these tests, so
+      # without this path an adapter-only edit ships green and rows stop arriving.
+      - aws/lambda/clickhouse-replicator-s3/**
   push:
     branches:
       - main
@@ -17,6 +21,7 @@ on:
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**
+      - aws/lambda/clickhouse-replicator-s3/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

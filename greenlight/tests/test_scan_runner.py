@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import queue
 import threading
@@ -500,3 +502,169 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
     # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
     assert failed == []
     assert poked == [1]
+
+
+_CHANGED_HASH = "b" * 64
+
+
+def _until_dispatchable(
+    pr_numbers: list[int],
+    *,
+    fingerprint: scan_runner.FingerprintFn,
+    limit: int,
+    worker_count: int = 2,
+    states: dict[int, PRState] | None = None,
+    failed: list[int] | None = None,
+    abandoned: list[int] | None = None,
+    skips: list[tuple[int, ReviewSkip]] | None = None,
+    cancel_event: threading.Event | None = None,
+) -> list[scan_runner._Candidate]:
+    client_pool: queue.Queue[Github] = queue.Queue()
+    for _ in range(worker_count):
+        client_pool.put(cast("Github", object()))
+    return scan_runner._fingerprint_until_dispatchable(
+        pr_numbers,
+        states or {},
+        fingerprint=fingerprint,
+        client_pool=client_pool,
+        worker_count=worker_count,
+        authorized_logins=frozenset({"alice"}),
+        skip_on_approval=True,
+        limit=limit,
+        now=datetime(2026, 6, 1),
+        timeout=timedelta(hours=1),
+        failed=failed if failed is not None else [],
+        abandoned=abandoned if abandoned is not None else [],
+        skips=skips if skips is not None else [],
+        force=False,
+        cancel_event=cancel_event if cancel_event is not None else threading.Event(),
+    )
+
+
+def test_fingerprint_until_dispatchable_stops_submitting_once_the_limit_is_reached():
+    fingerprinted: list[int] = []
+    lock = threading.Lock()
+
+    def fingerprint(_client, number, _authorized, _skip):
+        with lock:
+            fingerprinted.append(number)
+        return (f"headsha{number}", _CHANGED_HASH)
+
+    pending = _until_dispatchable(list(range(1, 9)), fingerprint=fingerprint, limit=1, worker_count=2)
+
+    # Eight dispatchable PRs but a cap of one: submission stops after the first evaluation round, so
+    # only the in-flight pair is ever fingerprinted -- the whole point of the capped path.
+    assert sorted(fingerprinted) == [1, 2]
+    # Both are still evaluated and returned: their GitHub calls are already paid for, and the cap
+    # itself is applied later, by _dispatch_pending.
+    assert [candidate.pr_number for candidate in pending] == [1, 2]
+
+
+def test_fingerprint_until_dispatchable_zero_limit_submits_nothing():
+    def boom_fingerprint(*_args):
+        raise AssertionError("no PR may be fingerprinted under a zero cap")
+
+    assert _until_dispatchable([1, 2, 3], fingerprint=boom_fingerprint, limit=0) == []
+
+
+def test_fingerprint_until_dispatchable_refills_the_pool_without_waiting_for_the_slowest_task():
+    later_task_started = threading.Event()
+    failed: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        if number == 1:
+            # PR1 finishes only once a task beyond the first pool-sized group has started. Under a
+            # batch barrier that task is never submitted (it waits on PR1), so this times out.
+            assert later_task_started.wait(timeout=5)
+        elif number == 3:
+            later_task_started.set()
+        return (f"headsha{number}", _CHANGED_HASH)
+
+    pending = _until_dispatchable([1, 2, 3, 4], fingerprint=fingerprint, limit=4, worker_count=2, failed=failed)
+
+    assert failed == []
+    assert sorted(candidate.pr_number for candidate in pending) == [1, 2, 3, 4]
+
+
+def test_fingerprint_until_dispatchable_returns_ranked_order_not_completion_order():
+    stalest_waiting = threading.Event()
+    other_finished = threading.Event()
+    failed: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip):
+        # A two-way handshake pins the completion order: PR5 cannot finish until PR9 is parked, and
+        # PR9 cannot finish until PR5 has. The stalest PR therefore always completes last.
+        if number == 9:
+            stalest_waiting.set()
+            assert other_finished.wait(timeout=5)
+        else:
+            assert stalest_waiting.wait(timeout=5)
+            other_finished.set()
+        return (f"headsha{number}", _CHANGED_HASH)
+
+    pending = _until_dispatchable(
+        [9, 5],
+        fingerprint=fingerprint,
+        limit=4,
+        worker_count=2,
+        states={5: _pr_state(5, run_id=3)},
+        failed=failed,
+    )
+
+    assert failed == []
+
+    # PR9 (never reviewed) outranks the recorded PR5 but deliberately finishes last. _dispatch_pending
+    # breaks staleness ties on this order, so completion order here would silently hand the last
+    # dispatch slot to whichever PR happened to answer first.
+    assert [candidate.pr_number for candidate in pending] == [9, 5]
+
+
+def test_fingerprint_until_dispatchable_stops_submitting_once_the_fan_out_is_cancelled():
+    from github import RateLimitExceededException
+
+    cancel_event = threading.Event()
+    reached_fingerprint = threading.Event()
+    fingerprinted: list[int] = []
+    lock = threading.Lock()
+    failed: list[int] = []
+    abandoned: list[int] = []
+    skips: list[tuple[int, ReviewSkip]] = []
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        with lock:
+            fingerprinted.append(number)
+        if number == 2:
+            # PR2 is past _fingerprint_task's pre-flight cancel check before PR1 can trip the limit,
+            # so it is provably in flight -- not abandoned -- when submission stops. Waiting on the
+            # shared event (which _fingerprint_task sets from PR1's rate limit) is also what pins the
+            # interleaving: no completion is observable until the cancel has landed.
+            reached_fingerprint.set()
+            assert cancel_event.wait(timeout=5)
+            return _skip("changes requested by bob")
+        assert reached_fingerprint.wait(timeout=5)
+        raise RateLimitExceededException(403)
+
+    pending = _until_dispatchable(
+        list(range(1, 9)),
+        fingerprint=fingerprint,
+        limit=8,
+        worker_count=2,
+        failed=failed,
+        abandoned=abandoned,
+        skips=skips,
+        cancel_event=cancel_event,
+    )
+
+    # Eight PRs and a cap of eight, so the cap can never be what stops submission: the cancel event
+    # is the only remaining sub-condition of the `while` guard, and it is the rate-limit safety valve
+    # on the path production takes (the Lambda always passes --max). Coverage cannot see this --
+    # it tracks the branch out of the `while`, not which sub-condition short-circuited.
+    assert sorted(fingerprinted) == [1, 2]
+    # The already-in-flight pair is still drained: PR1's rate limit is recorded as a failure and PR2's
+    # human-decision skip is still collected, rather than both being dropped with the fan-out.
+    assert failed == [1]
+    assert [number for number, _ in skips] == [2]
+    # PRs 3-8 were never submitted, so they are not abandoned tasks either -- abandoned holds only
+    # tasks that reached the pool and found the event already set.
+    assert abandoned == []
+    assert pending == []

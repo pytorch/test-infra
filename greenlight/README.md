@@ -227,6 +227,13 @@ hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead.
 
+The handler caps each pass at `--max 30` (`_MAX_DISPATCHES_PER_SCAN`), and
+`greenlight-review.yml`'s `max` input defaults to the same 30. A dispatch costs 3-8 s of serial
+main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
+out of its 300 s clock and fire an unbounded burst of `workflow_dispatch` POSTs on one token —
+what GitHub's secondary rate limit punishes hardest. Deferring is free: no state row is written
+for a PR the cap never reaches, so the next scan re-evaluates and dispatches it.
+
 The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
 `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) wherever the scan runs: the Lambda reads both from its
 function environment, provisioned by the gha-infra terraform, and the manual /
