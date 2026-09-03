@@ -768,6 +768,14 @@
       "rocm"
     ]
   ],
+  "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190748",
+    "https://github.com/pytorch/pytorch/issues/190748",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -787,6 +795,15 @@
     "https://github.com/pytorch/pytorch/issues/192012",
     [
       "xpu"
+    ]
+  ],
+  "test_mempool_ctx_multithread (__main__.TestMemPool)": [
+    "153460",
+    "https://github.com/pytorch/pytorch/issues/153460",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_mempool_tensor_factory (__main__.NVSHMEMSymmetricMemoryTest)": [
