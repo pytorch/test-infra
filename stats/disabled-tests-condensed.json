@@ -1079,6 +1079,14 @@
       "xpu"
     ]
   ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
+    "195816",
+    "https://github.com/pytorch/pytorch/issues/195816",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_save_with_kwargs (__main__.TestCheckpointer)": [
     "190613",
     "https://github.com/pytorch/pytorch/issues/190613",
