@@ -476,6 +476,10 @@ jobs:
           # claude-code-action blocks unless allowlisted. Scope to our bot only:
           # "*" would let any external App trigger reviews on this public repo.
           allowed_bots: "pytorchgreenlight[bot]"
+          # claude-code-action merges this into $HOME/.claude/settings.json, a
+          # separate and lower-precedence layer than the .claude/settings.local.json
+          # written above, so it cannot disturb the hook registrations there.
+          settings: '{"outputStyle": "Concise"}'
           claude_args: >-
             --model global.anthropic.claude-opus-5
             --effort high
