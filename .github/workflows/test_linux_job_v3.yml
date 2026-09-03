@@ -266,3 +266,28 @@ jobs:
           [[ "${HF_HOME:-}" != "${RUNNER_TEMP}/hf_cache" ]] || { echo "HF_HOME unexpectedly repointed"; exit 1; }
           echo "default-mode env OK"
         fi
+
+  test-sccache-credentials:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-sccache-credentials"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        set -x
+        # The value has to reach the script, since that is where the compilers
+        # and so the sccache server start. A run in this repository has an OIDC
+        # token, so the role assume succeeds and anonymous access stays off; the
+        # fork case cannot be exercised here, only the plumbing.
+        case "${SCCACHE_S3_NO_CREDENTIALS:-<unset>}" in
+          true|false) echo "SCCACHE_S3_NO_CREDENTIALS=${SCCACHE_S3_NO_CREDENTIALS}" ;;
+          *) echo "SCCACHE_S3_NO_CREDENTIALS not plumbed through: ${SCCACHE_S3_NO_CREDENTIALS:-<unset>}"; exit 1 ;;
+        esac
+        [[ -n "${AWS_ACCESS_KEY_ID:-}" ]] || { echo "expected credentials in this repository"; exit 1; }
+        [[ "${SCCACHE_S3_NO_CREDENTIALS}" == "false" ]] || { echo "credentials loaded, so anonymous access should be off"; exit 1; }

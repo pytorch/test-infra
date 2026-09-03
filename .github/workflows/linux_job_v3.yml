@@ -279,6 +279,15 @@ jobs:
         working-directory: ${{ inputs.repository || github.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
+          # A pull request from a fork gets no OIDC token, so the role assume
+          # above fails and there are no credentials to sign an S3 request with.
+          # CI images put sccache stubs ahead of the real compilers, and sccache
+          # fails its startup read rather than compiling uncached, which surfaces
+          # as `the C compiler is not able to compile a simple test program`.
+          # Reading the cache anonymously keeps those builds working, as
+          # pytorch's _linux-build.yml does for the same bucket. `outcome` rather
+          # than `conclusion`: continue-on-error rewrites the latter to success.
+          SCCACHE_S3_NO_CREDENTIALS: ${{ steps.aws-creds.outcome != 'success' && 'true' || 'false' }}
         run: |
           set -ex
           {
