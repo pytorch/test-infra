@@ -13,6 +13,12 @@ Both authz gates -- the ``--pr`` target author and the ``@greenlight recheck`` r
 bound to ``cohort.TRUSTED_AUTHORS``, not to the cohort: the cohort widens who greenlight looks at
 on its own schedule, never who can point it at a PR.
 
+``PYTORCH_GREENLIGHT_SCAN_FULL_COHORT=false`` narrows the listing back to
+``cohort.TRUSTED_AUTHORS``. It is the one lever that stops the wide cohort's shadow traffic, and it
+needs no counterpart anywhere downstream: every author it leaves listed is trusted, so no shadow
+row is produced in the first place. It gates the listing alone -- both authz gates and the
+merge-authorized login set behave identically either way.
+
 Reverted PRs are excluded before any of that, on both the listing and ``--pr`` paths: greenlight
 revokes its own approval, records the exclusion, and drops the PR (see ``revert_guard``).
 
@@ -208,12 +214,28 @@ def run(
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
+        # scan_full_cohort narrows the LISTING only. authorized_logins stays resolved and threaded
+        # either way: the fingerprint and the human-review skip both read it to spot an approval
+        # from someone who could have merged the PR themselves, which is a separate question from
+        # whose PRs get listed. Narrowing to TRUSTED_AUTHORS makes every listed author trusted, so
+        # cohort.is_shadow is False throughout and the shadow machinery goes inert at the source.
+        listing_authors = (
+            cohort.evaluation_cohort(authorized_logins)
+            if config.scan_full_cohort
+            else frozenset(cohort.TRUSTED_AUTHORS)
+        )
+        logger.info(
+            "scan cohort: %s",
+            "full evaluation cohort"
+            if config.scan_full_cohort
+            else "trusted authors only (PYTORCH_GREENLIGHT_SCAN_FULL_COHORT is off)",
+        )
         pr_numbers, updated_at_by_number, labels_by_number, shadow_by_number = _candidate_numbers(
             client,
             pr=pr,
             target_author=target_author,
             fetch=fetch,
-            authors=cohort.evaluation_cohort(authorized_logins),
+            authors=listing_authors,
         )
 
         def is_shadow(number: int) -> bool:

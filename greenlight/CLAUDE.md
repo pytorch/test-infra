@@ -50,7 +50,9 @@ PyTorch Green Light has one unit of work — the `review` phase:
 
 - `review.run()` — scans the open PRs from the evaluation cohort in `pytorch/pytorch`
   (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
-  expanded, minus bots and minus greenlight itself — that cohort is the match rule); for each PR
+  expanded, minus bots and minus greenlight itself — that cohort is the match rule, unless
+  `PYTORCH_GREENLIGHT_SCAN_FULL_COHORT` is off, which narrows the listing to
+  `cohort.TRUSTED_AUTHORS`); for each PR
   it computes the fingerprint (`eval_hash`), reads the PR's latest state from
   `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
