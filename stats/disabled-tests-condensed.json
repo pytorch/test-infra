@@ -201,6 +201,13 @@
       "linux"
     ]
   ],
+  "test_collective_hang (__main__.ProcessGroupGlooWrapperTest)": [
+    "195960",
+    "https://github.com/pytorch/pytorch/issues/195960",
+    [
+      "linux"
+    ]
+  ],
   "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
     "187202",
     "https://github.com/pytorch/pytorch/issues/187202",
@@ -534,6 +541,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_generic_stream_multiple (__main__.TestGenericStreamCompile)": [
+    "190330",
+    "https://github.com/pytorch/pytorch/issues/190330",
+    [
+      "linux"
     ]
   ],
   "test_get_remote_tensor (__main__.NVSHMEMSymmetricMemoryTest)": [
