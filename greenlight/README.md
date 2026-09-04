@@ -117,9 +117,10 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 `ALLOWED_REASONS` code) that the record workflow uploads to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. Then,
-for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves; `NO_LAND` dismisses greenlight's
-own prior approval). `CANCELLED` and `FAILED` markers only emit the row. The
-model's message is secret-scrubbed at a single point before it fans out to both the emitted
+for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves unless the verdict is shadow — recorded
+without authority, so it is never approved and never rendered by Dr. CI; `NO_LAND`, and any shadow
+verdict, dismisses greenlight's own prior approval). `CANCELLED` and `FAILED` markers only emit
+the row. The model's message is secret-scrubbed at a single point before it fans out to both the emitted
 row and the posted comment; whichever comment ultimately carries it — greenlight's own, or
 Dr. CI's Green Light section rendered from the row — additionally defangs it to neutralize
 formatting and @-mentions.
@@ -369,7 +370,8 @@ marker at run start; the `verdict` subcommand emits a PR-review verdict row (wit
 passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval. `verdict` is a one-shot call for a
+dismiss greenlight's prior approval. A shadow verdict is never approved and always dismisses.
+`verdict` is a one-shot call for a
 privileged CI job and never writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI
 to rebuild one PR's comment, which is where the status is shown on the repos that delegate it.
 The service reads ClickHouse via `clickhouse_client.connect()` for both the review scan and its
