@@ -407,14 +407,21 @@ def test_no_candidates_returns_empty_without_reading_labels():
     assert guard.label_fetches == []
 
 
-@pytest.mark.parametrize("shadow", [pytest.param(True, id="shadow-author"), pytest.param(False, id="trusted-author")])
-def test_row_is_stamped_with_the_prs_shadow(shadow):
+@pytest.mark.parametrize(
+    ("shadow", "expected_pokes"),
+    [
+        pytest.param(True, [], id="shadow-author"),
+        pytest.param(False, [1], id="trusted-author"),
+    ],
+)
+def test_row_is_stamped_with_the_prs_shadow_and_only_visible_prs_are_poked(shadow, expected_pokes):
     guard = _exclude([1], known_labels={1: ("Reverted",)}, shadow={1: shadow})
 
-    # The row carries the caller's verdict verbatim: revert_guard writes state for a PR it has no
-    # author of its own for, so the answer has to be threaded in rather than re-derived.
+    # One answer drives both: the row carries the caller's verdict verbatim, and a shadow row is
+    # filtered out of the query Dr. CI would rebuild from, so poking it would rebuild nothing.
     assert guard.shadow_stamped == [(1, shadow)]
     assert guard.emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert guard.poked == expected_pokes
 
 
 def test_shadow_pr_is_still_dismissed_and_still_recorded():
@@ -428,9 +435,27 @@ def test_shadow_pr_is_still_dismissed_and_still_recorded():
     assert guard.excluded == frozenset({1})
 
 
+def test_settled_shadow_exclusion_does_not_poke_even_when_an_approval_was_revoked():
+    guard = _exclude(
+        [1],
+        recorded=frozenset({1}),
+        states={1: _state(1, STATUS_REVERTED)},
+        dismissed_ids={1: [901]},
+        shadow={1: True},
+    )
+
+    # The settled-exclusion path pokes on a live revocation rather than on a new row; that poke is
+    # suppressed for a shadow PR too, or the one branch that skips the emit would leak a request.
+    assert guard.dismissals == [(1, _BOT, revert_guard._DISMISS_MESSAGE)]
+    assert guard.emitted == []
+    assert guard.poked == []
+
+
 def test_shadow_is_resolved_per_pr_not_once_for_the_batch():
     guard = _exclude([1, 2], known_labels={1: ("Reverted",), 2: ("Reverted",)}, shadow={2: True})
 
-    # A mixed batch must not collapse to one answer, and both PRs are still excluded either way.
+    # A mixed batch must not collapse to one answer: PR1's row stays visible and pokes, PR2's does
+    # neither, and both are still excluded.
     assert guard.shadow_stamped == [(1, False), (2, True)]
+    assert guard.poked == [1]
     assert guard.excluded == frozenset({1, 2})

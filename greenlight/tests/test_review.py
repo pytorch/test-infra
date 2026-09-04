@@ -2090,21 +2090,23 @@ _TRUSTED_VS_SHADOW = [
 
 
 @pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
-def test_dispatch_marker_carries_the_authors_shadow(make_config, author, shadow):
+def test_dispatch_marker_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, author=author)],
         fingerprints={1: ("headsha1", _HASH_A)},
     )
 
-    # The listing already knows the author, so the scan decides once and spends it twice: the
-    # workflow input that withholds the approval, and the row the merge gate reads.
+    # The listing already knows the author, so the scan decides once and spends it three ways: the
+    # workflow input that withholds the approval, the row the merge gate reads, and whether Dr. CI
+    # is worth poking at all -- a shadow row is filtered out of the query a rebuild would run.
     assert scan.dispatch_shadow == [(1, shadow)]
     assert scan.emit_shadow == [(1, shadow)]
+    assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
 @pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
-def test_reverted_row_carries_the_authors_shadow(make_config, author, shadow):
+def test_reverted_row_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author)],
@@ -2118,6 +2120,7 @@ def test_reverted_row_carries_the_authors_shadow(make_config, author, shadow):
     assert scan.reverted_shadow == [(1, shadow)]
     assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
     assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
 def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
@@ -2131,6 +2134,7 @@ def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
     # wrong for half the batch in either direction.
     assert scan.dispatch_shadow == [(1, False), (2, True)]
     assert scan.emit_shadow == [(1, False), (2, True)]
+    assert [number for _repo, number, _config in scan.poked] == [1]
 
 
 def test_pr_recheck_is_never_shadow_because_its_author_gate_already_ran(make_config):
@@ -2173,10 +2177,12 @@ def test_allow_untrusted_author_keeps_an_untrusted_pr_shadow(make_config):
     )
 
     # The other half of that same lookup: waiving the refusal must not waive shadow. The override
-    # stays a way to exercise the reviewer, never a way to have an arbitrary PR approved.
+    # stays a way to exercise the reviewer, never a way to have an arbitrary PR approved -- and the
+    # Dr. CI query drops shadow rows, so there is nothing to poke for.
     assert scan.author_fetched == [5]
     assert scan.dispatch_shadow == [(5, True)]
     assert scan.emit_shadow == [(5, True)]
+    assert scan.poked == []
 
 
 def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow(make_config):

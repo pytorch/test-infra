@@ -6,16 +6,24 @@ const MAX_PR_NUMBERS = 50;
 
 const REPO_RE = /^[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/;
 
-// Row selection must stay identical to greenlight's own reader
+// Row ordering must stay identical to greenlight's own reader
 // (greenlight/src/greenlight/state.py): writer and reader have to agree on which row
 // is authoritative. There is deliberately no head_sha filter — it would collapse "no
 // verdict for this commit" and "verdict for an older commit" into the same empty
 // result, and could resurrect a verdict that a later review superseded.
+//
+// The shadow exclusion is the one deliberate divergence from that reader, which stays
+// unfiltered so its dedup and next_run_id still see every row. A shadow evaluation
+// carries no authority, and run_id climbs with every dispatch, so without the exclusion
+// a shadow row written after a real verdict outranks it and becomes what pytorch's
+// land-time merge gate acts on. It belongs in WHERE, ahead of LIMIT 1 BY, so the
+// collapse never picks a shadow row to begin with.
 const QUERY = `
 SELECT pr_number, status, head_sha, run_id, version
 FROM misc.greenlight_pr_state
 WHERE repo = {repo: String}
   AND pr_number IN {pr_numbers: Array(Int64)}
+  AND shadow = false
 ORDER BY pr_number, run_id DESC, version DESC
 LIMIT 1 BY pr_number
 `;

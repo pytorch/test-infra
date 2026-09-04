@@ -1,6 +1,8 @@
+import { readFileSync } from "fs";
 import * as clickhouse from "lib/clickhouse";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
+import path from "path";
 
 const LAND_ROW = {
   pr_number: 194531,
@@ -229,5 +231,45 @@ describe("buildGreenlightSections", () => {
     );
 
     expect([...sections.keys()]).toEqual([LAND_ROW.pr_number]);
+  });
+});
+
+// buildGreenlightSections reaches this SQL by name through queryClickhouseSaved, so the
+// only place its text can be pinned is the file itself. Nothing here runs the query.
+const RENDER_QUERY_SQL = readFileSync(
+  path.resolve(
+    __dirname,
+    "..",
+    "clickhouse_queries",
+    "greenlight_pr_states",
+    "query.sql"
+  ),
+  "utf-8"
+);
+
+// The header comment names both `shadow` and `LIMIT 1 BY` while explaining why they sit
+// in that order, and the index assertions below are about the statement, not the prose.
+const RENDER_QUERY = RENDER_QUERY_SQL.replace(/--.*$/gm, "");
+
+describe("greenlight_pr_states query.sql", () => {
+  it("excludes shadow rows from the Dr.CI render", () => {
+    expect(RENDER_QUERY).toContain("AND shadow = false");
+  });
+
+  it("filters in WHERE, ahead of the LIMIT 1 BY collapse", () => {
+    const where = RENDER_QUERY.indexOf("WHERE");
+    const shadow = RENDER_QUERY.indexOf("shadow");
+    const order = RENDER_QUERY.indexOf("ORDER BY");
+    const limit = RENDER_QUERY.indexOf("LIMIT 1 BY");
+
+    expect(where).toBeGreaterThan(-1);
+    expect(shadow).toBeGreaterThan(where);
+    expect(shadow).toBeLessThan(order);
+    expect(order).toBeLessThan(limit);
+    // Filtering only after the collapse would let a PR's newest row be a shadow one: it
+    // wins LIMIT 1 BY, then gets dropped, hiding the real verdict underneath it. A
+    // second mention placed after the collapse satisfies every check above, so pin that
+    // there is exactly one.
+    expect(RENDER_QUERY.lastIndexOf("shadow")).toBe(shadow);
   });
 });
