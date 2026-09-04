@@ -1114,6 +1114,14 @@
       "slow"
     ]
   ],
+  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
+    "196057",
+    "https://github.com/pytorch/pytorch/issues/196057",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_save_with_kwargs (__main__.TestCheckpointer)": [
     "190613",
     "https://github.com/pytorch/pytorch/issues/190613",
