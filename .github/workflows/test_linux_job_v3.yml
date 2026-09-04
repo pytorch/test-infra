@@ -248,6 +248,11 @@ jobs:
       script: |
         set -x
         echo "HF_CACHE_REFRESH=${HF_CACHE_REFRESH:-<unset>} HF_HOME=${HF_HOME:-<unset>}"
+        # This workflow's own trigger says which branch to expect: a dispatch run
+        # refreshes unconditionally, a pull request only with the label.
+        if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+          [[ "${HF_CACHE_REFRESH:-}" == "1" ]] || { echo "workflow_dispatch must refresh"; exit 1; }
+        fi
         if [[ "${HF_CACHE_REFRESH:-}" == "1" ]]; then
           # Refresh branch: HF must be repointed at writable RUNNER_TEMP and online.
           [[ "${HF_HOME}" == "${RUNNER_TEMP}/hf_cache" ]] || { echo "HF_HOME not repointed"; exit 1; }
