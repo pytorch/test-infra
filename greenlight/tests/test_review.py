@@ -10,7 +10,16 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import clickhouse_client, drci_poke, github_client, revert_guard, review, scan_runner, state_emit
+from greenlight import (
+    clickhouse_client,
+    cohort,
+    drci_poke,
+    github_client,
+    revert_guard,
+    review,
+    scan_runner,
+    state_emit,
+)
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -1887,7 +1896,7 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
     assert result is expected
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
-    assert captured["authors"] == review.TRUSTED_AUTHORS
+    assert captured["authors"] == cohort.TRUSTED_AUTHORS
 
 
 def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
