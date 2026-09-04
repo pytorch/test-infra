@@ -13,7 +13,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from greenlight import comment_format, constants
 from greenlight.decision import Decision, decide
@@ -38,6 +38,15 @@ if TYPE_CHECKING:
     # decided it, a ReviewSkip. skip_on_approval (True on the listing scan, False on --pr) is
     # threaded per call so an approval skips the listing but never the manual recheck.
     FingerprintFn = Callable[[Github, int, frozenset[str], bool], tuple[str, str] | ReviewSkip]
+
+    class DispatchFn(Protocol):
+        # Everything but shadow is positional-only so injected test doubles needn't match the
+        # parameter names; shadow is keyword-only and has no default, so no caller can dispatch a
+        # review without stating which cohort the PR belongs to.
+        def __call__(
+            self, client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool
+        ) -> None: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +276,7 @@ def _fingerprint_until_dispatchable(
 
 
 def _emit_dispatch_marker(
-    candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None]
+    candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None], *, shadow: bool
 ) -> None:
     # The workflow was already fired, so an emit failure is logged and swallowed: a missing marker
     # self-heals (next scan re-dispatches, the reviewer's per-PR concurrency group cancels the dup),
@@ -279,7 +288,7 @@ def _emit_dispatch_marker(
             head_sha=candidate.head_sha,
             eval_hash=candidate.eval_hash,
             run_id=next_run_id(candidate.state),
-            shadow=False,
+            shadow=shadow,
         )
     except IterationTimeout:
         raise
@@ -299,16 +308,20 @@ def _dispatch_pending(
     *,
     ref: str,
     max_dispatches: int | None,
-    dispatch: Callable[[Github, int, str, str, str], None],
+    dispatch: DispatchFn,
     emit_dispatched: Callable[..., None],
     poke: Callable[[int], None],
+    is_shadow: Callable[[int], bool],
 ) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
     dispatch_failed: list[int] = []
     for candidate in ordered[:limit]:
+        # Resolved once per candidate so the workflow input, the marker row, and the poke decision
+        # can never disagree about which cohort this PR is in.
+        shadow = is_shadow(candidate.pr_number)
         try:
-            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref)
+            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref, shadow=shadow)
         except IterationTimeout:
             raise
         except Exception as exc:
@@ -316,7 +329,7 @@ def _dispatch_pending(
             dispatch_failed.append(candidate.pr_number)
             continue
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
-        _emit_dispatch_marker(candidate, emit_dispatched, poke)
+        _emit_dispatch_marker(candidate, emit_dispatched, poke, shadow=shadow)
     for candidate in ordered[limit:]:
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
     return dispatch_failed

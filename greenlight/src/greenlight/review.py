@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from greenlight.github_client import OpenPR
     from greenlight.github_types import VerdictPR
     from greenlight.review_gate import ReviewSkip
-    from greenlight.scan_runner import FingerprintFn
+    from greenlight.scan_runner import DispatchFn, FingerprintFn
     from greenlight.state import PRState
 
     class _BuildClient(Protocol):
@@ -104,16 +104,23 @@ def _close_client(client: Github) -> None:
 
 
 def _candidate_numbers(
-    client: Github, *, pr: int | None, fetch: Callable[[Github], list[OpenPR]]
-) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]]]:
-    """Return the candidate PR numbers with their ``updated_at`` and, from the listing, their labels.
+    client: Github,
+    *,
+    pr: int | None,
+    target_author: str | None,
+    fetch: Callable[[Github], list[OpenPR]],
+) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, bool]]:
+    """Return the candidate PR numbers with their ``updated_at``, labels, and shadow flag.
 
+    Shadow is decided here, once, off the author the listing already carries -- every row the scan
+    writes and every Dr. CI poke it makes keys off this one answer, so no later step re-derives it.
     The ``--pr`` path has no listing to read labels from, so it returns none and leaves the one
-    caller that needs them (``revert_guard``) to fetch that single PR's.
+    caller that needs them (``revert_guard``) to fetch that single PR's; its author is the one the
+    target-author gate resolved, and is ``None`` only when GitHub could not name it.
     """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}, {}
+        return [pr], {}, {}, {pr: cohort.is_shadow(target_author)}
     open_prs = fetch(client)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(cohort.TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
@@ -122,6 +129,7 @@ def _candidate_numbers(
         [open_pr.number for open_pr in open_prs],
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
         {open_pr.number: open_pr.labels for open_pr in open_prs},
+        {open_pr.number: cohort.is_shadow(open_pr.author) for open_pr in open_prs},
     )
 
 
@@ -143,7 +151,7 @@ def run(
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     read_reverted: Callable[[str, Sequence[int]], set[int]] = state.read_reverted_pr_numbers,
-    dispatch: Callable[[Github, int, str, str, str], None] = dispatch_module.dispatch_review,
+    dispatch: DispatchFn = dispatch_module.dispatch_review,
     emit_dispatched: Callable[..., None] = state_emit.emit_ai_review_dispatched,
     emit_reverted: Callable[..., None] = state_emit.emit_reverted,
     poke_drci: Callable[[str, int, Config], None] = drci_poke.poke,
@@ -169,19 +177,39 @@ def run(
     with contextlib.ExitStack() as clients:
         client = build_github(token)
         clients.callback(_close_client, client)
-        # Target-author gate: the listing path is already trusted-only, but --pr names an arbitrary
-        # PR, so its author MUST be trusted too or greenlight would review/approve any PR on request.
-        # allow_untrusted_author bypasses ONLY this check (local iteration; never a workflow input).
-        if pr is not None and not allow_untrusted_author:
-            author = fetch_author(client, pr)
-            if not cohort.is_trusted(author):
-                logger.warning("refusing --pr %d: author %r is not a trusted author", pr, author)
-                return
+        # Target-author gate: --pr names an arbitrary PR, so its author MUST be trusted or greenlight
+        # would review/approve any PR on request.
+        # allow_untrusted_author (local iteration; never a workflow input) waives ONLY the refusal,
+        # never the lookup: shadow keys off this author and a shadow LAND dismisses greenlight's live
+        # approval, so leaving the author unresolved would let a local flag revoke a production
+        # approval on a trusted author's PR.
+        target_author: str | None = None
+        if pr is not None:
+            target_author = fetch_author(client, pr)
+            if not cohort.is_trusted(target_author):
+                if not allow_untrusted_author:
+                    logger.warning("refusing --pr %d: author %r is not a trusted author", pr, target_author)
+                    return
+                logger.warning(
+                    "--allow-untrusted-author: reviewing --pr %d despite untrusted author %r; shadow",
+                    pr,
+                    target_author,
+                )
         # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        pr_numbers, updated_at_by_number, labels_by_number = _candidate_numbers(client, pr=pr, fetch=fetch)
+        pr_numbers, updated_at_by_number, labels_by_number, shadow_by_number = _candidate_numbers(
+            client,
+            pr=pr,
+            target_author=target_author,
+            fetch=fetch,
+        )
+
+        def is_shadow(number: int) -> bool:
+            # A number absent from the listing fails closed to shadow, matching cohort.is_shadow(None).
+            return shadow_by_number.get(number, True)
+
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
         timeout = timedelta(minutes=timeout_minutes)
@@ -210,6 +238,7 @@ def run(
             dismiss=dismiss_approvals,
             emit=emit_reverted,
             poke=lambda number: poke_drci(TARGET_REPO, number, poke_config),
+            is_shadow=is_shadow,
             failed=failed,
             cancel_event=cancel_event,
         )
@@ -296,6 +325,7 @@ def run(
                 dispatch=dispatch,
                 emit_dispatched=emit_dispatched,
                 poke=lambda number: poke_drci(TARGET_REPO, number, poke_config),
+                is_shadow=is_shadow,
             )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),

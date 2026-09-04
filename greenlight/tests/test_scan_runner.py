@@ -332,11 +332,15 @@ def _boom_poke(pr_number: int) -> NoReturn:
     raise AssertionError(f"poke should not be called for PR #{pr_number}")
 
 
+def _never_shadow(_pr_number: int) -> bool:
+    return False
+
+
 def test_dispatch_pending_emits_marker_with_next_run_id():
     dispatched: list[int] = []
     emitted: list[dict[str, object]] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     def emit(**kwargs):
@@ -351,6 +355,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=_noop_poke,
+        is_shadow=_never_shadow,
     )
 
     # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
@@ -368,7 +373,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
     emitted: list[dict[str, object]] = []
     poked: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         raise RuntimeError(f"dispatch boom {number}")
 
     def emit(**kwargs):
@@ -382,6 +387,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
         dispatch=boom_dispatch,
         emit_dispatched=emit,
         poke=poked.append,
+        is_shadow=_never_shadow,
     )
 
     # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it --
@@ -396,7 +402,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
     emitted: list[int] = []
     poked: list[int] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     def boom_emit(*, pr_number, **_kwargs):
@@ -413,6 +419,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
             dispatch=dispatch,
             emit_dispatched=boom_emit,
             poke=poked.append,
+            is_shadow=_never_shadow,
         )
 
     # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
@@ -430,7 +437,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
 def test_dispatch_pending_emit_iteration_timeout_propagates():
     dispatched: list[int] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     def timeout_emit(**_kwargs):
@@ -447,6 +454,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
             dispatch=dispatch,
             emit_dispatched=timeout_emit,
             poke=_boom_poke,
+            is_shadow=_never_shadow,
         )
 
     assert dispatched == [1]
@@ -455,7 +463,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
 def test_dispatch_pending_pokes_drci_after_each_successful_emit():
     events: list[str] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         events.append(f"dispatch:{number}")
 
     def emit(*, pr_number, **_kwargs):
@@ -472,6 +480,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=poke,
+        is_shadow=_never_shadow,
     )
 
     # Ordering is the contract: Dr. CI re-reads the row on poke, so each PR's poke must follow its
@@ -483,7 +492,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
 def test_dispatch_pending_does_not_poke_deferred_candidates():
     poked: list[int] = []
 
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref):
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
         return None
 
     def emit(**_kwargs):
@@ -497,11 +506,66 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=poked.append,
+        is_shadow=_never_shadow,
     )
 
     # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
     assert failed == []
     assert poked == [1]
+
+
+@pytest.mark.parametrize("shadow", [pytest.param(True, id="shadow-author"), pytest.param(False, id="trusted-author")])
+def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow):
+    dispatch_kwargs: list[dict[str, object]] = []
+    emitted: list[dict[str, object]] = []
+
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, **kwargs):
+        dispatch_kwargs.append(kwargs)
+
+    def emit(**kwargs):
+        emitted.append(kwargs)
+
+    failed = scan_runner._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None)],
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=_noop_poke,
+        is_shadow=lambda _number: shadow,
+    )
+
+    # One lookup drives both: the reviewer workflow input that withholds the approval, and the row
+    # the merge gate and Dr. CI read.
+    assert failed == []
+    assert dispatch_kwargs == [{"shadow": shadow}]
+    assert [call["shadow"] for call in emitted] == [shadow]
+
+
+def test_dispatch_pending_resolves_shadow_per_candidate():
+    seen: list[tuple[int, object]] = []
+
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
+        return None
+
+    def emit(*, pr_number, shadow, **_kwargs):
+        seen.append((pr_number, shadow))
+
+    scan_runner._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=_noop_poke,
+        is_shadow=lambda number: number == 2,
+    )
+
+    # A mixed batch must not collapse to one answer -- the cohort is per author, and a single scan
+    # routinely carries both.
+    assert seen == [(1, False), (2, True)]
 
 
 _CHANGED_HASH = "b" * 64
