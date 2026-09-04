@@ -117,7 +117,7 @@ def _candidate_numbers(
     open_prs = fetch(client)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(cohort.TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
-        logger.info("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
+        logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
     return (
         [open_pr.number for open_pr in open_prs],
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
@@ -195,8 +195,8 @@ def run(
         cancel_event = threading.Event()
         # drci_poke's configured delay covers the verdict path's gap between writing the row to /tmp
         # and a later workflow step uploading it. Both emits below have already PUT the object to S3
-        # before returning, and neither loop is capped, so keeping the wait would only multiply one
-        # sleep per PR into the Lambda's function timeout.
+        # before returning, so the wait buys nothing here and one such sleep per PR would multiply
+        # into the Lambda's function timeout.
         poke_config = dataclasses.replace(config, drci_poke_delay_seconds=0.0)
         excluded = revert_guard.exclude_reverted(
             client,
