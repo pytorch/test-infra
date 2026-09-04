@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timedelta
 from typing import Iterable, List, Optional
+from unittest.mock import MagicMock, patch
 
 from pytorch_auto_revert.signal import SignalStatus
 from pytorch_auto_revert.signal_extraction import SignalExtractor
@@ -73,6 +74,8 @@ class FakeDatasource(SignalExtractionDatasource):
         return [r for r in self._tests if int(r.job_id) in ids]
 
     def fetch_advisor_verdicts(self, **kwargs):
+        # Injected shape mirrors the real datasource:
+        # Dict[(commit_sha, signal_key), List[(verdict, confidence, timestamp)]].
         return self._advisor_verdicts
 
 
@@ -991,22 +994,26 @@ class TestSignalExtraction(unittest.TestCase):
         base = jobs[0].base_name
         # Advisor says revert for C2 on the job signal
         advisor_verdicts = {
-            ("C2", base): ("revert", 0.95, self.t0),
+            ("C2", base): [("revert", 0.95, self.t0)],
         }
         signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
         sig = self._find_job_signal(signals, "trunk", base)
         self.assertIsNotNone(sig)
 
-        # C2 should have advisor_result
+        # C2 should have advisor_result and the full vote list
         c2 = next(c for c in sig.commits if c.head_sha == "C2")
         self.assertIsNotNone(c2.advisor_result)
         self.assertEqual(c2.advisor_result.verdict.value, "revert")
         self.assertAlmostEqual(c2.advisor_result.confidence, 0.95)
         self.assertEqual(c2.advisor_result.signal_key, base)
+        self.assertEqual(len(c2.advisor_verdicts), 1)
+        self.assertEqual(c2.advisor_verdicts[0].verdict.value, "revert")
+        self.assertEqual(c2.advisor_verdicts[0].signal_key, base)
 
-        # C1 should NOT have advisor_result
+        # C1 should NOT have advisor_result and carry no votes
         c1 = next(c for c in sig.commits if c.head_sha == "C1")
         self.assertIsNone(c1.advisor_result)
+        self.assertEqual(c1.advisor_verdicts, ())
 
     def test_advisor_verdict_not_attached_to_wrong_signal(self):
         """Advisor verdict for signal A is not attached to signal B."""
@@ -1031,15 +1038,16 @@ class TestSignalExtraction(unittest.TestCase):
         base = jobs[0].base_name
         # Advisor verdict is for a completely different signal key
         advisor_verdicts = {
-            ("C2", "some_other_signal"): ("not_related", 0.99, self.t0),
+            ("C2", "some_other_signal"): [("not_related", 0.99, self.t0)],
         }
         signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
         sig = self._find_job_signal(signals, "trunk", base)
         self.assertIsNotNone(sig)
 
-        # C2 should NOT have advisor_result (wrong signal key)
+        # C2 should NOT have advisor_result or votes (wrong signal key)
         c2 = next(c for c in sig.commits if c.head_sha == "C2")
         self.assertIsNone(c2.advisor_result)
+        self.assertEqual(c2.advisor_verdicts, ())
 
     def test_advisor_verdict_on_test_signal(self):
         """Advisor verdict is attached to test-track signals."""
@@ -1084,7 +1092,7 @@ class TestSignalExtraction(unittest.TestCase):
         ]
         test_key = "test_foo.py::test_bar"
         advisor_verdicts = {
-            ("C2", test_key): ("garbage", 0.92, self.t0),
+            ("C2", test_key): [("garbage", 0.92, self.t0)],
         }
         signals = self._extract(jobs, tests, advisor_verdicts=advisor_verdicts)
         sig = self._find_test_signal(signals, "trunk", test_key)
@@ -1094,6 +1102,116 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(c2.advisor_result)
         self.assertEqual(c2.advisor_result.verdict.value, "garbage")
         self.assertEqual(c2.advisor_result.signal_key, test_key)
+        self.assertEqual(len(c2.advisor_verdicts), 1)
+        self.assertEqual(c2.advisor_verdicts[0].verdict.value, "garbage")
+        self.assertEqual(c2.advisor_verdicts[0].signal_key, test_key)
+
+    def test_advisor_verdicts_multiple_attach_all_and_latest(self):
+        """Multiple votes attach as advisor_verdicts; advisor_result is the latest."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        # Three independent runs' votes for the same (commit, signal), passed in
+        # non-chronological order to prove advisor_result picks the max timestamp.
+        advisor_verdicts = {
+            ("C2", base): [
+                ("unsure", 0.40, ts(self.t0, 5)),
+                ("revert", 0.95, ts(self.t0, 30)),  # latest
+                ("not_related", 0.60, ts(self.t0, 15)),
+            ],
+        }
+        signals = self._extract(jobs, tests=[], advisor_verdicts=advisor_verdicts)
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+
+        c2 = next(c for c in sig.commits if c.head_sha == "C2")
+        # All three votes attached, each carrying this signal's key
+        self.assertEqual(len(c2.advisor_verdicts), 3)
+        self.assertEqual(
+            {v.verdict.value for v in c2.advisor_verdicts},
+            {"unsure", "revert", "not_related"},
+        )
+        self.assertTrue(all(v.signal_key == base for v in c2.advisor_verdicts))
+        # advisor_result is the max-timestamp vote (revert @ +30 min)
+        self.assertEqual(c2.advisor_result.verdict.value, "revert")
+        self.assertEqual(c2.advisor_result.timestamp, ts(self.t0, 30))
+        self.assertAlmostEqual(c2.advisor_result.confidence, 0.95)
+
+    def test_advisor_verdicts_empty_leaves_defaults(self):
+        """No verdicts -> advisor_result stays None and advisor_verdicts stays ()."""
+        jobs = [
+            J(
+                sha="C2",
+                run=200,
+                job=1,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+            ),
+            J(
+                sha="C1",
+                run=100,
+                job=2,
+                attempt=1,
+                started_at=ts(self.t0, 5),
+                conclusion="success",
+            ),
+        ]
+        base = jobs[0].base_name
+        signals = self._extract(jobs, tests=[], advisor_verdicts={})
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        for c in sig.commits:
+            self.assertIsNone(c.advisor_result)
+            self.assertEqual(c.advisor_verdicts, ())
+
+    @patch("pytorch_auto_revert.signal_extraction_datasource.CHCliFactory")
+    def test_fetch_advisor_verdicts_dedup_by_run_id(self, mock_factory):
+        """run_attempt retries of one run_id collapse to a single latest-attempt vote."""
+        # Rows as ClickHouse returns them:
+        # (suspect_commit, signal_key, verdict, confidence, timestamp, run_id, run_attempt)
+        rows = [
+            ("C2", "sigA", "unsure", 0.30, ts(self.t0, 1), 5001, 1),
+            ("C2", "sigA", "revert", 0.90, ts(self.t0, 5), 5001, 2),  # retry wins
+            ("C2", "sigA", "not_related", 0.80, ts(self.t0, 3), 5002, 1),  # other run
+        ]
+        mock_res = MagicMock()
+        mock_res.result_rows = rows
+        mock_factory.return_value.client.query.return_value = mock_res
+
+        ds = SignalExtractionDatasource()
+        out = ds.fetch_advisor_verdicts(
+            repo_full_name="pytorch/pytorch",
+            head_shas=[Sha("C2")],
+            signal_keys=["sigA"],
+            lookback_hours=24,
+        )
+        # Two run_attempts of run 5001 collapse to one vote; run 5002 is the second.
+        self.assertEqual(list(out.keys()), [("C2", "sigA")])
+        votes = out[("C2", "sigA")]
+        self.assertEqual(len(votes), 2)
+        # Ordered by timestamp ASC: 5002 @ +3 min, then 5001 retry @ +5 min
+        self.assertEqual([v[0] for v in votes], ["not_related", "revert"])
+        # run 5001 represented by its highest attempt (revert@0.90), not unsure@0.30
+        self.assertEqual(votes[1][0], "revert")
+        self.assertAlmostEqual(votes[1][1], 0.90)
+        self.assertEqual(votes[1][2], ts(self.t0, 5))
 
     def test_test_signal_with_empty_file_has_no_test_module(self):
         # When tests.all_test_runs has empty `file` for a row, TestRow.test_id

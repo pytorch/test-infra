@@ -225,9 +225,10 @@ class SignalExtractor:
     ) -> List[Signal]:
         """Fetch advisor verdicts from CH and attach to SignalCommit objects.
 
-        For each (commit_sha, signal_key) pair that has a verdict in
-        misc.autorevert_advisor_verdicts, sets the advisor_result field
-        on the corresponding SignalCommit.
+        For each (commit_sha, signal_key) pair with verdicts in
+        misc.autorevert_advisor_verdicts, attaches the full per-run vote list
+        (deduped by run_id upstream) to advisor_verdicts and the single latest
+        (max timestamp) vote to advisor_result on the corresponding SignalCommit.
         """
         head_shas = [sha for sha, _ in commits]
         signal_keys = list({s.key for s in signals})
@@ -245,20 +246,29 @@ class SignalExtractor:
             new_commits: List[SignalCommit] = []
             for c in s.commits:
                 key = (c.head_sha.strip(), s.key)
-                v = verdicts.get(key)
-                if v is not None:
-                    verdict_str, confidence, ts = v
-                    try:
-                        advisor_verdict = AdvisorVerdict(verdict_str)
-                    except ValueError:
-                        advisor_verdict = AdvisorVerdict.UNSURE
-                    advisor_result = AIAdvisorResult(
-                        verdict=advisor_verdict,
-                        confidence=confidence,
-                        timestamp=ts,
-                        signal_key=s.key,
+                votes = verdicts.get(key)
+                if votes:
+                    results: List[AIAdvisorResult] = []
+                    for verdict_str, confidence, ts in votes:
+                        try:
+                            advisor_verdict = AdvisorVerdict(verdict_str)
+                        except ValueError:
+                            advisor_verdict = AdvisorVerdict.UNSURE
+                        results.append(
+                            AIAdvisorResult(
+                                verdict=advisor_verdict,
+                                confidence=confidence,
+                                timestamp=ts,
+                                signal_key=s.key,
+                            )
+                        )
+                    latest = max(results, key=lambda r: r.timestamp)
+                    new_commits.append(
+                        c.replace(
+                            advisor_result=latest,
+                            advisor_verdicts=tuple(results),
+                        )
                     )
-                    new_commits.append(c.replace(advisor_result=advisor_result))
                 else:
                     new_commits.append(c)
             out.append(s.replace(commits=new_commits))
