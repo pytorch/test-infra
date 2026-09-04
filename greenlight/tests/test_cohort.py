@@ -67,6 +67,12 @@ def test_is_shadow_is_the_complement_of_is_trusted():
         assert cohort.is_shadow(login) is not cohort.is_trusted(login)
 
 
+def test_every_trusted_author_is_non_shadow():
+    # Why narrowing the scan listing to TRUSTED_AUTHORS needs no counterpart downstream: every
+    # author left listed is trusted, so no shadow row can be produced in the first place.
+    assert not any(cohort.is_shadow(login) for login in cohort.TRUSTED_AUTHORS)
+
+
 def test_evaluation_cohort_keeps_humans_and_lowercases():
     assert cohort.evaluation_cohort(frozenset({_HUMAN, "OctoCat"})) == frozenset({_HUMAN, "octocat"})
 
