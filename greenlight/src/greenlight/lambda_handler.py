@@ -38,6 +38,12 @@ _TOKEN_PERMISSIONS = {
 }
 _TOKEN_REPOSITORIES = ["pytorch", "test-infra"]
 
+# A dispatch costs 3-8s of serial main-thread work, and the Lambda function times out at 300s: an
+# uncapped scan against the full evaluation cohort would run out of clock mid-pass. Deferring is
+# free -- no state row is written for a deferred PR, so the next tick re-evaluates and dispatches
+# it -- while overrunning the timeout kills the scan after arbitrary partial work.
+_MAX_DISPATCHES_PER_SCAN = 30
+
 
 def _require_env(name: str) -> str:
     value = os.environ.get(name)
@@ -123,7 +129,7 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     # No PYTORCH_GREENLIGHT_LOCK_PATH is set: Lambda's reserved_concurrent_executions = 1 already
     # guarantees single-flight, so the in-process fcntl lock is intentionally absent and the
     # EXIT_ALREADY_RUNNING branch below is only defensive/forward-compat.
-    rc = cli.main(["review", "--ref", "main"])
+    rc = cli.main(["review", "--ref", "main", "--max", str(_MAX_DISPATCHES_PER_SCAN)])
     if rc == EXIT_OK:
         return {"status": "ok"}
     if rc == EXIT_ALREADY_RUNNING:
