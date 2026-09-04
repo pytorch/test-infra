@@ -3,7 +3,9 @@
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
     [
-      "rocm"
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_Sparse_to_Sparse_copy__mps_bfloat16 (__main__.TestSparseMPS)": [
@@ -192,13 +194,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
-    "194332",
-    "https://github.com/pytorch/pytorch/issues/194332",
-    [
-      "linux"
     ]
   ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
@@ -567,6 +562,13 @@
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
+    [
+      "linux"
+    ]
+  ],
+  "test_graph_capture_error_releases_reserved_segments (__main__.TestCuda)": [
+    "190647",
+    "https://github.com/pytorch/pytorch/issues/190647",
     [
       "linux"
     ]
@@ -941,6 +943,14 @@
       "rocm"
     ]
   ],
+  "test_pending_fusion_pro_and_epi_use_async_compile_False (__main__.TestPrologueFusion)": [
+    "189151",
+    "https://github.com/pytorch/pytorch/issues/189151",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_pending_fusion_pro_and_epi_use_async_compile_True (__main__.TestPrologueFusion)": [
     "189986",
     "https://github.com/pytorch/pytorch/issues/189986",
@@ -1091,6 +1101,14 @@
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
     "195816",
     "https://github.com/pytorch/pytorch/issues/195816",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
+    "196006",
+    "https://github.com/pytorch/pytorch/issues/196006",
     [
       "linux",
       "slow"
