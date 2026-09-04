@@ -383,16 +383,22 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
 }
 
 function NightlySummaryCards({
-  data,
+  rows,
   repoFullName,
 }: {
-  data: CrcrJobRow[];
+  rows: NightlyRow[];
   repoFullName: string;
 }) {
   const isCrcrTest = repoFullName === "pytorch/crcr-test";
 
   const stats = useMemo(() => {
-    const completed = data.filter((j) => j.status === "completed");
+    const jobs: CrcrJobRow[] = [];
+    for (const row of rows) {
+      for (const job of row.jobs.values()) {
+        jobs.push(job);
+      }
+    }
+    const completed = jobs.filter((j) => j.status === "completed");
     const successes = completed.filter(
       (j) => j.conclusion === "success"
     ).length;
@@ -408,9 +414,15 @@ function NightlySummaryCards({
     ).length;
     const total = completed.length;
     const passRate = total > 0 ? successes / total : 0;
-    const uniqueShas = new Set(data.map((j) => j.pytorch_head_sha)).size;
-    return { successes, failures, timedOut, total, passRate, uniqueShas };
-  }, [data, isCrcrTest]);
+    return {
+      successes,
+      failures,
+      timedOut,
+      total,
+      passRate,
+      uniqueShas: rows.length,
+    };
+  }, [rows, isCrcrTest]);
 
   const passColor =
     stats.passRate >= 1.0
@@ -1345,7 +1357,7 @@ function CrcrNightlyMatrix({
 
   return (
     <>
-      <NightlySummaryCards data={data} repoFullName={repoFullName} />
+      <NightlySummaryCards rows={matrix.rows} repoFullName={repoFullName} />
       <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
