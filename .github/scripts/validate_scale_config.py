@@ -3,7 +3,9 @@
 # 1. Internal validation: Runs a custom set of sanity checks against the runner types defined in the file
 # 2. External validation: Ensure that every runner type listed (linux & windows) have corresponding runner types in
 #    the Linux Foundation fleet's scale config files (.github/lf-scale-config.yml and .github/lf-canary-scale-config.yml).
-#    Those files are expected to have the "lf." and "lf.c." prefixes added to each runner type
+#    Those files are expected to have the "lf." and "c-lf-" prefixes added to each runner type.
+#    The canary configs are Windows-only: Linux canary capacity is served by OSDC, not by this
+#    autoscaler, so only the Windows runner types are cloned into them.
 
 import argparse
 import copy
@@ -28,9 +30,9 @@ LF_CANARY_SCALE_CONFIG_PATH = ".github/lf-canary-scale-config.yml"
 RUNNER_TYPE_CONFIG_KEY = "runner_types"
 
 PREFIX_META = ""
-PREFIX_META_CANARY = "c."
+PREFIX_META_CANARY = "c-mt-"
 PREFIX_LF = "lf."
-PREFIX_LF_CANARY = "lf.c."
+PREFIX_LF_CANARY = "c-lf-"
 
 _RUNNER_BASE_JSCHEMA = {
     "type": "object",
@@ -210,16 +212,23 @@ def is_consistent_across_configs(
     source_config: Dict[str, Dict[str, str]],
     dest_config: Dict[str, Dict[str, str]],
     expected_prefix: str,
+    windows_only: bool = False,
 ) -> bool:
     """
     Validate that every runner type in the source_config has a corresponding runner type in the dest_config
-    where the dest_config has the expected_prefix added
+    where the dest_config has the expected_prefix added.
+
+    When windows_only is set the dest_config is expected to hold just the Windows
+    runner types, so non-Windows entries in the source are not required there.
     """
     errors_found = False
 
     # Every entry in the source_config should be in the dest_config with
     # the same settings, except that the runner_type should have the expected_prefix
     for source_runner_type in source_config:
+        if windows_only and source_config[source_runner_type].get("os") != "windows":
+            continue
+
         dest_runner_type = f"{expected_prefix}{source_runner_type}"
 
         if dest_runner_type not in dest_config:
@@ -240,14 +249,22 @@ def is_consistent_across_configs(
 
 
 def generate_repo_scale_config(
-    source_config_file: Path, dest_config_file: Path, expected_prefix: str
+    source_config_file: Path,
+    dest_config_file: Path,
+    expected_prefix: str,
+    windows_only: bool = False,
 ) -> None:
     """
     Generate the new scale config file with the same layout as the original file,
-    but with the expected_prefix added to the runner types
+    but with the expected_prefix added to the runner types.
+
+    When windows_only is set, only the Windows runner types are emitted. Linux
+    canary capacity is served by OSDC rather than by this autoscaler, so cloning
+    the Linux types into the canary configs would define runners nobody boots.
     """
     source_config = load_yaml_file(source_config_file)
-    base_runner_types = set(source_config[RUNNER_TYPE_CONFIG_KEY].keys())
+    runner_types = source_config[RUNNER_TYPE_CONFIG_KEY]
+    base_runner_types = set(runner_types.keys())
 
     with open(source_config_file, "r") as f:
         source_config_lines = f.readlines()
@@ -260,13 +277,26 @@ def generate_repo_scale_config(
 
 """
         )
+        if windows_only:
+            f.write(
+                "# Windows runner types only: Linux canary capacity comes from OSDC.\n\n"
+            )
+
+        # Runner types are the only keys at this indent level, so a line naming one
+        # both starts its block and ends the previous one.
+        skipping = False
         for line in source_config_lines:
             # Any line that has a runner type should have the expected prefix added.
             # Otherwise we can just copy the line over
             entry = line.strip(" :\n")
             if entry in base_runner_types:
+                skipping = windows_only and runner_types[entry].get("os") != "windows"
+                if skipping:
+                    continue
                 # We found a runner type. Give it the expected prefix
                 line = line.replace(entry, f"{expected_prefix}{entry}")
+            elif skipping:
+                continue
 
             f.write(line)
 
@@ -297,6 +327,7 @@ def download_file(url: str, local_filename: str) -> None:
 class ScaleConfigInfo(NamedTuple):
     path: Path  # full path to scale config file
     prefix: str  # prefix this fleet's runners types should have
+    windows_only: bool = False  # clone only the Windows runner types
 
 
 def main() -> None:
@@ -314,6 +345,7 @@ def main() -> None:
         ScaleConfigInfo(
             path=repo_root / META_CANARY_SCALE_CONFIG_PATH,
             prefix=PREFIX_META_CANARY,
+            windows_only=True,
         ),
         ScaleConfigInfo(
             path=repo_root / LF_SCALE_CONFIG_PATH,
@@ -322,6 +354,7 @@ def main() -> None:
         ScaleConfigInfo(
             path=repo_root / LF_CANARY_SCALE_CONFIG_PATH,
             prefix=PREFIX_LF_CANARY,
+            windows_only=True,
         ),
     ]
 
@@ -341,6 +374,7 @@ def main() -> None:
                 source_scale_config_info.path,
                 generated_config_info.path,
                 generated_config_info.prefix,
+                generated_config_info.windows_only,
             )
 
         cloned_scale_config = load_yaml_file(generated_config_info.path)
@@ -349,6 +383,7 @@ def main() -> None:
             source_scale_config[RUNNER_TYPE_CONFIG_KEY],
             cloned_scale_config[RUNNER_TYPE_CONFIG_KEY],
             generated_config_info.prefix,
+            generated_config_info.windows_only,
         ):
             print(
                 f"Consistency validation failed between {source_scale_config_info.path} and {generated_config_info.path}\n"
