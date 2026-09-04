@@ -223,9 +223,40 @@ jobs:
       # mount; the sync step below pushes it back to S3. Otherwise leave the mount.
       - name: Resolve HF cache mode
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'ci-refresh-hf-cache') }}
         run: |
           set -euo pipefail
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ci-refresh-hf-cache') }}" == "true" ]]; then
+
+          # Reads a GitHub REST path, authenticated if the token can, otherwise
+          # anonymously. Never fails the step: no answer means no refresh.
+          gh_get() {
+            curl -fsSL -H "Accept: application/vnd.github+json" \
+                 -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/$1" 2>/dev/null \
+              || curl -fsSL -H "Accept: application/vnd.github+json" \
+                   "https://api.github.com/$1" 2>/dev/null \
+              || true
+          }
+
+          REFRESH=0
+          if [[ "${GITHUB_EVENT_NAME}" == "schedule" || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            # An unattended refresh, matching pytorch's _linux-test.yml. This is
+            # what keeps the shared cache seeded: without it the only way to add a
+            # model is for someone to label a pull request.
+            REFRESH=1
+          elif [[ "${EVENT_HAS_LABEL}" == "true" ]]; then
+            REFRESH=1
+          elif [[ "${GITHUB_REF_NAME:-}" =~ ^ciflow/[^/]+/([0-9]+)$ ]]; then
+            # A tag run carries no labels, but a ciflow tag names its pull request,
+            # as pytorch's filter_test_configs.py also relies on.
+            case "$(gh_get "repos/${REPO}/issues/${BASH_REMATCH[1]}/labels")" in
+              *'"ci-refresh-hf-cache"'*) REFRESH=1 ;;
+            esac
+          fi
+
+          if [[ "${REFRESH}" == "1" ]]; then
             {
               echo "HF_CACHE_REFRESH=1"
               echo "TRANSFORMERS_OFFLINE=0"

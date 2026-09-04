@@ -18,6 +18,10 @@ _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 _DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
 _DEFAULT_REVIEW_WINDOW_HOURS = 24.0
 _DEFAULT_DRCI_POKE_DELAY_SECONDS = 10.0
+_DEFAULT_SCAN_FULL_COHORT = True
+
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_FALSE_VALUES = frozenset({"0", "false", "no", "off"})
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
@@ -53,6 +57,26 @@ def _read_float(env: Mapping[str, str], key: str, default: float) -> float:
         raise ValueError(f"{key} must be a number, got {raw!r}") from exc
 
 
+def _read_bool(env: Mapping[str, str], key: str, default: bool) -> bool:
+    """Parse a boolean env var, rejecting anything outside the accepted spellings.
+
+    An unrecognised value raises rather than falling back to ``default``: the only boolean here
+    is an emergency narrowing lever, and a typo that resolved to the permissive default would
+    leave the very behaviour the operator was disabling running, silently. Failing every tick is
+    the correct outcome for a switch nobody can read.
+    """
+    raw = _clean(env.get(key))
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True
+    if normalized in _FALSE_VALUES:
+        return False
+    accepted = ", ".join(sorted(_TRUE_VALUES | _FALSE_VALUES))
+    raise ValueError(f"{key} must be one of {accepted}, got {raw!r}")
+
+
 def _validate_bound(name: str, value: float, *, allow_zero: bool, max_value: float = _MAX_SECONDS) -> None:
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite, got {value}")
@@ -76,6 +100,7 @@ class Config:
     merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
     review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
     drci_poke_delay_seconds: float = _DEFAULT_DRCI_POKE_DELAY_SECONDS
+    scan_full_cohort: bool = _DEFAULT_SCAN_FULL_COHORT
     github_token: str | None = field(default=None, repr=False)
     drci_token: str | None = field(default=None, repr=False)
     drci_internal_token: str | None = field(default=None, repr=False)
@@ -122,6 +147,7 @@ class Config:
             drci_poke_delay_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", _DEFAULT_DRCI_POKE_DELAY_SECONDS
             ),
+            scan_full_cohort=_read_bool(source, "PYTORCH_GREENLIGHT_SCAN_FULL_COHORT", _DEFAULT_SCAN_FULL_COHORT),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
             drci_token=source.get("PYTORCH_GREENLIGHT_DRCI_TOKEN"),
             drci_internal_token=source.get("PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"),

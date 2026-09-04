@@ -2106,6 +2106,56 @@ def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_con
     assert scan.listed_authors[0].isdisjoint({login.lower() for login in cohort.TRUSTED_AUTHORS})
 
 
+_SCAN_COHORT_MODES = [
+    pytest.param(True, id="full-cohort"),
+    pytest.param(False, id="trusted-authors-only"),
+]
+
+
+def test_scan_full_cohort_off_narrows_the_listing_to_the_trusted_authors(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[],
+            fingerprints={},
+            authorized=frozenset({"Alice", "bob"}),
+            config_kwargs={"scan_full_cohort": False},
+        )
+
+    # The kill switch: exactly the trusted authors reach the listing, so merge_rules approvers
+    # outside that set stop being scanned at all -- and since every remaining author is trusted,
+    # no shadow row can be produced and nothing downstream needs a matching gate.
+    assert scan.listed_authors == [frozenset(cohort.TRUSTED_AUTHORS)]
+    assert "PYTORCH_GREENLIGHT_SCAN_FULL_COHORT is off" in caplog.text
+
+
+def test_scan_full_cohort_defaults_on_and_lists_the_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "bob"}))
+
+    # Unset means wide: the lever has to be reached for, and the mode is logged either way so an
+    # operator who flips it can confirm from the logs that the next tick picked it up.
+    assert scan.listed_authors == [frozenset({"alice", "bob"})]
+    assert "scan cohort: full evaluation cohort" in caplog.text
+
+
+@pytest.mark.parametrize("scan_full_cohort", _SCAN_COHORT_MODES)
+def test_authorized_logins_stay_resolved_and_threaded_in_both_cohort_modes(make_config, scan_full_cohort):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        authorized=frozenset({"alice", "bob"}),
+        config_kwargs={"scan_full_cohort": scan_full_cohort},
+    )
+
+    # Narrowing the listing must never become "skip the merge_rules fetch". That resolved set is
+    # also what decides whether a human with merge rights already approved the PR, so dropping it
+    # when narrowed would silently change which PRs the scan skips.
+    assert scan.resolver_calls == 1
+    assert scan.authorized_seen == [frozenset({"alice", "bob"})]
+
+
 def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         scan = _run_scan(
