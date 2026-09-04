@@ -102,37 +102,65 @@ function buildRow(
   };
 }
 
+// The five summary-derived metrics (everything but tenure).
+const METRICS: {
+  threshold: (typeof L3_THRESHOLDS)[keyof typeof L3_THRESHOLDS];
+  format: L3MeasuredFormat;
+  getMeasured: (summary: L3Metrics | null) => number | null;
+}[] = [
+  {
+    threshold: L3_THRESHOLDS.e2eTimeS,
+    format: "duration",
+    getMeasured: (s) => s?.median_e2e_time_s ?? null,
+  },
+  {
+    threshold: L3_THRESHOLDS.maxExecTimeS,
+    format: "duration",
+    getMeasured: (s) => s?.max_exec_time_s ?? null,
+  },
+  {
+    threshold: L3_THRESHOLDS.avgQueueTimeS,
+    format: "duration",
+    getMeasured: (s) => s?.avg_queue_time_s ?? null,
+  },
+  {
+    threshold: L3_THRESHOLDS.timeoutRate,
+    format: "percent",
+    getMeasured: (s) => (s ? s.timeout_rate : null),
+  },
+  {
+    threshold: L3_THRESHOLDS.passRate,
+    format: "percent",
+    getMeasured: (s) => (s ? s.pass_rate : null),
+  },
+];
+
 // L3 Promotion — tenure + five metrics, evaluated over the 2-week
 // promotion window (L3_PROMOTION_WINDOW_DAYS).
 export function buildCriteriaRows(
   summary: L3Metrics | null,
   tenure: TenureInfo | null
 ): CriterionRow[] {
-  const t = L3_THRESHOLDS;
   return [
     buildRow(
-      t.tenureAtL2Days,
+      L3_THRESHOLDS.tenureAtL2Days,
       tenure?.tenureDays ?? null,
       "days",
       tenure?.currentLevel
     ),
-    buildRow(t.e2eTimeS, summary?.median_e2e_time_s ?? null, "duration"),
-    buildRow(t.maxExecTimeS, summary?.max_exec_time_s ?? null, "duration"),
-    buildRow(t.avgQueueTimeS, summary?.avg_queue_time_s ?? null, "duration"),
-    buildRow(t.timeoutRate, summary ? summary.timeout_rate : null, "percent"),
-    buildRow(t.passRate, summary ? summary.pass_rate : null, "percent"),
+    ...METRICS.map((m) =>
+      buildRow(m.threshold, m.getMeasured(summary), m.format)
+    ),
   ];
 }
 
-// L3 Demotion — a *subset* of three metrics (no tenure, no max exec/avg
-// queue), evaluated over the 1-week demotion window.
+// L3 Demotion — the subset of metrics flagged `demotionRelevant` (no
+// tenure, no max exec/avg queue), evaluated over the 1-week demotion
+// window.
 export function buildDemotionRows(summary: L3Metrics | null): CriterionRow[] {
-  const t = L3_THRESHOLDS;
-  return [
-    buildRow(t.e2eTimeS, summary?.median_e2e_time_s ?? null, "duration"),
-    buildRow(t.timeoutRate, summary ? summary.timeout_rate : null, "percent"),
-    buildRow(t.passRate, summary ? summary.pass_rate : null, "percent"),
-  ];
+  return METRICS.filter((m) => m.threshold.demotionRelevant).map((m) =>
+    buildRow(m.threshold, m.getMeasured(summary), m.format)
+  );
 }
 
 // One row per criterion, promotion and demotion verdicts side by side —
