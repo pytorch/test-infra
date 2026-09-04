@@ -24,6 +24,11 @@ POSITIVE_VARS = [
 
 BLANK_VALUES = ["", "   ", "\t", "\n"]
 
+SCAN_FULL_COHORT_VAR = "PYTORCH_GREENLIGHT_SCAN_FULL_COHORT"
+
+TRUE_SPELLINGS = ["1", "true", "TRUE", "True", "yes", "YES", "on", "ON", " true ", "\tTrue\n"]
+FALSE_SPELLINGS = ["0", "false", "FALSE", "False", "no", "NO", "off", "OFF", " false ", "\tFalse\n"]
+
 
 def test_defaults_when_env_empty():
     cfg = Config.from_env({})
@@ -36,6 +41,7 @@ def test_defaults_when_env_empty():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.scan_full_cohort is True
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -53,6 +59,7 @@ def test_direct_construction_defaults():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.scan_full_cohort is True
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -69,6 +76,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
+        SCAN_FULL_COHORT_VAR: "false",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
@@ -83,6 +91,7 @@ def test_from_env_parses_all_vars():
     assert cfg.merge_rules_ttl_seconds == 900.0
     assert cfg.review_window_hours == 48.0
     assert cfg.drci_poke_delay_seconds == 3.0
+    assert cfg.scan_full_cohort is False
     assert cfg.github_token == "ghp_abc123"
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
@@ -223,6 +232,49 @@ def test_blank_numeric_env_uses_default(var, field, blank):
 def test_finite_value_still_parses():
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_INTERVAL_SECONDS": "12.5"})
     assert cfg.interval_seconds == 12.5
+
+
+def test_scan_full_cohort_unset_defaults_to_the_wide_cohort():
+    # Unset is the shipped behaviour: the kill switch is opt-in, never opt-out.
+    assert Config.from_env({}).scan_full_cohort is True
+
+
+@pytest.mark.parametrize("blank", BLANK_VALUES)
+def test_scan_full_cohort_blank_uses_default(blank):
+    # A console field cleared rather than deleted reads back as empty, and must not narrow the scan.
+    assert Config.from_env({SCAN_FULL_COHORT_VAR: blank}).scan_full_cohort is True
+
+
+@pytest.mark.parametrize("raw", TRUE_SPELLINGS)
+def test_scan_full_cohort_true_spellings(raw):
+    assert Config.from_env({SCAN_FULL_COHORT_VAR: raw}).scan_full_cohort is True
+
+
+@pytest.mark.parametrize("raw", FALSE_SPELLINGS)
+def test_scan_full_cohort_false_spellings(raw):
+    # An operator flipping this in the AWS console types whatever spelling comes to hand, in
+    # whatever case; every one of these must narrow the scan.
+    assert Config.from_env({SCAN_FULL_COHORT_VAR: raw}).scan_full_cohort is False
+
+
+@pytest.mark.parametrize("raw", ["fasle", "disabled", "2", "-1", "y", "n", "none", "null"])
+def test_scan_full_cohort_unrecognised_value_raises_naming_var(raw):
+    # The whole point of the lever is that it is reached for in an emergency: a value nobody can
+    # read must fail loudly rather than resolve to the permissive default and leave the wide
+    # cohort running.
+    with pytest.raises(ValueError) as excinfo:
+        Config.from_env({SCAN_FULL_COHORT_VAR: raw})
+    message = str(excinfo.value)
+    assert SCAN_FULL_COHORT_VAR in message
+    assert repr(raw) in message
+
+
+def test_scan_full_cohort_error_lists_every_accepted_spelling():
+    with pytest.raises(ValueError) as excinfo:
+        Config.from_env({SCAN_FULL_COHORT_VAR: "maybe"})
+    message = str(excinfo.value)
+    for accepted in ("1", "true", "yes", "on", "0", "false", "no", "off"):
+        assert accepted in message
 
 
 def test_from_env_no_arg_reads_os_environ(monkeypatch):

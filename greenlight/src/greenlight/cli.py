@@ -45,10 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser = subparsers.add_parser(
         "review",
         parents=[common],
-        help="scan open PRs from trusted authors in pytorch/pytorch and dispatch the AI review workflow",
+        help="scan open PRs from the evaluation cohort in pytorch/pytorch and dispatch the AI review workflow",
         description=(
-            "Scan the open PRs from a fixed set of trusted authors in pytorch/pytorch, read each PR's "
-            "latest recorded state, and dispatch the review workflow for new or changed PRs. "
+            "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
+            "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
+            "dispatch the review workflow for new or changed PRs. A PR whose author is outside the "
+            "trusted-author set is evaluated in shadow: dispatched and recorded, but never approved. "
             "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
         ),
     )

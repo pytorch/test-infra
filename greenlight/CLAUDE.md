@@ -48,9 +48,13 @@ defer; they block CI.
 
 PyTorch Green Light has one unit of work — the `review` phase:
 
-- `review.run()` — scans the open PRs from a fixed set of trusted authors in
-  `pytorch/pytorch` (the trusted-author set is the match rule); for each PR it computes the
-  fingerprint (`eval_hash`), reads the PR's latest state from `misc.greenlight_pr_state`,
+- `review.run()` — scans the open PRs from the evaluation cohort in `pytorch/pytorch`
+  (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
+  expanded, minus bots and minus greenlight itself — that cohort is the match rule, unless
+  `PYTORCH_GREENLIGHT_SCAN_FULL_COHORT` is off, which narrows the listing to
+  `cohort.TRUSTED_AUTHORS`); for each PR
+  it computes the fingerprint (`eval_hash`), reads the PR's latest state from
+  `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
   for new or changed PRs, excluding reverted PRs permanently (`Reverted` label or a recorded
   `REVERTED` row: greenlight revokes its own approval, records the row, and drops the PR on every
@@ -63,6 +67,15 @@ PyTorch Green Light has one unit of work — the `review` phase:
   requested by any non-bot reviewer).
   Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation), `BOT_LOGIN`, and
   `CLICKHOUSE_*` read access.
+
+`cohort.TRUSTED_AUTHORS` is a separate, much narrower set and answers a different question:
+whose evaluation carries authority. A PR from an author outside it is evaluated in **shadow** —
+dispatched, reviewed and recorded exactly as any other, but the row is stamped `shadow`, so it is
+never approved, always dismisses any prior greenlight approval, is filtered out of both HUD
+readers (Dr. CI's render and the land-time ledger route), and triggers no Dr. CI poke. The two
+authorization gates — the `--pr` target author and the `--requester` login — are bound to
+`TRUSTED_AUTHORS`, not to the cohort: the cohort widens who greenlight looks at on its own
+schedule, never who can point it at a PR.
 
 Approving or rejecting a PR lives in the dispatched reviewer workflow (through `verdict`),
 not in the `review` scan itself.
