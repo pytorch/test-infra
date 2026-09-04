@@ -711,6 +711,20 @@ class TestNightlyCallback(unittest.TestCase):
             untrusted["callback_payload"]["workflow"]["conclusion"], "failure"
         )
 
+    def test_nightly_duplicate_returns_ok_duplicate(self):
+        self.mock_hud.side_effect = HTTPException(409, "Record already finalized")
+
+        result = handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "duplicate"})
+
+    def test_nightly_hud_non_409_error_propagates(self):
+        self.mock_hud.side_effect = HTTPException(500, "Internal error")
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 500)
+
 
 if __name__ == "__main__":
     unittest.main()

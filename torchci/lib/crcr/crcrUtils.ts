@@ -1,3 +1,4 @@
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { getDynamoClient } from "lib/dynamo";
 
 const CRCR_TABLE = "torchci-oot-workflow-job";
@@ -273,13 +274,31 @@ export async function writeToDynamo(
     expressionNames[nameAlias] = key;
   }
 
-  await client.update({
-    TableName: CRCR_TABLE,
-    Key: { dynamoKey: record.dynamoKey },
-    UpdateExpression: `SET ${expressionParts.join(", ")}`,
-    ExpressionAttributeValues: expressionValues,
-    ExpressionAttributeNames: expressionNames,
-  });
+  // Write-once guard: reject writes to already-finalized records.
+  // Allows new records (attribute_not_exists) and in_progress → completed
+  // transitions, but blocks completed → completed replays.
+  expressionNames["#guard_status"] = "status";
+  expressionValues[":guard_completed"] = "completed";
+
+  try {
+    await client.update({
+      TableName: CRCR_TABLE,
+      Key: { dynamoKey: record.dynamoKey },
+      UpdateExpression: `SET ${expressionParts.join(", ")}`,
+      ConditionExpression:
+        "attribute_not_exists(#guard_status) OR #guard_status <> :guard_completed",
+      ExpressionAttributeValues: expressionValues,
+      ExpressionAttributeNames: expressionNames,
+    });
+  } catch (err: unknown) {
+    if (err instanceof ConditionalCheckFailedException) {
+      throw new ApiError(
+        409,
+        `Record already finalized (key=${record.dynamoKey})`
+      );
+    }
+    throw err;
+  }
 }
 
 // ---- UI Helpers ----
