@@ -82,8 +82,10 @@ not in the `review` scan itself.
 
 The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 `github_client.build_pr_fingerprint`) is computed by the `review` scan and recorded to
-`misc.greenlight_pr_state` by `verdict`; only the land-time verifier that reads it back at
-land time is not built yet.
+`misc.greenlight_pr_state` by `verdict`. The land-time gate lives on `pytorch/pytorch`
+(`.github/scripts/greenlight_guard.py`, called from `trymerge.py`): it reads the recorded row
+back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
+`head_sha`, not on `eval_hash`.
 
 Add new logic inside `review.run()`, which **must keep raising on
 failure** (it does not catch). The CLI runs the `review` phase
