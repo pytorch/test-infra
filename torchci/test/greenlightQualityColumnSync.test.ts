@@ -13,11 +13,18 @@
 // What this file covers, and what it does not:
 //
 //   names, reads -> SQL    every column the page addresses is one a query emits
-//   names, SQL -> decls    every field a row interface declares is one a query emits
-//   nullability            a column with a NULL branch is declared nullable
+//   names, SQL -> decls    every field a registered row interface declares is one a
+//                          query emits
+//   nullability            a column with a NULL branch is declared nullable by the
+//                          interface registered for its query
 //   values                 the strings merged_version_approved can hold are the ones
 //                          the page branches on
 //   namespace              no column name is emitted by two queries
+//   mapping                each coverage tile's split fields address their own column
+//
+// The decls and nullability rows cover the interfaces named in ROW_INTERFACES, and
+// registration there is opt-in: an interface absent from it is checked by neither, and
+// CoverageRow is absent deliberately — see that registry for why.
 //
 // Each catches a failure the others cannot see. A read of a dropped column renders "-";
 // a declaration of a dropped column renders nothing at all, because a bare interface
@@ -25,8 +32,10 @@
 // that lies about the wire shape survives both gates. Nullability is invisible again: the
 // name matches and the type compiles while the wire stops guaranteeing a value. Values are
 // invisible a third time, because keyof checks that a name exists, never that a comparison
-// against it can succeed. And the reads check tests against the union of all four queries'
-// columns, which is only safe while that namespace stays disjoint.
+// against it can succeed. The mapping is invisible a fourth time, because two fields typed
+// against the same row are interchangeable to anything that only asks whether a name
+// exists. And the reads check tests against the union of all four queries' columns, which
+// is only safe while that namespace stays disjoint.
 //
 // The parsers, readers and floors live in ./greenlightQualityColumnSync.helpers; this file
 // is the assertions. They were split when together they outgrew the 400-line ceiling.
@@ -36,6 +45,7 @@ import { MERGED_VERSION_APPROVED } from "lib/greenlight/qualityFigures";
 import path from "path";
 import {
   catalogQueries,
+  coverageTileFields,
   declaredFields,
   declaredNullable,
   emittedColumns,
@@ -80,7 +90,7 @@ describe("GreenLight Quality column sync", () => {
     expect(Array.from(new Set(missing))).toEqual([]);
   });
 
-  test("each row interface still parses into a field list", () => {
+  test("each registered row interface still parses into a field list", () => {
     const thin = Object.keys(ROW_INTERFACES)
       .map((i) => `${i}: ${declaredFields(i).length}`)
       .filter((s) => Number(s.split(": ")[1]) < MIN_FIELDS_PER_INTERFACE);
@@ -90,7 +100,7 @@ describe("GreenLight Quality column sync", () => {
   // The inverse of the reads check, and invisible to every other gate: a field left behind
   // by a dropped column is a declaration, not a read, so no pattern here matches it and
   // tsc has nothing to object to. It then describes a wire shape that no longer exists.
-  test("every field a row interface declares is emitted by its query", () => {
+  test("every field a registered row interface declares is emitted by its query", () => {
     const dangling = Object.entries(ROW_INTERFACES)
       .flatMap(([interfaceName, query]) => {
         const emitted = emittedColumns(query);
@@ -124,7 +134,7 @@ describe("GreenLight Quality column sync", () => {
 
   // Nullability is invisible to every other check here: the name matches, tsc is happy,
   // and the declaration quietly promises a value the wire no longer guarantees.
-  test("a column with a NULL branch is declared nullable", () => {
+  test("a column with a NULL branch is declared nullable by its registered interface", () => {
     const wrong = Object.entries(ROW_INTERFACES)
       .flatMap(([interfaceName, query]) => {
         const declared = declaredNullable(interfaceName);
@@ -157,6 +167,22 @@ describe("GreenLight Quality column sync", () => {
     expect(new Set(fromSql)).toEqual(
       new Set(Object.values(MERGED_VERSION_APPROVED))
     );
+  });
+
+  // A level below again, and the one indirection nothing else here constrains. Both fields
+  // are typed `keyof CoverageRow`, so exchanging them is not a type error, and every other
+  // check passes unchanged: each name is still a column some query emits, still unique to
+  // one query, still declared. The page would paint NO_LAND green and LAND red with tsc,
+  // lint and the rest of this suite silent. Which column belongs on which side cannot be
+  // derived from either side of the mapping, so it is restated here.
+  test("each coverage tile's split fields address their own column", () => {
+    expect(coverageTileFields()).toEqual({
+      prs_evaluated: { landField: "prs_land", noLandField: "prs_no_land" },
+      verdicts_total: {
+        landField: "land_verdicts",
+        noLandField: "no_land_verdicts",
+      },
+    });
   });
 
   test("every column the page reads is emitted by some query", () => {

@@ -261,32 +261,17 @@ export function stalenessCounts(rows: any[]): StalenessCounts {
 }
 
 const STALE_VERDICT_LEAD =
-  "Verdict staleness: the verdict shown is the newest GreenLight issued at or before the merge, so it can predate the commit that actually merged.";
+  "The verdict shown is the newest issued before the merge, so it can predate the commit that actually merged.";
 
 // Shared by the revert tile and the reverted table so the two cannot state
 // different limitations. Both resolve to the same LAND rows, so the two
 // surfaces also report the same counts.
 export function staleVerdictNote(rows: any[]): string {
   const counts = stalenessCounts(rows);
-  if (counts.total === 0) {
+  if (counts.resolved === 0) {
     return STALE_VERDICT_LEAD;
   }
-  if (counts.resolved === 0) {
-    return `${STALE_VERDICT_LEAD} None of the ${intFormatter(
-      counts.total
-    )} LAND verdicts here could be placed against its merged version, so the figure is unverified in both directions.`;
-  }
-  const unplaceable =
-    counts.unresolved === 0
-      ? ""
-      : `, ${intFormatter(counts.unresolved)} not placeable either way`;
-  return `${STALE_VERDICT_LEAD} Of the ${intFormatter(
-    counts.total
-  )} LAND verdicts here: ${intFormatter(
-    counts.confirmed
-  )} confirmed against the merged version, ${intFormatter(
-    counts.stale
-  )} stale (${percentUnitsFormatter(counts.stalePct)} of the ${intFormatter(
+  return `${STALE_VERDICT_LEAD} ${intFormatter(counts.stale)} of ${intFormatter(
     counts.resolved
-  )} a detector could place)${unplaceable}. Staleness only ever inflates “the merged version was approved”, so read the figure as an upper bound.`;
+  )} checked verdicts here are stale.`;
 }

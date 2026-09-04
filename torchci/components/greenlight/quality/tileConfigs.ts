@@ -1,74 +1,64 @@
 // Label, figure and caveat text for every tile on the GreenLight Quality page.
+//
+// A field name declared keyof a row interface is a read a diff reviewer cannot
+// see as a column reference. keyof makes a mistyped one a compile error.
 
 import { intFormatter } from "components/common/numberFormat";
-import { TileSize } from "components/greenlight/quality/QualityTile";
 import {
-  formatEffectiveWindow,
   hasCount,
-  isEmptyWindow,
   pctOf,
   percentUnitsFormatter,
   RevertStats,
   secondsFormatter,
 } from "lib/greenlight/qualityFigures";
-import { LatencyRow } from "lib/greenlight/qualityQuery";
+import { CoverageRow, LatencyRow } from "lib/greenlight/qualityQuery";
 
+// Each tile carries a total with the LAND/NO_LAND split inline beside it, over a
+// legend naming the two. The split sums to the total for verdicts but not for
+// PRs: prs_land + prs_no_land is prs_with_verdict, and PRs dispatched without a
+// ruling sit in the gap.
 export interface StatTileConfig {
   key: string;
   label: string;
-  size?: TileSize;
-  value: (_row: any) => string;
+  totalField: keyof CoverageRow;
+  landField: keyof CoverageRow;
+  noLandField: keyof CoverageRow;
+  subNote?: (_row: any) => string | undefined;
   caveat?: (_row: any) => string;
   isEmpty?: (_row: any) => boolean;
+}
+
+// The one thing the PRs tile's split cannot show. Named beside the legend rather
+// than left to the caveat, because the Verdicts tile carries the identical
+// grammar under the identical legend and does sum: a reader who checks the
+// arithmetic there and finds it works will trust it here, and a gap of one or two
+// then reads as a fault rather than as a category.
+export function noVerdictGap(row: any): string | undefined {
+  const gap = row?.prs_evaluated - row?.prs_with_verdict;
+  return hasCount(gap) ? `${intFormatter(gap)} no verdict` : undefined;
 }
 
 export const COVERAGE_TILES: StatTileConfig[] = [
   {
     key: "prs_evaluated",
     label: "PRs evaluated",
-    value: (row) => intFormatter(row?.prs_evaluated),
-    caveat: (row) =>
-      `Distinct PRs carrying any non-REVERTED ledger event, which includes PRs GreenLight dispatched but never returned a verdict for. ${intFormatter(
-        row?.prs_with_verdict
-      )} reached a verdict.`,
+    totalField: "prs_evaluated",
+    landField: "prs_land",
+    noLandField: "prs_no_land",
+    subNote: noVerdictGap,
+    caveat: () =>
+      "Distinct PRs GreenLight recorded any activity for. Some were dispatched but never got a verdict, which is why the split can be smaller than the total.",
     isEmpty: (row) => !hasCount(row?.prs_evaluated),
   },
   {
     key: "verdicts_total",
     label: "Verdicts",
-    value: (row) => intFormatter(row?.verdicts_total),
-    caveat: (row) =>
-      `Raw emitted LAND/NO_LAND rows, so a verdict GreenLight published twice is counted twice. They cover ${intFormatter(
-        row?.verdicts_distinct_pr_sha
-      )} distinct (PR, head SHA) pairs. ${intFormatter(
-        row?.cancelled_failed
-      )} cancelled/failed runs excluded.`,
+    totalField: "verdicts_total",
+    landField: "land_verdicts",
+    noLandField: "no_land_verdicts",
+    caveat: () =>
+      "Every LAND and NO_LAND row GreenLight emitted, so a verdict published twice counts twice. A LAND is permission to merge, not a merge.",
     isEmpty: (row) => !hasCount(row?.verdicts_total),
-  },
-  {
-    key: "verdict_split",
-    label: "LAND / NO_LAND",
-    value: (row) =>
-      `${intFormatter(row?.land_verdicts)} / ${intFormatter(
-        row?.no_land_verdicts
-      )}`,
-    caveat: (row) =>
-      `${percentUnitsFormatter(
-        pctOf(row?.land_verdicts, row?.verdicts_total)
-      )} of verdicts are LAND. A LAND verdict is not a merge — it is permission to merge.`,
-    isEmpty: (row) => !hasCount(row?.verdicts_total),
-  },
-  {
-    key: "effective_window",
-    label: "Effective window",
-    size: "small",
-    // Deliberately not gated on isEmpty: when the window selects nothing, this
-    // tile's caveat is the explanation of why every other tile is blank.
-    value: (row) => formatEffectiveWindow(row),
-    caveat: (row) =>
-      isEmptyWindow(row)
-        ? "The requested range ends before the ledger begins, so the clamp leaves nothing to measure. Move the range forward to the ledger's span."
-        : "Clamped to the ledger's span. Widening the picker past the ledger start does not widen this, so every rate on the page shares this denominator window.",
   },
 ];
 
@@ -91,9 +81,6 @@ export function firstFeedbackVisibility(row: any): string | undefined {
   )} review cycles certain to see it`;
 }
 
-// The four field names are the page's only reads that go through indirection, and
-// so the only ones a diff reviewer cannot see as a column reference. keyof makes a
-// mistyped one a compile error.
 export interface LatencyTileConfig {
   key: string;
   label: string;
@@ -117,14 +104,8 @@ export const LATENCY_TILES: LatencyTileConfig[] = [
     p50Field: "e2e_p50_s",
     withinField: "n_e2e_within_cutoff",
     cutoffField: "e2e_cutoff_s",
-    caveat: (row) =>
-      `Anchored on the commit's authored timestamp, not on push receipt. GreenLight's bootstrap pass over PRs that were already open therefore measures how old those commits were rather than how long anyone waited, and a commit held in a local branch or an unpushed stack counts against it the same way — both stretch the tail without touching the middle. Head SHAs excluded from one or both of the push-anchored clocks — these are shared counts, not this tile's alone, and do not subtract from any single n on the page: ${intFormatter(
-        row?.excluded_no_push_ts
-      )} with no push timestamp, ${intFormatter(
-        row?.excluded_push_after_event
-      )} whose timestamp falls after the event it anchors, ${intFormatter(
-        row?.excluded_pre_ledger
-      )} predating the ledger.`,
+    caveat: () =>
+      "Time from the commit's authored timestamp to GreenLight's verdict. Commits written long before GreenLight ever saw them stretch the slow end.",
   },
   {
     key: "first_feedback",
@@ -134,18 +115,8 @@ export const LATENCY_TILES: LatencyTileConfig[] = [
     withinField: "n_dispatch_within_cutoff",
     cutoffField: "dispatch_cutoff_s",
     subNote: firstFeedbackVisibility,
-    // The render period is read from its column rather than written here, for
-    // the same drift reason as the cutoffs: it is the sole input to the share on
-    // the tile face. Its value tracks the Dr. CI comment-refresh cron in
-    // .github/workflows/update-drci-comments.yml, which owns the schedule.
-    caveat: (row) =>
-      `Dispatch is the first sign to an author that GreenLight is on the PR, but nothing is posted when it happens: Dr. CI repaints the in-progress state on a cron of its own, so most PRs go straight from nothing to a final verdict. Only a review outliving a full repaint interval is certain to be caught — ${intFormatter(
-        row?.n_review_over_threshold
-      )} of ${intFormatter(
-        row?.n_review
-      )} review cycles do. That interval is ${secondsFormatter(
-        row?.review_visible_after_s
-      )}. Shares the commit-authored-time anchor, and the exclusions, of the end-to-end clock.`,
+    caveat: () =>
+      "Time from the commit to GreenLight starting work on it. Nothing is posted at that moment, so most authors see nothing until the final verdict.",
   },
 ];
 
@@ -172,53 +143,56 @@ export function reviewRuntimeCutoff(row: any): string | undefined {
 export const REVIEW_RUN_TILES: ReviewRunTileConfig[] = [
   {
     key: "runs_failed",
-    label: "Review CI runs that failed",
+    label: "CI runs failed",
     countField: "n_review_runs_failed",
     nField: "n_review_runs",
-    caveat: (row) =>
-      `A run that ended FAILED and never went on to a verdict. Cancelled runs are not failures and are not counted here: the reviewer workflow runs in a singleton concurrency group, so a newer dispatch supersedes an in-flight run by design. They stay in the denominator, because CI did attempt them. A run that failed an attempt and then reached a verdict is a verdict, not a failure, and the count is per run rather than per FAILED row — a run that keeps failing is re-emitted on every retry. Runs still in flight are in neither the numerator nor the denominator, so a window ending mid-review reports slightly fewer runs than it dispatched. Denominator is review cycles that reached a terminal status in the window, a wider population than the ${intFormatter(
-        row?.n_review
-      )} on the latency clocks above.`,
+    caveat: () =>
+      "Review runs that ended in failure and never produced a verdict. Cancelled runs don't count as failures.",
   },
   {
     key: "runs_over_runtime",
-    label: "Review CI runs that overran",
+    label: "CI runs >33m",
     countField: "n_review_runs_over_runtime",
     nField: "n_review_runs_timed",
     subNote: reviewRuntimeCutoff,
-    caveat: (row) =>
-      `Measured from the ledger's AI_REVIEW_STARTED — or from AI_REVIEW_DISPATCHED where no start was written — to whichever terminal status the run reached, so a cancelled or failed run counts its own duration rather than being dropped. This is the ledger's view of the run and not the GitHub Actions job duration — nothing joins the workflow tables — so any gap between the job's clock and the ledger's writes lands inside this figure. Carries its own denominator: of the ${intFormatter(
-        row?.n_review_runs
-      )} runs that reached a terminal status, ${intFormatter(
-        row?.n_review_runs_timed
-      )} recorded a start to measure from. The rest recorded neither a start nor a dispatch, and counting a run with no clock would score it as a fast one. The cutoff is a reporting threshold, not a timeout anything enforces.`,
+    caveat: () =>
+      "Review runs that took longer than the cutoff. This is the ledger's own clock, not the GitHub Actions job duration, and only runs that recorded a start can be timed.",
   },
 ];
 
-export function mergeAuthorityValue(row: any): string {
-  return `${percentUnitsFormatter(row?.pct_gl_only)} · ${percentUnitsFormatter(
-    row?.pct_of_all_merges
-  )}`;
+// A share and the fraction it was taken over, handed to the panel as two pieces
+// rather than one finished string: the tile carries two of these over two
+// different denominators, and colour is what pairs each percentage with its own.
+export interface ShareFigure {
+  pct: string;
+  fraction: string;
 }
 
-export function mergeAuthoritySub(row: any): string {
-  return `${intFormatter(row?.gl_only)} / ${intFormatter(
-    row?.merged_evaluated_prs
-  )} of evaluated merges · ${intFormatter(row?.gl_only)} / ${intFormatter(
-    row?.merged_prs_total
-  )} of all merges`;
+export function mergeAuthorityShares(row: any): {
+  evaluated: ShareFigure;
+  allMerges: ShareFigure;
+} {
+  return {
+    evaluated: {
+      pct: percentUnitsFormatter(row?.pct_gl_only),
+      fraction: `${intFormatter(row?.gl_only)} / ${intFormatter(
+        row?.merged_evaluated_prs
+      )} of evaluated merges`,
+    },
+    allMerges: {
+      pct: percentUnitsFormatter(row?.pct_of_all_merges),
+      fraction: `${intFormatter(row?.gl_only)} / ${intFormatter(
+        row?.merged_prs_total
+      )} of all merges`,
+    },
+  };
 }
 
-export function mergeAuthorityCaveat(row: any): string {
-  return `Two denominators, because the narrow one on its own reads as “GreenLight authorises this share of the repo”. Human-approved: ${intFormatter(
-    row?.human_approved
-  )} · no approval recorded: ${intFormatter(
-    row?.no_approval
-  )}. Approval detection is timestamp-based and errs in both directions: any non-rule approval from any GitHub user makes a PR look human-approved, while an approval landing seconds after the merge commit's timestamp is missed and the PR looks GreenLight-only.`;
-}
+export const MERGE_AUTHORITY_CAVEAT =
+  "Merges where GreenLight's approval was the only one on the PR. Approval " +
+  "detection is timestamp-based, so it misses one that lands just after the merge.";
 
-export const REVERT_RATE_LABEL =
-  "GreenLight-approved reverts, share of evaluated PRs";
+export const REVERT_RATE_LABEL = "GreenLight-approved reverts";
 
 export function revertRateValue(stats: RevertStats): string {
   return percentUnitsFormatter(stats.rate);
@@ -236,51 +210,28 @@ export function revertRateValue(stats: RevertStats): string {
 // disclosure rather than a figure implying the headline is understated.
 export function revertRateExclusion(stats: RevertStats): string {
   if (hasCount(stats.landApprovedGhfirst)) {
-    return ` · ${intFormatter(
-      stats.landApprovedGhfirst
-    )} approved reverts excluded as ghfirst`;
+    return `${intFormatter(stats.landApprovedGhfirst)} excluded as ghfirst`;
   }
   return hasCount(stats.ghfirst)
-    ? ` · ${intFormatter(stats.ghfirst)} ghfirst excluded`
+    ? `${intFormatter(stats.ghfirst)} excluded as ghfirst`
     : "";
 }
 
-export function revertRateSub(stats: RevertStats): string {
-  const unattributable =
-    stats.unattributable === undefined
-      ? "unattributable count unavailable"
-      : `${intFormatter(stats.unattributable)} unattributable`;
-  return `${intFormatter(stats.landApproved)} / ${intFormatter(
-    stats.evaluatedPrs
-  )} evaluated PRs · ${unattributable}${revertRateExclusion(stats)}`;
+// The revert count is the numerator of the rate above it and takes that rate's
+// colour, so it is handed over apart from the rest of the line. The exclusion is
+// its own line and empty when nothing was excluded.
+export function revertRateSub(stats: RevertStats): {
+  count: string;
+  rest: string;
+  exclusion: string;
+} {
+  return {
+    count: intFormatter(stats.landApproved),
+    rest: ` / ${intFormatter(stats.evaluatedPrs)} PRs`,
+    exclusion: revertRateExclusion(stats),
+  };
 }
 
-// coverageRow is optional on purpose: it supplies only the window string, and a
-// coverage failure must not take down a figure computed entirely from reverts.
-// The ghfirst count is named rather than left implicit: an exclusion nobody
-// states is indistinguishable from the reverts not having happened. It also
-// points at the table, because the rate and the table deliberately cover
-// different populations and a reader who spots that needs the reason.
-export function revertRateCaveat(stats: RevertStats, coverageRow: any): string {
-  const window =
-    coverageRow === undefined || isEmptyWindow(coverageRow)
-      ? ""
-      : ` (${formatEffectiveWindow(coverageRow)})`;
-  const approvedGhfirst = hasCount(stats.landApprovedGhfirst)
-    ? ` ${intFormatter(
-        stats.landApprovedGhfirst
-      )} of them were reverts of a version GreenLight had approved, which is why this rate can read zero while the table below is not empty.`
-    : " None of them were reverts of a version GreenLight had approved, so excluding them moved this rate by nothing.";
-  const ghfirst = hasCount(stats.ghfirst)
-    ? ` A further ${intFormatter(
-        stats.ghfirst
-      )} carry a ghfirst classification and are excluded from this rate: such a revert is forced by the internal-first landing path rather than by anything visible in the diff, so scoring one against a verdict would measure the landing path instead of the verdict.${approvedGhfirst} The table below holds only reverts of a version GreenLight approved, so a ghfirst revert appears there when it is one of those and not otherwise. Where one does appear it carries its classification beside the reverter's own message, so the cause can be followed rather than taken on trust.`
-    : "";
-  return `Denominator is every PR GreenLight evaluated in the window${window} — the same count the coverage strip reports — including PRs that never merged and so could never be reverted, which makes this a floor rather than a per-merge risk. The numerator counts revert commits, not PRs, so a PR reverted twice counts twice. The window held ${intFormatter(
-    stats.resolvable
-  )} reverts that resolve to a PR at all; ${intFormatter(
-    stats.total
-  )} of those survive the ghfirst exclusion this rate applies, and ${intFormatter(
-    stats.evaluated
-  )} of those were GreenLight-evaluated. Unattributable reverts could not be resolved back to a PR and are excluded from the numerator.${ghfirst}`;
-}
+export const REVERT_RATE_CAVEAT =
+  "Reverts of a commit GreenLight had approved, over every PR it evaluated. " +
+  "Most evaluated PRs never merged, so this is a floor, not a per-merge risk.";

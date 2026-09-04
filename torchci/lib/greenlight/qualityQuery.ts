@@ -29,12 +29,35 @@ export function qualityUrl(
   )}`;
 }
 
-// Declared for the two queries the page reads through indirection — tile-config
-// field names and DataGrid column declarations — so a mistyped field string is a
-// compile error rather than a silent "-". They are NOT the guard against the SQL
-// renaming a column: an interface left untouched by that rename still declares
-// the old name and still compiles. test/greenlightQualityColumnSync.test.ts is
-// what closes that, by parsing the queries themselves.
+// CoverageRow, LatencyRow and RevertRow are declared for the queries the page
+// reads through indirection — tile-config field names and DataGrid column
+// declarations — so a mistyped field string is a compile error rather than a
+// silent "-". They are NOT the guard against the SQL renaming a column: an
+// interface left untouched by that rename still declares the old name and still
+// compiles. test/greenlightQualityColumnSync.test.ts is what closes that, by
+// parsing the queries themselves.
+
+// CoverageRow alone is absent from that test's ROW_INTERFACES, on purpose.
+// MIN_FIELDS_PER_INTERFACE is one floor shared by every registered interface, so
+// admitting a row this narrow would drop it far enough that most of LatencyRow or
+// RevertRow could vanish unnoticed. This row keeps the keyof check and forgoes
+// the SQL-sync one.
+export interface CoverageRow {
+  prs_evaluated: number;
+  prs_with_verdict: number;
+  verdicts_total: number;
+  verdicts_distinct_pr_sha: number;
+  land_verdicts: number;
+  no_land_verdicts: number;
+  cancelled_failed: number;
+  // A PR is placed by its latest verdict inside the window, so these partition
+  // prs_with_verdict and not prs_evaluated.
+  prs_land: number;
+  prs_no_land: number;
+  effective_start: string;
+  effective_end: string;
+}
+
 export interface LatencyRow {
   n_end_to_end: number;
   e2e_p50_s: number | null;

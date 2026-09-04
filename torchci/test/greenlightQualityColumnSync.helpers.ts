@@ -12,6 +12,11 @@ export const ROOT = path.join(__dirname, "..");
 
 export const QUERY_CATALOG = path.join(ROOT, "lib/greenlight/qualityQuery.ts");
 
+export const TILE_CONFIGS = path.join(
+  ROOT,
+  "components/greenlight/quality/tileConfigs.ts"
+);
+
 // Read out of the page's own catalog rather than restated here, so adding or dropping a
 // query does not need this file edited — a hand-copied list goes stale exactly when the
 // check matters. Scanned as text: importing the module pulls in lib/GeneralUtils and with
@@ -31,24 +36,76 @@ export function catalogQueries(): string[] {
   return Array.from(block[1].matchAll(/"([a-z0-9_]+)"/g)).map((m) => m[1]);
 }
 
+export interface TileSplitFields {
+  landField?: string;
+  noLandField?: string;
+}
+
+// Each coverage tile's LAND and NO_LAND column names, keyed by the tile's own key. Split
+// per entry rather than swept over the whole array, so which name sits on which tile
+// survives the properties being reordered. Read as text for the same reason as the catalog
+// above: tileConfigs.ts reaches lib/GeneralUtils through the row types it imports, and
+// with it octokit, which does not load under this jest environment.
+export function coverageTileFields(): {
+  [_tileKey: string]: TileSplitFields;
+} {
+  const src = fs.readFileSync(TILE_CONFIGS, "utf8");
+  const block = src.match(/COVERAGE_TILES[^=]*=\s*\[([\s\S]*?)\n\];/);
+  const found: { [_tileKey: string]: TileSplitFields } = {};
+  for (const entry of (block?.[1] ?? "").split(/^ {2}\{$/m).slice(1)) {
+    const key = entry.match(/\bkey:\s*"([a-z0-9_]+)"/);
+    if (key === null) {
+      continue;
+    }
+    found[key[1]] = {
+      landField: entry.match(/\blandField:\s*"([a-z0-9_]+)"/)?.[1],
+      noLandField: entry.match(/\bnoLandField:\s*"([a-z0-9_]+)"/)?.[1],
+    };
+  }
+  if (Object.keys(found).length === 0) {
+    throw new Error(
+      `${path.basename(
+        TILE_CONFIGS
+      )}: no COVERAGE_TILES entries parsed. The config ` +
+        `moved or changed shape; re-target this parser at it rather than deleting the ` +
+        `check.`
+    );
+  }
+  return found;
+}
+
 // Below these the corresponding extractor has stopped matching and the subset assertion
 // would hold vacuously. They are floors against silence, not assertions about content.
 //
 // Each sits exactly one below its true value — 4 queries, 7 columns in the thinnest
-// query, 56 distinct reads, 19 fields in the thinnest row interface — so coverage cannot
+// query, 50 distinct reads, 19 fields in the thinnest row interface — so coverage cannot
 // shrink by more than a single item without tripping this. A floor with slack in it
-// cannot catch the thing it is for: at 40 reads against a true 56, sixteen could disappear
+// cannot catch the thing it is for: at 40 reads against a true 50, ten could disappear
 // in silence. These track the true counts in both directions; a floor left behind when
 // the true count rises is as dead as one set too low. Re-baselining is a deliberate act,
 // not a way past a red suite.
+//
+// The reads floor counts what the page ADDRESSES, not what the queries emit. Eight columns
+// the queries still compute are addressed by nothing — cancelled_failed,
+// verdicts_distinct_pr_sha, excluded_no_push_ts, excluded_pre_ledger,
+// excluded_push_after_event, review_visible_after_s, human_approved, no_approval — and
+// dropping them from the SQL would not move this number.
 export const MIN_QUERIES = 3;
 export const MIN_COLUMNS_PER_QUERY = 6;
-export const MIN_READS_ACROSS_PAGE = 55;
+export const MIN_READS_ACROSS_PAGE = 49;
 export const MIN_FIELDS_PER_INTERFACE = 18;
 
 // Which query each row interface describes. Stated rather than derived from the interface
 // name: guessing "RevertRow" -> "reverts" would quietly bind to the wrong query after a
 // rename, whereas a wrong name here fails loudly when emittedColumns cannot open the file.
+//
+// An opt-in registry, not a map of every row interface qualityQuery.ts declares. An
+// interface absent from here is checked by none of the three tests that read it — not the
+// field-list floor, not the SQL sync, not nullability. CoverageRow is absent to keep those
+// three sharp: MIN_FIELDS_PER_INTERFACE is a single floor covering every entry, so
+// registering a row far thinner than the rest means lowering the floor to admit it, and
+// the wider interfaces could then lose most of their fields without tripping it. That row
+// keeps its keyof check against tsc and forgoes the SQL sync.
 export const ROW_INTERFACES: { [_interfaceName: string]: string } = {
   LatencyRow: "greenlight_quality_latency",
   RevertRow: "greenlight_quality_reverts",
@@ -251,10 +308,12 @@ export const READ_PATTERNS = [
   /\brow\?\.([a-z][a-z0-9_]*)\b/g,
   /\brow\.([a-z][a-z0-9_]*)\b/g,
   /\brows\[0\]\?\.([a-z][a-z0-9_]*)\b/g,
-  // defaultSortField is here because /\bfield:/ cannot reach it — there is no word
-  // boundary inside the identifier — and it hands the name to the grid through a
-  // variable, so no literal downstream is matchable either.
-  /(?:nField|p50Field|withinField|cutoffField|countField|defaultSortField):\s*"([a-z0-9_]+)"/g,
+  // Any `<something>Field: "column_name"` config key, not the current set by name: a new
+  // key naming a column is how a column quietly stops being covered by this check.
+  // Disjoint from the `field:` pattern below rather than a superset of it — the capital F
+  // excludes `field:` itself, and `\bfield:` in turn reaches none of these, because there
+  // is no word boundary inside an identifier like `defaultSortField`.
+  /\b[a-z][A-Za-z0-9]*Field:\s*"([a-z0-9_]+)"/g,
   /\bfield:\s*"([a-z0-9_]+)"/g,
   // Any `<something>Col("column_name"` helper, not stampCol by name: a second
   // such helper is how a column quietly stops being covered by this check.

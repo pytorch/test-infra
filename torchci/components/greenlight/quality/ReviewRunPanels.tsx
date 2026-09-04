@@ -1,4 +1,4 @@
-import { Grid, Stack, Typography } from "@mui/material";
+import { Grid, useTheme } from "@mui/material";
 import { intFormatter } from "components/common/numberFormat";
 import {
   hasCount,
@@ -6,20 +6,9 @@ import {
   percentUnitsFormatter,
 } from "lib/greenlight/qualityFigures";
 import { QUALITY_QUERIES, useQualityQuery } from "lib/greenlight/qualityQuery";
-import InfoTooltip from "./InfoTooltip";
-import QualityTile, { TILE_SPAN_HALF } from "./QualityTile";
+import QualityTile, { TILE_SPAN } from "./QualityTile";
+import { qualityColors, tinted } from "./tileColors";
 import { REVIEW_RUN_TILES, ReviewRunTileConfig } from "./tileConfigs";
-
-const HEADING = "How review runs end";
-
-// Names the population before either share is read, because "review run" is not
-// the grain anything above uses: the clocks are per (PR, head SHA) and per
-// verdict, and a reader carrying either of those over would take these
-// denominators for a count they have already seen.
-const HEADING_NOTE =
-  "A review run is one review cycle that reached a terminal status. Cycles " +
-  "still in flight are counted in neither share, and the two do not share a " +
-  "denominator: only runs carrying a start can be timed.";
 
 export default function ReviewRunPanels({
   startTime,
@@ -39,38 +28,35 @@ export default function ReviewRunPanels({
     autoRefresh
   );
   const row = latency.row;
+  const colors = qualityColors(useTheme());
 
   return (
-    <Stack spacing={1}>
-      <Stack direction="row" alignItems="center" spacing={0.5}>
-        <Typography variant="subtitle1" fontWeight="bold">
-          {HEADING}
-        </Typography>
-        <InfoTooltip label={HEADING} paragraphs={[HEADING_NOTE]} />
-      </Stack>
-
-      <Grid container spacing={2}>
-        {REVIEW_RUN_TILES.map((tile: ReviewRunTileConfig) => {
-          const note = tile.subNote?.(row);
-          return (
-            <Grid key={tile.key} size={TILE_SPAN_HALF}>
-              <QualityTile
-                label={tile.label}
-                value={percentUnitsFormatter(
-                  pctOf(row?.[tile.countField], row?.[tile.nField])
-                )}
-                sub={`${intFormatter(row?.[tile.countField])} / ${intFormatter(
-                  row?.[tile.nField]
-                )} review runs${note === undefined ? "" : ` · ${note}`}`}
-                caveat={tile.caveat(row)}
-                loading={latency.loading}
-                empty={!hasCount(row?.[tile.nField])}
-                error={latency.error}
-              />
-            </Grid>
-          );
-        })}
-      </Grid>
-    </Stack>
+    <>
+      {REVIEW_RUN_TILES.map((tile: ReviewRunTileConfig) => (
+        <Grid key={tile.key} size={TILE_SPAN}>
+          <QualityTile
+            label={tile.label}
+            value={tinted(
+              percentUnitsFormatter(
+                pctOf(row?.[tile.countField], row?.[tile.nField])
+              ),
+              colors.fault
+            )}
+            // Only the numerator is coloured: the denominator is the
+            // population, not part of the figure the share reports.
+            sub={
+              <>
+                {tinted(intFormatter(row?.[tile.countField]), colors.fault)}
+                {` / ${intFormatter(row?.[tile.nField])} runs`}
+              </>
+            }
+            caveat={tile.caveat(row)}
+            loading={latency.loading}
+            empty={!hasCount(row?.[tile.nField])}
+            error={latency.error}
+          />
+        </Grid>
+      ))}
+    </>
   );
 }

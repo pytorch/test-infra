@@ -83,10 +83,6 @@ function NavBar() {
       name: "ROCm test stats",
       href: "/rocm_test_stats",
     },
-    {
-      name: "GreenLight Quality",
-      href: "/greenlight_quality",
-    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
@@ -113,6 +109,10 @@ function NavBar() {
     {
       name: "CRCR Metrics",
       href: "/crcr/metrics",
+    },
+    {
+      name: "GreenLight Quality",
+      href: "/greenlight_quality",
     },
   ].map((item) => ({
     label: item.name,

@@ -1,42 +1,30 @@
-import { Grid } from "@mui/material";
+import { Grid, useTheme } from "@mui/material";
 import {
   hasCount,
   revertStats,
   staleVerdictNote,
 } from "lib/greenlight/qualityFigures";
-import {
-  QUALITY_QUERIES,
-  QualityQueryState,
-  useQualityQuery,
-} from "lib/greenlight/qualityQuery";
+import { QUALITY_QUERIES, useQualityQuery } from "lib/greenlight/qualityQuery";
 import { useMemo } from "react";
-import QualityTile, { TILE_SPAN_HALF } from "./QualityTile";
+import QualityTile, { TILE_SPAN } from "./QualityTile";
+import { qualityColors, tinted } from "./tileColors";
 import {
-  mergeAuthorityCaveat,
-  mergeAuthoritySub,
-  mergeAuthorityValue,
+  MERGE_AUTHORITY_CAVEAT,
+  mergeAuthorityShares,
+  REVERT_RATE_CAVEAT,
   REVERT_RATE_LABEL,
-  revertRateCaveat,
   revertRateSub,
   revertRateValue,
 } from "./tileConfigs";
 
-// Two rates, two different shapes of "small n". Each caveat is built from the
-// query's own fields so the numbers in the prose cannot drift from the number on
-// the face.
-//
-// coverage arrives as a prop and supplies only a window string inside the
-// revert caveat, so neither its failure nor its loading state is wired into
-// that tile: the revert figure is computable without it.
+// Two rates, two different shapes of "small n".
 export default function TrustPanels({
   startTime,
   stopTime,
-  coverage,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
-  coverage: QualityQueryState;
   autoRefresh: boolean;
 }) {
   const authority = useQualityQuery(
@@ -61,14 +49,32 @@ export default function TrustPanels({
     [reverts.rows]
   );
 
+  const colors = qualityColors(useTheme());
+  const shares = mergeAuthorityShares(authority.row);
+  const revertSub = revertRateSub(stats);
+
   return (
-    <Grid container spacing={2}>
-      <Grid size={TILE_SPAN_HALF}>
+    <>
+      <Grid size={TILE_SPAN}>
         <QualityTile
           label="Merged on GreenLight alone"
-          value={mergeAuthorityValue(authority.row)}
-          sub={mergeAuthoritySub(authority.row)}
-          caveat={mergeAuthorityCaveat(authority.row)}
+          // Each share and the fraction it was taken over carry one colour, so
+          // which denominator produced which percentage can be read off the
+          // tile without counting positions.
+          value={
+            <>
+              {tinted(shares.evaluated.pct, colors.firstFigure)}
+              {" · "}
+              {tinted(shares.allMerges.pct, colors.secondFigure)}
+            </>
+          }
+          sub={
+            <>
+              <div>{tinted(shares.evaluated.fraction, colors.firstFigure)}</div>
+              <div>{tinted(shares.allMerges.fraction, colors.secondFigure)}</div>
+            </>
+          }
+          caveat={MERGE_AUTHORITY_CAVEAT}
           loading={authority.loading}
           // The two rates have different denominators, and only the wider one
           // being zero means nothing was measured. When merges exist but none
@@ -79,12 +85,20 @@ export default function TrustPanels({
         />
       </Grid>
 
-      <Grid size={TILE_SPAN_HALF}>
+      <Grid size={TILE_SPAN}>
         <QualityTile
           label={REVERT_RATE_LABEL}
-          value={revertRateValue(stats)}
-          sub={revertRateSub(stats)}
-          caveat={revertRateCaveat(stats, coverage.row)}
+          value={tinted(revertRateValue(stats), colors.fault)}
+          sub={
+            <>
+              <div>
+                {tinted(revertSub.count, colors.fault)}
+                {revertSub.rest}
+              </div>
+              {revertSub.exclusion !== "" && <div>{revertSub.exclusion}</div>}
+            </>
+          }
+          caveat={REVERT_RATE_CAVEAT}
           note={staleness}
           loading={reverts.loading}
           // Keyed on the denominator being absent, not on the row set. The query
@@ -96,6 +110,6 @@ export default function TrustPanels({
           error={reverts.error}
         />
       </Grid>
-    </Grid>
+    </>
   );
 }

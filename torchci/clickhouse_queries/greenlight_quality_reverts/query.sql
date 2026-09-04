@@ -36,10 +36,14 @@
 -- NULL, and an epoch window_start unbounds the default.push scan.
 --
 -- evaluated_prs_total is the denominator of the revert rate: distinct PRs GreenLight evaluated
--- over the same window, defined exactly as clickhouse_queries/greenlight_quality_coverage
--- defines prs_evaluated, so the two tiles cannot disagree. REVERTED is excluded there because
--- GreenLight's revert guard writes that marker against PRs it never reviewed. The count spans
--- every evaluated PR, including PRs that never merged and so could never have been reverted.
+-- over the same window, and the same population clickhouse_queries/greenlight_quality_coverage
+-- reports as prs_evaluated, so the two tiles cannot disagree. The two are spelled differently
+-- and equal by construction: that query groups the window by pr_number and keeps every group
+-- whose max(status != 'REVERTED') is 1, this one counts distinct pr_number over the rows
+-- satisfying that same predicate, and both are "PRs holding at least one non-REVERTED row in
+-- the window". REVERTED is excluded because GreenLight's revert guard writes that marker
+-- against PRs it never reviewed. The count spans every evaluated PR, including PRs that never
+-- merged and so could never have been reverted.
 --
 -- Merges come from main-branch commit titles rather than default.merges: a ghstack stack lands
 -- as a single push whose non-final commits appear only in `commits`, and those stack members

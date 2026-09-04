@@ -1,4 +1,6 @@
-import { Stack, Typography } from "@mui/material";
+import { Grid, Stack, Typography, useTheme } from "@mui/material";
+import { deepOrange } from "@mui/material/colors";
+import { Theme } from "@mui/material/styles";
 import {
   CLICKHOUSE_TIME_FORMAT,
   DEFAULT_TIME_RANGE,
@@ -12,6 +14,7 @@ import ReviewRunPanels from "components/greenlight/quality/ReviewRunPanels";
 import TrustPanels from "components/greenlight/quality/TrustPanels";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { isEmptyWindow } from "lib/greenlight/qualityFigures";
 import {
   QUALITY_QUERIES,
   shouldAutoRefresh,
@@ -30,13 +33,34 @@ dayjs.extend(utc);
 // it being read as a display setting.
 const WINDOW_BUCKET = "hour";
 
-const PAGE_DESCRIPTION =
-  "Quality of the GreenLight auto-land gate on pytorch/pytorch: how much it " +
-  "covers, how fast it answers, and how far its verdicts can be trusted. " +
-  "Every window is clamped to the span of the GreenLight ledger, so the " +
-  "effective window below is the one the rates were computed over.";
+// Lives beside the picker and not in a tile caveat: the caveats render only
+// through QualityTile's showProse gate, which an empty window closes on every
+// coverage tile at once — the explanation would be unreachable in exactly the
+// case it exists for.
+//
+// States the condition rather than a cause. An empty window is any clamped end
+// at or before its clamped start, and the picker has no stop-after-start guard,
+// so an inverted range wholly inside the ledger reaches this too.
+const EMPTY_WINDOW_NOTE =
+  "The selected range resolves to an empty window, so there is nothing to " +
+  "measure: it ends before it starts, or it ends before the GreenLight ledger " +
+  "begins and the clamp closes it. Check that the end is after the start, and " +
+  "move the range forward into the ledger's span.";
+
+// No single colour clears AA here: 4.5:1 at body2's 14px needs relative
+// luminance at most 0.183 on the light page background and at least 0.233 on the
+// dark one, and those do not meet. warning.main is 8.58:1 on #1e1e1e but 3.11:1
+// on #ffffff, where warning.dark reaches only 3.79:1 and deepOrange[900] 5.60:1.
+// This is the one message explaining why every tile is blank, so it is the worst
+// thing on the page to leave hard to read.
+function emptyWindowColor(theme: Theme): string {
+  return theme.palette.mode === "dark"
+    ? theme.palette.warning.main
+    : deepOrange[900];
+}
 
 export default function Page() {
+  const theme = useTheme();
   const [timeRange, setTimeRange] = useState(DEFAULT_TIME_RANGE);
   const [startTime, setStartTime] = useState(
     dayjs().subtract(DEFAULT_TIME_RANGE, "day")
@@ -62,12 +86,8 @@ export default function Page() {
 
   return (
     <div>
-      <Typography fontSize={"2rem"} fontWeight={"bold"} sx={{ mb: 1 }}>
+      <Typography fontSize={"2rem"} fontWeight={"bold"} sx={{ mb: 2 }}>
         GreenLight Quality
-      </Typography>
-
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {PAGE_DESCRIPTION}
       </Typography>
 
       <Stack
@@ -86,26 +106,38 @@ export default function Page() {
           timeRange={timeRange}
           setTimeRange={setTimeRange}
         />
+        {isEmptyWindow(coverage.row) && (
+          <Typography
+            variant="body2"
+            role="status"
+            color={emptyWindowColor(theme)}
+          >
+            {EMPTY_WINDOW_NOTE}
+          </Typography>
+        )}
       </Stack>
 
       <Stack spacing={3}>
-        <CoverageTiles coverage={coverage} />
-        <LatencyPanels
-          startTime={windowStart}
-          stopTime={windowStop}
-          autoRefresh={autoRefresh}
-        />
-        <ReviewRunPanels
-          startTime={windowStart}
-          stopTime={windowStop}
-          autoRefresh={autoRefresh}
-        />
-        <TrustPanels
-          startTime={windowStart}
-          stopTime={windowStop}
-          coverage={coverage}
-          autoRefresh={autoRefresh}
-        />
+        {/* One container for every tile, so they reflow as a single run and
+            pack as many per row as the viewport allows. */}
+        <Grid container spacing={2}>
+          <CoverageTiles coverage={coverage} />
+          <LatencyPanels
+            startTime={windowStart}
+            stopTime={windowStop}
+            autoRefresh={autoRefresh}
+          />
+          <ReviewRunPanels
+            startTime={windowStart}
+            stopTime={windowStop}
+            autoRefresh={autoRefresh}
+          />
+          <TrustPanels
+            startTime={windowStart}
+            stopTime={windowStop}
+            autoRefresh={autoRefresh}
+          />
+        </Grid>
         <RevertedTable
           startTime={windowStart}
           stopTime={windowStop}

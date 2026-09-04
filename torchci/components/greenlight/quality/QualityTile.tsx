@@ -5,33 +5,27 @@ import InfoTooltip from "./InfoTooltip";
 
 const TILE_MIN_HEIGHT = 128;
 const VALUE_SKELETON_HEIGHT = 56;
+const VALUE_FONT_SIZE = "1.75rem";
 
-export type TileSize = "lead" | "normal" | "small";
-
-const VALUE_FONT_SIZE: { [_size in TileSize]: string } = {
-  lead: "2.75rem",
-  normal: "1.75rem",
-  small: "1.05rem",
-};
-
-export const TILE_SPAN_HALF = { xs: 12, lg: 6 };
-export const TILE_SPAN_QUARTER = { xs: 12, sm: 6, lg: 3 };
+// One span for every tile on the page, which all sit in a single Grid container
+// so they reflow as one run and pack as many per row as the width allows,
+// instead of each panel holding a row of its own.
+export const TILE_SPAN = { xs: 12, sm: 6, md: 4, lg: 3 };
 
 // Every figure on this page needs a caveat, which ScalarPanelWithValue has no
 // slot for, so the tile lives here once instead of being re-styled in each of
 // the three panel files.
 //
 // caveat and note are the tile's long prose and are reachable only through the
-// header's info affordance. sub stays on the face: it carries the n and the
-// fractions the value is computed from, and those are what stop the value being
-// misread, so they may not be a hover away.
+// header's info affordance. sub stays on the face: it carries whatever stops the
+// value being misread — the n and the fractions it is computed from, the key to
+// any colour it is encoded in — and none of that may be a hover away.
 export default function QualityTile({
   label,
   value,
   sub,
   caveat,
   note,
-  size = "normal",
   loading = false,
   empty = false,
   error,
@@ -41,7 +35,6 @@ export default function QualityTile({
   sub?: ReactNode;
   caveat?: string;
   note?: string;
-  size?: TileSize;
   loading?: boolean;
   empty?: boolean;
   error?: string;
@@ -96,7 +89,7 @@ export default function QualityTile({
             sx={{
               mt: 0.5,
               lineHeight: 1.2,
-              fontSize: VALUE_FONT_SIZE[size],
+              fontSize: VALUE_FONT_SIZE,
             }}
           >
             {value}
