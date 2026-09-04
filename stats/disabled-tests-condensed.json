@@ -97,6 +97,13 @@
       "linux"
     ]
   ],
+  "test_benchmark_combo_kernel_emits_real_num_gb (__main__.ComboKernelMetadataTests)": [
+    "195976",
+    "https://github.com/pytorch/pytorch/issues/195976",
+    [
+      "xpu"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
