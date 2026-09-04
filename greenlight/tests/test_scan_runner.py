@@ -514,10 +514,17 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
     assert poked == [1]
 
 
-@pytest.mark.parametrize("shadow", [pytest.param(True, id="shadow-author"), pytest.param(False, id="trusted-author")])
-def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow):
+@pytest.mark.parametrize(
+    ("shadow", "expected_pokes"),
+    [
+        pytest.param(True, [], id="shadow-author"),
+        pytest.param(False, [1], id="trusted-author"),
+    ],
+)
+def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expected_pokes):
     dispatch_kwargs: list[dict[str, object]] = []
     emitted: list[dict[str, object]] = []
+    poked: list[int] = []
 
     def dispatch(_client, _number, _head_sha, _eval_hash, _ref, **kwargs):
         dispatch_kwargs.append(kwargs)
@@ -532,19 +539,21 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow):
         max_dispatches=None,
         dispatch=dispatch,
         emit_dispatched=emit,
-        poke=_noop_poke,
+        poke=poked.append,
         is_shadow=lambda _number: shadow,
     )
 
-    # One lookup drives both: the reviewer workflow input that withholds the approval, and the row
-    # the merge gate and Dr. CI read.
+    # One lookup drives all three: the reviewer workflow input that withholds the approval, the row
+    # the merge gate and Dr. CI read, and whether a rebuild is worth requesting at all.
     assert failed == []
     assert dispatch_kwargs == [{"shadow": shadow}]
     assert [call["shadow"] for call in emitted] == [shadow]
+    assert poked == expected_pokes
 
 
 def test_dispatch_pending_resolves_shadow_per_candidate():
     seen: list[tuple[int, object]] = []
+    poked: list[int] = []
 
     def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
         return None
@@ -559,13 +568,39 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
         max_dispatches=None,
         dispatch=dispatch,
         emit_dispatched=emit,
-        poke=_noop_poke,
+        poke=poked.append,
         is_shadow=lambda number: number == 2,
     )
 
     # A mixed batch must not collapse to one answer -- the cohort is per author, and a single scan
     # routinely carries both.
     assert seen == [(1, False), (2, True)]
+    assert poked == [1]
+
+
+def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
+        return None
+
+    def boom_emit(**_kwargs):
+        raise RuntimeError("emit boom")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        failed = scan_runner._dispatch_pending(
+            _CLIENT,
+            [_candidate(1, run_id=None)],
+            ref="main",
+            max_dispatches=None,
+            dispatch=dispatch,
+            emit_dispatched=boom_emit,
+            poke=_boom_poke,
+            is_shadow=lambda _number: True,
+        )
+
+    # Both suppressions apply at once, and the shadow one must not resurrect the failed-emit one:
+    # _boom_poke asserts if either is dropped.
+    assert failed == []
+    assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
 
 
 _CHANGED_HASH = "b" * 64
