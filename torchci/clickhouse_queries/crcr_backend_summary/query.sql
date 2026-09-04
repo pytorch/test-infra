@@ -72,7 +72,9 @@ SELECT
     uniqExact(pr_number) AS total_prs,
     avg(queue_time) AS avg_queue_time_s,
     avg(execution_time) AS avg_exec_time_s,
-    max(execution_time) AS max_exec_time_s,
+    -- Excludes timed-out jobs: their execution_time reflects the timeout
+    -- ceiling, not genuine run time, and would inflate this otherwise.
+    maxIf(execution_time, conclusion != 'timed_out') AS max_exec_time_s,
     quantileExact(0.95)(execution_time) AS p95_exec_time_s,
     -- E2E time is per-run (RFC-0050); run_rn = 1 keeps one sample per run.
     -- Exact (not sampled) quantiles since this gates L3 promotion decisions.
