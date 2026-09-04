@@ -1,7 +1,7 @@
 """Dispatch the greenlight PR-review workflow via a ``workflow_dispatch`` event.
 
 The scanner calls ``dispatch_review`` to trigger a review run for a new-or-changed
-trusted-author PR. It issues the single ``workflow_dispatch`` POST and nothing else: no
+evaluation-cohort PR. It issues the single ``workflow_dispatch`` POST and nothing else: no
 run-status polling and no cancel call -- the workflow's own per-PR concurrency group
 supersedes any still-running review. The PyGithub client is injected, so this module never
 constructs one or holds credentials.
