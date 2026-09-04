@@ -2,8 +2,8 @@ import pytest
 
 from greenlight import cohort
 
-# The authorization boundary the two authz gates enforce. Pinned here so widening it is a
-# deliberate two-place edit rather than a typo.
+# The approval authority boundary: everyone outside it is evaluated in shadow. Pinned here so
+# widening it is a deliberate two-place edit rather than a typo.
 _PINNED_TRUSTED_AUTHORS = {
     "albanD",
     "jathu",
@@ -43,3 +43,22 @@ def test_trusted_lower_is_lowercase_and_collision_free():
 )
 def test_is_trusted(login: str | None, expected: bool) -> None:
     assert cohort.is_trusted(login) is expected
+
+
+@pytest.mark.parametrize(
+    ("login", "expected"),
+    [
+        pytest.param("ezyang", False, id="trusted-author"),
+        pytest.param("EZYANG", False, id="trusted-author-uppercased"),
+        pytest.param("octocat", True, id="stranger"),
+        pytest.param("", True, id="empty"),
+        pytest.param(None, True, id="absent-fails-closed"),
+    ],
+)
+def test_is_shadow(login: str | None, expected: bool) -> None:
+    assert cohort.is_shadow(login) is expected
+
+
+def test_is_shadow_is_the_complement_of_is_trusted():
+    for login in (*cohort.TRUSTED_AUTHORS, "octocat", "", None):
+        assert cohort.is_shadow(login) is not cohort.is_trusted(login)
