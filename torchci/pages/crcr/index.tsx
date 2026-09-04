@@ -779,7 +779,11 @@ export default function CrcrSummaryPage() {
     refreshInterval: 60_000,
   });
 
-  const nightlyRepoCount = nightlyData?.length ?? 0;
+  const visibleNightlyData = useMemo(
+    () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
+    [nightlyData]
+  );
+  const nightlyRepoCount = visibleNightlyData.length;
 
   // L3 readiness — fixed promotion/demotion windows, independent of the
   // Time Range selector above.
@@ -1083,12 +1087,12 @@ export default function CrcrSummaryPage() {
               </Typography>
             </Paper>
 
-            {nightlyData && nightlyData.length > 0 ? (
+            {visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
-                <NightlyTable nightlyData={nightlyData} days={days} />
+                <NightlyTable nightlyData={visibleNightlyData} days={days} />
               </>
             ) : (
               <Paper

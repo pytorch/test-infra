@@ -67,7 +67,7 @@ export const L3_THRESHOLDS = {
   passRate: {
     key: "passRate",
     label: "Job Pass Rate",
-    targetLabel: "> 90%",
+    targetLabel: "≥ 90%",
     target: 0.9,
     direction: "atLeast",
     provisional: false,

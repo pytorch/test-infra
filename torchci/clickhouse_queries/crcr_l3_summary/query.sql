@@ -74,7 +74,9 @@ SELECT
     count() AS total_jobs,
     if(total_jobs > 0, successes / total_jobs, 0) AS pass_rate,
     avg(queue_time) AS avg_queue_time_s,
-    max(execution_time) AS max_exec_time_s,
+    -- Excludes timed-out jobs: their execution_time reflects the timeout
+    -- ceiling, not genuine run time, and would inflate this otherwise.
+    maxIf(execution_time, conclusion != 'timed_out') AS max_exec_time_s,
     -- E2E time is per-run; run_rn = 1 keeps one sample per run.
     quantileExactIf(0.5)(
         run_queue_time_s + run_span_s,
