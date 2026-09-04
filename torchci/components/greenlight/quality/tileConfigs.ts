@@ -92,6 +92,21 @@ export interface LatencyTileConfig {
   caveat: (_row: any) => string;
 }
 
+// A clock measures only the head SHAs it can anchor to a usable push, so its n is a
+// subset of the window rather than all of it. Disclosed in the caveat because the
+// figure is unbiased but the population is not the one a reader assumes. Left unsaid
+// at zero, and deliberately silent on cause: a SHA drops for a missing push, an
+// impossible one, or a push predating GreenLight, and naming only the first would
+// misdescribe the other two.
+// Phrased around a verb that governs the count rather than agreeing with it: the
+// dispatch clock routinely drops exactly one, and a plural-only sentence reads as a
+// rendering fault at n=1.
+function unanchoredNote(count: any): string {
+  return hasCount(count)
+    ? ` Excludes ${intFormatter(count)} with no usable push anchor.`
+    : "";
+}
+
 // Two independent clocks over two different populations, not a decomposition of
 // one another. Each shows a median and the share of its observations finishing
 // inside a fixed cutoff; the cutoff is read from the query rather than named in
@@ -99,24 +114,26 @@ export interface LatencyTileConfig {
 export const LATENCY_TILES: LatencyTileConfig[] = [
   {
     key: "end_to_end",
-    label: "End-to-end: commit → verdict",
+    label: "End-to-end: push → verdict",
     nField: "n_end_to_end",
     p50Field: "e2e_p50_s",
     withinField: "n_e2e_within_cutoff",
     cutoffField: "e2e_cutoff_s",
-    caveat: () =>
-      "Time from the commit's authored timestamp to GreenLight's verdict. Commits written long before GreenLight ever saw them stretch the slow end.",
+    caveat: (row) =>
+      "Time from GitHub receiving the push to GreenLight's verdict." +
+      unanchoredNote(row?.n_e2e_unanchored),
   },
   {
     key: "first_feedback",
-    label: "First feedback: commit → GreenLight starts",
+    label: "First feedback: push → GreenLight starts",
     nField: "n_dispatch",
     p50Field: "dispatch_p50_s",
     withinField: "n_dispatch_within_cutoff",
     cutoffField: "dispatch_cutoff_s",
     subNote: firstFeedbackVisibility,
-    caveat: () =>
-      "Time from the commit to GreenLight starting work on it. Nothing is posted at that moment, so most authors see nothing until the final verdict.",
+    caveat: (row) =>
+      "Time from GitHub receiving the push to GreenLight starting work on it. Nothing is posted at that moment." +
+      unanchoredNote(row?.n_dispatch_unanchored),
   },
 ];
 

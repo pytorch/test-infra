@@ -2,8 +2,8 @@
 -- only to count how often the in-progress signal was visible, plus the review-run row's two
 -- counts of how often a review cycle ended badly or ran long.
 --
---   e2e       commit timestamp -> first LAND/NO_LAND, per (pr_number, head_sha)
---   dispatch  commit timestamp -> first AI_REVIEW_DISPATCHED, per (pr_number, head_sha)
+--   e2e       push receipt -> first LAND/NO_LAND, per (pr_number, head_sha)
+--   dispatch  push receipt -> first AI_REVIEW_DISPATCHED, per (pr_number, head_sha)
 --   review    AI_REVIEW_DISPATCHED -> LAND/NO_LAND, per review cycle; counted, never summarised
 --   run       AI_REVIEW_STARTED -> terminal status, per review cycle; counted, never summarised
 --
@@ -11,7 +11,7 @@
 -- cycle can carry several dispatches and several verdicts, so its clock takes the earliest of each.
 -- (pr_number, head_sha) is not unique across cycles either, since a re-dispatch usually mints a
 -- fresh eval_hash. The two push-anchored clocks are therefore per head_sha and take that SHA's
--- earliest event, because the commit timestamp they measure from is a property of the SHA and
+-- earliest event, because the push timestamp they measure from is a property of the SHA and
 -- re-dispatches would otherwise count it repeatedly.
 --
 -- The upper tail is reported as a count under a fixed cutoff, never as a p90. Both push-anchored
@@ -68,7 +68,7 @@
 -- read from any workflow timeout; nothing downstream of the ledger enforces it.
 --
 -- ClickHouse re-executes a named subquery at every reference site instead of materializing it once,
--- so anchored is read exactly once: both push-anchored clocks and all three exclusion counters are
+-- so anchored is read exactly once: both push-anchored clocks and all five drop counters are
 -- conditional aggregates over that single pass. Splitting them back into separate SELECTs -- one per
 -- clock, or a subquery for the counters -- re-runs sha_units, pushes and the join underneath each
 -- time. The review clock aggregates separately because it is a different grain, and cycles is read
@@ -100,24 +100,51 @@
 -- closed: repo is caller-supplied, and an open clamp scans all of history. window_end clamps to
 -- now64(3) because the page snaps stopTime up to the next bucket, always landing in the future.
 --
--- push_by_sha.timestamp is commit-AUTHORED time, not push-receipt time. When a SHA was authored
--- before GreenLight's ledger began, the interval it anchors is rollout backlog -- how old an
--- already-open PR was when the gate first saw it -- and not latency GreenLight caused. Those
--- observations are excluded rather than allowed to dominate the upper tail.
+-- Both clocks anchor on push-receipt time -- the moment GitHub took delivery of the SHA -- and
+-- never on the commit's authored timestamp. An authored timestamp is written by the contributor's
+-- own machine, so it counts however long a commit sat unpushed, and ingestion records it with the
+-- UTC offset discarded: 4% of this repo's pushes carry an authored timestamp that postdates the
+-- push delivering it, by a full 8 hours for a +08:00 author.
+--
+-- No one table carries that receipt for every head SHA, so pushes takes the earliest of two
+-- GitHub-side clocks. repository.pushed_at is the receipt itself, but default.push only holds a
+-- SHA pushed to a ref in this repo -- a fork PR's head reaches it via a later ciflow tag, or not
+-- at all. workflow_run.created_at reaches those, and trails the receipt by however long Actions
+-- takes to create the run: seconds usually, 21 minutes when the queue is backed up. Both err late
+-- and only late, so the earlier of the two is the closer bound on the receipt.
+--
+-- The default.push branch resolves each SHA to its authored timestamp through push_by_sha solely
+-- to prune the primary key, default.push being ORDER BY (head_commit.timestamp, head_commit.id);
+-- that timestamp reaches no clock. The other branch reads the two head_sha- and created_at-keyed
+-- views instead of default.workflow_run, which is ORDER BY (id, dynamoKey) and carries no index
+-- on head_sha. Its head_sha -> id rename stays in the outermost SELECT: ClickHouse resolves a
+-- WHERE-clause identifier to a same-SELECT alias ahead of the table's own column, so writing that
+-- rename alongside a predicate on workflow_run's id empties the branch and returns no error.
+--
+-- A SHA pushed before GreenLight's ledger began belonged to an already-open PR the gate first saw
+-- at rollout. The interval it anchors is that backlog -- how old the PR was when the gate arrived
+-- -- and not latency GreenLight caused, so those observations are excluded rather than allowed to
+-- dominate the upper tail.
 --
 -- join_use_nulls = 0 on this cluster, so a LEFT JOIN miss yields 1970-01-01 rather than NULL and an
--- unguarded subtraction produces a ~56.7-year duration. push_by_sha does not cover every GreenLight
--- head SHA, so every push-anchored observation is gated on a real timestamp and the misses are
+-- unguarded subtraction produces a ~56.7-year duration. The two sources together still do not cover
+-- every GreenLight head SHA, so every observation is gated on a real timestamp and the misses are
 -- counted out instead of being silently absorbed. e2e_secs and dispatch_secs are computed for every
 -- row, including those misses; the _ok flags are what keep the garbage out of the aggregates.
 --
--- The three exclusion counters partition the dropped head SHAs and never double-count the same one:
--- excluded_no_push_ts is a missing anchor, excluded_push_after_event is an anchor that postdates the
--- event it anchors, excluded_pre_ledger is rollout backlog.
+-- n_e2e_unanchored and n_dispatch_unanchored are each clock's own count of head SHAs that fell in
+-- the window and went unmeasured, whatever the reason. They are what the page reports beside n, so
+-- a reader can tell a clock measuring most of its population from one measuring half. The three
+-- excluded_ counters below instead partition those drops by cause and never double-count one:
+-- excluded_no_push_ts is a missing anchor, excluded_push_after_event is an anchor postdating the
+-- event it anchors -- with a receipt-time anchor that is a data fault rather than a category --
+-- and excluded_pre_ledger is rollout backlog. They span both clocks at once, since a head SHA can
+-- enter the window on either, which is why neither tile can be sourced from them.
 --
--- push_by_sha is not keyed one row per SHA (ORDER BY id, plain MergeTree): a SHA can carry several
--- rows bearing the same timestamp. Aggregating to one row per id before the join is what keeps a
--- single commit from contributing its latency to the quantiles more than once.
+-- Neither source is keyed one row per SHA: default.push holds a row per push event carrying the
+-- SHA as head_commit, and a workflow run exists per workflow. Aggregating to one row per id before
+-- the join is what keeps a single commit from contributing its latency to the quantiles more than
+-- once.
 --
 -- A percentile over an empty set is NULL, not 0. A window with no observations has no latency, and
 -- rendering 0.0s there asserts a measurement that was never taken. The counts stay 0, so callers
@@ -163,14 +190,52 @@ cycles AS (
 pushes AS (
     SELECT
         id,
-        min(timestamp) AS pushed_at
-    FROM materialized_views.push_by_sha
-    WHERE
-        id IN (
-            SELECT DISTINCT head_sha
-            FROM misc.greenlight_pr_state
-            WHERE repo = {repo: String}
-        )
+        min(pushed_at) AS pushed_at
+    FROM (
+        SELECT
+            tupleElement(head_commit, 'id') AS id,
+            toDateTime64(
+                min(tupleElement(repository, 'pushed_at')), 3
+            ) AS pushed_at
+        FROM default.push
+        WHERE
+            tupleElement(head_commit, 'timestamp') IN (
+                SELECT timestamp
+                FROM materialized_views.push_by_sha
+                WHERE
+                    id IN (
+                        SELECT DISTINCT head_sha
+                        FROM misc.greenlight_pr_state
+                        WHERE repo = {repo: String}
+                    )
+            )
+            AND tupleElement(head_commit, 'id') IN (
+                SELECT DISTINCT head_sha
+                FROM misc.greenlight_pr_state
+                WHERE repo = {repo: String}
+            )
+        GROUP BY id
+
+        UNION ALL
+
+        SELECT
+            h.head_sha AS id,
+            toDateTime64(min(c.created_at), 3) AS pushed_at
+        FROM materialized_views.workflow_run_by_created_at AS c
+        INNER JOIN (
+            SELECT
+                id,
+                head_sha
+            FROM materialized_views.workflow_run_by_head_sha
+            WHERE
+                head_sha IN (
+                    SELECT DISTINCT head_sha
+                    FROM misc.greenlight_pr_state
+                    WHERE repo = {repo: String}
+                )
+        ) AS h ON h.id = c.id
+        GROUP BY h.head_sha
+    )
     GROUP BY id
 ),
 
@@ -228,6 +293,10 @@ push_clocks AS (
         countIf(
             dispatch_ok AND dispatch_secs <= dispatch_cutoff_s
         ) AS n_dispatch_within_cutoff,
+        countIf(verdict_in_window AND NOT e2e_ok) AS n_e2e_unanchored,
+        countIf(
+            dispatch_in_window AND NOT dispatch_ok
+        ) AS n_dispatch_unanchored,
         countIf(considered AND pushed_at <= epoch) AS excluded_no_push_ts,
         countIf(
             considered
@@ -302,6 +371,8 @@ SELECT
     p.dispatch_p50_s AS dispatch_p50_s,
     p.n_dispatch_within_cutoff AS n_dispatch_within_cutoff,
     dispatch_cutoff_s,
+    p.n_e2e_unanchored AS n_e2e_unanchored,
+    p.n_dispatch_unanchored AS n_dispatch_unanchored,
     p.excluded_no_push_ts AS excluded_no_push_ts,
     p.excluded_push_after_event AS excluded_push_after_event,
     p.excluded_pre_ledger AS excluded_pre_ledger

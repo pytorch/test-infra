@@ -71,7 +71,9 @@ export default function TrustPanels({
           sub={
             <>
               <div>{tinted(shares.evaluated.fraction, colors.firstFigure)}</div>
-              <div>{tinted(shares.allMerges.fraction, colors.secondFigure)}</div>
+              <div>
+                {tinted(shares.allMerges.fraction, colors.secondFigure)}
+              </div>
             </>
           }
           caveat={MERGE_AUTHORITY_CAVEAT}

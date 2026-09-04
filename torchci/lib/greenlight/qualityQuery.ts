@@ -75,6 +75,8 @@ export interface LatencyRow {
   dispatch_p50_s: number | null;
   n_dispatch_within_cutoff: number;
   dispatch_cutoff_s: number;
+  n_e2e_unanchored: number;
+  n_dispatch_unanchored: number;
   excluded_no_push_ts: number;
   excluded_push_after_event: number;
   excluded_pre_ledger: number;

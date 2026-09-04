@@ -78,7 +78,7 @@ export function coverageTileFields(): {
 // would hold vacuously. They are floors against silence, not assertions about content.
 //
 // Each sits exactly one below its true value — 4 queries, 7 columns in the thinnest
-// query, 50 distinct reads, 19 fields in the thinnest row interface — so coverage cannot
+// query, 52 distinct reads, 21 fields in the thinnest row interface — so coverage cannot
 // shrink by more than a single item without tripping this. A floor with slack in it
 // cannot catch the thing it is for: at 40 reads against a true 50, ten could disappear
 // in silence. These track the true counts in both directions; a floor left behind when
@@ -92,8 +92,8 @@ export function coverageTileFields(): {
 // dropping them from the SQL would not move this number.
 export const MIN_QUERIES = 3;
 export const MIN_COLUMNS_PER_QUERY = 6;
-export const MIN_READS_ACROSS_PAGE = 49;
-export const MIN_FIELDS_PER_INTERFACE = 18;
+export const MIN_READS_ACROSS_PAGE = 51;
+export const MIN_FIELDS_PER_INTERFACE = 20;
 
 // Which query each row interface describes. Stated rather than derived from the interface
 // name: guessing "RevertRow" -> "reverts" would quietly bind to the wrong query after a
