@@ -20,6 +20,7 @@ export interface L3Threshold {
   target: number;
   direction: L3ComparisonDirection;
   provisional: boolean;
+  demotionRelevant: boolean;
 }
 
 // L3 promotion/demotion infrastructure gates.
@@ -31,6 +32,7 @@ export const L3_THRESHOLDS = {
     target: 30,
     direction: "atLeast",
     provisional: false,
+    demotionRelevant: false,
   },
   e2eTimeS: {
     key: "e2eTimeS",
@@ -39,6 +41,7 @@ export const L3_THRESHOLDS = {
     target: 3 * 3600,
     direction: "below",
     provisional: false,
+    demotionRelevant: true,
   },
   maxExecTimeS: {
     key: "maxExecTimeS",
@@ -47,6 +50,7 @@ export const L3_THRESHOLDS = {
     target: 3 * 3600,
     direction: "below",
     provisional: false,
+    demotionRelevant: false,
   },
   avgQueueTimeS: {
     key: "avgQueueTimeS",
@@ -55,6 +59,7 @@ export const L3_THRESHOLDS = {
     target: 30 * 60,
     direction: "below",
     provisional: false,
+    demotionRelevant: false,
   },
   timeoutRate: {
     key: "timeoutRate",
@@ -63,6 +68,7 @@ export const L3_THRESHOLDS = {
     target: 0.01,
     direction: "below",
     provisional: false,
+    demotionRelevant: true,
   },
   passRate: {
     key: "passRate",
@@ -71,6 +77,7 @@ export const L3_THRESHOLDS = {
     target: 0.9,
     direction: "atLeast",
     provisional: false,
+    demotionRelevant: true,
   },
 } as const satisfies Record<string, L3Threshold>;
 
