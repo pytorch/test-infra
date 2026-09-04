@@ -189,6 +189,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
     event, body = pr.created_reviews[0]
@@ -312,6 +313,7 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
         "version",
         "run_id",
         "emit_id",
+        "shadow",
     ]
     assert isinstance(obj["pr_number"], int)
     assert isinstance(obj["version"], str)
@@ -340,7 +342,7 @@ def test_verdict_emitted_row_is_byte_stable(make_config):
     assert raw == (
         '{"repo":"pytorch/pytorch","pr_number":9,"head_sha":"h","status":"CANCELLED",'
         '"reason":"","eval_hash":"","message":"","eval_job":"","agent_job":"",'
-        f'"version":"{_VERSION}","run_id":0,"emit_id":"{_EMIT_ID}"}}\n'
+        f'"version":"{_VERSION}","run_id":0,"emit_id":"{_EMIT_ID}","shadow":false}}\n'
     )
 
 
@@ -561,6 +563,7 @@ def test_marker_cancelled_emits_payload_only(make_config):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 
@@ -607,6 +610,7 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 

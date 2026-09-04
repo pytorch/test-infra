@@ -230,7 +230,7 @@ def _run_scan(
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
         refusals.append((pr.number, marker, body, author_login))
 
-    def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id):
+    def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id, shadow):
         emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
         events.append(f"emit:{pr_number}")
 
@@ -253,7 +253,7 @@ def _run_scan(
             raise error
         return list(dismissed_ids.get(pr.number, ()))
 
-    def fake_emit_reverted(*, repo, pr_number, head_sha, run_id):
+    def fake_emit_reverted(*, repo, pr_number, head_sha, run_id, shadow):
         reverted_emitted.append((repo, pr_number, head_sha, run_id))
         events.append(f"emit_reverted:{pr_number}")
 
