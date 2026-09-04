@@ -14,8 +14,10 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
+import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -318,9 +320,17 @@ function isNightlyJobPassing(job: CrcrJobRow): boolean {
 const NIGHTLY_HEALTH_COUNT = 5;
 
 function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
+  // Window matches L3_PROMOTION_WINDOW_DAYS (the 2-week promotion window)
+  // rather than an independent magic number, so this isn't a third,
+  // inconsistent window alongside the Time Range selector.
   const url =
     `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
-    encodeURIComponent(JSON.stringify({ repo: repoFullName, days: "14" }));
+    encodeURIComponent(
+      JSON.stringify({
+        repo: repoFullName,
+        days: String(L3_PROMOTION_WINDOW_DAYS),
+      })
+    );
   const { data } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
@@ -1650,6 +1660,8 @@ export default function CrcrBackendPage() {
                 </FormControl>
               </Stack>
             </Box>
+
+            {!isNightly && <CrcrL3Readiness repoFullName={repoFullName} />}
 
             {!isNightly && (
               <>

@@ -1,0 +1,10 @@
+{
+  "params": {
+    "days": "UInt64"
+  },
+  "tests": [
+    {
+      "days": "30"
+    }
+  ]
+}
