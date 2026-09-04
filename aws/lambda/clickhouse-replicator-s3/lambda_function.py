@@ -749,7 +749,8 @@ def greenlight_pr_state_adapter(table, bucket, key):
     `agent_job` String,
     `version` DateTime64(3),
     `run_id` Int64,
-    `emit_id` String
+    `emit_id` String,
+    `shadow` Bool
     """
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
