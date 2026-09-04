@@ -781,7 +781,7 @@ export default function CrcrSummaryPage() {
 
   const visibleNightlyData = useMemo(
     () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
-    [nightlyData],
+    [nightlyData]
   );
   const nightlyRepoCount = visibleNightlyData.length;
 
@@ -1092,10 +1092,7 @@ export default function CrcrSummaryPage() {
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
-                <NightlyTable
-                  nightlyData={visibleNightlyData}
-                  days={days}
-                />
+                <NightlyTable nightlyData={visibleNightlyData} days={days} />
               </>
             ) : (
               <Paper
