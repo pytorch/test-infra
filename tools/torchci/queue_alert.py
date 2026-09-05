@@ -55,9 +55,17 @@ class AWSAlertRule(NamedTuple):
 AWS_ALERT_RULES = [
     AWSAlertRule(
         machine_regexes=[
-            ".*rocm.*",
+            ".*rocm.*[^8]",
         ],
         rule=lambda count, seconds: count > 20 and seconds > 1 * 60 * 60,
+        team="rocm-queue",
+    ),
+    # Since we have much fewer 8-GPU runner jobs, use a lower count
+    AWSAlertRule(
+        machine_regexes=[
+            ".*rocm.*8",
+        ],
+        rule=lambda count, seconds: count > 5 and seconds > 1 * 60 * 60,
         team="rocm-queue",
     ),
 ]
