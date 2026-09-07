@@ -2,7 +2,8 @@
 --
 -- A job's fleet is decided by the runner that actually executed it:
 --   legacy EC2     -> runner_name is an EC2 instance id (i-0abc...)
---   OSDC ARC       -> runner_group_name is an OSDC cluster (see osdc/clusters.yaml)
+--   OSDC ARC       -> runner_group_name is an OSDC cluster
+--                     (https://github.com/pytorch/ci-infra/blob/main/osdc/clusters.yaml)
 --   other          -> GitHub-hosted or partner hardware (ROCm / XPU / TPU), out of scope
 -- runner_name, not the label or the runner group: GitHub's larger runners share the
 -- `default` group with legacy EC2, and some carry linux.* labels (linux.24_04.4x), so
@@ -36,14 +37,22 @@ SELECT
     legacyMainline,
     osdcMainline,
     legacyLabels,
-    -- one bucket per day, index 0 = most recent day in the window
+    -- one bucket per calendar date touched, index 0 = most recent
     arrayMap(
         d -> toUInt32(countEqual(legacyDayOffsets, toUInt16(d))),
-        range(toUInt32(dateDiff('day', {startTime: DateTime64(3) }, {stopTime: DateTime64(3) })))
+        range(
+            toUInt32(
+                dateDiff('day', {startTime: DateTime64(3) }, {stopTime: DateTime64(3) })
+            ) + 1
+        )
     ) AS legacyByDay,
     arrayMap(
         d -> toUInt32(countEqual(legacyMainlineDayOffsets, toUInt16(d))),
-        range(toUInt32(dateDiff('day', {startTime: DateTime64(3) }, {stopTime: DateTime64(3) })))
+        range(
+            toUInt32(
+                dateDiff('day', {startTime: DateTime64(3) }, {stopTime: DateTime64(3) })
+            ) + 1
+        )
     ) AS legacyMainlineByDay,
     lastLegacyRun,
     lastLegacyMainlineRun,
@@ -77,11 +86,17 @@ FROM
             run.path AS workflowFile,
             -- scan every label, not just labels[1]: a job can be tagged
             -- ['self-hosted', 'linux.4xlarge'] and the Linux label is not first
-            arrayFirst(l -> startsWith(l, 'linux'), job.labels) AS label,
+            arrayFirst(
+                l -> match(l, '^(lf\\.)?(c\\.)?linux(\\.|$)'),
+                job.labels
+            ) AS label,
             job.created_at AS createdAt,
             toUInt16(dateDiff('day', toDate(job.created_at), toDate({stopTime: DateTime64(3) }))) AS dayOffset,
             match(job.runner_name, '^i-[0-9a-f]{8,}$')
-                AND arrayExists(l -> startsWith(l, 'linux'), job.labels) AS isLegacy,
+                AND arrayExists(
+                    l -> match(l, '^(lf\\.)?(c\\.)?linux(\\.|$)'),
+                    job.labels
+                ) AS isLegacy,
             match(job.runner_group_name, '^(meta|lf)-(prod|staging)-aws-') AS isOsdc,
             NOT (
                 run.event = 'pull_request'
@@ -92,8 +107,9 @@ FROM
         WHERE
             job.created_at >= {startTime: DateTime64(3) }
             AND job.created_at < {stopTime: DateTime64(3) }
-            -- widen the run side by a day so runs created just before the window still join
-            AND run.created_at >= {startTime: DateTime64(3) } - INTERVAL 1 DAY
+            -- A rerun keeps the original created_at but advances updated_at.
+            -- job.created_at remains the authoritative reporting window.
+            AND run.updated_at >= {startTime: DateTime64(3) } - INTERVAL 1 DAY
             AND run.created_at < {stopTime: DateTime64(3) }
             AND job.repository_full_name = {repo: String }
             AND run.repository.'full_name' = {repo: String }

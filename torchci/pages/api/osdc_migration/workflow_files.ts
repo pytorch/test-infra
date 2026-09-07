@@ -55,8 +55,8 @@ export default async function handler(
     // Drop `_`-prefixed files. By convention across these repos those are
     // workflow_call-only helpers (_linux-build.yml, _fbgemm_gpu_cuda_test.yml,
     // _unittest.yml). They never emit a workflow_run of their own -- their jobs
-    // are attributed to the caller's path -- so counting them in the denominator
-    // would park permanently-unmigratable rows in every repo's percentage.
+    // are attributed to the caller's path -- so listing them would park
+    // permanently-unmigratable rows in every repo's table.
     //
     // The API also returns `allFiles`, which the page uses to recognize current
     // observed paths. A `_` workflow that does run standalone (pytorch's
@@ -70,8 +70,7 @@ export default async function handler(
 
     const reusableExcluded = all.length - files.length;
 
-    // Cache aggressively: the workflow file list changes on the order of days,
-    // and this is only a denominator.
+    // Cache aggressively: the workflow file list changes on the order of days.
     res.setHeader(
       "Cache-Control",
       "s-maxage=3600, stale-while-revalidate=86400"

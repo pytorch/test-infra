@@ -231,7 +231,7 @@ export default function Page() {
   // Current default-branch file inventory, which ClickHouse cannot supply. If
   // this fails (app not installed on the repo, GitHub down), the page still works
   // off observed files alone, but its current-file coverage is unknown.
-  const { data: tree, error: treeError } = useSWR<{
+  const { data: workflowInventory, error: workflowInventoryError } = useSWR<{
     files: string[];
     allFiles: string[];
     truncated: boolean;
@@ -239,14 +239,15 @@ export default function Page() {
     `/api/osdc_migration/workflow_files?repo=${encodeURIComponent(repo)}`,
     fetcher
   );
-  const treeLoading = tree === undefined && treeError === undefined;
-  const treeUnavailable =
-    treeError !== undefined ||
-    tree?.files === undefined ||
-    tree?.allFiles === undefined ||
-    tree?.truncated === true;
+  const workflowInventoryLoading =
+    workflowInventory === undefined && workflowInventoryError === undefined;
+  const workflowInventoryUnavailable =
+    workflowInventoryError !== undefined ||
+    workflowInventory?.files === undefined ||
+    workflowInventory?.allFiles === undefined ||
+    workflowInventory?.truncated === true;
 
-  const loading = observed === undefined || treeLoading;
+  const loading = observed === undefined || workflowInventoryLoading;
 
   // Use the default-branch file list to keep deleted, branch-only, and
   // GitHub-generated workflow paths out of the current-state summary. If it is
@@ -254,11 +255,11 @@ export default function Page() {
   const observedByFile = new Map(
     (observed ?? []).map((r) => [r.workflowFile, r])
   );
-  const currentFileSet = new Set(tree?.allFiles ?? []);
-  const currentObserved = treeUnavailable
+  const currentFileSet = new Set(workflowInventory?.allFiles ?? []);
+  const currentObserved = workflowInventoryUnavailable
     ? observed ?? []
     : (observed ?? []).filter((r) => currentFileSet.has(r.workflowFile));
-  const notRun: FileRow[] = (tree?.files ?? [])
+  const notRun: FileRow[] = (workflowInventory?.files ?? [])
     .filter((f) => !observedByFile.has(f))
     .map((f) => ({
       workflowFile: f,
@@ -280,17 +281,19 @@ export default function Page() {
   // Fold the active view's counters into the fields the table renders, so the
   // column definitions stay view-agnostic.
   const rows: FileRow[] = [...currentObserved, ...notRun].map((r) => {
-    if (!excludePrScoped || r.status === "not_run") {
+    if (r.status === "not_run") {
       return r;
     }
-    const legacy = r.legacyMainline;
-    const osdc = r.osdcMainline;
+    const legacy = excludePrScoped ? r.legacyMainline : r.legacyJobs;
+    const osdc = excludePrScoped ? r.osdcMainline : r.osdcJobs;
     return {
       ...r,
       legacyJobs: legacy,
       osdcJobs: osdc,
-      legacyByDay: r.legacyMainlineByDay,
-      lastLegacyRun: r.lastLegacyMainlineRun,
+      legacyByDay: excludePrScoped ? r.legacyMainlineByDay : r.legacyByDay,
+      lastLegacyRun: excludePrScoped
+        ? r.lastLegacyMainlineRun
+        : r.lastLegacyRun,
       legacyShare: legacy + osdc === 0 ? 0 : legacy / (legacy + osdc),
       status: deriveStatus(legacy, osdc),
     };
@@ -370,7 +373,9 @@ export default function Page() {
       width: 95,
       type: "number",
       valueFormatter: (value: number, row: FileRow) =>
-        row.status === "migrated" || row.status === "not_run"
+        row.status === "migrated" ||
+        row.status === "out_of_scope" ||
+        row.status === "not_run"
           ? "—"
           : // don't round a real straggler down to a clean 0%
             (value * 100).toFixed(value > 0 && value < 0.001 ? 3 : 1) + "%",
@@ -396,7 +401,8 @@ export default function Page() {
     {
       field: "legacyByDay",
       headerName: "Daily hits",
-      width: 110,
+      // fits the 14-day window's 15 bars without clipping the most recent day
+      width: 135,
       sortable: false,
       renderCell: (params: GridRenderCellParams) => (
         <Stack justifyContent="center" sx={{ height: "100%" }}>
@@ -585,7 +591,7 @@ export default function Page() {
         </Box>
       </Paper>
 
-      {treeUnavailable && (
+      {!workflowInventoryLoading && workflowInventoryUnavailable && (
         <Typography
           variant="caption"
           sx={{ display: "block", mb: 1, color: "#c77700", fontWeight: 600 }}
