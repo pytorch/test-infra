@@ -241,20 +241,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_special_i1_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "194155",
-    "https://github.com/pytorch/pytorch/issues/194155",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_special_i1e_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "194147",
-    "https://github.com/pytorch/pytorch/issues/194147",
-    [
-      "xpu"
-    ]
-  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
