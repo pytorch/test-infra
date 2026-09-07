@@ -113,14 +113,6 @@
       "inductor"
     ]
   ],
-  "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "194554",
-    "https://github.com/pytorch/pytorch/issues/194554",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestDualWrapper)": [
     "195556",
     "https://github.com/pytorch/pytorch/issues/195556",
@@ -569,13 +561,6 @@
   "test_graph_capture_error_releases_reserved_segments (__main__.TestCuda)": [
     "190647",
     "https://github.com/pytorch/pytorch/issues/190647",
-    [
-      "linux"
-    ]
-  ],
-  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestCuda)": [
-    "190883",
-    "https://github.com/pytorch/pytorch/issues/190883",
     [
       "linux"
     ]
