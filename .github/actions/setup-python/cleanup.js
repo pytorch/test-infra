@@ -13,10 +13,11 @@ if (venvPath) {
     }
   };
   // Try sudo if permitted (`-n` never prompts): guaranteed to clean this
-  // user-only folder even with read-only/root-owned leftovers. Fall back to a
-  // plain `rm -rf`. Best-effort: never fail the job.
+  // user-only folder even with read-only/root-owned leftovers. Otherwise fall
+  // back to a plain `rm -rf` and let it throw, so a genuinely poisoned runner
+  // still surfaces an error.
   if (!tryRun(`sudo -n rm -rf "${venvPath}"`)) {
-    tryRun(`rm -rf "${venvPath}"`);
+    execSync(`rm -rf "${venvPath}"`, {stdio: 'inherit'});
   }
 } else {
   console.log('No virtual environment to remove.');
