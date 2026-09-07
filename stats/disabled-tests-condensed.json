@@ -113,6 +113,14 @@
       "inductor"
     ]
   ],
+  "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "194554",
+    "https://github.com/pytorch/pytorch/issues/194554",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_bmm_shared_a_numerics_cuda (__main__.AOTInductorTestDualWrapper)": [
     "195556",
     "https://github.com/pytorch/pytorch/issues/195556",
