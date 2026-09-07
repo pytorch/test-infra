@@ -316,16 +316,6 @@
       "linux"
     ]
   ],
-  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
-    "127536",
-    "https://github.com/pytorch/pytorch/issues/127536",
-    [
-      "dynamo",
-      "inductor",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "188144",
     "https://github.com/pytorch/pytorch/issues/188144",
@@ -1321,15 +1311,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
-    "182095",
-    "https://github.com/pytorch/pytorch/issues/182095",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
