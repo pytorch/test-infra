@@ -12,16 +12,15 @@ if (venvPath) {
       return false;
     }
   };
-  // Best-effort cleanup on pet runners: a plain `rm -rf` can fail with EACCES
-  // when an installed package (e.g. torch) leaves read-only directories, or
-  // when a prior job seeded root-owned files under the venv. Clear the
-  // read-only bits and retry, then fall back to a privileged remove. Never
-  // fail the job on cleanup; the next job re-cleans leftover site-packages.
-  if (!tryRun(`rm -rf "${venvPath}"`)) {
-    tryRun(`chmod -R u+w "${venvPath}"`);
-    if (!tryRun(`rm -rf "${venvPath}"`)) {
-      tryRun(`sudo rm -rf "${venvPath}"`);
-    }
+  // Best-effort cleanup on pet runners: a plain `rm -rf` fails with EACCES when
+  // the venv contains read-only or root-owned leftovers (regularly seen on the
+  // torch/distributed subtree). Try a privileged remove first since it clears
+  // both cases; `-n` keeps sudo non-interactive so it never blocks on a
+  // password prompt, and we fall back to a plain `rm -rf` if passwordless sudo
+  // is unavailable. Never fail the job on cleanup; the next job re-cleans
+  // leftover site-packages.
+  if (!tryRun(`sudo -n rm -rf "${venvPath}"`)) {
+    tryRun(`rm -rf "${venvPath}"`);
   }
 } else {
   console.log('No virtual environment to remove.');
