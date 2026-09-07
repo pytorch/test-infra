@@ -12,8 +12,8 @@
  * Two deliberate scoping choices, both surfaced in the UI rather than hidden:
  *  - Only Linux counts. Windows and macOS have no ARC runners yet, so including
  *    them would cap every repo below 100% forever.
- *  - ClickHouse only sees files that ran. The real file list comes from the repo
- *    tree, so files with no recent CI show up as "not run" instead of vanishing.
+ *  - ClickHouse only sees files that ran. The real file list comes from the repo's
+ *    workflow directory, so files with no recent CI show up as "not run".
  */
 import {
   Box,
@@ -37,24 +37,13 @@ import { ScalarPanelWithValue } from "components/metrics/panels/ScalarPanel";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
+import {
+  META_PYTORCH_MIGRATION_REPOS,
+  OSDC_REFERENCE_REPOS,
+  PYTORCH_MIGRATION_REPOS,
+} from "lib/osdcMigrationRepos";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-
-const REPOS = [
-  "pytorch/executorch",
-  "pytorch/helion",
-  "pytorch/FBGEMM",
-  "pytorch/vision",
-  "pytorch/torchtitan",
-  "pytorch/ao",
-];
-
-// pytorch/pytorch is the reference: furthest along, so it shows roughly what
-// "done" looks like -- though docker-release.yml still puts legacy jobs on
-// nightly/release tags. It is not comparable to the repos above either: it reaches
-// OSDC through runtime label translation (.github/arc.yaml + map_ec2_to_arc.py)
-// rather than by editing runs-on, so its source YAML still reads as EC2.
-const REFERENCE_REPOS = ["pytorch/pytorch"];
 
 const ROW_HEIGHT = 240;
 
@@ -212,7 +201,7 @@ function DailyHits({ counts }: { counts: number[] }) {
 }
 
 export default function Page() {
-  const [repo, setRepo] = useState<string>(REPOS[0]);
+  const [repo, setRepo] = useState<string>(PYTORCH_MIGRATION_REPOS[0]);
   const [days, setDays] = useState<number>(7);
   const [excludePrScoped, setExcludePrScoped] = useState(false);
 
@@ -259,9 +248,9 @@ export default function Page() {
 
   const loading = observed === undefined || treeLoading;
 
-  // Use the default-branch tree to keep deleted, branch-only, and GitHub-generated
-  // workflow paths out of the current-state summary. If the tree is unavailable,
-  // fall back to observed paths so the page remains useful (with a warning below).
+  // Use the default-branch file list to keep deleted, branch-only, and
+  // GitHub-generated workflow paths out of the current-state summary. If it is
+  // unavailable, fall back to observed paths (with a warning below).
   const observedByFile = new Map(
     (observed ?? []).map((r) => [r.workflowFile, r])
   );
@@ -444,7 +433,7 @@ export default function Page() {
         <FormControl>
           <InputLabel id="osdc-repo-label">Repo</InputLabel>
           <Select
-            defaultValue={REPOS[0]}
+            defaultValue={PYTORCH_MIGRATION_REPOS[0]}
             label="Repo"
             labelId="osdc-repo-label"
             onChange={(e: SelectChangeEvent<string>) =>
@@ -454,13 +443,20 @@ export default function Page() {
             value={repo}
             size="small"
           >
-            {REPOS.map((r) => (
+            <ListSubheader>pytorch</ListSubheader>
+            {PYTORCH_MIGRATION_REPOS.map((r) => (
+              <MenuItem key={r} value={r}>
+                {r}
+              </MenuItem>
+            ))}
+            <ListSubheader>meta-pytorch</ListSubheader>
+            {META_PYTORCH_MIGRATION_REPOS.map((r) => (
               <MenuItem key={r} value={r}>
                 {r}
               </MenuItem>
             ))}
             <ListSubheader>Reference (already migrated)</ListSubheader>
-            {REFERENCE_REPOS.map((r) => (
+            {OSDC_REFERENCE_REPOS.map((r) => (
               <MenuItem key={r} value={r}>
                 {r}
               </MenuItem>
@@ -599,7 +595,7 @@ export default function Page() {
           no recent CI may be missing from the table and summary.
         </Typography>
       )}
-      {REFERENCE_REPOS.includes(repo) && (
+      {OSDC_REFERENCE_REPOS.includes(repo) && (
         <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
           <b>Reference repo.</b> pytorch/pytorch is furthest along, so it shows
           roughly what &ldquo;done&rdquo; looks like — but it is not finished:{" "}

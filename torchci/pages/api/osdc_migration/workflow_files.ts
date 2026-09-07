@@ -3,39 +3,53 @@
 // The ClickHouse side of the OSDC migration page can only see files that ran CI
 // in the query window, so it undercounts: a workflow that has not fired recently
 // is absent entirely. This gives the page a current-file inventory, cheaply --
-// one tree read per repo, no YAML parsing.
+// one directory read per repo, no YAML parsing.
 import { getOctokit } from "lib/github";
+import { OSDC_TRACKED_REPOS } from "lib/osdcMigrationRepos";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+const ALLOWED_REPOS = new Set(OSDC_TRACKED_REPOS);
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const repo = req.query.repo as string;
-  const [owner, name] = (repo ?? "").split("/");
-  if (!owner || !name) {
-    return res.status(400).json({ error: "repo must be <owner>/<name>" });
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "Method not allowed" });
   }
+
+  if (Object.keys(req.query).some((key) => key !== "repo")) {
+    return res.status(400).json({ error: "Unexpected query parameter" });
+  }
+
+  const { repo } = req.query;
+  if (typeof repo !== "string") {
+    return res.status(400).json({ error: "repo must be a single string" });
+  }
+  if (!ALLOWED_REPOS.has(repo)) {
+    return res.status(403).json({ error: "Repository not allowed" });
+  }
+  const [owner, name] = repo.split("/");
 
   try {
     const octokit = await getOctokit(owner, name);
-    const repoInfo = await octokit.rest.repos.get({ owner, repo: name });
-    const tree = await octokit.rest.git.getTree({
+    const contents = await octokit.rest.repos.getContent({
       owner,
       repo: name,
-      tree_sha: repoInfo.data.default_branch,
-      recursive: "1",
+      path: ".github/workflows",
     });
+    if (!Array.isArray(contents.data)) {
+      throw new Error("Workflow path is not a directory");
+    }
 
-    const all = tree.data.tree
+    const all = contents.data
       .filter(
-        (t) =>
-          t.type === "blob" &&
-          t.path !== undefined &&
-          t.path.startsWith(".github/workflows/") &&
-          (t.path.endsWith(".yml") || t.path.endsWith(".yaml"))
+        (entry) =>
+          entry.type === "file" &&
+          (entry.path.endsWith(".yml") || entry.path.endsWith(".yaml"))
       )
-      .map((t) => t.path as string)
+      .map((entry) => entry.path)
       .sort();
 
     // Drop `_`-prefixed files. By convention across these repos those are
@@ -64,13 +78,14 @@ export default async function handler(
     );
     res.status(200).json({
       repo,
-      defaultBranch: repoInfo.data.default_branch,
-      truncated: tree.data.truncated,
+      // getContent lists at most 1000 directory entries
+      truncated: contents.data.length >= 1000,
       reusableExcluded,
       allFiles: all,
       files,
     });
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message ?? "failed to list workflows" });
+  } catch (error) {
+    console.error(`Failed to list workflows for ${repo}:`, error);
+    res.status(500).json({ error: "Failed to list workflow files" });
   }
 }
