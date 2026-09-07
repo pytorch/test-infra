@@ -12,13 +12,9 @@ if (venvPath) {
       return false;
     }
   };
-  // Best-effort cleanup on pet runners: a plain `rm -rf` fails with EACCES when
-  // the venv contains read-only or root-owned leftovers (regularly seen on the
-  // torch/distributed subtree). Try a privileged remove first since it clears
-  // both cases; `-n` keeps sudo non-interactive so it never blocks on a
-  // password prompt, and we fall back to a plain `rm -rf` if passwordless sudo
-  // is unavailable. Never fail the job on cleanup; the next job re-cleans
-  // leftover site-packages.
+  // Try sudo if permitted (`-n` never prompts): guaranteed to clean this
+  // user-only folder even with read-only/root-owned leftovers. Fall back to a
+  // plain `rm -rf`. Best-effort: never fail the job.
   if (!tryRun(`sudo -n rm -rf "${venvPath}"`)) {
     tryRun(`rm -rf "${venvPath}"`);
   }
