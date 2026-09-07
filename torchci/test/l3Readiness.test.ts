@@ -1,6 +1,8 @@
 import {
   buildCriteriaRows,
+  buildDemotionRows,
   L3SummaryRow,
+  mergeCriteriaRows,
   RepoTenure,
   summarizeReadiness,
   TenureInfo,
@@ -140,5 +142,79 @@ describe("buildCriteriaRows / summarizeReadiness", () => {
     const result = summarizeReadiness(rows);
     expect(result.judgedCount).toBe(0);
     expect(result.ready).toBe(false);
+  });
+});
+
+describe("buildDemotionRows", () => {
+  it("returns exactly the demotionRelevant subset, in threshold order", () => {
+    // e2e time, timeout rate, pass rate — no tenure, no max exec/avg queue.
+    const rows = buildDemotionRows(summaryRow({}));
+    expect(rows.map((r) => r.key)).toEqual([
+      "e2eTimeS",
+      "timeoutRate",
+      "passRate",
+    ]);
+  });
+
+  it("tracks whichever thresholds are flagged demotionRelevant, not a hardcoded list", () => {
+    // Derives the expected set from L3_THRESHOLDS itself, so this keeps
+    // passing if a future criterion's demotionRelevant flag changes —
+    // it only fails if buildDemotionRows stops honoring the flag.
+    const expectedKeys = Object.values(L3_THRESHOLDS)
+      .filter((t) => t.demotionRelevant)
+      .map((t) => t.key);
+    const rows = buildDemotionRows(summaryRow({}));
+    expect(rows.map((r) => r.key).sort()).toEqual(expectedKeys.sort());
+  });
+
+  it("judges each row against the same thresholds as promotion", () => {
+    const rows = buildDemotionRows(
+      summaryRow({
+        pass_rate: 0.5,
+        timeout_rate: 0.02,
+        median_e2e_time_s: 4 * 3600,
+      })
+    );
+    expect(rows.every((r) => r.verdict === false)).toBe(true);
+  });
+
+  it("leaves every row unjudged when there is no summary data", () => {
+    const rows = buildDemotionRows(null);
+    expect(rows.every((r) => r.verdict === null)).toBe(true);
+  });
+});
+
+describe("mergeCriteriaRows", () => {
+  it("is null for demotion on rows outside the demotionRelevant set, and populated on the rest", () => {
+    const promotionRows = buildCriteriaRows(summaryRow({}), goodTenure);
+    const demotionRows = buildDemotionRows(summaryRow({}));
+    const merged = mergeCriteriaRows(promotionRows, demotionRows);
+
+    expect(merged).toHaveLength(promotionRows.length);
+    for (const row of merged) {
+      const shouldHaveDemotion = demotionRows.some((d) => d.key === row.key);
+      if (shouldHaveDemotion) {
+        expect(row.demotion?.key).toBe(row.key);
+      } else {
+        expect(row.demotion).toBeNull();
+      }
+    }
+    // Tenure and the two demotion-irrelevant metrics never get a demotion verdict.
+    expect(merged.find((r) => r.key === "tenureAtL2Days")?.demotion).toBeNull();
+    expect(merged.find((r) => r.key === "maxExecTimeS")?.demotion).toBeNull();
+    expect(merged.find((r) => r.key === "avgQueueTimeS")?.demotion).toBeNull();
+  });
+
+  it("pairs each demotion-relevant row with its own measurement, not just any row sharing a verdict", () => {
+    const promotionRows = buildCriteriaRows(
+      summaryRow({ pass_rate: 1.0 }),
+      goodTenure
+    );
+    const demotionRows = buildDemotionRows(summaryRow({ pass_rate: 0.5 }));
+    const merged = mergeCriteriaRows(promotionRows, demotionRows);
+
+    const passRateRow = merged.find((r) => r.key === "passRate");
+    expect(passRateRow?.promotion.verdict).toBe(true);
+    expect(passRateRow?.demotion?.verdict).toBe(false);
   });
 });
