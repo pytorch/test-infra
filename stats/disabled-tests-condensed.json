@@ -156,15 +156,6 @@
       "mac"
     ]
   ],
-  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186872",
-    "https://github.com/pytorch/pytorch/issues/186872",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -206,13 +197,6 @@
   "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
     "194332",
     "https://github.com/pytorch/pytorch/issues/194332",
-    [
-      "linux"
-    ]
-  ],
-  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
-    "181318",
-    "https://github.com/pytorch/pytorch/issues/181318",
     [
       "linux"
     ]
@@ -319,20 +303,6 @@
   "test_cudnn_rnn_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
     "195656",
     "https://github.com/pytorch/pytorch/issues/195656",
-    [
-      "linux"
-    ]
-  ],
-  "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
-    "188144",
-    "https://github.com/pytorch/pytorch/issues/188144",
-    [
-      "linux"
-    ]
-  ],
-  "test_custom_op_dce_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
-    "190010",
-    "https://github.com/pytorch/pytorch/issues/190010",
     [
       "linux"
     ]
