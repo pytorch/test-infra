@@ -200,7 +200,28 @@ export default function GreenLightSection({
       defaultExpanded={approved}
       sx={{ mt: 2, mb: 2 }}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        aria-label={
+          approved
+            ? "Collapse the Green Light verdict"
+            : "Expand the Green Light verdict"
+        }
+        sx={{
+          // Reads as a bar you can press rather than a line of text that
+          // happens to sit above one. Palette tokens, so it tracks both modes
+          // (torchci/CLAUDE.md).
+          bgcolor: "action.hover",
+          "&:hover": { bgcolor: "action.selected" },
+          // MUI gives the content flex-grow: 1, which pins the chevron to the
+          // far right edge of a full-width page -- yards from the text, and so
+          // reading as unrelated to it. Collapsing the content puts the chevron
+          // immediately after the reason, where it is visibly the control for
+          // the thing next to it.
+          "& .MuiAccordionSummary-content": { flexGrow: 0, marginRight: 1 },
+          justifyContent: "flex-start",
+        }}
+      >
         <Stack direction="row" spacing={1} alignItems="center">
           <GreenLightIcon status={state.status} size={14} />
           <Typography fontWeight="bold">GREEN LIGHT</Typography>
