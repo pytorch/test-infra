@@ -91,3 +91,78 @@ export function buildStatusByPr(
     Array.from(authoritative, ([prNumber, row]) => [prNumber, row.status])
   );
 }
+
+/**
+ * A commit sha in the one form every lookup here uses. Git shas are lowercase
+ * hex, but the sha reaching these helpers comes from a URL or a `<select>` value
+ * as often as from the database, so normalise rather than assume.
+ */
+export function normalizeSha(sha: string | undefined | null): string {
+  return (sha ?? "").trim().toLowerCase();
+}
+
+/**
+ * Collapse `greenlight_pr_state_history` rows to `head_sha -> row`, keeping the
+ * authoritative row per commit. The query already collapses per head_sha; this
+ * re-applies the same selection for the reason `buildStatusByPr` does.
+ */
+export function buildStateBySha(
+  rows: GreenlightPrStateRow[] | undefined
+): Map<string, GreenlightPrStateRow> {
+  const bySha = new Map<string, GreenlightPrStateRow>();
+  for (const row of rows ?? []) {
+    const sha = normalizeSha(row.head_sha);
+    if (sha === "") {
+      continue;
+    }
+    const incumbent = bySha.get(sha);
+    if (incumbent === undefined || supersedes(row, incumbent)) {
+      bySha.set(sha, row);
+    }
+  }
+  return bySha;
+}
+
+/**
+ * The PR's authoritative row across every commit it has been reviewed on -- the
+ * one the merge gate acted on and Dr.CI renders. Undefined when the PR has no
+ * recorded state at all.
+ */
+export function authoritativeState(
+  rows: GreenlightPrStateRow[] | undefined
+): GreenlightPrStateRow | undefined {
+  let best: GreenlightPrStateRow | undefined;
+  for (const row of rows ?? []) {
+    if (best === undefined || supersedes(row, best)) {
+      best = row;
+    }
+  }
+  return best;
+}
+
+/**
+ * Pick the state to show while viewing `sha`: that commit's own verdict when
+ * GreenLight reviewed it, otherwise the PR's authoritative verdict. Undefined
+ * when the PR has no recorded state at all.
+ *
+ * The fallback is not a fudge, and it is not rare -- it is the normal path on a
+ * commit page. pytorch's mergebot rebases on merge, so a landed trunk commit's
+ * sha is never the PR head sha GreenLight reviewed, even though the trunk commit
+ * *is* that reviewed change. Verified on pytorch/pytorch#196176: GreenLight
+ * approved 2d43869, which is that PR's final head, and 55448714 on main is the
+ * same change rebased. Treating that as "some other commit's verdict" was
+ * exactly backwards.
+ *
+ * So the verdict is reported as what it is -- a statement about the PR -- and
+ * the caller does not qualify it by which commit is on screen. The per-commit
+ * detail lives in the PR page's picker, where `buildStateBySha` marks precisely
+ * the pushes GreenLight reviewed.
+ */
+export function selectStateForSha(
+  rows: GreenlightPrStateRow[] | undefined,
+  sha: string | undefined | null
+): GreenlightPrStateRow | undefined {
+  return (
+    buildStateBySha(rows).get(normalizeSha(sha)) ?? authoritativeState(rows)
+  );
+}
