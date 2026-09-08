@@ -205,6 +205,16 @@ export default function GreenLightSection({
           <GreenLightIcon status={state.status} size={14} />
           <Typography fontWeight="bold">GREEN LIGHT</Typography>
           <Typography color="text.secondary">{described.headline}</Typography>
+          {/* On the summary, not in the details below, because everything a
+          non-approved panel has to say is behind a collapse it does not open by
+          default -- and the reason is the whole of what a NO_LAND adds over its
+          headline. Suppressed for an approval (see describeStatus), so this
+          never puts a redundant "clean" on the one panel that opens itself. */}
+          {reason && (
+            <Typography variant="body2" color="text.secondary">
+              <code>{reason}</code>
+            </Typography>
+          )}
         </Stack>
       </AccordionSummary>
       <AccordionDetails>
@@ -232,11 +242,6 @@ export default function GreenLightSection({
             >
               {message}
             </Box>
-          )}
-          {reason && (
-            <Typography variant="body2" color="text.secondary">
-              reason: <code>{reason}</code>
-            </Typography>
           )}
           {SAFE_JOB_URL_RE.test(jobUrl) && (
             <Link
