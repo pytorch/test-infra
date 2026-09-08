@@ -8,6 +8,7 @@ import LoadingPage from "components/common/LoadingPage";
 import PageSelector from "components/common/PageSelector";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import GreenLightIcon from "components/greenlight/GreenLightIcon";
 import styles from "components/hud.module.css";
 import {
   GroupHudTableColumns,
@@ -28,6 +29,16 @@ import {
 } from "lib/advisorVerdictUtils";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
 import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
+import {
+  greenlightRepoKey,
+  isGreenlightRepo,
+} from "lib/greenlight/greenlightConfig";
+import {
+  buildStatusByPr,
+  GreenlightPrStateRow,
+  isGreenlightApproved,
+} from "lib/greenlight/greenlightHudState";
+import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
 import {
   getGroupingData,
   groups,
@@ -195,6 +206,7 @@ function HudRow({
   const sha = rowData.sha;
 
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const greenlightStatuses = useContext(GreenlightStatusesContext);
 
   let rowStyle = "";
   if (pinnedId.sha == sha) {
@@ -230,30 +242,38 @@ function HudRow({
       </td>
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
-          <a
-            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
-            title={
-              rowData.isForcedMerge
-                ? rowData.isForcedMergeWithFailures
-                  ? "Forced merge with failures that were merge-blocking"
-                  : "Forced merge. Had no merge-blocking failures"
-                : undefined
-            }
-          >
-            {rowData.isForcedMerge ? (
-              <mark
-                className={
-                  rowData.isForcedMergeWithFailures
-                    ? styles.forcedMergeWithFailure
-                    : styles.forcedMerge
-                }
-              >
-                #{rowData.prNum}
-              </mark>
-            ) : (
-              <div>#{rowData.prNum}</div>
+          <div className={styles.prCell}>
+            {/* Ahead of the number: the numbers are all the same width and shape,
+            so a trailing mark is easy to miss when scanning the column, while a
+            leading one lands in the reader's path down it. */}
+            {isGreenlightApproved(greenlightStatuses.get(rowData.prNum)) && (
+              <GreenLightIcon status={GREENLIGHT_STATUS_LAND} size={14} />
             )}
-          </a>
+            <a
+              href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+              title={
+                rowData.isForcedMerge
+                  ? rowData.isForcedMergeWithFailures
+                    ? "Forced merge with failures that were merge-blocking"
+                    : "Forced merge. Had no merge-blocking failures"
+                  : undefined
+              }
+            >
+              {rowData.isForcedMerge ? (
+                <mark
+                  className={
+                    rowData.isForcedMergeWithFailures
+                      ? styles.forcedMergeWithFailure
+                      : styles.forcedMerge
+                  }
+                >
+                  #{rowData.prNum}
+                </mark>
+              ) : (
+                <div>#{rowData.prNum}</div>
+              )}
+            </a>
+          </div>
         )}
       </td>
       <td className={styles.jobMetadata}>
@@ -526,6 +546,13 @@ export const MonsterFailuresContext = createContext<
 export const AdvisorVerdictsContext = createContext<
   Map<string, AdvisorVerdict[]>
 >(new Map());
+
+// GreenLight verdicts for the PRs on screen: prNum -> misc.greenlight_pr_state
+// status. A context rather than a prop because the only consumer is the PR cell
+// four levels down, and the rows in between have nothing to say about it.
+export const GreenlightStatusesContext = createContext<Map<number, string>>(
+  new Map()
+);
 
 export const GroupingContext = createContext<{
   groupNameMapping: Map<string, Array<string>>;
@@ -866,6 +893,27 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     isPyTorch && prNums.length > 0
   );
 
+  // Lazy-load GreenLight verdicts for the same PRs. Gated on GREENLIGHT_REPOS
+  // rather than on isPyTorch: that allowlist is what the Dr.CI render already
+  // keys off, so both surfaces light up and go dark for the same repos.
+  const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
+  const { data: greenlightRows } =
+    useClickHouseAPIImmutable<GreenlightPrStateRow>(
+      "greenlight_pr_states",
+      {
+        repo: greenlightRepoKey(params.repoOwner, params.repoName),
+        prNumbers: prNums,
+      },
+      isGreenlight && prNums.length > 0
+    );
+  // Immutable, like the advisor and CRCR fetches beside it: every PR on a trunk
+  // HUD page has already landed, so its verdict is final and re-polling it
+  // would only add load.
+  const greenlightStatusByPr = useMemo(
+    () => buildStatusByPr(greenlightRows),
+    [greenlightRows]
+  );
+
   // Merge CRCR results into each row's nameToJobs so they appear as
   // regular grid columns (with grouping, filtering, monsterization).
   const dataWithCrcr = useMemo(() => {
@@ -1045,21 +1093,23 @@ function GroupedHudTable({ params }: { params: HudParams }) {
 
   return (
     <AdvisorVerdictsContext.Provider value={advisorVerdictsBySha}>
-      <GroupingContext.Provider
-        value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
-      >
-        <table className={styles.hudTable} style={{ overflow: "auto" }}>
-          <GroupHudTableColumns names={names} />
-          <GroupHudTableHeader names={names} />
-          <HudTableBody
-            shaGrid={shaGrid}
-            names={names}
-            unstableIssues={unstableIssuesData ?? []}
-            repoOwner={params.repoOwner}
-            repoName={params.repoName}
-          />
-        </table>
-      </GroupingContext.Provider>
+      <GreenlightStatusesContext.Provider value={greenlightStatusByPr}>
+        <GroupingContext.Provider
+          value={{ groupNameMapping, expandedGroups, setExpandedGroups }}
+        >
+          <table className={styles.hudTable} style={{ overflow: "auto" }}>
+            <GroupHudTableColumns names={names} />
+            <GroupHudTableHeader names={names} />
+            <HudTableBody
+              shaGrid={shaGrid}
+              names={names}
+              unstableIssues={unstableIssuesData ?? []}
+              repoOwner={params.repoOwner}
+              repoName={params.repoName}
+            />
+          </table>
+        </GroupingContext.Provider>
+      </GreenlightStatusesContext.Provider>
     </AdvisorVerdictsContext.Provider>
   );
 }
