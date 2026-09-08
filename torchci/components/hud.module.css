@@ -124,6 +124,15 @@
   padding: 3px;
 }
 
+/* Keeps the GreenLight glyph on the same line as the #PR link. The link's own
+   child is a <div>, so without a flex row here the glyph would wrap below it
+   and make every approved row a line taller than its neighbours. */
+.prCell {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .forcedMerge {
   background-color: var(--forced-merge-bg);
 }
