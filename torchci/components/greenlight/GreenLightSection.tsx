@@ -56,6 +56,13 @@ import {
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import { useGreenlightPrHistory } from "lib/greenlight/useGreenlightPrHistory";
 
+// The one ALLOWED_REASONS code that means "nothing to report"
+// (greenlight/src/greenlight/verdict.py). Kept as a literal rather than imported
+// because that enum lives in Python; greenlight/tests/test_reason_enum_sync.py
+// is what holds its four copies together, and this is a display rule keyed off
+// one member, not a fifth copy of the set.
+const LAND_REDUNDANT_REASON = "clean";
+
 // Same host anchoring as greenlightRender's SAFE_JOB_URL_RE: a userinfo prefix
 // (https://u:p@github.com/) and a lookalike host (https://github.com.evil/) both
 // satisfy a mere "contains github.com", and eval_job is a database column.
@@ -89,7 +96,14 @@ function describeStatus(
       return {
         headline: GREENLIGHT_LAND_HEADLINE,
         body: "",
-        reason: rowReason,
+        // "clean" is the only reason a LAND is allowed to carry (the reviewer
+        // skill's enum gives it to LAND and the other ten to NO_LAND), so
+        // printing it restates the headline and tells the reader nothing.
+        // Suppressed on the exact pair rather than for every LAND, because
+        // verdict.py checks the reason against ALLOWED_REASONS without
+        // enforcing that pairing -- a LAND carrying anything else is anomalous
+        // and is precisely what someone would want to see.
+        reason: rowReason === LAND_REDUNDANT_REASON ? "" : rowReason,
       };
     case GREENLIGHT_STATUS_NO_LAND:
       return {
