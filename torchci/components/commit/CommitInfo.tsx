@@ -1,4 +1,6 @@
 import CommitStatus from "components/commit/CommitStatus";
+import GreenLightCommitBadge from "components/greenlight/GreenLightCommitBadge";
+import GreenLightSection from "components/greenlight/GreenLightSection";
 import { fetcher } from "lib/GeneralUtils";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
@@ -47,7 +49,27 @@ export function CommitInfo({
 
   return (
     <div>
-      {isCommitPage && <h2>{commit.commitTitle}</h2>}
+      {isCommitPage && (
+        <h2>
+          <GreenLightCommitBadge
+            repoOwner={repoOwner}
+            repoName={repoName}
+            prNumber={commit.prNum}
+            sha={sha}
+          />{" "}
+          {commit.commitTitle}
+        </h2>
+      )}
+      {/* Above the job grid, not below it: the verdict is a statement about the
+      whole change, and a reader who has scrolled past every workflow box has
+      already stopped looking for one. Shared with the PR page, which renders
+      CommitInfo for whichever commit its picker has selected. */}
+      <GreenLightSection
+        repoOwner={repoOwner}
+        repoName={repoName}
+        prNumber={commit.prNum}
+        sha={sha}
+      />
       <CommitStatus
         repoOwner={repoOwner}
         repoName={repoName}
