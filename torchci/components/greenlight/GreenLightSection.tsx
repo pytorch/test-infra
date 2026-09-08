@@ -175,6 +175,11 @@ export default function GreenLightSection({
   return (
     <Accordion
       disableGutters
+      // defaultExpanded is read once per mount, so without a key that changes
+      // with the verdict the panel would keep whatever expand state the previous
+      // commit left it in. That is reachable from the PR page, whose picker
+      // switches commits under this component.
+      key={`${normalizeSha(sha)}:${state.status}`}
       // Expanded when GreenLight approved, collapsed otherwise. An approval is
       // the claim a reader most needs to be able to check without a click; every
       // other state is either self-evident from the headline or a non-event.

@@ -3,8 +3,15 @@ import { CommitInfo } from "components/commit/CommitInfo";
 import DrCIButton from "components/common/DrCIButton";
 import ErrorBoundary from "components/common/ErrorBoundary";
 import CrcrPrSection from "components/crcr/CrcrPrSection";
+import GreenLightCommitBadge from "components/greenlight/GreenLightCommitBadge";
+import { greenlightGlyphChar } from "components/greenlight/GreenLightIcon";
 import { useSetTitle } from "components/layout/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
+import {
+  buildStateBySha,
+  normalizeSha,
+} from "lib/greenlight/greenlightHudState";
+import { useGreenlightPrHistory } from "lib/greenlight/useGreenlightPrHistory";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -23,6 +30,14 @@ function CommitHeader({
 }) {
   const router = useRouter();
   const pr = router.query.prNumber as string;
+  // Deduped by SWR against the same read in CommitInfo and in the title badge,
+  // so all three cost one request.
+  const { data: greenlightRows } = useGreenlightPrHistory(
+    repoOwner,
+    repoName,
+    Number(pr)
+  );
+  const greenlightBySha = buildStateBySha(greenlightRows);
   return (
     <div>
       Commit:{" "}
@@ -34,11 +49,22 @@ function CommitHeader({
           );
         }}
       >
-        {prData.shas.map(({ sha, title }) => (
-          <option key={sha} value={sha}>
-            {title + ` (${sha.substring(0, 6)})`}
-          </option>
-        ))}
+        {prData.shas.map(({ sha, title }) => {
+          // A character rather than the svg the rest of these surfaces use: an
+          // <option> holds text, and its colour is not reliably styleable, so
+          // the colour has to be carried by the glyph. Only shas GreenLight
+          // actually reviewed are marked -- there is no fallback to the PR's
+          // verdict here, because the whole point of the list is to tell the
+          // commits apart.
+          const glyph = greenlightGlyphChar(
+            greenlightBySha.get(normalizeSha(sha))?.status
+          );
+          return (
+            <option key={sha} value={sha}>
+              {`${glyph ? `${glyph} ` : ""}${title} (${sha.substring(0, 6)})`}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
@@ -89,6 +115,15 @@ function Page() {
         }}
       >
         <h1>
+          {/* No sha: the title is about the PR, so this asks for the PR's
+          authoritative verdict rather than the selected commit's, and its
+          tooltip names the commit that verdict was reached on. The picker below
+          and the panel under it are the per-commit view. */}
+          <GreenLightCommitBadge
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            prNumber={prNumber ? parseInt(prNumber as string) : null}
+          />{" "}
           {prData.title}{" "}
           <code>
             <a

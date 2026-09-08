@@ -19,7 +19,13 @@ export default function GreenLightCommitBadge({
   repoOwner: string;
   repoName: string;
   prNumber: number | null | undefined;
-  sha: string;
+  /**
+   * The commit to answer about. Omit it to ask about the PR instead, which is
+   * what a PR title wants: no sha matches, so the selection falls through to the
+   * PR's authoritative verdict and the tooltip names the commit it was reached
+   * on.
+   */
+  sha?: string;
   size?: number;
 }) {
   const { data: rows } = useGreenlightPrHistory(repoOwner, repoName, prNumber);
