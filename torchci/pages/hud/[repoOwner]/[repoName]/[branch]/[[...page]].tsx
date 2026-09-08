@@ -243,12 +243,6 @@ function HudRow({
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
           <div className={styles.prCell}>
-            {/* Ahead of the number: the numbers are all the same width and shape,
-            so a trailing mark is easy to miss when scanning the column, while a
-            leading one lands in the reader's path down it. */}
-            {isGreenlightApproved(greenlightStatuses.get(rowData.prNum)) && (
-              <GreenLightIcon status={GREENLIGHT_STATUS_LAND} size={14} />
-            )}
             <a
               href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
               title={
@@ -273,6 +267,12 @@ function HudRow({
                 <div>#{rowData.prNum}</div>
               )}
             </a>
+            {/* LAND only. Every other status is a refusal or the absence of
+            one, and on a trunk HUD -- where the PR has already landed -- a mark
+            on those would read as an endorsement the ledger never made. */}
+            {isGreenlightApproved(greenlightStatuses.get(rowData.prNum)) && (
+              <GreenLightIcon status={GREENLIGHT_STATUS_LAND} size={14} />
+            )}
           </div>
         )}
       </td>
