@@ -207,12 +207,13 @@ def eligible(cause: Dict[str, Any]) -> bool:
     issue", so filing it would duplicate a child issue that already exists.
     """
     return (
-        bool(cause.get("determined"))
+        bool(cause.get("determined"))  # type: ignore[return-value]
         and classification_confidence(cause) != "low"
         and classification_confidence(cause)
         and new_failure_confidence(cause) != "low"
         and str(cause.get("routing", "")).strip().lower() == "pytorch/pytorch"
     )
+
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
