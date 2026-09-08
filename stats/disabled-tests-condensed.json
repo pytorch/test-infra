@@ -1,4 +1,11 @@
 {
+  "test_1mb_allocation_uses_small_block (__main__.TestXpu)": [
+    "196247",
+    "https://github.com/pytorch/pytorch/issues/196247",
+    [
+      "xpu"
+    ]
+  ],
   "test_Embedding_discontiguous_cuda (__main__.TestNN)": [
     "186910",
     "https://github.com/pytorch/pytorch/issues/186910",
