@@ -66,12 +66,23 @@ const STATUS_TONES: Record<string, { tone: Tone; label: string }> = {
   },
 };
 
-/** The tooltip/aria text for a status, or "" if the status is unrecognised. */
-export function greenlightStatusLabel(
-  status: string | undefined | null
-): string {
+// The same signal as the svg, as one character, for the one place that cannot
+// hold an element: a native <option>. Its content is text, and no browser lets
+// you colour that text reliably -- so the colour has to be in the glyph itself.
+const TONE_GLYPHS: Record<Tone, string> = {
+  approved: "\u{1F7E2}", // green circle
+  declined: "\u{1F534}", // red circle
+  running: "\u{1F7E1}", // yellow circle
+  inconclusive: "⚪", // white circle
+};
+
+/**
+ * The single-character form of the glyph, or "" if the status is unrecognised.
+ * Callers concatenate it into plain text, so "" has to mean "add nothing".
+ */
+export function greenlightGlyphChar(status: string | undefined | null): string {
   const entry = STATUS_TONES[(status ?? "").trim()];
-  return entry === undefined ? "" : `Green Light: ${entry.label}`;
+  return entry === undefined ? "" : TONE_GLYPHS[entry.tone];
 }
 
 export default function GreenLightIcon({
