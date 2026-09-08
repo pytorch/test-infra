@@ -4,6 +4,7 @@
 
 import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
+import Link from "next/link";
 import useSWR from "swr";
 
 export function ScalarPanelWithValue({
@@ -15,11 +16,14 @@ export function ScalarPanelWithValue({
   valueRenderer,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  // Optional detail page for the metric.
+  href,
 }: {
   title: string;
   value: any;
   valueRenderer: (_value: any) => string;
   badThreshold: (_value: any) => boolean;
+  href?: string;
 }) {
   if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -27,8 +31,17 @@ export function ScalarPanelWithValue({
 
   let fontColor = badThreshold(value) ? "#ee6666" : "inherit";
 
-  return (
-    <Paper sx={{ p: 2 }} elevation={3}>
+  const panel = (
+    <Paper
+      sx={{
+        p: 2,
+        ...(href && {
+          cursor: "pointer",
+          "&:hover": { boxShadow: 6 },
+        }),
+      }}
+      elevation={3}
+    >
       <Box
         sx={{
           display: "flex",
@@ -51,6 +64,16 @@ export function ScalarPanelWithValue({
       </Box>
     </Paper>
   );
+
+  if (href === undefined) {
+    return panel;
+  }
+
+  return (
+    <Link href={href} style={{ color: "inherit", textDecoration: "none" }}>
+      {panel}
+    </Link>
+  );
 }
 
 export default function ScalarPanel({
@@ -66,6 +89,8 @@ export default function ScalarPanel({
   metricName,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  // Optional detail page for the metric.
+  href,
   // Custom function to retrieve the value from the query
   getValue = (_data: any) => _data?.[0]?.[metricName],
 }: {
@@ -75,6 +100,7 @@ export default function ScalarPanel({
   valueRenderer: (_value: any) => string;
   metricName: string;
   badThreshold: (_value: any) => boolean;
+  href?: string;
   getValue?: (_data: any) => any;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
@@ -96,6 +122,7 @@ export default function ScalarPanel({
       value={value}
       valueRenderer={valueRenderer}
       badThreshold={badThreshold}
+      href={href}
     />
   );
 }
