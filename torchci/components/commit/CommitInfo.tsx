@@ -10,11 +10,23 @@ export function CommitInfo({
   repoName,
   sha,
   isCommitPage,
+  prNumber,
 }: {
   repoOwner: string;
   repoName: string;
   sha: string;
   isCommitPage: boolean;
+  /**
+   * The PR this commit belongs to, when the caller already knows it.
+   *
+   * `commit.prNum` is parsed out of the commit message, and only mergebot's
+   * "Pull Request resolved: #N" line puts it there -- which it adds at merge
+   * time. So a commit still sitting on a PR branch has no PR number in its
+   * message at all, and the PR page (which does know the number, from its own
+   * route) has to supply it or the GreenLight panel below silently finds
+   * nothing to look up.
+   */
+  prNumber?: number | null;
 }) {
   const { data: commitData, error } = useSWR<CommitApiResponse>(
     sha && `/api/${repoOwner}/${repoName}/commit/${sha}`,
@@ -57,7 +69,7 @@ export function CommitInfo({
       <GreenLightSection
         repoOwner={repoOwner}
         repoName={repoName}
-        prNumber={commit.prNum}
+        prNumber={prNumber ?? commit.prNum}
         sha={sha}
       />
       <CommitStatus

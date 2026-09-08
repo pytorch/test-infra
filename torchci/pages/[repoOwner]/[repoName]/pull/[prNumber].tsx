@@ -29,8 +29,8 @@ function CommitHeader({
 }) {
   const router = useRouter();
   const pr = router.query.prNumber as string;
-  // Deduped by SWR against the same read in CommitInfo and in the title badge,
-  // so all three cost one request.
+  // Deduped by SWR against the same read behind the panel in CommitInfo, so the
+  // picker and the panel cost one request between them.
   const { data: greenlightRows } = useGreenlightPrHistory(
     repoOwner,
     repoName,
@@ -145,6 +145,10 @@ function Page() {
             repoName={repoName as string}
             sha={selectedSha}
             isCommitPage={false}
+            // From the route, not the commit message: a commit still on a PR
+            // branch carries no "Pull Request resolved: #N" line for
+            // commit.prNum to be parsed out of.
+            prNumber={prNumber ? parseInt(prNumber as string) : null}
           />
         )}
       </ErrorBoundary>
