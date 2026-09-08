@@ -91,3 +91,86 @@ export function buildStatusByPr(
     Array.from(authoritative, ([prNumber, row]) => [prNumber, row.status])
   );
 }
+
+/**
+ * A commit sha in the one form every lookup here uses. Git shas are lowercase
+ * hex, but the sha reaching these helpers comes from a URL or a `<select>` value
+ * as often as from the database, so normalise rather than assume.
+ */
+export function normalizeSha(sha: string | undefined | null): string {
+  return (sha ?? "").trim().toLowerCase();
+}
+
+/**
+ * Collapse `greenlight_pr_state_history` rows to `head_sha -> row`, keeping the
+ * authoritative row per commit. The query already collapses per head_sha; this
+ * re-applies the same selection for the reason `buildStatusByPr` does.
+ */
+export function buildStateBySha(
+  rows: GreenlightPrStateRow[] | undefined
+): Map<string, GreenlightPrStateRow> {
+  const bySha = new Map<string, GreenlightPrStateRow>();
+  for (const row of rows ?? []) {
+    const sha = normalizeSha(row.head_sha);
+    if (sha === "") {
+      continue;
+    }
+    const incumbent = bySha.get(sha);
+    if (incumbent === undefined || supersedes(row, incumbent)) {
+      bySha.set(sha, row);
+    }
+  }
+  return bySha;
+}
+
+/**
+ * The PR's authoritative row across every commit it has been reviewed on -- the
+ * one the merge gate acted on and Dr.CI renders. Undefined when the PR has no
+ * recorded state at all.
+ */
+export function authoritativeState(
+  rows: GreenlightPrStateRow[] | undefined
+): GreenlightPrStateRow | undefined {
+  let best: GreenlightPrStateRow | undefined;
+  for (const row of rows ?? []) {
+    if (best === undefined || supersedes(row, best)) {
+      best = row;
+    }
+  }
+  return best;
+}
+
+/** What to show about GreenLight for one particular commit. */
+export interface GreenlightStateForSha {
+  state: GreenlightPrStateRow;
+  /**
+   * Whether `state` is the verdict GreenLight reached on the commit asked
+   * about, as opposed to the PR's latest verdict shown in its absence.
+   *
+   * False is the ordinary case on a commit page for a landed commit: pytorch
+   * rebases on merge, so the trunk sha is never the PR head sha GreenLight
+   * reviewed. It is also what a push GreenLight has not reviewed yet looks like
+   * on the PR page. Both need saying out loud -- an unlabelled verdict from
+   * another commit reads as a current statement about this one.
+   */
+  isForThisSha: boolean;
+}
+
+/**
+ * Pick the state to show for `sha`: that commit's own verdict when GreenLight
+ * reviewed it, otherwise the PR's authoritative verdict, flagged as belonging to
+ * a different commit. Undefined when the PR has no recorded state.
+ */
+export function selectStateForSha(
+  rows: GreenlightPrStateRow[] | undefined,
+  sha: string | undefined | null
+): GreenlightStateForSha | undefined {
+  const exact = buildStateBySha(rows).get(normalizeSha(sha));
+  if (exact !== undefined) {
+    return { state: exact, isForThisSha: true };
+  }
+  const latest = authoritativeState(rows);
+  return latest === undefined
+    ? undefined
+    : { state: latest, isForThisSha: false };
+}
