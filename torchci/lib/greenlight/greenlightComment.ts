@@ -7,26 +7,13 @@ import {
   greenlightRepoKey,
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
+import { GreenlightPrStateRow } from "lib/greenlight/greenlightHudState";
 import {
   GreenlightState,
   renderGreenlightSection,
 } from "lib/greenlight/greenlightRender";
 
-// The columns of a misc.greenlight_pr_state row that the render consumes, as the
-// greenlight_pr_states saved query returns them. Saved queries are untyped
-// (any[]), so this is the cast target. run_id is selected there too, but only to
-// order the rows; nothing downstream reads it.
-interface GreenlightStateRow {
-  pr_number: number;
-  status: string;
-  reason: string;
-  message: string;
-  head_sha: string;
-  eval_job: string;
-  version: string;
-}
-
-function toGreenlightState(row: GreenlightStateRow): GreenlightState {
+function toGreenlightState(row: GreenlightPrStateRow): GreenlightState {
   return {
     prNumber: row.pr_number,
     status: row.status,
@@ -64,7 +51,7 @@ export async function buildGreenlightSections(
   const rows = (await queryClickhouseSaved("greenlight_pr_states", {
     repo: greenlightRepoKey(owner, repo),
     prNumbers,
-  })) as GreenlightStateRow[];
+  })) as GreenlightPrStateRow[];
 
   // One instant for the whole sweep, so age-derived rendering is consistent across PRs.
   const now = new Date();
