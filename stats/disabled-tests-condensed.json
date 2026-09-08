@@ -563,6 +563,13 @@
       "linux"
     ]
   ],
+  "test_graph_checkpoint_preserve_rng_state (__main__.TestXpu)": [
+    "196308",
+    "https://github.com/pytorch/pytorch/issues/196308",
+    [
+      "xpu"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
