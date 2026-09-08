@@ -4,7 +4,7 @@
 
 | Level | Meaning |
 |---|---|
-| high | Exact match to a cheat-sheet entry, or strong pattern match (same exception class + framework frames) |
+| high |  Evidence directly identifies one route and rules out the alternatives, exact match to a cheat-sheet entry, or strong pattern match (same exception class + framework frames) |
 | med | Reasonable inference from the exception pattern |
 | low | Weak or generic signal — routing based on context, or guessing with no clear pattern match |
 
