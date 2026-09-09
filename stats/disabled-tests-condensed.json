@@ -56,7 +56,8 @@
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_async_future_results (__main__.TestAsyncCheckpointerSpecific)": [
@@ -234,6 +235,14 @@
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_complex_half_reference_testing_fft_ifft_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "120071",
+    "https://github.com/pytorch/pytorch/issues/120071",
     [
       "inductor",
       "rocm"
@@ -510,6 +519,13 @@
     "https://github.com/pytorch/pytorch/issues/134139",
     [
       "rocm"
+    ]
+  ],
+  "test_fused_sdp_priority_order_use_compile_True_cuda (__main__.TestSDPAAcceleratorCUDA)": [
+    "196438",
+    "https://github.com/pytorch/pytorch/issues/196438",
+    [
+      "linux"
     ]
   ],
   "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
