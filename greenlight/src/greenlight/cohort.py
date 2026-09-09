@@ -10,19 +10,21 @@ from __future__ import annotations
 
 __all__ = ["TRUSTED_AUTHORS", "is_trusted"]
 
-TRUSTED_AUTHORS: set[str] = {
-    "albanD",  # Alban Desmaison
-    "jathu",  # Jathu Satkunarajah
-    "atalman",  # Andrey Talman
-    "huydhn",  # Huy Do
-    "izaitsevfb",  # Ivan Zaitsev
-    "georgehong",  # George Hong
-    "jeanschmidt",  # Jean Schmidt
-    "ezyang",  # Edward Yang
-    "drisspg",  # Driss Guessous
-    "janeyx99",  # Jane Xu
-    "bobrenjc93",  # Bob Ren
-}
+TRUSTED_AUTHORS: frozenset[str] = frozenset(
+    {
+        "albanD",  # Alban Desmaison
+        "jathu",  # Jathu Satkunarajah
+        "atalman",  # Andrey Talman
+        "huydhn",  # Huy Do
+        "izaitsevfb",  # Ivan Zaitsev
+        "georgehong",  # George Hong
+        "jeanschmidt",  # Jean Schmidt
+        "ezyang",  # Edward Yang
+        "drisspg",  # Driss Guessous
+        "janeyx99",  # Jane Xu
+        "bobrenjc93",  # Bob Ren
+    }
+)
 
 # Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
 # GitHub logins are case-insensitive, so gate on the lowercased login against this derived set.
