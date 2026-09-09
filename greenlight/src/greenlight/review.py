@@ -1,11 +1,25 @@
-"""Scan trusted-author pytorch/pytorch PRs and dispatch the AI review workflow.
+"""Scan pytorch/pytorch PRs from the evaluation cohort and dispatch the AI review workflow.
 
-Each scan lists the open PRs from a fixed trusted-author set, fingerprints each one,
-reads its latest recorded state from ClickHouse, and asks ``decision.decide`` whether to
-dispatch a review, skip it, or wait. State is re-read from ClickHouse every scan, so the
-one-shot and ``--loop`` paths behave identically -- nothing is remembered in memory
-between scans. All GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword
-seams so the loop is testable without any of them.
+Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers),
+fingerprints each one, reads its latest recorded state from ClickHouse, and asks
+``decision.decide`` whether to dispatch a review, skip it, or wait. An author outside
+``cohort.TRUSTED_AUTHORS`` is evaluated in shadow: the run is dispatched and recorded, but the
+row is stamped ``shadow`` so it is never approved and never rendered, and Dr. CI is not poked for
+it. State is re-read from ClickHouse every scan, so the one-shot and ``--loop`` paths behave
+identically -- nothing is remembered in memory between scans. All GitHub, ClickHouse, and
+dispatch I/O sits behind injectable keyword seams so the loop is testable without any of them.
+
+Both authz gates -- the ``--pr`` target author and the ``@greenlight recheck`` requester -- stay
+bound to ``cohort.TRUSTED_AUTHORS``, not to the cohort: the cohort widens who greenlight looks at
+on its own schedule, never who can point it at a PR.
+
+``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. A trusted author's PR is always
+evaluated; every other listed PR joins only if a stable hash of its number falls under the dial, so
+the holdout is the same group from one scan to the next. At exactly ``0.0`` the listing narrows back
+to ``cohort.TRUSTED_AUTHORS`` and the shadow machinery goes inert at the source, needing no
+counterpart downstream. The dial gates which listed PRs are fingerprinted and nothing else: both
+authz gates, the merge-authorized login set, and whether a verdict carries authority behave
+identically at every setting.
 
 Reverted PRs are excluded before any of that, on both the listing and ``--pr`` paths: greenlight
 revokes its own approval, records the exclusion, and drops the PR (see ``revert_guard``).
@@ -72,8 +86,8 @@ def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def _default_fetch(client: Github) -> list[OpenPR]:
-    return github_client.list_open_prs_by_authors(client, TARGET_REPO, cohort.TRUSTED_AUTHORS)
+def _default_fetch(client: Github, authors: frozenset[str]) -> list[OpenPR]:
+    return github_client.list_open_prs_by_authors(client, TARGET_REPO, authors)
 
 
 def _default_fetch_author(client: Github, pr_number: int) -> str | None:
@@ -109,7 +123,8 @@ def _candidate_numbers(
     *,
     pr: int | None,
     target_author: str | None,
-    fetch: Callable[[Github], list[OpenPR]],
+    fetch: Callable[[Github, frozenset[str]], list[OpenPR]],
+    authors: frozenset[str],
 ) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, bool]]:
     """Return the candidate PR numbers with their ``updated_at``, labels, and shadow flag.
 
@@ -122,8 +137,8 @@ def _candidate_numbers(
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
         return [pr], {}, {}, {pr: cohort.is_shadow(target_author)}
-    open_prs = fetch(client)
-    logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(cohort.TRUSTED_AUTHORS), TARGET_REPO)
+    open_prs = fetch(client, authors)
+    logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(authors), TARGET_REPO)
     for open_pr in open_prs:
         logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
     return (
@@ -146,7 +161,7 @@ def run(
     allow_untrusted_author: bool = False,
     bot_login: str = "",
     build_github: _BuildClient = github_client.build_client,
-    fetch: Callable[[Github], list[OpenPR]] = _default_fetch,
+    fetch: Callable[[Github, frozenset[str]], list[OpenPR]] = _default_fetch,
     fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
@@ -162,7 +177,7 @@ def run(
     resolve_authorized: Callable[[], frozenset[str]],
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
-    logger.info("reviewing trusted-author PRs in %s", TARGET_REPO)
+    logger.info("reviewing evaluation-cohort PRs in %s", TARGET_REPO)
     logger.debug("greenlight config: %r", config)
     token = config.github_token
     if not token:
@@ -179,7 +194,9 @@ def run(
         client = build_github(token)
         clients.callback(_close_client, client)
         # Target-author gate: --pr names an arbitrary PR, so its author MUST be trusted or greenlight
-        # would review/approve any PR on request.
+        # would review/approve any PR on request. Bound to TRUSTED_AUTHORS, NOT to the (far wider)
+        # evaluation cohort the listing scans: the cohort decides who is evaluated, this decides whose
+        # PR a human may point greenlight at.
         # allow_untrusted_author (local iteration; never a workflow input) waives ONLY the refusal,
         # never the lookup: shadow keys off this author and a shadow LAND dismisses greenlight's live
         # approval, so leaving the author unresolved would let a local flag revoke a production
@@ -200,11 +217,30 @@ def run(
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
+        # The dial sizes the shadow experiment and decides nothing about authority. At exactly 0.0
+        # the listing narrows to the trusted authors, so no listed author is shadow and the shadow
+        # machinery goes inert at the source -- a state no fractional dial reaches, since each of
+        # those still lists the wide cohort and only thins the fingerprint set below.
+        # authorized_logins stays resolved and threaded at every setting: the fingerprint and the
+        # human-review skip both read it to spot an approval from someone who could have merged the
+        # PR themselves, which is a separate question from whose PRs get listed.
+        wide_listing = config.shadow_rollout > 0.0
+        listing_authors = (
+            cohort.evaluation_cohort(authorized_logins)
+            if wide_listing
+            else frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
+        )
+        logger.info(
+            "scan cohort: %s (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)",
+            "full evaluation cohort" if wide_listing else "trusted authors only",
+            config.shadow_rollout,
+        )
         pr_numbers, updated_at_by_number, labels_by_number, shadow_by_number = _candidate_numbers(
             client,
             pr=pr,
             target_author=target_author,
             fetch=fetch,
+            authors=listing_authors,
         )
 
         def shadow_for_pr(number: int) -> bool:
@@ -255,15 +291,24 @@ def run(
         # approval must never suppress a manual recheck). Changes-requested still skips on both.
         skip_on_approval = pr is None
         if pr is None:
-            # A single --pr target is always evaluated; the recency window only prunes the
-            # listed scan, where a stale untouched PR would waste a fingerprint.
-            fingerprint_numbers = candidate_filter.recency_filter(
+            # A single --pr target is always evaluated: the recency window only prunes the listed
+            # scan, where a stale untouched PR would waste a fingerprint, and holding a recheck out
+            # of the rollout would exit 0 having silently done nothing.
+            recent = candidate_filter.recency_filter(
                 pr_numbers,
                 updated_at_by_number,
                 states,
                 candidate_filter.labeled_with(labels_by_number, EXCLUDED_LABELS),
                 now=evaluated_at,
                 window=timedelta(hours=config.review_window_hours),
+            )
+            # A trusted author's PR is exempt from the dial: sampling one out would not shrink the
+            # experiment, it would withhold the live service greenlight already gives that author.
+            fingerprint_numbers = candidate_filter.rollout_filter(
+                recent,
+                frozenset(number for number in recent if not shadow_for_pr(number)),
+                repo=TARGET_REPO,
+                rollout=config.shadow_rollout,
             )
         else:
             fingerprint_numbers = pr_numbers
