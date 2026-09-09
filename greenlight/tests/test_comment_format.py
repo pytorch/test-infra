@@ -1,4 +1,69 @@
-from greenlight import comment_format, github_client
+import logging
+import re
+from pathlib import Path
+
+import pytest
+
+from greenlight import comment_format, github_client, verdict_outline
+
+# A single-paragraph verdict. Nothing enforces the outline shape, so this is a message the reviewer
+# can still write today and the fence is the right render for it; separately, every row stored
+# before the outline format existed carries this shape, and Dr. CI's query has no time filter, so
+# each of those re-renders on every sweep for as long as its PR stays open.
+STORED_PROSE = (
+    "The change is a two-line guard in torch/distributed/_composable/fsdp/_fsdp_param.py that skips the all-gather "
+    "when the parameter group is already resident on the target device, plus the test that covers it in "
+    "test/distributed/_composable/fsdp/test_fully_shard_comm.py. Every existing caller keeps its behaviour: the new "
+    "branch only fires on a path that previously issued a redundant collective, and the returned handle is the same "
+    "object the old code produced, so nothing downstream observes a difference. The rest of the diff is mechanical: "
+    "a type annotation on _get_param_group that mypy already inferred, and a docstring fix naming the argument the "
+    "signature actually takes. No serialized artifact, no autograd formula and no public API is touched, so a silent "
+    "numerical regression is not reachable from here; the worst case is that the guard misfires and the collective "
+    "runs as it does today. CI is green on the distributed shards that cover both files, and the new test fails "
+    "without the guard, mirroring the fix in #150123."
+)
+
+OUTLINE = "\n".join(
+    [
+        "- Scope: one guard plus its test",
+        "  - `_fsdp_param.py` gains a two-line early return",
+        "  - the new test fails without it",
+        "- Risk: low",
+        "  - no serialized artifact or autograd formula is touched",
+    ]
+)
+
+# Lines that ARE a live pytorchbot command when they start one: the positive control for the test
+# below, which a matcher gone inert would otherwise satisfy.
+BOT_COMMAND_LINES = [
+    "@pytorchbot merge",
+    "@pytorchmergebot merge -f 'lint only, everything else is green'",
+]
+BOT_COMMAND_OUTLINE = "\n".join(
+    [
+        f"- {BOT_COMMAND_LINES[0]}",
+        f"  - {BOT_COMMAND_LINES[1]}",
+        "  - and `@pytorchbot merge` inside a code span",
+    ]
+)
+BOT_COMMAND_PROSE = "\n".join([*BOT_COMMAND_LINES, "and `@pytorchbot merge` inside a code span"])
+
+_CLI_PARSER_TS = Path(__file__).resolve().parents[2] / "torchci" / "lib" / "bot" / "cliParser.ts"
+
+
+def _bot_command_pattern() -> re.Pattern[str]:
+    """pytorchbot's own command matcher, read out of the TypeScript that owns it.
+
+    Scraped rather than copied: what is under test is that greenlight's comment never matches
+    whatever pytorchbot actually parses, and a copy would keep passing after the real one moved.
+    Python's ``.`` and ``$`` differ from JavaScript's only on carriage returns and the line
+    separators, and only by matching more -- which for an assertion that nothing matches errs
+    toward failing.
+    """
+    source = _CLI_PARSER_TS.read_text()
+    match = re.search(r"^const botCommandPattern = new RegExp\(/(.+)/m\);$", source, re.MULTILINE)
+    assert match is not None, f"no botCommandPattern literal in {_CLI_PARSER_TS}"
+    return re.compile(match.group(1), re.MULTILINE)
 
 
 def test_defang_neutralizes_at_mentions_and_wraps_in_fence():
@@ -55,6 +120,184 @@ def test_verdict_body_omits_job_link_and_run_stamp_when_absent():
     assert "https" not in body
     assert "greenlight-run" not in body
     assert "reason: `unclear_intent`" in body
+    assert body.endswith("</details>")
+
+
+def test_prose_verdict_body_is_byte_identical_to_the_fenced_layout():
+    body = comment_format.verdict_body("NO_LAND", "unclear_intent", STORED_PROSE, "https://job", 55)
+
+    assert body == "\n".join(
+        [
+            comment_format.COMMENT_MARKER,
+            github_client.format_run_marker(55),
+            f"**{comment_format.NO_LAND_HEADLINE}**",
+            "",
+            "<details>",
+            "<summary>Why</summary>",
+            "",
+            "```",
+            STORED_PROSE,
+            "```",
+            "",
+            "reason: `unclear_intent`",
+            "",
+            "[Inference job](https://job)",
+            "</details>",
+        ]
+    )
+
+
+def test_prose_is_neither_clipped_nor_bulleted():
+    # Why the fence is the better render here, not merely an acceptable one: the outline renderer
+    # would clip this at its 400-character leaf cap, bold what survived into one bullet, and guard
+    # the `#150123` -- permanently, on every PR the message lands on.
+    body = comment_format.verdict_body("LAND", "clean", STORED_PROSE, "", None)
+
+    assert STORED_PROSE in body
+    assert "<ul>" not in body
+    assert "<li>" not in body
+    assert comment_format._ZERO_WIDTH_SPACE not in body
+
+
+def test_outline_message_renders_as_a_contained_html_list():
+    body = comment_format.verdict_body("LAND", "clean", OUTLINE, "https://job", 55)
+
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert "<ul><li><b>Scope: one guard plus its test</b><ul>" in body
+    assert "<li>the new test fails without it</li>" in body
+    assert "<code>_fsdp_param.py</code>" in body
+    assert "```" not in body
+    assert body.endswith("</details>")
+
+
+def test_the_outline_block_is_one_line_at_column_zero_after_a_blank_line():
+    # CommonMark reads the block as raw HTML -- which is the whole of the containment -- only
+    # while it opens at column 0 with a blank line ahead of it and holds no line break.
+    lines = comment_format.verdict_body("LAND", "clean", OUTLINE, "https://job", 55).split("\n")
+    index = next(number for number, line in enumerate(lines) if line.startswith("<ul>"))
+
+    assert [line.startswith("<ul>") for line in lines].count(True) == 1
+    assert lines[index - 1] == ""
+    assert lines[index].endswith("</ul>")
+    assert lines[index + 1] == ""
+
+
+def test_an_outline_whose_leaves_all_flatten_away_renders_in_the_fence():
+    message = "\n".join([f"- {verdict_outline.ZERO_WIDTH_SPACE}"] * verdict_outline.MIN_BULLETS)
+    body = comment_format.verdict_body("NO_LAND", "review_error", message, "", None)
+
+    assert verdict_outline.is_outline(message) is True
+    assert verdict_outline.render_outline_html(message) == ""
+    assert "<ul>" not in body
+    assert comment_format.defang(message) in body
+
+
+def test_a_tripped_containment_guard_falls_back_to_the_fence(monkeypatch, caplog):
+    # A raise out of here fails the verdict CLI before the row is uploaded, and the workflow only
+    # retries a cancelled or failed review job -- so the PR would sit on AI_REVIEW_STARTED forever.
+    def boom(message):
+        raise RuntimeError("verdict outline holds a line break, which would end the HTML block")
+
+    monkeypatch.setattr(comment_format, "render_outline_html", boom)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        body = comment_format.verdict_body("LAND", "clean", OUTLINE, "https://job", 55)
+
+    assert comment_format.defang(OUTLINE) in body
+    assert "<ul>" not in body
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert "reason: `clean`" in body
+    assert body.endswith("</details>")
+    record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+
+
+def test_a_classifier_that_raises_falls_back_to_the_fence(monkeypatch, caplog):
+    # Choosing the renderer reads the same untrusted text rendering it does, so it sits inside the
+    # same guard -- a raise here strands the PR on AI_REVIEW_STARTED exactly as one from the render.
+    def boom(message):
+        raise RuntimeError("classifier read a message it could not handle")
+
+    monkeypatch.setattr(comment_format, "is_outline", boom)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        body = comment_format.verdict_body("LAND", "clean", OUTLINE, "https://job", 55)
+
+    assert comment_format.defang(OUTLINE) in body
+    assert "<ul>" not in body
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert "reason: `clean`" in body
+    assert body.endswith("</details>")
+    record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
+    assert record.exc_info is not None
+
+
+def test_an_outline_failure_of_any_type_falls_back_to_the_fence(monkeypatch, caplog):
+    # The containment tripwire raises RuntimeError, but nothing about the fallback is specific to
+    # it: any other bug in the renderer costs the reader a nicer layout, and none may cost the
+    # verdict. The Dr. CI mirror of this dispatch catches everything, so narrowing here would also
+    # mean one row degrading gracefully on one surface and killing the CLI on the other.
+    def boom(message):
+        raise ValueError("a renderer bug that is not the containment tripwire")
+
+    monkeypatch.setattr(comment_format, "render_outline_html", boom)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        body = comment_format.verdict_body("NO_LAND", "unclear_intent", OUTLINE, "", None)
+
+    assert comment_format.defang(OUTLINE) in body
+    assert "<ul>" not in body
+    assert "reason: `unclear_intent`" in body
+    assert body.endswith("</details>")
+    record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
+    assert record.exc_info is not None
+
+
+# A verdict is model prose a PR diff can prompt-inject, and pytorchbot parses the RAW comment body
+# it lands in -- not the HTML GitHub renders from it. Neither renderer targets that parser: the
+# outline path emits one line that starts `<ul><li><b>`, and both paths put a zero-width space after
+# every `@` outside a code span. The first is an invariant held for containment, not for this, and a
+# change that broke the block across lines for readability would keep every containment test green
+# while making a merge command reachable. Greenlight's login is not one of the ids pytorchbot skips.
+@pytest.mark.parametrize("status", ["LAND", "NO_LAND"])
+def test_no_rendered_verdict_can_issue_a_pytorchbot_command(status):
+    pattern = _bot_command_pattern()
+
+    # Positive control: unrendered, these are commands pytorchbot acts on.
+    for line in BOT_COMMAND_LINES:
+        assert pattern.search(line) is not None
+    assert pattern.search(BOT_COMMAND_PROSE) is not None
+    # Without this both payloads could reach the comment through the same renderer, leaving the
+    # other path unexercised.
+    assert verdict_outline.is_outline(BOT_COMMAND_OUTLINE) is True
+    assert verdict_outline.is_outline(BOT_COMMAND_PROSE) is False
+
+    for message in (BOT_COMMAND_OUTLINE, BOT_COMMAND_PROSE):
+        body = comment_format.verdict_body(status, "clean", message, "https://job", 55)
+
+        assert pattern.search(body) is None
+
+
+@pytest.mark.parametrize("message", [STORED_PROSE, OUTLINE], ids=["prose", "outline"])
+def test_run_stamp_reason_line_and_job_link_do_not_move_with_the_message_format(message):
+    body = comment_format.verdict_body("NO_LAND", "scope_too_large", message, "https://job", 7)
+
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert github_client.format_run_marker(7) in body
+    assert "\nreason: `scope_too_large`\n" in body
+    assert body.endswith("\n[Inference job](https://job)\n</details>")
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["", "   ", "\n\n\n", "-", "- ", "-\t", "```", "- ```", "</details>", "- </details>"],
+)
+def test_a_badly_shaped_message_still_renders_a_whole_comment(message):
+    # The renderer coerces; nothing on this path may reject a message the model wrote badly.
+    body = comment_format.verdict_body("NO_LAND", "review_error", message, "", None)
+
+    assert body.startswith(comment_format.COMMENT_MARKER)
     assert body.endswith("</details>")
 
 
