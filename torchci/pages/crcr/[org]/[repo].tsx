@@ -14,8 +14,10 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
+import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -318,9 +320,17 @@ function isNightlyJobPassing(job: CrcrJobRow): boolean {
 const NIGHTLY_HEALTH_COUNT = 5;
 
 function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
+  // Window matches L3_PROMOTION_WINDOW_DAYS (the 2-week promotion window)
+  // rather than an independent magic number, so this isn't a third,
+  // inconsistent window alongside the Time Range selector.
   const url =
     `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
-    encodeURIComponent(JSON.stringify({ repo: repoFullName, days: "14" }));
+    encodeURIComponent(
+      JSON.stringify({
+        repo: repoFullName,
+        days: String(L3_PROMOTION_WINDOW_DAYS),
+      })
+    );
   const { data } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
@@ -383,16 +393,22 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
 }
 
 function NightlySummaryCards({
-  data,
+  rows,
   repoFullName,
 }: {
-  data: CrcrJobRow[];
+  rows: NightlyRow[];
   repoFullName: string;
 }) {
   const isCrcrTest = repoFullName === "pytorch/crcr-test";
 
   const stats = useMemo(() => {
-    const completed = data.filter((j) => j.status === "completed");
+    const jobs: CrcrJobRow[] = [];
+    for (const row of rows) {
+      for (const job of row.jobs.values()) {
+        jobs.push(job);
+      }
+    }
+    const completed = jobs.filter((j) => j.status === "completed");
     const successes = completed.filter(
       (j) => j.conclusion === "success"
     ).length;
@@ -408,9 +424,15 @@ function NightlySummaryCards({
     ).length;
     const total = completed.length;
     const passRate = total > 0 ? successes / total : 0;
-    const uniqueShas = new Set(data.map((j) => j.pytorch_head_sha)).size;
-    return { successes, failures, timedOut, total, passRate, uniqueShas };
-  }, [data, isCrcrTest]);
+    return {
+      successes,
+      failures,
+      timedOut,
+      total,
+      passRate,
+      uniqueShas: rows.length,
+    };
+  }, [rows, isCrcrTest]);
 
   const passColor =
     stats.passRate >= 1.0
@@ -826,11 +848,20 @@ function buildMatrix(data: CrcrJobRow[]): {
       };
       prMap.set(prNum, row);
     }
-    // Track latest started_at for this PR
+    // Track latest started_at for this PR. A newer commit supersedes the
+    // row entirely -- different dispatches (a mid-PR push vs. the eventual
+    // post-merge pull_request run, say) share the same pr_number but aren't
+    // the same commit, so cells from the old commit must not linger once a
+    // newer one starts reporting.
     if (job.started_at > row.latestTime) {
       row.latestTime = job.started_at;
-      row.sha = job.pytorch_head_sha;
+      if (job.pytorch_head_sha !== row.sha) {
+        row.sha = job.pytorch_head_sha;
+        row.jobs.clear();
+      }
     }
+    // Ignore jobs for any commit other than the row's current one.
+    if (job.pytorch_head_sha !== row.sha) continue;
     // Keep the latest attempt per job_name
     const existing = row.jobs.get(job.job_name);
     if (!existing || job.run_attempt > existing.run_attempt) {
@@ -1345,7 +1376,7 @@ function CrcrNightlyMatrix({
 
   return (
     <>
-      <NightlySummaryCards data={data} repoFullName={repoFullName} />
+      <NightlySummaryCards rows={matrix.rows} repoFullName={repoFullName} />
       <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
@@ -1650,6 +1681,8 @@ export default function CrcrBackendPage() {
                 </FormControl>
               </Stack>
             </Box>
+
+            {!isNightly && <CrcrL3Readiness repoFullName={repoFullName} />}
 
             {!isNightly && (
               <>
