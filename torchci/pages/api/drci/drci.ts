@@ -48,7 +48,7 @@ import {
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
-import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -557,10 +557,12 @@ function removeFailureContext(failure: {
 // every sweep indefinitely. Qualified as issue_comment.user.login because
 // pull_request carries a `user` column too.
 // These predicates read the RAW body, so the author filter is not the whole
-// story: the Green Light message is model output that Dr.CI embeds unescaped in
-// its own comment. Every literal matched here therefore has to be defused on the
-// way in -- see defuseSweepSentinels in lib/greenlight/greenlightRender.ts, which
-// any new predicate added below must also cover.
+// story: the Green Light message is model output that Dr.CI embeds in its own
+// comment, fenced or HTML-escaped depending on the format the row carries but in
+// neither case with the matched characters removed. Every literal matched here
+// therefore has to be defused on the way in -- see defuseSweepSentinels in
+// lib/greenlight/greenlightSweep.ts, the one pass both of those renderers run
+// and which any new predicate added below must also cover.
 async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
 select

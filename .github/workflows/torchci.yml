@@ -5,6 +5,13 @@ on:
       - "torchci/**"
       - "tools/torchci/**"
       - ".github/workflows/torchci.yml"
+      # Holds the other side of the outline parity contract: greenlightOutline.test.ts reads
+      # this fixture out of the greenlight tree and asserts what the Python renderer produced.
+      # Greenlight's own workflow does not run the TypeScript suite, so without these paths a
+      # regenerated corpus ships green against its own freshly written expectations and the
+      # mirror only goes red on main.
+      - "greenlight/tests/outline_parity_cases.json"
+      - "greenlight/src/greenlight/verdict_outline.py"
   push:
     branches:
       - main

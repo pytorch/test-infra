@@ -11,8 +11,22 @@
 // never sees it), and has a stalled state for a terminal row that never arrived.
 // No ClickHouse / Octokit / server-only imports, so this is unit-testable as-is.
 
-import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import {
+  isOutdatedVerdict,
+  reviewedCommitLines,
+} from "lib/greenlight/greenlightCommitLine";
+import { inlineCode } from "lib/greenlight/greenlightInlineCode";
+import {
+  capCodePoints,
+  isOutline,
+  renderOutlineHtml,
+} from "lib/greenlight/greenlightOutline";
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
+import {
+  defuseSweepSentinels,
+  GREENLIGHT_PENDING_ALT_ATTR,
+  ZERO_WIDTH_SPACE,
+} from "lib/greenlight/greenlightSweep";
 
 export const GREENLIGHT_STATUS_LAND = "LAND";
 export const GREENLIGHT_STATUS_NO_LAND = "NO_LAND";
@@ -54,7 +68,6 @@ export const GREENLIGHT_SECTION_HEADER = "GREEN LIGHT";
 
 // Mirrors _MESSAGE_CAP in comment_format.py.
 export const GREENLIGHT_MESSAGE_CAP = 4000;
-export const ZERO_WIDTH_SPACE = "\u200b";
 
 // GitHub does not soft-wrap inside a code fence, so an unwrapped verdict renders
 // as one line behind a horizontal scrollbar. 80 is the conventional terminal and
@@ -65,55 +78,17 @@ export const ZERO_WIDTH_SPACE = "\u200b";
 // rendered line being within the column.
 export const GREENLIGHT_MESSAGE_WRAP_WIDTH = 80;
 
-// The in-progress sentinel, shaped like the advisor's alt attribute (see
-// ADVISOR_PENDING_ALT_ATTR in lib/advisor/advisorBadge.ts) so both AI surfaces
-// in the comment are matched by the same cheap substring search. It is emitted
-// ONLY while a review is live; every terminal render omits it, which is how the
-// Dr.CI re-render candidate set self-clears once a verdict lands.
-export const GREENLIGHT_PENDING_ALT = "Green Light: in progress";
-export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 // Greenlight has no badge image to hang the attribute on, so the sentinel rides
 // an HTML comment: invisible once GitHub renders the body, but present in the
 // raw comment text the candidate query greps (the same trick as
 // `<!-- drci-comment-start -->`).
 const GREENLIGHT_PENDING_MARKER = `<!-- greenlight ${GREENLIGHT_PENDING_ALT_ATTR} -->`;
 
-// Every literal getPRsNeedingCommentRefresh (drci.ts) pins a PR into the sweep
-// on. Those predicates run over the RAW comment body, and the greenlight message
-// is the only model-authored text in it that is not HTML-escaped -- the fence in
-// defangGreenlightMessage stops the text RENDERING as markup but leaves the
-// characters themselves intact -- so a terminal render that carries one pins the
-// PR into every sweep forever, defeating the self-clearing the sentinel design
-// rests on.
-export const SWEEP_SENTINELS = [
-  GREENLIGHT_PENDING_ALT_ATTR,
-  ADVISOR_PENDING_ALT_ATTR,
-];
-// The sweep's third predicate is the regex `\d Pending`, meant to match the
-// comment's own "3 Pending" job count. Text merely describing the PR's CI state
-// trips it with no adversary involved, so break the token rather than delete a
-// word the reader needs.
-const SWEEP_PENDING_WORD = "Pending";
-const SWEEP_PENDING_WORD_DEFUSED = `P${ZERO_WIDTH_SPACE}ending`;
-// Shortest raw-body text any of those predicates can match: both attributes are
-// far longer than a `\d Pending` match, which is a digit and a space ahead of the
-// word. Renderer output too short to reach this cannot carry a predicate however
-// it is crafted, which is the only thing that lets a value skip the defuse.
-export const SWEEP_PREDICATE_MIN_LENGTH = Math.min(
-  ...SWEEP_SENTINELS.map((sentinel) => sentinel.length),
-  SWEEP_PENDING_WORD.length + 2
-);
-
 // Rendered only when the URL cannot break out of the `[text](url)` link AND
 // points at github.com. The host anchor has to be literal `github.com/`: a
 // userinfo prefix (`https://u:p@github.com/`) and a lookalike host
 // (`https://github.com.example/`) both satisfy a mere "contains github.com".
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
-
-// shortSha is the one rendered value that never reaches defuseSweepSentinels.
-// What makes that safe is arithmetic: kept under SWEEP_PREDICATE_MIN_LENGTH, no
-// sha it emits is long enough to spell a predicate, whatever the sha holds.
-export const SHORT_SHA_LENGTH = 7;
 
 export interface GreenlightState {
   prNumber: number;
@@ -181,14 +156,10 @@ function wrapMessage(text: string): string {
 // fence is the containment, and escaping inside it would render `&amp;`
 // literally to the reader.
 export function defangGreenlightMessage(text: string): string {
-  // Cap on code points, matching Python's `text[:4000]`; a UTF-16 slice would
-  // both count astral characters twice and be able to cut a surrogate pair.
   // Capping before the wrap is what makes 4000 mean 4000 characters the model
   // wrote: a break swallows the whitespace run it replaces, so wrapping first
   // would shrink the text and let a different amount of it through.
-  const capped = Array.from(text || "")
-    .slice(0, GREENLIGHT_MESSAGE_CAP)
-    .join("");
+  const capped = capCodePoints(text || "", GREENLIGHT_MESSAGE_CAP);
   const neutralized = capped.split("@").join(`@${ZERO_WIDTH_SPACE}`);
   // Breaks land only on whitespace and a backtick run holds none, so the wrap
   // leaves every run intact and this is the same fence either side of it. What
@@ -201,62 +172,37 @@ export function defangGreenlightMessage(text: string): string {
   return `${fence}\n${wrapMessage(neutralized)}\n${fence}`;
 }
 
-// Substituting a zero-width space for each sentinel, rather than deleting it, is
-// what makes a single pass sufficient. No sentinel contains that character, so a
-// surviving occurrence would have to lie wholly inside one fragment of a split
-// that by construction has none: neither a nested forgery
-// (`alt="Green alt="Green Light: in progress"Light: in progress"`) nor one
-// sentinel spliced together across the gap left by removing another can
-// reassemble, and no later substitution can put one back. Deleting would need a
-// fixpoint loop instead, which is quadratic in the message length -- `message` is
-// an unbounded ClickHouse String and the cap in defangGreenlightMessage is
-// applied after this, so a deeply nested 600 KB payload blocks the event loop for
-// seconds in a shared handler.
-function defuseSweepSentinels(text: string): string {
-  let out = text;
-  for (const sentinel of SWEEP_SENTINELS) {
-    out = out.split(sentinel).join(ZERO_WIDTH_SPACE);
+// Which renderer a row goes through is decided per row, never per deploy. The
+// fence is the render for prose, not a fallback from a failed one: nothing
+// enforces the outline shape, so a paragraph is a valid verdict and reads better
+// fenced than forced into a one-item bullet list. Stored rows keep the path alive
+// independently of that -- this section's query has no time filter and the scan
+// writes no newer row once a PR is human-decided, ages out or is labelled Stale,
+// so a verdict recorded before the outline format existed re-renders on every
+// later sweep. Either reason alone obliges both renderers to stay.
+//
+// renderOutlineHtml escapes, defuses and contains its own output, so neither the
+// defuse nor the fence may run over it: a fence would show its tags verbatim.
+// Every way it declines to produce a block reaches the fence -- "" when every
+// leaf flattened away or the first item alone overruns the budget, and a throw
+// from its containment tripwire, which must not propagate: the only handler
+// above this is in drci.ts, and it fails the WHOLE sweep to an empty map, so one
+// PR's bad row would strip the GREEN LIGHT section off every PR in it, hiding
+// verdicts that exist. Classifying the message is inside the guard for the same
+// reason -- it reads the same untrusted text the renderer does. The log gets the
+// PR number and the error, never the message -- untrusted model output, scrubbed
+// for the comment and not for the log.
+function renderVerdictMessage(message: string, prNumber: number): string {
+  const text = message || "";
+  let outline = "";
+  try {
+    if (isOutline(text)) {
+      outline = renderOutlineHtml(text);
+    }
+  } catch (e) {
+    console.error("greenlight outline render threw for PR", prNumber, e);
   }
-  return out.split(SWEEP_PENDING_WORD).join(SWEEP_PENDING_WORD_DEFUSED);
-}
-
-// Characters that would end an inline code span or the line holding it.
-export const INLINE_BREAKERS_RE = /[`\r\n]/g;
-
-function stripInlineBreakers(value: string): string {
-  return value.replace(INLINE_BREAKERS_RE, "");
-}
-
-function inlineCode(value: string): string {
-  return `\`${stripInlineBreakers(value)}\``;
-}
-
-// Whether the verdict was reached on something other than the PR's current head.
-// A missing sha on either side means the comparison cannot be made, which is not
-// evidence of a mismatch.
-function isOutdatedVerdict(reviewedSha: string, currentSha: string): boolean {
-  const reviewed = (reviewedSha || "").trim().toLowerCase();
-  const current = (currentSha || "").trim().toLowerCase();
-  return reviewed !== "" && current !== "" && reviewed !== current;
-}
-
-function shortSha(sha: string): string {
-  return inlineCode(sha.trim().slice(0, SHORT_SHA_LENGTH));
-}
-
-function reviewedCommitLines(
-  headSha: string,
-  currentHeadSha: string
-): string[] {
-  const sha = (headSha || "").trim();
-  if (!sha) {
-    return [];
-  }
-  const line = `Reviewed commit: ${shortSha(sha)}`;
-  if (!isOutdatedVerdict(sha, currentHeadSha)) {
-    return [line];
-  }
-  return [`${line} (NOT the current head ${shortSha(currentHeadSha)})`];
+  return outline || defangGreenlightMessage(defuseSweepSentinels(text));
 }
 
 // Nothing may DELETE a character after the defuse: a deletion splices the text on
@@ -321,9 +267,7 @@ export function renderGreenlightSection(
       status === GREENLIGHT_STATUS_LAND
         ? GREENLIGHT_LAND_HEADLINE
         : GREENLIGHT_NO_LAND_HEADLINE;
-    const message = defangGreenlightMessage(
-      defuseSweepSentinels(state.message || "")
-    );
+    const message = renderVerdictMessage(state.message, state.prNumber);
     return renderSection(
       headline,
       [message, "", reasonLine(state.reason), ...commitLines],
