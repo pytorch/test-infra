@@ -220,7 +220,8 @@ jobs:
 
       # Refresh run (PR labeled 'ci-refresh-hf-cache'): point HF at writable
       # ${RUNNER_TEMP} and download fresh, overriding the read-only /mnt/hf_cache
-      # mount; the sync step below pushes it back to S3. Otherwise leave the mount.
+      # mount; the sync step below pushes it back to S3. Otherwise read models
+      # from the mount, with everything HF writes redirected somewhere writable.
       - name: Resolve HF cache mode
         shell: bash
         env:
@@ -271,7 +272,22 @@ jobs:
               cp -a /mnt/hf_cache/datasets/. "${RUNNER_TEMP}/hf_datasets/" 2>/dev/null || true
             fi
           else
-            echo "HF_CACHE_REFRESH=0" >> "${GITHUB_ENV}"
+            # Models come from the mount, everything HF writes does not. HF_HOME
+            # holds stored_tokens and the .cache/meta_checkpoints that
+            # executorch's hf_download.py derives from it, and datasets writes
+            # its arrow build and .lock files even for a fully seeded dataset,
+            # so that dir is writable and warmed from the mount. Same shape as
+            # pytorch's _linux-test.yml.
+            {
+              echo "HF_CACHE_REFRESH=0"
+              echo "HF_HOME=${RUNNER_TEMP}/hf_home"
+              echo "HF_HUB_CACHE=/mnt/hf_cache/hub"
+              echo "HF_DATASETS_CACHE=${RUNNER_TEMP}/hf_datasets"
+            } >> "${GITHUB_ENV}"
+            mkdir -p "${RUNNER_TEMP}/hf_home" "${RUNNER_TEMP}/hf_datasets"
+            if [[ -d /mnt/hf_cache/datasets ]]; then
+              cp -a /mnt/hf_cache/datasets/. "${RUNNER_TEMP}/hf_datasets/" 2>/dev/null || true
+            fi
           fi
 
       - name: Run script
