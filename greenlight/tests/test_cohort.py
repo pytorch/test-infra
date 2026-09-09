@@ -23,6 +23,13 @@ def test_trusted_authors_membership_is_pinned():
     assert cohort.TRUSTED_AUTHORS == _PINNED_TRUSTED_AUTHORS
 
 
+def test_trusted_authors_is_immutable():
+    # _TRUSTED_LOWER snapshots this set at import time, so a post-import mutation would never
+    # reach is_trusted: it could widen the gates' source, or revoke from it, without moving the
+    # gates themselves, with nothing anywhere raising.
+    assert isinstance(cohort.TRUSTED_AUTHORS, frozenset)
+
+
 def test_trusted_lower_is_lowercase_and_collision_free():
     # A pair of authors differing only in case would silently shrink the gate by one.
     assert all(login == login.lower() for login in cohort._TRUSTED_LOWER)
