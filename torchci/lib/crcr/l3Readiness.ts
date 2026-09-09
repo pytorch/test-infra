@@ -115,7 +115,7 @@ const METRICS: {
     getMeasured: (s) => s?.median_e2e_time_s ?? null,
   },
   {
-    threshold: L3_THRESHOLDS.maxExecTimeS,
+    threshold: L3_THRESHOLDS.overrunRate,
     format: "percent",
     getMeasured: (s) => (s ? s.overrun_rate : null),
   },

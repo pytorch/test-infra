@@ -257,7 +257,14 @@ function SummaryCards({
         />
         <StatCard
           label="Overrun Rate"
-          value={`${(stats.overrun_rate * 100).toFixed(1)}%`}
+          value={
+            // A tiny nonzero rate (e.g. 0.03%) would otherwise round to
+            // "0.0%" at 1 decimal while still rendering warning-yellow
+            // below — showing "<0.1%" instead avoids that mismatch.
+            stats.overrun_rate > 0 && stats.overrun_rate < 0.001
+              ? "<0.1%"
+              : `${(stats.overrun_rate * 100).toFixed(1)}%`
+          }
           sub={
             stats.max_exec_time_s != null
               ? `max: ${durationDisplay(Math.round(stats.max_exec_time_s))}` +

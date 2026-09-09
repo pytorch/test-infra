@@ -76,14 +76,18 @@ SELECT
     -- ceiling, not genuine run time, and would inflate this otherwise.
     maxIf(execution_time, conclusion != 'timed_out') AS max_exec_time_s,
     quantileExact(0.95)(execution_time) AS p95_exec_time_s,
-    -- Share of jobs whose own run exceeded 3h (timeouts excluded)
-    -- the promotion criterion check this rate instead of the raw max
-    -- so one slow outlier in the 14-day window doesn't fail promotion
-    -- until it ages out.
+    -- Share of jobs whose own run exceeded 3h, excluded from both the
+    -- numerator and the denominator (timeouts are already penalized via
+    -- timeout_rate, so this measures overrun purely among jobs that
+    -- reported a genuine execution_time). The promotion criterion checks
+    -- this rate instead of the raw max, so one slow outlier in the
+    -- 14-day window doesn't fail promotion until it ages out.
+    -- NOTE: the 3h cutoff here must stay in sync with the copy of it in
+    -- crcr_l3_summary/query.sql.
     if(
-        total_jobs > 0,
+        countIf(conclusion != 'timed_out') > 0,
         countIf(execution_time > 3 * 3600 AND conclusion != 'timed_out')
-            / total_jobs,
+            / countIf(conclusion != 'timed_out'),
         0
     ) AS overrun_rate,
     -- E2E time is per-run (RFC-0050); run_rn = 1 keeps one sample per run.

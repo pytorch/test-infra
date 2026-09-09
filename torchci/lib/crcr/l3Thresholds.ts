@@ -44,8 +44,8 @@ export const L3_THRESHOLDS = {
     demotionRelevant: true,
   },
   // Measured as the *rate* of jobs individually exceeding 3h
-  maxExecTimeS: {
-    key: "maxExecTimeS",
+  overrunRate: {
+    key: "overrunRate",
     label: "Overrun Rate",
     targetLabel: "< 1% of jobs over 3h",
     target: 0.01,
