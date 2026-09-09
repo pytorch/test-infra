@@ -579,6 +579,13 @@
       "xpu"
     ]
   ],
+  "test_graph_empty_cache_after_side_stream_free_during_capture (__main__.TestXpu)": [
+    "196489",
+    "https://github.com/pytorch/pytorch/issues/196489",
+    [
+      "xpu"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
