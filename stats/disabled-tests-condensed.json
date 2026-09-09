@@ -660,6 +660,13 @@
       "linux"
     ]
   ],
+  "test_layout_TT_dynamic_n (__main__.LayoutCoverageWildcardTest)": [
+    "196405",
+    "https://github.com/pytorch/pytorch/issues/196405",
+    [
+      "linux"
+    ]
+  ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
     "187156",
     "https://github.com/pytorch/pytorch/issues/187156",
@@ -1131,6 +1138,13 @@
     "https://github.com/pytorch/pytorch/issues/190088",
     [
       "linux"
+    ]
+  ],
+  "test_sdpa_rewriter_16_fp32_mask_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "196406",
+    "https://github.com/pytorch/pytorch/issues/196406",
+    [
+      "rocm"
     ]
   ],
   "test_shrink_group_flags (__main__.ProcessGroupNCCLGroupTest)": [
