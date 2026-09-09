@@ -17,9 +17,9 @@ export function CommitInfo({
   sha: string;
   isCommitPage: boolean;
   /**
-   * The PR this commit belongs to. `commit.prNum` is parsed from mergebot's
-   * "Pull Request resolved: #N", which only exists after merge, so a commit on
-   * a PR branch has none and the PR page must supply it from its route.
+   * The PR this commit belongs to. `commit.prNum` is regex-parsed out of the
+   * commit message, which a PR-branch commit generally does not carry, so the
+   * PR page supplies it from its own route instead.
    */
   prNumber?: number | null;
 }) {

@@ -14,6 +14,8 @@ export interface GreenlightPrStateRow {
   reason: string;
   message: string;
   head_sha: string;
+  /** The trunk commit `head_sha` landed as, or "" if it never landed. */
+  merge_commit_sha: string;
   eval_job: string;
   run_id: number;
   version: string;
@@ -84,29 +86,30 @@ export function buildStateBySha(
   return bySha;
 }
 
-/** The PR's authoritative row -- the one the merge gate acted on. */
-export function authoritativeState(
-  rows: GreenlightPrStateRow[] | undefined
-): GreenlightPrStateRow | undefined {
-  let best: GreenlightPrStateRow | undefined;
-  for (const row of rows ?? []) {
-    if (best === undefined || supersedes(row, best)) {
-      best = row;
-    }
-  }
-  return best;
-}
-
 /**
- * The verdict to show while viewing `sha`: that commit's own if it was
- * reviewed, else the PR's authoritative one. The fallback is the normal path on
- * a commit page -- mergebot rebases, so a landed sha is never a reviewed sha.
+ * The verdict for `sha`, matched two ways and never guessed:
+ *
+ * - the reviewed head itself, which is what a PR page's picker selects;
+ * - the trunk commit that head landed as, since mergebot rebases and a landed
+ *   commit never carries the sha that was reviewed.
+ *
+ * Undefined when neither matches. There is deliberately no fall back to the
+ * PR's latest verdict: on a PR page most picker entries are commits that were
+ * never a review head, and showing them another commit's approval says
+ * something untrue. It also means a forged "Pull Request resolved: #N" in a
+ * commit message resolves to nothing rather than to someone else's approval.
  */
 export function selectStateForSha(
   rows: GreenlightPrStateRow[] | undefined,
   sha: string | undefined | null
 ): GreenlightPrStateRow | undefined {
-  return (
-    buildStateBySha(rows).get(normalizeSha(sha)) ?? authoritativeState(rows)
+  const wanted = normalizeSha(sha);
+  if (wanted === "") {
+    return undefined;
+  }
+  return (rows ?? []).find(
+    (row) =>
+      normalizeSha(row.head_sha) === wanted ||
+      normalizeSha(row.merge_commit_sha) === wanted
   );
 }
