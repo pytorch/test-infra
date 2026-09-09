@@ -48,7 +48,7 @@ import {
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
-import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
