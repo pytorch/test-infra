@@ -29,8 +29,8 @@ function CommitHeader({
 }) {
   const router = useRouter();
   const pr = router.query.prNumber as string;
-  // Deduped by SWR against the same read behind the panel in CommitInfo, so the
-  // picker and the panel cost one request between them.
+  // Same SWR key as the panel's read in CommitInfo, so this costs no extra
+  // request.
   const { data: greenlightRows } = useGreenlightPrHistory(
     repoOwner,
     repoName,
@@ -49,12 +49,9 @@ function CommitHeader({
         }}
       >
         {prData.shas.map(({ sha, title }) => {
-          // A character rather than the svg the rest of these surfaces use: an
-          // <option> holds text, and its colour is not reliably styleable, so
-          // the colour has to be carried by the glyph. Only shas GreenLight
-          // actually reviewed are marked -- there is no fallback to the PR's
-          // verdict here, because the whole point of the list is to tell the
-          // commits apart.
+          // A character, not the svg: an <option> holds text and its colour is
+          // not reliably styleable. Only reviewed shas are marked -- no
+          // fallback to the PR verdict, which would mark every row.
           const glyph = greenlightGlyphChar(
             greenlightBySha.get(normalizeSha(sha))?.status
           );
@@ -145,9 +142,8 @@ function Page() {
             repoName={repoName as string}
             sha={selectedSha}
             isCommitPage={false}
-            // From the route, not the commit message: a commit still on a PR
-            // branch carries no "Pull Request resolved: #N" line for
-            // commit.prNum to be parsed out of.
+            // From the route: an un-landed commit has no "Pull Request
+            // resolved: #N" line for commit.prNum to come from.
             prNumber={prNumber ? parseInt(prNumber as string) : null}
           />
         )}

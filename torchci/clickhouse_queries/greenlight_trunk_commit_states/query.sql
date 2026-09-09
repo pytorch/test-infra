@@ -1,60 +1,28 @@
--- GreenLight's verdict for the exact revision that produced each trunk commit.
+-- GreenLight's verdict for the revision that produced each trunk commit.
 --
--- Keyed by trunk commit sha, not by PR number, and that is the whole point. A PR
--- can land, be reverted, be changed, and land again, producing two trunk commits
--- from two different revisions with two different verdicts. Keying on pr_number
--- gives both commits whichever verdict is latest, which marks the first commit
--- with an approval that was never about it.
+-- Keyed by trunk commit, not by PR: a PR can land, be reverted, be fixed and
+-- land again, and each landing needs its own verdict. merges.last_commit_sha is
+-- the PR head at merge time, which is what greenlight records as head_sha;
+-- mergebot rebases, so merge_commit_sha never matches it directly.
 --
--- The join that makes the distinction is merges.last_commit_sha: the PR-branch
--- head at merge time, which is exactly what greenlight records as head_sha.
--- Mergebot rebases on merge, so merge_commit_sha (what the HUD shows) never
--- equals last_commit_sha (what greenlight reviewed) -- there is no way to join
--- these two tables on a sha directly, and this column is the bridge. Each
--- landing writes its own merges row, so each trunk commit resolves to its own
--- revision's verdict.
---
--- misc.greenlight_pr_state is append-only: emit_id ends the sort key, so every
--- row's key is unique and FINAL collapses nothing. Ordering run_id ahead of
--- version is what makes the per-revision pick race-proof -- a superseded slower
--- dispatch that finishes with a later version still loses to the newer
--- dispatch's higher run_id.
--- Terminal verdicts only, and that is what makes a revert read correctly.
---
--- A commit's mark answers "was this revision approved when it landed", which is
--- a fact about the past that a later event cannot unmake. revert_guard emits its
--- REVERTED row against the PR's head at revert time -- the same head_sha that
--- landed, if nothing was pushed since -- stamped next_run_id, so it outranks the
--- LAND and would erase the mark from a commit that genuinely was approved.
--- REVERTED is an exclusion marker carrying no reason, message or eval_hash: it
--- says the PR is out of review, not that the revision was bad. The in-flight and
--- retry markers are skipped for the same reason -- neither is a verdict.
---
--- The re-landing needs no special case. A reverted PR is excluded from review
--- permanently, so the fixed revision is never reviewed, has no row here at all,
--- and the INNER JOIN below simply drops its trunk commit: approved commit marked,
--- re-landed commit not.
+-- Terminal verdicts only. A revert emits a REVERTED row against the same
+-- head_sha with a higher run_id, which would otherwise erase the approval from
+-- a commit that was genuinely approved when it landed. The fixed re-landing is
+-- never reviewed again, so it has no row and the join drops it.
 WITH reviewed AS
 (
-    SELECT
-        pr_number,
-        head_sha,
-        status
+    SELECT pr_number, head_sha, status
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
       AND status IN ('LAND', 'NO_LAND')
     ORDER BY pr_number, head_sha, run_id DESC, version DESC
     LIMIT 1 BY pr_number, head_sha
 ),
--- A failed merge attempt records an empty merge_commit_sha, and one merge can
--- record more than one row; without both guards a single trunk commit could
--- match several times and fan the join out.
+-- A failed merge records an empty merge_commit_sha, and one merge can record
+-- several rows; both guards keep the join from fanning out.
 landed AS
 (
-    SELECT
-        pr_num,
-        merge_commit_sha,
-        last_commit_sha
+    SELECT pr_num, merge_commit_sha, last_commit_sha
     FROM merges
     WHERE
         owner = {owner: String}
