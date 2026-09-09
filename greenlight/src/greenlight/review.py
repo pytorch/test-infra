@@ -13,11 +13,13 @@ Both authz gates -- the ``--pr`` target author and the ``@greenlight recheck`` r
 bound to ``cohort.TRUSTED_AUTHORS``, not to the cohort: the cohort widens who greenlight looks at
 on its own schedule, never who can point it at a PR.
 
-``PYTORCH_GREENLIGHT_SCAN_FULL_COHORT=false`` narrows the listing back to
-``cohort.TRUSTED_AUTHORS``. It is the one lever that stops the wide cohort's shadow traffic, and it
-needs no counterpart anywhere downstream: every author it leaves listed is trusted, so no shadow
-row is produced in the first place. It gates the listing alone -- both authz gates and the
-merge-authorized login set behave identically either way.
+``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. A trusted author's PR is always
+evaluated; every other listed PR joins only if a stable hash of its number falls under the dial, so
+the holdout is the same group from one scan to the next. At exactly ``0.0`` the listing narrows back
+to ``cohort.TRUSTED_AUTHORS`` and the shadow machinery goes inert at the source, needing no
+counterpart downstream. The dial gates which listed PRs are fingerprinted and nothing else: both
+authz gates, the merge-authorized login set, and whether a verdict carries authority behave
+identically at every setting.
 
 Reverted PRs are excluded before any of that, on both the listing and ``--pr`` paths: greenlight
 revokes its own approval, records the exclusion, and drops the PR (see ``revert_guard``).
@@ -36,6 +38,7 @@ import dataclasses
 import logging
 import queue
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -214,21 +217,23 @@ def run(
         # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
         authorized_logins = resolve_authorized()
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        # scan_full_cohort narrows the LISTING only. authorized_logins stays resolved and threaded
-        # either way: the fingerprint and the human-review skip both read it to spot an approval
-        # from someone who could have merged the PR themselves, which is a separate question from
-        # whose PRs get listed. Narrowing to TRUSTED_AUTHORS makes every listed author trusted, so
-        # cohort.is_shadow is False throughout and the shadow machinery goes inert at the source.
+        # The dial sizes the shadow experiment and decides nothing about authority. At exactly 0.0
+        # the listing narrows to the trusted authors, so no listed author is shadow and the shadow
+        # machinery goes inert at the source -- a state no fractional dial reaches, since each of
+        # those still lists the wide cohort and only thins the fingerprint set below.
+        # authorized_logins stays resolved and threaded at every setting: the fingerprint and the
+        # human-review skip both read it to spot an approval from someone who could have merged the
+        # PR themselves, which is a separate question from whose PRs get listed.
+        wide_listing = config.shadow_rollout > 0.0
         listing_authors = (
             cohort.evaluation_cohort(authorized_logins)
-            if config.scan_full_cohort
-            else frozenset(cohort.TRUSTED_AUTHORS)
+            if wide_listing
+            else frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
         )
         logger.info(
-            "scan cohort: %s",
-            "full evaluation cohort"
-            if config.scan_full_cohort
-            else "trusted authors only (PYTORCH_GREENLIGHT_SCAN_FULL_COHORT is off)",
+            "scan cohort: %s (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)",
+            "full evaluation cohort" if wide_listing else "trusted authors only",
+            config.shadow_rollout,
         )
         pr_numbers, updated_at_by_number, labels_by_number, shadow_by_number = _candidate_numbers(
             client,
@@ -238,7 +243,7 @@ def run(
             authors=listing_authors,
         )
 
-        def is_shadow(number: int) -> bool:
+        def shadow_for_pr(number: int) -> bool:
             # A number absent from the listing fails closed to shadow, matching cohort.is_shadow(None).
             return shadow_by_number.get(number, True)
 
@@ -258,6 +263,13 @@ def run(
         # before returning, so the wait buys nothing here and one such sleep per PR would multiply
         # into the Lambda's function timeout.
         poke_config = dataclasses.replace(config, drci_poke_delay_seconds=0.0)
+        # Entered on the ExitStack so the drain is __exit__-driven. AWS Lambda freezes the execution
+        # environment the instant the handler returns, so an unjoined poke thread would not finish
+        # here -- it would thaw and log its outcome inside some later invocation instead.
+        poke_pool = clients.enter_context(
+            ThreadPoolExecutor(max_workers=drci_poke.POKE_WORKERS, thread_name_prefix="greenlight-poke")
+        )
+        poke = drci_poke.poke_submitter(poke_pool, TARGET_REPO, poke_drci, poke_config)
         excluded = revert_guard.exclude_reverted(
             client,
             pr_numbers,
@@ -269,8 +281,8 @@ def run(
             get_pr=get_pr,
             dismiss=dismiss_approvals,
             emit=emit_reverted,
-            poke=lambda number: poke_drci(TARGET_REPO, number, poke_config),
-            is_shadow=is_shadow,
+            poke=poke,
+            shadow_for_pr=shadow_for_pr,
             failed=failed,
             cancel_event=cancel_event,
         )
@@ -279,15 +291,24 @@ def run(
         # approval must never suppress a manual recheck). Changes-requested still skips on both.
         skip_on_approval = pr is None
         if pr is None:
-            # A single --pr target is always evaluated; the recency window only prunes the
-            # listed scan, where a stale untouched PR would waste a fingerprint.
-            fingerprint_numbers = candidate_filter.recency_filter(
+            # A single --pr target is always evaluated: the recency window only prunes the listed
+            # scan, where a stale untouched PR would waste a fingerprint, and holding a recheck out
+            # of the rollout would exit 0 having silently done nothing.
+            recent = candidate_filter.recency_filter(
                 pr_numbers,
                 updated_at_by_number,
                 states,
                 candidate_filter.labeled_with(labels_by_number, EXCLUDED_LABELS),
                 now=evaluated_at,
                 window=timedelta(hours=config.review_window_hours),
+            )
+            # A trusted author's PR is exempt from the dial: sampling one out would not shrink the
+            # experiment, it would withhold the live service greenlight already gives that author.
+            fingerprint_numbers = candidate_filter.rollout_filter(
+                recent,
+                frozenset(number for number in recent if not shadow_for_pr(number)),
+                repo=TARGET_REPO,
+                rollout=config.shadow_rollout,
             )
         else:
             fingerprint_numbers = pr_numbers
@@ -356,8 +377,8 @@ def run(
                 max_dispatches=max_dispatches,
                 dispatch=dispatch,
                 emit_dispatched=emit_dispatched,
-                poke=lambda number: poke_drci(TARGET_REPO, number, poke_config),
-                is_shadow=is_shadow,
+                poke=poke,
+                shadow_for_pr=shadow_for_pr,
             )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),

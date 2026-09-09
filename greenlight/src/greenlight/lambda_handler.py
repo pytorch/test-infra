@@ -42,7 +42,8 @@ _TOKEN_REPOSITORIES = ["pytorch", "test-infra"]
 # uncapped scan against the full evaluation cohort would run out of clock mid-pass. Deferring is
 # free -- no state row is written for a deferred PR, so the next tick re-evaluates and dispatches
 # it -- while overrunning the timeout kills the scan after arbitrary partial work.
-_MAX_DISPATCHES_PER_SCAN = 30
+_DEFAULT_MAX_DISPATCHES_PER_SCAN = 30
+_MAX_DISPATCHES_ENV = "PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN"
 
 
 def _require_env(name: str) -> str:
@@ -56,6 +57,23 @@ def _require_key(mapping: dict[str, str], key: str, source: str) -> str:
     if key not in mapping:
         raise ValueError(f"{source} is missing required key {key!r}")
     return mapping[key]
+
+
+def _max_dispatches_from_env() -> int:
+    raw = os.environ.get(_MAX_DISPATCHES_ENV, "").strip()
+    if not raw:
+        return _DEFAULT_MAX_DISPATCHES_PER_SCAN
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{_MAX_DISPATCHES_ENV} must be an integer, got {raw!r}") from exc
+    # Zero is a deliberate pause switch: the scan still lists and still revokes its approval on a
+    # reverted PR, it just fingerprints and dispatches nothing. A negative magnitude means the same
+    # thing once the scan clamps it, so it can only be a typo -- and one whose symptom is a silent
+    # stall. "-0" is not that typo and is accepted: it parses to zero because it is zero.
+    if value < 0:
+        raise ValueError(f"{_MAX_DISPATCHES_ENV} must not be negative, got {value}")
+    return value
 
 
 def _require_clickhouse_host() -> None:
@@ -112,6 +130,7 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     installation_id = int(_require_env("GITHUB_INSTALLATION_ID"))
     _require_env("CLICKHOUSE_USERNAME")
     _require_clickhouse_host()
+    max_dispatches = _max_dispatches_from_env()
 
     secret = _load_secret(secret_store_name)
     secret_source = f"secret {secret_store_name!r}"
@@ -129,7 +148,7 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     # No PYTORCH_GREENLIGHT_LOCK_PATH is set: Lambda's reserved_concurrent_executions = 1 already
     # guarantees single-flight, so the in-process fcntl lock is intentionally absent and the
     # EXIT_ALREADY_RUNNING branch below is only defensive/forward-compat.
-    rc = cli.main(["review", "--ref", "main", "--max", str(_MAX_DISPATCHES_PER_SCAN)])
+    rc = cli.main(["review", "--ref", "main", "--max", str(max_dispatches)])
     if rc == EXIT_OK:
         return {"status": "ok"}
     if rc == EXIT_ALREADY_RUNNING:
