@@ -11,6 +11,7 @@ import {
   Stack,
   Tooltip,
   Typography,
+  useTheme,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
@@ -85,6 +86,7 @@ interface SummaryStats {
   avg_queue_time_s: number | null;
   avg_exec_time_s: number | null;
   max_exec_time_s: number | null;
+  overrun_rate: number;
   median_e2e_time_s: number | null;
   p95_exec_time_s: number | null;
   p95_e2e_time_s: number | null;
@@ -128,7 +130,7 @@ function dataCoverageDisplay(
 
 // RFC-0050 L3 promotion/demotion infrastructure gates (rfcs#102, ratified).
 const L3_AVG_QUEUE_TIME_S = 30 * 60; // < 30 min
-const L3_MAX_EXEC_TIME_S = 3 * 3600; // < 3 h
+const L3_OVERRUN_RATE = 0.01; // < 1% of jobs over 3h
 const L3_E2E_TIME_S = 3 * 3600; // < 3 h (P50 time-to-signal)
 const L3_TIMEOUT_RATE = 0.01; // < 1%
 
@@ -190,12 +192,19 @@ function SummaryCards({
   stats: SummaryStats;
   healthCard?: ReactNode;
 }) {
+  const theme = useTheme();
   const passColor =
     stats.pass_rate >= 1.0
       ? "#2e7d32"
       : stats.pass_rate >= 0.9
       ? "#ed6c02"
       : "#d32f2f";
+  const overrunColor =
+    stats.overrun_rate >= L3_OVERRUN_RATE
+      ? theme.palette.error.main
+      : stats.overrun_rate > 0
+      ? theme.palette.warning.main
+      : theme.palette.success.main;
 
   return (
     <Stack spacing={2}>
@@ -247,24 +256,27 @@ function SummaryCards({
           sub="start to completion"
         />
         <StatCard
-          label="Max Execution Time"
+          label="Overrun Rate"
           value={
-            stats.max_exec_time_s != null
-              ? durationDisplay(Math.round(stats.max_exec_time_s))
-              : "–"
+            // A tiny nonzero rate (e.g. 0.03%) would otherwise round to
+            // "0.0%" at 1 decimal while still rendering warning-yellow
+            // below — showing "<0.1%" instead avoids that mismatch.
+            stats.overrun_rate > 0 && stats.overrun_rate < 0.001
+              ? "<0.1%"
+              : `${(stats.overrun_rate * 100).toFixed(1)}%`
           }
           sub={
-            stats.p95_exec_time_s != null
-              ? `p95: ${durationDisplay(Math.round(stats.p95_exec_time_s))}`
-              : "start to completion"
+            stats.max_exec_time_s != null
+              ? `max: ${durationDisplay(Math.round(stats.max_exec_time_s))}` +
+                (stats.p95_exec_time_s != null
+                  ? ` · p95: ${durationDisplay(
+                      Math.round(stats.p95_exec_time_s)
+                    )}`
+                  : "")
+              : "share of jobs over 3h"
           }
-          color={
-            stats.max_exec_time_s != null &&
-            stats.max_exec_time_s > L3_MAX_EXEC_TIME_S
-              ? "#d32f2f"
-              : undefined
-          }
-          tooltip="The single longest job run in this window. p95 = the run time 95% of jobs finish within — a steadier read than the max, which one outlier job can skew."
+          color={overrunColor}
+          tooltip="Share of jobs that individually overran 3h. max = the single longest job run; p95 = the run time 95% of jobs finish within."
         />
         <StatCard
           label="End-to-End Time (P50)"
