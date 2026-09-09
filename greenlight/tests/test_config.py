@@ -12,6 +12,7 @@ NUMERIC_VARS = [
     ("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "merge_rules_ttl_seconds"),
     ("PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", "review_window_hours"),
     ("PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", "drci_poke_delay_seconds"),
+    ("PYTORCH_GREENLIGHT_SHADOW_ROLLOUT", "shadow_rollout"),
 ]
 
 POSITIVE_VARS = [
@@ -24,10 +25,7 @@ POSITIVE_VARS = [
 
 BLANK_VALUES = ["", "   ", "\t", "\n"]
 
-SCAN_FULL_COHORT_VAR = "PYTORCH_GREENLIGHT_SCAN_FULL_COHORT"
-
-TRUE_SPELLINGS = ["1", "true", "TRUE", "True", "yes", "YES", "on", "ON", " true ", "\tTrue\n"]
-FALSE_SPELLINGS = ["0", "false", "FALSE", "False", "no", "NO", "off", "OFF", " false ", "\tFalse\n"]
+SHADOW_ROLLOUT_VAR = "PYTORCH_GREENLIGHT_SHADOW_ROLLOUT"
 
 
 def test_defaults_when_env_empty():
@@ -41,7 +39,7 @@ def test_defaults_when_env_empty():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
-    assert cfg.scan_full_cohort is True
+    assert cfg.shadow_rollout == 1.0
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -59,7 +57,7 @@ def test_direct_construction_defaults():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
-    assert cfg.scan_full_cohort is True
+    assert cfg.shadow_rollout == 1.0
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -76,7 +74,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
-        SCAN_FULL_COHORT_VAR: "false",
+        SHADOW_ROLLOUT_VAR: "0.25",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
@@ -91,7 +89,7 @@ def test_from_env_parses_all_vars():
     assert cfg.merge_rules_ttl_seconds == 900.0
     assert cfg.review_window_hours == 48.0
     assert cfg.drci_poke_delay_seconds == 3.0
-    assert cfg.scan_full_cohort is False
+    assert cfg.shadow_rollout == 0.25
     assert cfg.github_token == "ghp_abc123"
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
@@ -234,47 +232,38 @@ def test_finite_value_still_parses():
     assert cfg.interval_seconds == 12.5
 
 
-def test_scan_full_cohort_unset_defaults_to_the_wide_cohort():
-    # Unset is the shipped behaviour: the kill switch is opt-in, never opt-out.
-    assert Config.from_env({}).scan_full_cohort is True
+def test_shadow_rollout_unset_defaults_to_the_whole_cohort():
+    # Unset is the shipped behaviour: every listed PR is evaluated, and shrinking the experiment
+    # is opt-in. This is also what makes the dial a drop-in for the on/off switch it replaced.
+    assert Config.from_env({}).shadow_rollout == 1.0
 
 
-@pytest.mark.parametrize("blank", BLANK_VALUES)
-def test_scan_full_cohort_blank_uses_default(blank):
-    # A console field cleared rather than deleted reads back as empty, and must not narrow the scan.
-    assert Config.from_env({SCAN_FULL_COHORT_VAR: blank}).scan_full_cohort is True
+@pytest.mark.parametrize("raw", ["0", "0.0", "0.00"])
+def test_shadow_rollout_zero_is_accepted(raw):
+    # 0.0 is a meaningful setting, not a fat finger: it is the holdout-everyone end of the dial.
+    assert Config.from_env({SHADOW_ROLLOUT_VAR: raw}).shadow_rollout == 0.0
 
 
-@pytest.mark.parametrize("raw", TRUE_SPELLINGS)
-def test_scan_full_cohort_true_spellings(raw):
-    assert Config.from_env({SCAN_FULL_COHORT_VAR: raw}).scan_full_cohort is True
+@pytest.mark.parametrize(("raw", "expected"), [("0.5", 0.5), ("0.05", 0.05), ("1", 1.0), (" 0.5 ", 0.5)])
+def test_shadow_rollout_fractions_parse(raw, expected):
+    assert Config.from_env({SHADOW_ROLLOUT_VAR: raw}).shadow_rollout == expected
 
 
-@pytest.mark.parametrize("raw", FALSE_SPELLINGS)
-def test_scan_full_cohort_false_spellings(raw):
-    # An operator flipping this in the AWS console types whatever spelling comes to hand, in
-    # whatever case; every one of these must narrow the scan.
-    assert Config.from_env({SCAN_FULL_COHORT_VAR: raw}).scan_full_cohort is False
-
-
-@pytest.mark.parametrize("raw", ["fasle", "disabled", "2", "-1", "y", "n", "none", "null"])
-def test_scan_full_cohort_unrecognised_value_raises_naming_var(raw):
-    # The whole point of the lever is that it is reached for in an emergency: a value nobody can
-    # read must fail loudly rather than resolve to the permissive default and leave the wide
-    # cohort running.
+@pytest.mark.parametrize("raw", ["1.5", "2", "100", "-0.1", "inf", "-inf", "nan", "abc", "50%"])
+def test_shadow_rollout_out_of_unit_interval_raises_naming_field(raw):
+    # A dial is naturally typed as a percentage or left at some leftover value; every reading
+    # outside 0..1 must fail the tick rather than round itself into a rollout nobody chose. inf is
+    # the one that matters most: unguarded it compares greater than any dial and fails open.
     with pytest.raises(ValueError) as excinfo:
-        Config.from_env({SCAN_FULL_COHORT_VAR: raw})
+        Config.from_env({SHADOW_ROLLOUT_VAR: raw})
     message = str(excinfo.value)
-    assert SCAN_FULL_COHORT_VAR in message
-    assert repr(raw) in message
+    assert "shadow_rollout" in message or SHADOW_ROLLOUT_VAR in message
 
 
-def test_scan_full_cohort_error_lists_every_accepted_spelling():
-    with pytest.raises(ValueError) as excinfo:
-        Config.from_env({SCAN_FULL_COHORT_VAR: "maybe"})
-    message = str(excinfo.value)
-    for accepted in ("1", "true", "yes", "on", "0", "false", "no", "off"):
-        assert accepted in message
+def test_shadow_rollout_upper_bound_is_one_not_the_seconds_cap():
+    assert Config(shadow_rollout=1.0).shadow_rollout == 1.0
+    with pytest.raises(ValueError, match="shadow_rollout"):
+        Config(shadow_rollout=1.0000001)
 
 
 def test_from_env_no_arg_reads_os_environ(monkeypatch):

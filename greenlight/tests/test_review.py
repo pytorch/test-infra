@@ -5,7 +5,7 @@ import queue
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
@@ -77,10 +77,6 @@ def _open_pr(
     )
 
 
-def _boom_poke(repo: str, pr_number: int, poke_config: Config) -> NoReturn:
-    raise AssertionError(f"poke should not be called for {repo}#{pr_number}")
-
-
 def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
     return set()
 
@@ -148,6 +144,7 @@ class _Scan:
     refusals: list[tuple[int, str, str, str]]
     emitted: list[tuple[str, int, str, str, int]]
     poked: list[tuple[str, int, Config]]
+    poke_threads: list[str]
     events: list[str]
     label_fetches: list[int]
     dismissals: list[tuple[int, str, str]]
@@ -196,6 +193,7 @@ def _run_scan(
     refusals: list[tuple[int, str, str, str]] = []
     emitted: list[tuple[str, int, str, str, int]] = []
     poked: list[tuple[str, int, Config]] = []
+    poke_threads: list[str] = []
     events: list[str] = []
     label_fetches: list[int] = []
     dismissals: list[tuple[int, str, str]] = []
@@ -248,6 +246,7 @@ def _run_scan(
 
     def fake_poke(repo, pr_number, poke_config):
         poked.append((repo, pr_number, poke_config))
+        poke_threads.append(threading.current_thread().name)
         events.append(f"poke:{pr_number}")
 
     def fake_read_reverted(_repo, numbers):
@@ -310,6 +309,7 @@ def _run_scan(
         refusals=refusals,
         emitted=emitted,
         poked=poked,
+        poke_threads=poke_threads,
         events=events,
         label_fetches=label_fetches,
         dismissals=dismissals,
@@ -372,10 +372,36 @@ def test_dispatch_pokes_drci_after_the_marker_emit(make_config):
         config_kwargs={"drci_token": "drci-key"},
     )
 
-    # Dr. CI re-reads the state row when poked, so each poke must follow its own marker emit;
-    # without the poke the PR shows no in-flight marker until Dr. CI's next 15-minute sweep.
-    assert scan.events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
-    assert [(repo, number) for repo, number, _ in scan.poked] == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+    # Dr. CI re-reads the state row when poked, so a PR's poke is only scheduled once its own marker
+    # emit has returned; without the poke the PR shows no in-flight marker until the 15-minute sweep.
+    assert scan.events.index("poke:1") > scan.events.index("emit:1")
+    assert scan.events.index("poke:2") > scan.events.index("emit:2")
+    # Where the two poke events land among the rest is the pool's business, but the main-thread
+    # sequence must run straight through: the dispatch loop never waits on a poke.
+    assert [event for event in scan.events if not event.startswith("poke:")] == [
+        "dispatch:1",
+        "emit:1",
+        "dispatch:2",
+        "emit:2",
+    ]
+    assert sorted((repo, number) for repo, number, _ in scan.poked) == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+
+
+def test_pokes_run_off_the_main_thread_and_are_drained_before_run_returns(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        config_kwargs={"drci_token": "drci-key"},
+    )
+
+    # Both pokes ran on the pool and both had finished by the time run returned, because the pool is
+    # entered on run's ExitStack. Draining is not optional: Lambda freezes the execution environment
+    # the instant the handler returns, so a poke left running would resume -- and log its outcome --
+    # inside some later invocation instead of this one.
+    assert len(scan.poke_threads) == 2
+    assert threading.main_thread().name not in scan.poke_threads
+    assert all(name.startswith("greenlight-poke") for name in scan.poke_threads)
 
 
 def test_poke_drops_the_ingestion_delay_but_keeps_the_credentials(make_config):
@@ -696,6 +722,20 @@ def test_reverted_label_drops_pr_before_fingerprinting(make_config, caplog):
     assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
     assert 1 in [pr_number for _repo, pr_number, _config in scan.poked]
     assert "excluding 1 reverted PR(s) from review: [1]" in caplog.text
+
+
+def test_reverted_pr_poke_also_goes_through_the_pool(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # revert_guard's poke seam and the dispatch loop's are one callable, so the revert path cannot
+    # regress to a blocking poke while the dispatch path stays fire-and-forget.
+    assert [number for _repo, number, _config in scan.poked] == [1]
+    assert [name.startswith("greenlight-poke") for name in scan.poke_threads] == [True]
 
 
 def test_reverted_row_still_excludes_after_the_label_is_removed(make_config):
@@ -1632,6 +1672,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
+    poked: list[int] = []
 
     def fingerprint(_client, number, _authorized, _skip):
         fingerprinted.append(number)
@@ -1642,6 +1683,9 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
+    def record_poke(_repo, pr_number, _config):
+        poked.append(pr_number)
+
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
@@ -1651,7 +1695,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            poke_drci=_boom_poke,
+            poke_drci=record_poke,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
@@ -1663,6 +1707,9 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     # the event, so PR3 short-circuits without being fingerprinted.
     assert fingerprinted == [1, 2]
     assert dispatched == []
+    # Nothing dispatched, so nothing is poked -- readable here because the end-of-scan RuntimeError is
+    # raised inside the ExitStack, so the poke pool is drained even on the failing path.
+    assert poked == []
     # The deferral is surfaced by the merged rate-limit warning, and the scan still fails closed: PR2
     # (failed) and PR3 (abandoned) are carried distinctly in the end-of-scan RuntimeError.
     assert "skipping dispatch of 1 completed candidate(s) this pass" in caplog.text
@@ -2107,46 +2154,63 @@ def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_con
 
 
 _SCAN_COHORT_MODES = [
-    pytest.param(True, id="full-cohort"),
-    pytest.param(False, id="trusted-authors-only"),
+    pytest.param(1.0, id="full-cohort"),
+    pytest.param(0.5, id="half-rollout"),
+    pytest.param(0.0, id="trusted-authors-only"),
 ]
 
+_TRUSTED_LOWERCASED = frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
 
-def test_scan_full_cohort_off_narrows_the_listing_to_the_trusted_authors(make_config, caplog):
+
+def test_zero_rollout_narrows_the_listing_to_the_trusted_authors(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         scan = _run_scan(
             make_config,
             listed=[],
             fingerprints={},
             authorized=frozenset({"Alice", "bob"}),
-            config_kwargs={"scan_full_cohort": False},
+            config_kwargs={"shadow_rollout": 0.0},
         )
 
-    # The kill switch: exactly the trusted authors reach the listing, so merge_rules approvers
-    # outside that set stop being scanned at all -- and since every remaining author is trusted,
-    # no shadow row can be produced and nothing downstream needs a matching gate.
-    assert scan.listed_authors == [frozenset(cohort.TRUSTED_AUTHORS)]
-    assert "PYTORCH_GREENLIGHT_SCAN_FULL_COHORT is off" in caplog.text
+    # The kill switch, unchanged by becoming an end of the dial: exactly the trusted authors reach
+    # the listing, so merge_rules approvers outside that set stop being scanned at all -- and since
+    # every remaining author is trusted, no shadow row can be produced and nothing downstream needs
+    # a matching gate.
+    assert scan.listed_authors == [_TRUSTED_LOWERCASED]
+    assert "scan cohort: trusted authors only (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=0)" in caplog.text
 
 
-def test_scan_full_cohort_defaults_on_and_lists_the_evaluation_cohort(make_config, caplog):
+def test_listing_author_set_has_one_casing_at_every_dial(make_config):
+    wide = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "Bob"}))
+    narrow = _run_scan(
+        make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice"}), config_kwargs={"shadow_rollout": 0.0}
+    )
+
+    # Both branches feed the same GitHub call, so both must hand it the same shape. The client
+    # lowercases what it is given, but a mixed-case set here reads as if the dial changed the
+    # matching rule as well as the membership.
+    for listed in (*wide.listed_authors, *narrow.listed_authors):
+        assert listed == frozenset(login.lower() for login in listed)
+
+
+def test_rollout_defaults_to_one_and_lists_the_whole_evaluation_cohort(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "bob"}))
 
-    # Unset means wide: the lever has to be reached for, and the mode is logged either way so an
-    # operator who flips it can confirm from the logs that the next tick picked it up.
+    # Unset means everyone: the dial has to be reached for, and the setting is logged at every value
+    # so an operator who moves it can confirm from the logs that the next tick picked it up.
     assert scan.listed_authors == [frozenset({"alice", "bob"})]
-    assert "scan cohort: full evaluation cohort" in caplog.text
+    assert "scan cohort: full evaluation cohort (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=1)" in caplog.text
 
 
-@pytest.mark.parametrize("scan_full_cohort", _SCAN_COHORT_MODES)
-def test_authorized_logins_stay_resolved_and_threaded_in_both_cohort_modes(make_config, scan_full_cohort):
+@pytest.mark.parametrize("shadow_rollout", _SCAN_COHORT_MODES)
+def test_authorized_logins_stay_resolved_and_threaded_at_every_dial(make_config, shadow_rollout):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1)],
         fingerprints={1: ("headsha1", _HASH_A)},
         authorized=frozenset({"alice", "bob"}),
-        config_kwargs={"scan_full_cohort": scan_full_cohort},
+        config_kwargs={"shadow_rollout": shadow_rollout},
     )
 
     # Narrowing the listing must never become "skip the merge_rules fetch". That resolved set is
@@ -2300,3 +2364,100 @@ def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow
     assert scan.dispatch_shadow == [(5, True)]
     assert scan.emit_shadow == [(5, True)]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+# Two PR numbers whose stable buckets straddle the midpoint of the dial -- #12 lands at 3562 and
+# #11 at 5102 of 10000. The buckets themselves are pinned in test_candidate_filter.
+_IN_EXPERIMENT_PR = 12
+_HELD_OUT_PR = 11
+
+
+def test_fractional_rollout_evaluates_only_the_sampled_half_of_the_shadow_cohort(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(_IN_EXPERIMENT_PR, author=_COHORT_ONLY_AUTHOR),
+            _open_pr(_HELD_OUT_PR, author=_COHORT_ONLY_AUTHOR),
+        ],
+        fingerprints={_IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A)},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # What the dial buys: a stable holdout group, and a bounded blast radius for anything wrong in
+    # the shadow path. What it cuts is the fingerprint fan-out and the dispatches -- the listing
+    # itself still paginates every open PR in the repo at every setting.
+    assert scan.fingerprinted == [_IN_EXPERIMENT_PR]
+    assert [number for number, *_ in scan.dispatched] == [_IN_EXPERIMENT_PR]
+    assert scan.dispatch_shadow == [(_IN_EXPERIMENT_PR, True)]
+    # Held out of the experiment, not out of the scan: its recorded state is still read.
+    assert scan.read_calls == [(TARGET_REPO, [_IN_EXPERIMENT_PR, _HELD_OUT_PR])]
+
+
+def test_a_held_out_pr_still_reaches_the_revert_guard(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, updated_at=_NEW, labels=("Reverted",), author=_COHORT_ONLY_AUTHOR)],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={_HELD_OUT_PR: [901]},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # The dial is applied to the fingerprint candidates and never to the listing, precisely so this
+    # keeps working. Sampling at the listing would leave a held-out PR carrying a live greenlight
+    # approval it should have lost, and no REVERTED row -- so removing the label would silently
+    # re-admit it forever. Both failures are silent: no log, no error.
+    assert scan.fingerprinted == []
+    assert scan.dismissals == [(_HELD_OUT_PR, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_emitted == [(TARGET_REPO, _HELD_OUT_PR, f"headsha{_HELD_OUT_PR}", 1)]
+
+
+def test_a_trusted_authors_pr_is_never_held_out_by_the_dial(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, author="albanD")],
+        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # Same PR number and same dial as the held-out case, opposite answer: the exemption is keyed off
+    # the author. Sampling a trusted author's PR out would not shrink the experiment, it would
+    # withhold the live, authoritative service greenlight already gives that author.
+    assert scan.fingerprinted == [_HELD_OUT_PR]
+    assert scan.dispatch_shadow == [(_HELD_OUT_PR, False)]
+
+
+def test_pr_target_is_never_held_out_by_the_dial(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=_HELD_OUT_PR,
+        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
+        author="mallory",
+        allow_untrusted_author=True,
+        config_kwargs={"shadow_rollout": 0.0},
+    )
+
+    # An explicit --pr recheck is a human pointing greenlight at one PR. Sampling it out would exit
+    # 0 having done nothing at all, with nothing logged to say why -- so the dial gates the listing
+    # scan alone, at every setting including the one that lists nobody.
+    assert scan.fingerprinted == [_HELD_OUT_PR]
+    assert [number for number, *_ in scan.dispatched] == [_HELD_OUT_PR]
+    assert scan.dispatch_shadow == [(_HELD_OUT_PR, True)]
+
+
+def test_zero_rollout_leaves_the_trusted_authors_at_full_service(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, author="albanD"), _open_pr(_IN_EXPERIMENT_PR, author="huydhn")],
+        fingerprints={
+            _HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A),
+            _IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A),
+        },
+        config_kwargs={"shadow_rollout": 0.0},
+    )
+
+    # 0.0 reproduces the old off switch rather than pausing the service: the trusted authors it
+    # leaves listed are all exempt, so they are evaluated at full strength on both sides of the
+    # bucket boundary, with no shadow traffic anywhere.
+    assert sorted(scan.fingerprinted) == [_HELD_OUT_PR, _IN_EXPERIMENT_PR]
+    assert scan.emit_shadow == [(_HELD_OUT_PR, False), (_IN_EXPERIMENT_PR, False)]

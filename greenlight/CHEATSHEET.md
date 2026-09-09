@@ -31,7 +31,11 @@ one-shot `verdict` and `drci-poke` subcommands:
   evaluated in **shadow** — dispatched, reviewed and recorded like any other, but the row is
   stamped `shadow`, so it is never approved, always dismisses any prior greenlight approval, is
   filtered out of both Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI.
-  The `--pr` and `--requester` gates below stay bound to `TRUSTED_AUTHORS`, not to the cohort.
+  `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` (default `1`) sizes that shadow experiment: a trusted
+  author's PR is always evaluated, every other listed PR joins on a stable hash of its number, and
+  a held-out PR is still listed, still state-read, and still revert-guarded — only its fingerprint
+  and dispatch are skipped. The `--pr` and `--requester` gates below stay bound to
+  `TRUSTED_AUTHORS`, not to the cohort, and are never sampled out.
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
@@ -137,10 +141,11 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed) |
-| `PYTORCH_GREENLIGHT_SCAN_FULL_COHORT` | unset (= on) | Unset or on (`1`/`true`/`yes`/`on`) lists the full evaluation cohort; off (`0`/`false`/`no`/`off`, any case) narrows the listing to `cohort.TRUSTED_AUTHORS` and ends shadow evaluation. Any other value is rejected. Listing only — neither authz gate moves |
+| `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` | `1` | Fraction (`0`–`1`) of the shadow experiment the listing scan runs. Trusted authors are always in; every other listed PR joins on a stable sha256 of `repo#number`, so the holdout is the same group each scan and dialling up only adds PRs. `0` exactly narrows the listing to `cohort.TRUSTED_AUTHORS` and ends shadow evaluation (`1e-9` does not — wide listing, empty experiment). Outside `0`–`1`, or non-finite, is rejected. Thins fingerprints and dispatches; the listing still paginates every open PR. `--pr` and both authz gates are never sampled out |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints, evaluates, and dispatches nothing; the scan still lists and still revokes on reverted PRs). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
@@ -173,13 +178,17 @@ The end-to-end flow, per cohort PR:
    carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,
    or a human has already decided it (approved by a `merge_rules.yaml` approver with bots excluded,
    or changes requested by any non-bot reviewer), in which case it is skipped without fingerprinting
-   (an explicit `@greenlight recheck` via `--pr` reviews it regardless).
+   (an explicit `@greenlight recheck` via `--pr` reviews it regardless). Last, if
+   `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` is below `1`, a PR from an untrusted author whose stable hash
+   falls outside the dial is held out here too — after the revert guard, so the exclusion above
+   still applies to it, and never on the `--pr` path.
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow
    (`greenlight-pr-review.yml` on `pytorch/test-infra`) and emits an `AI_REVIEW_DISPATCHED`
-   row, then pokes Dr. CI in-process (no ingestion wait — the row is already in S3) so that
-   first state surfaces immediately instead of on the next sweep.
+   row, then hands Dr. CI a poke to a background pool (no ingestion wait — the row is already
+   in S3) so that first state surfaces immediately instead of on the next sweep. The scan does
+   not wait on the poke; the pool is drained before the scan returns.
 4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
    the next scan sees the review as in-flight and does not re-dispatch it.
 5. Before the model runs, the workflow sanitizes the untrusted `./pytorch` checkout —
