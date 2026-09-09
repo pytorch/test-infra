@@ -30,8 +30,10 @@ one-shot `verdict` and `drci-poke` subcommands:
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
-  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. Runs once,
-  never as a daemon.
+  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. `--shadow`
+  records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with a shadow
+  value derived from the PR's author at record time, so a disagreement withholds the approval.
+  Runs once, never as a daemon.
 - `drci-poke` — ask Dr. CI to rebuild one PR's comment now rather than at its next
   15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
   just-written state row reaches ClickHouse. Never fails: every error is logged and
