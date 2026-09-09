@@ -28,11 +28,7 @@ import {
   matchVerdictToJob,
 } from "lib/advisorVerdictUtils";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
-import {
-  fetcher,
-  useClickHouseAPI,
-  useClickHouseAPIImmutable,
-} from "lib/GeneralUtils";
+import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import {
   greenlightRepoKey,
   isGreenlightRepo,
@@ -899,19 +895,17 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   // Lazy-load GreenLight verdicts for commits on screen, keyed by trunk sha so a
   // PR that landed more than once is marked per landing.
   const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
-  // Same refresh config as useHudData, so the mark never disagrees with the row
-  // it sits on. useSWRImmutable would freeze it until the commit list changed.
-  const { data: greenlightRows } = useClickHouseAPI<GreenlightTrunkStatusRow>(
-    "greenlight_trunk_commit_states",
-    {
-      repo: greenlightRepoKey(params.repoOwner, params.repoName),
-      owner: params.repoOwner,
-      project: params.repoName,
-      shas: shas,
-    },
-    isGreenlight && shas.length > 0,
-    { refreshInterval: 60 * 1000, refreshWhenHidden: true }
-  );
+  const { data: greenlightRows } =
+    useClickHouseAPIImmutable<GreenlightTrunkStatusRow>(
+      "greenlight_trunk_commit_states",
+      {
+        repo: greenlightRepoKey(params.repoOwner, params.repoName),
+        owner: params.repoOwner,
+        project: params.repoName,
+        shas: shas,
+      },
+      isGreenlight && shas.length > 0
+    );
   const greenlightStatusBySha = useMemo(
     () => buildStatusByTrunkSha(greenlightRows),
     [greenlightRows]
