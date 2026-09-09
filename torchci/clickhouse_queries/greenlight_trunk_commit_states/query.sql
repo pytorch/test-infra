@@ -19,6 +19,21 @@
 -- version is what makes the per-revision pick race-proof -- a superseded slower
 -- dispatch that finishes with a later version still loses to the newer
 -- dispatch's higher run_id.
+-- Terminal verdicts only, and that is what makes a revert read correctly.
+--
+-- A commit's mark answers "was this revision approved when it landed", which is
+-- a fact about the past that a later event cannot unmake. revert_guard emits its
+-- REVERTED row against the PR's head at revert time -- the same head_sha that
+-- landed, if nothing was pushed since -- stamped next_run_id, so it outranks the
+-- LAND and would erase the mark from a commit that genuinely was approved.
+-- REVERTED is an exclusion marker carrying no reason, message or eval_hash: it
+-- says the PR is out of review, not that the revision was bad. The in-flight and
+-- retry markers are skipped for the same reason -- neither is a verdict.
+--
+-- The re-landing needs no special case. A reverted PR is excluded from review
+-- permanently, so the fixed revision is never reviewed, has no row here at all,
+-- and the INNER JOIN below simply drops its trunk commit: approved commit marked,
+-- re-landed commit not.
 WITH reviewed AS
 (
     SELECT
@@ -27,6 +42,7 @@ WITH reviewed AS
         status
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
+      AND status IN ('LAND', 'NO_LAND')
     ORDER BY pr_number, head_sha, run_id DESC, version DESC
     LIMIT 1 BY pr_number, head_sha
 ),
