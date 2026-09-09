@@ -12,8 +12,8 @@ withholds and dismisses off its own derivation rather than off the flag.
 
 The four call sites in ``.github/workflows/greenlight-pr-review.yml`` are separate shell bodies
 with nothing linking them, and one added later inherits the same silent default. These tests are
-that link -- they fail when a verdict call or a per-job validation step stops matching the
-others.
+that link -- they fail when a verdict call, a per-job validation step, or a Dr. CI poke guard
+stops matching the others.
 
 The workflow's own end of the wire is pinned against ``greenlight.dispatch``: the literals its
 validator branches on are probed out of ``dispatch_review`` rather than restated here, because a
@@ -39,12 +39,14 @@ _DISPATCH = "greenlight/src/greenlight/dispatch.py"
 assert (ROOT / _WORKFLOW).is_file()
 
 _VERDICT_CALL = "greenlight verdict"
+_POKE_CALL = "greenlight drci-poke"
 _SHADOW_FLAG = "SHADOW_FLAG"
 # `--shadow` is a bare flag, so the false case must pass NO argument, and only the `:+` form
 # expands to nothing. `--shadow "$SHADOW_FLAG"` passes an empty option-argument and a bare
 # `"$SHADOW_FLAG"` passes an empty positional; both reach the CLI and both fail there.
 _SHADOW_EXPANSION = f'${{{_SHADOW_FLAG}:+"${_SHADOW_FLAG}"}}'
 _SHADOW_INPUT = "${{ github.event.inputs.shadow }}"
+_POKE_GUARD = "github.event.inputs.shadow != 'true'"
 
 _CASE_FALLBACK_ARM = "*"
 _CASE_RE = re.compile(r'case\s+"\$SHADOW"\s+in\b(.*?)\besac\b', re.DOTALL)
@@ -56,6 +58,7 @@ _SHADOW_ASSIGNMENT_RE = re.compile(rf'{_SHADOW_FLAG}=([^"]*)"')
 # cancelled and failed markers. The review job runs the model and writes no state row at all.
 _ROW_WRITING_JOBS = ("announce_start", "record")
 _VERDICT_CALL_SITES = 4
+_POKE_CALL_SITES = 2
 
 _DOC: dict[Any, Any] = yaml.safe_load((ROOT / _WORKFLOW).read_text())
 _JOBS: dict[str, Any] = _DOC["jobs"]
@@ -258,6 +261,19 @@ def test_shadow_case_fallback_arm_aborts(job: str) -> None:
         f"job {job}'s `{_CASE_FALLBACK_ARM})` arm does not exit non-zero: {arms[_CASE_FALLBACK_ARM]!r}. An "
         f"unrecognized value must abort, because falling through leaves {_SHADOW_FLAG} unset -- which reads "
         f"as visible-and-approvable, the one wrong answer for a value nobody could parse."
+    )
+
+
+def test_drci_poke_is_suppressed_for_shadow() -> None:
+    pokes = _invocations(_POKE_CALL)
+    found = sorted(_label(job, step) for job, step in pokes)
+    assert len(found) == _POKE_CALL_SITES, _drift(
+        f"expected {_POKE_CALL_SITES} `{_POKE_CALL}` steps, found {len(found)}: {found}."
+    )
+    unguarded = sorted(_label(job, step) for job, step in pokes if _POKE_GUARD not in _field(step, "if"))
+    assert not unguarded, _drift(
+        f"these `{_POKE_CALL}` steps carry no `{_POKE_GUARD}` guard: {unguarded}. The Dr. CI query drops "
+        f"shadow rows in its WHERE, so poking for one only spends a refresh that renders nothing new."
     )
 
 
