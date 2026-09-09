@@ -126,6 +126,7 @@ def _revoke_and_record(
             pr_number=number,
             head_sha=pr.head.sha,
             run_id=next_run_id(recorded_state),
+            shadow=False,
         )
     except IterationTimeout:
         raise

@@ -279,6 +279,7 @@ def _emit_dispatch_marker(
             head_sha=candidate.head_sha,
             eval_hash=candidate.eval_hash,
             run_id=next_run_id(candidate.state),
+            shadow=False,
         )
     except IterationTimeout:
         raise
