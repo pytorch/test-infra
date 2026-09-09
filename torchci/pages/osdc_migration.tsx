@@ -45,7 +45,7 @@ import {
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 
-const ROW_HEIGHT = 240;
+const SUMMARY_PANEL_HEIGHT = 150;
 
 // The Daily hits column draws one bar per day, so a longer window turns it into
 // an unreadable smear. Cap the picker rather than making the column adaptive:
@@ -64,7 +64,6 @@ type FileRow = {
   workflowFile: string;
   legacyJobs: number;
   osdcJobs: number;
-  otherJobs: number;
   legacyMainline: number;
   osdcMainline: number;
   legacyLabels: string[];
@@ -72,7 +71,6 @@ type FileRow = {
   legacyMainlineByDay: number[];
   lastLegacyRun: string;
   lastLegacyMainlineRun: string;
-  lastRun: string;
   legacyShare: number;
   status: Status;
 };
@@ -190,7 +188,7 @@ function DailyHits({ counts }: { counts: number[] }) {
                   ? theme.palette.mode === "dark"
                     ? "#3a3a3a"
                     : "#e0e0e0"
-                  : "#ee6666",
+                  : theme.palette.error.main,
               borderRadius: "1px",
             }}
           />
@@ -265,7 +263,6 @@ export default function Page() {
       workflowFile: f,
       legacyJobs: 0,
       osdcJobs: 0,
-      otherJobs: 0,
       legacyMainline: 0,
       osdcMainline: 0,
       legacyLabels: [],
@@ -273,7 +270,6 @@ export default function Page() {
       legacyMainlineByDay: [],
       lastLegacyRun: "",
       lastLegacyMainlineRun: "",
-      lastRun: "",
       legacyShare: 0,
       status: "not_run" as const,
     }));
@@ -439,7 +435,6 @@ export default function Page() {
         <FormControl>
           <InputLabel id="osdc-repo-label">Repo</InputLabel>
           <Select
-            defaultValue={PYTORCH_MIGRATION_REPOS[0]}
             label="Repo"
             labelId="osdc-repo-label"
             onChange={(e: SelectChangeEvent<string>) =>
@@ -513,7 +508,7 @@ export default function Page() {
         direction="row"
         spacing={2}
         sx={{ mb: 2 }}
-        height={ROW_HEIGHT / 1.6}
+        height={SUMMARY_PANEL_HEIGHT}
       >
         <Box sx={{ flex: 1 }}>
           <ScalarPanelWithValue
@@ -594,7 +589,12 @@ export default function Page() {
       {!workflowInventoryLoading && workflowInventoryUnavailable && (
         <Typography
           variant="caption"
-          sx={{ display: "block", mb: 1, color: "#c77700", fontWeight: 600 }}
+          sx={{
+            display: "block",
+            mb: 1,
+            color: "warning.main",
+            fontWeight: 600,
+          }}
         >
           Could not read this repo&apos;s complete workflow file list from
           GitHub, so only files that ran CI in the window are shown — files with

@@ -33,7 +33,6 @@ SELECT
     workflowFile,
     legacyJobs,
     osdcJobs,
-    otherJobs,
     legacyMainline,
     osdcMainline,
     legacyLabels,
@@ -56,7 +55,6 @@ SELECT
     ) AS legacyMainlineByDay,
     lastLegacyRun,
     lastLegacyMainlineRun,
-    lastRun,
     if(legacyJobs + osdcJobs = 0, 0, legacyJobs / (legacyJobs + osdcJobs)) AS legacyShare,
     multiIf(
         legacyJobs = 0 AND osdcJobs = 0, 'out_of_scope',
@@ -70,15 +68,13 @@ FROM
         workflowFile,
         countIf(isLegacy) AS legacyJobs,
         countIf(isOsdc) AS osdcJobs,
-        count() - legacyJobs - osdcJobs AS otherJobs,
         countIf(isLegacy AND isMainline) AS legacyMainline,
         countIf(isOsdc AND isMainline) AS osdcMainline,
         arraySort(groupUniqArrayIf(label, isLegacy)) AS legacyLabels,
         groupArrayIf(dayOffset, isLegacy) AS legacyDayOffsets,
         groupArrayIf(dayOffset, isLegacy AND isMainline) AS legacyMainlineDayOffsets,
         maxIf(createdAt, isLegacy) AS lastLegacyRun,
-        maxIf(createdAt, isLegacy AND isMainline) AS lastLegacyMainlineRun,
-        max(createdAt) AS lastRun
+        maxIf(createdAt, isLegacy AND isMainline) AS lastLegacyMainlineRun
     FROM
     (
         SELECT
