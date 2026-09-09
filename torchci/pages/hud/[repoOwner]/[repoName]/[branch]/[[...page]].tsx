@@ -28,11 +28,7 @@ import {
   matchVerdictToJob,
 } from "lib/advisorVerdictUtils";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
-import {
-  fetcher,
-  useClickHouseAPI,
-  useClickHouseAPIImmutable,
-} from "lib/GeneralUtils";
+import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import {
   greenlightRepoKey,
   isGreenlightRepo,
@@ -273,11 +269,8 @@ function HudRow({
                 <div>#{rowData.prNum}</div>
               )}
             </a>
-            {/* Keyed by this row's own commit, so a PR that landed twice is
-            marked per landing rather than both commits inheriting the later
-            verdict. LAND only: every other status is a refusal or the absence
-            of one, and a mark on those would read as an endorsement the ledger
-            never made. */}
+            {/* LAND only: every other status is a refusal or the absence
+            of one. */}
             {isGreenlightApproved(greenlightStatus) && (
               <GreenLightIcon status={greenlightStatus} size={14} />
             )}
@@ -555,10 +548,7 @@ export const AdvisorVerdictsContext = createContext<
   Map<string, AdvisorVerdict[]>
 >(new Map());
 
-// GreenLight verdicts for the commits on screen: trunk sha -> the status of the
-// revision that produced that commit. A context rather than a prop because the
-// only consumer is the PR cell four levels down, and the rows in between have
-// nothing to say about it.
+// trunk sha -> the GreenLight status of the revision that produced that commit.
 export const GreenlightStatusesContext = createContext<Map<string, string>>(
   new Map()
 );
@@ -902,35 +892,20 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     isPyTorch && prNums.length > 0
   );
 
-  // Lazy-load GreenLight verdicts for the commits on screen. Keyed by trunk sha,
-  // not by PR: a PR that lands, is reverted, is changed and lands again yields
-  // two commits from two revisions with two verdicts, and keying on the PR would
-  // mark the first commit with an approval that was never about it. The query
-  // resolves each commit through merges.last_commit_sha to the revision
-  // GreenLight actually reviewed.
-  //
-  // Gated on GREENLIGHT_REPOS rather than on isPyTorch: that allowlist is what
-  // the Dr.CI render already keys off, so both surfaces light up and go dark for
-  // the same repos.
+  // Lazy-load GreenLight verdicts for commits on screen, keyed by trunk sha so a
+  // PR that landed more than once is marked per landing.
   const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
-  // Polled rather than immutable. The verdict itself is settled once a revision
-  // lands, but the mark needs a `merges` row as well as a ledger row, and both
-  // reach ClickHouse through the S3 replicator after the commit is already on
-  // main and already on this page. A freshly landed commit can therefore render
-  // unmarked for a few minutes; on a page whose commit list is not moving, the
-  // SWR key never changes and an immutable fetch would leave it that way until
-  // a reload.
-  const { data: greenlightRows } = useClickHouseAPI<GreenlightTrunkStatusRow>(
-    "greenlight_trunk_commit_states",
-    {
-      repo: greenlightRepoKey(params.repoOwner, params.repoName),
-      owner: params.repoOwner,
-      project: params.repoName,
-      shas: shas,
-    },
-    isGreenlight && shas.length > 0,
-    { refreshInterval: 5 * 60 * 1000 }
-  );
+  const { data: greenlightRows } =
+    useClickHouseAPIImmutable<GreenlightTrunkStatusRow>(
+      "greenlight_trunk_commit_states",
+      {
+        repo: greenlightRepoKey(params.repoOwner, params.repoName),
+        owner: params.repoOwner,
+        project: params.repoName,
+        shas: shas,
+      },
+      isGreenlight && shas.length > 0
+    );
   const greenlightStatusBySha = useMemo(
     () => buildStatusByTrunkSha(greenlightRows),
     [greenlightRows]
