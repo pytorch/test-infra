@@ -255,6 +255,13 @@
       "linux"
     ]
   ],
+  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "173341",
+    "https://github.com/pytorch/pytorch/issues/173341",
+    [
+      "xpu"
+    ]
+  ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
     "188627",
     "https://github.com/pytorch/pytorch/issues/188627",
