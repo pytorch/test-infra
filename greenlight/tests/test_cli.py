@@ -356,6 +356,7 @@ def test_verdict_parser_parses_all_args():
             "greenlight-app[bot]",
             "--run-id",
             "123",
+            "--shadow",
             "--log-level",
             "DEBUG",
             "--dry-run",
@@ -372,6 +373,7 @@ def test_verdict_parser_parses_all_args():
     assert args.eval_job_url == "https://eval"
     assert args.bot_login == "greenlight-app[bot]"
     assert args.run_id == 123
+    assert args.shadow is True
     assert args.log_level == "DEBUG"
     assert args.dry_run is True
 
@@ -387,6 +389,9 @@ def test_verdict_parser_defaults():
     assert args.eval_job_url == ""
     assert args.bot_login == ""
     assert args.run_id is None
+    # Omitting the flag means an authoritative verdict: the reviewer workflow passes --shadow only
+    # when the dispatch input said so, so a dropped flag can never silently downgrade a real one.
+    assert args.shadow is False
     assert args.log_level is None
     assert args.dry_run is False
 
@@ -456,9 +461,37 @@ def test_main_verdict_dispatches_and_builds_request(monkeypatch):
     assert request.agent_job_url == "https://agent"
     assert request.bot_login == "greenlight-app[bot]"
     assert request.run_id == 456
+    assert request.shadow is False
     assert isinstance(captured["config"], Config)
     # verdict runs one-shot and must never touch the daemon single-instance lock.
     lock_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("argv_tail", "expected"),
+    [
+        pytest.param(["--shadow"], True, id="flag-given"),
+        pytest.param([], False, id="flag-absent"),
+    ],
+)
+def test_main_verdict_forwards_shadow_to_the_request(monkeypatch, argv_tail, expected):
+    captured: dict[str, object] = {}
+
+    def fake_run(request, config):
+        captured["request"] = request
+
+    monkeypatch.setattr(verdict, "run", fake_run)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    rc = cli.main(["verdict", "--pr", "7", "--head-sha", "abc123", "--status", "LAND", *argv_tail])
+
+    # The flag must reach the request, not merely parse. Accepting --shadow and then letting the
+    # dataclass default stand would record every shadow PR as authoritative -- it renders in Dr. CI
+    # and the merge gate honours it -- and nothing downstream would notice.
+    assert rc == EXIT_OK
+    request = captured["request"]
+    assert isinstance(request, verdict.VerdictRequest)
+    assert request.shadow is expected
 
 
 def test_main_verdict_failure_returns_exit_failure(monkeypatch):
