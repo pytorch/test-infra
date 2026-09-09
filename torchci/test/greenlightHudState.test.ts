@@ -1,6 +1,5 @@
 import {
   buildStatusByTrunkSha,
-  GreenlightPrStateRow,
   isGreenlightApproved,
   normalizeSha,
 } from "lib/greenlight/greenlightHudState";
@@ -11,20 +10,6 @@ import {
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
-
-function row(overrides: Partial<GreenlightPrStateRow>): GreenlightPrStateRow {
-  return {
-    pr_number: 1,
-    status: GREENLIGHT_STATUS_LAND,
-    reason: "clean",
-    message: "looks fine",
-    head_sha: "a".repeat(40),
-    eval_job: "",
-    run_id: 1,
-    version: "2026-09-01 00:00:00.000",
-    ...overrides,
-  };
-}
 
 describe("isGreenlightApproved", () => {
   test("only LAND counts as approved", () => {
