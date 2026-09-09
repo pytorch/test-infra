@@ -11,6 +11,11 @@
 -- to the newer dispatch's higher run_id. Existing rows read run_id = 0, emit_id = '' from
 -- the old parts, and being 1 row per PR today they still do not collapse.
 --
+-- That selection picks the latest row, not the latest row carrying authority. A reader
+-- asking an authority question must ALSO filter shadow = false (005) in WHERE, ahead of the
+-- LIMIT 1 BY, so a shadow row is gone before the collapse picks a winner rather than
+-- winning and masking the newest non-shadow row.
+--
 -- This exact statement is load-bearing:
 --   * ONE combined ALTER. MODIFY ORDER BY may only append columns introduced in the SAME
 --     ALTER, so both ADD COLUMNs and the MODIFY ORDER BY must be one statement.
@@ -30,6 +35,10 @@
 --   3. the greenlight service code, whose writer MUST always populate run_id and emit_id
 --      and whose reader orders by run_id, so both columns must exist before it deploys.
 -- A missing column fails the reader loud (a query error), never silently.
+--
+-- Lockstep is specific to this migration and must not be pattern-matched onto the next one:
+-- 005 is strictly ORDERED, DDL first, because its readers fail silently or with a 500
+-- rather than loudly. Read that file's own header before applying it.
 ALTER TABLE misc.greenlight_pr_state
     ADD COLUMN run_id Int64 AFTER version,
     ADD COLUMN emit_id String AFTER run_id,
