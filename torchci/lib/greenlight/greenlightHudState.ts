@@ -5,33 +5,10 @@
 // re-declared: greenlight/tests/test_render_sync.py pins those declarations to
 // the Python source, so that file has to stay the one place they are spelled.
 //
-// The model-authored `message` needs none of greenlightRender's defanging here.
-// That defanging exists because the Dr.CI comment is markdown GitHub renders:
-// a fence stops the text becoming markup and a zero-width space stops an
-// @-mention pinging. React escapes text nodes instead, so the containment is
-// structural as long as no consumer routes the message through
-// dangerouslySetInnerHTML or a markdown renderer -- none does.
-//
 // Takes no ClickHouse / Octokit / server-only imports, so it is unit-testable
-// and importable anywhere. That does not make it client-only: the server-side
-// Dr.CI glue in greenlightComment.ts imports the row type from here too.
+// and importable anywhere.
 
 import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
-
-/**
- * One `misc.greenlight_pr_state` row as the `greenlight_pr_states` saved query
- * returns it. Saved queries are untyped (`any[]`), so this is the cast target.
- */
-export interface GreenlightPrStateRow {
-  pr_number: number;
-  status: string;
-  reason: string;
-  message: string;
-  head_sha: string;
-  eval_job: string;
-  run_id: number;
-  version: string;
-}
 
 /**
  * One row of `greenlight_trunk_commit_states`: the verdict GreenLight reached on
