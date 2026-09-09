@@ -2,6 +2,9 @@
 // traffic light); everything else gets a coloured lamp, since that avatar is a
 // green light and must never appear on a refusal. An unknown status renders
 // nothing rather than falling back to a mark that implies a verdict.
+//
+// greenlightGlyphChar below is the text fallback for a native <option>, which
+// cannot hold an element -- there every tone, approval included, is a circle.
 
 import { Tooltip, useTheme } from "@mui/material";
 import {

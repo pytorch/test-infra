@@ -34,7 +34,7 @@ function CommitHeader({
   const { data: greenlightRows } = useGreenlightPrHistory(
     repoOwner,
     repoName,
-    Number(pr)
+    pr ? parseInt(pr) : null
   );
   const greenlightBySha = buildStateBySha(greenlightRows);
   return (

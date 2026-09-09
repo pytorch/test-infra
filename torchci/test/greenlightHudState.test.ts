@@ -1,5 +1,4 @@
 import {
-  authoritativeState,
   buildStateBySha,
   buildStatusByTrunkSha,
   GreenlightPrStateRow,
@@ -23,6 +22,7 @@ function row(overrides: Partial<GreenlightPrStateRow>): GreenlightPrStateRow {
     reason: "clean",
     message: "looks fine",
     head_sha: "a".repeat(40),
+    merge_commit_sha: "",
     eval_job: "",
     run_id: 1,
     version: "2026-09-01 00:00:00.000",
@@ -127,6 +127,7 @@ describe("buildStatusByTrunkSha", () => {
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
 const SHA_C = "c".repeat(40);
+const TRUNK_A = "d".repeat(40);
 
 describe("normalizeSha", () => {
   test("folds case and trims, and maps absent input to empty", () => {
@@ -165,74 +166,52 @@ describe("buildStateBySha", () => {
   });
 });
 
-describe("authoritativeState", () => {
-  test("picks the highest run_id across commits, not the latest version", () => {
-    const best = authoritativeState([
-      row({
-        head_sha: SHA_A,
-        run_id: 9,
-        version: "2026-01-01 00:00:00.000",
-        status: GREENLIGHT_STATUS_LAND,
-      }),
-      row({
-        head_sha: SHA_B,
-        run_id: 8,
-        version: "2026-09-01 00:00:00.000",
-        status: GREENLIGHT_STATUS_NO_LAND,
-      }),
-    ]);
-    expect(best?.status).toBe(GREENLIGHT_STATUS_LAND);
-  });
-
-  test("undefined when the PR has no recorded state", () => {
-    expect(authoritativeState(undefined)).toBeUndefined();
-    expect(authoritativeState([])).toBeUndefined();
-  });
-});
-
 describe("selectStateForSha", () => {
   const rows = [
-    row({ head_sha: SHA_A, status: GREENLIGHT_STATUS_NO_LAND, run_id: 4 }),
-    row({ head_sha: SHA_B, status: GREENLIGHT_STATUS_LAND, run_id: 7 }),
+    row({
+      head_sha: SHA_A,
+      merge_commit_sha: TRUNK_A,
+      status: GREENLIGHT_STATUS_LAND,
+    }),
+    row({
+      head_sha: SHA_B,
+      merge_commit_sha: "",
+      status: GREENLIGHT_STATUS_NO_LAND,
+    }),
   ];
 
-  test("a reviewed commit gets its own verdict, not the PR's latest", () => {
+  test("matches a reviewed head, which is what the PR picker selects", () => {
     expect(selectStateForSha(rows, SHA_A)).toEqual(rows[0]);
+    expect(selectStateForSha(rows, SHA_B)).toEqual(rows[1]);
   });
 
-  test("an unreviewed commit falls back to the PR's authoritative verdict", () => {
-    // The trunk case, and the normal one: mergebot rebases on merge, so a
-    // landed commit's sha is never a sha GreenLight reviewed even though the
-    // commit is that reviewed change.
-    expect(selectStateForSha(rows, SHA_C)).toEqual(rows[1]);
+  test("matches the trunk commit that reviewed head landed as", () => {
+    // Mergebot rebases, so a commit page never sees the reviewed sha.
+    expect(selectStateForSha(rows, TRUNK_A)).toEqual(rows[0]);
   });
 
-  test("the fallback is never the newest row by version alone", () => {
-    const raced = [
-      row({
-        head_sha: SHA_A,
-        run_id: 9,
-        version: "2026-01-01 00:00:00.000",
-        status: GREENLIGHT_STATUS_LAND,
-      }),
-      row({
-        head_sha: SHA_B,
-        run_id: 8,
-        version: "2026-09-01 00:00:00.000",
-        status: GREENLIGHT_STATUS_NO_LAND,
-      }),
-    ];
-    expect(selectStateForSha(raced, SHA_C)?.status).toBe(
-      GREENLIGHT_STATUS_LAND
-    );
+  test("a commit that was never reviewed gets nothing, not the PR verdict", () => {
+    // Most picker entries are ordinary commits that were never a review head;
+    // showing them another commit's approval would say something untrue.
+    expect(selectStateForSha(rows, SHA_C)).toBeUndefined();
+  });
+
+  test("an unrelated sha gets nothing, so a forged PR reference resolves to nothing", () => {
+    expect(selectStateForSha(rows, "f".repeat(40))).toBeUndefined();
+  });
+
+  test("never matches on an empty merge_commit_sha", () => {
+    expect(selectStateForSha(rows, "")).toBeUndefined();
+    expect(selectStateForSha(rows, undefined)).toBeUndefined();
+  });
+
+  test("matching is case-insensitive on both shas", () => {
+    expect(selectStateForSha(rows, SHA_A.toUpperCase())).toEqual(rows[0]);
+    expect(selectStateForSha(rows, TRUNK_A.toUpperCase())).toEqual(rows[0]);
   });
 
   test("undefined when the PR has no recorded state at all", () => {
     expect(selectStateForSha(undefined, SHA_A)).toBeUndefined();
     expect(selectStateForSha([], SHA_A)).toBeUndefined();
-  });
-
-  test("an absent sha still yields the PR's authoritative verdict", () => {
-    expect(selectStateForSha(rows, undefined)).toEqual(rows[1]);
   });
 });
