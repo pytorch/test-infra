@@ -2,6 +2,9 @@
 // traffic light); everything else gets a coloured lamp, since that avatar is a
 // green light and must never appear on a refusal. An unknown status renders
 // nothing rather than falling back to a mark that implies a verdict.
+//
+// greenlightGlyphChar below is the text fallback for a native <option>, which
+// cannot hold an element -- there every tone, approval included, is a circle.
 
 import { Tooltip, useTheme } from "@mui/material";
 import {
@@ -60,6 +63,25 @@ const STATUS_TONES: Record<string, { tone: Tone; label: string }> = {
     label: GREENLIGHT_REVERTED_HEADLINE,
   },
 };
+
+// The same signal as the svg, as one character, for the one place that cannot
+// hold an element: a native <option>. Its content is text, and no browser lets
+// you colour that text reliably -- so the colour has to be in the glyph itself.
+const TONE_GLYPHS: Record<Tone, string> = {
+  approved: "\u{1F7E2}", // green circle
+  declined: "\u{1F534}", // red circle
+  running: "\u{1F7E1}", // yellow circle
+  inconclusive: "⚪", // white circle
+};
+
+/**
+ * The single-character form of the glyph, or "" if the status is unrecognised.
+ * Callers concatenate it into plain text, so "" has to mean "add nothing".
+ */
+export function greenlightGlyphChar(status: string | undefined | null): string {
+  const entry = STATUS_TONES[(status ?? "").trim()];
+  return entry === undefined ? "" : TONE_GLYPHS[entry.tone];
+}
 
 export default function GreenLightIcon({
   status,
