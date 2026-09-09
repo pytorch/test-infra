@@ -120,6 +120,9 @@ function Page() {
             repoName={repoName as string}
             sha={selectedSha}
             isCommitPage={false}
+            // From the route: an un-landed commit has no "Pull Request
+            // resolved: #N" line for commit.prNum to come from.
+            prNumber={prNumber ? parseInt(prNumber as string) : null}
           />
         )}
       </ErrorBoundary>
