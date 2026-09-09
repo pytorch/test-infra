@@ -913,12 +913,13 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   // the Dr.CI render already keys off, so both surfaces light up and go dark for
   // the same repos.
   const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
-  // Polled, unlike the advisor and CRCR fetches beside it. Those really are
-  // terminal on a landed commit; a GreenLight verdict is not. revert_guard
-  // writes a REVERTED row stamped next_run_id, which outranks the LAND for the
-  // same revision, so an approval this mark asserts can be revoked after the
-  // commit lands. An immutable fetch would keep showing the avatar on an open
-  // tab until the commit list shifted.
+  // Polled rather than immutable. The verdict itself is settled once a revision
+  // lands, but the mark needs a `merges` row as well as a ledger row, and both
+  // reach ClickHouse through the S3 replicator after the commit is already on
+  // main and already on this page. A freshly landed commit can therefore render
+  // unmarked for a few minutes; on a page whose commit list is not moving, the
+  // SWR key never changes and an immutable fetch would leave it that way until
+  // a reload.
   const { data: greenlightRows } = useClickHouseAPI<GreenlightTrunkStatusRow>(
     "greenlight_trunk_commit_states",
     {
