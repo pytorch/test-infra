@@ -1,5 +1,4 @@
-// Per-repo gate for the surfaces that read greenlight state back: the Green
-// Light section of the Dr.CI comment, and the HUD's own trunk-commit mark.
+// Per-repo gate for the Green Light section of the Dr.CI comment.
 //
 // Pure data with no server-only imports, so it can be imported from both API
 // routes and React components.

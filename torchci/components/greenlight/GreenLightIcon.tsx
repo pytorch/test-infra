@@ -1,18 +1,7 @@
-// The glyph that marks a PR's GreenLight state on the HUD's own surfaces. One
-// component owns the status -> mark/label mapping so the trunk HUD, the commit
-// page and the PR page cannot drift into saying different things about the same
-// row.
-//
-// An approval gets GreenLight's own mark: the bot's avatar, a traffic light
-// whose green lamp is the PyTorch flame, so "GreenLight approved this" looks the
-// same on the HUD as it does wherever else the bot appears. Every other status
-// gets a coloured lamp instead -- that avatar is a *green* light and would read
-// as approval on a refusal, which is the one thing it must never do.
-//
-// Renders nothing for a status it does not know. That is deliberate: the ledger
-// grows statuses on the Python side (greenlight/src/greenlight/constants.py) and
-// an unrecognised one must read as "no claim", never fall back to a mark that
-// implies a verdict.
+// The mark for a GreenLight status. An approval gets the bot's own avatar (a
+// traffic light); everything else gets a coloured lamp, since that avatar is a
+// green light and must never appear on a refusal. An unknown status renders
+// nothing rather than falling back to a mark that implies a verdict.
 
 import { Tooltip, useTheme } from "@mui/material";
 import {
@@ -32,13 +21,8 @@ import {
 
 type Tone = "approved" | "declined" | "running" | "inconclusive";
 
-// Two shades per tone because the HUD renders on both palettes and a single
-// value legible on one is washed out or glaring on the other (torchci/CLAUDE.md).
-//
-// No "approved" entry, and the type says so rather than leaving a dead one: that
-// tone renders the avatar, whose own dark housing carries it on either palette,
-// so it never reaches this map. Typing it as the lamp tones only means adding a
-// lamp tone later cannot forget its shades.
+// Two shades per tone, for light and dark mode. No "approved" entry: that tone
+// renders the avatar, which carries itself on either palette.
 type LampTone = Exclude<Tone, "approved">;
 const TONE_COLORS: Record<LampTone, { light: string; dark: string }> = {
   declined: { light: "#c62828", dark: "#ef5350" },
@@ -92,11 +76,8 @@ export default function GreenLightIcon({
 
   const label = `Green Light: ${entry.label}`;
 
-  // GreenLight's own mark for an approval. Vendored at public/greenlight.png
-  // rather than hotlinked from avatars.githubusercontent.com, so the HUD makes
-  // no third-party request and the mark cannot change under it when the App's
-  // avatar is next edited. Its own dark housing carries it on either palette,
-  // which is why this branch reads no light/dark pair.
+  // Vendored rather than hotlinked from avatars.githubusercontent.com, so the
+  // HUD makes no third-party request.
   if (entry.tone === "approved") {
     return (
       <Tooltip title={label}>
@@ -123,8 +104,7 @@ export default function GreenLightIcon({
         width={size}
         height={size}
         viewBox="0 0 16 16"
-        // Nudged onto the text baseline; an svg is inline and would otherwise
-        // sit on the line box bottom and push the row taller.
+        // Keeps the inline svg off the line box bottom.
         style={{ verticalAlign: "text-bottom", flexShrink: 0 }}
       >
         <circle

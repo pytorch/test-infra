@@ -1,17 +1,9 @@
 -- Latest greenlight state per reviewed commit, for a single PR.
 --
 -- Sibling of greenlight_pr_states, which collapses to one row per PR for a whole
--- Dr.CI sweep. This one takes one PR and collapses per head_sha instead, because
--- the HUD's commit and PR pages are commit-scoped: they ask what GreenLight said
--- about the commit on screen, not only what it last said about the PR. The
--- caller recovers the PR-level answer from the same result by re-applying the
--- (run_id DESC, version DESC) order across shas.
---
--- misc.greenlight_pr_state is append-only: emit_id ends the sort key, so every
--- row's key is unique. FINAL therefore collapses nothing, and argMax(...,
--- version) would pick by version alone. Ordering run_id ahead of version is what
--- makes this read race-proof -- a superseded slower dispatch that finishes with
--- a later version still loses to the newer dispatch's higher run_id.
+-- Dr.CI sweep. This one collapses per head_sha instead, for the commit-scoped
+-- HUD pages. run_id ahead of version is what makes the pick race-proof: a
+-- superseded slower dispatch that finishes later still loses.
 SELECT
     pr_number,
     head_sha,
