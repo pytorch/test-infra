@@ -120,9 +120,8 @@ function Page() {
             repoName={repoName as string}
             sha={selectedSha}
             isCommitPage={false}
-            // From the route, not the commit message: a commit still on a PR
-            // branch carries no "Pull Request resolved: #N" line for
-            // commit.prNum to be parsed out of.
+            // From the route: an un-landed commit has no "Pull Request
+            // resolved: #N" line for commit.prNum to come from.
             prNumber={prNumber ? parseInt(prNumber as string) : null}
           />
         )}
