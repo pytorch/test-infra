@@ -156,6 +156,15 @@
       "mac"
     ]
   ],
+  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186872",
+    "https://github.com/pytorch/pytorch/issues/186872",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -197,6 +206,13 @@
   "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
     "194332",
     "https://github.com/pytorch/pytorch/issues/194332",
+    [
+      "linux"
+    ]
+  ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
     [
       "linux"
     ]
