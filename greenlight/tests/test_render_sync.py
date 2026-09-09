@@ -1,9 +1,10 @@
 """Pins the values Dr. CI's TypeScript renderer re-declares from greenlight's Python source.
 
 ``torchci/lib/greenlight/greenlightRender.ts`` renders the same greenlight state the Python
-comment writer does, but re-declares the shared vocabulary as its own constants and nothing at
-build time links the two. Python is the source of truth: these tests fail when the TypeScript
-stops matching it, in either direction.
+comment writer does, but re-declares the shared vocabulary as its own constants -- its own and
+``torchci/lib/greenlight/greenlightSweep.ts``'s, which holds the part the Dr. CI sweep reads
+too -- and nothing at build time links any of it to Python. Python is the source of truth: these
+tests fail when the TypeScript stops matching it, in either direction.
 """
 
 import re
@@ -17,11 +18,13 @@ from greenlight import comment_format, constants
 ROOT = Path(__file__).resolve().parents[2]
 
 _TS_RENDER = "torchci/lib/greenlight/greenlightRender.ts"
+_TS_SWEEP = "torchci/lib/greenlight/greenlightSweep.ts"
 _TS_CONFIG = "torchci/lib/greenlight/greenlightConfig.ts"
 _PY_RENDER = "greenlight/src/greenlight/comment_format.py"
 _PY_CONSTANTS = "greenlight/src/greenlight/constants.py"
 
 assert (ROOT / _TS_RENDER).is_file()
+assert (ROOT / _TS_SWEEP).is_file()
 assert (ROOT / _TS_CONFIG).is_file()
 
 _TS_UNICODE_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
@@ -174,9 +177,9 @@ def test_message_cap_matches_python() -> None:
 
 
 def test_zero_width_space_matches_python() -> None:
-    extracted = _ts_string(_TS_RENDER, "ZERO_WIDTH_SPACE")
+    extracted = _ts_string(_TS_SWEEP, "ZERO_WIDTH_SPACE")
     assert extracted == comment_format._ZERO_WIDTH_SPACE, _drift(
-        _TS_RENDER,
+        _TS_SWEEP,
         _PY_RENDER,
         f"ZERO_WIDTH_SPACE is {extracted!r}, _ZERO_WIDTH_SPACE is {comment_format._ZERO_WIDTH_SPACE!r}",
     )

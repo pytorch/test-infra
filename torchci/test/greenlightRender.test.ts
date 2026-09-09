@@ -1,5 +1,9 @@
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 import {
+  INLINE_BREAKERS_RE,
+  SHORT_SHA_LENGTH,
+} from "lib/greenlight/greenlightInlineCode";
+import {
   defangGreenlightMessage,
   GREENLIGHT_INCOMPLETE_HEADLINE,
   GREENLIGHT_LAND_HEADLINE,
@@ -7,19 +11,19 @@ import {
   GREENLIGHT_MESSAGE_WRAP_WIDTH,
   GREENLIGHT_NO_LAND_HEADLINE,
   GREENLIGHT_OUTDATED_HEADLINE_PREFIX,
-  GREENLIGHT_PENDING_ALT_ATTR,
   GREENLIGHT_REVERTED_BODY,
   GREENLIGHT_REVERTED_HEADLINE,
   GREENLIGHT_REVIEWING_HEADLINE,
   GreenlightState,
-  INLINE_BREAKERS_RE,
   renderGreenlightSection,
-  SHORT_SHA_LENGTH,
+} from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
+import {
+  GREENLIGHT_PENDING_ALT_ATTR,
   SWEEP_PREDICATE_MIN_LENGTH,
   SWEEP_SENTINELS,
   ZERO_WIDTH_SPACE,
-} from "lib/greenlight/greenlightRender";
-import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
+} from "lib/greenlight/greenlightSweep";
 
 const JOB_URL = "https://github.com/pytorch/test-infra/actions/runs/42";
 // The shape ClickHouse returns for a DateTime64(3) under
