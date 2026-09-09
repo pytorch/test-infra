@@ -1,7 +1,7 @@
-// Client-side view of a misc.greenlight_pr_state row, for the HUD's own
-// surfaces (the trunk HUD's PR column, the commit page, the PR page) -- as
-// distinct from greenlightRender.ts, which turns the same row into markdown for
-// the Dr.CI comment. The status vocabulary is imported from there rather than
+// Reading misc.greenlight_pr_state for the HUD's own surfaces (the trunk HUD's
+// PR column, the commit page, the PR page) -- as distinct from
+// greenlightRender.ts, which turns the same row into markdown for the Dr.CI
+// comment. The status vocabulary is imported from there rather than
 // re-declared: greenlight/tests/test_render_sync.py pins those declarations to
 // the Python source, so that file has to stay the one place they are spelled.
 //
@@ -12,8 +12,9 @@
 // structural as long as no consumer routes the message through
 // dangerouslySetInnerHTML or a markdown renderer -- none does.
 //
-// No ClickHouse / Octokit / server-only imports, so this is unit-testable and
-// importable from any component.
+// Takes no ClickHouse / Octokit / server-only imports, so it is unit-testable
+// and importable anywhere. That does not make it client-only: the server-side
+// Dr.CI glue in greenlightComment.ts imports the row type from here too.
 
 import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
 
@@ -30,6 +31,16 @@ export interface GreenlightPrStateRow {
   eval_job: string;
   run_id: number;
   version: string;
+}
+
+/**
+ * One row of `greenlight_trunk_commit_states`: the verdict GreenLight reached on
+ * the exact revision that produced this trunk commit. `sha` is the trunk commit,
+ * which the HUD already has on every row.
+ */
+export interface GreenlightTrunkStatusRow {
+  sha: string;
+  status: string;
 }
 
 /**
@@ -69,27 +80,26 @@ export function supersedes(
 }
 
 /**
- * Collapse rows to `pr_number -> status`, keeping the authoritative row per PR.
- * Rows with a non-positive PR number are dropped: nothing on the HUD can key off
- * one, and the ledger's own reader never emits one.
+ * Collapse `greenlight_trunk_commit_states` rows to `trunk sha -> status`.
+ *
+ * Keyed by the commit, never by the PR. A PR that lands, is reverted, is
+ * changed, and lands again produces two trunk commits from two revisions with
+ * two verdicts; keying on the PR would give both commits the later verdict and
+ * mark the first with an approval that was never about it. The query already
+ * resolves each commit to its own revision, so this only has to index the
+ * result.
  */
-export function buildStatusByPr(
-  rows: GreenlightPrStateRow[] | undefined
-): Map<number, string> {
-  const authoritative = new Map<number, GreenlightPrStateRow>();
+export function buildStatusByTrunkSha(
+  rows: GreenlightTrunkStatusRow[] | undefined
+): Map<string, string> {
+  const bySha = new Map<string, string>();
   for (const row of rows ?? []) {
-    const prNumber = Number(row.pr_number);
-    if (!Number.isFinite(prNumber) || prNumber <= 0) {
-      continue;
-    }
-    const incumbent = authoritative.get(prNumber);
-    if (incumbent === undefined || supersedes(row, incumbent)) {
-      authoritative.set(prNumber, row);
+    const sha = normalizeSha(row.sha);
+    if (sha !== "") {
+      bySha.set(sha, row.status);
     }
   }
-  return new Map(
-    Array.from(authoritative, ([prNumber, row]) => [prNumber, row.status])
-  );
+  return bySha;
 }
 
 /**

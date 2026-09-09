@@ -1,0 +1,19 @@
+{
+  "params": {
+    "repo": "String",
+    "owner": "String",
+    "project": "String",
+    "shas": "Array(String)"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "owner": "pytorch",
+      "project": "pytorch",
+      "shas": [
+        "55448714fb1bf93b4946225675aa1c6f70cfe3e4",
+        "2e2b1371931ea2a080c423ee3bc15c4fc59787a6"
+      ]
+    }
+  ]
+}
