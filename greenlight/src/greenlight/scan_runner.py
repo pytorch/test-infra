@@ -298,8 +298,11 @@ def _emit_dispatch_marker(
         )
     else:
         # Success arm only: Dr. CI rebuilds its comment from the row this emit just wrote, so poking
-        # after a failed emit would re-render the very state the marker was meant to replace.
-        poke(candidate.pr_number)
+        # after a failed emit would re-render the very state the marker was meant to replace. A
+        # shadow row is filtered out of that query, so a rebuild has nothing to pick up and the poke
+        # is skipped.
+        if not shadow:
+            poke(candidate.pr_number)
 
 
 def _dispatch_pending(

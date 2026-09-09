@@ -137,6 +137,10 @@ jobs:
         # Best-effort: a stale comment must never fail the job, and the 15-minute Dr. CI sweep
         # rebuilds it anyway. Without this the probot handler's push-time blanking leaves the PR
         # with no greenlight content for the whole review window.
+        # Not for a shadow row: the Dr. CI query drops shadow rows in its WHERE, so the refresh
+        # would re-render whatever non-shadow row the PR already shows. A status-function-free
+        # `if:` keeps the implicit success() that ties this step to the upload above.
+        if: github.event.inputs.shadow != 'true'
         continue-on-error: true
         env:
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
@@ -723,9 +727,12 @@ jobs:
           aws s3 cp /tmp/greenlight-verdict-row.json.gz "s3://gha-artifacts/$(cat /tmp/greenlight-verdict-key.txt)"
 
       - name: Poke Dr. CI to refresh the PR comment
-        # No `if:` for the same reason as the upload above: the default success() ties this to
-        # whichever record branch ran. Best-effort — the verdict is already recorded and the
-        # 15-minute Dr. CI sweep rebuilds the comment regardless.
+        # Best-effort — the verdict is already recorded and the 15-minute Dr. CI sweep rebuilds
+        # the comment regardless. Not for a shadow row: the Dr. CI query drops shadow rows in its
+        # WHERE, so the refresh would re-render whatever non-shadow row the PR already shows.
+        # The guard carries no status function, so it keeps the implicit success() that ties this
+        # step to whichever record branch ran, exactly as the upload above relies on.
+        if: github.event.inputs.shadow != 'true'
         continue-on-error: true
         env:
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}

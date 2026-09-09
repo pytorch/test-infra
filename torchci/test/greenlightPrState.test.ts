@@ -117,6 +117,67 @@ describe("GET /api/greenlight/pr_state", () => {
     expect(useQueryCache).toBeUndefined();
   });
 
+  // greenlight_ledger.py on the pytorch side reads these five keys off the row with
+  // hard subscript access. A dropped or renamed column is a KeyError there, which the
+  // merge guard turns into a 15-minute WAIT and then a DENY on every greenlight-
+  // authorized land, so this list may only ever grow.
+  test("selects exactly the five columns the pytorch merge gate reads", async () => {
+    const res = mockRes();
+    await handler(mockReq(), res);
+
+    const query: string = queryClickhouse.mock.calls[0][0];
+    const selected = query
+      .slice(
+        query.indexOf("SELECT ") + "SELECT ".length,
+        query.indexOf("\nFROM ")
+      )
+      .split(",")
+      .map((column) => column.trim());
+
+    expect(selected).toEqual([
+      "pr_number",
+      "status",
+      "head_sha",
+      "run_id",
+      "version",
+    ]);
+  });
+
+  // A shadow evaluation is recorded but carries no authority, and run_id climbs with
+  // every dispatch — so a shadow row written after a real verdict outranks it. Whatever
+  // this route returns is what pytorch's land-time merge gate acts on, which makes the
+  // exclusion and its placement a merge-authorization control, not a display detail.
+  describe("shadow exclusion", () => {
+    async function queryText(): Promise<string> {
+      const res = mockRes();
+      await handler(mockReq(), res);
+      expect(res._status).toBe(200);
+      return queryClickhouse.mock.calls[0][0];
+    }
+
+    test("excludes shadow rows", async () => {
+      expect(await queryText()).toContain("AND shadow = false");
+    });
+
+    test("filters in WHERE, ahead of the LIMIT 1 BY collapse", async () => {
+      const query = await queryText();
+      const where = query.indexOf("WHERE ");
+      const shadow = query.indexOf("shadow");
+      const order = query.indexOf("ORDER BY ");
+      const limit = query.indexOf("LIMIT 1 BY ");
+
+      expect(where).toBeGreaterThan(-1);
+      expect(shadow).toBeGreaterThan(where);
+      expect(shadow).toBeLessThan(order);
+      expect(order).toBeLessThan(limit);
+      // Filtering only after the collapse would let a PR's newest row be a shadow one:
+      // it wins LIMIT 1 BY, then gets dropped, hiding the real verdict underneath it.
+      // A second mention placed after the collapse satisfies every check above, so pin
+      // that there is exactly one.
+      expect(query.lastIndexOf("shadow")).toBe(shadow);
+    });
+  });
+
   test("never selects or returns eval_hash", async () => {
     queryClickhouse.mockResolvedValue([chRow({ eval_hash: "b".repeat(64) })]);
     const res = mockRes();
