@@ -77,6 +77,16 @@ SELECT
     -- Excludes timed-out jobs: their execution_time reflects the timeout
     -- ceiling, not genuine run time, and would inflate this otherwise.
     maxIf(execution_time, conclusion != 'timed_out') AS max_exec_time_s,
+    -- Share of jobs whose own run exceeded 3h (timeouts excluded)
+    -- the promotion criterion check this rate instead of the raw max
+    -- so one slow outlier in the 14-day window doesn't fail promotion
+    -- until it ages out.
+    if(
+        total_jobs > 0,
+        countIf(execution_time > 3 * 3600 AND conclusion != 'timed_out')
+            / total_jobs,
+        0
+    ) AS overrun_rate,
     -- E2E time is per-run; run_rn = 1 keeps one sample per run.
     quantileExactIf(0.5)(
         run_queue_time_s + run_span_s,

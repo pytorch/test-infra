@@ -19,6 +19,7 @@ export interface L3Metrics {
   pass_rate: number;
   avg_queue_time_s: number | null;
   max_exec_time_s: number | null;
+  overrun_rate: number;
   median_e2e_time_s: number | null;
   timeout_rate: number;
 }
@@ -115,8 +116,8 @@ const METRICS: {
   },
   {
     threshold: L3_THRESHOLDS.maxExecTimeS,
-    format: "duration",
-    getMeasured: (s) => s?.max_exec_time_s ?? null,
+    format: "percent",
+    getMeasured: (s) => (s ? s.overrun_rate : null),
   },
   {
     threshold: L3_THRESHOLDS.avgQueueTimeS,
