@@ -1,0 +1,40 @@
+-- Hand-applied to the live misc.greenlight_pr_state by clee2000/huydhn; automated DDL is
+-- disallowed. Metadata-only ALTER, no data rewrite.
+--
+-- `shadow` marks a row whose evaluation carries no authority: greenlight neither approves the
+-- PR nor lets Dr. CI render the state. It is a stored column rather than a status prefix so the
+-- scan's dedup and next-run-id reads keep matching on `status` unchanged.
+--
+-- Unlike 004, this column is NOT added to the sorting key, which is what makes both modifiers
+-- legal here: ClickHouse rejects a default expression only on a column being appended to the
+-- sort key, and IF NOT EXISTS only forecloses a later MODIFY ORDER BY. DEFAULT false backfills
+-- every existing row as authoritative, which is what they were.
+--
+-- AFTER emit_id, not at the end: `_meta` must stay the last ordinary column, because the
+-- replicator inserts positionally (`SELECT *, (bucket, key) AS _meta` in general_adapter). The
+-- matching `shadow` Bool in greenlight_pr_state_adapter
+-- (aws/lambda/clickhouse-replicator-s3/lambda_function.py) sits in the same position, and that
+-- Lambda auto-deploys on merge to main -- so this DDL must be applied FIRST. Between the two,
+-- inserts fail with NUMBER_OF_COLUMNS_DOESNT_MATCH, which general_adapter swallows into
+-- errors.gen_errors; missed objects are replayable from s3://gha-artifacts/greenlight_pr_state/.
+--
+-- The writer must not run ahead of the adapter either: input_format_skip_unknown_fields = 1
+-- means a `shadow` field the adapter does not declare is dropped without an error.
+--
+-- Two torchci readers reference `shadow` unconditionally in WHERE, and both deploy to Vercel
+-- on merge to main -- so they, too, must not run ahead of this DDL:
+--   * torchci/clickhouse_queries/greenlight_pr_states/query.sql -- Dr. CI's Green Light render;
+--   * torchci/pages/api/greenlight/pr_state.ts -- the /api/greenlight/pr_state route.
+-- Against a table without the column the route's query raises and the handler returns 500.
+-- That route is the ONLY data source for pytorch/pytorch's land-time merge gate
+-- (.github/scripts/greenlight_ledger.py, read by greenlight_guard.py), whose transport budget
+-- is 15 minutes: every merge that greenlight's approval authorizes waits out that quarter hour
+-- and is then DENIED. The gate fails closed, so the blast radius is every greenlight-authorized
+-- merge in the repo, not a degraded render.
+--
+-- Apply this DDL and verify the column is live BEFORE merging either reader. Verify by querying
+-- system.columns for (database = 'misc', table = 'greenlight_pr_state', name = 'shadow') rather
+-- than assuming this file reflects the live table: 002 was never applied to production --
+-- `version` carries no default there.
+ALTER TABLE misc.greenlight_pr_state
+ADD COLUMN IF NOT EXISTS `shadow` Bool DEFAULT false AFTER `emit_id`

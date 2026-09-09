@@ -99,7 +99,7 @@ def _exclude(
             raise error
         return list(dismissed_ids.get(pr.number, ()))
 
-    def fake_emit(*, repo, pr_number, head_sha, run_id):
+    def fake_emit(*, repo, pr_number, head_sha, run_id, shadow):
         result.events.append(f"emit:{pr_number}")
         error = emit_errors.get(pr_number)
         if error is not None:

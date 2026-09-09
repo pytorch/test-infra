@@ -209,6 +209,7 @@ def _emit_payload(
         eval_job=request.eval_job_url,
         agent_job=request.agent_job_url,
         run_id=request.run_id or 0,
+        shadow=False,
         now=now,
         emit=emit,
         new_emit_id=new_emit_id,
