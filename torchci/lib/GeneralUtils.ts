@@ -121,10 +121,8 @@ export async function hasWritePermissionsUsingOctokit(
  */
 export function useClickHouseAPI<T = any>(
   queryName: string,
-  // `any`, matching useClickHouseAPIImmutable below. Both stringify the whole
-  // object, so both have always accepted arrays and numbers at runtime; typing
-  // only this one as string-valued forced a cast at every array-parameter call
-  // site for no checking in return.
+  // `any`, like useClickHouseAPIImmutable below: both stringify the whole
+  // object, so both already accept arrays and numbers.
   parameters: { [key: string]: any },
   condition: boolean = true,
   config?: SWRConfiguration<T[]>
