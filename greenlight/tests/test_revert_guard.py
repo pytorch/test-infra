@@ -114,7 +114,7 @@ def _exclude(
         result.poked.append(number)
         result.events.append(f"poke:{number}")
 
-    def fake_is_shadow(number):
+    def fake_shadow_for_pr(number):
         return shadow.get(number, False)
 
     result.excluded = revert_guard.exclude_reverted(
@@ -129,7 +129,7 @@ def _exclude(
         dismiss=fake_dismiss,
         emit=fake_emit,
         poke=fake_poke,
-        is_shadow=fake_is_shadow,
+        shadow_for_pr=fake_shadow_for_pr,
         failed=result.failed,
         cancel_event=cancel_event,
     )
@@ -371,7 +371,7 @@ def test_non_app_bot_login_refuses_before_any_write():
             dismiss=boom,
             emit=boom,
             poke=boom,
-            is_shadow=boom,
+            shadow_for_pr=boom,
             failed=[],
             cancel_event=threading.Event(),
         )

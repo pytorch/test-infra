@@ -355,7 +355,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=_noop_poke,
-        is_shadow=_never_shadow,
+        shadow_for_pr=_never_shadow,
     )
 
     # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
@@ -387,7 +387,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
         dispatch=boom_dispatch,
         emit_dispatched=emit,
         poke=poked.append,
-        is_shadow=_never_shadow,
+        shadow_for_pr=_never_shadow,
     )
 
     # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it --
@@ -419,7 +419,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
             dispatch=dispatch,
             emit_dispatched=boom_emit,
             poke=poked.append,
-            is_shadow=_never_shadow,
+            shadow_for_pr=_never_shadow,
         )
 
     # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
@@ -454,7 +454,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
             dispatch=dispatch,
             emit_dispatched=timeout_emit,
             poke=_boom_poke,
-            is_shadow=_never_shadow,
+            shadow_for_pr=_never_shadow,
         )
 
     assert dispatched == [1]
@@ -480,7 +480,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=poke,
-        is_shadow=_never_shadow,
+        shadow_for_pr=_never_shadow,
     )
 
     # Ordering is the contract: Dr. CI re-reads the row on poke, so each PR's poke must follow its
@@ -506,7 +506,7 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=poked.append,
-        is_shadow=_never_shadow,
+        shadow_for_pr=_never_shadow,
     )
 
     # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
@@ -533,7 +533,7 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow):
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=_noop_poke,
-        is_shadow=lambda _number: shadow,
+        shadow_for_pr=lambda _number: shadow,
     )
 
     # One lookup drives both: the reviewer workflow input that withholds the approval, and the row
@@ -560,7 +560,7 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
         dispatch=dispatch,
         emit_dispatched=emit,
         poke=_noop_poke,
-        is_shadow=lambda number: number == 2,
+        shadow_for_pr=lambda number: number == 2,
     )
 
     # A mixed batch must not collapse to one answer -- the cohort is per author, and a single scan

@@ -152,7 +152,7 @@ def exclude_reverted(
     dismiss: Callable[..., list[int]],
     emit: Callable[..., None],
     poke: Callable[[int], None],
-    is_shadow: Callable[[int], bool],
+    shadow_for_pr: Callable[[int], bool],
     failed: list[int],
     cancel_event: threading.Event,
 ) -> frozenset[int]:
@@ -160,7 +160,7 @@ def exclude_reverted(
 
     ``known_labels`` holds the labels the caller already has; a PR absent from it has its labels
     read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too.
-    ``is_shadow`` answers the same question for the PR's author, and is a caller-supplied lookup
+    ``shadow_for_pr`` answers the same question for the PR's author, and is a caller-supplied lookup
     rather than a fetch: the scan already has every listed PR's author, and paying a second GitHub
     round trip per reverted PR to re-learn it would be pure cost. A per-PR failure is collected
     into ``failed`` so the scan still fails closed, and a rate limit additionally trips
@@ -190,7 +190,7 @@ def exclude_reverted(
             client,
             number,
             recorded_state=states.get(number),
-            shadow=is_shadow(number),
+            shadow=shadow_for_pr(number),
             bot_login=bot_login,
             get_pr=get_pr,
             dismiss=dismiss,
