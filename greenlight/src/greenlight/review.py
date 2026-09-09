@@ -27,7 +27,7 @@ import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from greenlight import candidate_filter, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
+from greenlight import candidate_filter, cohort, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
 from greenlight import dispatch as dispatch_module
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -56,29 +56,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-TRUSTED_AUTHORS: set[str] = {
-    "albanD",  # Alban Desmaison
-    "jathu",  # Jathu Satkunarajah
-    "atalman",  # Andrey Talman
-    "huydhn",  # Huy Do
-    "izaitsevfb",  # Ivan Zaitsev
-    "georgehong",  # George Hong
-    "jeanschmidt",  # Jean Schmidt
-    "ezyang",  # Edward Yang
-    "drisspg",  # Driss Guessous
-    "janeyx99",  # Jane Xu
-    "bobrenjc93",  # Bob Ren
-}
-
-# Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
-# GitHub logins are case-insensitive, so gate on the lowercased login against this derived set.
-_TRUSTED_LOWER: frozenset[str] = frozenset(author.lower() for author in TRUSTED_AUTHORS)
-
-
-def _is_trusted(login: str | None) -> bool:
-    return login is not None and login.lower() in _TRUSTED_LOWER
-
-
 # Aggregate fan-out request rate is workers / seconds-between-requests: more workers or a
 # shorter interval raise it. Cutting workers (8->4) and lengthening the interval (0.25s->0.5s)
 # both lower it, to ~8 req/s, keeping the fan-out under GitHub's secondary (burst-rate) limit
@@ -95,7 +72,7 @@ def _utcnow() -> datetime:
 
 
 def _default_fetch(client: Github) -> list[OpenPR]:
-    return github_client.list_open_prs_by_authors(client, TARGET_REPO, TRUSTED_AUTHORS)
+    return github_client.list_open_prs_by_authors(client, TARGET_REPO, cohort.TRUSTED_AUTHORS)
 
 
 def _default_fetch_author(client: Github, pr_number: int) -> str | None:
@@ -138,7 +115,7 @@ def _candidate_numbers(
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
         return [pr], {}, {}
     open_prs = fetch(client)
-    logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(TRUSTED_AUTHORS), TARGET_REPO)
+    logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(cohort.TRUSTED_AUTHORS), TARGET_REPO)
     for open_pr in open_prs:
         logger.info("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
     return (
@@ -185,7 +162,7 @@ def run(
     # so a spammed @greenlight recheck from an untrusted login costs nothing. A policy refusal is
     # not a failure -- return cleanly rather than raising (no non-zero exit, no daemon backoff).
     if requester is not None:
-        if not _is_trusted(requester):
+        if not cohort.is_trusted(requester):
             logger.warning("refusing review: requester %r is not a trusted author", requester)
             return
         logger.info("review requested by trusted author %s", requester)
@@ -197,7 +174,7 @@ def run(
         # allow_untrusted_author bypasses ONLY this check (local iteration; never a workflow input).
         if pr is not None and not allow_untrusted_author:
             author = fetch_author(client, pr)
-            if not _is_trusted(author):
+            if not cohort.is_trusted(author):
                 logger.warning("refusing --pr %d: author %r is not a trusted author", pr, author)
                 return
         # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
