@@ -1,21 +1,41 @@
-"""Tests for the verdict outline renderer.
+"""Tests for the verdict outline renderer and its TypeScript mirror.
 
-Two things are pinned here. The first is containment: whatever the model was talked into
+Three things are pinned here. The first is containment: whatever the model was talked into
 writing, the rendered block stays one line of raw HTML whose only tags are the ones this module
 emits. The second is that the switch between the outline renderer and the fenced one is
 conservative enough that a paragraph goes out fenced, which is where prose belongs and where
-every already-stored row stays.
+every already-stored row stays. The third is cross-language
+parity -- ``torchci/lib/greenlight/greenlightOutline.ts`` renders the same rows into the Dr. CI
+comment, so the shared fixture and the literal scrape below fail when the two drift.
+
+``outline_parity_cases.json`` holds the ``html`` and ``isOutline`` this implementation produces
+for each ``message``; ``torchci/test/greenlightOutline.test.ts`` asserts the same values, so a
+change either side lands as a failure rather than as two comments that disagree. To rebuild it
+after a deliberate change, rewrite each row's two outputs from this module and leave ``message``
+alone -- the inputs are the corpus, and dropping one silently narrows what parity means.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
+from typing import Any
 
 import pytest
 
 from greenlight import comment_format, verdict_outline
 from greenlight.verdict_outline import is_outline, render_outline_html
+from tests import ts_source
+
+PARITY_CASES_PATH = Path(__file__).resolve().parent / "outline_parity_cases.json"
+
+_TS_OUTLINE = "torchci/lib/greenlight/greenlightOutline.ts"
+_TS_GUARDS = "torchci/lib/greenlight/greenlightReferenceGuards.ts"
+_TS_SWEEP = "torchci/lib/greenlight/greenlightSweep.ts"
+_TS_ADVISOR = "torchci/lib/advisor/advisorBadge.ts"
+_PY_OUTLINE = "greenlight/src/greenlight/verdict_outline.py"
 
 ZWSP = verdict_outline.ZERO_WIDTH_SPACE
 SHA = "abc1234567890abc1234567890abc1234567890a"
@@ -749,3 +769,191 @@ def test_unbalanced_code_tags_in_the_assembled_block_raise(monkeypatch: pytest.M
     monkeypatch.setattr(verdict_outline, "_topic_html", lambda topic: "<li><b><code>a</b></li>")
     with pytest.raises(RuntimeError, match="unbalanced"):
         render_outline_html("- a")
+
+
+# ---------------------------------------------------------------- cross-language parity
+
+
+def _parity_cases() -> list[dict[str, Any]]:
+    cases: list[dict[str, Any]] = json.loads(PARITY_CASES_PATH.read_text())
+    assert cases, f"{PARITY_CASES_PATH} holds no cases"
+    return cases
+
+
+PARITY_CASES = _parity_cases()
+
+
+@pytest.mark.parametrize("case", PARITY_CASES, ids=lambda case: str(case["name"]))
+def test_parity_case(case: dict[str, Any]) -> None:
+    message = str(case["message"])
+    assert is_outline(message) is case["isOutline"]
+    assert render_outline_html(message) == case["html"]
+
+
+def test_parity_fixture_covers_the_divergent_character_classes() -> None:
+    """The fixture is only worth reading if it holds the inputs `\\s`, `\\d` and `\\b` split on."""
+    corpus = "".join(str(case["message"]) for case in PARITY_CASES)
+    assert f"{EACUTE}{SHA}" in corpus, "no accented letter before a 40-hex sha (the `\\b` divergence)"
+    assert ARABIC_DIGITS in corpus, "no Unicode digits (the `\\d` divergence)"
+    assert NBSP in corpus, "no no-break space (the `\\s` divergence)"
+    assert EM_SPACE in corpus, "no em space (the `\\s` divergence)"
+
+
+def test_parity_fixture_covers_the_hand_written_unicode_helpers() -> None:
+    """Each helper written out to match Python needs a case that a stdlib call would fail.
+
+    ``trimSpaces``, ``isHorizontalSpaceOnly`` and ``codePointLength`` all exist because the
+    obvious JavaScript -- ``trim()`` and ``.length`` -- means something else. Without an input
+    that separates them, every one of those three can be replaced by the wrong call and both
+    suites stay green while the two comments diverge.
+    """
+    messages = [str(case["message"]) for case in PARITY_CASES]
+    assert any(message.startswith(f"- {NBSP}") and message.endswith(NBSP) for message in messages), (
+        "no leaf with a no-break space at both edges (`strip(' ')` against `trim()`)"
+    )
+    assert any(NBSP in message.split("\n") for message in messages), (
+        "no line that is a single no-break space (horizontal-space-only against `trim()`)"
+    )
+    assert any(
+        "\U0001f600" in str(case["message"]) and verdict_outline.TRUNCATED_ITEM in str(case["html"])
+        for case in PARITY_CASES
+    ), "no astral character in a message that overruns the block budget (code points against UTF-16)"
+
+
+# ---------------------------------------------------------------- TypeScript drift
+
+
+def _drift(ts_file: str, detail: str) -> str:
+    return ts_source.drift(ts_file, _PY_OUTLINE, detail)
+
+
+_MIRRORED_NUMBERS = [
+    "MESSAGE_CAP",
+    "LEAF_CAP",
+    "MAX_TOPICS",
+    "MAX_DETAILS",
+    "BLOCK_BUDGET",
+    "MIN_BULLETS",
+]
+# Every character set the two implementations have to agree on, plus the literals built from them.
+# A drift in any one of these renders two different comments from a single stored row.
+_MIRRORED_STRINGS = [
+    "TRUNCATED_ITEM",
+    "TRUNCATION_SUFFIX",
+    "LINE_BREAKS",
+    "HORIZONTAL_SPACE",
+    "BULLET_MARKERS",
+    "ORDERED_TERMINATORS",
+    "FLATTEN_CONTROL_CODEPOINTS",
+    "FLATTEN_FORMAT_CODEPOINTS",
+    "FLATTEN_BLANK_CODEPOINTS",
+]
+# Python keeps the reference guards in this one module; the TypeScript puts them in their own,
+# below the renderer that calls them, so these are scraped unprefixed and from there. DIGITS is
+# among them because the guards own it: greenlightOutline.ts reads the same class back for the
+# ordered-list marker rather than writing "0-9" a second time.
+_MIRRORED_GUARD_NUMBERS = [
+    "SHA_LENGTH",
+    "SHA_SPLIT_COLUMN",
+]
+_MIRRORED_GUARD_STRINGS = [
+    "DIGITS",
+    "HEX_DIGITS",
+    "ALPHANUMERIC",
+    "SHORTCODE_CHARACTERS",
+]
+# The sweep vocabulary sits one module below both TypeScript renderers rather than inside the
+# mirror, so those literals are scraped unprefixed and from there instead: ZERO_WIDTH_SPACE below,
+# SWEEP_PENDING_WORD in test_render_sync.py, and the two `alt="..."` attributes -- composed there
+# from a phrase rather than declared whole -- each against the declaration it is composed from,
+# which is the value the sweep actually greps for.
+
+
+@pytest.mark.parametrize("name", _MIRRORED_NUMBERS)
+def test_typescript_number_matches_python(name: str) -> None:
+    extracted = ts_source.ts_number(_TS_OUTLINE, f"OUTLINE_{name}")
+    canonical = getattr(verdict_outline, name)
+    assert extracted == canonical, _drift(_TS_OUTLINE, f"OUTLINE_{name} is {extracted}, Python has {canonical}")
+
+
+@pytest.mark.parametrize("name", _MIRRORED_STRINGS)
+def test_typescript_string_matches_python(name: str) -> None:
+    extracted = ts_source.ts_string(_TS_OUTLINE, f"OUTLINE_{name}")
+    canonical = getattr(verdict_outline, name)
+    assert extracted == canonical, _drift(_TS_OUTLINE, f"OUTLINE_{name} is {extracted!r}, Python has {canonical!r}")
+
+
+@pytest.mark.parametrize("name", _MIRRORED_GUARD_NUMBERS)
+def test_typescript_guard_number_matches_python(name: str) -> None:
+    extracted = ts_source.ts_number(_TS_GUARDS, name)
+    canonical = getattr(verdict_outline, name)
+    assert extracted == canonical, _drift(_TS_GUARDS, f"{name} is {extracted}, Python has {canonical}")
+
+
+@pytest.mark.parametrize("name", _MIRRORED_GUARD_STRINGS)
+def test_typescript_guard_string_matches_python(name: str) -> None:
+    extracted = ts_source.ts_string(_TS_GUARDS, name)
+    canonical = getattr(verdict_outline, name)
+    assert extracted == canonical, _drift(_TS_GUARDS, f"{name} is {extracted!r}, Python has {canonical!r}")
+
+
+def test_typescript_zero_width_space_matches_python() -> None:
+    extracted = ts_source.ts_string(_TS_SWEEP, "ZERO_WIDTH_SPACE")
+    canonical = verdict_outline.ZERO_WIDTH_SPACE
+    assert extracted == canonical, _drift(_TS_SWEEP, f"ZERO_WIDTH_SPACE is {extracted!r}, Python has {canonical!r}")
+
+
+_SHORTHAND_CLASS_RE = re.compile(r"\\[sSdDwWb]")
+
+
+def test_no_python_pattern_uses_a_shorthand_class() -> None:
+    """`\\s`, `\\d`, `\\w` and `\\b` all mean something different in JavaScript."""
+    patterns = [value.pattern for value in vars(verdict_outline).values() if isinstance(value, re.Pattern)]
+    assert patterns
+    offenders = [pattern for pattern in patterns if _SHORTHAND_CLASS_RE.search(pattern)]
+    assert offenders == [], f"language-dependent shorthand class in {offenders}"
+
+
+# Every TypeScript module the mirror is spread across. A regex that moves between them must not
+# fall out of this check on the way.
+_SHORTHAND_CLASS_FILES = [_TS_OUTLINE, _TS_GUARDS, _TS_SWEEP]
+
+
+@pytest.mark.parametrize("ts_file", _SHORTHAND_CLASS_FILES)
+def test_no_typescript_pattern_uses_a_shorthand_class(ts_file: str) -> None:
+    # Every comment in these modules is a whole line, so dropping those leaves only code to search.
+    code = [line for line in ts_source.read(ts_file).splitlines() if not line.lstrip().startswith("//")]
+    offenders = [line for line in code if _SHORTHAND_CLASS_RE.search(line)]
+    assert offenders == [], f"language-dependent shorthand class in {ts_file}: {offenders}"
+
+
+def test_greenlight_sentinel_matches_the_sweep_vocabulary() -> None:
+    alt = ts_source.ts_string(_TS_SWEEP, "GREENLIGHT_PENDING_ALT")
+    assert f'alt="{alt}"' == verdict_outline.GREENLIGHT_PENDING_ALT_ATTR, _drift(
+        _TS_SWEEP,
+        f'the sweep matches alt="{alt}", which this module does not defuse. A live sentinel in a '
+        f"terminal render pins the PR into every Dr. CI sweep forever.",
+    )
+
+
+def test_advisor_sentinel_matches_the_badge() -> None:
+    prefix = ts_source.ts_string(_TS_ADVISOR, "ADVISOR_ALT_PREFIX")
+    pattern = r"^export const ADVISOR_PENDING_ALT = `\$\{ADVISOR_ALT_PREFIX\}([^`]*)`;$"
+    match = re.search(pattern, ts_source.read(_TS_ADVISOR), re.MULTILINE)
+    assert match is not None, f"no `ADVISOR_PENDING_ALT` template in {_TS_ADVISOR}: {ts_source.RESTRUCTURED}"
+    assert f'alt="{prefix}{match.group(1)}"' == verdict_outline.ADVISOR_PENDING_ALT_ATTR, _drift(
+        _TS_ADVISOR, "the advisor's in-progress sentinel is not the one this module defuses"
+    )
+
+
+def test_the_parity_fixture_is_reachable_from_the_typescript_suite() -> None:
+    # torchci/test/greenlightOutline.test.ts resolves this exact path; a rename here that misses
+    # it turns the parity suite into a load error rather than a failure anyone can read.
+    ts_test = ts_source.ROOT / "torchci/test/greenlightOutline.test.ts"
+    assert ts_test.is_file()
+    assert PARITY_CASES_PATH.name in ts_test.read_text()
+
+
+def test_python_and_typescript_agree_on_the_escape_table() -> None:
+    """Both sides must produce the same entity for all five escaped characters."""
+    assert render_outline_html("- & < > \" '") == "<ul><li><b>&amp; &lt; &gt; &quot; &#x27;</b></li></ul>"

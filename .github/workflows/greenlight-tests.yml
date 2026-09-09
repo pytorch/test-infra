@@ -12,6 +12,17 @@ on:
       # (test_state_row_schema_sync.py). Its own workflow does not run these tests, so
       # without this path an adapter-only edit ships green and rows stop arriving.
       - aws/lambda/clickhouse-replicator-s3/**
+      # Holds the TypeScript half of the render and outline mirrors. The Python suite scrapes
+      # these files as text (test_render_sync.py, test_verdict_outline.py) and pins the parity
+      # fixture's reader to its exact path. The torchci workflow does not run these tests, so
+      # without these paths a rename or restructure ships green and the drift tests fail on
+      # main -- two of the scrapes assert at import, so that failure is a collection error.
+      - torchci/lib/greenlight/**
+      - torchci/lib/advisor/advisorBadge.ts
+      - torchci/test/greenlightOutline.test.ts
+      # Holds the route DRCI_ENDPOINT points at; test_render_sync.py asserts it still exists,
+      # because drci_poke.poke swallows the 404 a moved route would start returning.
+      - torchci/pages/api/drci/drci.ts
   push:
     branches:
       - main
@@ -22,6 +33,10 @@ on:
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**
       - aws/lambda/clickhouse-replicator-s3/**
+      - torchci/lib/greenlight/**
+      - torchci/lib/advisor/advisorBadge.ts
+      - torchci/test/greenlightOutline.test.ts
+      - torchci/pages/api/drci/drci.ts
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
