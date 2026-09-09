@@ -1,8 +1,8 @@
 import {
-  buildStatusByPr,
+  buildStatusByTrunkSha,
   GreenlightPrStateRow,
   isGreenlightApproved,
-  supersedes,
+  normalizeSha,
 } from "lib/greenlight/greenlightHudState";
 import {
   GREENLIGHT_STATUS_AI_REVIEW_STARTED,
@@ -51,66 +51,60 @@ describe("isGreenlightApproved", () => {
   });
 });
 
-describe("supersedes", () => {
-  test("a higher run_id wins even with an older version", () => {
-    const newer = { run_id: 9, version: "2026-01-01 00:00:00.000" };
-    const older = { run_id: 8, version: "2026-09-01 00:00:00.000" };
-    expect(supersedes(newer, older)).toBe(true);
-    expect(supersedes(older, newer)).toBe(false);
-  });
+describe("buildStatusByTrunkSha", () => {
+  const TRUNK_A = "1".repeat(40);
+  const TRUNK_B = "2".repeat(40);
 
-  test("version breaks a run_id tie", () => {
-    const later = { run_id: 9, version: "2026-09-02 00:00:00.000" };
-    const earlier = { run_id: 9, version: "2026-09-01 00:00:00.000" };
-    expect(supersedes(later, earlier)).toBe(true);
-    expect(supersedes(earlier, later)).toBe(false);
-  });
-
-  test("a row does not supersede itself", () => {
-    const only = { run_id: 9, version: "2026-09-01 00:00:00.000" };
-    expect(supersedes(only, only)).toBe(false);
-  });
-});
-
-describe("buildStatusByPr", () => {
-  test("keys each PR's status by pr_number", () => {
-    const byPr = buildStatusByPr([
-      row({ pr_number: 10, status: GREENLIGHT_STATUS_LAND }),
-      row({ pr_number: 11, status: GREENLIGHT_STATUS_NO_LAND }),
+  test("keys each commit's status by its own trunk sha", () => {
+    const bySha = buildStatusByTrunkSha([
+      { sha: TRUNK_A, status: GREENLIGHT_STATUS_LAND },
+      { sha: TRUNK_B, status: GREENLIGHT_STATUS_NO_LAND },
     ]);
-    expect(byPr.get(10)).toBe(GREENLIGHT_STATUS_LAND);
-    expect(byPr.get(11)).toBe(GREENLIGHT_STATUS_NO_LAND);
+    expect(bySha.get(TRUNK_A)).toBe(GREENLIGHT_STATUS_LAND);
+    expect(bySha.get(TRUNK_B)).toBe(GREENLIGHT_STATUS_NO_LAND);
   });
 
-  test("keeps the authoritative row when a PR somehow has several", () => {
-    // The saved query already collapses these; the guard matters because
-    // picking the wrong one shows an approval a later review revoked.
-    const byPr = buildStatusByPr([
-      row({ pr_number: 10, status: GREENLIGHT_STATUS_LAND, run_id: 5 }),
-      row({ pr_number: 10, status: GREENLIGHT_STATUS_NO_LAND, run_id: 6 }),
+  test("two landings of one PR keep their own verdicts", () => {
+    // The regression this whole keying exists for: a PR that lands, is
+    // reverted, is changed and lands again. Keyed by PR, both commits would
+    // take the later verdict and the first would carry an approval that was
+    // never about it.
+    const bySha = buildStatusByTrunkSha([
+      { sha: TRUNK_A, status: GREENLIGHT_STATUS_NO_LAND },
+      { sha: TRUNK_B, status: GREENLIGHT_STATUS_LAND },
     ]);
-    expect(byPr.get(10)).toBe(GREENLIGHT_STATUS_NO_LAND);
+    expect(bySha.get(TRUNK_A)).toBe(GREENLIGHT_STATUS_NO_LAND);
+    expect(bySha.get(TRUNK_B)).toBe(GREENLIGHT_STATUS_LAND);
   });
 
-  test("order of arrival does not decide the winner", () => {
-    const byPr = buildStatusByPr([
-      row({ pr_number: 10, status: GREENLIGHT_STATUS_NO_LAND, run_id: 6 }),
-      row({ pr_number: 10, status: GREENLIGHT_STATUS_LAND, run_id: 5 }),
+  test("lookups are case-insensitive on the sha", () => {
+    const bySha = buildStatusByTrunkSha([
+      { sha: TRUNK_A.toUpperCase(), status: GREENLIGHT_STATUS_LAND },
     ]);
-    expect(byPr.get(10)).toBe(GREENLIGHT_STATUS_NO_LAND);
+    expect(bySha.get(TRUNK_A)).toBe(GREENLIGHT_STATUS_LAND);
   });
 
-  test("drops rows with no usable PR number", () => {
-    const byPr = buildStatusByPr([
-      row({ pr_number: 0 }),
-      row({ pr_number: -1 }),
-      row({ pr_number: NaN }),
-    ]);
-    expect(byPr.size).toBe(0);
+  test("drops rows with no sha", () => {
+    expect(
+      buildStatusByTrunkSha([
+        { sha: "", status: GREENLIGHT_STATUS_LAND },
+        { sha: "   ", status: GREENLIGHT_STATUS_LAND },
+      ]).size
+    ).toBe(0);
   });
 
   test("undefined and empty input give an empty map", () => {
-    expect(buildStatusByPr(undefined).size).toBe(0);
-    expect(buildStatusByPr([]).size).toBe(0);
+    expect(buildStatusByTrunkSha(undefined).size).toBe(0);
+    expect(buildStatusByTrunkSha([]).size).toBe(0);
+  });
+});
+
+describe("normalizeSha", () => {
+  const SHA = "a".repeat(40);
+
+  test("folds case and trims, and maps absent input to empty", () => {
+    expect(normalizeSha(`  ${SHA.toUpperCase()} `)).toBe(SHA);
+    expect(normalizeSha(undefined)).toBe("");
+    expect(normalizeSha(null)).toBe("");
   });
 });
