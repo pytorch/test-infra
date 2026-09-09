@@ -300,7 +300,7 @@ def _emit_dispatch_marker(
         # Success arm only: Dr. CI rebuilds its comment from the row this emit just wrote, so poking
         # after a failed emit would re-render the very state the marker was meant to replace. A
         # shadow row is filtered out of that query, so a rebuild has nothing to pick up and the poke
-        # -- the scan's slowest single request, unretried and on the main thread -- is skipped.
+        # is skipped.
         if not shadow:
             poke(candidate.pr_number)
 
@@ -314,7 +314,7 @@ def _dispatch_pending(
     dispatch: DispatchFn,
     emit_dispatched: Callable[..., None],
     poke: Callable[[int], None],
-    is_shadow: Callable[[int], bool],
+    shadow_for_pr: Callable[[int], bool],
 ) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
@@ -322,7 +322,7 @@ def _dispatch_pending(
     for candidate in ordered[:limit]:
         # Resolved once per candidate so the workflow input, the marker row, and the poke decision
         # can never disagree about which cohort this PR is in.
-        shadow = is_shadow(candidate.pr_number)
+        shadow = shadow_for_pr(candidate.pr_number)
         try:
             dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref, shadow=shadow)
         except IterationTimeout:
