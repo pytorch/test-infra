@@ -33,6 +33,7 @@ import {
   GREENLIGHT_REVERTED_HEADLINE,
   GREENLIGHT_REVIEWING_BODY,
   GREENLIGHT_REVIEWING_HEADLINE,
+  GREENLIGHT_SECTION_HEADER,
   GREENLIGHT_STALLED_REASON,
   GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
   GREENLIGHT_STATUS_AI_REVIEW_STARTED,
@@ -164,11 +165,6 @@ export default function GreenLightSection({
     >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
-        aria-label={
-          approved
-            ? "Collapse the Green Light verdict"
-            : "Expand the Green Light verdict"
-        }
         sx={{
           bgcolor: "action.hover",
           "&:hover": { bgcolor: "action.selected" },
@@ -180,7 +176,7 @@ export default function GreenLightSection({
       >
         <Stack direction="row" spacing={1} alignItems="center">
           <GreenLightIcon status={state.status} size={14} />
-          <Typography fontWeight="bold">GREEN LIGHT</Typography>
+          <Typography fontWeight="bold">{GREENLIGHT_SECTION_HEADER}</Typography>
           <Typography color="text.secondary">{described.headline}</Typography>
           {/* On the summary: a non-approved panel stays collapsed, and the
           reason is the whole of what a NO_LAND adds over its headline. */}
