@@ -9,9 +9,16 @@
 -- never landed. Mergebot rebases, so a trunk commit never carries the sha that
 -- was reviewed; this is what lets a commit page match its verdict without
 -- falling back to "some other verdict for the same PR".
-WITH reviewed AS
-(
-    SELECT pr_number, head_sha, status, reason, message, eval_job, run_id, version
+WITH reviewed AS (
+    SELECT
+        pr_number,
+        head_sha,
+        status,
+        reason,
+        message,
+        eval_job,
+        run_id,
+        version
     FROM misc.greenlight_pr_state
     WHERE
         repo = {repo: String}
@@ -19,11 +26,13 @@ WITH reviewed AS
     ORDER BY head_sha, run_id DESC, version DESC
     LIMIT 1 BY head_sha
 ),
+
 -- A failed merge records an empty merge_commit_sha, and one merge can record
 -- several rows; both guards keep the join from fanning out.
-landed AS
-(
-    SELECT last_commit_sha, merge_commit_sha
+landed AS (
+    SELECT
+        last_commit_sha,
+        merge_commit_sha
     FROM merges
     WHERE
         owner = {owner: String}
@@ -34,6 +43,7 @@ landed AS
     ORDER BY merge_commit_sha
     LIMIT 1 BY merge_commit_sha
 )
+
 SELECT
     reviewed.pr_number AS pr_number,
     reviewed.head_sha AS head_sha,
