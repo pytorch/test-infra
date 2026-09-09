@@ -3,8 +3,14 @@ import { CommitInfo } from "components/commit/CommitInfo";
 import DrCIButton from "components/common/DrCIButton";
 import ErrorBoundary from "components/common/ErrorBoundary";
 import CrcrPrSection from "components/crcr/CrcrPrSection";
+import { greenlightGlyphChar } from "components/greenlight/GreenLightIcon";
 import { useSetTitle } from "components/layout/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
+import {
+  buildStateBySha,
+  normalizeSha,
+} from "lib/greenlight/greenlightHudState";
+import { useGreenlightPrHistory } from "lib/greenlight/useGreenlightPrHistory";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -23,6 +29,14 @@ function CommitHeader({
 }) {
   const router = useRouter();
   const pr = router.query.prNumber as string;
+  // Same SWR key as the panel's read in CommitInfo, so this costs no extra
+  // request.
+  const { data: greenlightRows } = useGreenlightPrHistory(
+    repoOwner,
+    repoName,
+    pr ? parseInt(pr) : null
+  );
+  const greenlightBySha = buildStateBySha(greenlightRows);
   return (
     <div>
       Commit:{" "}
@@ -34,11 +48,19 @@ function CommitHeader({
           );
         }}
       >
-        {prData.shas.map(({ sha, title }) => (
-          <option key={sha} value={sha}>
-            {title + ` (${sha.substring(0, 6)})`}
-          </option>
-        ))}
+        {prData.shas.map(({ sha, title }) => {
+          // A character, not the svg: an <option> holds text and its colour is
+          // not reliably styleable. Only reviewed shas are marked -- no
+          // fallback to the PR verdict, which would mark every row.
+          const glyph = greenlightGlyphChar(
+            greenlightBySha.get(normalizeSha(sha))?.status
+          );
+          return (
+            <option key={sha} value={sha}>
+              {`${glyph ? `${glyph} ` : ""}${title} (${sha.substring(0, 6)})`}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
