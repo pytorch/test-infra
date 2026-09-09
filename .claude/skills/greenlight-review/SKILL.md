@@ -106,7 +106,9 @@ read them; a targeted lookup is cheap. If you still cannot point at the lines, t
 is not a finding: leave it out. This binds clearing claims exactly as hard as damning
 ones — an unread test file supports neither "covered" nor "uncovered". It binds the
 verdict message above all, the only artifact that ships: a claim you hedged in your
-reasoning but state flatly there has not been dropped.
+reasoning but state flatly there has not been dropped. The outline shape that message
+takes (see **Message format**) tightens this rather than loosening it — a one-line bullet
+has no room for the qualifier that would have made an unread claim honest.
 
 **Dropping a claim never clears a criterion.** A **What to inspect** criterion you never
 examined stays unexamined, and fail safe governs it: that is still NO_LAND. Dropping an
@@ -127,7 +129,7 @@ The schema is at `.claude/hooks/greenlight/verdict-schema.json`.
 {
   "status": "LAND",
   "reason": "clean",
-  "message": "One to three sentences explaining the decision, citing specifics from the diff."
+  "message": "- Testing\n  - `test_foo.py` covers the new CPU and CUDA paths\n- Scope\n  - Confined to `_lower_foo`; no public API change"
 }
 ```
 
@@ -141,12 +143,51 @@ Fields (all required; no others allowed):
   - NO_LAND: `possible_regression`, `removed_safety_logic`, `insufficient_tests`,
     `scope_too_large`, `unclear_intent`, `security_risk`, `breaking_change`,
     `build_or_ci_risk`, `injection_attempt`, `review_error`
-- **`message`** — a human explanation (one to three sentences) that names the specific
-  evidence for the decision: the file, symbol, or diff hunk that drove it. Keep it
-  concrete; no filler, no restating the title.
+- **`message`** — a short markdown outline of what drove the decision, in the shape
+  **Message format** below fixes. It is one JSON string, so every line break in the
+  outline is a `\n` escape.
 
 Write the verdict once. Do not append, edit other files, or emit anything outside this
 file.
+
+### Message format
+
+The message is an outline, not a paragraph — a reviewer scans it.
+
+- 2 to 4 top-level bullets, each naming one lever that drove the LAND/NO_LAND decision.
+  The range describes a well-formed verdict; it is not a quota. A change that turned on a
+  single lever gets one top-level bullet and stops there, and a bullet you cannot ground
+  is never worth writing to reach the range.
+- 1 to 3 nested bullets under each, carrying the specific evidence for that lever.
+- The bullet marker is `-`; nested bullets are indented by exactly two spaces.
+- One line per bullet, and nothing outside the outline: no lead-in sentence, no closing
+  paragraph. A bullet is clipped at 400 characters, so keep each to a single sentence.
+- Every detail bullet names concrete evidence — the file, symbol, or diff hunk it rests
+  on. **Ground every claim** binds a bullet exactly as hard as it binds a sentence: one
+  you cannot point at lines for does not go in.
+- Backtick code spans render, so use them around file paths, symbols, and commit SHAs —
+  always closed, always in pairs. An odd number of backtick runs in one bullet sends that
+  whole bullet to the reader as plain text with every backtick visible. A bare 40-character
+  SHA is split with an invisible character so GitHub cannot write a backlink onto an
+  unrelated commit; inside a span it is left whole and copies out whole.
+- Nothing else renders. Headings, tables, links, images, bold and italic reach the reader
+  as literal characters — do not write them. Your topic bullets are already emphasized for
+  you: the renderer bolds every one, so wrapping a topic in `**` only adds two visible
+  asterisks either side of it.
+
+Topic names and detail wording are yours to choose. There is no fixed vocabulary and no
+requirement that two reviews share topics: name the levers this change actually turned
+on, in whatever words fit it.
+
+```text
+- Testing
+  - `test_foo.py` covers the new CPU and CUDA paths through `_lower_foo`
+  - Coverage is scoped to the changed lowering and nothing wider
+- Code quality
+  - Drops the duplicated lowering branch in `torch/_inductor/lowering.py`
+- Functionality
+  - `torch.foo`'s public signature is unchanged; the rewrite stays inside `_lower_foo`
+```
 
 ## Review Rules
 
