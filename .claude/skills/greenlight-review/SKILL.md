@@ -161,7 +161,7 @@ The message is an outline, not a paragraph — a reviewer scans it.
 - 1 to 3 nested bullets under each, carrying the specific evidence for that lever.
 - The bullet marker is `-`; nested bullets are indented by exactly two spaces.
 - One line per bullet, and nothing outside the outline: no lead-in sentence, no closing
-  paragraph. A bullet is clipped at 400 characters, so keep each to a single sentence.
+  paragraph. Keep each bullet to a single sentence, under 200 characters.
 - Every detail bullet names concrete evidence — the file, symbol, or diff hunk it rests
   on. **Ground every claim** binds a bullet exactly as hard as it binds a sentence: one
   you cannot point at lines for does not go in.
