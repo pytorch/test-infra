@@ -1,8 +1,11 @@
 """Build and emit a ``misc.greenlight_pr_state`` row to S3 for replicator ingestion.
 
 Two producers write state rows and MUST agree byte-for-byte on the JSONEachRow field
-order/values and the object-key layout, or the positional S3 -> ClickHouse replicator
-silently drops rows. This module is that single source: ``emit_row`` serializes the row and
+order/values and the object-key layout. A skew against the S3 -> ClickHouse replicator's
+adapter schema does not misalign the insert -- the positional ``SELECT *`` raises
+``NUMBER_OF_COLUMNS_DOESNT_MATCH`` -- but the loss is silent all the same: the replicator's
+``general_adapter`` swallows that error into ``errors.gen_errors``, which nothing alerts on,
+and the row never lands. This module is that single source: ``emit_row`` serializes the row and
 ``object_key`` computes its bucket-relative key. The ``verdict`` command feeds its rows
 through here; the scan emits two marker rows of its own. ``emit_ai_review_dispatched`` fires
 the instant the reviewer workflow is dispatched, so a queued run (which can sit in GitHub's
@@ -62,6 +65,7 @@ def emit_row(
     eval_job: str,
     agent_job: str,
     run_id: int,
+    shadow: bool,
     now: Callable[[], datetime],
     emit: Callable[[bytes, str], None],
     new_emit_id: Callable[[], str],
@@ -70,6 +74,9 @@ def emit_row(
 
     Field order and values are the replicator contract; ``emit`` receives ``(gzip_bytes, key)``
     where ``key`` is the bucket-relative object key. Returns that key for logging.
+
+    ``shadow`` has no default anywhere on this path: an unstamped row would read as authoritative
+    to the merge gate and to Dr. CI, so every writer is forced to state which cohort it is in.
     """
     version = now().replace(tzinfo=None).isoformat(sep=" ", timespec="milliseconds")
     # emit_id is a fresh per-emit UUID that uniquifies both storage keys: the ClickHouse sort key
@@ -90,6 +97,7 @@ def emit_row(
         "version": version,
         "run_id": run_id,
         "emit_id": emit_id,
+        "shadow": shadow,
     }
     line = json.dumps(row, separators=(",", ":"), ensure_ascii=False) + "\n"
     key = object_key(repo, pr_number, version, emit_id)
@@ -120,6 +128,7 @@ def _emit_marker(
     status: str,
     eval_hash: str,
     run_id: int,
+    shadow: bool,
     upload: Callable[[bytes, str], None] | None,
 ) -> None:
     """Emit one scan-written marker row: reason/message and the job URLs are always empty."""
@@ -134,6 +143,7 @@ def _emit_marker(
         eval_job="",
         agent_job="",
         run_id=run_id,
+        shadow=shadow,
         now=_utcnow,
         emit=upload if upload is not None else _default_upload,
         new_emit_id=default_emit_id,
@@ -147,6 +157,7 @@ def emit_ai_review_dispatched(
     head_sha: str,
     eval_hash: str,
     run_id: int,
+    shadow: bool,
     upload: Callable[[bytes, str], None] | None = None,
 ) -> None:
     """Emit an ``AI_REVIEW_DISPATCHED`` row the instant the scan fires the reviewer workflow.
@@ -162,6 +173,7 @@ def emit_ai_review_dispatched(
         status=STATUS_AI_REVIEW_DISPATCHED,
         eval_hash=eval_hash,
         run_id=run_id,
+        shadow=shadow,
         upload=upload,
     )
 
@@ -172,13 +184,14 @@ def emit_reverted(
     pr_number: int,
     head_sha: str,
     run_id: int,
+    shadow: bool,
     upload: Callable[[bytes, str], None] | None = None,
 ) -> None:
     """Emit the ``REVERTED`` row that permanently excludes a PR from review.
 
     ``eval_hash`` is empty: no fingerprint is computed for an excluded PR, and an empty hash can
-    never match one a land-time verifier recomputes. ``run_id`` and ``upload`` behave as for
-    ``emit_ai_review_dispatched``.
+    never match one a land-time verifier recomputes. ``run_id``, ``shadow`` and ``upload`` behave
+    as for ``emit_ai_review_dispatched``.
     """
     _emit_marker(
         repo=repo,
@@ -187,5 +200,6 @@ def emit_reverted(
         status=STATUS_REVERTED,
         eval_hash="",
         run_id=run_id,
+        shadow=shadow,
         upload=upload,
     )

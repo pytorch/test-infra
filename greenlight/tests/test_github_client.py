@@ -1030,8 +1030,10 @@ class _FakeVerdictPR:
         head_sha: str = "head",
         reviews: list[_FakeVerdictReview] | None = None,
         existing_comments: list[_FakeVerdictComment] | None = None,
+        author: str | None = "albanD",
     ) -> None:
         self.head = _FakeBase(head_sha)
+        self.user = _FakeActor(author) if author is not None else None
         self._reviews = reviews or []
         self._existing_comments = existing_comments or []
         self.created_reviews: list[tuple[str, str]] = []

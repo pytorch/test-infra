@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import comment_format, github_client, verdict
+from greenlight import cohort, comment_format, github_client, verdict
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -20,6 +20,14 @@ _BOT = "greenlight-app[bot]"
 _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
 _EMIT_ID = "e" * 32
+
+# The trusted side must be a real member of cohort.TRUSTED_AUTHORS: the approval gate reads the
+# author through cohort.is_shadow, so a made-up "trusted" name would silently turn every LAND test
+# into a shadow test that asserts nothing. The shadow side carries no such requirement -- is_shadow
+# is just "not trusted", so any login outside the set serves. test_cohort_fixtures_are_real pins
+# each to its own side.
+_TRUSTED_AUTHOR = "albanD"
+_SHADOW_AUTHOR = "some-newcomer"
 
 
 class _Recorder:
@@ -80,8 +88,10 @@ class _FakePR:
         rec: _Recorder,
         reviews: list[_FakeReview] | None = None,
         issue_comments: list[_FakeComment] | None = None,
+        author: str | None = _TRUSTED_AUTHOR,
     ) -> None:
         self.head = _FakeHead(head_sha)
+        self.user = _FakeUser(author) if author is not None else None
         self._rec = rec
         self._reviews = reviews or []
         self._issue_comments = issue_comments or []
@@ -189,6 +199,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
     event, body = pr.created_reviews[0]
@@ -312,6 +323,7 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
         "version",
         "run_id",
         "emit_id",
+        "shadow",
     ]
     assert isinstance(obj["pr_number"], int)
     assert isinstance(obj["version"], str)
@@ -340,7 +352,7 @@ def test_verdict_emitted_row_is_byte_stable(make_config):
     assert raw == (
         '{"repo":"pytorch/pytorch","pr_number":9,"head_sha":"h","status":"CANCELLED",'
         '"reason":"","eval_hash":"","message":"","eval_job":"","agent_job":"",'
-        f'"version":"{_VERSION}","run_id":0,"emit_id":"{_EMIT_ID}"}}\n'
+        f'"version":"{_VERSION}","run_id":0,"emit_id":"{_EMIT_ID}","shadow":false}}\n'
     )
 
 
@@ -561,6 +573,7 @@ def test_marker_cancelled_emits_payload_only(make_config):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/9/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 
@@ -607,6 +620,7 @@ def test_marker_ai_review_started_emits_payload_only(make_config):
         "version": _VERSION,
         "run_id": 0,
         "emit_id": _EMIT_ID,
+        "shadow": False,
     }
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/11/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
 
@@ -879,6 +893,198 @@ def test_full_land_post_review_failure_is_fatal(make_config, tmp_path):
     assert pr.created_reviews == []
 
 
+def test_cohort_fixtures_are_real():
+    # Every shadow assertion below is only meaningful while these two logins really sit on opposite
+    # sides of the trusted set. A change to cohort.TRUSTED_AUTHORS must fail here rather than
+    # quietly turn the LAND tests into shadow tests that assert nothing.
+    assert cohort.is_trusted(_TRUSTED_AUTHOR)
+    assert cohort.is_shadow(_SHADOW_AUTHOR)
+
+
+def test_shadow_land_posts_no_approval(make_config, tmp_path, caplog):
+    # THE load-bearing invariant of shadow mode. pytorch/pytorch's merge_rules.yaml gives the
+    # "Greenlight Review Bot" rule patterns ['*'], so one greenlight approval authorizes a merge of
+    # any path in the repo. A shadow evaluation must never post one.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    # _ReviewBoomPR raises from create_review, so a regressed gate explodes here instead of
+    # failing quietly on an equality check.
+    pr = _ReviewBoomPR("h", rec, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=50, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert pr.created_reviews == []
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert any("withholding approval" in record.getMessage() for record in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("requested_shadow", "author"),
+    [
+        pytest.param(False, _SHADOW_AUTHOR, id="derived-only"),
+        pytest.param(True, _TRUSTED_AUTHOR, id="requested-only"),
+        pytest.param(True, _SHADOW_AUTHOR, id="both"),
+        pytest.param(False, None, id="unidentified-author"),
+    ],
+)
+def test_land_withholds_approval_and_stamps_row_when_either_source_says_shadow(
+    make_config, tmp_path, requested_shadow, author
+):
+    # The requested value and the freshly-fetched author are derived independently and OR'd. The
+    # row follows the same OR: one that claimed authority while the approval was withheld would
+    # render a LAND in Dr. CI that no review backs.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _ReviewBoomPR("h", rec, author=author)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=51,
+        head_sha="h",
+        eval_hash=_HASH,
+        verdict_file=vf,
+        bot_login=_BOT,
+        shadow=requested_shadow,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert pr.created_reviews == []
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+def test_non_shadow_land_approves_and_stamps_the_row_authoritative(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=52, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # Neither source says shadow, so the approval path is exactly what it was before shadow mode.
+    assert pr.created_reviews == [("APPROVE", "")]
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert _decode(emit.row_gzip)["shadow"] is False
+
+
+def test_shadow_land_dismisses_the_prior_approval_a_demoted_author_still_holds(make_config, tmp_path):
+    # The demotion path end to end. Withholding a new approval does not take back the one this
+    # author collected while trusted, and a live greenlight approval satisfies the wildcard
+    # merge_rules rule on its own -- so shadow must dismiss it, making the invariant absolute:
+    # a shadow PR never has a live greenlight approval.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _ReviewBoomPR("h", rec, reviews=reviews, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=56, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "dismiss:1"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert pr.created_reviews == []
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+def test_shadow_land_leaves_a_third_party_approval_alone(make_config, tmp_path):
+    # The dismissal is scoped to greenlight's own approvals by bot_login; a human reviewer's
+    # approval is not greenlight's authority to revoke.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, "alice", "APPROVED", rec)]
+    pr = _ReviewBoomPR("h", rec, reviews=reviews, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=57, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit"]
+    assert reviews[0].dismissed_with is None
+
+
+def test_shadow_no_land_still_dismisses_prior_approval(make_config, tmp_path):
+    # The dismissal is idempotent and covers demotion: an author who collected a live greenlight
+    # approval while trusted and is evaluated as shadow after leaving the set.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=53, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "dismiss:1"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+@pytest.mark.parametrize(
+    "requested_shadow",
+    [pytest.param(False, id="authoritative"), pytest.param(True, id="shadow")],
+)
+def test_marker_ignores_pr_author_and_honours_requested_shadow(make_config, requested_shadow):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="pytorch/vision",
+        pr_number=54,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        run_id=1,
+        shadow=requested_shadow,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # The comment path fetched the PR, so an untrusted author was right there to be read -- and the
+    # stamped value still follows the request rather than the author.
+    assert rec.events == ["emit", "comment"]
+    assert _decode(emit.row_gzip)["shadow"] is requested_shadow
+
+
+@pytest.mark.parametrize("status", ["AI_REVIEW_STARTED", "CANCELLED", "FAILED"])
+def test_marker_emits_requested_shadow_without_fetching_the_pr(make_config, status):
+    # The marker path must stay token-independent: both jobs that reach it mint the App token with
+    # continue-on-error, and fail-closed derivation from a failed author lookup would hide a
+    # trusted author's in-flight marker from the merge gate -- a WAIT, then a DENY.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="pytorch/pytorch", pr_number=55, head_sha="h", status=status, shadow=True)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    # _boom_build_github raises if called: no client is built, so no PR and no author are fetched.
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
 def test_full_no_land_comment_failure_is_best_effort_and_still_dismisses(make_config, tmp_path, caplog):
     rec = _Recorder()
     emit = _FakeEmit(rec)
@@ -1110,6 +1316,14 @@ def test_resolve_cli_marker_needs_no_file():
     assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
 
 
+def test_resolve_cli_marker_ignores_a_supplied_file(tmp_path):
+    # The CLI marker short-circuits before the file is opened, so an unreadable path is harmless.
+    missing = str(tmp_path / "nope.json")
+    req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="CANCELLED", verdict_file=missing)
+
+    assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
+
+
 def test_resolve_file_marker_drops_reason_and_message(tmp_path):
     vf = _write_verdict(tmp_path, status="FAILED", reason="ignored", message="ignored")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
@@ -1137,6 +1351,17 @@ def test_resolve_unknown_status_raises(tmp_path):
 
     with pytest.raises(ValueError, match="unknown verdict status"):
         verdict._resolve_verdict(req)
+
+
+def test_resolve_rejects_scan_only_dispatched_status():
+    # AI_REVIEW_DISPATCHED is scan-only: it lives in IN_FLIGHT_STATUSES for decide() but must
+    # never resolve through this command.
+    req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="AI_REVIEW_DISPATCHED")
+
+    with pytest.raises(ValueError, match="unknown verdict status 'AI_REVIEW_DISPATCHED'"):
+        verdict._resolve_verdict(req)
+
+    assert "AI_REVIEW_DISPATCHED" not in verdict._MARKER_STATUSES
 
 
 def test_load_bad_json_raises(tmp_path):
@@ -1182,6 +1407,25 @@ def test_load_non_string_status_raises(tmp_path):
         verdict._resolve_verdict(req)
 
 
+def test_load_verdict_file_returns_the_parsed_document(tmp_path):
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+
+    doc = verdict._load_verdict_file(vf)
+
+    assert (doc.status, doc.reason, doc.message) == ("LAND", "clean", "LGTM")
+
+
+def test_load_verdict_file_defaults_absent_fields(tmp_path):
+    # An absent reason/message reads as empty and is rejected later by the validators; an absent
+    # status is None so the CLI --status can still supply it.
+    path = tmp_path / "v.json"
+    path.write_text("{}", encoding="utf-8")
+
+    doc = verdict._load_verdict_file(str(path))
+
+    assert (doc.status, doc.reason, doc.message) == (None, "", "")
+
+
 def test_validate_eval_hash_accepts_64_lowercase_hex():
     verdict._validate_eval_hash("0123456789abcdef" * 4)
 
@@ -1190,3 +1434,24 @@ def test_validate_eval_hash_accepts_64_lowercase_hex():
 def test_validate_eval_hash_rejects(bad):
     with pytest.raises(ValueError, match="eval_hash"):
         verdict._validate_eval_hash(bad)
+
+
+@pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS))
+def test_validate_reason_accepts_every_canonical_reason(reason: str) -> None:
+    verdict._validate_reason(reason)
+
+
+@pytest.mark.parametrize("bad", ["", "looks_good", "CLEAN"])
+def test_validate_reason_rejects(bad):
+    with pytest.raises(ValueError, match="not an allowed verdict reason"):
+        verdict._validate_reason(bad)
+
+
+def test_validate_message_accepts_non_blank():
+    verdict._validate_message("needs work")
+
+
+@pytest.mark.parametrize("bad", ["", "   ", "\n\t"])
+def test_validate_message_rejects_blank(bad):
+    with pytest.raises(ValueError, match="non-empty message"):
+        verdict._validate_message(bad)
