@@ -21,8 +21,11 @@ _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
 _INSTALLATION_ID = 42
 _APP_SLUG = "pytorchgreenlight"
-# Pinned, not derived from the handler's constant: the cap exists to keep a cold-start scan inside
-# the 300s Lambda timeout, so raising it must be a deliberate two-place edit.
+_MAX_ENV = lambda_handler._MAX_DISPATCHES_ENV
+# Pinned, not derived from the handler's constant: the default cap exists to keep a cold-start scan
+# inside the 300s Lambda timeout, so raising it must be a deliberate two-place edit. The env var's
+# name is not pinned the same way -- renaming it is already a deployment-visible break that no
+# assertion here can catch, and a second literal would only drift.
 _EXPECTED_ARGV = ["review", "--ref", "main", "--max", "30"]
 _EXPECTED_PERMISSIONS = {
     "actions": "write",
@@ -50,6 +53,7 @@ def fakes(monkeypatch):
     monkeypatch.setenv("CLICKHOUSE_USERNAME", _CH_USERNAME)
     monkeypatch.setenv("CLICKHOUSE_HOST", _CH_HOST)
     monkeypatch.delenv("CLICKHOUSE_ENDPOINT", raising=False)
+    monkeypatch.delenv(_MAX_ENV, raising=False)
 
     secret_json = json.dumps({"GITHUB_APP_SECRET": _PEM_B64, "CLICKHOUSE_PASSWORD": _CH_PASSWORD})
     fake_boto3 = MagicMock()
@@ -71,6 +75,11 @@ def fakes(monkeypatch):
     importlib.import_module("github")
     monkeypatch.setitem(sys.modules, "github", fake_github)
     return fake_boto3, fake_github
+
+
+def _dispatched_max(main_mock: Mock) -> str:
+    argv: list[str] = main_mock.call_args.args[0]
+    return argv[argv.index("--max") + 1]
 
 
 def test_handler_happy_path(monkeypatch, fakes):
@@ -112,8 +121,73 @@ def test_handler_caps_dispatches_per_scan(monkeypatch, fakes):
     # The scheduled scan is the one path with a hard wall-clock budget, so it must never run
     # uncapped: an uncapped pass over the evaluation cohort would spend the whole function timeout
     # on serial workflow_dispatch POSTs and be killed mid-scan.
-    argv = main_mock.call_args.args[0]
-    assert argv[argv.index("--max") + 1] == str(lambda_handler._MAX_DISPATCHES_PER_SCAN)
+    assert _dispatched_max(main_mock) == str(lambda_handler._DEFAULT_MAX_DISPATCHES_PER_SCAN)
+
+
+@pytest.mark.parametrize("raw", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")])
+def test_handler_blank_max_dispatches_uses_default(monkeypatch, fakes, raw):
+    monkeypatch.setenv(_MAX_ENV, raw)
+    main_mock = Mock(return_value=EXIT_OK)
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    lambda_handler.handler({}, object())
+
+    assert _dispatched_max(main_mock) == str(lambda_handler._DEFAULT_MAX_DISPATCHES_PER_SCAN)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        pytest.param("5", "5", id="lower"),
+        # One above the default, not a recommended setting: the handler deliberately applies no
+        # upper bound, and the safe range for the 300s timeout is documented in the README instead.
+        pytest.param("31", "31", id="above_default"),
+        pytest.param("  7  ", "7", id="padded"),
+        # Zero is a valid setting, not a blank: it pauses dispatching without pausing the scan.
+        pytest.param("0", "0", id="zero"),
+    ],
+)
+def test_handler_max_dispatches_override(monkeypatch, fakes, raw, expected):
+    monkeypatch.setenv(_MAX_ENV, raw)
+    main_mock = Mock(return_value=EXIT_OK)
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    lambda_handler.handler({}, object())
+
+    assert _dispatched_max(main_mock) == expected
+
+
+@pytest.mark.parametrize(
+    "raw", [pytest.param("thirty", id="word"), pytest.param("30.5", id="float"), pytest.param("3o", id="typo")]
+)
+def test_handler_malformed_max_dispatches_raises(monkeypatch, fakes, raw):
+    _fake_boto3, fake_github = fakes
+    monkeypatch.setenv(_MAX_ENV, raw)
+    main_mock = Mock()
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    with pytest.raises(ValueError, match=_MAX_ENV) as exc_info:
+        lambda_handler.handler({}, object())
+
+    assert repr(raw) in str(exc_info.value)
+    # Rejected before any token is minted, so a bad knob cannot burn an installation token.
+    fake_github.GithubIntegration.assert_not_called()
+    main_mock.assert_not_called()
+
+
+def test_handler_negative_max_dispatches_raises(monkeypatch, fakes):
+    _fake_boto3, fake_github = fakes
+    monkeypatch.setenv(_MAX_ENV, "-1")
+    main_mock = Mock()
+    monkeypatch.setattr(cli, "main", main_mock)
+
+    # A negative clamps to zero inside the scan, so accepting it would silently stall dispatching
+    # on the one path with no human watching the argv.
+    with pytest.raises(ValueError, match="must not be negative"):
+        lambda_handler.handler({}, object())
+
+    fake_github.GithubIntegration.assert_not_called()
+    main_mock.assert_not_called()
 
 
 @pytest.mark.parametrize("slug", [pytest.param("", id="empty"), pytest.param(None, id="absent")])
