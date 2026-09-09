@@ -12,6 +12,7 @@ NUMERIC_VARS = [
     ("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "merge_rules_ttl_seconds"),
     ("PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS", "review_window_hours"),
     ("PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", "drci_poke_delay_seconds"),
+    ("PYTORCH_GREENLIGHT_SHADOW_ROLLOUT", "shadow_rollout"),
 ]
 
 POSITIVE_VARS = [
@@ -23,6 +24,8 @@ POSITIVE_VARS = [
 ]
 
 BLANK_VALUES = ["", "   ", "\t", "\n"]
+
+SHADOW_ROLLOUT_VAR = "PYTORCH_GREENLIGHT_SHADOW_ROLLOUT"
 
 
 def test_defaults_when_env_empty():
@@ -36,6 +39,7 @@ def test_defaults_when_env_empty():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.shadow_rollout == 1.0
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -53,6 +57,7 @@ def test_direct_construction_defaults():
     assert cfg.merge_rules_ttl_seconds == 600.0
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
+    assert cfg.shadow_rollout == 1.0
     assert cfg.github_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
@@ -69,6 +74,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS": "900",
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
+        SHADOW_ROLLOUT_VAR: "0.25",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
@@ -83,6 +89,7 @@ def test_from_env_parses_all_vars():
     assert cfg.merge_rules_ttl_seconds == 900.0
     assert cfg.review_window_hours == 48.0
     assert cfg.drci_poke_delay_seconds == 3.0
+    assert cfg.shadow_rollout == 0.25
     assert cfg.github_token == "ghp_abc123"
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
@@ -223,6 +230,40 @@ def test_blank_numeric_env_uses_default(var, field, blank):
 def test_finite_value_still_parses():
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_INTERVAL_SECONDS": "12.5"})
     assert cfg.interval_seconds == 12.5
+
+
+def test_shadow_rollout_unset_defaults_to_the_whole_cohort():
+    # Unset is the shipped behaviour: every listed PR is evaluated, and shrinking the experiment
+    # is opt-in. This is also what makes the dial a drop-in for the on/off switch it replaced.
+    assert Config.from_env({}).shadow_rollout == 1.0
+
+
+@pytest.mark.parametrize("raw", ["0", "0.0", "0.00"])
+def test_shadow_rollout_zero_is_accepted(raw):
+    # 0.0 is a meaningful setting, not a fat finger: it is the holdout-everyone end of the dial.
+    assert Config.from_env({SHADOW_ROLLOUT_VAR: raw}).shadow_rollout == 0.0
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("0.5", 0.5), ("0.05", 0.05), ("1", 1.0), (" 0.5 ", 0.5)])
+def test_shadow_rollout_fractions_parse(raw, expected):
+    assert Config.from_env({SHADOW_ROLLOUT_VAR: raw}).shadow_rollout == expected
+
+
+@pytest.mark.parametrize("raw", ["1.5", "2", "100", "-0.1", "inf", "-inf", "nan", "abc", "50%"])
+def test_shadow_rollout_out_of_unit_interval_raises_naming_field(raw):
+    # A dial is naturally typed as a percentage or left at some leftover value; every reading
+    # outside 0..1 must fail the tick rather than round itself into a rollout nobody chose. inf is
+    # the one that matters most: unguarded it compares greater than any dial and fails open.
+    with pytest.raises(ValueError) as excinfo:
+        Config.from_env({SHADOW_ROLLOUT_VAR: raw})
+    message = str(excinfo.value)
+    assert "shadow_rollout" in message or SHADOW_ROLLOUT_VAR in message
+
+
+def test_shadow_rollout_upper_bound_is_one_not_the_seconds_cap():
+    assert Config(shadow_rollout=1.0).shadow_rollout == 1.0
+    with pytest.raises(ValueError, match="shadow_rollout"):
+        Config(shadow_rollout=1.0000001)
 
 
 def test_from_env_no_arg_reads_os_environ(monkeypatch):

@@ -18,6 +18,7 @@ _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 _DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
 _DEFAULT_REVIEW_WINDOW_HOURS = 24.0
 _DEFAULT_DRCI_POKE_DELAY_SECONDS = 10.0
+_DEFAULT_SHADOW_ROLLOUT = 1.0
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
@@ -30,6 +31,11 @@ _MAX_REVIEW_WINDOW_HOURS = 8760.0
 
 _POSITIVE_FIELDS = ("interval_seconds", "backoff_base_seconds", "backoff_max_seconds", "merge_rules_ttl_seconds")
 _NON_NEGATIVE_FIELDS = ("max_runtime_seconds", "drci_poke_delay_seconds")
+# Fractions of 1, where both ends are meaningful settings rather than fat fingers. The upper
+# bound is what _POSITIVE_FIELDS/_NON_NEGATIVE_FIELDS cannot express, and it is load-bearing:
+# a rollout that parsed as inf would compare greater than every dial and fail open.
+_UNIT_INTERVAL_FIELDS = ("shadow_rollout",)
+_MAX_UNIT_INTERVAL = 1.0
 
 
 def _clean(raw: str | None) -> str | None:
@@ -76,6 +82,7 @@ class Config:
     merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
     review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
     drci_poke_delay_seconds: float = _DEFAULT_DRCI_POKE_DELAY_SECONDS
+    shadow_rollout: float = _DEFAULT_SHADOW_ROLLOUT
     github_token: str | None = field(default=None, repr=False)
     drci_token: str | None = field(default=None, repr=False)
     drci_internal_token: str | None = field(default=None, repr=False)
@@ -93,6 +100,9 @@ class Config:
         for name in _NON_NEGATIVE_FIELDS:
             value = getattr(self, name)
             _validate_bound(name, value, allow_zero=True)
+        for name in _UNIT_INTERVAL_FIELDS:
+            value = getattr(self, name)
+            _validate_bound(name, value, allow_zero=True, max_value=_MAX_UNIT_INTERVAL)
         _validate_bound(
             "review_window_hours", self.review_window_hours, allow_zero=False, max_value=_MAX_REVIEW_WINDOW_HOURS
         )
@@ -122,6 +132,7 @@ class Config:
             drci_poke_delay_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", _DEFAULT_DRCI_POKE_DELAY_SECONDS
             ),
+            shadow_rollout=_read_float(source, "PYTORCH_GREENLIGHT_SHADOW_ROLLOUT", _DEFAULT_SHADOW_ROLLOUT),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
             drci_token=source.get("PYTORCH_GREENLIGHT_DRCI_TOKEN"),
             drci_internal_token=source.get("PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"),

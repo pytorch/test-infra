@@ -149,7 +149,7 @@ def is_rate_limit_error(exc: BaseException) -> bool:
 
 
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
-    trusted = {a.lower() for a in authors}
+    lowered_authors = {a.lower() for a in authors}
     repo_obj = client.get_repo(repo)
     prs: list[OpenPR] = []
     for pr in repo_obj.get_pulls(state="open"):
@@ -157,7 +157,7 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
         if user is None:
             continue
         login = user.login
-        if login and login.lower() in trusted:
+        if login and login.lower() in lowered_authors:
             if pr.draft:
                 continue
             updated_at = pr.updated_at
@@ -179,9 +179,10 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
 def get_pr_author(client: _AuthorClient, repo: str, number: int) -> str | None:
     """Return the login of a single PR's author, or None if it has no resolvable user.
 
-    Used by the ``--pr`` scan path to gate on the target PR's author: unlike the listing path
-    (already filtered to trusted authors), ``--pr`` names an arbitrary PR, so the caller must
-    verify its author before fingerprinting or dispatching a review.
+    Used by the ``--pr`` scan path to gate on the target PR's author. The listing path is already
+    filtered to the evaluation cohort, which is wider than the trusted-author set this gate
+    enforces; ``--pr`` names an arbitrary PR and is filtered by nothing, so the caller must verify
+    its author before fingerprinting or dispatching a review.
     """
     pr = client.get_repo(repo).get_pull(number)
     user = pr.user
