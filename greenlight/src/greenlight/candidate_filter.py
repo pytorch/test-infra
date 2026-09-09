@@ -2,11 +2,16 @@
 
 Extracted from ``review`` so both modules stay within the per-file line limit. ``review.run``
 lists the candidates and their labels; this module decides which of them are worth the cost of
-a fingerprint, from the recency window and the ``Stale`` label.
+a fingerprint, from the recency window, the ``Stale`` label, and the rollout dial.
+
+Everything here takes PR numbers and returns PR numbers. Nothing in this module knows who wrote a
+PR or whether its verdict carries authority -- that lives in ``cohort`` and must stay there, so
+that sizing the experiment can never become a way of deciding one.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -19,6 +24,41 @@ if TYPE_CHECKING:
     from greenlight.state import PRState
 
 logger = logging.getLogger(__name__)
+
+# Resolution of the dial: a rollout is rounded down to a multiple of 1/_ROLLOUT_BUCKETS.
+_ROLLOUT_BUCKETS = 10_000
+
+
+def _in_rollout(repo: str, pr_number: int, rollout: float) -> bool:
+    """Whether ``pr_number`` sits in the ``rollout`` fraction of a stable, repo-scoped partition.
+
+    sha256 rather than the builtin ``hash``, which is salted per process (PYTHONHASHSEED): the same
+    PR would draw a different bucket on every Lambda invocation and flap in and out between scans.
+    The key carries ``repo`` so the same number in a second target repo draws an independent bucket,
+    and the raw number is hashed rather than taken modulo directly because PR numbers are dense and
+    sequential, which biases a bare modulo. Buckets nest: raising the dial only ever adds PRs.
+    """
+    if rollout >= 1.0:
+        return True
+    if rollout <= 0.0:
+        return False
+    digest = hashlib.sha256(f"{repo}#{pr_number}".encode()).digest()
+    return int.from_bytes(digest[:8], "big") % _ROLLOUT_BUCKETS < rollout * _ROLLOUT_BUCKETS
+
+
+def rollout_filter(pr_numbers: Sequence[int], exempt: frozenset[int], *, repo: str, rollout: float) -> list[int]:
+    """Keep the ``rollout`` fraction of ``pr_numbers``, plus every number in ``exempt``.
+
+    Applied to the fingerprint candidates and not to the listing, deliberately: the steps upstream
+    of the fingerprint must keep seeing every listed PR. A held-out PR still has to reach the revert
+    guard, or it silently loses both the revocation of an approval greenlight already granted and
+    the ``REVERTED`` row that makes its exclusion outlive the label.
+    """
+    kept = [number for number in pr_numbers if number in exempt or _in_rollout(repo, number, rollout)]
+    held = len(pr_numbers) - len(kept)
+    if held:
+        logger.info("rollout %g: holding %d of %d candidate(s) out of this scan", rollout, held, len(pr_numbers))
+    return kept
 
 
 def labeled_with(labels_by_number: Mapping[int, Sequence[str]], wanted: frozenset[str]) -> frozenset[int]:
