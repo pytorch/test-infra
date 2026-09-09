@@ -1,8 +1,7 @@
-// The GREEN LIGHT panel on the HUD's commit and PR pages. PR-scoped, not
-// commit-scoped: mergebot rebases, so a landed commit never carries the
-// reviewed sha and qualifying the verdict by commit would be misleading.
-// Headline wording is shared with greenlightRender.ts so the HUD and the Dr.CI
-// comment cannot disagree about what a status means.
+// The GREEN LIGHT panel on the HUD's commit and PR pages. Shows the verdict for
+// the commit on screen and only that one -- see selectStateForSha for the two
+// ways a commit is matched. Headline wording is shared with greenlightRender.ts
+// so the HUD and the Dr.CI comment cannot disagree about what a status means.
 //
 // The model's `message` renders as a text node, which is the containment --
 // nothing here may route it through dangerouslySetInnerHTML or a markdown
@@ -56,6 +55,12 @@ const LAND_REDUNDANT_REASON = "clean";
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
 
 interface Described {
+  /**
+   * The status the mark should show, which is not always the row's own: a
+   * stale in-flight row is presented as a run that did not complete, and the
+   * lamp has to say the same thing as the headline beside it.
+   */
+  iconStatus: string;
   headline: string;
   /** Fixed prose for states that carry no model message. */
   body: string;
@@ -73,6 +78,7 @@ function describeStatus(
   switch (status) {
     case GREENLIGHT_STATUS_LAND:
       return {
+        iconStatus: status,
         headline: GREENLIGHT_LAND_HEADLINE,
         body: "",
         // "clean" is the only reason a LAND may carry, so printing it just
@@ -82,12 +88,14 @@ function describeStatus(
       };
     case GREENLIGHT_STATUS_NO_LAND:
       return {
+        iconStatus: status,
         headline: GREENLIGHT_NO_LAND_HEADLINE,
         body: "",
         reason: rowReason,
       };
     case GREENLIGHT_STATUS_REVERTED:
       return {
+        iconStatus: status,
         headline: GREENLIGHT_REVERTED_HEADLINE,
         body: GREENLIGHT_REVERTED_BODY,
         reason: "",
@@ -97,11 +105,16 @@ function describeStatus(
       // An in-flight row past the window means the terminal emit was lost.
       return isInProgressStale(version, now)
         ? {
+            // FAILED, not the row's in-flight status: it is the status whose
+            // lamp and label already mean "did not complete", which is what
+            // the headline here says.
+            iconStatus: GREENLIGHT_STATUS_FAILED,
             headline: GREENLIGHT_INCOMPLETE_HEADLINE,
             body: "",
             reason: GREENLIGHT_STALLED_REASON,
           }
         : {
+            iconStatus: status,
             headline: GREENLIGHT_REVIEWING_HEADLINE,
             body: GREENLIGHT_REVIEWING_BODY,
             reason: "",
@@ -109,6 +122,7 @@ function describeStatus(
     case GREENLIGHT_STATUS_CANCELLED:
     case GREENLIGHT_STATUS_FAILED:
       return {
+        iconStatus: status,
         headline: GREENLIGHT_INCOMPLETE_HEADLINE,
         body: "",
         reason: status.toLowerCase(),
@@ -175,7 +189,7 @@ export default function GreenLightSection({
         }}
       >
         <Stack direction="row" spacing={1} alignItems="center">
-          <GreenLightIcon status={state.status} size={14} />
+          <GreenLightIcon status={described.iconStatus} size={14} />
           <Typography fontWeight="bold">{GREENLIGHT_SECTION_HEADER}</Typography>
           <Typography color="text.secondary">{described.headline}</Typography>
           {/* On the summary: a non-approved panel stays collapsed, and the
