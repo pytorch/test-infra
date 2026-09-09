@@ -8,13 +8,38 @@ export async function getOctokit(
   owner: string,
   repo: string
 ): Promise<Octokit> {
-  let privateKey = process.env.PRIVATE_KEY as string;
-  privateKey = Buffer.from(privateKey, "base64").toString();
+  return getAppOctokit(
+    owner,
+    repo,
+    process.env.APP_ID!,
+    process.env.PRIVATE_KEY!
+  );
+}
 
-  const app = new App({
-    appId: process.env.APP_ID!,
-    privateKey,
-  });
+// Authenticated as the OSDC Migration Tracker app: read-only, and installed
+// only on the repos that page tracks. No PyTorchBot fallback - that key is
+// write-scoped and shares Dr. CI's rate limit.
+export async function getOsdcMigrationOctokit(
+  owner: string,
+  repo: string
+): Promise<Octokit> {
+  const appId = process.env.OSDC_MIGRATION_TRACKER_APP_ID;
+  const privateKey = process.env.OSDC_MIGRATION_TRACKER_PRIVATE_KEY;
+  if (!appId || !privateKey) {
+    throw new Error("OSDC Migration Tracker credentials are not configured");
+  }
+  return getAppOctokit(owner, repo, appId, privateKey);
+}
+
+async function getAppOctokit(
+  owner: string,
+  repo: string,
+  appId: string,
+  base64PrivateKey: string
+): Promise<Octokit> {
+  const privateKey = Buffer.from(base64PrivateKey, "base64").toString();
+
+  const app = new App({ appId, privateKey });
 
   let installation;
   try {
@@ -25,14 +50,14 @@ export async function getOctokit(
   } catch (e) {
     console.error(e);
     throw new Error(
-      `Failed to get installation for repo ${owner}/${repo}. Is the app installed on this repo?`
+      `Failed to get installation for repo ${owner}/${repo}. Is app ${appId} installed on this repo?`
     );
   }
 
   return new Octokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: process.env.APP_ID,
+      appId,
       privateKey,
       installationId: installation.data.id,
     },
