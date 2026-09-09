@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import comment_format, github_client, verdict
+from greenlight import cohort, comment_format, github_client, verdict
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -20,6 +20,14 @@ _BOT = "greenlight-app[bot]"
 _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
 _EMIT_ID = "e" * 32
+
+# The trusted side must be a real member of cohort.TRUSTED_AUTHORS: the approval gate reads the
+# author through cohort.is_shadow, so a made-up "trusted" name would silently turn every LAND test
+# into a shadow test that asserts nothing. The shadow side carries no such requirement -- is_shadow
+# is just "not trusted", so any login outside the set serves. test_cohort_fixtures_are_real pins
+# each to its own side.
+_TRUSTED_AUTHOR = "albanD"
+_SHADOW_AUTHOR = "some-newcomer"
 
 
 class _Recorder:
@@ -80,8 +88,10 @@ class _FakePR:
         rec: _Recorder,
         reviews: list[_FakeReview] | None = None,
         issue_comments: list[_FakeComment] | None = None,
+        author: str | None = _TRUSTED_AUTHOR,
     ) -> None:
         self.head = _FakeHead(head_sha)
+        self.user = _FakeUser(author) if author is not None else None
         self._rec = rec
         self._reviews = reviews or []
         self._issue_comments = issue_comments or []
@@ -881,6 +891,57 @@ def test_full_land_post_review_failure_is_fatal(make_config, tmp_path):
     # The approving review is the merge gate: its failure must propagate, not be swallowed.
     assert rec.events == ["emit"]
     assert pr.created_reviews == []
+
+
+def test_cohort_fixtures_are_real():
+    # Every shadow assertion below is only meaningful while these two logins really sit on opposite
+    # sides of the trusted set. A change to cohort.TRUSTED_AUTHORS must fail here rather than
+    # quietly turn the LAND tests into shadow tests that assert nothing.
+    assert cohort.is_trusted(_TRUSTED_AUTHOR)
+    assert cohort.is_shadow(_SHADOW_AUTHOR)
+
+
+@pytest.mark.parametrize(
+    "requested_shadow",
+    [pytest.param(False, id="authoritative"), pytest.param(True, id="shadow")],
+)
+def test_marker_ignores_pr_author_and_honours_requested_shadow(make_config, requested_shadow):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, author=_SHADOW_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(
+        repo="pytorch/vision",
+        pr_number=54,
+        head_sha="h",
+        status="AI_REVIEW_STARTED",
+        bot_login=_BOT,
+        run_id=1,
+        shadow=requested_shadow,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    # The comment path fetched the PR, so an untrusted author was right there to be read -- and the
+    # stamped value still follows the request rather than the author.
+    assert rec.events == ["emit", "comment"]
+    assert _decode(emit.row_gzip)["shadow"] is requested_shadow
+
+
+@pytest.mark.parametrize("status", ["AI_REVIEW_STARTED", "CANCELLED", "FAILED"])
+def test_marker_emits_requested_shadow_without_fetching_the_pr(make_config, status):
+    # The marker path must stay token-independent: both jobs that reach it mint the App token with
+    # continue-on-error, and fail-closed derivation from a failed author lookup would hide a
+    # trusted author's in-flight marker from the merge gate -- a WAIT, then a DENY.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="pytorch/pytorch", pr_number=55, head_sha="h", status=status, shadow=True)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    # _boom_build_github raises if called: no client is built, so no PR and no author are fetched.
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
 
 
 def test_full_no_land_comment_failure_is_best_effort_and_still_dismisses(make_config, tmp_path, caplog):

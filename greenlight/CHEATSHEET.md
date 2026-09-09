@@ -68,7 +68,7 @@ just review --pr 123 --requester alice  # recheck PR #123 for alice (author and 
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
-just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: skip the --pr author check
+just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an untrusted author's PR, in shadow
 ```
 
 `just review` scans the trusted authors' open PRs and, for each PR that is new or changed
@@ -93,7 +93,9 @@ re-dispatches, rather than cancelling and restarting one that is still running; 
 `greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`. The scan
 is the sole authorizer: `--pr` refuses unless PR N's author is trusted, and `--requester` refuses
 unless the commenter is trusted too (case-insensitive; a refusal is a clean exit 0). The local-only
-`--allow-untrusted-author` skips the target-author check for iteration and is never a workflow
+`--allow-untrusted-author` waives that refusal but not the lookup: the author is still resolved and
+still decides shadow, so an untrusted author's PR is reviewed in shadow (recorded, never approved)
+while a trusted author's PR behaves exactly as in production. It is never a workflow
 input. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
 has a changes-requested review it does not review but posts a single comment that it will not
 re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or

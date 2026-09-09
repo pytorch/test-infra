@@ -63,11 +63,12 @@ def _open_pr(
     head_sha: str | None = None,
     updated_at: datetime | None = None,
     labels: tuple[str, ...] = (),
+    author: str = "albanD",
 ) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
         number=number,
-        author="albanD",
+        author=author,
         title=f"fix {number}",
         url=f"https://example.test/{number}",
         head_sha=head_sha or f"headsha{number}",
@@ -147,6 +148,9 @@ class _Scan:
     label_fetches: list[int]
     dismissals: list[tuple[int, str, str]]
     reverted_emitted: list[tuple[str, int, str, int]]
+    dispatch_shadow: list[tuple[int, bool]]
+    emit_shadow: list[tuple[int, bool]]
+    reverted_shadow: list[tuple[int, bool]]
 
 
 def _run_scan(
@@ -192,6 +196,9 @@ def _run_scan(
     label_fetches: list[int] = []
     dismissals: list[tuple[int, str, str]] = []
     reverted_emitted: list[tuple[str, int, str, int]] = []
+    dispatch_shadow: list[tuple[int, bool]] = []
+    emit_shadow: list[tuple[int, bool]] = []
+    reverted_shadow: list[tuple[int, bool]] = []
 
     def fake_fetch(_client):
         listed_calls.append(1)
@@ -208,8 +215,9 @@ def _run_scan(
         read_calls.append((repo, nums))
         return {n: states[n] for n in nums if n in states}
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
+        dispatch_shadow.append((number, shadow))
         events.append(f"dispatch:{number}")
 
     def fake_resolve_authorized():
@@ -230,6 +238,7 @@ def _run_scan(
 
     def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id, shadow):
         emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
+        emit_shadow.append((pr_number, shadow))
         events.append(f"emit:{pr_number}")
 
     def fake_poke(repo, pr_number, poke_config):
@@ -254,6 +263,7 @@ def _run_scan(
 
     def fake_emit_reverted(*, repo, pr_number, head_sha, run_id, shadow):
         reverted_emitted.append((repo, pr_number, head_sha, run_id))
+        reverted_shadow.append((pr_number, shadow))
         events.append(f"emit_reverted:{pr_number}")
 
     review.run(
@@ -284,22 +294,25 @@ def _run_scan(
         now=lambda: now,
     )
     return _Scan(
-        dispatched,
-        read_calls,
-        fingerprinted,
-        len(listed_calls),
-        len(resolver_calls),
-        authorized_seen,
-        author_fetched,
-        skip_on_approval_seen,
-        refusals,
-        emitted,
-        poked,
-        poke_threads,
-        events,
-        label_fetches,
-        dismissals,
-        reverted_emitted,
+        dispatched=dispatched,
+        read_calls=read_calls,
+        fingerprinted=fingerprinted,
+        listed_calls=len(listed_calls),
+        resolver_calls=len(resolver_calls),
+        authorized_seen=authorized_seen,
+        author_fetched=author_fetched,
+        skip_on_approval_seen=skip_on_approval_seen,
+        refusals=refusals,
+        emitted=emitted,
+        poked=poked,
+        poke_threads=poke_threads,
+        events=events,
+        label_fetches=label_fetches,
+        dismissals=dismissals,
+        reverted_emitted=reverted_emitted,
+        dispatch_shadow=dispatch_shadow,
+        emit_shadow=emit_shadow,
+        reverted_shadow=reverted_shadow,
     )
 
 
@@ -905,7 +918,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     with (
@@ -1046,9 +1059,9 @@ def test_allow_untrusted_author_bypasses_target_check(make_config):
         allow_untrusted_author=True,
     )
 
-    # The local override skips the target-author check entirely: the PR is not even looked up, and
-    # the otherwise-untrusted author is fingerprinted and dispatched.
-    assert scan.author_fetched == []
+    # The local override waives the refusal, not the lookup: the author is still resolved, and the
+    # otherwise-untrusted PR is fingerprinted and dispatched instead of being turned away.
+    assert scan.author_fetched == [5]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
@@ -1143,7 +1156,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
     def boom_fingerprint(_client, _number, _authorized, _skip):
         raise RuntimeError("fingerprint boom")
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     with (
@@ -1246,7 +1259,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1281,7 +1294,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             raise RuntimeError(f"fingerprint boom {number}")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1311,7 +1324,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
 def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1342,7 +1355,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
 def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         raise RuntimeError(f"dispatch boom {number}")
 
@@ -1370,7 +1383,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
 def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
     attempted: list[int] = []
 
-    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 1:
             raise IterationTimeout("iteration exceeded")
@@ -1402,7 +1415,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1454,7 +1467,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     review.run(
@@ -1497,7 +1510,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
     dispatched: list[int] = []
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     review.run(
@@ -1547,7 +1560,7 @@ def test_run_closes_main_and_worker_clients(make_config):
         fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
-        dispatch=lambda *_args: None,
+        dispatch=lambda *_args, **_kwargs: None,
         resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
     )
@@ -1619,7 +1632,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
@@ -1663,7 +1676,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     def record_poke(_repo, pr_number, _config):
@@ -1719,7 +1732,7 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
@@ -1760,7 +1773,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
@@ -1796,7 +1809,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
         fingerprinted.append(number)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"):
@@ -1832,7 +1845,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
-            dispatch=lambda *_args: None,
+            dispatch=lambda *_args, **_kwargs: None,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
@@ -1921,7 +1934,7 @@ def test_run_cold_authorized_failure_propagates(make_config):
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
-            dispatch=lambda *_args: None,
+            dispatch=lambda *_args, **_kwargs: None,
             resolve_authorized=boom_resolve,
             now=lambda: _NOW,
         )
@@ -2112,3 +2125,120 @@ def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_conf
     assert scan.dispatched == []
     assert scan.refusals == []
     assert "BOT_LOGIN is required to post" in caplog.text
+
+
+# An untrusted login: outside both authz gates, and therefore evaluated in shadow.
+_COHORT_ONLY_AUTHOR = "alice"
+
+_TRUSTED_VS_SHADOW = [
+    pytest.param("albanD", False, id="trusted-author"),
+    pytest.param(_COHORT_ONLY_AUTHOR, True, id="cohort-author-outside-the-trusted-set"),
+]
+
+
+@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
+def test_dispatch_marker_carries_the_authors_shadow(make_config, author, shadow):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, author=author)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    # The listing already knows the author, so the scan decides once and spends it twice: the
+    # workflow input that withholds the approval, and the row the merge gate reads.
+    assert scan.dispatch_shadow == [(1, shadow)]
+    assert scan.emit_shadow == [(1, shadow)]
+
+
+@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
+def test_reverted_row_carries_the_authors_shadow(make_config, author, shadow):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author)],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+    )
+
+    # revert_guard writes the scan's other state row, and it has no author of its own -- the same
+    # listing answer is threaded in rather than costing a second GitHub read per reverted PR.
+    assert scan.reverted_shadow == [(1, shadow)]
+    assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+
+
+def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, author="albanD"), _open_pr(2, author=_COHORT_ONLY_AUTHOR)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+    )
+
+    # Every steady-state scan carries both cohorts at once, so a single per-scan answer would be
+    # wrong for half the batch in either direction.
+    assert scan.dispatch_shadow == [(1, False), (2, True)]
+    assert scan.emit_shadow == [(1, False), (2, True)]
+
+
+def test_pr_recheck_is_never_shadow_because_its_author_gate_already_ran(make_config):
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author="albanD")
+
+    # The --pr path has no listing to read an author from, so it reuses the one the target-author
+    # gate already fetched -- which that gate has already required to be trusted.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, False)]
+    assert scan.emit_shadow == [(5, False)]
+
+
+def test_allow_untrusted_author_still_resolves_the_author_so_a_trusted_pr_stays_authoritative(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="albanD",
+        allow_untrusted_author=True,
+    )
+
+    # Regression guard for a live-approval revocation. The flag once skipped the only lookup that
+    # names the author, leaving it None -- and cohort.is_shadow(None) is True, so the run recorded a
+    # shadow verdict, whose LAND dismisses greenlight's existing approval. Pointed at a TRUSTED
+    # author's PR, a local convenience flag therefore revoked a production approval. The lookup is
+    # unconditional now, so the flag cannot change what cohort a PR is in -- only whether an
+    # untrusted one is turned away.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, False)]
+    assert scan.emit_shadow == [(5, False)]
+
+
+def test_allow_untrusted_author_keeps_an_untrusted_pr_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="mallory",
+        allow_untrusted_author=True,
+    )
+
+    # The other half of that same lookup: waiving the refusal must not waive shadow. The override
+    # stays a way to exercise the reviewer, never a way to have an arbitrary PR approved.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, True)]
+    assert scan.emit_shadow == [(5, True)]
+
+
+def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author=None,
+        allow_untrusted_author=True,
+    )
+
+    # An author GitHub cannot name is not trusted, so the flag is what lets this review run at all --
+    # and it still resolves to shadow. Unknown is the one input where the fail-closed answer and the
+    # old skip-the-lookup bug agreed, so pin it explicitly rather than leave it to that coincidence.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, True)]
+    assert scan.emit_shadow == [(5, True)]
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
