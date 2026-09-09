@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "owner": "String",
+    "project": "String",
+    "prNumber": "Int64"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "owner": "pytorch",
+      "project": "pytorch",
+      "prNumber": 196176
+    }
+  ]
+}
