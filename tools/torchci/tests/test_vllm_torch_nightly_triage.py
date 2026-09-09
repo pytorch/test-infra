@@ -187,8 +187,7 @@ class TestCompareCarriesBaselineUrl(unittest.TestCase):
             1,
             1,
         )
-        with mock.patch.object(triage, "_rows", return_value=[row]):
-            buckets = triage.compare(client=None, tn_number=82789, base_number=82790)
+        buckets = triage.compare(rows=[row])
         self.assertEqual(len(buckets["both"]), 1)
         both_job = buckets["both"][0]
         self.assertEqual(both_job["url"], "https://buildkite/tn#job")
@@ -376,6 +375,20 @@ class TestReportJsonWiring(unittest.TestCase):
             "baseline_only": [],
             "unclassified": [],
         }
+        rows = [
+            (
+                "Job A",
+                0,
+                "failed",
+                1,
+                "u_tn",
+                "agent-1",
+                "failed",
+                "u_base",
+                1,
+                1,
+            )
+        ]
 
         def _fake_fetch_cluster_logs(
             buckets_arg,
@@ -396,6 +409,8 @@ class TestReportJsonWiring(unittest.TestCase):
                 "prog",
                 "--json-output",
                 json_path,
+                "--compare-rows-output",
+                f"{tmp}/compare-rows.json",
                 "--logs-dir",
                 logs_dir,
                 "--output",
@@ -405,6 +420,10 @@ class TestReportJsonWiring(unittest.TestCase):
                 triage, "get_clickhouse_client", return_value=object()
             ), mock.patch.object(
                 triage, "find_latest_pair", return_value=(tn, base)
+            ), mock.patch.object(
+                triage,
+                "get_rows",
+                return_value=rows,
             ), mock.patch.object(
                 triage, "compare", return_value=buckets
             ), mock.patch.object(
