@@ -7,6 +7,20 @@
 
 import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
 
+/** One `misc.greenlight_pr_state` row. Saved queries are untyped, so this is the cast target. */
+export interface GreenlightPrStateRow {
+  pr_number: number;
+  status: string;
+  reason: string;
+  message: string;
+  head_sha: string;
+  /** The trunk commit `head_sha` landed as, or "" if it never landed. */
+  merge_commit_sha: string;
+  eval_job: string;
+  run_id: number;
+  version: string;
+}
+
 /** One `greenlight_trunk_commit_states` row; `sha` is the trunk commit. */
 export interface GreenlightTrunkStatusRow {
   sha: string;
@@ -18,6 +32,21 @@ export function isGreenlightApproved(
   status: string | undefined | null
 ): boolean {
   return (status ?? "").trim() === GREENLIGHT_STATUS_LAND;
+}
+
+/**
+ * The ledger's read-time selection: highest `run_id`, then latest `version`.
+ * run_id ahead of version is what makes it race-proof against a superseded
+ * slower dispatch finishing later.
+ */
+export function supersedes(
+  candidate: Pick<GreenlightPrStateRow, "run_id" | "version">,
+  incumbent: Pick<GreenlightPrStateRow, "run_id" | "version">
+): boolean {
+  if (candidate.run_id !== incumbent.run_id) {
+    return candidate.run_id > incumbent.run_id;
+  }
+  return candidate.version > incumbent.version;
 }
 
 /** Index `greenlight_trunk_commit_states` rows by trunk sha. */
@@ -37,4 +66,50 @@ export function buildStatusByTrunkSha(
 /** Shas reach these helpers from URLs and form values, not just the database. */
 export function normalizeSha(sha: string | undefined | null): string {
   return (sha ?? "").trim().toLowerCase();
+}
+
+/** Index `greenlight_pr_state_history` rows by the commit they reviewed. */
+export function buildStateBySha(
+  rows: GreenlightPrStateRow[] | undefined
+): Map<string, GreenlightPrStateRow> {
+  const bySha = new Map<string, GreenlightPrStateRow>();
+  for (const row of rows ?? []) {
+    const sha = normalizeSha(row.head_sha);
+    if (sha === "") {
+      continue;
+    }
+    const incumbent = bySha.get(sha);
+    if (incumbent === undefined || supersedes(row, incumbent)) {
+      bySha.set(sha, row);
+    }
+  }
+  return bySha;
+}
+
+/**
+ * The verdict for `sha`, matched two ways and never guessed:
+ *
+ * - the reviewed head itself, which is what a PR page's picker selects;
+ * - the trunk commit that head landed as, since mergebot rebases and a landed
+ *   commit never carries the sha that was reviewed.
+ *
+ * Undefined when neither matches. There is deliberately no fall back to the
+ * PR's latest verdict: on a PR page most picker entries are commits that were
+ * never a review head, and showing them another commit's approval says
+ * something untrue. It also means a forged "Pull Request resolved: #N" in a
+ * commit message resolves to nothing rather than to someone else's approval.
+ */
+export function selectStateForSha(
+  rows: GreenlightPrStateRow[] | undefined,
+  sha: string | undefined | null
+): GreenlightPrStateRow | undefined {
+  const wanted = normalizeSha(sha);
+  if (wanted === "") {
+    return undefined;
+  }
+  return (rows ?? []).find(
+    (row) =>
+      normalizeSha(row.head_sha) === wanted ||
+      normalizeSha(row.merge_commit_sha) === wanted
+  );
 }
