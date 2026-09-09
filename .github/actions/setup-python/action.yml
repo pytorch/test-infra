@@ -12,6 +12,6 @@ inputs:
     default: ""
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'setup.js'
   post: 'cleanup.js'
