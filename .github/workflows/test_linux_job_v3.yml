@@ -291,3 +291,28 @@ jobs:
         esac
         [[ -n "${AWS_ACCESS_KEY_ID:-}" ]] || { echo "expected credentials in this repository"; exit 1; }
         [[ "${SCCACHE_S3_NO_CREDENTIALS}" == "false" ]] || { echo "credentials loaded, so anonymous access should be off"; exit 1; }
+
+  # The default: models shared from the mount, everything HF writes redirected.
+  # Each probe below is one of the writes that reverted pytorch/executorch#22247.
+  test-hf-cache-default-writes:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-hf-cache-default"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        set -x
+        [[ "${HF_CACHE_REFRESH}" == "0" ]] || { echo "expected no refresh"; exit 1; }
+        [[ "${HF_HUB_CACHE}" == "/mnt/hf_cache/hub" ]] || { echo "HF_HUB_CACHE=${HF_HUB_CACHE:-<unset>}"; exit 1; }
+        [[ "${HF_HOME}" == "${RUNNER_TEMP}/hf_home" ]] || { echo "HF_HOME=${HF_HOME:-<unset>}"; exit 1; }
+        [[ "${HF_DATASETS_CACHE}" == "${RUNNER_TEMP}/hf_datasets" ]] || { echo "HF_DATASETS_CACHE=${HF_DATASETS_CACHE:-<unset>}"; exit 1; }
+        mkdir -p "${HF_HOME}/.cache/meta_checkpoints"
+        touch "${HF_HOME}/stored_tokens"
+        touch "${HF_DATASETS_CACHE}/some_dataset.lock"
+        echo "hf-cache default env OK"
