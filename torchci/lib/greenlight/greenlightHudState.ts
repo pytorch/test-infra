@@ -13,8 +13,7 @@
 // dangerouslySetInnerHTML or a markdown renderer -- none does.
 //
 // Takes no ClickHouse / Octokit / server-only imports, so it is unit-testable
-// and importable anywhere. That does not make it client-only: the server-side
-// Dr.CI glue in greenlightComment.ts imports the row type from here too.
+// and importable anywhere.
 
 import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
 
