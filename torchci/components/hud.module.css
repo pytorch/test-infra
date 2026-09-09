@@ -16,9 +16,6 @@
 .colCommit {
   width: 40ch;
 }
-/* 8ch fits "#123456" and nothing else. The table is table-layout: fixed, so the
-   GreenLight mark beside the number overflows the cell rather than widening it,
-   and it does so on exactly the rows the mark exists to call out. */
 .colPr {
   width: 12ch;
 }
@@ -127,9 +124,7 @@
   padding: 3px;
 }
 
-/* Keeps the GreenLight glyph on the same line as the #PR link. The link's own
-   child is a <div>, so without a flex row here the glyph would wrap below it
-   and make every approved row a line taller than its neighbours. */
+/* Keeps the GreenLight mark inline with the #PR link. */
 .prCell {
   display: flex;
   align-items: center;

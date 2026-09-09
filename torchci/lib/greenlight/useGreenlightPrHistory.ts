@@ -1,7 +1,5 @@
-// Fetches one PR's GreenLight state, one row per commit GreenLight reviewed.
-// Shared by the commit page's verdict section and the PR page's commit picker,
-// which both need the same rows keyed different ways -- so they must issue one
-// request between them, not one each.
+// One PR's GreenLight state, a row per reviewed commit. Shared by the verdict
+// panel and the PR page's commit picker so they cost one request, not two.
 
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import {
@@ -11,15 +9,8 @@ import {
 import { GreenlightPrStateRow } from "lib/greenlight/greenlightHudState";
 
 /**
- * `greenlight_pr_state_history` rows for `prNumber`, or undefined while loading
- * or when there is nothing to ask for -- a repo outside GREENLIGHT_REPOS, or a
- * commit with no associated PR (`prNum` is null for a direct push).
- *
- * Immutable, matching the advisor and CRCR reads elsewhere in the HUD. A live
- * review does move: AI_REVIEW_DISPATCHED -> AI_REVIEW_STARTED -> a verdict, over
- * tens of minutes. SWR still revalidates on focus and on remount, which is when
- * someone watching a PR page actually looks, and polling a ~35-minute transition
- * on an interval would cost far more reads than it informs.
+ * Undefined while loading, and when there is nothing to ask for: a repo outside
+ * GREENLIGHT_REPOS, or a commit with no PR.
  */
 export function useGreenlightPrHistory(
   repoOwner: string | undefined,
@@ -36,8 +27,7 @@ export function useGreenlightPrHistory(
   return useClickHouseAPIImmutable<GreenlightPrStateRow>(
     "greenlight_pr_state_history",
     {
-      // Empty strings rather than a conditional object: the hook must be called
-      // unconditionally, and `enabled` already stops the request being made.
+      // The hook is called unconditionally; `enabled` stops the request.
       repo: enabled ? greenlightRepoKey(repoOwner, repoName) : "",
       prNumber: enabled ? prNumber : 0,
     },

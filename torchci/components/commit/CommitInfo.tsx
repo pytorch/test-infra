@@ -17,14 +17,9 @@ export function CommitInfo({
   sha: string;
   isCommitPage: boolean;
   /**
-   * The PR this commit belongs to, when the caller already knows it.
-   *
-   * `commit.prNum` is parsed out of the commit message, and only mergebot's
-   * "Pull Request resolved: #N" line puts it there -- which it adds at merge
-   * time. So a commit still sitting on a PR branch has no PR number in its
-   * message at all, and the PR page (which does know the number, from its own
-   * route) has to supply it or the GreenLight panel below silently finds
-   * nothing to look up.
+   * The PR this commit belongs to. `commit.prNum` is parsed from mergebot's
+   * "Pull Request resolved: #N", which only exists after merge, so a commit on
+   * a PR branch has none and the PR page must supply it from its route.
    */
   prNumber?: number | null;
 }) {
@@ -61,11 +56,8 @@ export function CommitInfo({
   return (
     <div>
       {isCommitPage && <h2>{commit.commitTitle}</h2>}
-      {/* Above the job grid, not below it: the verdict is a statement about the
-      whole change, and a reader who has scrolled past every workflow box has
-      already stopped looking for one. Its own header carries the mark, so
-      neither title above it needs one too. Shared with the PR page, which
-      renders CommitInfo for whichever commit its picker has selected. */}
+      {/* Above the job grid: a reader who has scrolled past every workflow box
+      has stopped looking for a verdict. */}
       <GreenLightSection
         repoOwner={repoOwner}
         repoName={repoName}
