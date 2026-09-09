@@ -824,6 +824,13 @@
       "rocm"
     ]
   ],
+  "test_multi_kernel_nesting_and_global_constexpr (__main__.FxGraphRunnableTest)": [
+    "196392",
+    "https://github.com/pytorch/pytorch/issues/196392",
+    [
+      "xpu"
+    ]
+  ],
   "test_multiple_module (__main__.TestInvokeSubgraphExportStrict)": [
     "150877",
     "https://github.com/pytorch/pytorch/issues/150877",
