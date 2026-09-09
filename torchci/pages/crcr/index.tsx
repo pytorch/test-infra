@@ -22,7 +22,18 @@ import {
   Typography,
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
+import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import {
+  buildCriteriaRows,
+  buildDemotionRows,
+  L3SummaryRow,
+  useTenure,
+} from "lib/crcr/l3Readiness";
+import {
+  L3_DEMOTION_WINDOW_DAYS,
+  L3_PROMOTION_WINDOW_DAYS,
+} from "lib/crcr/l3Thresholds";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -129,14 +140,67 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+// crcr_l3_summary, keyed by repo — the all-repo query the promotion and
+// demotion at-a-glance columns share (fixed windows).
+function useL3SummaryMap(days: number): Map<string, L3SummaryRow> {
+  const url =
+    `/api/clickhouse/crcr_l3_summary?parameters=` +
+    encodeURIComponent(JSON.stringify({ days: String(days) }));
+  const { data } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
+  return useMemo(() => {
+    const map = new Map<string, L3SummaryRow>();
+    if (!data) return map;
+    for (const row of data) {
+      map.set(row.repo, row);
+    }
+    return map;
+  }, [data]);
+}
+
+function ReadinessChip({
+  repo,
+  l3SummaryMap,
+  l3SummaryMapDemotion,
+}: {
+  repo: string;
+  l3SummaryMap: Map<string, L3SummaryRow>;
+  l3SummaryMapDemotion: Map<string, L3SummaryRow>;
+}) {
+  const { tenure } = useTenure(repo);
+  const promotionRows = buildCriteriaRows(
+    l3SummaryMap.get(repo) ?? null,
+    tenure
+  );
+  const demotionRows = buildDemotionRows(
+    l3SummaryMapDemotion.get(repo) ?? null
+  );
+
+  return (
+    <Stack direction="row" spacing={0.5} justifyContent="center">
+      <L3SummaryChip
+        label="Promotion"
+        rows={promotionRows}
+        variant="promotion"
+      />
+      <L3SummaryChip label="Demotion" rows={demotionRows} variant="demotion" />
+    </Stack>
+  );
+}
+
 function CiHealthTable({
   level,
   repos,
   metricsMap,
+  l3SummaryMap,
+  l3SummaryMapDemotion,
 }: {
   level: Level;
   repos: AllowlistEntry[];
   metricsMap: Map<string, CiMetricsRow>;
+  l3SummaryMap: Map<string, L3SummaryRow>;
+  l3SummaryMapDemotion: Map<string, L3SummaryRow>;
 }) {
   return (
     <TableContainer component={Paper} elevation={1}>
@@ -167,6 +231,9 @@ function CiHealthTable({
             </TableCell>
             <TableCell align="right">
               <strong>Last Run</strong>
+            </TableCell>
+            <TableCell align="center">
+              <strong>L3 Readiness</strong>
             </TableCell>
           </TableRow>
         </TableHead>
@@ -258,6 +325,13 @@ function CiHealthTable({
                   ) : (
                     "–"
                   )}
+                </TableCell>
+                <TableCell align="center">
+                  <ReadinessChip
+                    repo={entry.repo}
+                    l3SummaryMap={l3SummaryMap}
+                    l3SummaryMapDemotion={l3SummaryMapDemotion}
+                  />
                 </TableCell>
               </TableRow>
             );
@@ -689,10 +763,15 @@ export default function CrcrSummaryPage() {
     { refreshInterval: 60_000 }
   );
 
+  // Window matches L3_PROMOTION_WINDOW_DAYS (the 2-week promotion window)
+  // rather than an independent magic number.
   const nightlyHealthUrl =
     `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
     encodeURIComponent(
-      JSON.stringify({ repo: "pytorch/crcr-test", days: "14" })
+      JSON.stringify({
+        repo: "pytorch/crcr-test",
+        days: String(L3_PROMOTION_WINDOW_DAYS),
+      })
     );
   const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
     NightlyJobRow[]
@@ -700,7 +779,16 @@ export default function CrcrSummaryPage() {
     refreshInterval: 60_000,
   });
 
-  const nightlyRepoCount = nightlyData?.length ?? 0;
+  const visibleNightlyData = useMemo(
+    () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
+    [nightlyData]
+  );
+  const nightlyRepoCount = visibleNightlyData.length;
+
+  // L3 readiness — fixed promotion/demotion windows, independent of the
+  // Time Range selector above.
+  const l3SummaryMap = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
+  const l3SummaryMapDemotion = useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -953,6 +1041,8 @@ export default function CrcrSummaryPage() {
                       level={level}
                       repos={repos}
                       metricsMap={metricsMap}
+                      l3SummaryMap={l3SummaryMap}
+                      l3SummaryMapDemotion={l3SummaryMapDemotion}
                     />
                   )}
                 </Box>
@@ -997,12 +1087,12 @@ export default function CrcrSummaryPage() {
               </Typography>
             </Paper>
 
-            {nightlyData && nightlyData.length > 0 ? (
+            {visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
-                <NightlyTable nightlyData={nightlyData} days={days} />
+                <NightlyTable nightlyData={visibleNightlyData} days={days} />
               </>
             ) : (
               <Paper

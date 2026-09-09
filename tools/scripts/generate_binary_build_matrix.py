@@ -47,7 +47,7 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["12.6", "13.0", "13.2", "13.4"],
+    "nightly": ["13.0", "13.2", "13.4"],
     "test": ["12.6", "13.0", "13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
@@ -57,6 +57,16 @@ ROCM_ARCHES_DICT = {
     "test": ["7.2", "7.14"],
     "release": ["7.2", "7.14"],
 }
+
+# CUDA versions that can only produce the runtime docker image. The devel image
+# apt-installs cuda-toolkit-<major>-<minor> from NVIDIA's repo, which carries
+# 13-0 through 13-3 only: 13.4 is still a release candidate (13.4.0rc1). The
+# runtime image just pip-installs the published cu134 nightly, so it builds.
+# Keep in sync with pytorch/pytorch .github/scripts/generate_binary_build_matrix.py,
+# which drives the build side of this same matrix -- validating an image type
+# that repo does not build fails the nightly with `manifest unknown`.
+# Drop an entry once its toolkit ships in the apt repo.
+CUDA_ARCHES_RUNTIME_IMAGE_ONLY = ["13.4"]
 
 CUDA_CUDNN_VERSIONS = {
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
