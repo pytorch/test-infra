@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import NoReturn
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, NoReturn, cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -9,6 +10,9 @@ import pytest
 from greenlight import drci_poke
 from greenlight.constants import DRCI_ENDPOINT
 from greenlight.guards import IterationTimeout
+
+if TYPE_CHECKING:
+    from greenlight.config import Config
 
 
 class _Recorder:
@@ -295,3 +299,70 @@ def test_poke_default_seams_are_real_sleep_and_post():
     defaults = inspect.signature(drci_poke.poke).parameters
     assert defaults["sleep"].default is time.sleep
     assert defaults["post"].default is drci_poke._default_post
+
+
+class _RefusingPool:
+    """Stands in for the poke pool when ``submit`` cannot take the work and raises instead."""
+
+    def __init__(self, error: BaseException) -> None:
+        self._error = error
+
+    def submit(self, *_args: object, **_kwargs: object) -> NoReturn:
+        raise self._error
+
+
+def _boom_poke(repo: str, pr_number: int, config: Config) -> NoReturn:
+    raise AssertionError("poke should not be called")
+
+
+def test_poke_submitter_logs_a_refused_submit_and_returns(poke_config, caplog):
+    poked: list[int] = []
+
+    def record_poke(repo: str, pr_number: int, config: Config) -> None:
+        poked.append(pr_number)
+
+    shut_down = RuntimeError("cannot schedule new futures after shutdown")
+    submit = drci_poke.poke_submitter(
+        cast("ThreadPoolExecutor", _RefusingPool(shut_down)), "pytorch/pytorch", record_poke, poke_config()
+    )
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        submit(1)
+        submit(2)
+
+    # Both callers invoke this seam outside their own try blocks, which only holds because the poke
+    # swallows everything. Handing it to a pool does not: submit raises on a shut-down executor or a
+    # thread that will not start, and letting that escape would halt the scan mid-dispatch-loop.
+    assert poked == []
+    assert "failed to schedule Dr. CI poke for PR #1" in caplog.text
+    assert "failed to schedule Dr. CI poke for PR #2" in caplog.text
+
+
+def test_poke_submitter_lets_the_iteration_timeout_through(poke_config):
+    submit = drci_poke.poke_submitter(
+        cast("ThreadPoolExecutor", _RefusingPool(IterationTimeout("deadline"))),
+        "pytorch/pytorch",
+        _boom_poke,
+        poke_config(),
+    )
+
+    # The soft deadline arrives as SIGALRM raised on whatever the main thread is running, submit
+    # included, and IterationTimeout subclasses TimeoutError -> OSError -> Exception. Logged as a
+    # scheduling failure it would be indistinguishable from a full pool, and the one-shot timer would
+    # already be spent -- the rest of the pass would run with no soft deadline at all.
+    with pytest.raises(IterationTimeout):
+        submit(1)
+
+
+def test_poke_submitter_logs_a_failure_raised_inside_the_pool(poke_config, caplog):
+    def exploding_poke(repo: str, pr_number: int, config: Config) -> NoReturn:
+        raise RuntimeError(f"drci unreachable for #{pr_number}")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"), ThreadPoolExecutor(max_workers=1) as pool:
+        drci_poke.poke_submitter(pool, "pytorch/pytorch", exploding_poke, poke_config())(1)
+
+    # A future parks an unretrieved exception silently forever, so the outcome is read back in a done
+    # callback -- off-thread, the poke's own logging is the only other thing standing between a
+    # failure and total silence. It stays out of the scan's end-of-pass error aggregation either way:
+    # the poke is cosmetic and must never turn a scan red over a comment refresh.
+    assert "Dr. CI poke for PR #1 failed: drci unreachable for #1" in caplog.text

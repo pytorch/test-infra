@@ -5,12 +5,21 @@ import queue
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
 
-from greenlight import clickhouse_client, drci_poke, github_client, revert_guard, review, scan_runner, state_emit
+from greenlight import (
+    clickhouse_client,
+    cohort,
+    drci_poke,
+    github_client,
+    revert_guard,
+    review,
+    scan_runner,
+    state_emit,
+)
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -54,21 +63,18 @@ def _open_pr(
     head_sha: str | None = None,
     updated_at: datetime | None = None,
     labels: tuple[str, ...] = (),
+    author: str = "albanD",
 ) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
         number=number,
-        author="albanD",
+        author=author,
         title=f"fix {number}",
         url=f"https://example.test/{number}",
         head_sha=head_sha or f"headsha{number}",
         updated_at=updated_at,
         labels=labels,
     )
-
-
-def _boom_poke(repo: str, pr_number: int, poke_config: Config) -> NoReturn:
-    raise AssertionError(f"poke should not be called for {repo}#{pr_number}")
 
 
 def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
@@ -130,6 +136,7 @@ class _Scan:
     read_calls: list[tuple[str, list[int]]]
     fingerprinted: list[int]
     listed_calls: int
+    listed_authors: list[frozenset[str]]
     resolver_calls: int
     authorized_seen: list[frozenset[str]]
     author_fetched: list[int]
@@ -137,10 +144,14 @@ class _Scan:
     refusals: list[tuple[int, str, str, str]]
     emitted: list[tuple[str, int, str, str, int]]
     poked: list[tuple[str, int, Config]]
+    poke_threads: list[str]
     events: list[str]
     label_fetches: list[int]
     dismissals: list[tuple[int, str, str]]
     reverted_emitted: list[tuple[str, int, str, int]]
+    dispatch_shadow: list[tuple[int, bool]]
+    emit_shadow: list[tuple[int, bool]]
+    reverted_shadow: list[tuple[int, bool]]
 
 
 def _run_scan(
@@ -174,6 +185,7 @@ def _run_scan(
     read_calls: list[tuple[str, list[int]]] = []
     fingerprinted: list[int] = []
     listed_calls: list[int] = []
+    listed_authors: list[frozenset[str]] = []
     resolver_calls: list[int] = []
     authorized_seen: list[frozenset[str]] = []
     author_fetched: list[int] = []
@@ -181,13 +193,18 @@ def _run_scan(
     refusals: list[tuple[int, str, str, str]] = []
     emitted: list[tuple[str, int, str, str, int]] = []
     poked: list[tuple[str, int, Config]] = []
+    poke_threads: list[str] = []
     events: list[str] = []
     label_fetches: list[int] = []
     dismissals: list[tuple[int, str, str]] = []
     reverted_emitted: list[tuple[str, int, str, int]] = []
+    dispatch_shadow: list[tuple[int, bool]] = []
+    emit_shadow: list[tuple[int, bool]] = []
+    reverted_shadow: list[tuple[int, bool]] = []
 
-    def fake_fetch(_client):
+    def fake_fetch(_client, authors):
         listed_calls.append(1)
+        listed_authors.append(authors)
         return list(listed)
 
     def fake_fingerprint(_client, number, authorized_logins, skip_on_approval):
@@ -201,8 +218,9 @@ def _run_scan(
         read_calls.append((repo, nums))
         return {n: states[n] for n in nums if n in states}
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
+        dispatch_shadow.append((number, shadow))
         events.append(f"dispatch:{number}")
 
     def fake_resolve_authorized():
@@ -221,12 +239,14 @@ def _run_scan(
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
         refusals.append((pr.number, marker, body, author_login))
 
-    def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id):
+    def fake_emit(*, repo, pr_number, head_sha, eval_hash, run_id, shadow):
         emitted.append((repo, pr_number, head_sha, eval_hash, run_id))
+        emit_shadow.append((pr_number, shadow))
         events.append(f"emit:{pr_number}")
 
     def fake_poke(repo, pr_number, poke_config):
         poked.append((repo, pr_number, poke_config))
+        poke_threads.append(threading.current_thread().name)
         events.append(f"poke:{pr_number}")
 
     def fake_read_reverted(_repo, numbers):
@@ -244,8 +264,9 @@ def _run_scan(
             raise error
         return list(dismissed_ids.get(pr.number, ()))
 
-    def fake_emit_reverted(*, repo, pr_number, head_sha, run_id):
+    def fake_emit_reverted(*, repo, pr_number, head_sha, run_id, shadow):
         reverted_emitted.append((repo, pr_number, head_sha, run_id))
+        reverted_shadow.append((pr_number, shadow))
         events.append(f"emit_reverted:{pr_number}")
 
     review.run(
@@ -276,21 +297,26 @@ def _run_scan(
         now=lambda: now,
     )
     return _Scan(
-        dispatched,
-        read_calls,
-        fingerprinted,
-        len(listed_calls),
-        len(resolver_calls),
-        authorized_seen,
-        author_fetched,
-        skip_on_approval_seen,
-        refusals,
-        emitted,
-        poked,
-        events,
-        label_fetches,
-        dismissals,
-        reverted_emitted,
+        dispatched=dispatched,
+        read_calls=read_calls,
+        fingerprinted=fingerprinted,
+        listed_calls=len(listed_calls),
+        listed_authors=listed_authors,
+        resolver_calls=len(resolver_calls),
+        authorized_seen=authorized_seen,
+        author_fetched=author_fetched,
+        skip_on_approval_seen=skip_on_approval_seen,
+        refusals=refusals,
+        emitted=emitted,
+        poked=poked,
+        poke_threads=poke_threads,
+        events=events,
+        label_fetches=label_fetches,
+        dismissals=dismissals,
+        reverted_emitted=reverted_emitted,
+        dispatch_shadow=dispatch_shadow,
+        emit_shadow=emit_shadow,
+        reverted_shadow=reverted_shadow,
     )
 
 
@@ -346,10 +372,36 @@ def test_dispatch_pokes_drci_after_the_marker_emit(make_config):
         config_kwargs={"drci_token": "drci-key"},
     )
 
-    # Dr. CI re-reads the state row when poked, so each poke must follow its own marker emit;
-    # without the poke the PR shows no in-flight marker until Dr. CI's next 15-minute sweep.
-    assert scan.events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
-    assert [(repo, number) for repo, number, _ in scan.poked] == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+    # Dr. CI re-reads the state row when poked, so a PR's poke is only scheduled once its own marker
+    # emit has returned; without the poke the PR shows no in-flight marker until the 15-minute sweep.
+    assert scan.events.index("poke:1") > scan.events.index("emit:1")
+    assert scan.events.index("poke:2") > scan.events.index("emit:2")
+    # Where the two poke events land among the rest is the pool's business, but the main-thread
+    # sequence must run straight through: the dispatch loop never waits on a poke.
+    assert [event for event in scan.events if not event.startswith("poke:")] == [
+        "dispatch:1",
+        "emit:1",
+        "dispatch:2",
+        "emit:2",
+    ]
+    assert sorted((repo, number) for repo, number, _ in scan.poked) == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+
+
+def test_pokes_run_off_the_main_thread_and_are_drained_before_run_returns(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        config_kwargs={"drci_token": "drci-key"},
+    )
+
+    # Both pokes ran on the pool and both had finished by the time run returned, because the pool is
+    # entered on run's ExitStack. Draining is not optional: Lambda freezes the execution environment
+    # the instant the handler returns, so a poke left running would resume -- and log its outcome --
+    # inside some later invocation instead of this one.
+    assert len(scan.poke_threads) == 2
+    assert threading.main_thread().name not in scan.poke_threads
+    assert all(name.startswith("greenlight-poke") for name in scan.poke_threads)
 
 
 def test_poke_drops_the_ingestion_delay_but_keeps_the_credentials(make_config):
@@ -672,6 +724,20 @@ def test_reverted_label_drops_pr_before_fingerprinting(make_config, caplog):
     assert "excluding 1 reverted PR(s) from review: [1]" in caplog.text
 
 
+def test_reverted_pr_poke_also_goes_through_the_pool(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # revert_guard's poke seam and the dispatch loop's are one callable, so the revert path cannot
+    # regress to a blocking poke while the dispatch path stays fire-and-forget.
+    assert [number for _repo, number, _config in scan.poked] == [1]
+    assert [name.startswith("greenlight-poke") for name in scan.poke_threads] == [True]
+
+
 def test_reverted_row_still_excludes_after_the_label_is_removed(make_config):
     scan = _run_scan(
         make_config,
@@ -856,7 +922,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     with (
@@ -867,7 +933,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             make_config(github_token="t"),
             max_dispatches=1,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(n) for n in numbers],
+            fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -997,9 +1063,9 @@ def test_allow_untrusted_author_bypasses_target_check(make_config):
         allow_untrusted_author=True,
     )
 
-    # The local override skips the target-author check entirely: the PR is not even looked up, and
-    # the otherwise-untrusted author is fingerprinted and dispatched.
-    assert scan.author_fetched == []
+    # The local override waives the refusal, not the lookup: the author is still resolved, and the
+    # otherwise-untrusted PR is fingerprinted and dispatched instead of being turned away.
+    assert scan.author_fetched == [5]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
@@ -1094,7 +1160,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
     def boom_fingerprint(_client, _number, _authorized, _skip):
         raise RuntimeError("fingerprint boom")
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     with (
@@ -1106,7 +1172,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             pr=7,
             force=True,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [],
+            fetch=lambda _client, _authors: [],
             fetch_author=lambda _client, _number: "albanD",
             fetch_labels=lambda _client, _repo, _number: (),
             fingerprint=boom_fingerprint,
@@ -1197,7 +1263,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1207,7 +1273,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             read_reverted=_no_reverted,
@@ -1232,7 +1298,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             raise RuntimeError(f"fingerprint boom {number}")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1242,7 +1308,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(3), _open_pr(1), _open_pr(2)],
+            fetch=lambda _client, _authors: [_open_pr(3), _open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1262,7 +1328,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
 def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1274,7 +1340,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1293,7 +1359,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
 def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         raise RuntimeError(f"dispatch boom {number}")
 
@@ -1304,7 +1370,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1321,7 +1387,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
 def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
     attempted: list[int] = []
 
-    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 1:
             raise IterationTimeout("iteration exceeded")
@@ -1330,7 +1396,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1353,7 +1419,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1362,7 +1428,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1405,13 +1471,13 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     review.run(
         make_config(github_token="t"),
         build_github=lambda _token, **_kwargs: _CLIENT,
-        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1448,13 +1514,13 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
     dispatched: list[int] = []
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
         dispatched.append(number)
 
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
         fingerprint=recording_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1494,11 +1560,11 @@ def test_run_closes_main_and_worker_clients(make_config):
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client: [_open_pr(1), _open_pr(2)],
+        fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2)],
         fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
-        dispatch=lambda *_args: None,
+        dispatch=lambda *_args, **_kwargs: None,
         resolve_authorized=lambda: _AUTHORIZED,
         now=lambda: _NOW,
     )
@@ -1570,14 +1636,14 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1606,6 +1672,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
+    poked: list[int] = []
 
     def fingerprint(_client, number, _authorized, _skip):
         fingerprinted.append(number)
@@ -1613,19 +1680,22 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
+
+    def record_poke(_repo, pr_number, _config):
+        poked.append(pr_number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            poke_drci=_boom_poke,
+            poke_drci=record_poke,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
@@ -1637,6 +1707,9 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     # the event, so PR3 short-circuits without being fingerprinted.
     assert fingerprinted == [1, 2]
     assert dispatched == []
+    # Nothing dispatched, so nothing is poked -- readable here because the end-of-scan RuntimeError is
+    # raised inside the ExitStack, so the poke pool is drained even on the failing path.
+    assert poked == []
     # The deferral is surfaced by the merged rate-limit warning, and the scan still fails closed: PR2
     # (failed) and PR3 (abandoned) are carried distinctly in the end-of-scan RuntimeError.
     assert "skipping dispatch of 1 completed candidate(s) this pass" in caplog.text
@@ -1663,14 +1736,14 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1704,7 +1777,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
@@ -1712,7 +1785,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             make_config(github_token="t"),
             max_dispatches=5,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1740,14 +1813,14 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
         fingerprinted.append(number)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1765,7 +1838,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
 def test_fetch_failure_still_closes_main_client(make_config):
     client = Mock()
 
-    def boom_fetch(_client):
+    def boom_fetch(_client, _authors):
         raise RuntimeError("fetch boom")
 
     with pytest.raises(RuntimeError, match="fetch boom"):
@@ -1776,7 +1849,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
-            dispatch=lambda *_args: None,
+            dispatch=lambda *_args, **_kwargs: None,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
@@ -1801,7 +1874,7 @@ def test_deferred_dispatch_is_logged(make_config, caplog):
 
 
 def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
+    with caplog.at_level(logging.DEBUG, logger="greenlight"):
         _run_scan(
             make_config,
             listed=[_open_pr(1), _open_pr(2)],
@@ -1814,6 +1887,21 @@ def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
     assert "open PR #1 by albanD" in messages
     assert "PR #1: DISPATCH (never_reviewed)" in messages
     assert "PR #2: SKIP (decided)" in messages
+
+
+def test_per_pr_listing_detail_is_below_info(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1), _open_pr(2)],
+            fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A)},
+        )
+
+    # One info line per open PR is affordable for the trusted-author set and not for the whole
+    # merge_rules approver cohort, which is an order of magnitude larger and rescanned every few
+    # minutes. The aggregate count stays at info; the per-PR detail is debug-only.
+    assert "found 2 open PR(s)" in caplog.text
+    assert "open PR #" not in caplog.text
 
 
 def test_run_without_token_raises(make_config):
@@ -1846,11 +1934,11 @@ def test_run_cold_authorized_failure_propagates(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client: [_open_pr(1)],
+            fetch=lambda _client, _authors: [_open_pr(1)],
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
-            dispatch=lambda *_args: None,
+            dispatch=lambda *_args, **_kwargs: None,
             resolve_authorized=boom_resolve,
             now=lambda: _NOW,
         )
@@ -1870,7 +1958,7 @@ def test_run_resolves_authorized_once_and_threads_to_fingerprints(make_config):
     assert scan.authorized_seen == [frozenset({"alice", "bob"})] * 3
 
 
-def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
+def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
     captured: dict[str, object] = {}
     expected = [_open_pr(1)]
 
@@ -1882,12 +1970,14 @@ def test_default_fetch_forwards_to_list_open_prs(monkeypatch):
 
     monkeypatch.setattr(github_client, "list_open_prs_by_authors", fake_list)
 
-    result = review._default_fetch(_CLIENT)
+    result = review._default_fetch(_CLIENT, frozenset({"alice", "bob"}))
 
     assert result is expected
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
-    assert captured["authors"] == review.TRUSTED_AUTHORS
+    # The author set is the caller's, not a module constant: the listing follows the resolved
+    # evaluation cohort, while TRUSTED_AUTHORS stays reserved for the two authz gates.
+    assert captured["authors"] == {"alice", "bob"}
 
 
 def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
@@ -2041,3 +2131,333 @@ def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_conf
     assert scan.dispatched == []
     assert scan.refusals == []
     assert "BOT_LOGIN is required to post" in caplog.text
+
+
+# An approver merge_rules names but the trusted-author set does not: in the evaluation cohort,
+# outside both authz gates, and therefore evaluated in shadow.
+_COHORT_ONLY_AUTHOR = "alice"
+
+_TRUSTED_VS_SHADOW = [
+    pytest.param("albanD", False, id="trusted-author"),
+    pytest.param(_COHORT_ONLY_AUTHOR, True, id="cohort-author-outside-the-trusted-set"),
+]
+
+
+def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_config):
+    authorized = frozenset({"Alice", "bob", "pytorchbot", cohort.GREENLIGHT_APP_SLUG})
+    scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=authorized)
+
+    # What reaches list_open_prs_by_authors is the resolved merge_rules approver set minus bots and
+    # greenlight itself -- not the eleven trusted authors, who no longer bound what is evaluated.
+    assert scan.listed_authors == [frozenset({"alice", "bob"})]
+    assert scan.listed_authors[0].isdisjoint({login.lower() for login in cohort.TRUSTED_AUTHORS})
+
+
+_SCAN_COHORT_MODES = [
+    pytest.param(1.0, id="full-cohort"),
+    pytest.param(0.5, id="half-rollout"),
+    pytest.param(0.0, id="trusted-authors-only"),
+]
+
+_TRUSTED_LOWERCASED = frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
+
+
+def test_zero_rollout_narrows_the_listing_to_the_trusted_authors(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[],
+            fingerprints={},
+            authorized=frozenset({"Alice", "bob"}),
+            config_kwargs={"shadow_rollout": 0.0},
+        )
+
+    # The kill switch, unchanged by becoming an end of the dial: exactly the trusted authors reach
+    # the listing, so merge_rules approvers outside that set stop being scanned at all -- and since
+    # every remaining author is trusted, no shadow row can be produced and nothing downstream needs
+    # a matching gate.
+    assert scan.listed_authors == [_TRUSTED_LOWERCASED]
+    assert "scan cohort: trusted authors only (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=0)" in caplog.text
+
+
+def test_listing_author_set_has_one_casing_at_every_dial(make_config):
+    wide = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "Bob"}))
+    narrow = _run_scan(
+        make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice"}), config_kwargs={"shadow_rollout": 0.0}
+    )
+
+    # Both branches feed the same GitHub call, so both must hand it the same shape. The client
+    # lowercases what it is given, but a mixed-case set here reads as if the dial changed the
+    # matching rule as well as the membership.
+    for listed in (*wide.listed_authors, *narrow.listed_authors):
+        assert listed == frozenset(login.lower() for login in listed)
+
+
+def test_rollout_defaults_to_one_and_lists_the_whole_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "bob"}))
+
+    # Unset means everyone: the dial has to be reached for, and the setting is logged at every value
+    # so an operator who moves it can confirm from the logs that the next tick picked it up.
+    assert scan.listed_authors == [frozenset({"alice", "bob"})]
+    assert "scan cohort: full evaluation cohort (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=1)" in caplog.text
+
+
+@pytest.mark.parametrize("shadow_rollout", _SCAN_COHORT_MODES)
+def test_authorized_logins_stay_resolved_and_threaded_at_every_dial(make_config, shadow_rollout):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        authorized=frozenset({"alice", "bob"}),
+        config_kwargs={"shadow_rollout": shadow_rollout},
+    )
+
+    # Narrowing the listing must never become "skip the merge_rules fetch". That resolved set is
+    # also what decides whether a human with merge rights already approved the PR, so dropping it
+    # when narrowed would silently change which PRs the scan skips.
+    assert scan.resolver_calls == 1
+    assert scan.authorized_seen == [frozenset({"alice", "bob"})]
+
+
+def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            requester=_COHORT_ONLY_AUTHOR,
+            author="albanD",
+        )
+
+    # Being in the cohort buys evaluation, never the right to command one: a merge_rules approver
+    # outside the trusted set is still refused, before any network work.
+    assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
+    assert scan.author_fetched == []
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert f"refusing review: requester '{_COHORT_ONLY_AUTHOR}'" in caplog.text
+
+
+def test_pr_target_author_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_COHORT_ONLY_AUTHOR)
+
+    # Same boundary from the other side: greenlight reviews this author's PRs on its own schedule,
+    # but nobody may point --pr at one, because that path is what leads to an approval.
+    assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
+    assert scan.author_fetched == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "refusing --pr 5" in caplog.text
+
+
+@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
+def test_dispatch_marker_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, author=author)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    # The listing already knows the author, so the scan decides once and spends it three ways: the
+    # workflow input that withholds the approval, the row the merge gate reads, and whether Dr. CI
+    # is worth poking at all -- a shadow row is filtered out of the query a rebuild would run.
+    assert scan.dispatch_shadow == [(1, shadow)]
+    assert scan.emit_shadow == [(1, shadow)]
+    assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
+
+
+@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
+def test_reverted_row_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author)],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+    )
+
+    # revert_guard writes the scan's other state row, and it has no author of its own -- the same
+    # listing answer is threaded in rather than costing a second GitHub read per reverted PR.
+    assert scan.reverted_shadow == [(1, shadow)]
+    assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
+
+
+def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, author="albanD"), _open_pr(2, author=_COHORT_ONLY_AUTHOR)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+    )
+
+    # Every steady-state scan carries both cohorts at once, so a single per-scan answer would be
+    # wrong for half the batch in either direction.
+    assert scan.dispatch_shadow == [(1, False), (2, True)]
+    assert scan.emit_shadow == [(1, False), (2, True)]
+    assert [number for _repo, number, _config in scan.poked] == [1]
+
+
+def test_pr_recheck_is_never_shadow_because_its_author_gate_already_ran(make_config):
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author="albanD")
+
+    # The --pr path has no listing to read an author from, so it reuses the one the target-author
+    # gate already fetched -- which that gate has already required to be trusted.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, False)]
+    assert scan.emit_shadow == [(5, False)]
+
+
+def test_allow_untrusted_author_still_resolves_the_author_so_a_trusted_pr_stays_authoritative(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="albanD",
+        allow_untrusted_author=True,
+    )
+
+    # Regression guard for a live-approval revocation. The flag once skipped the only lookup that
+    # names the author, leaving it None -- and cohort.is_shadow(None) is True, so the run recorded a
+    # shadow verdict, whose LAND dismisses greenlight's existing approval. Pointed at a TRUSTED
+    # author's PR, a local convenience flag therefore revoked a production approval. The lookup is
+    # unconditional now, so the flag cannot change what cohort a PR is in -- only whether an
+    # untrusted one is turned away.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, False)]
+    assert scan.emit_shadow == [(5, False)]
+
+
+def test_allow_untrusted_author_keeps_an_untrusted_pr_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="mallory",
+        allow_untrusted_author=True,
+    )
+
+    # The other half of that same lookup: waiving the refusal must not waive shadow. The override
+    # stays a way to exercise the reviewer, never a way to have an arbitrary PR approved -- and the
+    # Dr. CI query drops shadow rows, so there is nothing to poke for.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, True)]
+    assert scan.emit_shadow == [(5, True)]
+    assert scan.poked == []
+
+
+def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author=None,
+        allow_untrusted_author=True,
+    )
+
+    # An author GitHub cannot name is not trusted, so the flag is what lets this review run at all --
+    # and it still resolves to shadow. Unknown is the one input where the fail-closed answer and the
+    # old skip-the-lookup bug agreed, so pin it explicitly rather than leave it to that coincidence.
+    assert scan.author_fetched == [5]
+    assert scan.dispatch_shadow == [(5, True)]
+    assert scan.emit_shadow == [(5, True)]
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+
+
+# Two PR numbers whose stable buckets straddle the midpoint of the dial -- #12 lands at 3562 and
+# #11 at 5102 of 10000. The buckets themselves are pinned in test_candidate_filter.
+_IN_EXPERIMENT_PR = 12
+_HELD_OUT_PR = 11
+
+
+def test_fractional_rollout_evaluates_only_the_sampled_half_of_the_shadow_cohort(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(_IN_EXPERIMENT_PR, author=_COHORT_ONLY_AUTHOR),
+            _open_pr(_HELD_OUT_PR, author=_COHORT_ONLY_AUTHOR),
+        ],
+        fingerprints={_IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A)},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # What the dial buys: a stable holdout group, and a bounded blast radius for anything wrong in
+    # the shadow path. What it cuts is the fingerprint fan-out and the dispatches -- the listing
+    # itself still paginates every open PR in the repo at every setting.
+    assert scan.fingerprinted == [_IN_EXPERIMENT_PR]
+    assert [number for number, *_ in scan.dispatched] == [_IN_EXPERIMENT_PR]
+    assert scan.dispatch_shadow == [(_IN_EXPERIMENT_PR, True)]
+    # Held out of the experiment, not out of the scan: its recorded state is still read.
+    assert scan.read_calls == [(TARGET_REPO, [_IN_EXPERIMENT_PR, _HELD_OUT_PR])]
+
+
+def test_a_held_out_pr_still_reaches_the_revert_guard(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, updated_at=_NEW, labels=("Reverted",), author=_COHORT_ONLY_AUTHOR)],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={_HELD_OUT_PR: [901]},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # The dial is applied to the fingerprint candidates and never to the listing, precisely so this
+    # keeps working. Sampling at the listing would leave a held-out PR carrying a live greenlight
+    # approval it should have lost, and no REVERTED row -- so removing the label would silently
+    # re-admit it forever. Both failures are silent: no log, no error.
+    assert scan.fingerprinted == []
+    assert scan.dismissals == [(_HELD_OUT_PR, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_emitted == [(TARGET_REPO, _HELD_OUT_PR, f"headsha{_HELD_OUT_PR}", 1)]
+
+
+def test_a_trusted_authors_pr_is_never_held_out_by_the_dial(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, author="albanD")],
+        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
+        config_kwargs={"shadow_rollout": 0.5},
+    )
+
+    # Same PR number and same dial as the held-out case, opposite answer: the exemption is keyed off
+    # the author. Sampling a trusted author's PR out would not shrink the experiment, it would
+    # withhold the live, authoritative service greenlight already gives that author.
+    assert scan.fingerprinted == [_HELD_OUT_PR]
+    assert scan.dispatch_shadow == [(_HELD_OUT_PR, False)]
+
+
+def test_pr_target_is_never_held_out_by_the_dial(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=_HELD_OUT_PR,
+        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
+        author="mallory",
+        allow_untrusted_author=True,
+        config_kwargs={"shadow_rollout": 0.0},
+    )
+
+    # An explicit --pr recheck is a human pointing greenlight at one PR. Sampling it out would exit
+    # 0 having done nothing at all, with nothing logged to say why -- so the dial gates the listing
+    # scan alone, at every setting including the one that lists nobody.
+    assert scan.fingerprinted == [_HELD_OUT_PR]
+    assert [number for number, *_ in scan.dispatched] == [_HELD_OUT_PR]
+    assert scan.dispatch_shadow == [(_HELD_OUT_PR, True)]
+
+
+def test_zero_rollout_leaves_the_trusted_authors_at_full_service(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(_HELD_OUT_PR, author="albanD"), _open_pr(_IN_EXPERIMENT_PR, author="huydhn")],
+        fingerprints={
+            _HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A),
+            _IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A),
+        },
+        config_kwargs={"shadow_rollout": 0.0},
+    )
+
+    # 0.0 reproduces the old off switch rather than pausing the service: the trusted authors it
+    # leaves listed are all exempt, so they are evaluated at full strength on both sides of the
+    # bucket boundary, with no shadow traffic anywhere.
+    assert sorted(scan.fingerprinted) == [_HELD_OUT_PR, _IN_EXPERIMENT_PR]
+    assert scan.emit_shadow == [(_HELD_OUT_PR, False), (_IN_EXPERIMENT_PR, False)]
