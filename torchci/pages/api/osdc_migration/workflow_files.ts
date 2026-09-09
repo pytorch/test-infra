@@ -4,7 +4,7 @@
 // in the query window, so it undercounts: a workflow that has not fired recently
 // is absent entirely. This gives the page a current-file inventory, cheaply --
 // one directory read per repo, no YAML parsing.
-import { getOctokit } from "lib/github";
+import { getOsdcMigrationOctokit } from "lib/github";
 import { OSDC_TRACKED_REPOS } from "lib/osdcMigrationRepos";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -33,7 +33,7 @@ export default async function handler(
   const [owner, name] = repo.split("/");
 
   try {
-    const octokit = await getOctokit(owner, name);
+    const octokit = await getOsdcMigrationOctokit(owner, name);
     const contents = await octokit.rest.repos.getContent({
       owner,
       repo: name,

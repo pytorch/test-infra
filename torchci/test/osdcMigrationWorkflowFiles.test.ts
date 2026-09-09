@@ -1,12 +1,12 @@
-import { getOctokit } from "lib/github";
+import { getOsdcMigrationOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 import handler from "pages/api/osdc_migration/workflow_files";
 
 jest.mock("lib/github", () => ({
-  getOctokit: jest.fn(),
+  getOsdcMigrationOctokit: jest.fn(),
 }));
 
-const mockedGetOctokit = jest.mocked(getOctokit);
+const mockedGetOsdcMigrationOctokit = jest.mocked(getOsdcMigrationOctokit);
 
 function mockResponse(): NextApiResponse {
   const res = {
@@ -38,7 +38,7 @@ describe("OSDC migration workflow file endpoint", () => {
     await handler(mockRequest({ repo: "pytorch/test-infra" }), res);
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(mockedGetOctokit).not.toHaveBeenCalled();
+    expect(mockedGetOsdcMigrationOctokit).not.toHaveBeenCalled();
   });
 
   test("rejects repeated and unexpected query parameters", async () => {
@@ -49,7 +49,7 @@ describe("OSDC migration workflow file endpoint", () => {
     );
 
     expect(repeatedRes.status).toHaveBeenCalledWith(400);
-    expect(mockedGetOctokit).not.toHaveBeenCalled();
+    expect(mockedGetOsdcMigrationOctokit).not.toHaveBeenCalled();
 
     const unexpectedRes = mockResponse();
     await handler(
@@ -58,7 +58,7 @@ describe("OSDC migration workflow file endpoint", () => {
     );
 
     expect(unexpectedRes.status).toHaveBeenCalledWith(400);
-    expect(mockedGetOctokit).not.toHaveBeenCalled();
+    expect(mockedGetOsdcMigrationOctokit).not.toHaveBeenCalled();
   });
 
   test("rejects methods other than GET", async () => {
@@ -68,7 +68,7 @@ describe("OSDC migration workflow file endpoint", () => {
 
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.setHeader).toHaveBeenCalledWith("Allow", "GET");
-    expect(mockedGetOctokit).not.toHaveBeenCalled();
+    expect(mockedGetOsdcMigrationOctokit).not.toHaveBeenCalled();
   });
 
   test("lists workflow files for allowlisted meta-pytorch repositories", async () => {
@@ -88,14 +88,17 @@ describe("OSDC migration workflow file endpoint", () => {
         },
       ],
     });
-    mockedGetOctokit.mockResolvedValue({
+    mockedGetOsdcMigrationOctokit.mockResolvedValue({
       rest: { repos: { getContent } },
     } as any);
     const res = mockResponse();
 
     await handler(mockRequest({ repo: "meta-pytorch/monarch" }), res);
 
-    expect(mockedGetOctokit).toHaveBeenCalledWith("meta-pytorch", "monarch");
+    expect(mockedGetOsdcMigrationOctokit).toHaveBeenCalledWith(
+      "meta-pytorch",
+      "monarch"
+    );
     expect(getContent).toHaveBeenCalledWith({
       owner: "meta-pytorch",
       repo: "monarch",
@@ -115,7 +118,9 @@ describe("OSDC migration workflow file endpoint", () => {
   });
 
   test("does not return internal GitHub errors", async () => {
-    mockedGetOctokit.mockRejectedValue(new Error("sensitive GitHub failure"));
+    mockedGetOsdcMigrationOctokit.mockRejectedValue(
+      new Error("sensitive GitHub failure")
+    );
     const consoleError = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -129,5 +134,19 @@ describe("OSDC migration workflow file endpoint", () => {
       error: "Failed to list workflow files",
     });
     consoleError.mockRestore();
+  });
+
+  test("does not fall back to PyTorchBot when unconfigured", async () => {
+    const real = jest.requireActual("lib/github");
+    const saved = process.env;
+    process.env = { ...saved, APP_ID: "40112", PRIVATE_KEY: "unused" };
+    delete process.env.OSDC_MIGRATION_TRACKER_APP_ID;
+    delete process.env.OSDC_MIGRATION_TRACKER_PRIVATE_KEY;
+
+    await expect(
+      real.getOsdcMigrationOctokit("pytorch", "vision")
+    ).rejects.toThrow("not configured");
+
+    process.env = saved;
   });
 });
