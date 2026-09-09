@@ -16,8 +16,11 @@
 .colCommit {
   width: 40ch;
 }
+/* 8ch fits "#123456" and nothing else. The table is table-layout: fixed, so the
+   GreenLight mark beside the number overflows the cell rather than widening it,
+   and it does so on exactly the rows the mark exists to call out. */
 .colPr {
-  width: 8ch;
+  width: 12ch;
 }
 .colJob {
   width: 2ch;
