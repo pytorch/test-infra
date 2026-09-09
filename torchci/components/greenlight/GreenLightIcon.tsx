@@ -34,8 +34,13 @@ type Tone = "approved" | "declined" | "running" | "inconclusive";
 
 // Two shades per tone because the HUD renders on both palettes and a single
 // value legible on one is washed out or glaring on the other (torchci/CLAUDE.md).
-const TONE_COLORS: Record<Tone, { light: string; dark: string }> = {
-  approved: { light: "#2e7d32", dark: "#66bb6a" },
+//
+// No "approved" entry, and the type says so rather than leaving a dead one: that
+// tone renders the avatar, whose own dark housing carries it on either palette,
+// so it never reaches this map. Typing it as the lamp tones only means adding a
+// lamp tone later cannot forget its shades.
+type LampTone = Exclude<Tone, "approved">;
+const TONE_COLORS: Record<LampTone, { light: string; dark: string }> = {
   declined: { light: "#c62828", dark: "#ef5350" },
   running: { light: "#ed6c02", dark: "#ffa726" },
   inconclusive: { light: "#757575", dark: "#9e9e9e" },
@@ -75,13 +80,9 @@ const STATUS_TONES: Record<string, { tone: Tone; label: string }> = {
 export default function GreenLightIcon({
   status,
   size = 12,
-  titleSuffix,
 }: {
   status: string | undefined | null;
   size?: number;
-  // Appended to the tooltip, for callers that can say more than the status does
-  // on its own (e.g. which commit the verdict was reached on).
-  titleSuffix?: string;
 }) {
   const theme = useTheme();
   const entry = STATUS_TONES[(status ?? "").trim()];
@@ -89,17 +90,13 @@ export default function GreenLightIcon({
     return null;
   }
 
-  const colors = TONE_COLORS[entry.tone];
-  const fill = theme.palette.mode === "dark" ? colors.dark : colors.light;
-  const label = `Green Light: ${entry.label}${
-    titleSuffix ? ` (${titleSuffix})` : ""
-  }`;
+  const label = `Green Light: ${entry.label}`;
 
   // GreenLight's own mark for an approval. Vendored at public/greenlight.png
   // rather than hotlinked from avatars.githubusercontent.com, so the HUD makes
   // no third-party request and the mark cannot change under it when the App's
   // avatar is next edited. Its own dark housing carries it on either palette,
-  // which is why this branch needs no light/dark pair.
+  // which is why this branch reads no light/dark pair.
   if (entry.tone === "approved") {
     return (
       <Tooltip title={label}>
@@ -114,6 +111,9 @@ export default function GreenLightIcon({
       </Tooltip>
     );
   }
+
+  const colors = TONE_COLORS[entry.tone];
+  const fill = theme.palette.mode === "dark" ? colors.dark : colors.light;
 
   return (
     <Tooltip title={label}>
