@@ -175,6 +175,21 @@ later step uploading it, whereas the scan has already put the object to S3 befor
 A failed emit is not poked: rebuilding the comment then would only re-render the state the
 marker was meant to replace.
 
+The scan's pokes are fire-and-forget. Each one is handed to a small background pool
+(`drci_poke.POKE_WORKERS`, 8 threads named `greenlight-poke`) and the scan moves straight on to the
+next PR, so a slow or hung Dr. CI costs the scan nothing but the outcome is still logged. Nothing
+reads a poke's result, and a poke that fails — including one the pool refuses to schedule — is
+logged and dropped rather than counted against the scan.
+
+The pool is entered on the scan's `ExitStack`, so `review.run` drains it on the way out. That drain
+runs to completion only where no per-iteration timeout is armed, which is the case that actually
+matters: under Lambda a thread left running is frozen the instant the handler returns and would
+thaw inside a later invocation, and the Lambda disables both hang guards. Under `--loop` or a
+local one-shot the SIGALRM soft timeout can land inside the pool's `shutdown(wait=True)`, interrupt
+the join, and propagate out of the block. The executor is not shut down with `cancel_futures`, so
+the queued pokes are not dropped — they keep running on non-daemon threads and log their outcomes
+into whatever runs next.
+
 The command writes the gzipped row to `/tmp/greenlight-verdict-row.json.gz` and its
 bucket-relative key to `/tmp/greenlight-verdict-key.txt`; the workflow `aws s3 cp`s the
 former to the latter. There is no direct ClickHouse write, so no `CLICKHOUSE_*` credentials
@@ -200,17 +215,26 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
 
 `review` additionally reads ClickHouse — any scan that finds at least one trusted-author
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
 variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USERNAME`,
 `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_PORT`, default `8443`).
 
-`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default `600`, `0` = disabled) bounds every
-iteration in both one-shot and `--loop` mode, the scan's in-process Dr. CI pokes included —
-those swallow their own failures but let the timeout through. In `--loop` mode, SIGTERM/SIGINT
-are observed only between iterations, so the per-iteration timeout is what interrupts a
-hung run.
+`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default `600`, `0` = disabled) bounds every iteration in
+both one-shot and `--loop` mode — `runner._bounded_iteration` is shared by `execute_once` and
+`run_forever`, so a plain local `greenlight review` arms both guards too. The scheduled Lambda is
+the only path that runs without them, setting `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`.
+
+Neither guard bounds the scan's Dr. CI pokes. Those run on the background pool, and the soft
+timeout is a SIGALRM delivered to the main thread only. Where the guards are off, the drain simply
+runs to completion, and because `shutdown(wait=True)` waits out the whole queue rather than only
+what is in flight, its worst case is `ceil(queued / workers)` rounds of `drci_poke`'s connect plus
+read timeout (10 s + 30 s per round, and the connect timeout does not bound DNS) — not one poke's
+40 s. Where they are on, a SIGALRM landing in that drain aborts the iteration instead; the queued
+pokes survive it, as above. In `--loop` mode, SIGTERM/SIGINT are observed only between iterations,
+so the per-iteration timeout is what interrupts a hung run.
 
 ## Deployment
 
@@ -226,6 +250,34 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead.
+
+The handler caps each pass at `--max 30` (`_DEFAULT_MAX_DISPATCHES_PER_SCAN`, changeable on the
+function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy), and
+`greenlight-review.yml`'s `max` input defaults to the same 30. A dispatch costs 3-8 s of serial
+main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
+out of its 300 s clock and fire an unbounded burst of `workflow_dispatch` POSTs on one token —
+what GitHub's secondary rate limit punishes hardest. Deferring is free: no state row is written
+for a PR the cap never reaches, so the next scan re-evaluates and dispatches it.
+
+The cap also has to cover the poke drain, which is what actually sets the pass's worst case. Taking
+every one of the 30 pokes to `drci_poke`'s full 40 s timeout, across 8 pool workers, against the
+3-8 s dispatch gap `D`:
+
+| `D` | Poke queue | Dispatch phase | Residual drain | Total |
+| --- | --- | --- | --- | --- |
+| 3 s | grows: pokes arrive faster than 8 workers retire them | 87 s | 88 s | 175 s |
+| 5 s | balance point — arrivals match the 8-worker service rate | 145 s | 40 s | 185 s |
+| 8 s | never queues | 232 s | 40 s | 272 s |
+
+At the slow end that leaves about 28 s of the 300 s function timeout for the rest of the pass — the
+PR listing, the ClickHouse state read, the revert guard, and the fingerprint fan-out — so 30 is
+close to the practical ceiling there. At the fast end the same arithmetic puts the ceiling near 50.
+`_max_dispatches_from_env` enforces neither: it validates non-negative and nothing more, so a cap
+set above that range buys extra dispatches at the price of a pass killed mid-flight.
+
+For proportion, the alternative is far worse: taking those same 30 pokes serially in-line, one
+worst-case 40 s each on top of the dispatch gap, puts the pass at roughly 1290-1440 s. The drain is
+a bound worth stating, not a cost the pool introduced.
 
 The scan's Dr. CI poke needs `PYTORCH_GREENLIGHT_DRCI_TOKEN` (and optionally
 `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN`) wherever the scan runs: the Lambda reads both from its

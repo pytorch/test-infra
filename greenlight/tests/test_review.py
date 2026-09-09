@@ -5,7 +5,7 @@ import queue
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
@@ -76,10 +76,6 @@ def _open_pr(
     )
 
 
-def _boom_poke(repo: str, pr_number: int, poke_config: Config) -> NoReturn:
-    raise AssertionError(f"poke should not be called for {repo}#{pr_number}")
-
-
 def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
     return set()
 
@@ -146,6 +142,7 @@ class _Scan:
     refusals: list[tuple[int, str, str, str]]
     emitted: list[tuple[str, int, str, str, int]]
     poked: list[tuple[str, int, Config]]
+    poke_threads: list[str]
     events: list[str]
     label_fetches: list[int]
     dismissals: list[tuple[int, str, str]]
@@ -190,6 +187,7 @@ def _run_scan(
     refusals: list[tuple[int, str, str, str]] = []
     emitted: list[tuple[str, int, str, str, int]] = []
     poked: list[tuple[str, int, Config]] = []
+    poke_threads: list[str] = []
     events: list[str] = []
     label_fetches: list[int] = []
     dismissals: list[tuple[int, str, str]] = []
@@ -236,6 +234,7 @@ def _run_scan(
 
     def fake_poke(repo, pr_number, poke_config):
         poked.append((repo, pr_number, poke_config))
+        poke_threads.append(threading.current_thread().name)
         events.append(f"poke:{pr_number}")
 
     def fake_read_reverted(_repo, numbers):
@@ -296,6 +295,7 @@ def _run_scan(
         refusals,
         emitted,
         poked,
+        poke_threads,
         events,
         label_fetches,
         dismissals,
@@ -355,10 +355,36 @@ def test_dispatch_pokes_drci_after_the_marker_emit(make_config):
         config_kwargs={"drci_token": "drci-key"},
     )
 
-    # Dr. CI re-reads the state row when poked, so each poke must follow its own marker emit;
-    # without the poke the PR shows no in-flight marker until Dr. CI's next 15-minute sweep.
-    assert scan.events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
-    assert [(repo, number) for repo, number, _ in scan.poked] == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+    # Dr. CI re-reads the state row when poked, so a PR's poke is only scheduled once its own marker
+    # emit has returned; without the poke the PR shows no in-flight marker until the 15-minute sweep.
+    assert scan.events.index("poke:1") > scan.events.index("emit:1")
+    assert scan.events.index("poke:2") > scan.events.index("emit:2")
+    # Where the two poke events land among the rest is the pool's business, but the main-thread
+    # sequence must run straight through: the dispatch loop never waits on a poke.
+    assert [event for event in scan.events if not event.startswith("poke:")] == [
+        "dispatch:1",
+        "emit:1",
+        "dispatch:2",
+        "emit:2",
+    ]
+    assert sorted((repo, number) for repo, number, _ in scan.poked) == [(TARGET_REPO, 1), (TARGET_REPO, 2)]
+
+
+def test_pokes_run_off_the_main_thread_and_are_drained_before_run_returns(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        config_kwargs={"drci_token": "drci-key"},
+    )
+
+    # Both pokes ran on the pool and both had finished by the time run returned, because the pool is
+    # entered on run's ExitStack. Draining is not optional: Lambda freezes the execution environment
+    # the instant the handler returns, so a poke left running would resume -- and log its outcome --
+    # inside some later invocation instead of this one.
+    assert len(scan.poke_threads) == 2
+    assert threading.main_thread().name not in scan.poke_threads
+    assert all(name.startswith("greenlight-poke") for name in scan.poke_threads)
 
 
 def test_poke_drops_the_ingestion_delay_but_keeps_the_credentials(make_config):
@@ -679,6 +705,20 @@ def test_reverted_label_drops_pr_before_fingerprinting(make_config, caplog):
     assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
     assert 1 in [pr_number for _repo, pr_number, _config in scan.poked]
     assert "excluding 1 reverted PR(s) from review: [1]" in caplog.text
+
+
+def test_reverted_pr_poke_also_goes_through_the_pool(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # revert_guard's poke seam and the dispatch loop's are one callable, so the revert path cannot
+    # regress to a blocking poke while the dispatch path stays fire-and-forget.
+    assert [number for _repo, number, _config in scan.poked] == [1]
+    assert [name.startswith("greenlight-poke") for name in scan.poke_threads] == [True]
 
 
 def test_reverted_row_still_excludes_after_the_label_is_removed(make_config):
@@ -1615,6 +1655,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
+    poked: list[int] = []
 
     def fingerprint(_client, number, _authorized, _skip):
         fingerprinted.append(number)
@@ -1625,6 +1666,9 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref):
         dispatched.append(number)
 
+    def record_poke(_repo, pr_number, _config):
+        poked.append(pr_number)
+
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
@@ -1634,7 +1678,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            poke_drci=_boom_poke,
+            poke_drci=record_poke,
             resolve_authorized=lambda: _AUTHORIZED,
             now=lambda: _NOW,
         )
@@ -1646,6 +1690,9 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
     # the event, so PR3 short-circuits without being fingerprinted.
     assert fingerprinted == [1, 2]
     assert dispatched == []
+    # Nothing dispatched, so nothing is poked -- readable here because the end-of-scan RuntimeError is
+    # raised inside the ExitStack, so the poke pool is drained even on the failing path.
+    assert poked == []
     # The deferral is surfaced by the merged rate-limit warning, and the scan still fails closed: PR2
     # (failed) and PR3 (abandoned) are carried distinctly in the end-of-scan RuntimeError.
     assert "skipping dispatch of 1 completed candidate(s) this pass" in caplog.text
@@ -1810,7 +1857,7 @@ def test_deferred_dispatch_is_logged(make_config, caplog):
 
 
 def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
+    with caplog.at_level(logging.DEBUG, logger="greenlight"):
         _run_scan(
             make_config,
             listed=[_open_pr(1), _open_pr(2)],
@@ -1823,6 +1870,21 @@ def test_listing_path_logs_open_prs_and_decisions(make_config, caplog):
     assert "open PR #1 by albanD" in messages
     assert "PR #1: DISPATCH (never_reviewed)" in messages
     assert "PR #2: SKIP (decided)" in messages
+
+
+def test_per_pr_listing_detail_is_below_info(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _run_scan(
+            make_config,
+            listed=[_open_pr(1), _open_pr(2)],
+            fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A)},
+        )
+
+    # One info line per open PR is affordable for the trusted-author set and not for the whole
+    # merge_rules approver cohort, which is an order of magnitude larger and rescanned every few
+    # minutes. The aggregate count stays at info; the per-PR detail is debug-only.
+    assert "found 2 open PR(s)" in caplog.text
+    assert "open PR #" not in caplog.text
 
 
 def test_run_without_token_raises(make_config):
