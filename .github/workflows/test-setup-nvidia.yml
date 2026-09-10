@@ -39,8 +39,28 @@ jobs:
       driver-download-url: https://download.nvidia.com/XFree86/Linux-x86_64/615.71.09/NVIDIA-Linux-x86_64-615.71.09.run
       use-custom-docker-registry: false
       script: |
+        set -eux
         nvidia-smi
         test "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)" = '615.71.09'
+        python -m venv .cu134-probe-venv
+        probe_python="${PWD}/.cu134-probe-venv/bin/python"
+        "${probe_python}" -m pip install 'torch==2.14.0.dev20260810+cu134' --extra-index-url https://download.pytorch.org/whl/nightly/cu134
+        "${probe_python}" -m pip check
+        "${probe_python}" -m pip freeze
+        result=0
+        for probe in \
+          'import torch; print(torch.__version__, torch.version.cuda, flush=True)' \
+          'import torch; x = torch.randn(4, device="cuda"); y = x + x; torch.cuda.synchronize(); print(y.cpu(), flush=True)' \
+          'import torch; x = torch.randn(10, 10).cuda(); y = torch.randn(10, 10).cuda(); z = torch.mm(x, y); torch.cuda.synchronize(); torch.testing.assert_close(z.cpu(), x.cpu() @ y.cpu()); print("matmul passed", flush=True)'; do
+          printf '\nPROBE: %s\n' "${probe}"
+          if "${probe_python}" -X faulthandler -c "${probe}"; then
+            printf 'Clean process exit\n'
+          else
+            result=1
+            gdb --batch -ex run -ex 'thread apply all bt' --args "${probe_python}" -X faulthandler -c "${probe}"
+          fi
+        done
+        exit "${result}"
 
   test-inputs:
     runs-on: ubuntu-latest
