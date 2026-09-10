@@ -8,6 +8,10 @@ inputs:
     required: false
     type: string
     default: "580.65.06" # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-580-65-06/
+  driver-download-url:
+    description: 'Driver installer URL; empty uses the ossci-linux mirror'
+    required: false
+    default: ''
 
 outputs:
   has-nvidia:
@@ -76,6 +80,7 @@ runs:
       uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
       env:
         DRIVER_VERSION: ${{ inputs.driver-version }}
+        DRIVER_DOWNLOAD_URL: ${{ inputs.driver-download-url }}
       with:
         timeout_minutes: 10
         max_attempts: 3
@@ -168,7 +173,7 @@ runs:
                             sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
                             sudo modprobe backlight
                       fi
-                      sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
+                      sudo curl -fsL -o /tmp/nvidia_driver "${DRIVER_DOWNLOAD_URL:-https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN}"
 
                       set +e
                       sudo /bin/bash /tmp/nvidia_driver -s --no-drm
