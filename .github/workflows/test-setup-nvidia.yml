@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/test-setup-nvidia.yml
       - .github/actions/setup-nvidia/action.yml
+      - .github/scripts/test_setup_nvidia.py
   workflow_dispatch:
 
 jobs:
@@ -15,11 +16,40 @@ jobs:
         runner-type:
           - linux.g5.4xlarge.nvidia.gpu
           - linux.g5.12xlarge.nvidia.gpu  # Choose a test case with multiple GPUs
-    name: Install NVIDIA driver on ${{ matrix.runner-type }}
+    name: Preserve NVIDIA driver on ${{ matrix.runner-type }}
     runs-on: ${{ matrix.runner-type }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Record host driver
+        id: host-driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          nvidia-smi --query-gpu=gpu_name --format=csv,noheader
+          driver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)
+          test "$(printf '%s\n' '580.65.06' "$driver" | sort -V | head -n 1)" = '580.65.06'
+          echo "version=$driver" >> "$GITHUB_OUTPUT"
+
       - name: Test that setup-nvidia works
         uses: ./.github/actions/setup-nvidia
+
+      - name: Check host driver was preserved
+        shell: bash
+        env:
+          HOST_DRIVER: ${{ steps.host-driver.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)" = "$HOST_DRIVER"
+          nvidia-smi --query-gpu=gpu_name --format=csv,noheader
+
+  test-driver-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - run: pip install PyYAML==6.0.3
+      - run: python .github/scripts/test_setup_nvidia.py
