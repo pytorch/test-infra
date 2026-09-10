@@ -969,6 +969,14 @@
       "linux"
     ]
   ],
+  "test_out_of_memory_retry (__main__.TestCuda)": [
+    "187045",
+    "https://github.com/pytorch/pytorch/issues/187045",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
     "188985",
     "https://github.com/pytorch/pytorch/issues/188985",
@@ -1074,11 +1082,26 @@
     "https://github.com/pytorch/pytorch/issues/188678",
     []
   ],
+  "test_redispatch_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
+    "196627",
+    "https://github.com/pytorch/pytorch/issues/196627",
+    [
+      "linux"
+    ]
+  ],
   "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "186259",
     "https://github.com/pytorch/pytorch/issues/186259",
     [
       "linux"
+    ]
+  ],
+  "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
+    "196628",
+    "https://github.com/pytorch/pytorch/issues/196628",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
