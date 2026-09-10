@@ -185,13 +185,14 @@ export function defangGreenlightMessage(text: string): string {
 // defuse nor the fence may run over it: a fence would show its tags verbatim.
 // Every way it declines to produce a block reaches the fence -- "" when every
 // leaf flattened away or the first item alone overruns the budget, and a throw
-// from its containment tripwire, which must not propagate: the only handler
-// above this is in drci.ts, and it fails the WHOLE sweep to an empty map, so one
-// PR's bad row would strip the GREEN LIGHT section off every PR in it, hiding
-// verdicts that exist. Classifying the message is inside the guard for the same
-// reason -- it reads the same untrusted text the renderer does. The log gets the
-// PR number and the error, never the message -- untrusted model output, scrubbed
-// for the comment and not for the log.
+// from its containment tripwire, which must not propagate: the next handler up
+// is the per-row catch in greenlightComment.ts, which drops this PR's section
+// outright, so a verdict that exists -- and that the fence renders correctly --
+// would show its author nothing at all. Catching here costs the reader the
+// bullet list and keeps the verdict. Classifying the message is inside the guard
+// for the same reason -- it reads the same untrusted text the renderer does. The
+// log gets the PR number and the error, never the message -- untrusted model
+// output, scrubbed for the comment and not for the log.
 function renderVerdictMessage(message: string, prNumber: number): string {
   const text = message || "";
   let outline = "";
