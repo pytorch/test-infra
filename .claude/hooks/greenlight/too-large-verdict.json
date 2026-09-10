@@ -1,5 +1,5 @@
 {
   "status": "NO_LAND",
   "reason": "scope_too_large",
-  "message": "This change is too large for the automated reviewer to read in full, so it is being declined automatically; a human reviewer should assess it."
+  "message": "- Scope\n  - The diff exceeds the size cap the automated reviewer can read in full\n  - The size gate declined it before any review ran, so nothing in it was examined\n  - A human reviewer should assess this change"
 }

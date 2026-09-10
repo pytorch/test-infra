@@ -173,10 +173,11 @@ it into `misc.greenlight_pr_state` — the command never writes ClickHouse direc
 for `LAND`/`NO_LAND`, it acts on the PR (`LAND` approves unless the verdict is shadow — recorded
 without authority, so it is never approved and never rendered by Dr. CI; `NO_LAND`, and any shadow
 verdict, dismisses greenlight's own prior approval). `CANCELLED` and `FAILED` markers only emit
-the row. The model's message is secret-scrubbed at a single point before it fans out to both the emitted
+the row. The model's message is asked for as a short markdown outline (see "How the verdict
+message is rendered") and is secret-scrubbed at a single point before it fans out to both the emitted
 row and the posted comment; whichever comment ultimately carries it — greenlight's own, or
-Dr. CI's Green Light section rendered from the row — additionally defangs it to neutralize
-formatting and @-mentions.
+Dr. CI's Green Light section rendered from the row — additionally neutralizes its formatting
+and @-mentions on the way out.
 
 ```bash
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
@@ -185,6 +186,75 @@ just run verdict --pr 123 --head-sha "$SHA" --status CANCELLED  # marker: emit r
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
   --eval-hash "$EVAL_HASH" --dry-run                            # offline; logs only
 ```
+
+### How the verdict message is rendered
+
+The greenlight-review skill asks the model for a short markdown outline — a few topic bullets,
+each with a few detail bullets. Nothing enforces that shape. The Stop hook and the `verdict`
+command both check `status`, `reason` and a non-empty `message` and no more, so a message written
+as a paragraph is as valid as one written as an outline and renders correctly either way. Two
+surfaces render it: `comment_format` builds greenlight's own comment as the verdict is recorded,
+and `torchci/lib/greenlight/greenlightRender.ts` rebuilds Dr. CI's Green Light section from the
+stored row on every sweep. Two render paths are live, chosen per message rather than per
+deployment:
+
+- **Outline** — a message carrying at least two bullets with text after their markers becomes a
+  raw HTML `<ul><li>` block, every leaf HTML-escaped. Two rather than one because a paragraph
+  holding a single bullet-shaped line is still a paragraph, and routing it here would show the
+  reader one leaf clipped at 400 characters where the fence shows the whole message. Raw HTML
+  because CommonMark runs no inline parsing inside a type-6 HTML block: escaped text there cannot
+  open a tag, close the enclosing `<details>`, start a heading or a table, or autolink a bare URL
+  or email address — the last of which markdown escaping cannot prevent at all, since even a fully
+  backslash-escaped address still autolinks. The containment is positional as much as textual. The
+  block is emitted at column 0 with a blank line ahead of it and holds no line break anywhere
+  inside, because an indent stops CommonMark reading it as raw HTML and a blank line ends the
+  block, handing the rest of the comment back to the markdown parser.
+- **Fence** — a message with fewer than two bullets, any outline whose leaves all flatten away,
+  and one whose first item alone overruns the block budget, go out in a backtick code fence,
+  capped at the same 4,000 characters. This is the render
+  for prose, not a fallback from a failed one: nothing enforces the outline shape, so a paragraph
+  is a valid verdict, and it reads better fenced than forced into a one-item bullet list. Stored
+  rows keep the path alive independently of that — Dr. CI's query carries no time filter, and the
+  scan writes no newer row once a PR is human-decided, ages out of the review window, or is
+  labelled `Stale`, so a verdict recorded before the outline format existed re-renders unchanged
+  for as long as its PR stays open.
+
+Five bounds hold the outline block down: the message is read to 4,000 characters, each leaf
+clipped to 400, each topic held to 8 details, the block to 12 topics, and the finished markup to a
+12,000-character budget. Both character caps run *before* escaping, because escaping inflates text
+up to sixfold and capping after it would let a sixth of the message through. All five mark where
+they cut — a clipped leaf ends in an ellipsis, and a dropped detail, a dropped topic, an item the
+budget turned away or a message read past 4,000 characters each leave a `(truncated)` entry — so a
+reader never takes a cut list for a complete one. A bullet past 4,000 characters still neither
+reaches the block nor decides the route, since the two-bullet format test reads the same prefix the
+renderer does. The block budget is there because nothing downstream bounds the body —
+`torchci/lib/drciUtils.ts` hands the whole Dr. CI comment to `updateComment` with no length guard,
+and this section is one part of that body. What ceiling GitHub enforces on it is not established:
+Dr. CI comments well past 65,536 characters are live on `pytorch/pytorch` today. The 12,000 is a
+bound greenlight puts on its own contribution, not a measured limit.
+
+Neither path lets a verdict ping a person or issue a bot command, but they arrive there
+differently. The fence replaces every `@` unconditionally, and that one replacement stops both.
+The outline guards `@` in text segments only, deliberately skipping code spans: `code` is in
+GitHub's `MentionFilter.IGNORE_PARENTS`, so an `@` inside one pings nobody, while a zero-width
+space inserted there would corrupt a path or a sha the reader copies out. What stops a bot command
+on that path is positional — `torchci/lib/bot/cliParser.ts` matches
+`/^ *@pytorch(merge|)bot .+$/m` against the raw comment body, which is line-anchored and admits
+only ASCII spaces before the `@`, and the whole outline is a single line opening `<ul>`. In
+those same text segments the outline also guards issue, `GH-` and commit-sha references, which
+GitHub would otherwise turn into cross-references and backlinks on unrelated issues. Dr. CI's
+renderer breaks, on both paths, the literals its own re-render sweep greps the comment body for: a
+verdict that merely mentions a pending job count would otherwise pin its PR into every sweep
+forever.
+
+The escaper is written twice — `verdict_outline.py` and
+`torchci/lib/greenlight/greenlightOutline.ts` — because one stored row is rendered by a Python
+surface and a TypeScript one that have to agree character for character. Python is the source of
+truth, and three gates hold the mirror together: `greenlight/tests/outline_parity_cases.json`, a
+shared corpus both test suites assert identical output against; a literal scrape in
+`greenlight/tests/test_verdict_outline.py`, which also fails either implementation for using `\s`,
+`\d`, `\w` or `\b`, since each matches a different set of characters in the two languages; and
+`greenlight/tests/test_render_sync.py`, which fails when either side stops routing both formats.
 
 ### Who posts the status comment
 
@@ -405,8 +475,10 @@ both are best-effort defense-in-depth, not guarantees:
   on the `./pytorch` checkout additionally keeps the scoped token out of `./pytorch/.git/config`.
 - **Message scrubbing** — the verdict `message` is secret-scrubbed at a single fan-out point
   before it reaches both the posted comment and the `misc.greenlight_pr_state` row, so a message
-  Dr. CI later renders back out of that row is scrubbed too (either comment additionally defangs
-  it for formatting and @-mentions). Nothing bypasses the scrub by being long: text past the input
+  Dr. CI later renders back out of that row is scrubbed too (either comment additionally contains
+  the message's own formatting and @-mentions, through whichever of the two render paths its
+  format selects — see "How the verdict message is rendered"). Nothing bypasses the scrub by
+  being long: text past the input
   cap is dropped rather than left unread, and the cap retreats to a whitespace boundary — the one
   cut point that cannot fall inside a credential value — so the run it would otherwise sever is
   redacted whole. A message with no whitespace to retreat to keeps its run minus any
@@ -414,7 +486,8 @@ both are best-effort defense-in-depth, not guarantees:
 
 An oversized diff is also declined before the model runs: the reviewer gates on line count (the
 model's ~2000-line read window) with a byte-size backstop, emitting a `scope_too_large` NO_LAND
-rather than reviewing a change it cannot read in full.
+rather than reviewing a change it cannot read in full. That canned verdict is written as an
+outline, so the declined PR shows the same shape of comment a reviewed one does.
 
 ### Review time budget
 
@@ -557,7 +630,8 @@ src/greenlight/
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
   dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
   verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss and (unless Dr. CI renders it) comment
-  comment_format.py # render greenlight's PR comment bodies
+  comment_format.py # render greenlight's PR comment bodies; pick the outline or fenced message renderer per row
+  verdict_outline.py # render a model-authored verdict outline as one contained HTML bullet list (mirrored in TypeScript)
   redact.py        # scrub credential-shaped substrings out of untrusted, model-authored text
   drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); swallows its own failures
   github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
