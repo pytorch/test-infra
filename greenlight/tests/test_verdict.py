@@ -295,6 +295,33 @@ def test_full_land_scrubs_secret_in_both_row_and_comment(make_config, tmp_path):
     assert secret not in body
 
 
+def test_full_land_with_an_outline_message_comments_the_html_list_and_scrubs_it(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    secret = "ghp_0123456789abcdefghijABCDEFGHIJ0123456789"
+    message = "\n".join(["- Scope: one guard plus its test", f"  - the token {secret} is in the diff", "- Risk: low"])
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message=message)
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=31, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+    # The row stores the outline verbatim once scrubbed; the comment renders it as the HTML list.
+    assert _decode(emit.row_gzip)["message"] == message.replace(secret, "[REDACTED]")
+    body = pr.comments[0]
+    assert body.startswith(comment_format.COMMENT_MARKER)
+    assert "<ul><li><b>Scope: one guard plus its test</b><ul>" in body
+    assert "<li>the token [REDACTED] is in the diff</li>" in body
+    assert "```" not in body
+    assert secret not in body
+    assert "reason: `clean`" in body
+    assert body.endswith("</details>")
+
+
 def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
@@ -328,6 +355,31 @@ def test_emit_payload_is_single_gzipped_jsoneachrow_line(make_config, tmp_path):
     assert isinstance(obj["pr_number"], int)
     assert isinstance(obj["version"], str)
     assert obj["version"] == _VERSION
+
+
+def test_emit_payload_keeps_one_jsoneachrow_line_for_a_multiline_message(make_config, tmp_path):
+    # The outline format made a multi-line message the normal case, and one unescaped break
+    # reaching the row splits it into two JSONEachRow lines. The replicator's positional SELECT *
+    # then raises on the halves and swallows it into errors.gen_errors: the row never lands and
+    # nothing alerts. Every shape a reader might treat as a break is here, plus a NUL.
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec)
+    gh = _FakeGithub(_FakeRepo(pr))
+    separators = chr(0x2028) + chr(0x2029)  # by code point, so this source carries neither
+    message = f"- Scope\n  - one file\r\n  - a lone \r return{separators}and a nul\x00here"
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message=message)
+    req = VerdictRequest(repo="o/r", pr_number=4, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert emit.row_gzip is not None
+    raw = gzip.decompress(emit.row_gzip).decode("utf-8")
+    assert raw.endswith("\n")
+    assert raw.count("\n") == 1  # exactly one JSONEachRow line
+    assert "\r" not in raw
+    # Escaped on the way out and identical on the way back: the row keeps the outline it stores.
+    assert json.loads(raw)["message"] == message
 
 
 def test_verdict_emitted_row_is_byte_stable(make_config):
