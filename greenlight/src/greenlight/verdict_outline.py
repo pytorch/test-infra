@@ -5,15 +5,19 @@ a few detail bullets. That text is attacker-influenceable (a PR diff can prompt-
 reviewer) and it lands permanently on a public PR, so the rendering has to hold whatever the
 model was talked into writing.
 
-Containment is a CommonMark type-6 raw HTML block: a ``<ul>`` opening at column 0 with no blank
-line anywhere inside it. CommonMark runs no inline parsing inside such a block, which is what
-leaves ``</details>``, ``# heading``, ``---``, ``1.``, ``[^1]``, ``[x]: y``, code fences,
-``<script>``, ``<img>`` and attribute smuggling inert, and what stops bare URLs and email
-addresses autolinking -- the last one is unreachable with markdown bullets, where even a fully
-backslash-escaped ``a\-\@b\.co`` still autolinks to ``mailto:``. A blank line ends the block and
-hands the rest of the comment back to the markdown parser, so the single global invariant is that
-the returned block holds no line break at all; every other defence is per-leaf. ``ul``, ``ol``,
-``li``, ``b`` and ``code`` are all on GitHub's sanitizer allowlist.
+Containment takes two defences answering two shapes of injection, and neither covers the other.
+Escaping each leaf answers the HTML shapes -- ``</details>``, ``<script>``, ``<img>``, attribute
+smuggling -- and holds wherever the leaf ends up. The markdown shapes are answered by a CommonMark
+type-6 raw HTML block: a ``<ul>`` opening at column 0 with no blank line anywhere inside it, within
+which CommonMark runs no inline parsing, leaving ``# heading``, ``---``, ``1.``, ``[^1]``,
+``[x]: y``, ``[text](url)``, ``![alt](src)``, code fences and emphasis inert and stopping bare URLs
+and email addresses autolinking -- the last one unreachable with markdown bullets, where even a
+fully backslash-escaped ``a\-\@b\.co`` still autolinks to ``mailto:``. ``html.escape`` touches
+``& < > " '`` and nothing else, so all of those markdown shapes reach the comment verbatim and the
+block is the only thing holding them. A blank line ends the block and hands the rest of the comment
+back to the markdown parser, so the single global invariant is that the returned block holds no
+line break at all; every other defence is per-leaf. ``ul``, ``ol``, ``li``, ``b`` and ``code`` are
+all on GitHub's sanitizer allowlist.
 
 ``torchci/lib/greenlight/greenlightOutline.ts`` renders the same message into the Dr. CI comment
 and has to produce byte-identical output. That is why no pattern here uses a shorthand character
@@ -196,22 +200,35 @@ def _leaves(message: str) -> list[_Leaf]:
 
 
 def _group(leaves: list[_Leaf]) -> list[_Topic]:
-    """Group flattened leaves into topics, promoting every detail that has no topic above it.
+    """Group flattened leaves into topics, dropping the ones that flattened to nothing.
 
-    Promotion covers two cases with one rule: nested bullets the model wrote before any top-level
-    one, and details whose topic was dropped for flattening to nothing. It runs until a real topic
-    appears rather than once, because orphans are peers of each other -- making the second one a
-    detail of the first asserts a relationship the reviewer never wrote. Dropping them instead
-    would silently discard text the reader was meant to see.
+    The drop belongs here rather than ahead of the grouping because it destroys the one thing the
+    grouping needs. A top-level bullet whose text flattens away is still a boundary the reviewer
+    wrote, and dropping it first leaves everything below reading as though it never existed --
+    which renders a ``NO_LAND`` detail as evidence for whichever unrelated topic came before it.
+
+    A detail with no topic to attach to is promoted: dropping it would silently discard text the
+    reader was meant to see, and adopting it would assert a relationship the reviewer never wrote.
+    Promotion never turns the promoted leaf into a parent for the details behind it, because peers
+    stay peers. Two details are siblings whether they were written before the first top-level
+    bullet or under one whose text flattened away, and subordinating the second to the first
+    invents a parent and child out of two of the reviewer's own claims -- permanently, in public,
+    and it is the exact relationship promotion exists to prevent.
     """
     topics: list[_Topic] = []
-    seen_topic = False
+    attachable = False
     for leaf in leaves:
-        if leaf.depth == 0 or not seen_topic:
-            topics.append(_Topic(text=leaf.text, details=[]))
-            seen_topic = seen_topic or leaf.depth == 0
+        if leaf.depth == 0:
+            attachable = leaf.text != ""
+            if attachable:
+                topics.append(_Topic(text=leaf.text, details=[]))
             continue
-        topics[-1].details.append(leaf.text)
+        if leaf.text == "":
+            continue
+        if attachable:
+            topics[-1].details.append(leaf.text)
+            continue
+        topics.append(_Topic(text=leaf.text, details=[]))
     return topics
 
 
@@ -331,8 +348,7 @@ def render_outline_html(message: str) -> str:
     topic, detail, over-budget item or over-cap tail leaves a truncation item behind, so a reader
     can never mistake a cut list for a complete one.
     """
-    flattened = (leaf._replace(text=_flatten(leaf.text)) for leaf in _leaves(message))
-    topics = _group([leaf for leaf in flattened if leaf.text != ""])
+    topics = _group([leaf._replace(text=_flatten(leaf.text)) for leaf in _leaves(message)])
     if not topics:
         return ""
 
