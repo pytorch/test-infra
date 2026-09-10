@@ -5,6 +5,10 @@ comment writer does, but re-declares the shared vocabulary as its own constants 
 ``torchci/lib/greenlight/greenlightSweep.ts``'s, which holds the part both TypeScript renderers
 use -- and nothing at build time links any of it to Python. Python is the source of truth: these
 tests fail when the TypeScript stops matching it, in either direction.
+
+Each side also picks between two message renderers per stored row -- the outline and the fence --
+and nothing links those two choices either, so the routes themselves are pinned here alongside the
+vocabulary.
 """
 
 import re
@@ -34,6 +38,17 @@ _TS_REASON_PREFIX_RE = re.compile(r"`([^`$]*)\$\{inlineCode\(")
 
 _PROBE_JOB_URL = "https://example.invalid/probe-job"
 _PROBE_REASON = "probe-reason"
+
+
+def _code(source_file: str, comment_prefix: str) -> str:
+    """The file with its whole-line comments dropped, so a name discussed in prose is not a use."""
+    return "\n".join(
+        line for line in ts_source.read(source_file).splitlines() if not line.lstrip().startswith(comment_prefix)
+    )
+
+
+def _references(source: str, name: str) -> int:
+    return len(re.findall(rf"\b{re.escape(name)}\b", source))
 
 
 def _ts_statuses() -> dict[str, str]:
@@ -161,6 +176,47 @@ def test_sweep_pending_word_matches_the_outline_renderer() -> None:
         f"routes write into the same Dr. CI comment and break the sweep's `[0-9] Pending` predicate against "
         f"this one word, so a drift leaves both of them defusing a word the sweep no longer looks for -- and "
         f"a verdict that mentions a pending job count pins its PR into every sweep forever.",
+    )
+
+
+# Each route the two renderers pick between, as the name Python calls and the name the TypeScript
+# calls. `comment_format._message_block` and `renderVerdictMessage` decide per stored row and
+# nothing links the two decisions, so a route present on one side only is invisible until a reader
+# compares the PR comment against Dr. CI.
+_MESSAGE_ROUTES: dict[str, tuple[str, str]] = {
+    "outline predicate": ("is_outline", "isOutline"),
+    "outline renderer": ("render_outline_html", "renderOutlineHtml"),
+    "fence renderer": ("defang", "defangGreenlightMessage"),
+}
+
+
+@pytest.mark.parametrize(("route", "names"), sorted(_MESSAGE_ROUTES.items()))
+def test_both_renderers_still_route_both_message_formats(route: str, names: tuple[str, str]) -> None:
+    """Both surfaces still name both renderers.
+
+    Counting references catches a route deleted, not one left unreachable: a `renderVerdictMessage`
+    that survives and nothing calls holds every count here at two. That gap stays open on purpose.
+    Both behavioural suites -- `torchci/test/greenlightRender.test.ts` and
+    `greenlight/tests/test_comment_format.py` -- render through the public entry point and assert
+    the block each format produces, so an unreached renderer fails there, and a reachability check
+    written here would cost a parser to re-prove what they already prove by rendering.
+    """
+    py_name, ts_name = names
+    # Two references is import-or-definition plus one call. One means the name survives and
+    # nothing reaches it, which is what deleting a branch rather than a symbol leaves behind.
+    counted = {
+        _PY_RENDER: _references(_code(_PY_RENDER, "#"), py_name),
+        _TS_RENDER: _references(_code(_TS_RENDER, "//"), ts_name),
+    }
+    unreachable = sorted(source_file for source_file, count in counted.items() if count < 2)
+    assert not unreachable, (
+        f"the {route} route is named but never called in {unreachable}. Nothing enforces the outline "
+        f"shape, so a prose verdict is a valid one and both formats keep arriving. Dr. CI's query also "
+        f"carries no time filter and the scan writes no newer row once a PR is human-decided, aged out or "
+        f"labelled Stale, so stored rows in both formats render side by side for as long as their PRs stay "
+        f"open. Either reason alone obliges each side to keep both routes; dropped on one side, the same "
+        f"row comes out a bullet list on one surface and a fence on the other. If the route still runs and "
+        f"only its shape moved, re-target this count at the new shape."
     )
 
 

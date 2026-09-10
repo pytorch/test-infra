@@ -1,9 +1,10 @@
 // The literals Dr.CI's re-render sweep greps a comment body for, and the single
-// pass that breaks them. drci.ts spells those predicates and greenlightRender.ts
-// has to break exactly the ones it spells, so the vocabulary the two share sits
+// pass that breaks them. Both message renderers write into that one body -- the
+// fence in greenlightRender.ts and the escaped HTML block in greenlightOutline.ts
+// -- and the first of those calls the second, so the vocabulary they share sits
 // below both rather than inside either. A second copy is a copy that can be
-// widened alone, and a predicate the sweep looks for and the renderer no longer
-// breaks pins its PR into every sweep for as long as the comment stands.
+// widened alone, and a predicate defused on one route and not the other pins its
+// PR into every sweep for as long as the comment stands.
 
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 
@@ -18,12 +19,12 @@ const GREENLIGHT_PENDING_ALT = "Green Light: in progress";
 export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 
 // Every literal getPRsNeedingCommentRefresh (drci.ts) pins a PR into the sweep
-// on. Those predicates run over the RAW comment body, and the greenlight message
-// is the only model-authored text in it that is not HTML-escaped -- the fence in
-// defangGreenlightMessage stops the text RENDERING as markup but leaves the
-// characters themselves intact -- so a terminal render that carries one pins the
-// PR into every sweep forever, defeating the self-clearing the sentinel design
-// rests on.
+// on. Those predicates run over the RAW comment body, which neither renderer's
+// containment reaches: the fence in defangGreenlightMessage stops the text
+// RENDERING as markup and renderOutlineHtml HTML-escapes it, but both leave the
+// characters a predicate is spelled with intact. So a terminal render that
+// carries one pins the PR into every sweep forever, defeating the self-clearing
+// the sentinel design rests on.
 export const SWEEP_SENTINELS = [
   GREENLIGHT_PENDING_ALT_ATTR,
   ADVISOR_PENDING_ALT_ATTR,
@@ -54,6 +55,14 @@ export const SWEEP_PREDICATE_MIN_LENGTH = Math.min(
 // an unbounded ClickHouse String and the cap in defangGreenlightMessage is
 // applied after this, so a deeply nested 600 KB payload blocks the event loop for
 // seconds in a shared handler.
+//
+// The outline route also runs this over its code spans: the sweep matches the
+// body, not the rendered HTML, so a predicate inside a `<code>` pins the PR just
+// as hard as one in prose. That route arrives with the text already escaped,
+// where both sentinels are spelled `&quot;` and the loop matches nothing, leaving
+// the `Pending` substitution the pass that fires. The loop is what covers a
+// predicate spelled without a quote, and the fenced route, which hands over raw
+// text.
 export function defuseSweepSentinels(text: string): string {
   let out = text;
   for (const sentinel of SWEEP_SENTINELS) {

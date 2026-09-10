@@ -4,6 +4,7 @@ import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
 import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import path from "path";
+import { format } from "util";
 
 const LAND_ROW = {
   pr_number: 194531,
@@ -56,6 +57,14 @@ function inFlightRow() {
     status: "AI_REVIEW_DISPATCHED",
     version: new Date().toISOString().replace("Z", ""),
   };
+}
+
+// What a console sink prints for the calls a console.error spy recorded.
+// JSON.stringify cannot stand in for this: Error.message and Error.stack are
+// non-enumerable, so it renders every logged error as `{}` and a redaction check
+// built on it passes whatever the error carries.
+function loggedText(spy: jest.SpyInstance): string {
+  return spy.mock.calls.map((call) => format(...call)).join("\n");
 }
 
 // pr_number -> head sha, as the Dr.CI sweep hands them over. Defaults each PR's
@@ -218,6 +227,40 @@ describe("buildGreenlightSections", () => {
     );
 
     expect(sections.get(row.pr_number)).toContain(GREENLIGHT_PENDING_ALT_ATTR);
+  });
+
+  // The only handler above this one is in drci.ts and it fails the whole sweep to
+  // an empty map, so an unguarded throw on one row takes the GREEN LIGHT section
+  // off every other PR in the sweep too.
+  it("drops only the row whose render threw, keeping the rest of the sweep", async () => {
+    queryClickhouseSaved.mockResolvedValue([LAND_ROW, NO_LAND_ROW]);
+    const thrown = new Error("render blew up on one row");
+    const render = jest
+      .spyOn(greenlightRender, "renderGreenlightSection")
+      .mockImplementation((state) => {
+        if (state.prNumber === LAND_ROW.pr_number) throw thrown;
+        return "rendered";
+      });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(LAND_ROW, NO_LAND_ROW)
+    );
+
+    expect(render).toHaveBeenCalledTimes(2);
+    expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
+    // Enough to find the row, and not the model's text: `message` is scrubbed on
+    // its way into the comment and not on its way into a log. The error is a
+    // fixed string, as the renderer's own throws are, so rendering the whole call
+    // the way a console sink does leaks nothing.
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("section render threw"),
+      LAND_ROW.pr_number,
+      thrown
+    );
+    expect(loggedText(logged)).not.toContain(LAND_ROW.message);
   });
 
   it("skips rows that render to nothing", async () => {

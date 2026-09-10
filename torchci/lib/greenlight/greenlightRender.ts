@@ -16,6 +16,11 @@ import {
   reviewedCommitLines,
 } from "lib/greenlight/greenlightCommitLine";
 import { inlineCode } from "lib/greenlight/greenlightInlineCode";
+import {
+  capCodePoints,
+  isOutline,
+  renderOutlineHtml,
+} from "lib/greenlight/greenlightOutline";
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import {
   defuseSweepSentinels,
@@ -151,14 +156,10 @@ function wrapMessage(text: string): string {
 // fence is the containment, and escaping inside it would render `&amp;`
 // literally to the reader.
 export function defangGreenlightMessage(text: string): string {
-  // Cap on code points, matching Python's `text[:4000]`; a UTF-16 slice would
-  // both count astral characters twice and be able to cut a surrogate pair.
   // Capping before the wrap is what makes 4000 mean 4000 characters the model
   // wrote: a break swallows the whitespace run it replaces, so wrapping first
   // would shrink the text and let a different amount of it through.
-  const capped = Array.from(text || "")
-    .slice(0, GREENLIGHT_MESSAGE_CAP)
-    .join("");
+  const capped = capCodePoints(text || "", GREENLIGHT_MESSAGE_CAP);
   const neutralized = capped.split("@").join(`@${ZERO_WIDTH_SPACE}`);
   // Breaks land only on whitespace and a backtick run holds none, so the wrap
   // leaves every run intact and this is the same fence either side of it. What
@@ -169,6 +170,40 @@ export function defangGreenlightMessage(text: string): string {
   const longest = runs ? Math.max(...runs.map((run) => run.length)) : 0;
   const fence = "`".repeat(Math.max(3, longest + 1));
   return `${fence}\n${wrapMessage(neutralized)}\n${fence}`;
+}
+
+// Which renderer a row goes through is decided per row, never per deploy. The
+// fence is the render for prose, not a fallback from a failed one: nothing
+// enforces the outline shape, so a paragraph is a valid verdict and reads better
+// fenced than forced into a one-item bullet list. Stored rows keep the path alive
+// independently of that -- this section's query has no time filter and the scan
+// writes no newer row once a PR is human-decided, ages out or is labelled Stale,
+// so a verdict recorded before the outline format existed re-renders on every
+// later sweep. Either reason alone obliges both renderers to stay.
+//
+// renderOutlineHtml escapes, defuses and contains its own output, so neither the
+// defuse nor the fence may run over it: a fence would show its tags verbatim.
+// Every way it declines to produce a block reaches the fence -- "" when every
+// leaf flattened away or the first item alone overruns the budget, and a throw
+// from its containment tripwire, which must not propagate: the next handler up
+// is the per-row catch in greenlightComment.ts, which drops this PR's section
+// outright, so a verdict that exists -- and that the fence renders correctly --
+// would show its author nothing at all. Catching here costs the reader the
+// bullet list and keeps the verdict. Classifying the message is inside the guard
+// for the same reason -- it reads the same untrusted text the renderer does. The
+// log gets the PR number and the error, never the message -- untrusted model
+// output, scrubbed for the comment and not for the log.
+function renderVerdictMessage(message: string, prNumber: number): string {
+  const text = message || "";
+  let outline = "";
+  try {
+    if (isOutline(text)) {
+      outline = renderOutlineHtml(text);
+    }
+  } catch (e) {
+    console.error("greenlight outline render threw for PR", prNumber, e);
+  }
+  return outline || defangGreenlightMessage(defuseSweepSentinels(text));
 }
 
 // Nothing may DELETE a character after the defuse: a deletion splices the text on
@@ -233,9 +268,7 @@ export function renderGreenlightSection(
       status === GREENLIGHT_STATUS_LAND
         ? GREENLIGHT_LAND_HEADLINE
         : GREENLIGHT_NO_LAND_HEADLINE;
-    const message = defangGreenlightMessage(
-      defuseSweepSentinels(state.message || "")
-    );
+    const message = renderVerdictMessage(state.message, state.prNumber);
     return renderSection(
       headline,
       [message, "", reasonLine(state.reason), ...commitLines],
