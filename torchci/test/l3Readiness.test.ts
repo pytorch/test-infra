@@ -75,6 +75,7 @@ function summaryRow(overrides: Partial<L3SummaryRow>): L3SummaryRow {
     pass_rate: 1.0,
     avg_queue_time_s: 60,
     max_exec_time_s: 3600,
+    overrun_rate: 0,
     median_e2e_time_s: 3600,
     timeout_rate: 0,
     ...overrides,
@@ -93,7 +94,7 @@ describe("buildCriteriaRows / summarizeReadiness", () => {
     expect(rows.map((r) => r.key)).toEqual([
       "tenureAtL2Days",
       "e2eTimeS",
-      "maxExecTimeS",
+      "overrunRate",
       "avgQueueTimeS",
       "timeoutRate",
       "passRate",
@@ -142,6 +143,34 @@ describe("buildCriteriaRows / summarizeReadiness", () => {
     const result = summarizeReadiness(rows);
     expect(result.judgedCount).toBe(0);
     expect(result.ready).toBe(false);
+  });
+});
+
+describe("overrunRate — rate of long-running jobs, not the raw max", () => {
+  it("passes when a rare job runs over 3h, as long as the rate stays under 1%", () => {
+    // A single slow job out of 200 (0.5%) used to fail this outright via
+    // the old max-based check; the rate-based check should let it through.
+    const rows = buildCriteriaRows(
+      summaryRow({ max_exec_time_s: 5 * 3600, overrun_rate: 0.005 }),
+      goodTenure
+    );
+    const row = rows.find((r) => r.key === "overrunRate");
+    expect(row?.verdict).toBe(true);
+  });
+
+  it("fails once the rate of over-3h jobs reaches 1%", () => {
+    const rows = buildCriteriaRows(
+      summaryRow({ max_exec_time_s: 5 * 3600, overrun_rate: 0.01 }),
+      goodTenure
+    );
+    const row = rows.find((r) => r.key === "overrunRate");
+    expect(row?.verdict).toBe(false);
+  });
+
+  it("is unjudged (not failed) when summary data is missing", () => {
+    const rows = buildCriteriaRows(null, goodTenure);
+    const row = rows.find((r) => r.key === "overrunRate");
+    expect(row?.verdict).toBeNull();
   });
 });
 
@@ -201,7 +230,7 @@ describe("mergeCriteriaRows", () => {
     }
     // Tenure and the two demotion-irrelevant metrics never get a demotion verdict.
     expect(merged.find((r) => r.key === "tenureAtL2Days")?.demotion).toBeNull();
-    expect(merged.find((r) => r.key === "maxExecTimeS")?.demotion).toBeNull();
+    expect(merged.find((r) => r.key === "overrunRate")?.demotion).toBeNull();
     expect(merged.find((r) => r.key === "avgQueueTimeS")?.demotion).toBeNull();
   });
 

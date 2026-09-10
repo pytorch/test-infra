@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import {
   buildStateBySha,
   buildStatusByTrunkSha,
@@ -14,6 +15,7 @@ import {
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
+import path from "path";
 
 function row(overrides: Partial<GreenlightPrStateRow>): GreenlightPrStateRow {
   return {
@@ -213,5 +215,60 @@ describe("selectStateForSha", () => {
   test("undefined when the PR has no recorded state at all", () => {
     expect(selectStateForSha(undefined, SHA_A)).toBeUndefined();
     expect(selectStateForSha([], SHA_A)).toBeUndefined();
+  });
+});
+
+// The helpers above are handed rows the HUD fetches by query name, so nothing here runs
+// the SQL and the only place its text can be pinned is the file itself.
+//
+// Comments are stripped because each header names both `shadow` and `LIMIT 1 BY` while
+// explaining why they sit in that order, and these assertions are about the statement.
+//
+// Both files declare a second CTE with its own WHERE / ORDER BY / LIMIT 1 BY, so a bare
+// indexOf would land in whichever one is written first. Slicing to `reviewed` is what
+// makes the ordering assertions about the CTE that reads misc.greenlight_pr_state rather
+// than about declaration order.
+function reviewedCte(queryName: string): string {
+  const sql = readFileSync(
+    path.resolve(__dirname, "..", "clickhouse_queries", queryName, "query.sql"),
+    "utf-8"
+  ).replace(/--.*$/gm, "");
+
+  const start = sql.indexOf("reviewed AS");
+  const end = sql.indexOf("landed AS");
+  if (start < 0 || end <= start) {
+    throw new Error(
+      `${queryName}: expected a \`reviewed\` CTE declared ahead of \`landed\``
+    );
+  }
+  return sql.slice(start, end);
+}
+
+describe.each([
+  ["greenlight_trunk_commit_states"],
+  ["greenlight_pr_state_history"],
+])("%s query.sql, reviewed CTE", (queryName) => {
+  const cte = reviewedCte(queryName);
+
+  test("excludes shadow rows, whose evaluation carries no authority", () => {
+    expect(cte).toContain("AND shadow = false");
+  });
+
+  test("filters in WHERE, ahead of the LIMIT 1 BY collapse", () => {
+    const where = cte.indexOf("WHERE");
+    const shadow = cte.indexOf("shadow");
+    const order = cte.indexOf("ORDER BY");
+    const limit = cte.indexOf("LIMIT 1 BY");
+
+    expect(where).toBeGreaterThan(-1);
+    expect(shadow).toBeGreaterThan(where);
+    expect(shadow).toBeLessThan(order);
+    expect(order).toBeLessThan(limit);
+    // run_id climbs with every dispatch, so a shadow row written after a real verdict
+    // outranks it: filtering only after the collapse would let that row win LIMIT 1 BY
+    // and then be dropped, hiding the genuine verdict instead of falling back to it. A
+    // second mention placed after the collapse satisfies every check above, so pin that
+    // there is exactly one.
+    expect(cte.lastIndexOf("shadow")).toBe(shadow);
   });
 });
