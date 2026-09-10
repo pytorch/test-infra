@@ -4,6 +4,7 @@ import {
   KillswitchLabelEvent,
   killswitchWindowAt,
 } from "lib/autorevert/killswitchWindows";
+import { checkRange } from "lib/autorevert/rangeLimit";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -128,6 +129,11 @@ export default async function handler(
     return res.status(400).json({
       error: "startTime, stopTime, and workflowNames are required",
     });
+  }
+
+  const range = checkRange(startTime as string, stopTime as string);
+  if (!range.ok) {
+    return res.status(400).json({ error: range.error });
   }
 
   // Parse workflowNames from JSON string
