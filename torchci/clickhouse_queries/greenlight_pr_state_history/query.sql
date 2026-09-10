@@ -9,6 +9,10 @@
 -- never landed. Mergebot rebases, so a trunk commit never carries the sha that
 -- was reviewed; this is what lets a commit page match its verdict without
 -- falling back to "some other verdict for the same PR".
+--
+-- Shadow rows carry no authority, and the exclusion sits in WHERE so they are
+-- gone before LIMIT 1 BY picks a winner: filtering after the collapse would
+-- hide the genuine verdict a later shadow row outranked.
 WITH reviewed AS (
     SELECT
         pr_number,
@@ -23,6 +27,7 @@ WITH reviewed AS (
     WHERE
         repo = {repo: String}
         AND pr_number = {prNumber: Int64}
+        AND shadow = false
     ORDER BY head_sha, run_id DESC, version DESC
     LIMIT 1 BY head_sha
 ),
