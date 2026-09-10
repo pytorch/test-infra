@@ -45,10 +45,14 @@ commit_meta AS (
 ),
 
 -- Jobs are read straight from workflow_job. The workflow_run join this replaces
--- existed only to read `name` and `event`, both of which workflow_job carries
--- top-level as workflow_name / workflow_event. FINAL stays: without it a
--- superseded snapshot with conclusion = '' survives beside the latest row and
--- MAX(raw_conclusion = '') below would report the attempt as pending.
+-- supplied `name` and `event`, both of which workflow_job carries top-level as
+-- workflow_name / workflow_event -- but it ALSO acted as an existence check, so
+-- a job whose run is missing from workflow_run (or from workflow_run_by_head_sha)
+-- was previously excluded and now is not. That is an eligibility change, not a
+-- pure refactor; no such row appeared over the measured window.
+-- FINAL stays: without it a superseded snapshot with conclusion = '' survives
+-- beside the latest row and MAX(raw_conclusion = '') below would report the
+-- attempt as pending.
 all_jobs AS (
     SELECT
         job.head_sha AS sha,
