@@ -305,65 +305,49 @@ jobs:
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
               ${{ inputs.append_system_prompt }}
 
-      # Printed ONLY when Claude failed. On a healthy run the CLI's stderr is
-      # noise, and these logs are public on pytorch/pytorch -- so the failing
-      # case, the one nobody can currently see, is the only one worth widening
-      # the surface for.
-      - name: Report captured CLI stderr
-        if: always() && steps.claude.outcome == 'failure' && steps.stderr-capture.outcome == 'success'
+      # Uploaded VERBATIM to a PRIVATE S3 prefix -- never printed to the job log,
+      # and never redacted.
+      #
+      # Redaction was the wrong tool here. The CLI runs with live AWS credentials
+      # in its environment, so publishing raw stderr to a pytorch/pytorch job log
+      # (which is public) would need a scrubber, and a scrubber is both lossy on
+      # the exact text we are trying to read and unfalsifiable -- you cannot show
+      # it caught everything. Writing somewhere non-public removes the need for
+      # one entirely, and gets the WHOLE stream rather than a truncated tail.
+      #
+      # `ossci-raw-job-status` grants public read by an explicit prefix
+      # ALLOWLIST -- log/, review-logs/, additional_info/, test_run/,
+      # test_run_summary/, failed_test_runs/, ossci_tutorials_stats/. Anything
+      # outside that list is readable only by the account, so `claude_cli_stderr/`
+      # is private by construction. Note this is deliberately NOT under
+      # `review-logs/`, where the execution log goes: that prefix IS public.
+      #
+      # Requires `s3:PutObject` on `claude_cli_stderr/*` for the
+      # gha_workflow_claude_code role, which is granted per-prefix. Until that
+      # lands the upload just fails and this step is a no-op.
+      - name: Upload captured CLI stderr
+        if: always() && steps.stderr-capture.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 2
         shell: bash
         env:
           ERRLOG: ${{ steps.stderr-capture.outputs.errlog }}
           CLI_VERSION: ${{ steps.stderr-capture.outputs.cli_version }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          ENTITY_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || 0 }}
         run: |
           set -euo pipefail
           if [ ! -s "$ERRLOG" ]; then
-            echo "Claude Code CLI v${CLI_VERSION} wrote nothing to stderr."
+            echo "Claude Code CLI v${CLI_VERSION} wrote nothing to stderr; nothing to upload."
             exit 0
           fi
-          # Two-layer redaction, because this can reach a PUBLIC log and the CLI
-          # runs with live AWS credentials in its environment -- the crash-dump
-          # case this exists to capture is exactly the one that prints an
-          # environment.
-          #
-          # Layer 1, and the load-bearing one: replace the VALUES actually in
-          # this job's environment. Shape matching alone misses
-          # AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN entirely, since neither
-          # has a recognisable prefix. GitHub also masks registered secrets, but
-          # that is not something this step should assume on a public repo.
-          python3 - "$ERRLOG" "${ERRLOG}.scrubbed" <<'PY'
-          import os, pathlib, sys
-          src, dst = sys.argv[1], sys.argv[2]
-          text = pathlib.Path(src).read_text(errors="replace")
-          for name in ("AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_ACCESS_KEY_ID",
-                       "AWS_BEARER_TOKEN_BEDROCK", "ANTHROPIC_API_KEY",
-                       "CLAUDE_CODE_OAUTH_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"):
-              value = os.environ.get(name, "")
-              # Short values are not credentials and a blind replace would shred
-              # ordinary text.
-              if len(value) >= 12:
-                  text = text.replace(value, f"***{name}***")
-          pathlib.Path(dst).write_text(text)
-          PY
-          # Layer 2: shapes, for anything not in this environment.
-          sed -E -i \
-            -e 's/(ASIA|AKIA)[A-Z0-9]{16}/***AWS_KEY_ID***/g' \
-            -e 's/sk-ant-[A-Za-z0-9_-]{16,}/***ANTHROPIC_KEY***/g' \
-            -e 's/(ghp|gho|ghs|ghu)_[A-Za-z0-9]{20,}/***GITHUB_TOKEN***/g' \
-            -e 's/github_pat_[A-Za-z0-9_]{20,}/***GITHUB_PAT***/g' \
-            -e 's/([Bb]earer )[A-Za-z0-9._~+\/-]{20,}=*/\1***REDACTED***/g' \
-            "${ERRLOG}.scrubbed"
-          echo "Claude Code CLI v${CLI_VERSION} stderr ($(stat -c %s "$ERRLOG") bytes, last 200 lines, credentials redacted):"
-          # Stop workflow-command parsing: this is program output, so an embedded
-          # ::...:: line must not be able to drive the runner. The token is
-          # random rather than a timestamp so it cannot be predicted from the log,
-          # and the resume is printed with a leading newline so it still starts on
-          # its own line if the captured text ended mid-line.
-          GUARD="stopcmd-$(openssl rand -hex 16)"
-          echo "::stop-commands::${GUARD}"
-          tail -200 "${ERRLOG}.scrubbed"
-          printf '\n::%s::\n' "$GUARD"
+          KEY="claude_cli_stderr/${GITHUB_REPOSITORY}/${ENTITY_NUMBER}/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}.log"
+          aws s3 cp "$ERRLOG" "s3://ossci-raw-job-status/${KEY}" \
+            --metadata "cli-version=${CLI_VERSION},claude-outcome=${CLAUDE_OUTCOME}"
+          # The pointer is safe to print; the contents are not. Anyone debugging a
+          # failure needs to know the capture exists and where it is.
+          echo "Claude Code CLI v${CLI_VERSION} stderr ($(stat -c %s "$ERRLOG") bytes, claude outcome=${CLAUDE_OUTCOME})"
+          echo "  s3://ossci-raw-job-status/${KEY}"
 
       - name: Upload usage metrics
         if: always()
