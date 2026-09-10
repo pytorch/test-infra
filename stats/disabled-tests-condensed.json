@@ -523,6 +523,13 @@
       "dynamo"
     ]
   ],
+  "test_flash_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_8_is_causal_False_dropout_p_0_48_bfloat16_scale_l1_enable_gqa_True_n_heads0_sdpa_backend_ck_cuda_bfloat16 (__main__.TestSDPAAcceleratorCUDA)": [
+    "196586",
+    "https://github.com/pytorch/pytorch/issues/196586",
+    [
+      "rocm"
+    ]
+  ],
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
@@ -1079,6 +1086,13 @@
     "https://github.com/pytorch/pytorch/issues/186203",
     [
       "linux"
+    ]
+  ],
+  "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
+    "196585",
+    "https://github.com/pytorch/pytorch/issues/196585",
+    [
+      "rocm"
     ]
   ],
   "test_redistribute_cost_latency (__main__.TestCostModel)": [
