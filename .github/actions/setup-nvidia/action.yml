@@ -4,13 +4,9 @@ description: Set up NVIDIA driver and NVIDIA-docker runtime on Linux runner
 
 inputs:
   driver-version:
-    description: which driver version to install
+    description: 'Exact driver version to install; empty preserves a working driver at least 580.65.06'
     required: false
     type: string
-    default: "580.65.06" # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-580-65-06/
-  driver-download-url:
-    description: 'Driver installer URL; empty uses the ossci-linux mirror'
-    required: false
     default: ''
 
 outputs:
@@ -79,8 +75,7 @@ runs:
       if: ${{ steps.detect-gpu.outputs.HAS_NVIDIA == 'true' && steps.check-container.outputs.IN_CONTAINER_RUNNER != 'true' }}
       uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
       env:
-        DRIVER_VERSION: ${{ inputs.driver-version }}
-        DRIVER_DOWNLOAD_URL: ${{ inputs.driver-download-url }}
+        REQUESTED_DRIVER_VERSION: ${{ inputs.driver-version }}
       with:
         timeout_minutes: 10
         max_attempts: 3
@@ -90,6 +85,7 @@ runs:
           set -eou pipefail
 
           DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
+          DRIVER_VERSION="${REQUESTED_DRIVER_VERSION:-580.65.06}"
           DRIVER_FN="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
 
           install_nvidia_docker2_amzn2() {
@@ -152,19 +148,30 @@ runs:
 
                       if [ "$NVIDIA_SMI_STATUS" -ne 0 ] && [ "$NVIDIA_SMI_STATUS" -ne 14 ]; then
                           echo "Failed to get NVIDIA driver version ($INSTALLED_DRIVER_VERSION). Continuing"
-                      elif [ "$INSTALLED_DRIVER_VERSION" != "$DRIVER_VERSION" ]; then
-                          echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has been installed, but we expect to have $DRIVER_VERSION instead. Continuing"
-
-                          # Turn off persistent mode so that the installation script can unload the kernel module
-                          sudo killall nvidia-persistenced || true
-                      else
-                          HAS_NVIDIA_DRIVER=1
-                          echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
+                      elif [[ "$INSTALLED_DRIVER_VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]] && {
+                          [ "$INSTALLED_DRIVER_VERSION" = "$DRIVER_VERSION" ] || {
+                              [ -z "$REQUESTED_DRIVER_VERSION" ] &&
+                              [ "$(printf '%s\n' "$DRIVER_VERSION" "$INSTALLED_DRIVER_VERSION" | sort -V | head -n 1)" = "$DRIVER_VERSION" ]
+                          }
+                      }; then
+                          # A version query alone can succeed even when the GPU has crashed.
+                          nvidia-smi --query-gpu=gpu_name --format=csv,noheader --id=0
+                          NVIDIA_SMI_STATUS=$?
+                          if [ "$NVIDIA_SMI_STATUS" -eq 0 ] || [ "$NVIDIA_SMI_STATUS" -eq 14 ]; then
+                              HAS_NVIDIA_DRIVER=1
+                              echo "Keeping installed NVIDIA driver $INSTALLED_DRIVER_VERSION"
+                          fi
                       fi
                       set -e
                   fi
 
                   if [ "$HAS_NVIDIA_DRIVER" -eq 0 ]; then
+                      echo "Installing NVIDIA driver $DRIVER_VERSION"
+                      # Stop persistence before replacing the driver, never on the retention path.
+                      sudo killall nvidia-persistenced || true
+                      if [[ "${DISTRIBUTION}" == amzn* ]]; then
+                          pre_install_nvidia_driver_amzn2
+                      fi
                       # CAUTION: this may need to be updated in future
                       if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
                             sudo yum groupinstall -y "Development Tools"
@@ -173,7 +180,7 @@ runs:
                             sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
                             sudo modprobe backlight
                       fi
-                      sudo curl -fsL -o /tmp/nvidia_driver "${DRIVER_DOWNLOAD_URL:-https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN}"
+                      sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
 
                       set +e
                       sudo /bin/bash /tmp/nvidia_driver -s --no-drm
@@ -273,7 +280,6 @@ runs:
           install_nvidia_driver_amzn2() {
               (
                   set -x
-                  pre_install_nvidia_driver_amzn2
                   install_nvidia_driver_common
                   post_install_nvidia_driver_common
               )

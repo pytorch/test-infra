@@ -5,7 +5,6 @@ on:
     paths:
       - .github/workflows/test-setup-nvidia.yml
       - .github/actions/setup-nvidia/action.yml
-      - .github/workflows/linux_job_v2.yml
       - .github/scripts/test_setup_nvidia.py
   workflow_dispatch:
 
@@ -17,32 +16,35 @@ jobs:
         runner-type:
           - linux.g5.4xlarge.nvidia.gpu
           - linux.g5.12xlarge.nvidia.gpu  # Choose a test case with multiple GPUs
-    name: Install NVIDIA driver on ${{ matrix.runner-type }}
+    name: Preserve NVIDIA driver on ${{ matrix.runner-type }}
     runs-on: ${{ matrix.runner-type }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Record host driver
+        id: host-driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          nvidia-smi --query-gpu=gpu_name --format=csv,noheader
+          driver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)
+          test "$(printf '%s\n' '580.65.06' "$driver" | sort -V | head -n 1)" = '580.65.06'
+          echo "version=$driver" >> "$GITHUB_OUTPUT"
+
       - name: Test that setup-nvidia works
         uses: ./.github/actions/setup-nvidia
 
-  test-custom-driver:
-    uses: ./.github/workflows/linux_job_v2.yml
-    with:
-      runner: linux.g5.4xlarge.nvidia.gpu
-      timeout: 30
-      test-infra-repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-      test-infra-ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      gpu-arch-type: cuda
-      gpu-arch-version: '13.4'
-      driver-version: '615.71.09'
-      driver-download-url: https://download.nvidia.com/XFree86/Linux-x86_64/615.71.09/NVIDIA-Linux-x86_64-615.71.09.run
-      use-custom-docker-registry: false
-      script: |
-        nvidia-smi
-        test "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)" = '615.71.09'
+      - name: Check host driver was preserved
+        shell: bash
+        env:
+          HOST_DRIVER: ${{ steps.host-driver.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader --id=0)" = "$HOST_DRIVER"
+          nvidia-smi --query-gpu=gpu_name --format=csv,noheader
 
-  test-inputs:
+  test-driver-policy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
