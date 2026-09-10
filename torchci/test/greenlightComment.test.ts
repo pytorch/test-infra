@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import * as clickhouse from "lib/clickhouse";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import path from "path";
 
 const LAND_ROW = {
@@ -216,9 +217,7 @@ describe("buildGreenlightSections", () => {
       heads(row)
     );
 
-    expect(sections.get(row.pr_number)).toContain(
-      greenlightRender.GREENLIGHT_PENDING_ALT_ATTR
-    );
+    expect(sections.get(row.pr_number)).toContain(GREENLIGHT_PENDING_ALT_ATTR);
   });
 
   it("skips rows that render to nothing", async () => {
