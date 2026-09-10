@@ -123,7 +123,11 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
       filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
-    runs-on: ${{ inputs.runner }}
+    # TEMPORARY: pinned so a refresh run warms this region's HF cache.
+    # Revert to `runs-on: ${{ inputs.runner }}` before merging anything.
+    runs-on:
+      group: meta-prod-aws-ue2
+      labels: ${{ inputs.runner }}
     # On OSDC the job runs inside this pre-built container; cuda exposes the GPUs.
     container:
       image: >-
