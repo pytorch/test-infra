@@ -1254,6 +1254,15 @@
       "linux"
     ]
   ],
+  "test_slice_scatter_reinplace_cuda (__main__.GPUTests)": [
+    "145189",
+    "https://github.com/pytorch/pytorch/issues/145189",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
     "194837",
     "https://github.com/pytorch/pytorch/issues/194837",
