@@ -17,12 +17,45 @@ export const TILE_CONFIGS = path.join(
   "components/greenlight/quality/tileConfigs.ts"
 );
 
+// Scanned as text rather than imported: the module pulls in lib/GeneralUtils and with it
+// octokit, which does not load under this jest environment.
+export function catalogSource(): string {
+  return fs.readFileSync(QUERY_CATALOG, "utf8");
+}
+
+export function querySql(queryName: string): string {
+  return fs.readFileSync(
+    path.join(ROOT, "clickhouse_queries", queryName, "query.sql"),
+    "utf8"
+  );
+}
+
+// Modelled on the reader in lib/clickhouse.ts, which takes an absent `params` or
+// `defaults` as empty. A params.json missing one has to reach the assertions as a missing
+// entry, which is the thing being checked, rather than as a TypeError in this parser.
+export function queryParamsJson(queryName: string): {
+  params: { [_name: string]: string };
+  defaults: { [_name: string]: string };
+  tests: { [_name: string]: string }[];
+} {
+  const parsed = JSON.parse(
+    fs.readFileSync(
+      path.join(ROOT, "clickhouse_queries", queryName, "params.json"),
+      "utf8"
+    )
+  );
+  return {
+    params: parsed.params ?? {},
+    defaults: parsed.defaults ?? {},
+    tests: parsed.tests ?? [],
+  };
+}
+
 // Read out of the page's own catalog rather than restated here, so adding or dropping a
 // query does not need this file edited — a hand-copied list goes stale exactly when the
-// check matters. Scanned as text: importing the module pulls in lib/GeneralUtils and with
-// it octokit, which does not load under this jest environment.
+// check matters.
 export function catalogQueries(): string[] {
-  const src = fs.readFileSync(QUERY_CATALOG, "utf8");
+  const src = catalogSource();
   const block = src.match(/QUALITY_QUERIES\s*=\s*\{([\s\S]*?)\n\}/);
   if (block === null) {
     throw new Error(
@@ -112,7 +145,7 @@ export const ROW_INTERFACES: { [_interfaceName: string]: string } = {
 };
 
 export function declaredFields(interfaceName: string): string[] {
-  const src = fs.readFileSync(QUERY_CATALOG, "utf8");
+  const src = catalogSource();
   const body = src.match(
     new RegExp(`interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`)
   );
@@ -133,7 +166,7 @@ export function declaredFields(interfaceName: string): string[] {
 // names only, so a column that gains a NULL branch server-side leaves a declaration
 // asserting a value that can no longer be relied on.
 export function declaredNullable(interfaceName: string): Map<string, boolean> {
-  const src = fs.readFileSync(QUERY_CATALOG, "utf8");
+  const src = catalogSource();
   const body = src.match(
     new RegExp(`interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`)
   );
@@ -273,10 +306,7 @@ export function outputName(item: string): string | undefined {
 // mask an epoch or an absent join: `if(<cond>, NULL, <expr>) AS name`. Case-sensitive and
 // bounded, so the `Null` inside `ifNull(...)` is not a match.
 export function nullableColumns(queryName: string): Set<string> {
-  const sql = fs.readFileSync(
-    path.join(ROOT, "clickhouse_queries", queryName, "query.sql"),
-    "utf8"
-  );
+  const sql = querySql(queryName);
   const names = topLevelItems(selectBody(sql, queryName))
     .filter((item) => /(^|[,(\s])NULL([,)\s]|$)/.test(item))
     .map(outputName)
@@ -285,10 +315,7 @@ export function nullableColumns(queryName: string): Set<string> {
 }
 
 export function emittedColumns(queryName: string): Set<string> {
-  const sql = fs.readFileSync(
-    path.join(ROOT, "clickhouse_queries", queryName, "query.sql"),
-    "utf8"
-  );
+  const sql = querySql(queryName);
   const names = topLevelItems(selectBody(sql, queryName))
     .map(outputName)
     .filter((n): n is string => n !== undefined);
@@ -357,4 +384,134 @@ export function readColumns(): Map<string, Set<string>> {
     }
   }
   return found;
+}
+
+// The ClickHouse parameter behind the page's shadow-population control, and the type it is
+// declared with. Named once because the contract spells it in five places nothing else
+// ties together: params.json's `params`, its `defaults`, each of its `tests` entries, the
+// SQL placeholder, and the TypeScript union the page holds in state.
+export const SHADOW_MODE_PARAM = "shadowMode";
+export const SHADOW_MODE_TYPE = "String";
+
+// The per-unit flag each query groups the ledger's rows into before filtering on it.
+export const IS_SHADOW_COLUMN = "is_shadow";
+
+const SHADOW_PLACEHOLDER = `\\{${SHADOW_MODE_PARAM}: ${SHADOW_MODE_TYPE}\\}`;
+
+// One selecting arm: the mode it tests for and the column it tests. The table qualifier is
+// dropped, so `u.is_shadow` and `is_shadow` read as the same column.
+const SHADOW_ARM = new RegExp(
+  `${SHADOW_PLACEHOLDER}\\s*=\\s*'([a-z_]+)'\\s+AND\\s+(?:NOT\\s+)?(?:[A-Za-z_]\\w*\\.)?` +
+    `([A-Za-z_]\\w*)`,
+  "g"
+);
+
+// The arm that lets every other value through, and the one arm every filter ends with —
+// which is what makes it usable as the delimiter between filters.
+const SHADOW_FALL_OPEN = new RegExp(
+  `${SHADOW_PLACEHOLDER}\\s+NOT IN\\s*\\(([^)]*)\\)`,
+  "g"
+);
+
+const MODE_LITERAL = /'([a-z_]+)'/g;
+
+// All four queries carry a prose block above the filter describing it, so a comment that
+// quoted the SQL would otherwise parse as a filter of its own.
+function sqlCode(queryName: string): string {
+  return querySql(queryName).replace(/^[ \t]*--.*$/gm, "");
+}
+
+export interface ShadowFilter {
+  // Mode literal -> the column that mode's own arm tests.
+  selects: Map<string, string>;
+  // The modes the fall-open arm declines to cover, on the understanding that an arm above
+  // it already does. Held apart from `selects` because the two halves of the filter are
+  // written separately and so drift separately.
+  handled: Set<string>;
+}
+
+// Every `(mode = X AND col) OR ... OR mode NOT IN (...)` filter in a query, in file order.
+// Delimited by the fall-open arm, so the selecting arms belonging to one filter are those
+// standing between it and the end of the previous.
+export function shadowFilters(queryName: string): ShadowFilter[] {
+  const sql = sqlCode(queryName);
+  const filters: ShadowFilter[] = [];
+  let from = 0;
+  for (const fallOpen of Array.from(sql.matchAll(SHADOW_FALL_OPEN))) {
+    const at = fallOpen.index ?? 0;
+    const selects = new Map<string, string>();
+    for (const arm of Array.from(sql.slice(from, at).matchAll(SHADOW_ARM))) {
+      selects.set(arm[1], arm[2]);
+    }
+    filters.push({
+      selects,
+      handled: new Set(
+        Array.from(fallOpen[1].matchAll(MODE_LITERAL)).map((m) => m[1])
+      ),
+    });
+    from = at + fallOpen[0].length;
+  }
+  if (filters.length === 0) {
+    throw new Error(
+      `${queryName}: no \`{${SHADOW_MODE_PARAM}: ${SHADOW_MODE_TYPE}}\` filter found. ` +
+        `The query stopped selecting a population, or the filter changed shape; ` +
+        `re-target this parser at it rather than deleting the check.`
+    );
+  }
+  return filters;
+}
+
+// How many times a query groups the ledger's rows and attributes the flag to the whole
+// unit. Each grouping exists in order to be filtered on, so this is what the number of
+// filters naming that column is measured against.
+export function isShadowGroupings(queryName: string): number {
+  return Array.from(
+    sqlCode(queryName).matchAll(new RegExp(`\\bAS ${IS_SHADOW_COLUMN}\\b`, "g"))
+  ).length;
+}
+
+export interface ShadowContract {
+  // The literals the ShadowMode union admits.
+  modes: string[];
+  // What an un-parameterised call resolves to, and the one mode no query selects on,
+  // because every filter falls open on it.
+  fallback: string;
+  // The values the control offers, which is what the page can actually be put into.
+  offered: string[];
+}
+
+// The shadow contract as the page's own TypeScript states it. Read in one pass and
+// reported together, so a restructure that moves all three names all three.
+export function shadowContract(): ShadowContract {
+  const src = catalogSource();
+  const union = src.match(/export type ShadowMode\s*=([^;]*);/);
+  const fallback = src.match(/DEFAULT_SHADOW_MODE[^=]*=\s*"([a-z_]+)"/);
+  const offered = src.match(/SHADOW_MODE_OPTIONS[^=]*=\s*\[([\s\S]*?)\n\];/);
+  if (union === null || fallback === null || offered === null) {
+    const missing = [
+      union === null ? "the ShadowMode union" : "",
+      fallback === null ? "DEFAULT_SHADOW_MODE" : "",
+      offered === null ? "SHADOW_MODE_OPTIONS" : "",
+    ].filter((m) => m.length > 0);
+    throw new Error(
+      `${path.basename(QUERY_CATALOG)}: ${missing.join(
+        ", "
+      )} not found. The shadow ` +
+        `contract moved or changed shape; re-target this parser at it rather than ` +
+        `deleting the check.`
+    );
+  }
+  return {
+    modes: Array.from(union[1].matchAll(/"([a-z_]+)"/g)).map((m) => m[1]),
+    fallback: fallback[1],
+    offered: Array.from(offered[1].matchAll(/\bvalue:\s*"([a-z_]+)"/g)).map(
+      (m) => m[1]
+    ),
+  };
+}
+
+// Mode sets are compared as sorted text, so a mismatch reads as the two lists rather than
+// as two Sets printed in insertion order.
+export function modeList(modes: Iterable<string>): string {
+  return Array.from(modes).sort().join(", ");
 }

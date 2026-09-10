@@ -1,4 +1,11 @@
-import { Grid, Stack, Typography, useTheme } from "@mui/material";
+import {
+  Grid,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { deepOrange } from "@mui/material/colors";
 import { Theme } from "@mui/material/styles";
 import {
@@ -8,6 +15,7 @@ import {
   snapToGranularity,
 } from "components/common/timeWindow";
 import CoverageTiles from "components/greenlight/quality/CoverageTiles";
+import InfoTooltip from "components/greenlight/quality/InfoTooltip";
 import LatencyPanels from "components/greenlight/quality/LatencyPanels";
 import RevertedTable from "components/greenlight/quality/RevertedTable";
 import ReviewRunPanels from "components/greenlight/quality/ReviewRunPanels";
@@ -16,7 +24,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEmptyWindow } from "lib/greenlight/qualityFigures";
 import {
+  DEFAULT_SHADOW_MODE,
   QUALITY_QUERIES,
+  SHADOW_MODE_OPTIONS,
+  ShadowMode,
   shouldAutoRefresh,
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
@@ -47,6 +58,11 @@ const EMPTY_WINDOW_NOTE =
   "begins and the clamp closes it. Check that the end is after the start, and " +
   "move the range forward into the ledger's span.";
 
+const SHADOW_MODE_NOTE =
+  "Shadow means GreenLight evaluated the PR but withheld its approving " +
+  "review; enforcing is everything else. The shadow population is small " +
+  "today, so those figures rest on few observations.";
+
 // No single colour clears AA here: 4.5:1 at body2's 14px needs relative
 // luminance at most 0.183 on the light page background and at least 0.233 on the
 // dark one, and those do not meet. warning.main is 8.58:1 on #1e1e1e but 3.11:1
@@ -66,6 +82,7 @@ export default function Page() {
     dayjs().subtract(DEFAULT_TIME_RANGE, "day")
   );
   const [stopTime, setStopTime] = useState(dayjs());
+  const [shadowMode, setShadowMode] = useState<ShadowMode>(DEFAULT_SHADOW_MODE);
 
   const windowStart = snapToGranularity(startTime, WINDOW_BUCKET).format(
     CLICKHOUSE_TIME_FORMAT
@@ -80,7 +97,8 @@ export default function Page() {
   const coverage = useQualityQuery(
     QUALITY_QUERIES.coverage,
     windowStart,
-    windowStop
+    windowStop,
+    shadowMode
   );
   const autoRefresh = shouldAutoRefresh(coverage.row);
 
@@ -106,6 +124,23 @@ export default function Page() {
           timeRange={timeRange}
           setTimeRange={setTimeRange}
         />
+        <ToggleButtonGroup
+          exclusive
+          value={shadowMode}
+          onChange={(_event, newMode: ShadowMode | null) => {
+            if (newMode !== null) {
+              setShadowMode(newMode);
+            }
+          }}
+          sx={{ height: 56 }}
+        >
+          {SHADOW_MODE_OPTIONS.map((option) => (
+            <ToggleButton key={option.value} value={option.value}>
+              {option.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+        <InfoTooltip label="Shadow mode" paragraphs={[SHADOW_MODE_NOTE]} />
         {isEmptyWindow(coverage.row) && (
           <Typography
             variant="body2"
@@ -125,22 +160,26 @@ export default function Page() {
           <LatencyPanels
             startTime={windowStart}
             stopTime={windowStop}
-            autoRefresh={autoRefresh}
-          />
-          <ReviewRunPanels
-            startTime={windowStart}
-            stopTime={windowStop}
+            shadowMode={shadowMode}
             autoRefresh={autoRefresh}
           />
           <TrustPanels
             startTime={windowStart}
             stopTime={windowStop}
+            shadowMode={shadowMode}
+            autoRefresh={autoRefresh}
+          />
+          <ReviewRunPanels
+            startTime={windowStart}
+            stopTime={windowStop}
+            shadowMode={shadowMode}
             autoRefresh={autoRefresh}
           />
         </Grid>
         <RevertedTable
           startTime={windowStart}
           stopTime={windowStop}
+          shadowMode={shadowMode}
           autoRefresh={autoRefresh}
         />
       </Stack>

@@ -39,11 +39,32 @@
 -- row is REVERTED still counts under prs_land here, and a caller must not present these two
 -- columns as current state. Statuses outside the verdict pair leave pr_verdict at the empty
 -- string, which is what separates a PR GreenLight ruled on from one it only dispatched.
+--
+-- shadowMode selects the population: 'enforcing' for PRs GreenLight ruled on for real,
+-- 'shadow' for those it evaluated while withholding its approving review, anything else for
+-- both. Unrecognised values fall through to both, because the API route hands the query
+-- string to ClickHouse without validating it.
+--
+-- The flag is attributed per PR by max(shadow) and applied after the GROUP BY, never as a row
+-- filter. A PR carrying rows of both kinds -- which the trusted-author cohort changing
+-- mid-cycle produces -- would otherwise lose rows from its group and be reconstructed wrong
+-- rather than excluded, silently moving it between buckets instead of out of one.
+--
+-- ledger_min carries the same filter, so the clamp describes the population being counted.
+-- clickhouse_queries/greenlight_quality_reverts repeats both filters verbatim, so the two
+-- resolve the same window in every mode -- which is what keeps prs_evaluated equal to that
+-- query's evaluated_prs_total.
 WITH
 (
     SELECT min(version)
     FROM misc.greenlight_pr_state
-    WHERE repo = {repo: String}
+    WHERE
+        repo = {repo: String}
+        AND (
+            ({shadowMode: String} = 'enforcing' AND NOT shadow)
+            OR ({shadowMode: String} = 'shadow' AND shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
 ) AS ledger_min,
 if(ledger_min > toDateTime64(0, 3), ledger_min, now64(3)) AS ledger_start,
 greatest({startTime: DateTime64(3)}, ledger_start) AS window_start,
@@ -52,6 +73,7 @@ least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 per_pr AS (
     SELECT
         max(status != 'REVERTED') AS evaluated,
+        max(shadow) AS is_shadow,
         countIf(status IN ('LAND', 'NO_LAND')) AS n_verdicts,
         uniqExactIf(head_sha, status IN ('LAND', 'NO_LAND')) AS n_verdict_shas,
         countIf(status = 'LAND') AS n_land,
@@ -80,3 +102,8 @@ SELECT
     window_start AS effective_start,
     window_end AS effective_end
 FROM per_pr
+WHERE (
+    ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+    OR ({shadowMode: String} = 'shadow' AND is_shadow)
+    OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+)

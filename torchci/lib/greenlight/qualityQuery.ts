@@ -19,13 +19,39 @@ export const QUALITY_QUERIES = {
   reverts: "greenlight_quality_reverts",
 };
 
+// A shadow evaluation is one GreenLight ran without publishing its approving
+// review. Every query on this page buckets its units the same way, so the three
+// states partition the population: enforcing + shadow == all, on every tile.
+export type ShadowMode = "all" | "enforcing" | "shadow";
+
+export const DEFAULT_SHADOW_MODE: ShadowMode = "all";
+
+export interface ShadowModeOption {
+  value: ShadowMode;
+  label: string;
+}
+
+// The values are typed, so a mistyped one is a compile error rather than a
+// state the SQL falls open on and reads as "all".
+export const SHADOW_MODE_OPTIONS: ShadowModeOption[] = [
+  { value: "all", label: "All" },
+  { value: "enforcing", label: "Enforcing only" },
+  { value: "shadow", label: "Shadow only" },
+];
+
 export function qualityUrl(
   queryName: string,
   startTime: string,
-  stopTime: string
+  stopTime: string,
+  shadowMode: ShadowMode
 ): string {
   return `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify({ startTime, stopTime, repo: GREENLIGHT_QUALITY_REPO })
+    JSON.stringify({
+      startTime,
+      stopTime,
+      repo: GREENLIGHT_QUALITY_REPO,
+      shadowMode,
+    })
   )}`;
 }
 
@@ -131,8 +157,15 @@ export function shouldAutoRefresh(coverageRow: any): boolean {
   return days === undefined || days <= LARGE_WINDOW_DAYS;
 }
 
-// Panels that name the same query build the same URL and therefore share one
-// SWR key: the reverts query feeds both the revert tile and the reverted table.
+// Panels that name the same query over the same window and mode build the same
+// URL and therefore share one SWR key: the reverts query feeds both the revert
+// tile and the reverted table.
+//
+// shadowMode is required and sits ahead of the defaulted autoRefresh so that
+// every caller has to state it. Defaulted, a caller that omitted it would drop
+// the key from the JSON blob entirely, pinning its SWR key while the rest of the
+// page moved — and the page's tiles are cross-checkable only while they all
+// describe one population.
 //
 // revalidateOnFocus is off in both refresh modes. On a narrow window the poll
 // already bounds staleness, so focus events only add page-wide recomputes at a
@@ -142,10 +175,11 @@ export function useQualityQuery(
   queryName: string,
   startTime: string,
   stopTime: string,
+  shadowMode: ShadowMode,
   autoRefresh: boolean = true
 ): QualityQueryState {
   const { data, error } = useSWR(
-    qualityUrl(queryName, startTime, stopTime),
+    qualityUrl(queryName, startTime, stopTime, shadowMode),
     fetcher,
     {
       refreshInterval: autoRefresh ? REFRESH_INTERVAL_MS : 0,

@@ -37,13 +37,13 @@
 --
 -- evaluated_prs_total is the denominator of the revert rate: distinct PRs GreenLight evaluated
 -- over the same window, and the same population clickhouse_queries/greenlight_quality_coverage
--- reports as prs_evaluated, so the two tiles cannot disagree. The two are spelled differently
--- and equal by construction: that query groups the window by pr_number and keeps every group
--- whose max(status != 'REVERTED') is 1, this one counts distinct pr_number over the rows
--- satisfying that same predicate, and both are "PRs holding at least one non-REVERTED row in
--- the window". REVERTED is excluded because GreenLight's revert guard writes that marker
--- against PRs it never reviewed. The count spans every evaluated PR, including PRs that never
--- merged and so could never have been reverted.
+-- reports as prs_evaluated, so the two tiles cannot disagree. It is spelled exactly as that
+-- query spells it -- group the window by pr_number, keep every group whose
+-- max(status != 'REVERTED') is 1 -- rather than as a distinct count over the same rows,
+-- because shadowMode below is a property of the PR and only the grouped form can apply it
+-- without cutting rows out of a group. REVERTED is excluded because GreenLight's revert guard
+-- writes that marker against PRs it never reviewed. The count spans every evaluated PR,
+-- including PRs that never merged and so could never have been reverted.
 --
 -- Merges come from main-branch commit titles rather than default.merges: a ghstack stack lands
 -- as a single push whose non-final commits appear only in `commits`, and those stack members
@@ -159,21 +159,61 @@
 -- the projection is masked: every CTE compares the raw values, where 1970 sorts correctly as
 -- before-everything and merged_version_approved and the branch-head fallback depend on that.
 --
+-- shadowMode selects the population exactly as clickhouse_queries/greenlight_quality_coverage
+-- does: 'enforcing' for PRs GreenLight ruled on for real, 'shadow' for those it evaluated while
+-- withholding its approving review, anything else -- including an unrecognised value, since the
+-- API route hands the query string to ClickHouse without validating it -- for both. All three
+-- ledger reads carry it: ledger_start, so the clamp describes the population being counted and
+-- resolves the same window that query resolves; evaluated_prs_total; and the verdicts a revert
+-- is scored against. The two queries must agree on the window, or evaluated_prs_total and
+-- prs_evaluated stop being the same number.
+--
+-- The flag is attributed per PR by max(shadow) over its rows and applied after that grouping,
+-- never as a row filter. A PR carrying rows of both kinds -- which the trusted-author cohort
+-- changing mid-cycle produces -- would otherwise lose rows from its group and be reconstructed
+-- wrong rather than excluded, and would land in a different bucket here than on the coverage
+-- tiles. terminal_verdicts groups over the whole ledger rather than the window, because that
+-- is the row set it reads: a verdict predates the window it is scored in.
+--
+-- The mode does not split the revert counts. A revert commit reaches this query from
+-- default.push, which knows nothing of GreenLight, so resolvable_reverts,
+-- attributable_reverts, unattributable_reverts and ghfirst_reverts count every revert in the
+-- effective window under every mode, reached by the clamp alone. Only evaluated_prs_total and
+-- the columns that read a verdict -- evaluated_reverts, land_approved_reverts,
+-- land_approved_ghfirst_reverts -- partition between the two populations.
+--
 WITH
 (
     SELECT if(min(version) > toDateTime64(0, 3), min(version), now64(3))
     FROM misc.greenlight_pr_state
-    WHERE repo = {repo: String}
+    WHERE
+        repo = {repo: String}
+        AND (
+            ({shadowMode: String} = 'enforcing' AND NOT shadow)
+            OR ({shadowMode: String} = 'shadow' AND shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
 ) AS ledger_start,
 greatest({startTime: DateTime64(3)}, ledger_start) AS window_start,
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 coalesce((
-    SELECT uniqExactIf(pr_number, status != 'REVERTED')
-    FROM misc.greenlight_pr_state
-    WHERE
-        repo = {repo: String}
-        AND version >= window_start
-        AND version < window_end
+    SELECT countIf(evaluated)
+    FROM (
+        SELECT
+            max(status != 'REVERTED') AS evaluated,
+            max(shadow) AS is_shadow
+        FROM misc.greenlight_pr_state
+        WHERE
+            repo = {repo: String}
+            AND version >= window_start
+            AND version < window_end
+        GROUP BY pr_number
+    )
+    WHERE (
+        ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+        OR ({shadowMode: String} = 'shadow' AND is_shadow)
+        OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+    )
 ), 0) AS evaluated_prs_total,
 
 revert_commits AS (
@@ -328,8 +368,23 @@ terminal_verdicts AS (
         status,
         head_sha,
         version
-    FROM misc.greenlight_pr_state
-    WHERE repo = {repo: String} AND status IN ('LAND', 'NO_LAND')
+    FROM (
+        SELECT
+            pr_number,
+            status,
+            head_sha,
+            version,
+            max(shadow) OVER (PARTITION BY pr_number) AS is_shadow
+        FROM misc.greenlight_pr_state
+        WHERE repo = {repo: String}
+    )
+    WHERE
+        status IN ('LAND', 'NO_LAND')
+        AND (
+            ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+            OR ({shadowMode: String} = 'shadow' AND is_shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
 ),
 
 scored AS (

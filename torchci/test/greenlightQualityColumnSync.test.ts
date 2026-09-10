@@ -21,6 +21,10 @@
 //                          the page branches on
 //   namespace              no column name is emitted by two queries
 //   mapping                each coverage tile's split fields address their own column
+//   parameters             every query declares, defaults and tests shadowMode, and
+//                          filters on it once per grouping that attributes it
+//   modes                  the states the union admits, the control offers and the SQL
+//                          branches on are one set
 //
 // The decls and nullability rows cover the interfaces named in ROW_INTERFACES, and
 // registration there is opt-in: an interface absent from it is checked by neither, and
@@ -37,6 +41,12 @@
 // exists. And the reads check tests against the union of all four queries' columns, which
 // is only safe while that namespace stays disjoint.
 //
+// The last two rows are not about columns. shadowMode travels as a declared query
+// parameter, so nothing above can see it, and every link in its chain fails while still
+// answering: a missing default is a NULL the server refuses, a half-updated filter falls
+// open and reports the whole population under one mode's name, and a state added to one
+// side alone both compiles and runs.
+//
 // The parsers, readers and floors live in ./greenlightQualityColumnSync.helpers; this file
 // is the assertions. They were split when together they outgrew the 400-line ceiling.
 
@@ -49,17 +59,25 @@ import {
   declaredFields,
   declaredNullable,
   emittedColumns,
+  IS_SHADOW_COLUMN,
+  isShadowGroupings,
   localImports,
   MIN_COLUMNS_PER_QUERY,
   MIN_FIELDS_PER_INTERFACE,
   MIN_QUERIES,
   MIN_READS_ACROSS_PAGE,
+  modeList,
   multiIfResults,
   NOT_QUERY_READERS,
   nullableColumns,
+  queryParamsJson,
   readColumns,
   ROOT,
   ROW_INTERFACES,
+  SHADOW_MODE_PARAM,
+  SHADOW_MODE_TYPE,
+  shadowContract,
+  shadowFilters,
   uiSources,
 } from "./greenlightQualityColumnSync.helpers";
 
@@ -196,5 +214,138 @@ describe("GreenLight Quality column sync", () => {
       )
       .sort();
     expect(dangling).toEqual([]);
+  });
+
+  // A parameter is not a column, so none of the checks above can see it. It travels as a
+  // key in a JSON blob the API route hands to ClickHouse unvalidated, and every link in
+  // that chain fails without saying so.
+  test("every query declares shadowMode as a parameter of the type its SQL names", () => {
+    const wrong = catalogQueries()
+      .map((query) => ({
+        query,
+        declared: queryParamsJson(query).params[SHADOW_MODE_PARAM],
+      }))
+      .filter((q) => q.declared !== SHADOW_MODE_TYPE)
+      .map((q) => `${q.query}: declared ${q.declared ?? "nowhere"}`)
+      .sort();
+    expect(wrong).toEqual([]);
+  });
+
+  // The one guard here standing between an edit and a 500. queryClickhouseSaved builds its
+  // parameter map by iterating params.json's `params` and falling back to `defaults`, so a
+  // parameter declared but left out of both reaches the client as undefined, is formatted
+  // as `\N`, and is refused — ClickHouse takes no NULL for a typed parameter. Nothing else
+  // looks: the SQL_PARAMS linter checks only that the `params` and `tests` keys exist.
+  //
+  // A default that merely disagrees is quieter and worse than an absent one. The page
+  // renders one population while every caller that does not name a mode reads another, and
+  // both answer.
+  test("every query defaults shadowMode to the mode the page falls back to", () => {
+    const { fallback } = shadowContract();
+    const wrong = catalogQueries()
+      .map((query) => ({
+        query,
+        applied: queryParamsJson(query).defaults[SHADOW_MODE_PARAM],
+      }))
+      .filter((q) => q.applied !== fallback)
+      .map((q) => `${q.query}: defaults to ${q.applied ?? "nothing"}`)
+      .sort();
+    expect(wrong).toEqual([]);
+  });
+
+  // `tests` entries do not go through queryClickhouseSaved. clickhouse_query_perf.py hands
+  // each one to ClickHouse as written, without applying `defaults`, so an entry omitting a
+  // declared parameter fails there while the page is fine. A misspelt mode is the worse
+  // half: it runs, falls open, and reports the whole population as though it were one
+  // mode's.
+  test("every params.json tests entry names a shadowMode the union admits", () => {
+    const modes = new Set(shadowContract().modes);
+    const wrong = catalogQueries()
+      .flatMap((query) =>
+        queryParamsJson(query).tests.map((entry, i) => ({
+          where: `${query} tests[${i}]`,
+          mode: entry[SHADOW_MODE_PARAM],
+        }))
+      )
+      .filter((t) => !modes.has(t.mode))
+      .map((t) => `${t.where}: ${t.mode ?? "absent"}`)
+      .sort();
+    expect(wrong).toEqual([]);
+  });
+
+  // The two halves of each filter are written separately and nothing in SQL ties them. Add
+  // a mode to the selecting arms but not to the fall-open list and it matches both, so the
+  // new mode quietly reads as the unfiltered population; add it to the list alone and the
+  // mode returns nothing at all. Either way the query runs and answers.
+  test("each shadow filter selects on exactly the modes it declines to fall open on", () => {
+    const inconsistent = catalogQueries()
+      .flatMap((query) =>
+        shadowFilters(query).map((filter, i) => ({
+          where: `${query} filter ${i + 1}`,
+          selects: modeList(filter.selects.keys()),
+          handled: modeList(filter.handled),
+        }))
+      )
+      .filter((f) => f.selects !== f.handled)
+      .map((f) => `${f.where}: selects on ${f.selects}, handles ${f.handled}`)
+      .sort();
+    expect(inconsistent).toEqual([]);
+  });
+
+  // What the union and the SQL each believe the states are, set against each other. A
+  // fourth state added on one side only is invisible to everything else: tsc has no view
+  // of the SQL, and the SQL falls open on any literal it does not recognise, so the new
+  // mode compiles, runs, and silently reports every population as the unfiltered one.
+  //
+  // Falling open is also why the two sets are not equal. Exactly one mode carries no
+  // selecting arm — the one every filter lets through — and it has to be the fallback, or
+  // an un-parameterised call and an unrecognised value would land on different tiles.
+  test("the modes the SQL selects on are the union's, less the one it falls open on", () => {
+    const { modes, fallback } = shadowContract();
+    const selective = modeList(modes.filter((m) => m !== fallback));
+    const wrong = catalogQueries()
+      .map((query) => ({
+        query,
+        selects: modeList(
+          new Set(
+            shadowFilters(query).flatMap((f) => Array.from(f.selects.keys()))
+          )
+        ),
+      }))
+      .filter((q) => q.selects !== selective)
+      .map(
+        (q) => `${q.query}: selects on ${q.selects}, union wants ${selective}`
+      )
+      .sort();
+    expect(wrong).toEqual([]);
+  });
+
+  // Each option's value is typed ShadowMode, so a misspelt one is a compile error — but a
+  // dropped one is not. The union stays three-valued and the SQL keeps branching on three
+  // while the control offers two, and the missing mode becomes unreachable from the page.
+  test("the control offers every mode the union admits", () => {
+    const { modes, offered } = shadowContract();
+    expect(modeList(offered)).toEqual(modeList(modes));
+  });
+
+  // Filtering the ledger row by row corrupts the units it reconstructs instead of removing
+  // them — a cycle whose rows split across modes loses some to the filter and is rebuilt
+  // from what is left, migrating between buckets rather than out of one. Every query
+  // therefore groups first and filters the grouped flag, and a query that groups twice
+  // must filter twice. Drop one and that half reports the whole population beside a half
+  // that reports the selected one, with every column name still correct.
+  test("every is_shadow grouping a query builds is consumed by a shadow filter", () => {
+    const unfiltered = catalogQueries()
+      .map((query) => ({
+        query,
+        grouped: isShadowGroupings(query),
+        filtered: shadowFilters(query).filter((f) =>
+          Array.from(f.selects.values()).includes(IS_SHADOW_COLUMN)
+        ).length,
+      }))
+      .filter((q) => q.grouped !== q.filtered)
+      .map((q) => `${q.query}: ${q.grouped} grouped, ${q.filtered} filtered`)
+      .sort();
+    expect(unfiltered).toEqual([]);
   });
 });

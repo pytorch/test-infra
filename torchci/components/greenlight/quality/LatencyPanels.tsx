@@ -5,7 +5,11 @@ import {
   percentUnitsFormatter,
   secondsFormatter,
 } from "lib/greenlight/qualityFigures";
-import { QUALITY_QUERIES, useQualityQuery } from "lib/greenlight/qualityQuery";
+import {
+  QUALITY_QUERIES,
+  ShadowMode,
+  useQualityQuery,
+} from "lib/greenlight/qualityQuery";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { QualityColors, qualityColors, tinted } from "./tileColors";
 import { LATENCY_TILES, LatencyTileConfig } from "./tileConfigs";
@@ -43,16 +47,19 @@ function figureLegend(
 export default function LatencyPanels({
   startTime,
   stopTime,
+  shadowMode,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
+  shadowMode: ShadowMode;
   autoRefresh: boolean;
 }) {
   const latency = useQualityQuery(
     QUALITY_QUERIES.latency,
     startTime,
     stopTime,
+    shadowMode,
     autoRefresh
   );
   const row = latency.row;

@@ -8,6 +8,7 @@ import {
 import {
   GREENLIGHT_QUALITY_REPO,
   QUALITY_QUERIES,
+  ShadowMode,
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
 import { useMemo } from "react";
@@ -21,16 +22,19 @@ const TABLE_HEIGHT = 460;
 export default function RevertedTable({
   startTime,
   stopTime,
+  shadowMode,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
+  shadowMode: ShadowMode;
   autoRefresh: boolean;
 }) {
   const reverts = useQualityQuery(
     QUALITY_QUERIES.reverts,
     startTime,
     stopTime,
+    shadowMode,
     autoRefresh
   );
 

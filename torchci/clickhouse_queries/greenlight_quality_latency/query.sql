@@ -149,6 +149,17 @@
 -- A percentile over an empty set is NULL, not 0. A window with no observations has no latency, and
 -- rendering 0.0s there asserts a measurement that was never taken. The counts stay 0, so callers
 -- gate every tile on its own n_ column.
+--
+-- shadowMode selects the population -- 'enforcing', 'shadow', or any other value for both, nothing
+-- between here and the caller validating it. It is applied to sha_units and cycles after their
+-- GROUP BY, never as a predicate on the ledger read: both reconstruct a unit's timeline with minIf
+-- across several rows, so dropping rows from a group corrupts the reconstruction rather than
+-- dropping the unit, stranding a verdict whose run is then measured from the epoch. max(shadow)
+-- attributes a whole unit to shadow if any of its rows is, so the modes partition every count below
+-- without remainder. Both halves take the predicate, being sibling reads that meet only at the
+-- CROSS JOIN of two one-row aggregates: filtering one alone reports two populations in one row.
+-- pushes is not filtered and cannot be, default.push and the workflow_run views carrying no shadow
+-- dimension, so attribution comes from the ledger side only.
 WITH
 (
     SELECT min(version)
@@ -169,7 +180,8 @@ sha_units AS (
         pr_number,
         head_sha,
         minIf(version, status IN ('LAND', 'NO_LAND')) AS first_verdict_at,
-        minIf(version, status = 'AI_REVIEW_DISPATCHED') AS first_dispatch_at
+        minIf(version, status = 'AI_REVIEW_DISPATCHED') AS first_dispatch_at,
+        max(shadow) AS is_shadow
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
     GROUP BY pr_number, head_sha
@@ -181,7 +193,8 @@ cycles AS (
         minIf(version, status = 'AI_REVIEW_STARTED') AS started_at,
         minIf(version, status IN ('LAND', 'NO_LAND')) AS verdict_at,
         minIf(version, status IN ('CANCELLED', 'FAILED')) AS aborted_at,
-        minIf(version, status = 'FAILED') AS failed_at
+        minIf(version, status = 'FAILED') AS failed_at,
+        max(shadow) AS is_shadow
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
     GROUP BY pr_number, head_sha, eval_hash
@@ -273,6 +286,12 @@ anchored AS (
         / 1000.0 AS dispatch_secs
     FROM sha_units AS u
     LEFT JOIN pushes AS p ON p.id = u.head_sha
+    WHERE
+        (
+            ({shadowMode: String} = 'enforcing' AND NOT u.is_shadow)
+            OR ({shadowMode: String} = 'shadow' AND u.is_shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
 ),
 
 push_clocks AS (
@@ -351,6 +370,12 @@ review_clock AS (
             dateDiff('millisecond', run_start_at, terminal_at)
             / 1000.0 AS run_secs
         FROM cycles
+        WHERE
+            (
+                ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+                OR ({shadowMode: String} = 'shadow' AND is_shadow)
+                OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+            )
     )
 )
 

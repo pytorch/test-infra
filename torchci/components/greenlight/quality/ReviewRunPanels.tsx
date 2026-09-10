@@ -5,7 +5,11 @@ import {
   pctOf,
   percentUnitsFormatter,
 } from "lib/greenlight/qualityFigures";
-import { QUALITY_QUERIES, useQualityQuery } from "lib/greenlight/qualityQuery";
+import {
+  QUALITY_QUERIES,
+  ShadowMode,
+  useQualityQuery,
+} from "lib/greenlight/qualityQuery";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { qualityColors, tinted } from "./tileColors";
 import { REVIEW_RUN_TILES, ReviewRunTileConfig } from "./tileConfigs";
@@ -13,18 +17,22 @@ import { REVIEW_RUN_TILES, ReviewRunTileConfig } from "./tileConfigs";
 export default function ReviewRunPanels({
   startTime,
   stopTime,
+  shadowMode,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
+  shadowMode: ShadowMode;
   autoRefresh: boolean;
 }) {
-  // Same query, and so the same SWR key, as LatencyPanels: these counts ride on
-  // the latency row rather than costing a second read of the ledger.
+  // Same query and same arguments, and so the same SWR key, as LatencyPanels:
+  // these counts ride on the latency row rather than costing a second read of
+  // the ledger.
   const latency = useQualityQuery(
     QUALITY_QUERIES.latency,
     startTime,
     stopTime,
+    shadowMode,
     autoRefresh
   );
   const row = latency.row;

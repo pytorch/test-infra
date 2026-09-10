@@ -42,6 +42,21 @@
 -- the type field misses the account that matters. The list mirrors BOT_LOGINS in
 -- greenlight/src/greenlight/pr_hash.py; the trailing-'[bot]' test covers the GitHub App
 -- accounts, GreenLight's own pytorchgreenlight[bot] among them.
+--
+-- shadowMode selects the population -- 'enforcing', 'shadow', or any other value for both -- and
+-- filters terminal_verdicts rather than anything downstream, so the LEFT JOIN onto merged_prs stays
+-- a LEFT JOIN and a merge GreenLight did not evaluate under the selected mode keeps its row with an
+-- empty verdict. Attribution is per PR, by a window max over that PR's terminal rows, and not per
+-- row: a PR carrying one verdict of each kind would otherwise be counted once under each mode, and
+-- the modes have to partition merged_evaluated_prs exactly. An unrecognised value selects both,
+-- because nothing between here and the caller validates it.
+--
+-- merged_prs_total is deliberately left whole. It counts every merge in the window, GreenLight's or
+-- not, and no merge carries a shadow dimension to filter on; scoping it to the selected population
+-- would collapse it onto merged_evaluated_prs and lose the second denominator this query exists to
+-- report. pct_of_all_merges therefore keeps one fixed denominator across all three modes. A shadow
+-- LAND withholds the approving review and so cannot produce a GreenLight-alone merge, which is what
+-- makes 'shadow' read as 0 of the repo rather than as a ratio over a population of its own.
 WITH
 (
     SELECT if(min(version) > toDateTime64(0, 3), min(version), now64(3))
@@ -123,8 +138,21 @@ terminal_verdicts AS (
         pr_number,
         status,
         version
-    FROM misc.greenlight_pr_state
-    WHERE repo = {repo: String} AND status IN ('LAND', 'NO_LAND')
+    FROM (
+        SELECT
+            pr_number,
+            status,
+            version,
+            max(shadow) OVER (PARTITION BY pr_number) AS is_shadow
+        FROM misc.greenlight_pr_state
+        WHERE repo = {repo: String} AND status IN ('LAND', 'NO_LAND')
+    )
+    WHERE
+        (
+            ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+            OR ({shadowMode: String} = 'shadow' AND is_shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
 ),
 
 scored_merges AS (

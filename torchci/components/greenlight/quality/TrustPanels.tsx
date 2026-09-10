@@ -4,7 +4,11 @@ import {
   revertStats,
   staleVerdictNote,
 } from "lib/greenlight/qualityFigures";
-import { QUALITY_QUERIES, useQualityQuery } from "lib/greenlight/qualityQuery";
+import {
+  QUALITY_QUERIES,
+  ShadowMode,
+  useQualityQuery,
+} from "lib/greenlight/qualityQuery";
 import { useMemo } from "react";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { qualityColors, tinted } from "./tileColors";
@@ -21,16 +25,19 @@ import {
 export default function TrustPanels({
   startTime,
   stopTime,
+  shadowMode,
   autoRefresh,
 }: {
   startTime: string;
   stopTime: string;
+  shadowMode: ShadowMode;
   autoRefresh: boolean;
 }) {
   const authority = useQualityQuery(
     QUALITY_QUERIES.mergeAuthority,
     startTime,
     stopTime,
+    shadowMode,
     autoRefresh
   );
   // Same SWR key as RevertedTable — the revert list is fetched once for the page.
@@ -38,6 +45,7 @@ export default function TrustPanels({
     QUALITY_QUERIES.reverts,
     startTime,
     stopTime,
+    shadowMode,
     autoRefresh
   );
 
