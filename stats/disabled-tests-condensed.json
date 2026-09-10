@@ -457,6 +457,20 @@
     "https://github.com/pytorch/pytorch/issues/188840",
     []
   ],
+  "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
+    "196552",
+    "https://github.com/pytorch/pytorch/issues/196552",
+    [
+      "xpu"
+    ]
+  ],
+  "test_effn_attn_uniform_zero_bias_backward (__main__.CudaReproTests)": [
+    "196553",
+    "https://github.com/pytorch/pytorch/issues/196553",
+    [
+      "xpu"
+    ]
+  ],
   "test_equivalent_template_code (__main__.BenchmarkMultiTemplateFusionGpuTest)": [
     "166601",
     "https://github.com/pytorch/pytorch/issues/166601",
@@ -582,6 +596,13 @@
   "test_graph_empty_cache_after_side_stream_free_during_capture (__main__.TestXpu)": [
     "196489",
     "https://github.com/pytorch/pytorch/issues/196489",
+    [
+      "xpu"
+    ]
+  ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_with_amp_cache_disabled_allow_unused_input (__main__.TestXpu)": [
+    "196551",
+    "https://github.com/pytorch/pytorch/issues/196551",
     [
       "xpu"
     ]
