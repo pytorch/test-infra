@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
 // pytorchbot's own command matcher, through its only caller, rather than a copy
 // of the pattern: the property under test is that greenlight's comment never
@@ -34,6 +35,8 @@ import {
   SWEEP_SENTINELS,
   ZERO_WIDTH_SPACE,
 } from "lib/greenlight/greenlightSweep";
+import path from "path";
+import { format } from "util";
 
 const JOB_URL = "https://github.com/pytorch/test-infra/actions/runs/42";
 // The shape ClickHouse returns for a DateTime64(3) under
@@ -104,6 +107,19 @@ const OUTLINE_MESSAGE = [
   "- Tests cover the change",
   "  - test_torchinductor.py exercises both registrations",
 ].join("\n");
+// Every leaf of that message with its bullet marker stripped. A redaction check
+// that named one phrase would pass on a log holding all the others.
+const OUTLINE_LEAVES = OUTLINE_MESSAGE.split("\n").map((line) =>
+  line.replace(/^\s*-\s*/, "")
+);
+// The greenlight modules renderVerdictMessage's guard can catch a throw from:
+// the outline renderer and everything it imports from lib/greenlight. Nothing
+// else it reaches throws at all -- lodash and the two guards below it are pure.
+const OUTLINE_PATH_MODULES = [
+  "greenlightOutline",
+  "greenlightReferenceGuards",
+  "greenlightSweep",
+];
 // Lines that ARE a live pytorchbot command when they start one: the positive
 // control for the test below, which is otherwise satisfied by a broken matcher.
 const BOT_COMMAND_LINES = [
@@ -150,6 +166,14 @@ function summaryLine(rendered: string): string {
   const match = rendered.match(/<summary>(.*)<\/summary>/);
   expect(match).not.toBeNull();
   return match![1];
+}
+
+// What a console sink prints for the calls a console.error spy recorded.
+// JSON.stringify cannot stand in for this: Error.message and Error.stack are
+// non-enumerable, so it renders every logged error as `{}` and a redaction check
+// built on it passes whatever the error carries.
+function loggedText(spy: jest.SpyInstance): string {
+  return spy.mock.calls.map((call) => format(...call)).join("\n");
 }
 
 // What the reader sees: the zero-width spaces the defanging inserts are invisible
@@ -202,11 +226,16 @@ function sweepLeaks(payload: string): string[] {
 }
 
 // The outline block a LAND render embedded, asserting on the way that it is a
-// whole line of its own starting at column 0. Both halves matter: a payload that
+// whole line of its own starting at column 0. Both halves matter. A payload that
 // quietly stopped being an outline would render through the fence and satisfy
-// every containment assertion below for the wrong reason, and an indented or
-// newline-carrying block stops being a CommonMark raw HTML block, which is the
-// only thing holding the escaped markup inert.
+// every containment check below for the wrong reason. And the single line is
+// load-bearing twice over. escape() covers `& < > " '` and nothing else, so the
+// markdown-active set -- brackets, parens, `*`, `!`, backtick -- reaches the
+// comment verbatim and is inert only because a raw HTML block runs no inline
+// parsing over it: let a blank line split the block ahead of leaf text and
+// cmark-gfm 0.29.0.gfm.13 builds links and images out of that text. A line start
+// is also all an `@pytorchbot` command needs, and guardReferences runs only
+// outside code spans, so an `@` within one has no other defence.
 function outlineBlock(message: string): string {
   const rendered = render(state({ status: "LAND", message }), FRESH_NOW);
   const match = rendered.match(/^<ul>.*<\/ul>$/m);
@@ -926,10 +955,21 @@ describe("renderGreenlightSection message format", () => {
     );
   });
 
-  // Containment is a CommonMark type-6 raw HTML block: it opens at column 0 and
-  // ends at the first blank line. Indent the block, or let anything join it onto
-  // a neighbouring line, and the parser hands the escaped markup back to inline
-  // parsing.
+  // Two different jobs here. Column 0 and the blank lines around the block are
+  // layout, measured against cmark-gfm 0.29.0.gfm.13: three spaces of indent
+  // still leaves a raw HTML block and four turns the list into a <pre><code> of
+  // its own source; dropping the blank line above absorbs the block into the
+  // enclosing <details>, which renders the same; dropping the one below swallows
+  // the reason line into the block, so it goes out with its backticks showing
+  // instead of as a code span. What is not layout is the block holding no line
+  // break, which assertContained enforces. The split that bites is a blank line
+  // ahead of leaf text: it ends the raw HTML block and hands that text to inline
+  // parsing, which is how a verdict grows links and images nobody wrote into the
+  // comment. The same blank line ahead of an `<li>` is harmless -- `<li>` is
+  // itself a type-6 start, so the block reopens on the next line. A plain break
+  // is contained where a blank one is not, and the rule bans both: one is a
+  // concatenation away from the other, and either puts leaf text at a line
+  // start, which is all a bot command needs.
   it("puts the outline block at column 0 with a blank line either side", () => {
     const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
 
@@ -963,11 +1003,11 @@ describe("renderGreenlightSection message format", () => {
   });
 
   // The outline renderer's containment tripwire throws rather than emitting a
-  // block it cannot vouch for. Propagating that would reach the catch in drci.ts,
-  // which fails the whole sweep to an empty map -- so one bad row takes the GREEN
-  // LIGHT section off every PR in that sweep, hiding verdicts that exist. The
-  // fence renders any message correctly, so the tripwire keeps its guarantee and
-  // costs the reader nothing.
+  // block it cannot vouch for. Propagating that would reach the per-row catch in
+  // greenlightComment.ts, which drops this PR's section outright -- so a verdict
+  // that exists, and that the fence renders correctly, would show its author
+  // nothing at all. Catching it here costs the reader the bullet list and keeps
+  // the verdict, so the tripwire holds its guarantee at that price and no more.
   it("falls back to the fence when the outline renderer throws", () => {
     // The defuse is a no-op on this fixture, so the fenced block is exactly what
     // the fenced pipeline produces for it.
@@ -994,12 +1034,17 @@ describe("renderGreenlightSection message format", () => {
       expect(out).not.toContain("<ul>");
       // Enough to find the row, and not the model's text: the message is
       // scrubbed on its way into the comment and not on its way into the log.
+      // The error is a fixed string, as both throws this guard can catch are, so
+      // rendering the whole call the way a console sink does leaks nothing.
       expect(logged).toHaveBeenCalledWith(
         expect.stringContaining("outline render threw"),
         123,
         thrown
       );
-      expect(JSON.stringify(logged.mock.calls)).not.toContain("Scope is small");
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
     } finally {
       outline.mockRestore();
       logged.mockRestore();
@@ -1007,8 +1052,8 @@ describe("renderGreenlightSection message format", () => {
   });
 
   // Choosing the renderer reads the same untrusted text rendering it does, so it
-  // sits inside the same guard: outside it, a throw from the classifier is the
-  // sweep-wide failure above with none of the protection.
+  // sits inside the same guard: outside it, a throw from the classifier loses
+  // the section exactly as above, with none of the protection.
   it("falls back to the fence when the outline classifier throws", () => {
     expect(OUTLINE_MESSAGE).not.toContain("Pending");
     const thrown = new Error("classifier read a message it could not handle");
@@ -1034,10 +1079,36 @@ describe("renderGreenlightSection message format", () => {
         123,
         thrown
       );
-      expect(JSON.stringify(logged.mock.calls)).not.toContain("Scope is small");
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
     } finally {
       classify.mockRestore();
       logged.mockRestore();
+    }
+  });
+
+  // Both tests above supply the error themselves, so they pin only what the
+  // guard hands the log -- never what the code it guards puts inside the error,
+  // which the same log call renders in full. An interpolated throw anywhere on
+  // the outline path would carry the model's text through a call they would
+  // still read as clean. The containment tripwire is unreachable from any input
+  // -- every line break is flattened long before it -- so no fixture can raise a
+  // real one and the source is the only place the property can be pinned.
+  it("throws nothing but fixed strings anywhere the outline path reaches", () => {
+    const thrown = OUTLINE_PATH_MODULES.flatMap(
+      (module) =>
+        readFileSync(
+          path.resolve(__dirname, "..", "lib", "greenlight", `${module}.ts`),
+          "utf-8"
+        ).match(/throw new \w*Error\([^)]*\)/g) ?? []
+    );
+
+    // Without this a pattern that stopped matching would pass on an empty list.
+    expect(thrown.length).toBeGreaterThan(0);
+    for (const statement of thrown) {
+      expect(statement).not.toContain("${");
     }
   });
 

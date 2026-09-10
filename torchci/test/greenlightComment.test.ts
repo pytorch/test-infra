@@ -4,6 +4,7 @@ import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
 import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import path from "path";
+import { format } from "util";
 
 const LAND_ROW = {
   pr_number: 194531,
@@ -56,6 +57,14 @@ function inFlightRow() {
     status: "AI_REVIEW_DISPATCHED",
     version: new Date().toISOString().replace("Z", ""),
   };
+}
+
+// What a console sink prints for the calls a console.error spy recorded.
+// JSON.stringify cannot stand in for this: Error.message and Error.stack are
+// non-enumerable, so it renders every logged error as `{}` and a redaction check
+// built on it passes whatever the error carries.
+function loggedText(spy: jest.SpyInstance): string {
+  return spy.mock.calls.map((call) => format(...call)).join("\n");
 }
 
 // pr_number -> head sha, as the Dr.CI sweep hands them over. Defaults each PR's
@@ -243,13 +252,15 @@ describe("buildGreenlightSections", () => {
     expect(render).toHaveBeenCalledTimes(2);
     expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
     // Enough to find the row, and not the model's text: `message` is scrubbed on
-    // its way into the comment and not on its way into a log.
+    // its way into the comment and not on its way into a log. The error is a
+    // fixed string, as the renderer's own throws are, so rendering the whole call
+    // the way a console sink does leaks nothing.
     expect(logged).toHaveBeenCalledWith(
       expect.stringContaining("section render threw"),
       LAND_ROW.pr_number,
       thrown
     );
-    expect(JSON.stringify(logged.mock.calls)).not.toContain(LAND_ROW.message);
+    expect(loggedText(logged)).not.toContain(LAND_ROW.message);
   });
 
   it("skips rows that render to nothing", async () => {
