@@ -3,17 +3,40 @@
 One place owns the comment layout -- the hidden verdict marker that anchors the single
 evolving comment, the ``<details>`` scaffold, and the defanging of untrusted model text --
 so the in-flight marker path and the LAND/NO_LAND verdict path stay byte-for-byte consistent.
+
+A verdict message arrives in one of two formats and the renderer is chosen per message, never per
+deployment: ``verdict_outline`` takes a bullet outline, and everything else goes out in a backtick
+fence. The fence is the render for prose, not a fallback from a failed one -- nothing enforces the
+outline shape, so a paragraph is a valid verdict, and it reads better fenced than forced into a
+one-item bullet list. Stored rows keep the path alive independently of that: Dr. CI's query carries
+no time filter and the scan writes no newer row once a PR is human-decided, ages out of the review
+window, or is labelled ``Stale``, so a verdict recorded before the outline format existed re-renders
+unchanged for as long as its PR stays open. Either reason alone obliges both renderers to stay, and
+each message has to come out in the format it was written in.
+
+The outline block is one line of raw HTML that ``_details_comment`` emits at column 0 with a blank
+line ahead of it, and that placement buys a predictable layout rather than containment: cmark-gfm
+still reads the block as raw HTML under three spaces of indent, and dropping the blank line leaves
+it inside the enclosing ``<details>`` block, raw HTML either way. Containment is
+``verdict_outline``'s, and it rests on two properties nothing here may break -- escaping every leaf,
+which is what leaves an injected tag inert, and holding the list on one line, which is what keeps a
+blank line from ending the block early and what keeps an ``@pytorchbot`` command off a line start,
+the only defence an ``@`` inside a code span gets.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from greenlight import github_client
 from greenlight.constants import STATUS_AI_REVIEW_STARTED, STATUS_LAND
+from greenlight.verdict_outline import is_outline, render_outline_html
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+logger = logging.getLogger(__name__)
 
 _MESSAGE_CAP = 4000
 _ZERO_WIDTH_SPACE = chr(0x200B)
@@ -50,6 +73,29 @@ def defang(text: str) -> str:
     return f"{fence}\n{neutralized}\n{fence}"
 
 
+def _message_block(message: str) -> str:
+    """Render one untrusted model message in whichever of the two formats it was written in.
+
+    Both the choice of renderer and the render itself are guarded, and guarded against every
+    exception rather than only the containment tripwire's own class: anything that escapes here
+    fails the verdict CLI after the row is written to disk but before the workflow's success()-gated
+    upload, so the row never reaches S3; the retry branches fire only on a cancelled or failed
+    *review* job, which succeeded, and the PR's last recorded status is then AI_REVIEW_STARTED --
+    in-flight, not retry-eligible, so no later scan re-dispatches it and the PR shows "reviewing"
+    forever. The fence renders any message correctly and is where a prose verdict goes anyway, so
+    answering an outline with it here costs a layout and nothing the reader needs, while the
+    tripwire keeps its guarantee that an uncontained block is never posted.
+    """
+    try:
+        if is_outline(message):
+            rendered = render_outline_html(message)
+            if rendered:
+                return rendered
+    except Exception as exc:
+        logger.error("outline render failed, falling back to the fenced renderer: %s", exc, exc_info=True)
+    return defang(message)
+
+
 def _details_comment(
     *,
     run_id: int | None,
@@ -75,7 +121,7 @@ def verdict_body(status: str, reason: str, message: str, job_url: str, run_id: i
         run_id=run_id,
         headline=headline,
         summary="Why",
-        body_lines=[defang(message), "", f"reason: `{reason}`"],
+        body_lines=[_message_block(message), "", f"reason: `{reason}`"],
         job_url=job_url,
     )
 
