@@ -317,6 +317,62 @@ describe("renderOutlineHtml structure", () => {
     );
   });
 
+  it.each([
+    ["empty", "- "],
+    ["tab", "-\t"],
+    ["zero width", `- ${ZWSP}${ZWSP}`],
+    ["invisibles", `- ${BOM} ${String.fromCharCode(0)}`],
+  ])(
+    "never hands a dropped topic's details to the topic above it: %s",
+    (_name, dropped) => {
+      // One stray empty bullet, and a blocker renders as evidence for an
+      // unrelated topic -- exactly the relationship promotion exists to prevent,
+      // and posted permanently. No adversary needed.
+      expect(
+        renderOutlineHtml(
+          bullet(
+            "- Scope",
+            "  - one file",
+            dropped,
+            "  - NO_LAND: secrets leak"
+          )
+        )
+      ).toBe(
+        "<ul><li><b>Scope</b><ul><li>one file</li></ul></li>" +
+          "<li><b>NO_LAND: secrets leak</b></li></ul>"
+      );
+    }
+  );
+
+  it("keeps a dropped topic between two real ones from joining them", () => {
+    expect(
+      renderOutlineHtml(bullet("- Scope", "- ", "  - promoted", "- Testing"))
+    ).toBe(
+      "<ul><li><b>Scope</b></li><li><b>promoted</b></li>" +
+        "<li><b>Testing</b></li></ul>"
+    );
+  });
+
+  it("keeps details under a dropped topic as peers", () => {
+    // Two details of one dropped marker are siblings, exactly as two leading
+    // orphans are. Nesting the second under the first invents a parent and child
+    // out of two of the reviewer's claims.
+    expect(
+      renderOutlineHtml(
+        bullet("- Scope", "- ", "  - promoted", "  - second claim")
+      )
+    ).toBe(
+      "<ul><li><b>Scope</b></li><li><b>promoted</b></li>" +
+        "<li><b>second claim</b></li></ul>"
+    );
+  });
+
+  it("drops a detail that flattens away without a trace", () => {
+    expect(
+      renderOutlineHtml(bullet("- topic", `  - ${ZWSP}`, "  - kept"))
+    ).toBe("<ul><li><b>topic</b><ul><li>kept</li></ul></li></ul>");
+  });
+
   it("emits no list item for an empty leaf", () => {
     expect(renderOutlineHtml(bullet("- ", "- kept", "- \t"))).toBe(
       "<ul><li><b>kept</b></li></ul>"
