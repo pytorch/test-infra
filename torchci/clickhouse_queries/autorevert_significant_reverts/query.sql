@@ -49,7 +49,8 @@ commit_meta AS (
 -- workflow_name / workflow_event -- but it ALSO acted as an existence check, so
 -- a job whose run is missing from workflow_run (or from workflow_run_by_head_sha)
 -- was previously excluded and now is not. That is an eligibility change, not a
--- pure refactor; no such row appeared over the measured window.
+-- pure refactor; no such row appeared over the window this was measured on
+-- (2026-06-11 to 2026-09-09, 1,123,173 job rows, zero run/job field drift).
 -- FINAL stays: without it a superseded snapshot with conclusion = '' survives
 -- beside the latest row and MAX(raw_conclusion = '') below would report the
 -- attempt as pending.

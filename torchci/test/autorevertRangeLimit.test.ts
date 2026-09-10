@@ -83,30 +83,39 @@ describe("checkRange", () => {
     }
   );
 
-  // Zone-less endpoints must be read as UTC. Parsing them as local time would
-  // shift the two ends by different amounts whenever they sit either side of a
-  // DST change, which is enough to reject an exactly-maximum request. Asserting
-  // agreement with the explicitly-zoned form makes this independent of whatever
-  // timezone the test runner happens to be in.
+  // Zone-less endpoints must be read as UTC, not as the server's local time.
+  //
+  // These cases have to sit ON the effective ceiling (maxDays + the one-day
+  // grace) to bite: anywhere below it the grace simply absorbs a one-hour
+  // parsing error and the test passes either way.
+  //
+  // Only the first case can actually fail — it straddles a DST change in the
+  // direction where local parsing ADDS an hour, pushing an exactly-ceiling span
+  // over and flipping accept to reject. (Verified: it goes red when
+  // parseTimestamp's UTC default is removed.) The second runs the opposite
+  // direction, where local parsing shortens the span and so cannot flip an
+  // accept; it is here to document that asymmetry, not to detect anything.
   test.each([
-    ["2026-01-15T12:00:00.000", MAX_RANGE_DAYS], // Jan -> Jan
-    ["2026-08-01T12:00:00.000", 180], // PDT -> PST
-    ["2026-02-01T12:00:00.000", 180], // PST -> PDT
+    ["2026-08-01T12:00:00.000", 180], // PDT start, PST stop: local parsing adds 1h
+    ["2027-02-01T12:00:00.000", 180], // PST start, PDT stop: local parsing subtracts 1h
   ])(
     "zone-less input at %s is read as UTC, not local",
-    (startNaive, spanDays) => {
+    (startNaive, maxDays) => {
       const startMs = Date.parse(`${startNaive}Z`);
-      const stopNaive = plusDays(spanDays, startMs);
+      // Exactly the effective ceiling: maxDays plus the one-day grace.
+      const stopNaive = plusDays(maxDays + 1, startMs);
 
-      const zoneless = checkRange(startNaive, stopNaive, spanDays);
-      const zoned = checkRange(`${startNaive}Z`, `${stopNaive}Z`, spanDays);
-
-      // The two forms denote the same instants, so they must agree — that
-      // equality is the actual assertion here, not the accept itself.
-      expect(zoneless).toEqual({ ok: true });
-      expect(zoneless).toEqual(zoned);
+      expect(checkRange(startNaive, stopNaive, maxDays)).toEqual({ ok: true });
+      expect(checkRange(startNaive, stopNaive, maxDays)).toEqual(
+        checkRange(`${startNaive}Z`, `${stopNaive}Z`, maxDays)
+      );
     }
   );
+
+  test("rejects a millisecond past the effective ceiling", () => {
+    const stop = naiveUtc(START_MS + (MAX_RANGE_DAYS + 1) * DAY_MS + 1);
+    expect(checkRange(START, stop).ok).toBe(false);
+  });
 
   test("accepts endpoints that carry an explicit zone", () => {
     expect(

@@ -1,4 +1,5 @@
-// Widest range the autorevert metrics page's picker offers.
+// Widest PRESET the autorevert metrics page's picker offers. Its Custom
+// option is not bounded by this — see checkRange's note.
 export const MAX_RANGE_DAYS = 365;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -9,7 +10,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 //
 //   1. `dayjs().subtract(n, "day")` is CALENDAR arithmetic — it preserves the
 //      local wall-clock time, so across a DST anniversary the elapsed span is
-//      n days ±1h. Measured in America/Los_Angeles: a "Last Year" selection
+//      n days off by the net UTC-offset difference between the two ends.
+//      Measured in America/Los_Angeles: a "Last Year" selection
 //      made on 2026-11-01 spans 365 days + 1h, because 2025-11-01 was still
 //      PDT while 2026-11-01 is already PST.
 //   2. TimeRangePicker reads the clock TWICE — once for the start, once for the
@@ -18,7 +20,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 //
 // This cap exists to stop UNBOUNDED ranges reaching ClickHouse, not to police
 // 365 against 366, so a day of grace costs nothing it was meant to protect and
-// removes a whole class of calendar-arithmetic false rejections.
+// removes a whole class of calendar-arithmetic false rejections. Note this
+// applies to an explicit `maxDays` argument too: maxDays=7 admits 8 days.
 const RANGE_GRACE_MS = 24 * 60 * 60 * 1000;
 
 export type RangeCheck = { ok: true } | { ok: false; error: string };
