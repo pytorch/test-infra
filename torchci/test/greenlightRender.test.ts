@@ -1,8 +1,17 @@
+import { readFileSync } from "fs";
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+// pytorchbot's own command matcher, through its only caller, rather than a copy
+// of the pattern: the property under test is that greenlight's comment never
+// matches whatever pytorchbot actually parses, and a copy would keep passing
+// after the real one moved.
+import { getInputArgs } from "lib/bot/cliParser";
 import {
   INLINE_BREAKERS_RE,
   SHORT_SHA_LENGTH,
 } from "lib/greenlight/greenlightInlineCode";
+// The namespace, not the binding: the throw-path tests below spy on it, and a
+// destructured import would leave the renderer holding the real function.
+import * as greenlightOutline from "lib/greenlight/greenlightOutline";
 import {
   defangGreenlightMessage,
   GREENLIGHT_INCOMPLETE_HEADLINE,
@@ -18,12 +27,16 @@ import {
   renderGreenlightSection,
 } from "lib/greenlight/greenlightRender";
 import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
+// The one sentinel list both renderers defuse against, so the loops below probe
+// the outline path with exactly what the fenced path is built from.
 import {
   GREENLIGHT_PENDING_ALT_ATTR,
   SWEEP_PREDICATE_MIN_LENGTH,
   SWEEP_SENTINELS,
   ZERO_WIDTH_SPACE,
 } from "lib/greenlight/greenlightSweep";
+import path from "path";
+import { format } from "util";
 
 const JOB_URL = "https://github.com/pytorch/test-infra/actions/runs/42";
 // The shape ClickHouse returns for a DateTime64(3) under
@@ -66,6 +79,62 @@ const DELETION_PROBES = [
 const INLINE_BREAKERS = DELETION_PROBES.filter(
   (char) => char.replace(INLINE_BREAKERS_RE, "") === ""
 );
+// A paragraph verdict: one unbroken prose line carrying no bullet marker, around
+// a thousand characters long. Nothing enforces the outline shape, so this is a
+// message the reviewer can still write today, and hundreds already sit in
+// misc.greenlight_pr_state -- the query behind this section has no time filter
+// and the scan writes no newer row for a PR a human has decided, so each of those
+// re-renders on every sweep for as long as its PR stays open.
+const STORED_PROSE =
+  "This PR adds a guard to torch/_inductor/lowering.py so make_fallback no " +
+  "longer registers aten.index_put_ twice when the decomposition table is " +
+  "rebuilt; the change is confined to the registration path and every existing " +
+  "caller keeps the same behaviour, because the new branch only fires when the " +
+  "op is already present in the table. The accompanying test in " +
+  "test/inductor/test_torchinductor.py exercises both the first and the second " +
+  "registration and asserts the fallback is unchanged. The remaining diff is a " +
+  "docstring correction in torch/_inductor/decomposition.py that renames the " +
+  "argument to match the signature, plus a type annotation on " +
+  "_register_fallback that mypy already inferred. Nothing in the change touches " +
+  "the runtime kernels, the autograd formulas, or any serialized artifact, so " +
+  "the blast radius is limited to compile-time registration and the risk of a " +
+  "silent numerical regression is nil. CI is green on the inductor shards that " +
+  "cover this file, including the dynamic-shapes variant.";
+const OUTLINE_MESSAGE = [
+  "- Scope is small and self-contained",
+  "  - one file under torch/_inductor, no public API change",
+  "  - the new branch only fires when the op is already registered",
+  "- Tests cover the change",
+  "  - test_torchinductor.py exercises both registrations",
+].join("\n");
+// Every leaf of that message with its bullet marker stripped. A redaction check
+// that named one phrase would pass on a log holding all the others.
+const OUTLINE_LEAVES = OUTLINE_MESSAGE.split("\n").map((line) =>
+  line.replace(/^\s*-\s*/, "")
+);
+// The greenlight modules renderVerdictMessage's guard can catch a throw from:
+// the outline renderer and everything it imports from lib/greenlight. Nothing
+// else it reaches throws at all -- lodash and the two guards below it are pure.
+const OUTLINE_PATH_MODULES = [
+  "greenlightOutline",
+  "greenlightReferenceGuards",
+  "greenlightSweep",
+];
+// Lines that ARE a live pytorchbot command when they start one: the positive
+// control for the test below, which is otherwise satisfied by a broken matcher.
+const BOT_COMMAND_LINES = [
+  "@pytorchbot merge",
+  "@pytorchmergebot merge -f 'lint only, everything else is green'",
+];
+const BOT_COMMAND_OUTLINE = [
+  `- ${BOT_COMMAND_LINES[0]}`,
+  `  - ${BOT_COMMAND_LINES[1]}`,
+  "  - and `@pytorchbot merge` inside a code span",
+].join("\n");
+const BOT_COMMAND_PROSE = [
+  ...BOT_COMMAND_LINES,
+  "and `@pytorchbot merge` inside a code span",
+].join("\n");
 
 function state(overrides: Partial<GreenlightState> = {}): GreenlightState {
   return {
@@ -99,6 +168,14 @@ function summaryLine(rendered: string): string {
   return match![1];
 }
 
+// What a console sink prints for the calls a console.error spy recorded.
+// JSON.stringify cannot stand in for this: Error.message and Error.stack are
+// non-enumerable, so it renders every logged error as `{}` and a redaction check
+// built on it passes whatever the error carries.
+function loggedText(spy: jest.SpyInstance): string {
+  return spy.mock.calls.map((call) => format(...call)).join("\n");
+}
+
 // What the reader sees: the zero-width spaces the defanging inserts are invisible
 // and so must not count against the wrap column.
 function visibleWidth(text: string): number {
@@ -126,8 +203,9 @@ function liveSweepPredicates(rendered: string): string[] {
 }
 
 // The two model-authored fields, which reach the comment body by different paths:
-// the message through the cap, the fence and the wrap, the reason through an
-// inline code span. A payload that must not survive has to be tried against both.
+// the message through whichever renderer its own format selects, the reason
+// through an inline code span. A payload that must not survive has to be tried
+// against both.
 const PAYLOAD_FIELDS: Record<string, (payload: string) => GreenlightState> = {
   message: (payload) => state({ status: "LAND", message: payload }),
   reason: (payload) => state({ status: "LAND", reason: payload }),
@@ -145,6 +223,24 @@ function sweepLeaks(payload: string): string[] {
     }
   }
   return leaks;
+}
+
+// The outline block a LAND render embedded, asserting on the way that it is a
+// whole line of its own starting at column 0. Both halves matter. A payload that
+// quietly stopped being an outline would render through the fence and satisfy
+// every containment check below for the wrong reason. And the single line is
+// load-bearing twice over. escape() covers `& < > " '` and nothing else, so the
+// markdown-active set -- brackets, parens, `*`, `!`, backtick -- reaches the
+// comment verbatim and is inert only because a raw HTML block runs no inline
+// parsing over it: let a blank line split the block ahead of leaf text and
+// cmark-gfm 0.29.0.gfm.13 builds links and images out of that text. A line start
+// is also all an `@pytorchbot` command needs, and guardReferences runs only
+// outside code spans, so an `@` within one has no other defence.
+function outlineBlock(message: string): string {
+  const rendered = render(state({ status: "LAND", message }), FRESH_NOW);
+  const match = rendered.match(/^<ul>.*<\/ul>$/m);
+  expect(match).not.toBeNull();
+  return match![0];
 }
 
 describe("defangGreenlightMessage", () => {
@@ -812,6 +908,324 @@ describe("renderGreenlightSection pending sentinel", () => {
     );
     expect(out.endsWith("</p></details>")).toBe(true);
     expect(out).not.toContain("@everyone");
+  });
+});
+
+// Two renderers, chosen per row by whether the message carries an outline. Both
+// have to stay for two independent reasons: nothing enforces the outline shape,
+// so a paragraph is a valid verdict the fence is the right render for, and the
+// rows already stored are re-read and re-rendered on every sweep with no newer
+// row ever written over them.
+describe("renderGreenlightSection message format", () => {
+  it("sends a prose verdict through the fence, byte for byte", () => {
+    // The defuse's three substitutions are all no-ops on this text, so the
+    // fenced block below is exactly what the fenced pipeline produces for it.
+    for (const sentinel of SWEEP_SENTINELS) {
+      expect(STORED_PROSE).not.toContain(sentinel);
+    }
+    expect(STORED_PROSE).not.toContain("Pending");
+    expect(STORED_PROSE.length).toBeGreaterThan(900);
+
+    const out = render(state({ message: STORED_PROSE }), FRESH_NOW);
+
+    expect(out).toContain(
+      `<p>\n\n${defangGreenlightMessage(STORED_PROSE)}\n\nreason: \`clean\``
+    );
+    expect(out).not.toContain("<ul>");
+    expect(fencedLines(out).length).toBeGreaterThan(1);
+  });
+
+  it("embeds the outline renderer's block unchanged", () => {
+    const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
+
+    expect(out).toContain(greenlightOutline.renderOutlineHtml(OUTLINE_MESSAGE));
+    expect(out).toContain("<li><b>Scope is small and self-contained</b>");
+    expect(out).toContain("<li>test_torchinductor.py exercises both");
+    expect(out).not.toContain("```");
+  });
+
+  // The outline renderer defuses and neutralizes on its own, over text it has
+  // already escaped. Running either pass ahead of it substitutes a zero-width
+  // space that its own flattening then turns into a visible space, so a double
+  // defuse is not merely redundant -- it is a different comment.
+  it("hands the outline renderer the raw message, not a defanged one", () => {
+    expect(outlineBlock("- 3 Pending checks for @octocat\n- Risk is low")).toBe(
+      `<ul><li><b>3 P${ZERO_WIDTH_SPACE}ending checks for ` +
+        `@${ZERO_WIDTH_SPACE}octocat</b></li><li><b>Risk is low</b></li></ul>`
+    );
+  });
+
+  // Two different jobs here. Column 0 and the blank lines around the block are
+  // layout, measured against cmark-gfm 0.29.0.gfm.13: three spaces of indent
+  // still leaves a raw HTML block and four turns the list into a <pre><code> of
+  // its own source; dropping the blank line above absorbs the block into the
+  // enclosing <details>, which renders the same; dropping the one below swallows
+  // the reason line into the block, so it goes out with its backticks showing
+  // instead of as a code span. What is not layout is the block holding no line
+  // break, which assertContained enforces. The split that bites is a blank line
+  // ahead of leaf text: it ends the raw HTML block and hands that text to inline
+  // parsing, which is how a verdict grows links and images nobody wrote into the
+  // comment. The same blank line ahead of an `<li>` is harmless -- `<li>` is
+  // itself a type-6 start, so the block reopens on the next line. A plain break
+  // is contained where a blank one is not, and the rule bans both: one is a
+  // concatenation away from the other, and either puts leaf text at a line
+  // start, which is all a bot command needs.
+  it("puts the outline block at column 0 with a blank line either side", () => {
+    const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
+
+    expect(out).toContain(
+      `<p>\n\n${outlineBlock(OUTLINE_MESSAGE)}\n\nreason: `
+    );
+  });
+
+  it("keeps an outline verdict collapsed behind the headline", () => {
+    const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
+
+    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).toContain(GREENLIGHT_LAND_HEADLINE);
+    expect(summaryLine(out)).not.toContain("<ul>");
+    expect(summaryLine(out)).not.toContain("Scope is small");
+  });
+
+  // An empty section would tell the reader nothing about a verdict that exists,
+  // so a message whose every leaf flattened to nothing goes out fenced instead.
+  it("renders an outline whose leaves all flatten away in the fence", () => {
+    const message = `- ${ZERO_WIDTH_SPACE}\n- ${ZERO_WIDTH_SPACE}`;
+
+    const out = render(state({ message }), FRESH_NOW);
+
+    // Both halves of the route: the classifier sends this to the outline
+    // renderer, and the renderer then declines to produce a block for it.
+    expect(greenlightOutline.isOutline(message)).toBe(true);
+    expect(greenlightOutline.renderOutlineHtml(message)).toBe("");
+    expect(out).toContain(`<p>\n\n${defangGreenlightMessage(message)}\n\n`);
+    expect(out).not.toContain("<ul>");
+  });
+
+  // The outline renderer's containment tripwire throws rather than emitting a
+  // block it cannot vouch for. Propagating that would reach the per-row catch in
+  // greenlightComment.ts, which drops this PR's section outright -- so a verdict
+  // that exists, and that the fence renders correctly, would show its author
+  // nothing at all. Catching it here costs the reader the bullet list and keeps
+  // the verdict, so the tripwire holds its guarantee at that price and no more.
+  it("falls back to the fence when the outline renderer throws", () => {
+    // The defuse is a no-op on this fixture, so the fenced block is exactly what
+    // the fenced pipeline produces for it.
+    expect(OUTLINE_MESSAGE).not.toContain("Pending");
+    const thrown = new Error("verdict outline holds a line break");
+    const outline = jest
+      .spyOn(greenlightOutline, "renderOutlineHtml")
+      .mockImplementation(() => {
+        throw thrown;
+      });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
+
+      expect(outline).toHaveBeenCalledWith(OUTLINE_MESSAGE);
+      expect(out).toContain(GREENLIGHT_LAND_HEADLINE);
+      expect(out).toContain(
+        `<p>\n\n${defangGreenlightMessage(OUTLINE_MESSAGE)}\n\n`
+      );
+      expect(out).toContain("reason: `clean`");
+      expect(out).toContain("Reviewed commit: `abc1234`");
+      expect(out).toContain(`[Inference job](${JOB_URL})`);
+      expect(out).not.toContain("<ul>");
+      // Enough to find the row, and not the model's text: the message is
+      // scrubbed on its way into the comment and not on its way into the log.
+      // The error is a fixed string, as both throws this guard can catch are, so
+      // rendering the whole call the way a console sink does leaks nothing.
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("outline render threw"),
+        123,
+        thrown
+      );
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
+    } finally {
+      outline.mockRestore();
+      logged.mockRestore();
+    }
+  });
+
+  // Choosing the renderer reads the same untrusted text rendering it does, so it
+  // sits inside the same guard: outside it, a throw from the classifier loses
+  // the section exactly as above, with none of the protection.
+  it("falls back to the fence when the outline classifier throws", () => {
+    expect(OUTLINE_MESSAGE).not.toContain("Pending");
+    const thrown = new Error("classifier read a message it could not handle");
+    const classify = jest
+      .spyOn(greenlightOutline, "isOutline")
+      .mockImplementation(() => {
+        throw thrown;
+      });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
+
+      expect(classify).toHaveBeenCalledWith(OUTLINE_MESSAGE);
+      expect(out).toContain(GREENLIGHT_LAND_HEADLINE);
+      expect(out).toContain(
+        `<p>\n\n${defangGreenlightMessage(OUTLINE_MESSAGE)}\n\n`
+      );
+      expect(out).toContain("reason: `clean`");
+      expect(out).not.toContain("<ul>");
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("outline render threw"),
+        123,
+        thrown
+      );
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
+    } finally {
+      classify.mockRestore();
+      logged.mockRestore();
+    }
+  });
+
+  // Both tests above supply the error themselves, so they pin only what the
+  // guard hands the log -- never what the code it guards puts inside the error,
+  // which the same log call renders in full. An interpolated throw anywhere on
+  // the outline path would carry the model's text through a call they would
+  // still read as clean. The containment tripwire is unreachable from any input
+  // -- every line break is flattened long before it -- so no fixture can raise a
+  // real one and the source is the only place the property can be pinned.
+  it("throws nothing but fixed strings anywhere the outline path reaches", () => {
+    const thrown = OUTLINE_PATH_MODULES.flatMap(
+      (module) =>
+        readFileSync(
+          path.resolve(__dirname, "..", "lib", "greenlight", `${module}.ts`),
+          "utf-8"
+        ).match(/throw new \w*Error\([^)]*\)/g) ?? []
+    );
+
+    // Without this a pattern that stopped matching would pass on an empty list.
+    expect(thrown.length).toBeGreaterThan(0);
+    for (const statement of thrown) {
+      expect(statement).not.toContain("${");
+    }
+  });
+
+  it("leaves no live sweep predicate in an outline leaf", () => {
+    for (const target of SWEEP_TARGETS) {
+      // The payload as a topic and as a detail. Both carry a second bullet,
+      // without which the classifier reads them as prose and the fenced path
+      // answers for a leaf this is about.
+      for (const message of [
+        `- ${target}\n- second topic`,
+        `- topic\n  - ${target}`,
+      ]) {
+        const block = outlineBlock(message);
+
+        expect(block).not.toMatch(/\d Pending/);
+        for (const sentinel of SWEEP_SENTINELS) {
+          expect(block).not.toContain(sentinel);
+        }
+        expect(sweepLeaks(message)).toEqual([]);
+      }
+    }
+  });
+
+  // The same splice the fenced path is probed for, one bullet marker further in.
+  // The outline renderer substitutes where the fenced one deletes, so nothing
+  // here can re-form -- but which of the two runs is decided by the message, and
+  // a payload can be an outline and a forgery at once.
+  it("leaves no live sweep predicate when a broken one rides a bullet", () => {
+    const leaks: string[] = [];
+    for (const probe of DELETION_PROBES) {
+      for (const target of SWEEP_TARGETS) {
+        for (let at = 0; at <= target.length; at++) {
+          const broken = `${target.slice(0, at)}${probe}${target.slice(at)}`;
+          // A second bullet, so the classifier reads this as the outline it is
+          // meant to probe rather than sending it back down the fenced path.
+          leaks.push(...sweepLeaks(`- ${broken}\n- second topic`));
+        }
+      }
+    }
+
+    expect(leaks).toEqual([]);
+  });
+
+  it("renders an outline NO_LAND verdict, marked outdated on a stale head", () => {
+    const out = renderGreenlightSection(
+      state({ status: "NO_LAND", message: OUTLINE_MESSAGE }),
+      FRESH_NOW,
+      OTHER_SHA
+    );
+
+    expect(out).toContain(greenlightOutline.renderOutlineHtml(OUTLINE_MESSAGE));
+    expect(summaryLine(out)).toContain(
+      `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${GREENLIGHT_NO_LAND_HEADLINE}`
+    );
+    expect(out).toContain(
+      "Reviewed commit: `abc1234` (NOT the current head `def4567`)"
+    );
+  });
+
+  // Only a terminal verdict has a message to render; every other status writes
+  // its own body, so an outline stored on one must not reach the comment.
+  it("shows no message at all on a status that has none of its own", () => {
+    const expected: Record<string, string> = {
+      AI_REVIEW_STARTED: GREENLIGHT_REVIEWING_HEADLINE,
+      AI_REVIEW_DISPATCHED: GREENLIGHT_REVIEWING_HEADLINE,
+      CANCELLED: GREENLIGHT_INCOMPLETE_HEADLINE,
+      FAILED: GREENLIGHT_INCOMPLETE_HEADLINE,
+      REVERTED: GREENLIGHT_REVERTED_HEADLINE,
+    };
+
+    for (const [status, headline] of Object.entries(expected)) {
+      const out = render(
+        state({ status, message: OUTLINE_MESSAGE }),
+        FRESH_NOW
+      );
+
+      expect(out).toContain(headline);
+      expect(out).not.toContain("<ul>");
+      expect(out).not.toContain("Scope is small");
+    }
+    const stalled = render(
+      state({ status: "AI_REVIEW_STARTED", message: OUTLINE_MESSAGE }),
+      STALE_NOW
+    );
+    expect(stalled).toContain("reason: `stalled`");
+    expect(stalled).not.toContain("<ul>");
+  });
+});
+
+// A verdict is model prose a PR diff can prompt-inject, and pytorchbot parses the
+// RAW comment body it lands in -- not the HTML GitHub renders from it. Neither
+// renderer targets that parser: the outline path emits one line that starts
+// `<ul><li><b>`, and the fenced path puts a zero-width space after every `@`. The
+// first of those is an invariant held for containment, not for this, and a change
+// that broke the block across lines for readability would keep every containment
+// test below green while making a merge command reachable. Greenlight is not one
+// of the ids pytorchBot.ts skips, so nothing downstream would catch it.
+describe("renderGreenlightSection bot commands", () => {
+  it("cannot issue a pytorchbot command through either renderer", () => {
+    // Positive control: unrendered, these are commands pytorchbot acts on, so the
+    // assertions below cannot pass by the matcher having gone inert.
+    for (const line of BOT_COMMAND_LINES) {
+      expect(getInputArgs(line)).not.toBe("");
+    }
+    expect(getInputArgs(BOT_COMMAND_PROSE)).not.toBe("");
+    // Without this each payload could reach the comment through the same renderer,
+    // leaving the other path unexercised.
+    expect(greenlightOutline.isOutline(BOT_COMMAND_OUTLINE)).toBe(true);
+    expect(greenlightOutline.isOutline(BOT_COMMAND_PROSE)).toBe(false);
+
+    for (const message of [BOT_COMMAND_OUTLINE, BOT_COMMAND_PROSE]) {
+      for (const status of ["LAND", "NO_LAND"]) {
+        expect(
+          getInputArgs(render(state({ status, message }), FRESH_NOW))
+        ).toBe("");
+      }
+    }
   });
 });
 
