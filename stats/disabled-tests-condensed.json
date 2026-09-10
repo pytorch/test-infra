@@ -166,6 +166,13 @@
       "slow"
     ]
   ],
+  "test_cat_pointwise (__main__.NumBytesMetricTests)": [
+    "189244",
+    "https://github.com/pytorch/pytorch/issues/189244",
+    [
+      "rocm"
+    ]
+  ],
   "test_checkpoint_write_future_state_dict (__main__.TestCheckpointProcess)": [
     "186912",
     "https://github.com/pytorch/pytorch/issues/186912",
@@ -617,13 +624,6 @@
     "https://github.com/pytorch/pytorch/issues/159113",
     [
       "linux"
-    ]
-  ],
-  "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
-    "192735",
-    "https://github.com/pytorch/pytorch/issues/192735",
-    [
-      "rocm"
     ]
   ],
   "test_index_add_bfloat16_deterministic (__main__.CudaReproTests)": [
@@ -1351,6 +1351,15 @@
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
+    "182418",
+    "https://github.com/pytorch/pytorch/issues/182418",
     [
       "asan",
       "linux",
