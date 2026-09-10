@@ -152,6 +152,8 @@ type CostCategory =
   | "provider"
   | "repo"
   | "gpu"
+  | "region"
+  | "fleet"
   | "owning_account";
 
 type YAxis = "cost" | "duration";
@@ -185,12 +187,65 @@ const hourDisplay = (value: number) => {
   return `${(value / 1000).toFixed(0)}k h`;
 };
 
+const pctDisplay = (value: number) => `${Number(value).toFixed(0)}%`;
+// renderer for the "by category / by fleet over time" metric toggle
+const metricRenderer = (m: "cost" | "hours" | "pct") =>
+  m === "cost" ? costDisplay : m === "hours" ? hourDisplay : pctDisplay;
+
+// Line / Stacked-bar / Bar selector using the same icons as the top chart.
+function ChartTypeToggle({
+  value,
+  onChange,
+}: {
+  value: ChartType;
+  onChange: (_v: ChartType) => void;
+}) {
+  const icon = { display: "flex", alignItems: "center", justifyContent: "center" };
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={value}
+      onChange={(_e, v) => v && onChange(v)}
+    >
+      <ToggleButton value="line">
+        <Tooltip title="Line Chart">
+          <Box sx={icon}>
+            <BiLineChart size={"1.4em"} />
+          </Box>
+        </Tooltip>
+      </ToggleButton>
+      <ToggleButton value="stacked_bar">
+        <Tooltip title="Stacked Bar Chart">
+          <Box sx={icon}>
+            <MdOutlineStackedBarChart size={"1.4em"} />
+          </Box>
+        </Tooltip>
+      </ToggleButton>
+      <ToggleButton value="bar">
+        <Tooltip title="Bar Chart">
+          <Box sx={icon}>
+            <FaRegChartBar size={"1.4em"} />
+          </Box>
+        </Tooltip>
+      </ToggleButton>
+    </ToggleButtonGroup>
+  );
+}
+
 const ROW_HEIGHT = 700;
 
 const OS_OPTIONS = ["linux", "windows", "macos", "NA"];
 const GPU_OPTIONS = ["gpu", "non-gpu"];
 const PROVIDER_OPTIONS = ["aws", "gcp", "github", "amd", "NA"];
 const OWNER_OPTIONS = ["linux_foundation", "meta", "amd", "NA"];
+const REGION_OPTIONS = ["us-east-1", "us-east-2", "us-west-1", "github-hosted"];
+const FLEET_OPTIONS = [
+  "Regular EC2",
+  "OSDC/ciforge",
+  "Linux Foundation",
+  "GitHub-hosted",
+];
 
 export default function Page() {
   const router = useRouter();
@@ -259,6 +314,16 @@ export default function Page() {
   const [selectedProviders, setSelectedProviders] = useState(
     initialSelectedProviders
   );
+  const [selectedRegions, setSelectedRegions] =
+    useState<string[]>(REGION_OPTIONS);
+  const [selectedFleets, setSelectedFleets] = useState<string[]>(FLEET_OPTIONS);
+  // local controls for the "by category over time" chart
+  const [catMetric, setCatMetric] = useState<"cost" | "hours" | "pct">("cost");
+  const [catChartType, setCatChartType] = useState<ChartType>("stacked_bar");
+  const [fleetMetric, setFleetMetric] = useState<"cost" | "hours" | "pct">(
+    "hours"
+  );
+  const [fleetChartType, setFleetChartType] = useState<ChartType>("line");
   const [selectedYAxis, setSelectedYAxis] = useState<YAxis>(
     initialSelectedYAxis || "cost"
   );
@@ -288,7 +353,10 @@ export default function Page() {
     setSearchFilter(initialSearchFilter as string);
     setIsRegex(initialIsRegex);
     setShowInstanceType(initialShowInstanceType);
-    if (initialSelectedRepos) {
+    // Only restore repos from the URL when a non-empty set was specified; otherwise
+    // leave selection empty so the repo-list loader defaults it to all repos. ([] is
+    // truthy, so an empty `repos=` param must not reset/clear the selection.)
+    if (initialSelectedRepos && initialSelectedRepos.length > 0) {
       setSelectedRepos(initialSelectedRepos);
     }
   }
@@ -411,6 +479,8 @@ export default function Page() {
               selectedOwners,
               selectedPlatforms: selectedOS,
               selectedProviders,
+              selectedRegions,
+              selectedFleets,
             }}
             granularity={granularity}
             groupByFieldName={actualGroupBy}
@@ -483,6 +553,8 @@ export default function Page() {
               <MenuItem value={"job_name"}>Job Name</MenuItem>
               <MenuItem value={"platform"}>Platform</MenuItem>
               <MenuItem value={"provider"}>Provider</MenuItem>
+              <MenuItem value={"region"}>Region</MenuItem>
+              <MenuItem value={"fleet"}>Fleet (OSDC/ciforge vs EC2)</MenuItem>
               <MenuItem value={"owning_account"}>Owning Account</MenuItem>
               <MenuItem value={"gpu"}>GPU/Non-GPU</MenuItem>
               <MenuItem value={"repo"}>Repository</MenuItem>
@@ -602,6 +674,34 @@ export default function Page() {
             label={"GPU/Non-GPU"}
             renderValue={(selectedItems) => {
               if (selectedItems.length == GPU_OPTIONS.length) return "All";
+              if (selectedItems.length == 0) return "None";
+              return selectedItems.join(",");
+            }}
+            style={{ width: "100%" }}
+          />
+        </Grid>
+        <Grid size={{ xs: 2 }}>
+          <MultiSelectPicker
+            initialSelected={selectedRegions}
+            onSelectChanged={setSelectedRegions}
+            options={REGION_OPTIONS}
+            label={"Region"}
+            renderValue={(selectedItems) => {
+              if (selectedItems.length == REGION_OPTIONS.length) return "All";
+              if (selectedItems.length == 0) return "None";
+              return selectedItems.join(",");
+            }}
+            style={{ width: "100%" }}
+          />
+        </Grid>
+        <Grid size={{ xs: 2 }}>
+          <MultiSelectPicker
+            initialSelected={selectedFleets}
+            onSelectChanged={setSelectedFleets}
+            options={FLEET_OPTIONS}
+            label={"Fleet"}
+            renderValue={(selectedItems) => {
+              if (selectedItems.length == FLEET_OPTIONS.length) return "All";
               if (selectedItems.length == 0) return "None";
               return selectedItems.join(",");
             }}
@@ -805,6 +905,8 @@ export default function Page() {
                 selectedOwners,
                 selectedPlatforms: selectedOS,
                 selectedProviders,
+                selectedRegions,
+                selectedFleets,
               }}
               granularity={granularity}
               groupByFieldName={
@@ -833,6 +935,231 @@ export default function Page() {
             />
           )}
           {isLoading && <div>Loading...</div>}
+        </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }} spacing={2}>
+          <Grid size={{ xs: 12, lg: 7 }} height={ROW_HEIGHT}>
+            <Typography fontSize={"1rem"} fontWeight={"bold"}>
+              Average CI cost per PR / plain commit / main commit
+            </Typography>
+            {!isLoading && (
+              <TimeSeriesPanel
+                title={`CI cost per unit per ${granularity}`}
+                queryName={"cost_per_unit"}
+                queryParams={{ ...timeParamsClickHouse, selectedRepos }}
+                granularity={granularity}
+                groupByFieldName={"unit"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"avg_cost"}
+                yAxisRenderer={costDisplay}
+                chartType={"line"}
+                smooth={false}
+                timeFieldDisplayFormat="M/D (UTC)"
+                sort_by="name"
+                auto_refresh={false}
+                useUTC={true}
+              />
+            )}
+          </Grid>
+          <Grid size={{ xs: 12, lg: 5 }} height={ROW_HEIGHT}>
+            <Typography fontSize={"1rem"} fontWeight={"bold"}>
+              CI volume — cross-check ($/unit × count = total)
+            </Typography>
+            {!isLoading && (
+              <TimeSeriesTable
+                title={""}
+                queryName={"ci_counts"}
+                queryParams={{ ...timeParamsClickHouse, selectedRepos }}
+                granularity={granularity}
+                groupByFieldName={"metric"}
+                timeFieldName={"granularity_bucket"}
+                timeFieldDisplayFormat="M/D (UTC)"
+                useUTC={true}
+                yAxisFieldName={"value"}
+                yAxisRenderer={(v) => Number(v).toLocaleString()}
+              />
+            )}
+          </Grid>
+        </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }}>
+          <Grid size={{ xs: 12 }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ mb: 1 }}
+            >
+              <Typography fontSize={"1rem"} fontWeight={"bold"}>
+                Per PR by fleet (OSDC vs Regular EC2). During the shadow window both
+                ran the same PRs, so the lines are directly comparable. $ is Vantage
+                list price (OSDC GPUs priced per card).
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={fleetMetric}
+                onChange={(_e, v) => v && setFleetMetric(v)}
+              >
+                <ToggleButton value="hours">Hours</ToggleButton>
+                <ToggleButton value="cost">$</ToggleButton>
+                <ToggleButton value="pct">%</ToggleButton>
+              </ToggleButtonGroup>
+              <ChartTypeToggle
+                value={fleetChartType}
+                onChange={setFleetChartType}
+              />
+            </Stack>
+            <div style={{ height: ROW_HEIGHT }}>
+              {!isLoading && (
+                <TimeSeriesPanel
+                  title={`${
+                    fleetMetric === "cost"
+                      ? "$"
+                      : fleetMetric === "hours"
+                      ? "CI hours"
+                      : "Share %"
+                  } per PR by fleet per ${granularity}`}
+                  queryName={
+                    fleetMetric === "cost"
+                      ? "cost_per_pr_by_fleet"
+                      : fleetMetric === "hours"
+                      ? "hours_per_pr_by_fleet"
+                      : "pct_by_fleet"
+                  }
+                  queryParams={{ ...timeParamsClickHouse, selectedRepos }}
+                  granularity={granularity}
+                  groupByFieldName={"fleet"}
+                  timeFieldName={"granularity_bucket"}
+                  yAxisFieldName={
+                    fleetMetric === "cost"
+                      ? "avg_cost"
+                      : fleetMetric === "hours"
+                      ? "hours_per_pr"
+                      : "value"
+                  }
+                  yAxisRenderer={metricRenderer(fleetMetric)}
+                  chartType={fleetChartType}
+                  smooth={false}
+                  timeFieldDisplayFormat="M/D (UTC)"
+                  sort_by="name"
+                  auto_refresh={false}
+                  useUTC={true}
+                />
+              )}
+            </div>
+          </Grid>
+        </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }} spacing={2}>
+          <Grid size={{ xs: 12, lg: 7 }} height={ROW_HEIGHT}>
+            <Typography fontSize={"1rem"} fontWeight={"bold"}>
+              PR cost drivers — why $/PR moves (PRs · commits/PR · jobs/PR · hours/PR · $/hr)
+            </Typography>
+            {!isLoading && (
+              <TimeSeriesTable
+                title={""}
+                queryName={"pr_cost_drivers"}
+                queryParams={{ ...timeParamsClickHouse, selectedRepos }}
+                granularity={granularity}
+                groupByFieldName={"metric"}
+                timeFieldName={"granularity_bucket"}
+                timeFieldDisplayFormat="M/D (UTC)"
+                useUTC={true}
+                yAxisFieldName={"value"}
+                yAxisRenderer={(v) => Number(v).toLocaleString()}
+              />
+            )}
+          </Grid>
+        </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }}>
+          <Grid size={{ xs: 12 }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ mb: 1 }}
+            >
+              <Typography fontSize={"1rem"} fontWeight={"bold"}>
+                By category over time (inside-PR · after-merge · nightly ·
+                benchmark/periodic/other)
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={catMetric}
+                onChange={(_e, v) => v && setCatMetric(v)}
+              >
+                <ToggleButton value="cost">$</ToggleButton>
+                <ToggleButton value="hours">Hours</ToggleButton>
+                <ToggleButton value="pct">%</ToggleButton>
+              </ToggleButtonGroup>
+              <ChartTypeToggle value={catChartType} onChange={setCatChartType} />
+            </Stack>
+            <div style={{ height: ROW_HEIGHT }}>
+              {!isLoading && (
+                <TimeSeriesPanel
+                  title={`${
+                    catMetric === "cost"
+                      ? "Cost ($)"
+                      : catMetric === "hours"
+                      ? "Compute-hours"
+                      : "Share (%)"
+                  } by category per ${granularity}`}
+                  queryName={
+                    catMetric === "cost"
+                      ? "cost_by_category"
+                      : catMetric === "hours"
+                      ? "hours_by_category"
+                      : "pct_by_category"
+                  }
+                  queryParams={{ ...timeParamsClickHouse, selectedRepos }}
+                  granularity={granularity}
+                  groupByFieldName={"category"}
+                  timeFieldName={"granularity_bucket"}
+                  yAxisFieldName={"value"}
+                  yAxisRenderer={metricRenderer(catMetric)}
+                  chartType={catChartType}
+                  smooth={false}
+                  timeFieldDisplayFormat="M/D (UTC)"
+                  sort_by="name"
+                  auto_refresh={false}
+                  useUTC={true}
+                />
+              )}
+            </div>
+          </Grid>
+        </Grid>
+
+        <Grid container marginTop={4} size={{ xs: 11.5 }}>
+          <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+            <Typography fontSize={"1rem"} fontWeight={"bold"}>
+              Top-down: non-idle CI vs idle vs control-plane (account-wide, list prices, ignores
+              the repo/dimension filters). Idle = runner fleet (classic EC2 + EKS nodes) not
+              running a job; control-plane = dedicated base/system nodes.
+            </Typography>
+            {!isLoading && (
+              <TimeSeriesPanel
+                title={`EC2 cost: CI / idle / control-plane per ${granularity}`}
+                queryName={"infra_overhead"}
+                queryParams={{ ...timeParamsClickHouse }}
+                granularity={granularity}
+                groupByFieldName={"series"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"value"}
+                yAxisRenderer={costDisplay}
+                chartType={"stacked_bar"}
+                smooth={false}
+                timeFieldDisplayFormat="M/D (UTC)"
+                sort_by="name"
+                auto_refresh={false}
+                useUTC={true}
+              />
+            )}
+          </Grid>
         </Grid>
       </Grid>
     </div>
