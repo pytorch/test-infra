@@ -9,12 +9,17 @@
 -- head_sha with a higher run_id, which would otherwise erase the approval from
 -- a commit that was genuinely approved when it landed. The fixed re-landing is
 -- never reviewed again, so it has no row and the join drops it.
+--
+-- Shadow rows carry no authority, and the exclusion sits in WHERE so they are
+-- gone before LIMIT 1 BY picks a winner: filtering after the collapse would
+-- hide the genuine verdict a later shadow row outranked.
 WITH reviewed AS
 (
     SELECT pr_number, head_sha, status
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
       AND status IN ('LAND', 'NO_LAND')
+      AND shadow = false
     ORDER BY pr_number, head_sha, run_id DESC, version DESC
     LIMIT 1 BY pr_number, head_sha
 ),
