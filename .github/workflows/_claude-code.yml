@@ -190,7 +190,104 @@ jobs:
             core.exportVariable('GIT_AUTHOR_EMAIL', email);
             console.log(`Set commit author to: ${name} <${email}>`);
 
+      # ---------------------------------------------------------------------
+      # Diagnostic: capture the Claude Code CLI's stderr.
+      #
+      # claude-code-action drives the CLI through the Agent SDK's query() without
+      # a `stderr` handler, so when the child process dies the action can only
+      # report "SDK execution error: Error: Claude Code process exited with code
+      # 1" -- the child's own error text is discarded, and on that path the
+      # uploaded execution log is 2 bytes. pytorch/pytorch has been hitting this
+      # 1-13 times a day since 2026-09-06 with no way to diagnose or report any
+      # instance, because nobody can see what the CLI actually said.
+      #
+      # `path_to_claude_code_executable` is a documented action input: when set,
+      # the action skips its own install and runs that binary. Pointing it at a
+      # thin wrapper recovers the stderr without forking the action.
+      #
+      # BEST-EFFORT BY CONSTRUCTION. If this step fails, the action input below
+      # resolves empty and the action installs and runs the CLI exactly as it
+      # does today. That matters because this workflow is shared by the pytorch,
+      # meta-pytorch and executorch repos. The guarantee is scoped to a FAILURE
+      # OF THIS STEP -- it does not cover a wrapper that misbehaves once Claude
+      # is already running, and it does not undo a partial install.
+      - name: Install Claude Code CLI with stderr capture
+        id: stderr-capture
+        continue-on-error: true
+        # Bounded so a hung download cannot eat the invocation's whole budget:
+        # continue-on-error cannot rescue a job that has already timed out.
+        timeout-minutes: 4
+        shell: bash
+        env:
+          # MUST match the `uses:` SHA on the Run Claude Code step below; change
+          # the two together. The CLI VERSION is read from that revision rather
+          # than duplicated here, because the action hardcodes it as a constant
+          # in src/entrypoints/run.ts -- so a pin bump moves the CLI, and a
+          # hardcoded copy here would silently install a stale one.
+          CLAUDE_ACTION_SHA: 593d7a5c4e0073569f74772c2b7b64c30ec14707
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          SRC=$(gh api "repos/anthropics/claude-code-action/contents/src/entrypoints/run.ts?ref=${CLAUDE_ACTION_SHA}" --jq '.content' | base64 -d)
+          VERSION=$(printf '%s' "$SRC" | sed -n 's/.*claudeCodeVersion = "\([0-9][0-9.]*\)".*/\1/p' | head -1)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::could not read claudeCodeVersion from the pinned action; skipping stderr capture"
+            exit 1
+          fi
+          echo "action ${CLAUDE_ACTION_SHA} pins Claude Code v${VERSION}"
+
+          # This is the same installer the action itself runs; the bounds are so a
+          # stalled download cannot consume the invocation's whole time budget.
+          for attempt in 1 2 3; do
+            if curl -fsSL --connect-timeout 15 --max-time 120 https://claude.ai/install.sh \
+                 | timeout 120 bash -s -- "$VERSION"; then break; fi
+            [ "$attempt" = 3 ] && { echo "::warning::CLI install failed; skipping stderr capture"; exit 1; }
+            sleep 5
+          done
+
+          REAL_BIN="$HOME/.local/bin/claude"
+          [ -x "$REAL_BIN" ] || { echo "::warning::no executable at $REAL_BIN; skipping stderr capture"; exit 1; }
+
+          # A partial install can leave an executable that is not the version the
+          # action expects. Publishing that would be worse than not capturing.
+          INSTALLED=$("$REAL_BIN" --version 2>&1 | head -1 || true)
+          case "$INSTALLED" in
+            *"$VERSION"*) ;;
+            *) echo "::warning::installed CLI ('$INSTALLED') is not v${VERSION}; skipping stderr capture"; exit 1 ;;
+          esac
+
+          ERRLOG="$RUNNER_TEMP/claude-cli-stderr.log"
+          : > "$ERRLOG"
+          mkdir -p "$RUNNER_TEMP/claude-wrap"
+          WRAPPER="$RUNNER_TEMP/claude-wrap/claude"
+
+          # Paths are baked in with %q rather than read from the environment: the
+          # action's own `env:` block shadows names it sets, so this must not
+          # depend on which of them happen to pass through, and %q survives a
+          # quote or space in a runner path.
+          {
+            echo '#!/usr/bin/env bash'
+            printf 'exec %q "$@" 2>> %q\n' "$REAL_BIN" "$ERRLOG"
+          } > "$WRAPPER"
+          chmod +x "$WRAPPER"
+          # `exec` deliberately: it replaces this shell with the CLI, so the SDK's
+          # child IS the CLI. A wrapper that stayed resident would add a PID the
+          # SDK does not know about -- signals aimed at the child would hit bash
+          # instead, and a cancelled run could leave the CLI alive holding
+          # credentials. The cost is losing a wrapper-written timing footer; the
+          # stderr text is the thing worth having, and stdin (which the SDK
+          # streams the prompt over) and the exit code both pass through
+          # untouched.
+
+          {
+            echo "wrapper=$WRAPPER"
+            echo "errlog=$ERRLOG"
+            echo "cli_version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run Claude Code
+        id: claude
         uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
         with:
           allowed_bots: "*"
@@ -198,10 +295,75 @@ jobs:
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
           settings: ${{ inputs.settings }}
           show_full_output: ${{ inputs.show_full_output }}
+          # Gated on the step's OUTCOME, not just a non-empty output: step
+          # outputs are not transactional, so a failure partway through writing
+          # them could otherwise publish a wrapper path the step then abandoned.
+          # Empty restores today's behaviour exactly.
+          path_to_claude_code_executable: ${{ steps.stderr-capture.outcome == 'success' && steps.stderr-capture.outputs.wrapper || '' }}
         env:
           APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
               ${{ inputs.append_system_prompt }}
+
+      # Printed ONLY when Claude failed. On a healthy run the CLI's stderr is
+      # noise, and these logs are public on pytorch/pytorch -- so the failing
+      # case, the one nobody can currently see, is the only one worth widening
+      # the surface for.
+      - name: Report captured CLI stderr
+        if: always() && steps.claude.outcome == 'failure' && steps.stderr-capture.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          ERRLOG: ${{ steps.stderr-capture.outputs.errlog }}
+          CLI_VERSION: ${{ steps.stderr-capture.outputs.cli_version }}
+        run: |
+          set -euo pipefail
+          if [ ! -s "$ERRLOG" ]; then
+            echo "Claude Code CLI v${CLI_VERSION} wrote nothing to stderr."
+            exit 0
+          fi
+          # Two-layer redaction, because this can reach a PUBLIC log and the CLI
+          # runs with live AWS credentials in its environment -- the crash-dump
+          # case this exists to capture is exactly the one that prints an
+          # environment.
+          #
+          # Layer 1, and the load-bearing one: replace the VALUES actually in
+          # this job's environment. Shape matching alone misses
+          # AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN entirely, since neither
+          # has a recognisable prefix. GitHub also masks registered secrets, but
+          # that is not something this step should assume on a public repo.
+          python3 - "$ERRLOG" "${ERRLOG}.scrubbed" <<'PY'
+          import os, pathlib, sys
+          src, dst = sys.argv[1], sys.argv[2]
+          text = pathlib.Path(src).read_text(errors="replace")
+          for name in ("AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_ACCESS_KEY_ID",
+                       "AWS_BEARER_TOKEN_BEDROCK", "ANTHROPIC_API_KEY",
+                       "CLAUDE_CODE_OAUTH_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"):
+              value = os.environ.get(name, "")
+              # Short values are not credentials and a blind replace would shred
+              # ordinary text.
+              if len(value) >= 12:
+                  text = text.replace(value, f"***{name}***")
+          pathlib.Path(dst).write_text(text)
+          PY
+          # Layer 2: shapes, for anything not in this environment.
+          sed -E -i \
+            -e 's/(ASIA|AKIA)[A-Z0-9]{16}/***AWS_KEY_ID***/g' \
+            -e 's/sk-ant-[A-Za-z0-9_-]{16,}/***ANTHROPIC_KEY***/g' \
+            -e 's/(ghp|gho|ghs|ghu)_[A-Za-z0-9]{20,}/***GITHUB_TOKEN***/g' \
+            -e 's/github_pat_[A-Za-z0-9_]{20,}/***GITHUB_PAT***/g' \
+            -e 's/([Bb]earer )[A-Za-z0-9._~+\/-]{20,}=*/\1***REDACTED***/g' \
+            "${ERRLOG}.scrubbed"
+          echo "Claude Code CLI v${CLI_VERSION} stderr ($(stat -c %s "$ERRLOG") bytes, last 200 lines, credentials redacted):"
+          # Stop workflow-command parsing: this is program output, so an embedded
+          # ::...:: line must not be able to drive the runner. The token is
+          # random rather than a timestamp so it cannot be predicted from the log,
+          # and the resume is printed with a leading newline so it still starts on
+          # its own line if the captured text ended mid-line.
+          GUARD="stopcmd-$(openssl rand -hex 16)"
+          echo "::stop-commands::${GUARD}"
+          tail -200 "${ERRLOG}.scrubbed"
+          printf '\n::%s::\n' "$GUARD"
 
       - name: Upload usage metrics
         if: always()
