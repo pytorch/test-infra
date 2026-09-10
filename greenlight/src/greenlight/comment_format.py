@@ -15,8 +15,13 @@ unchanged for as long as its PR stays open. Either reason alone obliges both ren
 each message has to come out in the format it was written in.
 
 The outline block is one line of raw HTML that ``_details_comment`` emits at column 0 with a blank
-line ahead of it. Indent it, or lose that blank line, and CommonMark stops reading it as a raw
-HTML block -- which is the whole of the containment.
+line ahead of it, and that placement buys a predictable layout rather than containment: cmark-gfm
+still reads the block as raw HTML under three spaces of indent, and dropping the blank line leaves
+it inside the enclosing ``<details>`` block, raw HTML either way. Containment is
+``verdict_outline``'s, and it rests on two properties nothing here may break -- escaping every leaf,
+which is what leaves an injected tag inert, and holding the list on one line, which is what keeps a
+blank line from ending the block early and what keeps an ``@pytorchbot`` command off a line start,
+the only defence an ``@`` inside a code span gets.
 """
 
 from __future__ import annotations

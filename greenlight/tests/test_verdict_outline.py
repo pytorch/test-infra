@@ -274,6 +274,31 @@ def test_details_survive_a_topic_that_flattens_away() -> None:
     assert block == "<ul><li><b>survivor</b></li></ul>"
 
 
+@pytest.mark.parametrize("dropped", ["- ", "-\t", f"- {ZWSP}{ZWSP}", f"- {BOM} {chr(0)}"])
+def test_a_dropped_topic_never_hands_its_details_to_the_topic_above_it(dropped: str) -> None:
+    # One stray empty bullet, and a blocker renders as evidence for an unrelated topic -- exactly
+    # the relationship promotion exists to prevent, and posted permanently. No adversary needed.
+    block = render_outline_html(bullet("- Scope", "  - one file", dropped, "  - NO_LAND: secrets leak"))
+    assert block == "<ul><li><b>Scope</b><ul><li>one file</li></ul></li><li><b>NO_LAND: secrets leak</b></li></ul>"
+
+
+def test_a_dropped_topic_between_two_real_ones_keeps_all_three_apart() -> None:
+    block = render_outline_html(bullet("- Scope", "- ", "  - promoted", "- Testing"))
+    assert block == "<ul><li><b>Scope</b></li><li><b>promoted</b></li><li><b>Testing</b></li></ul>"
+
+
+def test_details_under_a_dropped_topic_stay_peers() -> None:
+    # Two details of one dropped marker are siblings, exactly as two leading orphans are. Nesting
+    # the second under the first invents a parent and child out of two of the reviewer's claims.
+    block = render_outline_html(bullet("- Scope", "- ", "  - promoted", "  - second claim"))
+    assert block == "<ul><li><b>Scope</b></li><li><b>promoted</b></li><li><b>second claim</b></li></ul>"
+
+
+def test_a_detail_that_flattens_away_is_dropped_silently() -> None:
+    block = render_outline_html(bullet("- topic", f"  - {ZWSP}", "  - kept"))
+    assert block == "<ul><li><b>topic</b><ul><li>kept</li></ul></li></ul>"
+
+
 def test_empty_leaves_emit_no_list_item() -> None:
     block = render_outline_html(bullet("- ", "- kept", "- \t"))
     assert block == "<ul><li><b>kept</b></li></ul>"

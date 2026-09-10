@@ -32,6 +32,9 @@ OUTLINE = "\n".join(
         "  - no serialized artifact or autograd formula is touched",
     ]
 )
+# Every leaf of it with the bullet marker stripped. A redaction check that named one phrase would
+# pass on a log that held all the others.
+OUTLINE_LEAVES = [re.sub(r"^\s*-\s*", "", line) for line in OUTLINE.split("\n")]
 
 # Lines that ARE a live pytorchbot command when they start one: the positive control for the test
 # below, which a matcher gone inert would otherwise satisfy.
@@ -47,8 +50,28 @@ BOT_COMMAND_OUTLINE = "\n".join(
     ]
 )
 BOT_COMMAND_PROSE = "\n".join([*BOT_COMMAND_LINES, "and `@pytorchbot merge` inside a code span"])
+# The same command behind a U+2028, which JavaScript anchors a line start after and
+# ``re.MULTILINE`` does not: the positive control that fails if the proxy below ever goes back to
+# leaning on ``re.MULTILINE`` and so to matching at fewer positions than the parser it stands in for.
+BOT_COMMAND_AFTER_LINE_SEPARATOR = "not a command\u2028" + BOT_COMMAND_LINES[0]
 
 _CLI_PARSER_TS = Path(__file__).resolve().parents[2] / "torchci" / "lib" / "bot" / "cliParser.ts"
+_JS_LINE_TERMINATORS_RE = re.compile("[\n\r\u2028\u2029]")
+_VERDICT_OUTLINE_PY = Path(__file__).resolve().parents[1] / "src" / "greenlight" / "verdict_outline.py"
+_RAISE_RE = re.compile(r"raise \w*Error\([^)]*\)")
+# Every way Python can put a runtime value into a message built in place.
+_INTERPOLATIONS = ('f"', "f'", "{", "%", ".format(", "+")
+
+
+def _assert_no_model_text_logged(caplog: pytest.LogCaptureFixture) -> None:
+    """Assert the model's message reached neither the log line nor the traceback under it.
+
+    ``caplog.text`` is the formatted record plus its traceback -- what a log sink writes. Asserting
+    on ``record.getMessage()`` alone would miss text that arrived through the exception, and
+    ``record.exc_info`` holds the exception object, whose message no equality check sees.
+    """
+    for leaf in OUTLINE_LEAVES:
+        assert leaf not in caplog.text
 
 
 def _bot_command_pattern() -> re.Pattern[str]:
@@ -56,14 +79,27 @@ def _bot_command_pattern() -> re.Pattern[str]:
 
     Scraped rather than copied: what is under test is that greenlight's comment never matches
     whatever pytorchbot actually parses, and a copy would keep passing after the real one moved.
-    Python's ``.`` and ``$`` differ from JavaScript's only on carriage returns and the line
-    separators, and only by matching more -- which for an assertion that nothing matches errs
-    toward failing.
+    Compiled without ``re.MULTILINE`` because ``_issues_bot_command`` supplies the line splitting.
     """
     source = _CLI_PARSER_TS.read_text()
     match = re.search(r"^const botCommandPattern = new RegExp\(/(.+)/m\);$", source, re.MULTILINE)
     assert match is not None, f"no botCommandPattern literal in {_CLI_PARSER_TS}"
-    return re.compile(match.group(1), re.MULTILINE)
+    return re.compile(match.group(1))
+
+
+def _issues_bot_command(body: str) -> bool:
+    r"""Whether ``lib/bot/pytorchBot.ts`` would read a command out of ``body``.
+
+    The parser under test runs in JavaScript, whose ``/m`` anchors ``^`` and ``$`` after a carriage
+    return and the two line separators as well as after ``\n``. ``re.MULTILINE`` anchors after
+    ``\n`` alone, so a proxy resting on it matches at *fewer* positions than the parser it stands
+    in for -- which for an assertion that nothing matches is a false pass, not a conservative one.
+    Splitting on all four and searching each line reproduces the JavaScript anchor set exactly: a
+    match has to begin where a line begins and end where it ends, and no line holds a terminator
+    for Python's ``.`` to cross where JavaScript's would not.
+    """
+    pattern = _bot_command_pattern()
+    return any(pattern.search(line) is not None for line in _JS_LINE_TERMINATORS_RE.split(body))
 
 
 def test_defang_neutralizes_at_mentions_and_wraps_in_fence():
@@ -171,8 +207,11 @@ def test_outline_message_renders_as_a_contained_html_list():
 
 
 def test_the_outline_block_is_one_line_at_column_zero_after_a_blank_line():
-    # CommonMark reads the block as raw HTML -- which is the whole of the containment -- only
-    # while it opens at column 0 with a blank line ahead of it and holds no line break.
+    # The one-line assertion is the containment one: a break is how the blank line that would end
+    # the block gets in, and it is what puts leaf text at a line start. Column 0 and the blank
+    # lines either side are layout -- cmark-gfm reads the block as raw HTML under three spaces of
+    # indent, and without the blank line ahead it stays inside the enclosing <details> block --
+    # pinned here so the parse never turns on what _details_comment puts around it.
     lines = comment_format.verdict_body("LAND", "clean", OUTLINE, "https://job", 55).split("\n")
     index = next(number for number, line in enumerate(lines) if line.startswith("<ul>"))
 
@@ -211,6 +250,7 @@ def test_a_tripped_containment_guard_falls_back_to_the_fence(monkeypatch, caplog
     record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
     assert record.levelno == logging.ERROR
     assert record.exc_info is not None
+    _assert_no_model_text_logged(caplog)
 
 
 def test_a_classifier_that_raises_falls_back_to_the_fence(monkeypatch, caplog):
@@ -231,6 +271,7 @@ def test_a_classifier_that_raises_falls_back_to_the_fence(monkeypatch, caplog):
     assert body.endswith("</details>")
     record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
     assert record.exc_info is not None
+    _assert_no_model_text_logged(caplog)
 
 
 def test_an_outline_failure_of_any_type_falls_back_to_the_fence(monkeypatch, caplog):
@@ -252,31 +293,54 @@ def test_an_outline_failure_of_any_type_falls_back_to_the_fence(monkeypatch, cap
     assert body.endswith("</details>")
     record = next(record for record in caplog.records if "falling back to the fenced renderer" in record.getMessage())
     assert record.exc_info is not None
+    _assert_no_model_text_logged(caplog)
+
+
+def test_the_outline_renderer_raises_nothing_but_fixed_strings():
+    """Pin the half of the redaction the three tests above cannot reach.
+
+    Each of them supplies its own exception, so between them they pin only what the guard hands the
+    log -- never what the renderer they stand in for puts inside the exception, which the same
+    record renders in full. A raise that interpolated the message would carry it into a log those
+    three would still read as clean. The tripwire is unreachable from any input, every line break
+    being flattened long before it, so no fixture can raise a real one and the source is the only
+    place the property can be pinned. Mirrors the TypeScript scan in greenlightRender.test.ts.
+    """
+    raises = _RAISE_RE.findall(_VERDICT_OUTLINE_PY.read_text())
+
+    # Without this a pattern that stopped matching would pass on an empty list.
+    assert raises, f"no raise statements found in {_VERDICT_OUTLINE_PY}"
+    for statement in raises:
+        for interpolation in _INTERPOLATIONS:
+            assert interpolation not in statement, statement
 
 
 # A verdict is model prose a PR diff can prompt-inject, and pytorchbot parses the RAW comment body
 # it lands in -- not the HTML GitHub renders from it. Neither renderer targets that parser: the
 # outline path emits one line that starts `<ul><li><b>`, and both paths put a zero-width space after
-# every `@` outside a code span. The first is an invariant held for containment, not for this, and a
-# change that broke the block across lines for readability would keep every containment test green
-# while making a merge command reachable. Greenlight's login is not one of the ids pytorchbot skips.
+# every `@` outside a code span. Inside one neither does, so `<code>@pytorchbot merge</code>` lands
+# on a public PR as a live command literal and the one-line shape -- an invariant held for
+# containment, not for this -- is the whole of what keeps it off a line start. No per-mechanism test
+# reaches that: the defanging tests assert no literal `@pytorchbot` survives, which is exactly what
+# the outline path does not hold. Hence an end-to-end assertion, against a pattern scraped from the
+# parser rather than a copy of it, so this also fails if pytorchbot widens what it accepts.
+# Greenlight's login is not one of the ids pytorchbot skips.
 @pytest.mark.parametrize("status", ["LAND", "NO_LAND"])
 def test_no_rendered_verdict_can_issue_a_pytorchbot_command(status):
-    pattern = _bot_command_pattern()
-
     # Positive control: unrendered, these are commands pytorchbot acts on.
     for line in BOT_COMMAND_LINES:
-        assert pattern.search(line) is not None
-    assert pattern.search(BOT_COMMAND_PROSE) is not None
+        assert _issues_bot_command(line) is True
+    assert _issues_bot_command(BOT_COMMAND_PROSE) is True
+    assert _issues_bot_command(BOT_COMMAND_AFTER_LINE_SEPARATOR) is True
     # Without this both payloads could reach the comment through the same renderer, leaving the
     # other path unexercised.
     assert verdict_outline.is_outline(BOT_COMMAND_OUTLINE) is True
     assert verdict_outline.is_outline(BOT_COMMAND_PROSE) is False
 
-    for message in (BOT_COMMAND_OUTLINE, BOT_COMMAND_PROSE):
+    for message in (BOT_COMMAND_OUTLINE, BOT_COMMAND_PROSE, BOT_COMMAND_AFTER_LINE_SEPARATOR):
         body = comment_format.verdict_body(status, "clean", message, "https://job", 55)
 
-        assert pattern.search(body) is None
+        assert _issues_bot_command(body) is False
 
 
 @pytest.mark.parametrize("message", [STORED_PROSE, OUTLINE], ids=["prose", "outline"])
