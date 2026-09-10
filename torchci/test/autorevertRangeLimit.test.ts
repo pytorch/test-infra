@@ -24,6 +24,19 @@ describe("checkRange", () => {
     expect(checkRange(START, plusDays(MAX_RANGE_DAYS))).toEqual({ ok: true });
   });
 
+  // The picker reads the clock twice — `dayjs().subtract(n,"day")` for the
+  // start, `dayjs()` for the stop — so its widest option is 365 days plus
+  // however many milliseconds elapsed between the two reads. An exact
+  // comparison 400s the page's own selection.
+  test.each([1, 2, 50, 999])(
+    "accepts the maximum range with %i ms of clock skew between the two reads",
+    (skewMs) => {
+      const start = naiveUtc(START_MS - MAX_RANGE_DAYS * DAY_MS);
+      const stop = naiveUtc(START_MS + skewMs);
+      expect(checkRange(start, stop)).toEqual({ ok: true });
+    }
+  );
+
   test("rejects one day past the maximum", () => {
     const result = checkRange(START, plusDays(MAX_RANGE_DAYS + 1));
     expect(result.ok).toBe(false);

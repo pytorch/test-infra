@@ -3,6 +3,16 @@ export const MAX_RANGE_DAYS = 365;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// The picker builds its two endpoints from two SEPARATE clock reads —
+// `dayjs().subtract(n, "day")` for the start and `dayjs()` for the stop (see
+// TimeRangePicker in pages/metrics.tsx) — and formats them to millisecond
+// precision. Whenever those two reads land in different milliseconds, its
+// widest option measures 365 days PLUS a few ms, and an exact comparison would
+// reject the page's own selection with a 400. The cap is about magnitude, not
+// milliseconds, so allow a slack far larger than any plausible skew and far
+// smaller than a meaningful widening of the limit.
+const CLOCK_SKEW_SLACK_MS = 60 * 1000;
+
 export type RangeCheck = { ok: true } | { ok: false; error: string };
 
 // Accepted shapes: a date, optionally with a time to minute/second/fractional
@@ -48,7 +58,7 @@ export function checkRange(
   if (stop < start) {
     return { ok: false, error: "stopTime must be after startTime" };
   }
-  if (stop - start > maxDays * MS_PER_DAY) {
+  if (stop - start > maxDays * MS_PER_DAY + CLOCK_SKEW_SLACK_MS) {
     return { ok: false, error: `Time range must be at most ${maxDays} days` };
   }
   return { ok: true };
