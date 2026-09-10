@@ -614,6 +614,13 @@
       "xpu"
     ]
   ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_allow_unused_input (__main__.TestXpu)": [
+    "196650",
+    "https://github.com/pytorch/pytorch/issues/196650",
+    [
+      "xpu"
+    ]
+  ],
   "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
