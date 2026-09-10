@@ -6,7 +6,7 @@ import { useTheme } from "@mui/material";
  * of hardcoding a number, otherwise the two drift.
  *
  * There are six L3 promotion criteria: tenure + five metrics
- * (end-to-end time, max execution time, avg queue time, timeout rate, job
+ * (end-to-end time, overrun rate, avg queue time, timeout rate, job
  * pass rate).
  */
 
@@ -43,11 +43,12 @@ export const L3_THRESHOLDS = {
     provisional: false,
     demotionRelevant: true,
   },
-  maxExecTimeS: {
-    key: "maxExecTimeS",
-    label: "Max Execution Time",
-    targetLabel: "< 3 h",
-    target: 3 * 3600,
+  // Measured as the *rate* of jobs individually exceeding 3h
+  overrunRate: {
+    key: "overrunRate",
+    label: "Overrun Rate",
+    targetLabel: "< 1% of jobs over 3h",
+    target: 0.01,
     direction: "below",
     provisional: false,
     demotionRelevant: false,

@@ -24,30 +24,40 @@ WITH commits AS (
         AND push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
 ),
 
-all_runs AS (
+-- `push` is a ReplacingMergeTree read without FINAL, so one SHA can appear on
+-- several rows. Deduplicating here rather than letting the duplicates fan out
+-- through the job join removes ~0.2% spurious rows at a 90d window; the
+-- downstream MAX/MIN absorbed them, so no output changes.
+commit_keys AS (SELECT DISTINCT sha FROM commits),
+
+-- Exactly one row per SHA, chosen deterministically. `DISTINCT sha, message`
+-- would only make the PAIR unique, so a SHA that ever arrived with two
+-- different messages would fan the joins below out instead of deduplicating
+-- them. No such SHA exists over a measured 90d window, but the joins should not
+-- depend on that continuing to hold.
+commit_meta AS (
     SELECT
-        workflow_run.id AS id,
-        workflow_run.head_commit.'id' AS sha,
-        workflow_run.name AS workflow_name,
-        commit.time AS time,
-        commit.message AS message
-    FROM workflow_run FINAL
-    JOIN commits commit ON workflow_run.head_commit.'id' = commit.sha
-    WHERE
-        workflow_run.name IN ({workflowNames: Array(String)})
-        AND workflow_run.event != 'workflow_run'
-        AND workflow_run.id IN (
-            SELECT id FROM materialized_views.workflow_run_by_head_sha
-            WHERE head_sha IN (SELECT sha FROM commits)
-        )
+        sha,
+        min(time) AS commit_time,
+        argMin(message, time) AS commit_message
+    FROM commits
+    GROUP BY sha
 ),
 
+-- Jobs are read straight from workflow_job. The workflow_run join this replaces
+-- supplied `name` and `event`, both of which workflow_job carries top-level as
+-- workflow_name / workflow_event -- but it ALSO acted as an existence check, so
+-- a job whose run is missing from workflow_run (or from workflow_run_by_head_sha)
+-- was previously excluded and now is not. That is an eligibility change, not a
+-- pure refactor; no such row appeared over the window this was measured on
+-- (2026-06-11 to 2026-09-09, 1,123,173 job rows, zero run/job field drift).
+-- FINAL stays: without it a superseded snapshot with conclusion = '' survives
+-- beside the latest row and MAX(raw_conclusion = '') below would report the
+-- attempt as pending.
 all_jobs AS (
     SELECT
-        all_runs.time AS time,
-        all_runs.sha AS sha,
-        all_runs.message AS message,
-        all_runs.workflow_name AS workflow_name,
+        job.head_sha AS sha,
+        job.workflow_name AS workflow_name,
         job.run_attempt AS run_attempt,
         job.conclusion AS raw_conclusion,
         -- Normalize job name to group shards together (same as auto-revert logic)
@@ -61,24 +71,27 @@ all_jobs AS (
             )
         ) AS base_name
     FROM default.workflow_job job FINAL
-    JOIN all_runs ON all_runs.id = job.run_id
     WHERE
-        job.name != 'ciflow_should_run'
+        job.workflow_name IN ({workflowNames: Array(String)})
+        AND job.workflow_event != 'workflow_run'
+        AND job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%unstable%'
+        AND job.head_sha IN (SELECT sha FROM commit_keys)
         AND job.id IN (
             SELECT id FROM materialized_views.workflow_job_by_head_sha
-            WHERE head_sha IN (SELECT sha FROM commits)
+            WHERE head_sha IN (SELECT sha FROM commit_keys)
         )
 ),
 
--- Step 1: For each (sha, base_name, run_attempt), determine attempt status
+-- Step 1: For each (sha, base_name, run_attempt), determine attempt status.
+-- Keyed on sha alone rather than (time, sha, message): both are functionally
+-- determined by sha via the one-row-per-sha commit CTEs above, and grouping on
+-- a full commit message across ~1.1M rows costs ~3.5x the peak memory.
 attempt_status AS (
     SELECT
-        time,
         sha,
-        message,
         base_name,
         workflow_name,
         run_attempt,
@@ -86,17 +99,14 @@ attempt_status AS (
             AS attempt_has_failure,
         MAX(raw_conclusion = '') AS attempt_has_pending
     FROM all_jobs
-    GROUP BY time, sha, message, base_name, workflow_name, run_attempt
+    GROUP BY sha, base_name, workflow_name, run_attempt
 ),
 
 -- Step 2: For each (sha, base_name), aggregate across all attempts
-signal_status AS (
+status_core AS (
     SELECT
-        time,
         sha,
-        message,
         base_name,
-        any(workflow_name) AS workflow_name,
         CASE
             WHEN MAX(attempt_has_pending) = 1 THEN 'pending'
             WHEN MIN(attempt_has_failure) = 1 THEN 'red'
@@ -104,17 +114,28 @@ signal_status AS (
             ELSE 'green'
         END AS status
     FROM attempt_status
-    GROUP BY time, sha, message, base_name
+    GROUP BY sha, base_name
+),
+
+-- Commit timestamps come back here because the window functions order by them.
+-- Commit MESSAGES deliberately do not: carrying them into the sort is what made
+-- long ranges unservable. They are looked up once per recovery, further down.
+signal_status AS (
+    SELECT
+        c.commit_time AS time,
+        s.sha AS sha,
+        s.base_name AS base_name,
+        s.status AS status
+    FROM status_core s
+    INNER JOIN commit_meta c ON s.sha = c.sha
 ),
 
 -- Step 3: Assign streak IDs using cumulative status changes
 signal_with_streaks AS (
     SELECT
         base_name,
-        workflow_name,
         sha,
         time,
-        message,
         status,
         -- Change marker: 1 when status differs from previous
         if(status != lagInFrame(status, 1, status) OVER w, 1, 0) AS is_change
@@ -139,7 +160,10 @@ signal_with_streak_ids AS (
     FROM signal_with_streaks
 ),
 
--- Step 5: Count streak lengths and find boundaries
+-- Step 5: Count streak lengths and find boundaries.
+-- `streak_shas` folds in what a separate red_streak_members CTE used to compute
+-- with a second pass over signal_with_streak_ids; red rows already form their
+-- own group here, so groupArray(sha) on the red side is the same array.
 streak_lengths AS (
     SELECT
         base_name,
@@ -150,49 +174,62 @@ streak_lengths AS (
         max(time) AS streak_end,
         argMin(sha, time) AS first_sha,
         argMax(sha, time) AS last_sha,
-        argMin(message, time) AS first_message
+        groupArray(sha) AS streak_shas
     FROM signal_with_streak_ids
     GROUP BY base_name, streak_id, status
 ),
 
--- Step 5b: Collect the SHAs that make up each red streak (for causal attribution).
--- A revert only genuinely "fixes" a signal if the reverted commit is actually part
--- of the red streak that recovered. Otherwise the red->green transition at the
--- revert commit is coincidental -- e.g. a flaky signal that merely happened to go
--- green at the revert -- and crediting the revert with it inflates the FN count.
-red_streak_members AS (
+-- Step 6: Find recovery events: green streak that follows a red streak.
+-- One grouped pass replaces a self-join of streak_lengths against itself.
+-- Red streak k and green streak k+1 land in the same match_id group; the HAVING
+-- reproduces the join's one-red-one-green pairing exactly.
+recovery_pairs AS (
     SELECT
         base_name,
-        streak_id,
-        groupArray(sha) AS red_shas
-    FROM signal_with_streak_ids
-    WHERE status = 'red'
-    GROUP BY base_name, streak_id
+        if(status = 'red', streak_id + 1, streak_id) AS match_id,
+        anyIf(streak_id, status = 'red') AS red_streak_id,
+        anyIf(streak_length, status = 'red') AS red_streak_length,
+        anyIf(streak_start, status = 'red') AS first_red_time,
+        anyIf(streak_end, status = 'red') AS last_red_time,
+        anyIf(first_sha, status = 'red') AS first_red_sha,
+        anyIf(last_sha, status = 'red') AS last_red_sha,
+        -- SHAs comprising the red streak this recovery resolves (causal filter input)
+        anyIf(streak_shas, status = 'red') AS red_shas,
+        anyIf(streak_length, status = 'green') AS green_streak_length,
+        anyIf(first_sha, status = 'green') AS recovery_sha,
+        anyIf(streak_start, status = 'green') AS recovery_time
+    FROM streak_lengths
+    GROUP BY base_name, match_id
+    HAVING countIf(status = 'red') = 1 AND countIf(status = 'green') = 1
 ),
 
--- Step 6: Find recovery events: green streak that follows a red streak
 recovery_events AS (
     SELECT
-        green.base_name AS signal_key,
-        red.streak_id AS red_streak_id,
-        red.streak_length AS red_streak_length,
-        green.streak_length AS green_streak_length,
-        green.first_sha AS recovery_sha,
-        green.streak_start AS recovery_time,
-        green.first_message AS recovery_message,
-        red.last_sha AS last_red_sha,
-        red.streak_end AS last_red_time,
-        red.first_sha AS first_red_sha,
-        red.streak_start AS first_red_time
-    FROM streak_lengths green
-    JOIN streak_lengths red
-        ON
-            green.base_name = red.base_name
-            AND green.streak_id = red.streak_id + 1
+        base_name AS signal_key,
+        red_streak_id,
+        red_streak_length,
+        green_streak_length,
+        recovery_sha,
+        recovery_time,
+        last_red_sha,
+        last_red_time,
+        first_red_sha,
+        first_red_time,
+        red_shas
+    FROM recovery_pairs
     WHERE
-        green.status = 'green' AND red.status = 'red'
-        AND red.streak_length >= {minRedCommits: UInt8}
-        AND green.streak_length >= {minGreenCommits: UInt8}
+        red_streak_length >= {minRedCommits: UInt8}
+        AND green_streak_length >= {minGreenCommits: UInt8}
+),
+
+-- The commit message is attached here, per recovery, instead of being carried
+-- through the aggregations and window sorts above.
+recovery_with_message AS (
+    SELECT
+        r.*,
+        m.commit_message AS recovery_message
+    FROM recovery_events r
+    INNER JOIN commit_meta m ON r.recovery_sha = m.sha
 ),
 
 -- Step 7: Get autorevert events for attribution
@@ -236,14 +273,8 @@ recovery_with_reverted_sha AS (
         -- The regex captures the full 40-char SHA since commit messages include full SHAs
         arrayElement(
             extractAll(r.recovery_message, 'reverts commit ([a-f0-9]+)'), 1
-        ) AS reverted_commit_sha,
-        -- SHAs comprising the red streak this recovery resolves (causal filter input)
-        rm.red_shas AS red_shas
-    FROM recovery_events r
-    LEFT JOIN red_streak_members rm
-        ON
-            rm.base_name = r.signal_key
-            AND rm.streak_id = r.red_streak_id
+        ) AS reverted_commit_sha
+    FROM recovery_with_message r
 ),
 
 -- Step 9: Join with autorevert events on full SHA match
