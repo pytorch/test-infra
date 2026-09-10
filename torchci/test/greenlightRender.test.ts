@@ -13,10 +13,6 @@ import {
 // destructured import would leave the renderer holding the real function.
 import * as greenlightOutline from "lib/greenlight/greenlightOutline";
 import {
-  INLINE_BREAKERS_RE,
-  SHORT_SHA_LENGTH,
-} from "lib/greenlight/greenlightInlineCode";
-import {
   defangGreenlightMessage,
   GREENLIGHT_INCOMPLETE_HEADLINE,
   GREENLIGHT_LAND_HEADLINE,
