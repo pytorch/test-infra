@@ -100,7 +100,7 @@ EXPECTED_MERGES_COLUMNS = [
 
 def derived_merges_columns():
     return lambda_function.flat_schema_columns(lambda_function.MERGES_SCHEMA) + [
-        lambda_function.META_COLUMN
+        lambda_function.meta_column("default.merges")
     ]
 
 
@@ -205,6 +205,40 @@ def test_the_names_follow_the_schema_order_with_the_meta_tuple_last():
         use_named_columns=True,
     )
     assert "insert into default.t (`z`, `a`, `_meta`)" in sql
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        "default.merge_bases",
+        "default.queue_times_historical",
+        "default.rerun_disabled_tests",
+    ],
+)
+def test_the_three_tables_that_call_it_meta_get_meta(table):
+    # Confirmed against system.columns on 2026-09-10: of the 21 tables
+    # general_adapter serves these are the only three, and none has both.
+    assert lambda_function.meta_column(table) == "`meta`"
+
+
+@pytest.mark.parametrize("table", ["default.merges", "misc.stable_pushes", "a.b"])
+def test_every_other_table_gets_the_underscore_spelling(table):
+    assert lambda_function.meta_column(table) == "`_meta`"
+
+
+def test_an_opted_in_insert_uses_the_tables_own_meta_spelling():
+    # The end that matters: the destination list, not just the lookup.
+    sql = captured_query(
+        lambda_function.general_adapter,
+        "default.merge_bases",
+        "bkt",
+        "k",
+        "`sha` String",
+        ["none"],
+        "JSONEachRow",
+        use_named_columns=True,
+    )
+    assert "insert into default.merge_bases (`sha`, `meta`)" in sql
 
 
 def test_a_schema_the_parser_would_reject_is_fine_when_not_opted_in():

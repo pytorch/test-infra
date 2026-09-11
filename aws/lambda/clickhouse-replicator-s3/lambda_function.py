@@ -323,7 +323,23 @@ def handle_test_run_summary(table, bucket, key) -> None:
         log_failure_to_clickhouse(table, bucket, key, e)
 
 
-META_COLUMN = "`_meta`"
+# Every table this lambda serves records which S3 object a row came from in a
+# tuple column. Three of them predate the `_meta` spelling and call theirs
+# `meta`; a positional insert matched by position and never had to know, so
+# naming the columns is what surfaces the difference. Checked against
+# system.columns on 2026-09-10: of the 21 tables general_adapter serves, 18 use
+# `_meta`, these 3 use `meta`, and none has both.
+DEFAULT_META_COLUMN = "`_meta`"
+META_COLUMN_BY_TABLE = {
+    "default.merge_bases": "`meta`",
+    "default.queue_times_historical": "`meta`",
+    "default.rerun_disabled_tests": "`meta`",
+}
+
+
+def meta_column(table) -> str:
+    return META_COLUMN_BY_TABLE.get(table, DEFAULT_META_COLUMN)
+
 
 # The only column declaration flat_schema_columns is willing to read: one per
 # line, a backtick-quoted name, then a type built from identifiers, digits and
@@ -466,23 +482,26 @@ def general_adapter(
     cannot be changed at the same instant.
 
     Set `use_named_columns` to name the destination columns instead. They are
-    read straight out of `schema`, which already lists them, plus META_COLUMN
+    read out of `schema`, which already lists them, plus `meta_column(table)`
     for the tuple this SELECT appends. Column ORDER and COUNT on the table then
     stop mattering, and any column not named takes its default, so a new column
     can be ALTERed in before the code that populates it.
 
-    Two conditions, both currently met only by `merges_adapter`, which is the
-    sole caller that sets it. `schema` must satisfy FLAT_COLUMN_DECLARATION --
-    `flat_schema_columns` raises rather than guess otherwise. And the table's
-    meta tuple must be called `_meta`: `default.merge_bases`,
-    `default.queue_times_historical` and `default.rerun_disabled_tests` call
-    theirs `meta`, which a positional insert never had to know, so naming the
-    columns for one of those needs META_COLUMN to become per-table first.
+    Two things to check before opting a NEW table in, neither of which this
+    function can see:
+
+    - `schema` must satisfy FLAT_COLUMN_DECLARATION. Most schemas in this file
+      do not -- anything with a Tuple or a Map is refused -- so check rather
+      than assume. `flat_schema_columns` raises rather than guess.
+    - The destination's provenance tuple must be named as META_COLUMN_BY_TABLE
+      says. That map is a dated snapshot, not a live lookup, and its fallback
+      is `_meta`, so a table that uses `meta` and is missing from it would get
+      a name the table does not have and fail every insert.
     """
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
     target = table
     if use_named_columns:
-        columns = flat_schema_columns(schema) + [META_COLUMN]
+        columns = flat_schema_columns(schema) + [meta_column(table)]
         target = f"{table} ({', '.join(columns)})"
 
     def get_insert_query(compression):
