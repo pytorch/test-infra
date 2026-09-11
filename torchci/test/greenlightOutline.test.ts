@@ -8,7 +8,11 @@ import {
   OUTLINE_MAX_TOPICS,
   OUTLINE_MESSAGE_CAP,
   OUTLINE_TRUNCATED_ITEM,
+  OUTLINE_TRUNCATED_LABEL,
   OUTLINE_TRUNCATION_SUFFIX,
+  OutlineSegment,
+  OutlineTopic,
+  parseOutline,
   renderOutlineHtml,
 } from "lib/greenlight/greenlightOutline";
 import { SHA_SPLIT_COLUMN } from "lib/greenlight/greenlightReferenceGuards";
@@ -945,6 +949,164 @@ describe("bounds", () => {
     expect(countOf(block, "<li><b>")).toBe(10);
     expect(block).not.toContain(OUTLINE_TRUNCATION_SUFFIX);
     expect(block.endsWith(`${OUTLINE_TRUNCATED_ITEM}</ul>`)).toBe(true);
+  });
+});
+
+function leafText(leaf: OutlineSegment[]): string {
+  return leaf.map((segment) => segment.text).join("");
+}
+
+function topicText(topic: OutlineTopic): string {
+  return leafText(topic.text);
+}
+
+describe("parseOutline", () => {
+  it("nests details under their topic", () => {
+    const parsed = parseOutline(
+      bullet("- Topic one", "  - detail a", "  - detail b", "- Topic two")
+    );
+    expect(parsed.truncated).toBe(false);
+    expect(parsed.topics.map(topicText)).toEqual(["Topic one", "Topic two"]);
+    expect(parsed.topics.map((topic) => topic.details.map(leafText))).toEqual([
+      ["detail a", "detail b"],
+      [],
+    ]);
+    expect(parsed.topics.map((topic) => topic.detailsTruncated)).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it("flags a code span and leaves the text either side of it unflagged", () => {
+    const [topic] = parseOutline(bullet("- call `foo(bar)` now", "- b")).topics;
+    expect(topic.text).toEqual([
+      { text: "call ", code: false },
+      { text: "foo(bar)", code: true },
+      { text: " now", code: false },
+    ]);
+  });
+
+  it("keeps an unbalanced backtick run as one text segment", () => {
+    const [topic] = parseOutline(bullet("- one ` backtick", "- b")).topics;
+    expect(topic.text).toEqual([{ text: "one ` backtick", code: false }]);
+  });
+
+  it("keeps the empty segments a code span leaves behind", () => {
+    // The consumer skips these; the parser must not. Which segment is code is
+    // decided by its index, so dropping an empty one here shifts every segment
+    // after it and renders the reviewer's prose as code, or the reverse.
+    const [topic] = parseOutline(bullet("- `a`", "- b")).topics;
+    expect(topic.text).toEqual([
+      { text: "", code: false },
+      { text: "a", code: true },
+      { text: "", code: false },
+    ]);
+  });
+
+  it("clips a leaf at the cap and marks it", () => {
+    const [topic] = parseOutline(
+      "- " + "x".repeat(OUTLINE_LEAF_CAP + 1)
+    ).topics;
+    expect(topicText(topic)).toBe(
+      "x".repeat(OUTLINE_LEAF_CAP) + OUTLINE_TRUNCATION_SUFFIX
+    );
+  });
+
+  it("does not mark a leaf that lands exactly on the cap", () => {
+    const [topic] = parseOutline("- " + "x".repeat(OUTLINE_LEAF_CAP)).topics;
+    expect(topicText(topic)).toBe("x".repeat(OUTLINE_LEAF_CAP));
+  });
+
+  it.each([
+    [OUTLINE_MAX_DETAILS, false],
+    [OUTLINE_MAX_DETAILS + 1, true],
+  ])("reports %i details as detailsTruncated=%s", (count, expected) => {
+    const [topic] = parseOutline(
+      bullet(
+        "- topic",
+        ...Array.from({ length: count }, (_v, index) => `  - detail ${index}`)
+      )
+    ).topics;
+    expect(topic.details.map(leafText)).toEqual(
+      Array.from(
+        { length: OUTLINE_MAX_DETAILS },
+        (_v, index) => `detail ${index}`
+      )
+    );
+    expect(topic.detailsTruncated).toBe(expected);
+  });
+
+  it.each([
+    [OUTLINE_MAX_TOPICS, false],
+    [OUTLINE_MAX_TOPICS + 1, true],
+  ])("reports %i topics as truncated=%s", (count, expected) => {
+    const parsed = parseOutline(
+      bullet(
+        ...Array.from({ length: count }, (_v, index) => `- topic ${index}`)
+      )
+    );
+    expect(parsed.topics.map(topicText)).toEqual(
+      Array.from({ length: OUTLINE_MAX_TOPICS }, (_v, i) => `topic ${i}`)
+    );
+    expect(parsed.truncated).toBe(expected);
+  });
+
+  it.each([
+    [OUTLINE_MESSAGE_CAP, false],
+    [OUTLINE_MESSAGE_CAP + 1, true],
+  ])("reports a %i character message as truncated=%s", (length, expected) => {
+    // The cap cuts before the first bullet is parsed, so nothing downstream can
+    // notice it: this flag is the only thing that tells a reader the outline
+    // they are looking at stops mid-verdict.
+    const parsed = parseOutline(sizedMessage(length, 10));
+    expect(parsed.topics.length).toBe(10);
+    expect(parsed.truncated).toBe(expected);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["blank", "   "],
+    ["newlines", "\n\n\n"],
+    ["zero width", `- ${ZWSP}`],
+    [
+      "invisibles",
+      `- ${String.fromCharCode(0)}${String.fromCharCode(0x7f)}${BOM}`,
+    ],
+  ])("parses to no topics so the caller can fall back: %s", (_n, message) => {
+    expect(parseOutline(message).topics).toEqual([]);
+  });
+
+  it.each([
+    ["mention", "@user"],
+    ["issue reference", "#123"],
+    ["sha", SHA],
+    ["markup", "<script>alert(1)</script>"],
+    ["ampersand", "a & b"],
+    ["apostrophe", "it's"],
+    ["quotes", 'x" onload="y'],
+    ["emoji shortcode", ":shipit:"],
+    ["sweep predicate", "3 Pending"],
+  ])("hands a DOM consumer %s verbatim", (_name, payload) => {
+    // Escaping, the sweep defuse and the reference guards all answer GitHub's
+    // markdown pipeline. A React text node cannot be opened by markup, so an
+    // escaped one would show its entities to the reader; and the guards splice a
+    // zero-width space into exactly the references -- shas above all -- that a
+    // reader on the HUD is most likely to copy out.
+    const [topic] = parseOutline(
+      bullet(`- ${payload}`, `  - ${payload}`)
+    ).topics;
+    expect(topicText(topic)).toBe(payload);
+    expect(leafText(topic.details[0])).toBe(payload);
+    expect(topicText(topic)).not.toContain(ZWSP);
+  });
+});
+
+describe("the truncation marker", () => {
+  it("spells the same label the comment renderer emits", () => {
+    // Neither literal can be composed from the other -- see
+    // OUTLINE_TRUNCATED_LABEL -- so nothing but this stops the marker a DOM
+    // consumer draws from drifting from the one in the comment.
+    expect(OUTLINE_TRUNCATED_ITEM).toBe(`<li>${OUTLINE_TRUNCATED_LABEL}</li>`);
   });
 });
 

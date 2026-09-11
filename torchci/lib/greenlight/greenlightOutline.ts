@@ -1,9 +1,11 @@
-// Renders a model-authored verdict outline as a self-contained HTML bullet
-// list, mirroring greenlight/src/greenlight/verdict_outline.py byte for byte --
+// Parses a model-authored verdict outline into structure, and serializes that
+// structure into a self-contained HTML bullet list. The HTML is the mirrored
+// half: it matches greenlight/src/greenlight/verdict_outline.py byte for byte --
 // that one Python module against this one and greenlightReferenceGuards.ts
 // together. Python is the source of truth; tests/test_verdict_outline.py scrapes
 // the literals in both and a shared fixture pins the implementations to the same
-// output for the same input.
+// output for the same input. The parse layer is TypeScript's alone, because only
+// this side feeds a DOM.
 //
 // The reviewer writes `message` as a short markdown outline -- a few topic
 // bullets, each with a few detail bullets. That text is attacker-influenceable
@@ -58,6 +60,10 @@ export const OUTLINE_MAX_DETAILS = 8;
 // clamps above bound the block only after a worst-case escaping blowup.
 export const OUTLINE_BLOCK_BUDGET = 12000;
 export const OUTLINE_TRUNCATED_ITEM = "<li>(truncated)</li>";
+// Both markers stay plain quoted literals, never one composed from the other:
+// greenlight/tests/ts_source.py pins OUTLINE_TRUNCATED_ITEM by scraping this file
+// for a quoted literal of that name, and a template literal matches nothing.
+export const OUTLINE_TRUNCATED_LABEL = "(truncated)";
 export const OUTLINE_TRUNCATION_SUFFIX = "\u2026";
 // One bullet-shaped line in a paragraph is not an outline. Routing a paragraph
 // here would show the reader one leaf clipped to the leaf cap where the fenced
@@ -114,9 +120,29 @@ interface Leaf {
   text: string;
 }
 
-interface Topic {
+// Python's _Topic. OutlineTopic and parseOutline have no counterpart there.
+interface RawTopic {
   text: string;
   details: string[];
+}
+
+// A segment's `text` is the reviewer's own characters -- unescaped, unguarded,
+// and attacker-influenceable. Anything bound for a comment body has to be built
+// with renderOutlineHtml rather than read out of here.
+export interface OutlineSegment {
+  text: string;
+  code: boolean;
+}
+
+export interface OutlineTopic {
+  text: OutlineSegment[];
+  details: OutlineSegment[][];
+  detailsTruncated: boolean;
+}
+
+export interface ParsedOutline {
+  topics: OutlineTopic[];
+  truncated: boolean;
 }
 
 // Python slices and measures in code points; a UTF-16 slice would count an
@@ -252,8 +278,8 @@ function readLeaves(message: string): Leaf[] {
 // invents a parent and child out of two of the reviewer's own claims --
 // permanently, in public, and it is the exact relationship promotion exists to
 // prevent.
-function group(leaves: Leaf[]): Topic[] {
-  const topics: Topic[] = [];
+function group(leaves: Leaf[]): RawTopic[] {
+  const topics: RawTopic[] = [];
   let attachable = false;
   for (const leaf of leaves) {
     if (leaf.depth === 0) {
@@ -271,6 +297,39 @@ function group(leaves: Leaf[]): Topic[] {
   return topics;
 }
 
+// The outline as structure, with every clamp applied that does not need the
+// rendered HTML -- the detail clamp among them, which Python instead applies
+// where it renders a topic. The block budget measures escaped bytes, so it stays
+// in the serializer. Exported because the HUD panel builds a DOM out of this
+// rather than a comment body, and every defence below it answers GitHub's
+// markdown pipeline alone: a React text node cannot be opened by markup, so
+// escaped text there would only show the reader its entities, and the reference
+// guards splice a zero-width space into the shas and issue numbers a reader
+// copies out.
+export function parseOutline(message: string): ParsedOutline {
+  const raw = group(
+    readLeaves(message).map((leaf) => ({
+      depth: leaf.depth,
+      text: flatten(leaf.text),
+    }))
+  );
+  // A message past the cap was cut before the first leaf was read, so the list is
+  // short whatever the topic count says. The length test mirrors capCodePoints:
+  // a UTF-16 length at or under the cap is under it by code points too.
+  const truncated =
+    raw.length > OUTLINE_MAX_TOPICS ||
+    (message.length > OUTLINE_MESSAGE_CAP &&
+      codePointLength(message) > OUTLINE_MESSAGE_CAP);
+  return {
+    truncated,
+    topics: raw.slice(0, OUTLINE_MAX_TOPICS).map((topic) => ({
+      text: segments(topic.text),
+      details: topic.details.slice(0, OUTLINE_MAX_DETAILS).map(segments),
+      detailsTruncated: topic.details.length > OUTLINE_MAX_DETAILS,
+    })),
+  };
+}
+
 // HTML-escape, matching Python's html.escape(text, quote=True) byte for byte.
 // The two escape the same five characters and differ only on the apostrophe
 // entity. `&#x27;` is the form both sides settle on because the alternative,
@@ -286,32 +345,29 @@ function escape(text: string): string {
 // out as one text segment: backticks carry no meaning inside a raw HTML block,
 // so an unpaired run renders as itself rather than opening something that never
 // ends.
-function segments(leaf: string): string[] {
+function segments(leaf: string): OutlineSegment[] {
   const parts = leaf.split(BACKTICK_RUN_RE);
-  if ((parts.length - 1) % 2 === 1) return [leaf];
-  return parts;
+  if ((parts.length - 1) % 2 === 1) return [{ text: leaf, code: false }];
+  return parts.map((text, index) => ({ text, code: index % 2 === 1 }));
 }
 
-function leafHtml(leaf: string): string {
-  const rendered: string[] = [];
-  segments(leaf).forEach((segment, index) => {
-    const defused = defuseSweepSentinels(escape(segment));
-    rendered.push(
-      index % 2 === 1 ? `<code>${defused}</code>` : guardReferences(defused)
-    );
-  });
-  return rendered.join("");
+function leafHtml(leaf: OutlineSegment[]): string {
+  return leaf
+    .map(({ text, code }) => {
+      const defused = defuseSweepSentinels(escape(text));
+      return code ? `<code>${defused}</code>` : guardReferences(defused);
+    })
+    .join("");
 }
 
-function topicHtml(topic: Topic): string {
+function topicHtml(topic: OutlineTopic): string {
   const parts = [`<li><b>${leafHtml(topic.text)}</b>`];
-  const details = topic.details.slice(0, OUTLINE_MAX_DETAILS);
-  if (details.length > 0) {
+  if (topic.details.length > 0) {
     parts.push("<ul>");
-    for (const detail of details) parts.push(`<li>${leafHtml(detail)}</li>`);
-    if (topic.details.length > OUTLINE_MAX_DETAILS) {
-      parts.push(OUTLINE_TRUNCATED_ITEM);
+    for (const detail of topic.details) {
+      parts.push(`<li>${leafHtml(detail)}</li>`);
     }
+    if (topic.detailsTruncated) parts.push(OUTLINE_TRUNCATED_ITEM);
     parts.push("</ul>");
   }
   parts.push("</li>");
@@ -342,24 +398,13 @@ function assertContained(block: string): void {
 // over-budget item or over-cap tail leaves a truncation item behind, so a reader
 // can never mistake a cut list for a complete one.
 export function renderOutlineHtml(message: string): string {
-  const topics = group(
-    readLeaves(message).map((leaf) => ({
-      depth: leaf.depth,
-      text: flatten(leaf.text),
-    }))
-  );
-  if (topics.length === 0) return "";
+  const parsed = parseOutline(message);
+  if (parsed.topics.length === 0) return "";
 
   const items: string[] = [];
   let used = 0;
-  // A message past the cap was cut before the first leaf was read, so the list is
-  // short whatever the topic count says. The length test mirrors capCodePoints:
-  // a UTF-16 length at or under the cap is under it by code points too.
-  let truncated =
-    topics.length > OUTLINE_MAX_TOPICS ||
-    (message.length > OUTLINE_MESSAGE_CAP &&
-      codePointLength(message) > OUTLINE_MESSAGE_CAP);
-  for (const topic of topics.slice(0, OUTLINE_MAX_TOPICS)) {
+  let truncated = parsed.truncated;
+  for (const topic of parsed.topics) {
     const item = topicHtml(topic);
     // Measured before the append, not after: testing the running total alone
     // leaves whichever item crosses the budget unbounded, and one maximally
