@@ -1148,14 +1148,6 @@
       "rocm"
     ]
   ],
-  "test_redistribute_cost_latency (__main__.TestCostModel)": [
-    "187020",
-    "https://github.com/pytorch/pytorch/issues/187020",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
