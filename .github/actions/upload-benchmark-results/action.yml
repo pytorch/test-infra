@@ -28,7 +28,7 @@ runs:
   using: composite
   steps:
     - name: Setup uv
-      uses: pytorch/test-infra/.github/actions/setup-uv@main
+      uses: ./.github/actions/setup-uv
 
     - name: Install dependencies
       shell: bash
@@ -112,7 +112,7 @@ runs:
     - name: Get workflow job id
       if: ${{ inputs.github-token != '' }}
       id: get-job-id
-      uses: pytorch/test-infra/.github/actions/get-workflow-job-id@main
+      uses: ./.github/actions/get-workflow-job-id
       with:
         github-token: ${{ inputs.github-token }}
 
