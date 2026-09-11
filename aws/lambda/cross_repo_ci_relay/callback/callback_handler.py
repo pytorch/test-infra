@@ -317,7 +317,18 @@ def _handle_nightly_callback(
     trusted = _build_trusted(verified_repo, repo_level)
     untrusted = {"callback_payload": body}
 
-    forward_to_hud(config, trusted, untrusted)
+    try:
+        forward_to_hud(config, trusted, untrusted)
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            logger.info(
+                "nightly callback already finalized (duplicate), "
+                "delivery_id=%s repo=%s",
+                delivery_id,
+                verified_repo,
+            )
+            return {"ok": True, "status": "duplicate"}
+        raise
     logger.info(
         "nightly callback forwarded delivery_id=%s repo=%s event_type=%s",
         delivery_id,
@@ -462,9 +473,20 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
         )
 
     trusted = _build_trusted(verified_repo, repo_level, ci_metrics)
-    # downstream's payload is untrusted — provide it under the "callback_payload"
-    # key so HUD receives it under the expected untrusted namespace.
     untrusted = {"callback_payload": body}
 
-    forward_to_hud(config, trusted, untrusted)
+    try:
+        forward_to_hud(config, trusted, untrusted)
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            logger.info(
+                "callback already finalized (duplicate), "
+                "delivery_id=%s repo=%s run_id=%s job_name=%s",
+                delivery_id,
+                verified_repo,
+                run_id,
+                job_name,
+            )
+            return {"ok": True, "status": "duplicate"}
+        raise
     return {"ok": True, "status": status}

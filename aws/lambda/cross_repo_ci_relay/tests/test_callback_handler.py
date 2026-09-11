@@ -299,6 +299,17 @@ class TestCallbackHandler(unittest.TestCase):
             handle(_cfg(), _body(), verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 422)
 
+    def test_pr_duplicate_returns_ok_duplicate(self):
+        # Write-once guard on HUD returns 409 for completed → completed
+        # replays. PR/push path should treat that as a soft duplicate, same
+        # as the nightly handler (nightly is the primary write-once use case;
+        # this is the matching backstop for the shared HUD API).
+        self.mock_hud.side_effect = HTTPException(409, "Record already finalized")
+
+        result = handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "duplicate"})
+
     # --- required field validation ---
 
     def test_missing_delivery_id_returns_400(self):
@@ -710,6 +721,20 @@ class TestNightlyCallback(unittest.TestCase):
         self.assertEqual(
             untrusted["callback_payload"]["workflow"]["conclusion"], "failure"
         )
+
+    def test_nightly_duplicate_returns_ok_duplicate(self):
+        self.mock_hud.side_effect = HTTPException(409, "Record already finalized")
+
+        result = handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "duplicate"})
+
+    def test_nightly_hud_non_409_error_propagates(self):
+        self.mock_hud.side_effect = HTTPException(500, "Internal error")
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 500)
 
 
 if __name__ == "__main__":
