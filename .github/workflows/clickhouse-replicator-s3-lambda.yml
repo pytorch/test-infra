@@ -24,6 +24,10 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+      # The job is named "Test and deploy" and had no test. These checks need
+      # no credentials and no network, so they run before the role is assumed —
+      # a bad column list fails the deploy instead of shipping and going quiet.
+      - run: python test_lambda_function.py
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
