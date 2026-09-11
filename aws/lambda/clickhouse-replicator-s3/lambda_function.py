@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 # `import urllib` alone does not bind the `parse` submodule. encode_url_component
 # works today only because clickhouse_connect imports urllib.parse first.
@@ -322,36 +323,50 @@ def handle_test_run_summary(table, bucket, key) -> None:
         log_failure_to_clickhouse(table, bucket, key, e)
 
 
-# The columns `merges_adapter`'s insert writes, in the order its SELECT produces
-# them: the fields MERGES_SCHEMA declares, then the meta tuple. Naming them is
-# what lets `ai_not_related_checks` (pytorch/pytorch#195503) be ALTERed into
-# default.merges before the schema string below declares it -- the insert simply
-# does not mention it, so it takes its default. Keep this list and MERGES_SCHEMA
-# in the same order; aws/lambda/tests/test_clickhouse_replicator_s3.py checks
-# that they agree.
-MERGES_COLUMNS = [
-    "`_id`",
-    "`author`",
-    "`broken_trunk_checks`",
-    "`comment_id`",
-    "`dry_run`",
-    "`error`",
-    "`failed_checks`",
-    "`flaky_checks`",
-    "`ignore_current`",
-    "`ignore_current_checks`",
-    "`is_failed`",
-    "`last_commit_sha`",
-    "`merge_base_sha`",
-    "`merge_commit_sha`",
-    "`owner`",
-    "`pending_checks`",
-    "`pr_num`",
-    "`project`",
-    "`skip_mandatory_checks`",
-    "`unstable_checks`",
-    "`_meta`",
-]
+META_COLUMN = "`_meta`"
+
+# The only column declaration flat_schema_columns is willing to read: one per
+# line, a backtick-quoted name, then a type built from identifiers, digits and
+# parentheses alone. Forbidding spaces and commas INSIDE those parentheses is
+# the real guard, and it is structural rather than a spelling check: every
+# ClickHouse construct that carries FIELD NAMES -- Tuple, Map, Nested -- needs
+# one, so all of them are refused, however they are spelled or wrapped across
+# lines. Valid-but-unsupported shapes go the same way (Enum8('a' = 1), and any
+# second column sharing a line); refusing is the safe direction and
+# MERGES_SCHEMA uses none of them.
+FLAT_COLUMN_DECLARATION = re.compile(
+    r"`([A-Za-z_][A-Za-z0-9_]*)`\s+[A-Za-z0-9_]+(?:\([A-Za-z0-9_()]*\))?,?"
+)
+
+
+def flat_schema_columns(schema) -> List[str]:
+    """Backtick-quoted column names from a FLAT structure string, in order.
+
+    Flat is defined by FLAT_COLUMN_DECLARATION above. The construct that makes
+    it necessary is a nested tuple: its inner fields occupy their own lines and
+    would each be counted as a column, though `select *` produces a single
+    expression for the whole tuple. `handle_test_run_s3`'s `properties` field
+    is exactly that shape. Hence refusing rather than guessing -- a name that
+    is not a column fails every insert for that table, and a wrong ORDER does
+    not fail at all, it writes into the wrong column.
+
+    Only `merges_adapter` uses this. Doing it for every table this lambda
+    serves needs a real parser -- split on commas at paren depth zero, outside
+    quotes -- which is what pytorch/test-infra#8716 is for.
+    """
+    columns = []
+    for line in schema.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        match = FLAT_COLUMN_DECLARATION.fullmatch(line)
+        if not match:
+            raise ValueError(
+                f"schema is not flat; expected one `name` Type per line, got: {line!r}"
+            )
+        columns.append(f"`{match.group(1)}`")
+    return columns
+
 
 MERGES_SCHEMA = """
     `_id` String,
@@ -375,6 +390,16 @@ MERGES_SCHEMA = """
     `skip_mandatory_checks` Bool,
     `unstable_checks` Array(Array(String))
     """
+
+# The columns merges_adapter's insert writes, in the order its SELECT produces
+# them: the fields MERGES_SCHEMA declares, then the meta tuple. Naming them is
+# what lets `ai_not_related_checks` (pytorch/pytorch#195503) be ALTERed into
+# default.merges before the schema string above declares it -- the insert does
+# not mention it, so it takes its default. The names this is expected to
+# produce are pinned in aws/lambda/tests/test_clickhouse_replicator_s3.py, so a
+# bug in the derivation surfaces as a test failure rather than as data in a
+# wrong column; adding a column means editing MERGES_SCHEMA and that fixture.
+MERGES_COLUMNS = flat_schema_columns(MERGES_SCHEMA) + [META_COLUMN]
 
 
 def merges_adapter(table, bucket, key) -> None:
