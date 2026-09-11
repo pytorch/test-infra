@@ -866,6 +866,48 @@ def greenlight_pr_state_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["gzip", "none"], "JSONEachRow")
 
 
+def pr_review_verdicts_adapter(table, bucket, key):
+    # Order must match misc.pr_review_verdicts: general_adapter inserts
+    # positionally. `verdict` is null on started rows and on any terminal row
+    # without a verdict.
+    schema = """
+        `schema_version` UInt16,
+        `phase` String,
+        `harness` String,
+        `harness_version` String,
+        `repo` String,
+        `pr_number` Int64,
+        `head_sha` String,
+        `base_sha` String,
+        `is_fork` Bool,
+        `trigger_event` String,
+        `trigger_label` String,
+        `trigger_run_id` Int64,
+        `review_run_id` Int64,
+        `review_run_attempt` Int32,
+        `prompt_hash` String,
+        `trusted_sha` String,
+        `timestamp` DateTime64(3),
+        `status` String,
+        `verdict` Nullable(String),
+        `summary` String,
+        `findings_count` Int32,
+        `findings_dropped` Int32,
+        `failure_detail` String,
+        `reasoning_uri` String,
+        `duration_ms` Int64,
+        `num_turns` Int32,
+        `total_cost_usd` Float64,
+        `input_tokens` Int64,
+        `output_tokens` Int64,
+        `cache_read_input_tokens` Int64,
+        `cache_creation_input_tokens` Int64,
+        `model` String,
+        `extra` Map(String, String)
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -888,6 +930,7 @@ SUPPORTED_PATHS = {
     "disabled_tests_historical": "misc.disabled_tests_historical",
     "claude_code_usage": "misc.claude_code_usage",
     "autorevert_advisor_verdicts": "misc.autorevert_advisor_verdicts",
+    "pr_review_verdicts": "misc.pr_review_verdicts",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
     "test_jsons_while_running": "tests.all_test_runs",
@@ -918,6 +961,7 @@ OBJECT_CONVERTER = {
     "misc.disabled_tests_historical": disabled_tests_historical_adapter,
     "misc.claude_code_usage": claude_code_usage_adapter,
     "misc.autorevert_advisor_verdicts": autorevert_advisor_verdicts_adapter,
+    "misc.pr_review_verdicts": pr_review_verdicts_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
     "misc.runner_fleet_count": runner_fleet_count_adapter,
     "misc.greenlight_pr_state": greenlight_pr_state_adapter,
