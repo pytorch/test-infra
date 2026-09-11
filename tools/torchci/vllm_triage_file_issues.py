@@ -197,7 +197,7 @@ def new_failure_confidence(cause: Dict[str, Any]) -> str:
 
 
 def eligible(cause: Dict[str, Any]) -> bool:
-    """High-confidence torch/triton causes only.
+    """Medium-confidence torch/triton causes only.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
     the tracker: at three runs a week, filing uncertain causes would bury the real
@@ -207,8 +207,9 @@ def eligible(cause: Dict[str, Any]) -> bool:
     issue", so filing it would duplicate a child issue that already exists.
     """
     return (
-        bool(cause.get("determined"))
-        and classification_confidence(cause) == "high"
+        bool(cause.get("determined"))  # type: ignore[return-value]
+        and classification_confidence(cause) != "low"
+        and classification_confidence(cause)
         and new_failure_confidence(cause) != "low"
         and str(cause.get("routing", "")).strip().lower() == "pytorch/pytorch"
     )
