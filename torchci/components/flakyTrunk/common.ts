@@ -1,52 +1,19 @@
 import { GridColDef } from "@mui/x-data-grid";
+import { intFormatter } from "components/common/numberFormat";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import isoWeek from "dayjs/plugin/isoWeek";
 import utc from "dayjs/plugin/utc";
 
-dayjs.extend(isoWeek);
 dayjs.extend(utc);
 
 export const FLAKY_TRUNK_REPO = "pytorch/pytorch";
 
-export const DEFAULT_TIME_RANGE = 30;
 // The presets offered by TimeRangePicker (days), plus -1 for a custom range.
 export const ALLOWED_TIME_RANGES = [1, 3, 7, 14, 30, 90, 180, 365, -1];
 export const DEFAULT_GRANULARITY: Granularity = "day";
 export const DEFAULT_MIN_RUNS = 20;
 export const DEFAULT_DENOMINATOR: DenominatorKey = "jobs";
 export const DEFAULT_VIABLE_STRICT_ONLY = false;
-
-// Windows wider than this disable the table auto-refresh so an idle long-range
-// tab does not keep re-running the heavy per-label query.
-export const LARGE_WINDOW_DAYS = 90;
-
-// ClickHouse DateTime64(3) literal expected by the flaky_trunk_* queries.
-export const CLICKHOUSE_TIME_FORMAT = "YYYY-MM-DDTHH:mm:ss.SSS";
-
-// Snap a window START down to its granularity bucket before it becomes a query
-// timestamp. TimeRangePicker re-derives "now" every 5 min, which would otherwise
-// churn the SWR key every render; snapping keeps the key stable within a bucket
-// (dedupes the graph/tiles fetch and stops needless heavy re-runs).
-export function snapToGranularity(
-  time: dayjs.Dayjs,
-  granularity: Granularity
-): dayjs.Dayjs {
-  const utc = time.utc();
-  return granularity === "week"
-    ? utc.startOf("isoWeek")
-    : utc.startOf(granularity);
-}
-
-// Snap a window STOP up to the start of the NEXT bucket, so the (exclusive) upper
-// bound includes the current in-progress bucket while staying fixed for that
-// bucket's whole duration — same key-stability benefit, without hiding today.
-export function snapStopToGranularity(
-  time: dayjs.Dayjs,
-  granularity: Granularity
-): dayjs.Dayjs {
-  return snapToGranularity(time, granularity).add(1, granularity);
-}
 
 export type DenominatorKey = "jobs" | "reds";
 
@@ -180,13 +147,6 @@ export function percentFormatter(value: number | null | undefined): string {
     return "-";
   }
   return `${(value * 100).toFixed(1)}%`;
-}
-
-export function intFormatter(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "-";
-  }
-  return Number(value).toLocaleString();
 }
 
 export function numCol(

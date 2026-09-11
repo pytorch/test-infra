@@ -1,10 +1,10 @@
 import { Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { intFormatter } from "components/common/numberFormat";
 import { fetcher } from "lib/GeneralUtils";
 import { useMemo } from "react";
 import useSWR from "swr";
 import {
   flakyTrunkTimeseriesUrl,
-  intFormatter,
   percentFormatter,
   TILE_CONFIGS,
 } from "./common";

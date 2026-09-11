@@ -1,6 +1,14 @@
 [sqlfluff]
 exclude_rules = capitalisation.functions,capitalisation.identifiers
 
+# sqlfluff skips any file larger than this and reports nothing; lintrunner renders that skip as
+# a pass, so a query that outgrows the limit becomes silently unlinted instead of failing. The
+# 20000 default guards against parser lock on machine-generated SQL, which is not what lives
+# here -- the largest hand-written query in clickhouse_queries/ is over it and parses in about
+# two seconds. Set with headroom so that adding a paragraph of comment to a query cannot put it
+# back into the blind spot without anyone noticing.
+large_file_skip_byte_limit = 32768
+
 [sqlfluff:rules:capitalisation.keywords]
 # Keywords
 capitalisation_policy = upper
