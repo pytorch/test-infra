@@ -65,7 +65,7 @@ def captured_query(call, *args, **kwargs):
 
 # The insert projection merges_adapter is expected to write: the destination
 # names, in the order its SELECT produces them. Written out on purpose --
-# MERGES_COLUMNS is derived from MERGES_SCHEMA, so without an independent
+# the lambda derives them from MERGES_SCHEMA, so without an independent
 # statement of the answer the derivation would only be compared against itself.
 # Each name was confirmed to be a column of default.merges against
 # system.columns on 2026-09-10; it is NOT a snapshot of the whole table, and
@@ -98,15 +98,21 @@ EXPECTED_MERGES_COLUMNS = [
 ]
 
 
-def test_derived_columns_are_the_columns_the_table_has():
-    assert lambda_function.MERGES_COLUMNS == EXPECTED_MERGES_COLUMNS
+def derived_merges_columns():
+    return lambda_function.flat_schema_columns(lambda_function.MERGES_SCHEMA) + [
+        lambda_function.META_COLUMN
+    ]
+
+
+def test_derived_columns_are_the_projection_the_table_expects():
+    assert derived_merges_columns() == EXPECTED_MERGES_COLUMNS
 
 
 def test_every_name_is_backtick_quoted():
     # An unquoted name would still be valid SQL for most of these, but `error`
     # is close enough to reserved that quoting is not optional by inspection --
     # so require it of all of them.
-    for name in lambda_function.MERGES_COLUMNS:
+    for name in derived_merges_columns():
         assert re.fullmatch(r"`[^`]+`", name), name
 
 
@@ -156,15 +162,17 @@ def test_a_flat_schema_reads_cleanly():
 
 
 def test_merges_insert_names_its_columns():
+    # End to end, against the independently written projection rather than
+    # against the derivation's own output.
     sql = captured_query(
         lambda_function.merges_adapter, "default.merges", "bkt", "some/key.json"
     )
-    expected = ", ".join(lambda_function.MERGES_COLUMNS)
+    expected = ", ".join(EXPECTED_MERGES_COLUMNS)
     assert f"insert into default.merges ({expected})" in sql
 
 
-def test_a_caller_passing_no_columns_still_emits_the_positional_form():
-    # The whole point of `columns` being opt-in: the other tables this lambda
+def test_a_caller_that_does_not_opt_in_still_emits_the_positional_form():
+    # The whole point of the flag being opt-in: the other tables this lambda
     # serves must emit exactly what they emitted before.
     sql = captured_query(
         lambda_function.merge_bases_adapter,
@@ -176,37 +184,92 @@ def test_a_caller_passing_no_columns_still_emits_the_positional_form():
     assert "insert into default.merge_bases (" not in sql
 
 
-def test_columns_none_and_columns_omitted_produce_identical_sql():
+def test_opting_out_explicitly_and_omitting_the_flag_are_the_same_sql():
     args = ("default.t", "bkt", "k", "`a` String", ["none"], "JSONEachRow")
     assert captured_query(lambda_function.general_adapter, *args) == captured_query(
-        lambda_function.general_adapter, *args, columns=None
+        lambda_function.general_adapter, *args, use_named_columns=False
     )
 
 
-def test_the_named_list_is_used_verbatim_in_order():
-    # Two names for the two expressions a one-field structure produces (the
-    # field, then the meta tuple), so the fixture is arity-correct SQL. The
-    # names are deliberately out of alphabetical order: anything that sorted or
-    # reordered the list would render `(`a`, `z`)`.
+def test_the_names_follow_the_schema_order_with_the_meta_tuple_last():
+    # Declared out of alphabetical order on purpose: anything that sorted the
+    # derived names would render `(`a`, `z`, `_meta`)`.
     sql = captured_query(
         lambda_function.general_adapter,
         "default.t",
         "bkt",
         "k",
-        "`a` String",
+        "`z` String,\n`a` Int64",
         ["none"],
         "JSONEachRow",
-        columns=["`z`", "`a`"],
+        use_named_columns=True,
     )
-    assert "insert into default.t (`z`, `a`)" in sql
+    assert "insert into default.t (`z`, `a`, `_meta`)" in sql
 
 
-def test_merges_adapter_is_the_only_caller_that_names_columns():
+def test_a_schema_the_parser_would_reject_is_fine_when_not_opted_in():
+    # The restricted parser must never be applied to a caller that did not ask
+    # for it -- most of the schemas in this file would fail it.
+    sql = captured_query(
+        lambda_function.general_adapter,
+        "default.t",
+        "bkt",
+        "k",
+        "`t` Tuple(bucket String, key String)",
+        ["none"],
+        "JSONEachRow",
+    )
+    assert "insert into default.t\n" in sql
+    assert "insert into default.t (" not in sql
+
+
+def test_opting_in_with_a_schema_it_cannot_read_raises():
+    # Raised before the query is built, so it propagates out of
+    # general_adapter rather than being logged as an insert failure. It can
+    # only be reached by editing a schema constant, which is why this test --
+    # which runs on every pull request -- is the gate that matters.
+    with pytest.raises(ValueError, match="not flat"):
+        captured_query(
+            lambda_function.general_adapter,
+            "default.t",
+            "bkt",
+            "k",
+            "`t` Tuple(bucket String, key String)",
+            ["none"],
+            "JSONEachRow",
+            use_named_columns=True,
+        )
+
+
+def opts_in(call):
+    """True if this general_adapter() call turns named columns ON.
+
+    Reads the VALUE, not merely the argument's presence: an explicit
+    `use_named_columns=False` leaves the SQL positional and must not count.
+    Anything that is not a literal False does count, including a name this
+    cannot resolve -- unrecognised is treated as opting in, so the test errs
+    toward flagging.
+    """
+    supplied = [kw.value for kw in call.keywords if kw.arg == "use_named_columns"]
+    if len(call.args) >= 7:
+        supplied.append(call.args[6])
+    return any(
+        not (isinstance(value, ast.Constant) and value.value is False)
+        for value in supplied
+    )
+
+
+def test_merges_adapter_is_the_only_caller_that_turns_named_columns_on():
     # Source-level via AST, deliberately: invoking every adapter would need S3
-    # and a cluster, and a textual search for one spelling would miss
-    # `columns=SOMETHING_ELSE`, an inline list, or a seventh positional
-    # argument. If a second table opts in, that is a decision someone should
-    # make on purpose, and this test is where they notice.
+    # and a cluster, and a textual search would miss the flag passed as a
+    # seventh positional argument. Opting a second table in is a decision
+    # someone should make on purpose -- both preconditions in
+    # general_adapter's docstring have to be rechecked for it -- and this test
+    # is where they notice.
+    #
+    # A source-convention guard, not structural enforcement: forwarding the
+    # flag through **kwargs, or calling general_adapter through an alias,
+    # would evade it.
     tree = ast.parse((LAMBDA_DIR / "lambda_function.py").read_text())
     naming = []
     for func in ast.walk(tree):
@@ -217,9 +280,6 @@ def test_merges_adapter_is_the_only_caller_that_names_columns():
                 continue
             if getattr(node.func, "id", None) != "general_adapter":
                 continue
-            passes_columns = len(node.args) >= 7 or any(
-                kw.arg == "columns" for kw in node.keywords
-            )
-            if passes_columns:
+            if opts_in(node):
                 naming.append(func.name)
     assert naming == ["merges_adapter"]

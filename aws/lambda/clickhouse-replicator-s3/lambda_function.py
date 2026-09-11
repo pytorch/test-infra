@@ -391,18 +391,14 @@ MERGES_SCHEMA = """
     `unstable_checks` Array(Array(String))
     """
 
-# The columns merges_adapter's insert writes, in the order its SELECT produces
-# them: the fields MERGES_SCHEMA declares, then the meta tuple. Naming them is
-# what lets `ai_not_related_checks` (pytorch/pytorch#195503) be ALTERed into
-# default.merges before the schema string above declares it -- the insert does
-# not mention it, so it takes its default. The names this is expected to
-# produce are pinned in aws/lambda/tests/test_clickhouse_replicator_s3.py, so a
-# bug in the derivation surfaces as a test failure rather than as data in a
-# wrong column; adding a column means editing MERGES_SCHEMA and that fixture.
-MERGES_COLUMNS = flat_schema_columns(MERGES_SCHEMA) + [META_COLUMN]
-
 
 def merges_adapter(table, bucket, key) -> None:
+    # Named columns so `ai_not_related_checks` (pytorch/pytorch#195503) can be
+    # ALTERed into default.merges before MERGES_SCHEMA declares it: the insert
+    # does not mention the new column, so it takes its default. The names the
+    # derivation is expected to produce are pinned in
+    # aws/lambda/tests/test_clickhouse_replicator_s3.py, so a bug in it shows
+    # up as a test failure rather than as data in the wrong column.
     general_adapter(
         table,
         bucket,
@@ -410,7 +406,7 @@ def merges_adapter(table, bucket, key) -> None:
         MERGES_SCHEMA,
         ["none"],
         "JSONEachRow",
-        columns=MERGES_COLUMNS,
+        use_named_columns=True,
     )
 
 
@@ -459,7 +455,7 @@ def log_failure_to_clickhouse(table, bucket, key, error) -> None:
 
 
 def general_adapter(
-    table, bucket, key, schema, compressions, format, columns=None
+    table, bucket, key, schema, compressions, format, use_named_columns=False
 ) -> None:
     """Copy one S3 object into `table`.
 
@@ -469,14 +465,25 @@ def general_adapter(
     table a breaking change until `schema` is updated to match, and the two
     cannot be changed at the same instant.
 
-    Pass `columns` -- the destination column names in the order the SELECT
-    produces them, meta tuple included -- to name the targets instead. Column
-    ORDER and COUNT on the table then stop mattering, and any column not named
-    takes its default, so a new column can be ALTERed in before the code that
-    populates it. Callers that pass nothing keep the positional form.
+    Set `use_named_columns` to name the destination columns instead. They are
+    read straight out of `schema`, which already lists them, plus META_COLUMN
+    for the tuple this SELECT appends. Column ORDER and COUNT on the table then
+    stop mattering, and any column not named takes its default, so a new column
+    can be ALTERed in before the code that populates it.
+
+    Two conditions, both currently met only by `merges_adapter`, which is the
+    sole caller that sets it. `schema` must satisfy FLAT_COLUMN_DECLARATION --
+    `flat_schema_columns` raises rather than guess otherwise. And the table's
+    meta tuple must be called `_meta`: `default.merge_bases`,
+    `default.queue_times_historical` and `default.rerun_disabled_tests` call
+    theirs `meta`, which a positional insert never had to know, so naming the
+    columns for one of those needs META_COLUMN to become per-table first.
     """
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
-    target = f"{table} ({', '.join(columns)})" if columns else table
+    target = table
+    if use_named_columns:
+        columns = flat_schema_columns(schema) + [META_COLUMN]
+        target = f"{table} ({', '.join(columns)})"
 
     def get_insert_query(compression):
         return f"""
