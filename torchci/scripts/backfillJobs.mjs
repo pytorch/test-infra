@@ -1,6 +1,7 @@
 // GitHub sometimes fails to deliver webhooks, so we get inconsistent data. This
 // script backfills workflow jobs that have not been marked completed for a
 // suspiciously long time.
+// Usage: node scripts/backfillJobs.mjs [--dry-run] [--limit N]
 
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
@@ -8,6 +9,43 @@ import { createClient } from "@clickhouse/client";
 import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import { request } from "urllib";
+
+const BACKFILL_REPOSITORIES = ["pytorch/pytorch", "pytorch/executorch"];
+const DEFAULT_BACKFILL_LIMIT = 200;
+
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let dryRun = false;
+  let backfillLimit = DEFAULT_BACKFILL_LIMIT;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--dry-run") {
+      dryRun = true;
+    } else if (args[i] === "--limit" && i + 1 < args.length) {
+      backfillLimit = Number.parseInt(args[++i], 10);
+      if (!Number.isInteger(backfillLimit) || backfillLimit <= 0) {
+        throw new Error("--limit must be a positive integer");
+      }
+    } else {
+      throw new Error(
+        "Usage: node scripts/backfillJobs.mjs [--dry-run] [--limit N]"
+      );
+    }
+  }
+
+  return { dryRun, backfillLimit };
+}
+
+const { dryRun, backfillLimit } = parseArgs();
+
+if (dryRun) {
+  console.log(`[dry-run] Backfill limit: ${backfillLimit}`);
+  console.log(
+    `[dry-run] GitHub auth: ${
+      process.env.GITHUB_TOKEN ? "token" : "unauthenticated"
+    }`
+  );
+}
 
 function getDynamoClient() {
   return DynamoDBDocument.from(
@@ -19,7 +57,7 @@ function getDynamoClient() {
 
 function getClickhouseClient() {
   return createClient({
-    host: process.env.CLICKHOUSE_HUD_USER_URL,
+    url: process.env.CLICKHOUSE_HUD_USER_URL,
     username: process.env.CLICKHOUSE_HUD_USER_USERNAME,
     password: process.env.CLICKHOUSE_HUD_USER_PASSWORD,
   });
@@ -59,8 +97,28 @@ async function getOctokit(owner, repo) {
   });
 }
 
-const dClient = getDynamoClient();
-const octokit = await getOctokit("pytorch", "pytorch");
+const dClient = dryRun ? null : getDynamoClient();
+const octokitClients = new Map();
+
+async function getOctokitForRepo(owner, repo) {
+  if (dryRun) {
+    const cacheKey = "dry-run";
+    if (!octokitClients.has(cacheKey)) {
+      const auth = process.env.GITHUB_TOKEN;
+      octokitClients.set(
+        cacheKey,
+        Promise.resolve(auth ? new Octokit({ auth }) : new Octokit())
+      );
+    }
+    return await octokitClients.get(cacheKey);
+  }
+
+  const repository = `${owner}/${repo}`;
+  if (!octokitClients.has(repository)) {
+    octokitClients.set(repository, getOctokit(owner, repo));
+  }
+  return await octokitClients.get(repository);
+}
 
 async function backfillWorkflowJob(
   id,
@@ -69,9 +127,10 @@ async function backfillWorkflowJob(
   dynamo_key,
   skipBackfill
 ) {
-  console.log(`Checking job ${id}`);
+  console.log(`Checking job ${owner}/${repo_name}#${id}`);
 
   const table = "torchci-workflow-job";
+  const octokit = await getOctokitForRepo(owner, repo_name);
 
   try {
     let job = await octokit.rest.actions.getJobForWorkflowRun({
@@ -95,17 +154,24 @@ async function backfillWorkflowJob(
         ...payload,
       },
     };
-    console.log(`Writing job ${id} to DynamoDB`);
-    console.log(thing);
-    await dClient.put(thing);
+    if (dryRun) {
+      console.log(`[dry-run] Would write job ${id} to DynamoDB`);
+    } else {
+      console.log(`Writing job ${id} to DynamoDB`);
+      console.log(thing);
+      await dClient.put(thing);
+    }
   } catch (error) {
+    if (error.status !== 404) {
+      throw error;
+    }
     console.log(`Failed to find job id ${id}: ${error}`);
     console.log(`Marking job id ${id} as incomplete`);
     console.log(`Querying dynamo entry for job id ${id}`);
 
     let rows = await queryClickhouse(
-      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}' and j.id = ${id}`,
-      {}
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = {dynamoKey: String} and j.id = {id: UInt64}`,
+      { dynamoKey: dynamo_key, id }
     );
 
     if (rows.length === 0) {
@@ -115,7 +181,6 @@ async function backfillWorkflowJob(
 
     const result = rows[0];
 
-    console.log(`Writing job ${id} to DynamoDB:`);
     const thing = {
       TableName: table,
       Item: {
@@ -124,8 +189,13 @@ async function backfillWorkflowJob(
         backfill: false,
       },
     };
-    console.log(thing);
-    await dClient.put(thing);
+    if (dryRun) {
+      console.log(`[dry-run] Would write job ${id} to DynamoDB`);
+    } else {
+      console.log(`Writing job ${id} to DynamoDB:`);
+      console.log(thing);
+      await dClient.put(thing);
+    }
     return;
   }
 }
@@ -137,12 +207,15 @@ const jobsWithNoConclusion = await queryClickhouse(
     SELECT
         j.id as id,
         j.run_id as run_id,
-        j.dynamoKey as dynamoKey
+        j.dynamoKey as dynamoKey,
+        j.repository_full_name as repository_full_name,
+        j.started_at as started_at
     FROM
         workflow_job j final
     WHERE
         j.conclusion = ''
         and j.backfill
+        and j.repository_full_name in {repositories: Array(String)}
         and j.id in (
             select
                 id
@@ -152,16 +225,17 @@ const jobsWithNoConclusion = await queryClickhouse(
                 started_at < CURRENT_TIMESTAMP() - INTERVAL 3 HOUR
                 and started_at > CURRENT_TIMESTAMP() - INTERVAL 1 DAY
         )
-    ORDER BY
-        j.started_at ASC
-    LIMIT
-        200
 )
 SELECT
     j.id as id,
     w. repository. 'name' as repo_name,
     w. repository. 'owner'.'login' as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
+    w.repository. 'full_name' as repository_full_name,
+    row_number() OVER (
+        PARTITION BY w.repository. 'full_name'
+        ORDER BY j.started_at ASC
+    ) as repository_rank
 FROM
     workflow_run w final
     INNER JOIN pending_jobs j on j.run_id = w.id
@@ -172,9 +246,17 @@ WHERE
         from
             pending_jobs
     )
-    and w.repository. 'name' = 'pytorch'
+    and w.repository. 'full_name' in {repositories: Array(String)}
+ORDER BY
+    repository_rank ASC,
+    j.started_at ASC
+LIMIT
+    {backfillLimit: Int64}
   `,
-  {}
+  {
+    repositories: BACKFILL_REPOSITORIES,
+    backfillLimit,
+  }
 );
 
 // Await in a loop???
@@ -203,12 +285,15 @@ const queuedJobs = await queryClickhouse(
     SELECT
         j.id as id,
         j.run_id as run_id,
-        j.dynamoKey as dynamoKey
+        j.dynamoKey as dynamoKey,
+        j.repository_full_name as repository_full_name,
+        j.started_at as started_at
     FROM
         workflow_job j final
     WHERE
         j.status = 'queued'
         and j.backfill
+        and j.repository_full_name in {repositories: Array(String)}
         and j.id in (
             select
                 id
@@ -223,17 +308,29 @@ SELECT
     j.id as id,
     w.repository. 'name' as repo_name,
     w.repository. 'owner'.'login' as owner,
-    j.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key,
+    w.repository. 'full_name' as repository_full_name,
+    row_number() OVER (
+        PARTITION BY w.repository. 'full_name'
+        ORDER BY j.started_at ASC
+    ) as repository_rank
 FROM
     workflow_run w final
     INNER JOIN pending_jobs j on j.run_id = w.id
 WHERE
     w.status != 'completed'
-    AND w.repository. 'name' = 'pytorch'
+    AND w.repository. 'full_name' in {repositories: Array(String)}
     AND w.id in (select run_id from pending_jobs)
+ORDER BY
+    repository_rank ASC,
+    j.started_at ASC
 LIMIT
-    200`,
-  {}
+    {backfillLimit: Int64}
+`,
+  {
+    repositories: BACKFILL_REPOSITORIES,
+    backfillLimit,
+  }
 );
 
 // See above for why we're awaiting in a loop.
@@ -287,6 +384,10 @@ where
 console.log(`There are ${unclassifiedJobs.length} jobs with unclassified logs`);
 for (const job of unclassifiedJobs) {
   console.log(`Attempting to backfill log of ${job.id}`);
+  if (dryRun) {
+    console.log(`[dry-run] Skipping log backfill for ${job.id}`);
+    continue;
+  }
   try {
     const a = await request(
       `https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id=${job.id}`
