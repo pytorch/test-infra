@@ -867,15 +867,9 @@ def greenlight_pr_state_adapter(table, bucket, key):
 
 
 def pr_review_verdicts_adapter(table, bucket, key):
-    # KEEP THIS LIST IN THE SAME ORDER AS misc.pr_review_verdicts. general_adapter
-    # inserts positionally (`select *`), so a column added here but not in the
-    # same position of the table shifts every later value silently.
-    #
-    # Two row shapes share this prefix: the `started` row carries 20 fields, the
-    # terminal row all 33. Absent fields take their type default, which is
-    # ordinary JSONEachRow behaviour. `verdict` is Nullable because it arrives as
-    # an explicit JSON null whenever there is no verdict - every started row, and
-    # any terminal row that did not reach one (e.g. status 'blocked').
+    # Order must match misc.pr_review_verdicts: general_adapter inserts
+    # positionally. `verdict` is null on started rows and on any terminal row
+    # without a verdict.
     schema = """
         `schema_version` UInt16,
         `phase` String,
@@ -911,7 +905,6 @@ def pr_review_verdicts_adapter(table, bucket, key):
         `model` String,
         `extra` Map(String, String)
     """
-    # Uploaded with a plain `aws s3 cp` from the workflow, so no gzip variant.
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
@@ -937,10 +930,6 @@ SUPPORTED_PATHS = {
     "disabled_tests_historical": "misc.disabled_tests_historical",
     "claude_code_usage": "misc.claude_code_usage",
     "autorevert_advisor_verdicts": "misc.autorevert_advisor_verdicts",
-    # Hardened PR review. NOTE the sibling prefix `pr_review_traces/` is
-    # deliberately absent: it holds unsanitized model transcripts that the
-    # untrusted review role can overwrite, and it must not reach ClickHouse.
-    # Prefix matching is `startswith(f"{path}/")`, so this entry cannot catch it.
     "pr_review_verdicts": "misc.pr_review_verdicts",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
