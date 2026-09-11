@@ -11,13 +11,11 @@ from .client import get_clickhouse_client
 from .logic import build_rows, COLUMNS, iter_time_chunks
 from .premerge import (
     classify_with_context,
-    parse_pr_from_message,
     PremergeContext,
     resolve_premerge_context,
 )
 from .queries import (
     fetch_advisor_verdicts,
-    fetch_commit_messages,
     fetch_commit_times,
     fetch_flaky_for_day,
     fetch_regressions,
@@ -121,9 +119,6 @@ def collect(args: argparse.Namespace) -> List[dict]:
         for r in rows
         if r["category"] == "regression" and r["workflow"] in ("trunk", "pull")
     ]
-    msg_shas = sorted({r["commit_sha"] for r in qualifying})
-    messages = fetch_commit_messages(client, msg_shas) if msg_shas else {}
-
     # Initialize every row so csv.DictWriter always has the premerge_status field.
     for r in rows:
         r["premerge_status"] = ""
@@ -136,8 +131,6 @@ def collect(args: argparse.Namespace) -> List[dict]:
         file, sep, name = r["signal_key"].partition("::")
         if not sep:
             continue
-        message = messages.get(r["commit_sha"], "")
-        pr = parse_pr_from_message(message)
         context = context_cache.get(r["commit_sha"])
         if context is None:
             context = resolve_premerge_context(client, r["commit_sha"], repo=args.repo)
@@ -145,11 +138,10 @@ def collect(args: argparse.Namespace) -> List[dict]:
         status = classify_with_context(client, context, file, name)
         r["premerge_status"] = status
         logging.info(
-            "premerge %d/%d commit=%s pr=%s signal=%s -> %s",
+            "premerge %d/%d commit=%s signal=%s -> %s",
             i,
             total,
             r["commit_sha"][:10],
-            pr,
             r["signal_key"],
             status,
         )
