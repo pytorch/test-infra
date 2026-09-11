@@ -550,6 +550,13 @@
       "rocm"
     ]
   ],
+  "test_fused_attention_empty_batch_xpu (__main__.TestSDPAAcceleratorXPU)": [
+    "196748",
+    "https://github.com/pytorch/pytorch/issues/196748",
+    [
+      "xpu"
+    ]
+  ],
   "test_fused_sdp_priority_order_use_compile_True_cuda (__main__.TestSDPAAcceleratorCUDA)": [
     "196438",
     "https://github.com/pytorch/pytorch/issues/196438",
@@ -804,11 +811,6 @@
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188712",
     "https://github.com/pytorch/pytorch/issues/188712",
-    []
-  ],
-  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188713",
-    "https://github.com/pytorch/pytorch/issues/188713",
     []
   ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
