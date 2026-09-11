@@ -233,13 +233,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
-    "187202",
-    "https://github.com/pytorch/pytorch/issues/187202",
-    [
-      "linux"
-    ]
-  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -811,6 +804,11 @@
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188712",
     "https://github.com/pytorch/pytorch/issues/188712",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188713",
+    "https://github.com/pytorch/pytorch/issues/188713",
     []
   ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
