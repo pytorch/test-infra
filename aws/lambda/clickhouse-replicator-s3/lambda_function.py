@@ -1,6 +1,9 @@
 import json
 import os
-import urllib
+
+# `import urllib` alone does not bind the `parse` submodule. encode_url_component
+# works today only because clickhouse_connect imports urllib.parse first.
+import urllib.parse
 from collections import defaultdict
 from enum import Enum
 from functools import lru_cache
@@ -319,8 +322,38 @@ def handle_test_run_summary(table, bucket, key) -> None:
         log_failure_to_clickhouse(table, bucket, key, e)
 
 
-def merges_adapter(table, bucket, key) -> None:
-    schema = """
+# The columns `merges_adapter`'s insert writes, in the order its SELECT produces
+# them: the fields MERGES_SCHEMA declares, then the meta tuple. Naming them is
+# what lets `ai_not_related_checks` (pytorch/pytorch#195503) be ALTERed into
+# default.merges before the schema string below declares it -- the insert simply
+# does not mention it, so it takes its default. Keep this list and MERGES_SCHEMA
+# in the same order; aws/lambda/tests/test_clickhouse_replicator_s3.py checks
+# that they agree.
+MERGES_COLUMNS = [
+    "`_id`",
+    "`author`",
+    "`broken_trunk_checks`",
+    "`comment_id`",
+    "`dry_run`",
+    "`error`",
+    "`failed_checks`",
+    "`flaky_checks`",
+    "`ignore_current`",
+    "`ignore_current_checks`",
+    "`is_failed`",
+    "`last_commit_sha`",
+    "`merge_base_sha`",
+    "`merge_commit_sha`",
+    "`owner`",
+    "`pending_checks`",
+    "`pr_num`",
+    "`project`",
+    "`skip_mandatory_checks`",
+    "`unstable_checks`",
+    "`_meta`",
+]
+
+MERGES_SCHEMA = """
     `_id` String,
     `author` String,
     `broken_trunk_checks` Array(Array(String)),
@@ -343,7 +376,17 @@ def merges_adapter(table, bucket, key) -> None:
     `unstable_checks` Array(Array(String))
     """
 
-    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+def merges_adapter(table, bucket, key) -> None:
+    general_adapter(
+        table,
+        bucket,
+        key,
+        MERGES_SCHEMA,
+        ["none"],
+        "JSONEachRow",
+        columns=MERGES_COLUMNS,
+    )
 
 
 def merge_bases_adapter(table, bucket, key) -> None:
@@ -390,12 +433,29 @@ def log_failure_to_clickhouse(table, bucket, key, error) -> None:
     )
 
 
-def general_adapter(table, bucket, key, schema, compressions, format) -> None:
+def general_adapter(
+    table, bucket, key, schema, compressions, format, columns=None
+) -> None:
+    """Copy one S3 object into `table`.
+
+    The insert is positional by default: `select *` yields exactly the fields
+    `schema` declares, so the destination must have precisely those columns, in
+    that order, with the meta tuple last. That makes adding a column to the
+    table a breaking change until `schema` is updated to match, and the two
+    cannot be changed at the same instant.
+
+    Pass `columns` -- the destination column names in the order the SELECT
+    produces them, meta tuple included -- to name the targets instead. Column
+    ORDER and COUNT on the table then stop mattering, and any column not named
+    takes its default, so a new column can be ALTERed in before the code that
+    populates it. Callers that pass nothing keep the positional form.
+    """
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+    target = f"{table} ({', '.join(columns)})" if columns else table
 
     def get_insert_query(compression):
         return f"""
-        insert into {table}
+        insert into {target}
         select *, ('{bucket}', '{key}') as _meta
         from s3('{url}', '{format}', '{schema}', '{compression}',
             extra_credentials(
