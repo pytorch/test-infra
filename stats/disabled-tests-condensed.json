@@ -79,6 +79,14 @@
     "https://github.com/pytorch/pytorch/issues/188688",
     []
   ],
+  "test_backward_choices_hook_preserves_captured_grad_mutations_cuda (__main__.TestFlexAttentionCUDA)": [
+    "196671",
+    "https://github.com/pytorch/pytorch/issues/196671",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
@@ -711,6 +719,13 @@
       "linux"
     ]
   ],
+  "test_layout_TT (__main__.LayoutCoverageWildcardTest)": [
+    "196670",
+    "https://github.com/pytorch/pytorch/issues/196670",
+    [
+      "linux"
+    ]
+  ],
   "test_layout_TT_dynamic_k (__main__.LayoutCoverageWildcardTest)": [
     "194900",
     "https://github.com/pytorch/pytorch/issues/194900",
@@ -723,6 +738,14 @@
     "https://github.com/pytorch/pytorch/issues/196405",
     [
       "linux"
+    ]
+  ],
+  "test_linalg_batched_lu_stability_large_inputs_cuda_complex128 (__main__.TestLinalgCUDA)": [
+    "196672",
+    "https://github.com/pytorch/pytorch/issues/196672",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
@@ -1104,8 +1127,8 @@
     ]
   ],
   "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
-    "196628",
-    "https://github.com/pytorch/pytorch/issues/196628",
+    "196629",
+    "https://github.com/pytorch/pytorch/issues/196629",
     [
       "linux",
       "rocm"
@@ -1448,13 +1471,6 @@
       "inductor",
       "rocm",
       "xpu"
-    ]
-  ],
-  "test_triton_template_generated_code_caching (__main__.TestMaxAutotuneAsyncPipelined)": [
-    "190009",
-    "https://github.com/pytorch/pytorch/issues/190009",
-    [
-      "rocm"
     ]
   ],
   "test_triton_template_generated_code_caching_mm_plus_mm (__main__.TestMaxAutotune)": [
