@@ -5,6 +5,7 @@ Run from the repo root with either:
     pytest tools/tests/test_release_manage_runner_groups.py
 """
 
+from typing import Any, List, Tuple
 from unittest import main, TestCase
 
 import tools.scripts.release_manage_runner_groups as m
@@ -376,7 +377,8 @@ class TestBuildDesiredWorkflows(TestCase):
                     ".github/workflows/b.yml",
                 },
                 "refs/heads/release/2.12": {".github/workflows/a.yml"},
-            }
+            },
+            "pytorch/pytorch",
         )
         self.assertEqual(
             desired,
@@ -386,6 +388,108 @@ class TestBuildDesiredWorkflows(TestCase):
                 "pytorch/pytorch/.github/workflows/a.yml@refs/heads/release/2.12",
             },
         )
+
+
+class FakeClient(m.GitHubClient):
+    """Records the PATCH bodies reconcile_workflows would send.
+
+    Subclasses the real client rather than duck-typing it so the calls below
+    type-check, and skips its __init__ because no HTTP session is needed.
+    """
+
+    def __init__(self) -> None:
+        self.patches: List[Tuple[str, str, Any]] = []
+
+    def request(self, method: str, path: str, **kwargs: Any) -> Any:
+        self.patches.append((method, path, kwargs.get("json")))
+        return None
+
+
+class TestReconcileWorkflowsIsScopedToRepo(TestCase):
+    """The release runner groups are org-level and shared, so a run for one repo
+    must not touch another repo's entries."""
+
+    def _group(self, selected):
+        return {
+            "id": 1,
+            "name": "meta-prod-aws-ue1-release-runners",
+            "selected_workflows": selected,
+            "restricted_to_workflows": True,
+        }
+
+    def test_other_repos_entries_are_preserved(self) -> None:
+        client = FakeClient()
+        group = self._group(
+            [
+                "pytorch/pytorch/.github/workflows/keep.yml@refs/heads/main",
+                "pytorch/executorch/.github/workflows/old.yml@refs/heads/nightly",
+            ]
+        )
+        desired = {"pytorch/executorch/.github/workflows/new.yml@refs/heads/nightly"}
+        changed = m.reconcile_workflows(
+            client, group, desired, "pytorch/executorch", apply=True
+        )
+        self.assertTrue(changed)
+        self.assertEqual(len(client.patches), 1)
+        sent = set(client.patches[0][2]["selected_workflows"])
+        # pytorch/pytorch survives; executorch's stale entry is replaced.
+        self.assertIn(
+            "pytorch/pytorch/.github/workflows/keep.yml@refs/heads/main", sent
+        )
+        self.assertNotIn(
+            "pytorch/executorch/.github/workflows/old.yml@refs/heads/nightly", sent
+        )
+        self.assertIn(
+            "pytorch/executorch/.github/workflows/new.yml@refs/heads/nightly", sent
+        )
+
+    def test_no_write_when_only_other_repos_entries_differ(self) -> None:
+        client = FakeClient()
+        group = self._group(
+            [
+                "pytorch/pytorch/.github/workflows/a.yml@refs/heads/main",
+                "pytorch/executorch/.github/workflows/b.yml@refs/heads/nightly",
+            ]
+        )
+        desired = {"pytorch/executorch/.github/workflows/b.yml@refs/heads/nightly"}
+        changed = m.reconcile_workflows(
+            client, group, desired, "pytorch/executorch", apply=True
+        )
+        self.assertFalse(changed)
+        self.assertEqual(client.patches, [])
+
+    def test_prefix_match_does_not_catch_a_similarly_named_repo(self) -> None:
+        # pytorch/executorch-examples must not be mistaken for pytorch/executorch.
+        client = FakeClient()
+        group = self._group(
+            ["pytorch/executorch-examples/.github/workflows/x.yml@refs/heads/main"]
+        )
+        desired = {"pytorch/executorch/.github/workflows/y.yml@refs/heads/main"}
+        m.reconcile_workflows(client, group, desired, "pytorch/executorch", apply=True)
+        sent = set(client.patches[0][2]["selected_workflows"])
+        self.assertIn(
+            "pytorch/executorch-examples/.github/workflows/x.yml@refs/heads/main",
+            sent,
+        )
+
+
+class TestVersionAnchor(TestCase):
+    def test_non_pytorch_repo_anchors_on_newest_release_branch(self) -> None:
+        anchor = m.get_test_version_anchor(
+            "pytorch/executorch",
+            ["main", "release/1.4", "release/1.5", "release/1.4-full-wheel"],
+        )
+        self.assertEqual(anchor, (1, 5))
+
+    def test_anchor_sorts_numerically_not_lexically(self) -> None:
+        anchor = m.get_test_version_anchor(
+            "pytorch/executorch", ["release/1.9", "release/1.10"]
+        )
+        self.assertEqual(anchor, (1, 10))
+
+    def test_no_release_branch_is_a_clear_error(self) -> None:
+        with self.assertRaises(SystemExit):
+            m.get_test_version_anchor("pytorch/executorch", ["main", "nightly"])
 
 
 if __name__ == "__main__":
