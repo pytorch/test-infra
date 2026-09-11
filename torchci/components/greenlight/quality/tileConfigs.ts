@@ -206,8 +206,9 @@ export function mergeAuthorityShares(row: any): {
 }
 
 export const MERGE_AUTHORITY_CAVEAT =
-  "Merges where GreenLight's approval was the only one on the PR. Approval " +
-  "detection is timestamp-based, so it misses one that lands just after the merge.";
+  "Merges where GreenLight's approval was the only one on the PR. Both its " +
+  "verdict and any human approval are read as of the merge command, and the " +
+  "verdict has to be the one issued on the commit that landed.";
 
 export const REVERT_RATE_LABEL = "GreenLight-approved reverts";
 

@@ -209,15 +209,17 @@ in the file unfixable, the formatter therefore changes nothing, and the file
 passes with no output — for the whole file, not just the unparsable part. A
 lowercase `SELECT` that is caught in a parsable file goes unreported once
 anything else in the same file fails to parse. This is not a rare edge case:
-**98 of the 194 committed `query.sql` files — 51% — currently report a parse
+**98 of the 198 committed `query.sql` files — 49% — currently report a parse
 error** under the exact transformation the adapter applies, and so are getting
 no structural or stylistic checking at all.
 
 **Oversized files.** sqlfluff refuses to look at any file over
 `large_file_skip_byte_limit` bytes, warning `Skipping to avoid parser lock` and
 reporting nothing; lintrunner renders that as a pass. The default is 20000. The
-same 22,505-byte query linted under a 20000 limit yields the warning and zero
-violations, and under a 32768 limit yields 175 — size alone is the discriminator.
+largest query here, `greenlight_quality_reverts/query.sql`, reaches sqlfluff as
+26,253 bytes once the adapter's substitution is applied: under a 20000 limit that
+yields the warning and zero violations, and under a 32768 limit it yields 203 —
+size alone is the discriminator.
 `.sqlfluff` raises the limit to 32768 for this repo, so nothing is currently
 skipped; the comment there explains why, and lowering it again silently unlints
 the largest query. A query file grows over time, so this one arrives on its own.
@@ -255,7 +257,7 @@ what the gate did not report.
 
 Two details make the difference between this telling you the truth and
 misleading you. The `sed` matters: run sqlfluff on the raw file and the bare
-`{name: Type}` placeholders are themselves unparsable, so 190 of the 194
+`{name: Type}` placeholders are themselves unparsable, so 194 of the 198
 committed queries look broken. And these must run against a **file path**, not
 piped on stdin — sqlfluff does not apply the size limit to stdin, so the piped
 form lints a file the real gate skipped and reports it clean.

@@ -32,6 +32,7 @@ function figureLegend(
   row: any,
   colors: QualityColors
 ) {
+  const note = tile.subNote?.(row);
   return (
     <div>
       {tinted("p50", colors.firstFigure)}
@@ -40,6 +41,7 @@ function figureLegend(
         `within ${secondsFormatter(row?.[tile.cutoffField])}`,
         colors.secondFigure
       )}
+      {note === undefined ? "" : ` · ${note}`}
     </div>
   );
 }
