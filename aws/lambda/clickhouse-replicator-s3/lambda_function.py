@@ -1,6 +1,10 @@
 import json
 import os
-import urllib
+import re
+
+# `import urllib` alone does not bind the `parse` submodule. encode_url_component
+# works today only because clickhouse_connect imports urllib.parse first.
+import urllib.parse
 from collections import defaultdict
 from enum import Enum
 from functools import lru_cache
@@ -319,8 +323,68 @@ def handle_test_run_summary(table, bucket, key) -> None:
         log_failure_to_clickhouse(table, bucket, key, e)
 
 
-def merges_adapter(table, bucket, key) -> None:
-    schema = """
+# Every table this lambda serves records which S3 object a row came from in a
+# tuple column. Three of them predate the `_meta` spelling and call theirs
+# `meta`; a positional insert matched by position and never had to know, so
+# naming the columns is what surfaces the difference. Checked against
+# system.columns on 2026-09-10: of the 21 tables general_adapter serves, 18 use
+# `_meta`, these 3 use `meta`, and none has both.
+DEFAULT_META_COLUMN = "`_meta`"
+META_COLUMN_BY_TABLE = {
+    "default.merge_bases": "`meta`",
+    "default.queue_times_historical": "`meta`",
+    "default.rerun_disabled_tests": "`meta`",
+}
+
+
+def meta_column(table) -> str:
+    return META_COLUMN_BY_TABLE.get(table, DEFAULT_META_COLUMN)
+
+
+# The only column declaration flat_schema_columns is willing to read: one per
+# line, a backtick-quoted name, then a type built from identifiers, digits and
+# parentheses alone. Forbidding spaces and commas INSIDE those parentheses is
+# the real guard, and it is structural rather than a spelling check: every
+# ClickHouse construct that carries FIELD NAMES -- Tuple, Map, Nested -- needs
+# one, so all of them are refused, however they are spelled or wrapped across
+# lines. Valid-but-unsupported shapes go the same way (Enum8('a' = 1), and any
+# second column sharing a line); refusing is the safe direction and
+# MERGES_SCHEMA uses none of them.
+FLAT_COLUMN_DECLARATION = re.compile(
+    r"`([A-Za-z_][A-Za-z0-9_]*)`\s+[A-Za-z0-9_]+(?:\([A-Za-z0-9_()]*\))?,?"
+)
+
+
+def flat_schema_columns(schema) -> List[str]:
+    """Backtick-quoted column names from a FLAT structure string, in order.
+
+    Flat is defined by FLAT_COLUMN_DECLARATION above. The construct that makes
+    it necessary is a nested tuple: its inner fields occupy their own lines and
+    would each be counted as a column, though `select *` produces a single
+    expression for the whole tuple. `handle_test_run_s3`'s `properties` field
+    is exactly that shape. Hence refusing rather than guessing -- a name that
+    is not a column fails every insert for that table, and a wrong ORDER does
+    not fail at all, it writes into the wrong column.
+
+    Only `merges_adapter` uses this. Doing it for every table this lambda
+    serves needs a real parser -- split on commas at paren depth zero, outside
+    quotes -- which is what pytorch/test-infra#8716 is for.
+    """
+    columns = []
+    for line in schema.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        match = FLAT_COLUMN_DECLARATION.fullmatch(line)
+        if not match:
+            raise ValueError(
+                f"schema is not flat; expected one `name` Type per line, got: {line!r}"
+            )
+        columns.append(f"`{match.group(1)}`")
+    return columns
+
+
+MERGES_SCHEMA = """
     `_id` String,
     `author` String,
     `broken_trunk_checks` Array(Array(String)),
@@ -343,7 +407,23 @@ def merges_adapter(table, bucket, key) -> None:
     `unstable_checks` Array(Array(String))
     """
 
-    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+def merges_adapter(table, bucket, key) -> None:
+    # Named columns so `ai_not_related_checks` (pytorch/pytorch#195503) can be
+    # ALTERed into default.merges before MERGES_SCHEMA declares it: the insert
+    # does not mention the new column, so it takes its default. The names the
+    # derivation is expected to produce are pinned in
+    # aws/lambda/tests/test_clickhouse_replicator_s3.py, so a bug in it shows
+    # up as a test failure rather than as data in the wrong column.
+    general_adapter(
+        table,
+        bucket,
+        key,
+        MERGES_SCHEMA,
+        ["none"],
+        "JSONEachRow",
+        use_named_columns=True,
+    )
 
 
 def merge_bases_adapter(table, bucket, key) -> None:
@@ -390,12 +470,43 @@ def log_failure_to_clickhouse(table, bucket, key, error) -> None:
     )
 
 
-def general_adapter(table, bucket, key, schema, compressions, format) -> None:
+def general_adapter(
+    table, bucket, key, schema, compressions, format, use_named_columns=False
+) -> None:
+    """Copy one S3 object into `table`.
+
+    The insert is positional by default: `select *` yields exactly the fields
+    `schema` declares, so the destination must have precisely those columns, in
+    that order, with the meta tuple last. That makes adding a column to the
+    table a breaking change until `schema` is updated to match, and the two
+    cannot be changed at the same instant.
+
+    Set `use_named_columns` to name the destination columns instead. They are
+    read out of `schema`, which already lists them, plus `meta_column(table)`
+    for the tuple this SELECT appends. Column ORDER and COUNT on the table then
+    stop mattering, and any column not named takes its default, so a new column
+    can be ALTERed in before the code that populates it.
+
+    Two things to check before opting a NEW table in, neither of which this
+    function can see:
+
+    - `schema` must satisfy FLAT_COLUMN_DECLARATION. Most schemas in this file
+      do not -- anything with a Tuple or a Map is refused -- so check rather
+      than assume. `flat_schema_columns` raises rather than guess.
+    - The destination's provenance tuple must be named as META_COLUMN_BY_TABLE
+      says. That map is a dated snapshot, not a live lookup, and its fallback
+      is `_meta`, so a table that uses `meta` and is missing from it would get
+      a name the table does not have and fail every insert.
+    """
     url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+    target = table
+    if use_named_columns:
+        columns = flat_schema_columns(schema) + [meta_column(table)]
+        target = f"{table} ({', '.join(columns)})"
 
     def get_insert_query(compression):
         return f"""
-        insert into {table}
+        insert into {target}
         select *, ('{bucket}', '{key}') as _meta
         from s3('{url}', '{format}', '{schema}', '{compression}',
             extra_credentials(
