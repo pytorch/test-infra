@@ -847,13 +847,6 @@
       "win"
     ]
   ],
-  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190142",
-    "https://github.com/pytorch/pytorch/issues/190142",
-    [
-      "linux"
-    ]
-  ],
   "test_max_autotune_remote_caching_dynamic_False (__main__.TestMaxAutotuneRemoteCache)": [
     "145361",
     "https://github.com/pytorch/pytorch/issues/145361",
