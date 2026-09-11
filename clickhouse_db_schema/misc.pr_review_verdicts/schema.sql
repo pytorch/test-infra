@@ -4,9 +4,12 @@
 --   `started`  - written by the prepare job before any model call, so an attempt
 --                that is cancelled or dies on the runner still leaves a trace.
 --   terminal   - written by the publish job under `if: always()`.
--- Three distinguishable states follow, which one row cannot express: no rows =
--- never triggered; started only = cancelled/superseded/runner died; both = the
--- attempt ran and `status` says how it ended.
+-- Two rows let a reader tell apart states one row cannot. Read them as
+-- EVIDENCE, not proof: missing rows mean "not triggered OR not emitted OR not
+-- ingested" - this table did not exist for the pipeline's first four runs, whose
+-- objects are still sitting in S3 - and "started only" covers still-running and
+-- late-ingested as well as cancelled. Ingestion order is not guaranteed, and a
+-- replay can duplicate rows; nothing here deduplicates.
 --
 -- COLUMN ORDER IS LOAD-BEARING. The S3 replicator inserts positionally
 -- (`insert into <table> select *, (...) as _meta from s3(...)`), so this order
@@ -14,13 +17,17 @@
 -- `aws/lambda/clickhouse-replicator-s3/lambda_function.py`. Appending a column
 -- here without adding it there, in the same position, shifts every later value.
 --
--- The started row carries 20 of these 33 fields. The remaining 13 rely on
--- ClickHouse filling defaults for omitted JSON keys, and `verdict` is emitted as
--- an explicit JSON `null` on the started row, which relies on nulls becoming
--- defaults. Both are ClickHouse defaults
--- (`input_format_defaults_for_omitted_fields`, `input_format_null_as_default`)
--- but NEITHER was verified against this cluster - the author holds no INSERT
--- grant. Confirm on the first real insert before trusting the started rows.
+-- The started row carries 20 of these 33 fields (the first 19, plus `extra`).
+-- The other 13 are simply absent from the JSON and take their type default,
+-- which is ordinary JSONEachRow behaviour and needs no special setting.
+--
+-- `verdict` is Nullable ON PURPOSE. It is emitted as an explicit JSON `null`
+-- whenever there is no verdict - on every started row AND on any terminal row
+-- that did not reach a verdict, e.g. `status = 'blocked'`. Declaring it
+-- non-nullable would make correct ingestion depend on
+-- `input_format_null_as_default`, which the author could not verify here (no
+-- INSERT grant on this cluster). Nullable keeps the emitted meaning instead of
+-- silently converting "no verdict" into the empty string.
 CREATE TABLE misc.pr_review_verdicts
 (
     -- Row identity and provenance.
@@ -45,14 +52,17 @@ CREATE TABLE misc.pr_review_verdicts
     `prompt_hash` String,
     `trusted_sha` String,
     `timestamp` DateTime64(3),
-    -- succeeded | schema_invalid | sanitizer_rejected | model_error | started
+    -- started | succeeded | blocked | schema_invalid | sanitizer_rejected |
+    -- model_error. Not an enum: a status the emitter adds must land as data
+    -- rather than break ingestion.
     `status` LowCardinality(String),
     -- Populated ONLY when status = 'succeeded'. A failed review must never
     -- surface as an objection: a reader cannot otherwise tell a real finding
     -- from an infrastructure hiccup.
-    `verdict` LowCardinality(String),
+    `verdict` LowCardinality(Nullable(String)),
 
-    -- Terminal-only below this line; defaulted on the `started` row.
+    -- Terminal-only from here to `model`; absent from the started row and
+    -- defaulted. `extra` at the end is present on BOTH rows.
     --
     -- MODEL-INFLUENCED, and the only fields here that are. `summary` is
     -- sanitized and length-capped upstream but is still derived from a model

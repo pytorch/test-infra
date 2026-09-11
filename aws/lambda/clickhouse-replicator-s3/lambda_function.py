@@ -871,11 +871,11 @@ def pr_review_verdicts_adapter(table, bucket, key):
     # inserts positionally (`select *`), so a column added here but not in the
     # same position of the table shifts every later value silently.
     #
-    # Two row shapes share this prefix: the `started` row carries the first 20
-    # fields, the terminal row all 33. The rest rely on ClickHouse defaulting
-    # omitted JSON keys, and `verdict` arrives as an explicit null on the started
-    # row. Both are stock ClickHouse behaviour and neither is verified against
-    # this cluster - see the note in the schema file.
+    # Two row shapes share this prefix: the `started` row carries 20 fields, the
+    # terminal row all 33. Absent fields take their type default, which is
+    # ordinary JSONEachRow behaviour. `verdict` is Nullable because it arrives as
+    # an explicit JSON null whenever there is no verdict - every started row, and
+    # any terminal row that did not reach one (e.g. status 'blocked').
     schema = """
         `schema_version` UInt16,
         `phase` String,
@@ -895,7 +895,7 @@ def pr_review_verdicts_adapter(table, bucket, key):
         `trusted_sha` String,
         `timestamp` DateTime64(3),
         `status` String,
-        `verdict` String,
+        `verdict` Nullable(String),
         `summary` String,
         `findings_count` Int32,
         `findings_dropped` Int32,
