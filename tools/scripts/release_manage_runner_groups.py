@@ -84,7 +84,7 @@ class GitHubClient:
         url = path if path.startswith("http") else f"{GITHUB_API}{path}"
         for attempt in range(5):
             resp = self.session.request(method, url, **kwargs)
-            if resp.status_code in (429, 502, 503) and attempt < 4:
+            if resp.status_code in (429, 502, 503, 504) and attempt < 4:
                 retry_after = resp.headers.get("Retry-After", "")
                 delay = int(retry_after) if retry_after.isdigit() else 2**attempt
                 time.sleep(delay)
