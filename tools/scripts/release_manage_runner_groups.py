@@ -235,13 +235,49 @@ def get_release_tags(
     return select_target_tags(names, line)
 
 
-def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
-    branches = [
-        branch["name"]
-        for branch in client.paginate(
-            f"/repos/{repo}/branches", params={"protected": "true"}
-        )
+def is_protected(client: GitHubClient, repo: str, branch: str) -> bool:
+    """Whether one branch exists and is protected."""
+    try:
+        resp = client.request("GET", f"/repos/{repo}/branches/{branch}")
+    except requests.HTTPError:
+        return False
+    return bool(resp.json().get("protected"))
+
+
+def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
+    """main, nightly and the newest protected release/X.Y branches.
+
+    Deliberately not /branches?protected=true: that makes GitHub evaluate branch
+    protection for every branch in the repository, which on pytorch/executorch
+    (five active branch rulesets, several with wildcard patterns, over 8k
+    branches) times out with a 504 on every attempt rather than intermittently.
+    matching-refs is a prefix lookup with no protection evaluation, and the few
+    branches that can actually be selected are then checked one at a time.
+    """
+    refs = client.request(
+        "GET", f"/repos/{repo}/git/matching-refs/heads/release/"
+    ).json()
+    candidates = [
+        name
+        for name in (str(ref["ref"]).removeprefix("refs/heads/") for ref in refs)
+        if RELEASE_BRANCH_RE.match(name)
     ]
+    candidates.sort(key=release_version, reverse=True)
+
+    # Walk newest-first and stop once enough are protected, so a repository with
+    # a long release history costs a few requests rather than one per branch.
+    releases: List[str] = []
+    for name in candidates:
+        if is_protected(client, repo, name):
+            releases.append(name)
+            if len(releases) >= NUM_RELEASE_BRANCHES:
+                break
+    fixed = [n for n in ("main", "nightly") if is_protected(client, repo, n)]
+    return fixed + releases
+
+
+def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
+    branches = get_protected_branches(client, repo)
     anchor = get_test_version_anchor(repo, branches)
     log(f"Test-channel version anchor: release/{anchor[0]}.{anchor[1]}")
     refs = select_target_refs(branches, anchor)
