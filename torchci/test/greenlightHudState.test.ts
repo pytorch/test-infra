@@ -4,13 +4,17 @@ import {
   buildStatusByTrunkSha,
   GreenlightPrStateRow,
   isGreenlightApproved,
+  isGreenlightRejected,
   normalizeSha,
   selectStateForSha,
+  shouldShowGreenlightStatus,
   supersedes,
 } from "lib/greenlight/greenlightHudState";
 import {
+  GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
   GREENLIGHT_STATUS_AI_REVIEW_STARTED,
   GREENLIGHT_STATUS_CANCELLED,
+  GREENLIGHT_STATUS_FAILED,
   GREENLIGHT_STATUS_LAND,
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
@@ -54,6 +58,78 @@ describe("isGreenlightApproved", () => {
 
   test("tolerates the surrounding whitespace a ClickHouse String can carry", () => {
     expect(isGreenlightApproved(` ${GREENLIGHT_STATUS_LAND} `)).toBe(true);
+  });
+});
+
+describe("isGreenlightRejected", () => {
+  test("only NO_LAND counts as a refusal", () => {
+    expect(isGreenlightRejected(GREENLIGHT_STATUS_NO_LAND)).toBe(true);
+    // Every other non-LAND status is an absence of a verdict, not a refusal:
+    // the review never finished (dispatched / started), never reached one
+    // (cancelled / failed), or the PR was excluded rather than judged
+    // (reverted). Counting any of them here would put a red lamp on a commit
+    // Green Light never declined.
+    for (const status of [
+      GREENLIGHT_STATUS_LAND,
+      GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
+      GREENLIGHT_STATUS_AI_REVIEW_STARTED,
+      GREENLIGHT_STATUS_CANCELLED,
+      GREENLIGHT_STATUS_FAILED,
+      GREENLIGHT_STATUS_REVERTED,
+    ]) {
+      expect(isGreenlightRejected(status)).toBe(false);
+    }
+  });
+
+  test("absent, empty and unknown statuses are not rejections", () => {
+    expect(isGreenlightRejected(undefined)).toBe(false);
+    expect(isGreenlightRejected(null)).toBe(false);
+    expect(isGreenlightRejected("")).toBe(false);
+    expect(isGreenlightRejected("SOMETHING_NEW")).toBe(false);
+  });
+
+  test("tolerates the surrounding whitespace a ClickHouse String can carry", () => {
+    expect(isGreenlightRejected(` ${GREENLIGHT_STATUS_NO_LAND} `)).toBe(true);
+  });
+});
+
+describe("shouldShowGreenlightStatus", () => {
+  test("approvals show whether or not refusals are opted into", () => {
+    expect(shouldShowGreenlightStatus(GREENLIGHT_STATUS_LAND, false)).toBe(
+      true
+    );
+    expect(shouldShowGreenlightStatus(GREENLIGHT_STATUS_LAND, true)).toBe(true);
+  });
+
+  test("a refusal is hidden by default and shown once opted into", () => {
+    expect(shouldShowGreenlightStatus(GREENLIGHT_STATUS_NO_LAND, false)).toBe(
+      false
+    );
+    expect(shouldShowGreenlightStatus(GREENLIGHT_STATUS_NO_LAND, true)).toBe(
+      true
+    );
+  });
+
+  test("opting into refusals does not surface the non-verdict statuses", () => {
+    // The toggle is about refusals only. An in-flight or abandoned review says
+    // nothing about the commit, so it stays off the HUD either way.
+    for (const status of [
+      GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
+      GREENLIGHT_STATUS_AI_REVIEW_STARTED,
+      GREENLIGHT_STATUS_CANCELLED,
+      GREENLIGHT_STATUS_FAILED,
+      GREENLIGHT_STATUS_REVERTED,
+      "SOMETHING_NEW",
+    ]) {
+      expect(shouldShowGreenlightStatus(status, true)).toBe(false);
+      expect(shouldShowGreenlightStatus(status, false)).toBe(false);
+    }
+  });
+
+  test("a commit with no recorded status is never marked", () => {
+    expect(shouldShowGreenlightStatus(undefined, true)).toBe(false);
+    expect(shouldShowGreenlightStatus(null, true)).toBe(false);
+    expect(shouldShowGreenlightStatus("", true)).toBe(false);
   });
 });
 
