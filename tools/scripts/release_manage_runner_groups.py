@@ -2,10 +2,10 @@
 """Reconcile PyTorch release self-hosted runner groups.
 
 Keeps the prod release runner groups (e.g. ``lf-prod-aws-ue1-release-runners``;
-staging clusters are excluded) in sync with a desired state computed from
-``pytorch/pytorch``:
+staging clusters are excluded) in sync with a desired state computed from a
+target repository (``--repo``, default ``pytorch/pytorch``):
 
-- ensure ``pytorch/pytorch`` is an allowed repository (add-only), and
+- ensure that repository is an allowed repository (add-only), and
 - restrict allowed workflows to the release workflows discovered in
   ``pytorch/pytorch``, pinned to ``main``, ``nightly``, the release branches
   around the test-channel version (the ``release/X.Y`` anchor read from
@@ -22,6 +22,11 @@ workflow has such a job; reusable workflows are then included only when a releas
 entry invokes them via ``uses:`` from one - this pulls in the build reusables
 (``_binary-build-linux.yml``, ``_build-triton-wheel-linux.yml``) while leaving
 test/upload reusables (which run on other runners) out.
+
+The groups are org-level and shared between repositories, so a run reconciles
+only the entries belonging to ``--repo`` and leaves the rest untouched. Without
+that, two repositories pointed at the same group would each remove the other's
+entries on every run.
 
 Reading and updating runner groups requires a token that can manage them.
 Defaults to a dry-run; pass ``--apply`` to write changes.
@@ -42,7 +47,7 @@ GITHUB_API = "https://api.github.com"
 API_VERSION = "2022-11-28"
 
 ORG = "pytorch"
-TARGET_REPO = "pytorch/pytorch"
+DEFAULT_REPO = "pytorch/pytorch"
 WORKFLOWS_DIR = ".github/workflows"
 
 # Only the prod release runner groups (e.g. lf-prod-aws-ue1-release-runners);
@@ -79,7 +84,7 @@ class GitHubClient:
         url = path if path.startswith("http") else f"{GITHUB_API}{path}"
         for attempt in range(5):
             resp = self.session.request(method, url, **kwargs)
-            if resp.status_code in (429, 502, 503) and attempt < 4:
+            if resp.status_code in (429, 502, 503, 504) and attempt < 4:
                 retry_after = resp.headers.get("Retry-After", "")
                 delay = int(retry_after) if retry_after.isdigit() else 2**attempt
                 time.sleep(delay)
@@ -115,16 +120,28 @@ class GitHubClient:
 # --- Desired state: target refs -------------------------------------------
 
 
-def get_test_version_anchor() -> Tuple[int, int]:
-    # The release runner groups serve the release-candidate builds, so anchor on
-    # CURRENT_CANDIDATE_VERSION from generate_binary_build_matrix (the version
-    # used for release builds, advanced deliberately at go-live) rather than
-    # inferring it from a branch-name scan (which drifts: a release/X.Y branch is
-    # cut weeks before it is the actual candidate).
-    import generate_binary_build_matrix as gbm
+def get_test_version_anchor(repo: str, branch_names: Iterable[str]) -> Tuple[int, int]:
+    """The release line the runner groups should serve.
 
-    major, minor = gbm.CURRENT_CANDIDATE_VERSION.split(".")[:2]
-    return int(major), int(minor)
+    For pytorch/pytorch, anchor on CURRENT_CANDIDATE_VERSION from
+    generate_binary_build_matrix (the version used for release builds, advanced
+    deliberately at go-live) rather than inferring it from a branch-name scan
+    (which drifts: a release/X.Y branch is cut weeks before it is the actual
+    candidate).
+
+    Other repos do not publish that constant, so they anchor on their newest
+    protected release/X.Y branch.
+    """
+    if repo == DEFAULT_REPO:
+        import generate_binary_build_matrix as gbm
+
+        major, minor = gbm.CURRENT_CANDIDATE_VERSION.split(".")[:2]
+        return int(major), int(minor)
+
+    releases = [n for n in branch_names if RELEASE_BRANCH_RE.match(n)]
+    if not releases:
+        raise SystemExit(f"{repo} has no protected release/X.Y branch to anchor on")
+    return max(release_version(n) for n in releases)
 
 
 def release_version(branch: str) -> Tuple[int, int]:
@@ -203,30 +220,73 @@ def select_target_tags(tag_names: Iterable[str], line: Tuple[int, int]) -> List[
     return [f"refs/tags/{name}" for name in selected]
 
 
-def get_release_tags(client: GitHubClient, line: Tuple[int, int]) -> List[str]:
+def get_release_tags(
+    client: GitHubClient, line: Tuple[int, int], repo: str
+) -> List[str]:
     # matching-refs returns every ref under the prefix in a single request;
     # listing /tags would page through pytorch/pytorch's entire tag history. The
     # trailing dot keeps a v2.1. prefix off v2.14.0, and the names are still
     # filtered against the exact tag pattern.
     prefix = f"v{line[0]}.{line[1]}."
     refs = client.request(
-        "GET", f"/repos/{TARGET_REPO}/git/matching-refs/tags/{prefix}"
+        "GET", f"/repos/{repo}/git/matching-refs/tags/{prefix}"
     ).json()
     names = [str(ref["ref"]).removeprefix("refs/tags/") for ref in refs]
     return select_target_tags(names, line)
 
 
-def get_target_refs(client: GitHubClient) -> List[str]:
-    anchor = get_test_version_anchor()
+def is_protected(client: GitHubClient, repo: str, branch: str) -> bool:
+    """Whether one branch exists and is protected."""
+    try:
+        resp = client.request("GET", f"/repos/{repo}/branches/{branch}")
+    except requests.HTTPError:
+        return False
+    return bool(resp.json().get("protected"))
+
+
+def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
+    """main, nightly and the newest protected release/X.Y branches.
+
+    Deliberately not /branches?protected=true: that makes GitHub evaluate branch
+    protection for every branch in the repository, which on pytorch/executorch
+    (five active branch rulesets, several with wildcard patterns, over 8k
+    branches) times out with a 504 on every attempt rather than intermittently.
+    matching-refs is a prefix lookup with no protection evaluation, and the few
+    branches that can actually be selected are then checked one at a time.
+    """
+    refs = client.request(
+        "GET", f"/repos/{repo}/git/matching-refs/heads/release/"
+    ).json()
+    candidates = [
+        name
+        for name in (str(ref["ref"]).removeprefix("refs/heads/") for ref in refs)
+        if RELEASE_BRANCH_RE.match(name)
+    ]
+    candidates.sort(key=release_version, reverse=True)
+
+    # Walk newest-first and stop once enough are protected, so a repository with
+    # a long release history costs a few requests rather than one per branch.
+    releases: List[str] = []
+    for name in candidates:
+        if is_protected(client, repo, name):
+            releases.append(name)
+            if len(releases) >= NUM_RELEASE_BRANCHES:
+                break
+    fixed = [n for n in ("main", "nightly") if is_protected(client, repo, n)]
+    return fixed + releases
+
+
+def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
+    branches = get_protected_branches(client, repo)
+    anchor = get_test_version_anchor(repo, branches)
     log(f"Test-channel version anchor: release/{anchor[0]}.{anchor[1]}")
-    branches = client.paginate(
-        f"/repos/{TARGET_REPO}/branches", params={"protected": "true"}
-    )
-    refs = select_target_refs((branch["name"] for branch in branches), anchor)
+    refs = select_target_refs(branches, anchor)
     # Every pinned release line gets its tags, not just the candidate's, so a
     # patch release on the preceding line keeps runner access too.
     tags = [
-        tag for line in release_lines(refs) for tag in get_release_tags(client, line)
+        tag
+        for line in release_lines(refs)
+        for tag in get_release_tags(client, line, repo)
     ]
     if not tags:
         # Expected between a branch cut and the line's first RC tag.
@@ -334,13 +394,13 @@ query($owner: String!, $name: String!, $expression: String!) {
 
 
 def fetch_workflow_files(
-    client: GitHubClient, rev: str = "main"
+    client: GitHubClient, repo: str, rev: str = "main"
 ) -> Dict[str, WorkflowFile]:
     # Fetch every workflow file's content at ``rev`` in a single GraphQL request.
     # Fetching each file over its raw.githubusercontent.com download_url instead
     # gets rate-limited (HTTP 429) on repos with many workflows like
     # pytorch/pytorch.
-    owner, name = TARGET_REPO.split("/")
+    owner, name = repo.split("/")
     resp = client.request(
         "POST",
         "/graphql",
@@ -425,7 +485,7 @@ def collect_release_workflow_paths(files: Dict[str, WorkflowFile]) -> Set[str]:
 
 
 def discover_release_workflows(
-    client: GitHubClient, refs: Iterable[str]
+    client: GitHubClient, refs: Iterable[str], repo: str
 ) -> Dict[str, Set[str]]:
     """Discover release workflows independently at each target ref.
 
@@ -438,19 +498,17 @@ def discover_release_workflows(
     paths_by_ref: Dict[str, Set[str]] = {}
     for ref in refs:
         rev = ref.removeprefix("refs/heads/").removeprefix("refs/tags/")
-        paths = collect_release_workflow_paths(fetch_workflow_files(client, rev))
-        log(f"Discovered {len(paths)} release workflow(s) on {TARGET_REPO}@{rev}:")
+        paths = collect_release_workflow_paths(fetch_workflow_files(client, repo, rev))
+        log(f"Discovered {len(paths)} release workflow(s) on {repo}@{rev}:")
         for path in sorted(paths):
             log(f"  {path}")
         paths_by_ref[ref] = paths
     return paths_by_ref
 
 
-def build_desired_workflows(paths_by_ref: Dict[str, Set[str]]) -> Set[str]:
+def build_desired_workflows(paths_by_ref: Dict[str, Set[str]], repo: str) -> Set[str]:
     return {
-        f"{TARGET_REPO}/{path}@{ref}"
-        for ref, paths in paths_by_ref.items()
-        for path in paths
+        f"{repo}/{path}@{ref}" for ref, paths in paths_by_ref.items() for path in paths
     }
 
 
@@ -462,30 +520,40 @@ def get_release_runner_groups(client: GitHubClient) -> List[Dict[str, Any]]:
     return [g for g in groups if GROUP_NAME_RE.search(str(g["name"]))]
 
 
-def get_repo_id(client: GitHubClient) -> int:
-    return int(client.request("GET", f"/repos/{TARGET_REPO}").json()["id"])
+def get_repo_id(client: GitHubClient, repo: str) -> int:
+    return int(client.request("GET", f"/repos/{repo}").json()["id"])
 
 
 def reconcile_workflows(
     client: GitHubClient,
     group: Dict[str, Any],
     desired: Set[str],
+    repo: str,
     apply: bool,
 ) -> bool:
     """Reconcile the group's allowed-workflows list. Returns True if it changed
-    (or would change in a dry-run)."""
+    (or would change in a dry-run).
+
+    Only the target repo's own entries are reconciled. The release runner groups
+    are org-level and shared, so a run for one repo must leave every other repo's
+    entries alone -- otherwise two repos reconciling the same group would each
+    remove the other's on every run.
+    """
     if not desired:
         log("  workflows: refusing to apply an empty allow-list, skipping")
         return False
     current = set(group.get("selected_workflows") or [])
-    if current == desired and group.get("restricted_to_workflows"):
+    prefix = f"{repo}/"
+    foreign = {entry for entry in current if not entry.startswith(prefix)}
+    target = foreign | desired
+    if current == target and group.get("restricted_to_workflows"):
         log(f"  workflows: up to date ({len(current)} entries)")
         return False
     to_add = sorted(desired - current)
-    to_remove = sorted(current - desired)
+    to_remove = sorted({e for e in current if e.startswith(prefix)} - desired)
     log(
         f"  workflows: {len(to_add)} to add, {len(to_remove)} to remove "
-        f"({len(current)} -> {len(desired)} entries)"
+        f"({len(current)} -> {len(target)} entries)"
     )
     for entry in to_add:
         log(f"    + {entry}")
@@ -497,7 +565,7 @@ def reconcile_workflows(
             f"/orgs/{ORG}/actions/runner-groups/{group['id']}",
             json={
                 "restricted_to_workflows": True,
-                "selected_workflows": sorted(desired),
+                "selected_workflows": sorted(target),
             },
         )
         log("  workflows: applied")
@@ -507,6 +575,7 @@ def reconcile_workflows(
 def reconcile_repo_access(
     client: GitHubClient,
     group: Dict[str, Any],
+    repo: str,
     repo_id: int,
     apply: bool,
 ) -> bool:
@@ -523,9 +592,9 @@ def reconcile_repo_access(
         key="repositories",
     )
     if any(int(repo["id"]) == repo_id for repo in repos):
-        log(f"  repos: {TARGET_REPO} already allowed ({len(repos)} repos)")
+        log(f"  repos: {repo} already allowed ({len(repos)} repos)")
         return False
-    log(f"  repos: + {TARGET_REPO} ({len(repos)} -> {len(repos) + 1} repos)")
+    log(f"  repos: + {repo} ({len(repos)} -> {len(repos) + 1} repos)")
     if apply:
         client.request(
             "PUT",
@@ -544,6 +613,16 @@ def parse_args() -> argparse.Namespace:
         help="GitHub token for managing runner groups (or RUNNER_GROUP_TOKEN/GITHUB_TOKEN)",
     )
     parser.add_argument(
+        "--repo",
+        type=str,
+        default=DEFAULT_REPO,
+        help=(
+            "owner/name whose release workflows are reconciled. The groups are "
+            f"org-level and shared, so a run only touches this repo's own "
+            f"entries (default: {DEFAULT_REPO})"
+        ),
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="Apply changes. Without it the script only prints the diff (dry-run)",
@@ -559,10 +638,10 @@ def main() -> None:
         )
     client = GitHubClient(args.token)
 
-    refs = get_target_refs(client)
+    refs = get_target_refs(client, args.repo)
     log(f"Target refs: {refs}")
-    paths_by_ref = discover_release_workflows(client, refs)
-    desired = build_desired_workflows(paths_by_ref)
+    paths_by_ref = discover_release_workflows(client, refs, args.repo)
+    desired = build_desired_workflows(paths_by_ref, args.repo)
     log(f"Desired allow-list ({len(desired)} references):")
     for entry in sorted(desired):
         log(f"  {entry}")
@@ -576,7 +655,7 @@ def main() -> None:
             return
         raise
 
-    repo_id = get_repo_id(client)
+    repo_id = get_repo_id(client, args.repo)
     if not groups:
         log(f"No runner groups matching {GROUP_NAME_RE.pattern!r} found")
         return
@@ -591,8 +670,10 @@ def main() -> None:
             f"Group {group['name']} (id={group['id']}, "
             f"visibility={group.get('visibility')}):"
         )
-        wf_changed = reconcile_workflows(client, group, desired, args.apply)
-        repo_changed = reconcile_repo_access(client, group, repo_id, args.apply)
+        wf_changed = reconcile_workflows(client, group, desired, args.repo, args.apply)
+        repo_changed = reconcile_repo_access(
+            client, group, args.repo, repo_id, args.apply
+        )
         if wf_changed or repo_changed:
             changed_groups.append(group["name"])
 

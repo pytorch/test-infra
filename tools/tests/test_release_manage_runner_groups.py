@@ -5,7 +5,10 @@ Run from the repo root with either:
     pytest tools/tests/test_release_manage_runner_groups.py
 """
 
+from typing import Any, List, Tuple
 from unittest import main, TestCase
+
+import requests
 
 import tools.scripts.release_manage_runner_groups as m
 
@@ -376,7 +379,8 @@ class TestBuildDesiredWorkflows(TestCase):
                     ".github/workflows/b.yml",
                 },
                 "refs/heads/release/2.12": {".github/workflows/a.yml"},
-            }
+            },
+            "pytorch/pytorch",
         )
         self.assertEqual(
             desired,
@@ -385,6 +389,172 @@ class TestBuildDesiredWorkflows(TestCase):
                 "pytorch/pytorch/.github/workflows/b.yml@refs/heads/main",
                 "pytorch/pytorch/.github/workflows/a.yml@refs/heads/release/2.12",
             },
+        )
+
+
+class FakeClient(m.GitHubClient):
+    """Records the PATCH bodies reconcile_workflows would send.
+
+    Subclasses the real client rather than duck-typing it so the calls below
+    type-check, and skips its __init__ because no HTTP session is needed.
+    """
+
+    def __init__(self) -> None:
+        self.patches: List[Tuple[str, str, Any]] = []
+
+    def request(self, method: str, path: str, **kwargs: Any) -> Any:
+        self.patches.append((method, path, kwargs.get("json")))
+        return None
+
+
+class TestReconcileWorkflowsIsScopedToRepo(TestCase):
+    """The release runner groups are org-level and shared, so a run for one repo
+    must not touch another repo's entries."""
+
+    def _group(self, selected):
+        return {
+            "id": 1,
+            "name": "meta-prod-aws-ue1-release-runners",
+            "selected_workflows": selected,
+            "restricted_to_workflows": True,
+        }
+
+    def test_other_repos_entries_are_preserved(self) -> None:
+        client = FakeClient()
+        group = self._group(
+            [
+                "pytorch/pytorch/.github/workflows/keep.yml@refs/heads/main",
+                "pytorch/executorch/.github/workflows/old.yml@refs/heads/nightly",
+            ]
+        )
+        desired = {"pytorch/executorch/.github/workflows/new.yml@refs/heads/nightly"}
+        changed = m.reconcile_workflows(
+            client, group, desired, "pytorch/executorch", apply=True
+        )
+        self.assertTrue(changed)
+        self.assertEqual(len(client.patches), 1)
+        sent = set(client.patches[0][2]["selected_workflows"])
+        # pytorch/pytorch survives; executorch's stale entry is replaced.
+        self.assertIn(
+            "pytorch/pytorch/.github/workflows/keep.yml@refs/heads/main", sent
+        )
+        self.assertNotIn(
+            "pytorch/executorch/.github/workflows/old.yml@refs/heads/nightly", sent
+        )
+        self.assertIn(
+            "pytorch/executorch/.github/workflows/new.yml@refs/heads/nightly", sent
+        )
+
+    def test_no_write_when_only_other_repos_entries_differ(self) -> None:
+        client = FakeClient()
+        group = self._group(
+            [
+                "pytorch/pytorch/.github/workflows/a.yml@refs/heads/main",
+                "pytorch/executorch/.github/workflows/b.yml@refs/heads/nightly",
+            ]
+        )
+        desired = {"pytorch/executorch/.github/workflows/b.yml@refs/heads/nightly"}
+        changed = m.reconcile_workflows(
+            client, group, desired, "pytorch/executorch", apply=True
+        )
+        self.assertFalse(changed)
+        self.assertEqual(client.patches, [])
+
+    def test_prefix_match_does_not_catch_a_similarly_named_repo(self) -> None:
+        # pytorch/executorch-examples must not be mistaken for pytorch/executorch.
+        client = FakeClient()
+        group = self._group(
+            ["pytorch/executorch-examples/.github/workflows/x.yml@refs/heads/main"]
+        )
+        desired = {"pytorch/executorch/.github/workflows/y.yml@refs/heads/main"}
+        m.reconcile_workflows(client, group, desired, "pytorch/executorch", apply=True)
+        sent = set(client.patches[0][2]["selected_workflows"])
+        self.assertIn(
+            "pytorch/executorch-examples/.github/workflows/x.yml@refs/heads/main",
+            sent,
+        )
+
+
+class TestVersionAnchor(TestCase):
+    def test_non_pytorch_repo_anchors_on_newest_release_branch(self) -> None:
+        anchor = m.get_test_version_anchor(
+            "pytorch/executorch",
+            ["main", "release/1.4", "release/1.5", "release/1.4-full-wheel"],
+        )
+        self.assertEqual(anchor, (1, 5))
+
+    def test_anchor_sorts_numerically_not_lexically(self) -> None:
+        anchor = m.get_test_version_anchor(
+            "pytorch/executorch", ["release/1.9", "release/1.10"]
+        )
+        self.assertEqual(anchor, (1, 10))
+
+    def test_no_release_branch_is_a_clear_error(self) -> None:
+        with self.assertRaises(SystemExit):
+            m.get_test_version_anchor("pytorch/executorch", ["main", "nightly"])
+
+
+class BranchClient(m.GitHubClient):
+    """Serves matching-refs and per-branch protection from a fixed fixture."""
+
+    def __init__(self, release_branches, protected) -> None:
+        self.release_branches = release_branches
+        self.protected = set(protected)
+        self.branch_calls: List[str] = []
+
+    def request(self, method: str, path: str, **kwargs: Any) -> Any:
+        class R:
+            def __init__(self, payload):
+                self._p = payload
+
+            def json(self):
+                return self._p
+
+        if "matching-refs/heads/release/" in path:
+            return R([{"ref": f"refs/heads/{n}"} for n in self.release_branches])
+        name = path.split("/branches/", 1)[1]
+        self.branch_calls.append(name)
+        if name not in self.protected:
+            raise requests.HTTPError(f"404 for {name}")
+        return R({"protected": True})
+
+
+class TestGetProtectedBranches(TestCase):
+    def test_takes_the_newest_protected_release_lines(self) -> None:
+        c = BranchClient(
+            ["release/1.3", "release/1.4", "release/1.5"],
+            {"main", "nightly", "release/1.5", "release/1.4", "release/1.3"},
+        )
+        self.assertEqual(
+            m.get_protected_branches(c, "pytorch/executorch"),
+            ["main", "nightly", "release/1.5", "release/1.4"],
+        )
+
+    def test_stops_after_enough_protected_lines(self) -> None:
+        # A long release history must not cost one request per branch.
+        c = BranchClient([f"release/0.{n}" for n in range(1, 30)], {"main"})
+        c.protected |= {"release/0.29", "release/0.28"}
+        m.get_protected_branches(c, "pytorch/vision")
+        self.assertEqual(c.branch_calls[:2], ["release/0.29", "release/0.28"])
+        self.assertNotIn("release/0.1", c.branch_calls)
+
+    def test_skips_unprotected_and_keeps_walking(self) -> None:
+        c = BranchClient(
+            ["release/2.0", "release/0.29", "release/0.28"],
+            {"main", "release/0.29", "release/0.28"},
+        )
+        self.assertEqual(
+            m.get_protected_branches(c, "pytorch/vision"),
+            ["main", "release/0.29", "release/0.28"],
+        )
+
+    def test_ignores_branches_that_are_not_release_x_y(self) -> None:
+        c = BranchClient(
+            ["release/0.29_bkp", "release/0.8.0", "release/0.29"],
+            {"main", "release/0.29"},
+        )
+        self.assertEqual(
+            m.get_protected_branches(c, "pytorch/vision"), ["main", "release/0.29"]
         )
 
 
