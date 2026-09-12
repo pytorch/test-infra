@@ -3,9 +3,14 @@
 // ways a commit is matched. Headline wording is shared with greenlightRender.ts
 // so the HUD and the Dr.CI comment cannot disagree about what a status means.
 //
-// The model's `message` renders as a text node, which is the containment --
-// nothing here may route it through dangerouslySetInnerHTML or a markdown
-// renderer.
+// Whatever part of the model's `message` reaches the DOM reaches it as a React
+// text node, whether it renders as one block of text or as the bullet list in
+// GreenLightOutline.tsx, and that is the containment: nothing on this surface
+// may route it through dangerouslySetInnerHTML or a markdown renderer. Two MUI
+// props reach the same place by a longer road and are equally out: spreading an
+// object built from the message into a component forwards a
+// dangerouslySetInnerHTML key straight through, and a `component` chosen from
+// the message renders whatever tag it names.
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
@@ -18,15 +23,16 @@ import {
   Typography,
 } from "@mui/material";
 import GreenLightIcon from "components/greenlight/GreenLightIcon";
+import GreenLightOutline from "components/greenlight/GreenLightOutline";
 import {
   isGreenlightApproved,
   normalizeSha,
+  selectMessageView,
   selectStateForSha,
 } from "lib/greenlight/greenlightHudState";
 import {
   GREENLIGHT_INCOMPLETE_HEADLINE,
   GREENLIGHT_LAND_HEADLINE,
-  GREENLIGHT_MESSAGE_CAP,
   GREENLIGHT_NO_LAND_HEADLINE,
   GREENLIGHT_REVERTED_BODY,
   GREENLIGHT_REVERTED_HEADLINE,
@@ -162,10 +168,7 @@ export default function GreenLightSection({
 
   const approved = isGreenlightApproved(state.status);
   const reason = described.reason;
-  // `message` is an unbounded ClickHouse String; same cap as the Dr.CI render.
-  const message = Array.from(state.message ?? "")
-    .slice(0, GREENLIGHT_MESSAGE_CAP)
-    .join("");
+  const messageView = selectMessageView(state.message);
   const jobUrl = (state.eval_job ?? "").trim();
 
   return (
@@ -208,22 +211,26 @@ export default function GreenLightSection({
               {described.body}
             </Typography>
           )}
-          {message && (
-            <Box
-              component="pre"
-              sx={{
-                m: 0,
-                p: 1.5,
-                borderRadius: 1,
-                bgcolor: "action.hover",
-                color: "text.primary",
-                fontSize: "0.8rem",
-                whiteSpace: "pre-wrap",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {message}
-            </Box>
+          {messageView.kind === "outline" ? (
+            <GreenLightOutline outline={messageView.outline} />
+          ) : (
+            messageView.text && (
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: "action.hover",
+                  color: "text.primary",
+                  fontSize: "0.8rem",
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {messageView.text}
+              </Box>
+            )
           )}
           {SAFE_JOB_URL_RE.test(jobUrl) && (
             <Link

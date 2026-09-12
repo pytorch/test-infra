@@ -5,7 +5,16 @@
 //
 // No server-only imports, so this is unit-testable and importable anywhere.
 
-import { GREENLIGHT_STATUS_LAND } from "lib/greenlight/greenlightRender";
+import {
+  capCodePoints,
+  isOutline,
+  ParsedOutline,
+  parseOutline,
+} from "lib/greenlight/greenlightOutline";
+import {
+  GREENLIGHT_MESSAGE_CAP,
+  GREENLIGHT_STATUS_LAND,
+} from "lib/greenlight/greenlightRender";
 
 /** One `misc.greenlight_pr_state` row. Saved queries are untyped, so this is the cast target. */
 export interface GreenlightPrStateRow {
@@ -112,4 +121,46 @@ export function selectStateForSha(
       normalizeSha(row.head_sha) === wanted ||
       normalizeSha(row.merge_commit_sha) === wanted
   );
+}
+
+/** How the panel shows a verdict `message`: as a bullet list, or as raw text. */
+export type GreenlightMessageView =
+  | { kind: "outline"; outline: ParsedOutline }
+  | { kind: "text"; text: string };
+
+/**
+ * The same two-way choice renderVerdictMessage makes for the Dr.CI comment: a
+ * bullet outline becomes a list, everything else stays text. Two of the three
+ * routes that renderer takes to the fence are here -- a message that parses to
+ * no topic at all, and a parse that throws. The third is not, and the panel
+ * claims no parity on it: the comment renderer also falls through when its first
+ * item alone overruns OUTLINE_BLOCK_BUDGET, which bounds finished markup in a
+ * comment body this surface never builds.
+ *
+ * The parser reads the raw message, never a capped one. It takes its own prefix
+ * and decides `truncated` from the original length, so handing it text already
+ * cut to the cap would drop the marker saying the reader is missing the rest.
+ *
+ * The thrown error is logged without the message beside it: that text is
+ * model-authored and PR-influenceable, and a console is not where it gets
+ * replayed unbounded.
+ */
+export function selectMessageView(
+  message: string | undefined | null
+): GreenlightMessageView {
+  // A row is a cast over an untyped saved query, so `message` is a string by
+  // assertion alone. Anything else has to become one here: it reaches the panel
+  // as a React child, and React renders no object.
+  const raw = typeof message === "string" ? message : "";
+  try {
+    if (isOutline(raw)) {
+      const outline = parseOutline(raw);
+      if (outline.topics.length > 0) {
+        return { kind: "outline", outline };
+      }
+    }
+  } catch (e) {
+    console.error("greenlight outline parse threw", e);
+  }
+  return { kind: "text", text: capCodePoints(raw, GREENLIGHT_MESSAGE_CAP) };
 }

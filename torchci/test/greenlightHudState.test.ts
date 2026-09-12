@@ -5,17 +5,24 @@ import {
   GreenlightPrStateRow,
   isGreenlightApproved,
   normalizeSha,
+  selectMessageView,
   selectStateForSha,
   supersedes,
 } from "lib/greenlight/greenlightHudState";
+// The namespace, not the bindings: the throw-path tests below spy on it, and a
+// destructured import would leave the route holding the real functions.
+import * as greenlightOutline from "lib/greenlight/greenlightOutline";
 import {
+  GREENLIGHT_MESSAGE_CAP,
   GREENLIGHT_STATUS_AI_REVIEW_STARTED,
   GREENLIGHT_STATUS_CANCELLED,
   GREENLIGHT_STATUS_LAND,
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
+import { ZERO_WIDTH_SPACE } from "lib/greenlight/greenlightSweep";
 import path from "path";
+import { format } from "util";
 
 function row(overrides: Partial<GreenlightPrStateRow>): GreenlightPrStateRow {
   return {
@@ -215,6 +222,199 @@ describe("selectStateForSha", () => {
   test("undefined when the PR has no recorded state at all", () => {
     expect(selectStateForSha(undefined, SHA_A)).toBeUndefined();
     expect(selectStateForSha([], SHA_A)).toBeUndefined();
+  });
+});
+
+const OUTLINE_TOPIC = "torch/_inductor/lowering.py touched";
+const OUTLINE_DETAIL = "guarded by `is_fbcode()`";
+const OUTLINE_SECOND_TOPIC = "second topic";
+const OUTLINE_MESSAGE = `- ${OUTLINE_TOPIC}\n  - ${OUTLINE_DETAIL}\n- ${OUTLINE_SECOND_TOPIC}`;
+// Every leaf of that message with its bullet marker stripped. A redaction check
+// that named one phrase would pass on a log holding all the others.
+const OUTLINE_LEAVES = OUTLINE_MESSAGE.split("\n").map((line) =>
+  line.replace(/^\s*-\s*/, "")
+);
+
+// A message the classifier accepts -- two bullets, both with a body -- whose
+// every body flattens to nothing, so the parse yields no topic to render.
+const BLANK_OUTLINE = `- ${ZERO_WIDTH_SPACE}\n- ${ZERO_WIDTH_SPACE}`;
+
+// Over the cap with only two bullets, so `truncated` can only have been set by
+// the message length: a third bullet would set it through the topic clamp
+// instead and prove nothing about which string the parser read.
+const OVER_CAP_OUTLINE = `- ${OUTLINE_SECOND_TOPIC}\n- ${"x".repeat(
+  GREENLIGHT_MESSAGE_CAP
+)}`;
+const AT_CAP_OUTLINE = greenlightOutline.capCodePoints(
+  OVER_CAP_OUTLINE,
+  GREENLIGHT_MESSAGE_CAP
+);
+
+// The union is what makes the panel's two branches exhaustive, so narrowing it
+// here rather than asserting on `kind` keeps a wrong branch a type error.
+function outlineView(
+  message: string | undefined | null
+): greenlightOutline.ParsedOutline {
+  const view = selectMessageView(message);
+  if (view.kind !== "outline") {
+    throw new Error(`expected an outline view, got ${view.kind}`);
+  }
+  return view.outline;
+}
+
+function textView(message: string | undefined | null): string {
+  const view = selectMessageView(message);
+  if (view.kind !== "text") {
+    throw new Error(`expected a text view, got ${view.kind}`);
+  }
+  return view.text;
+}
+
+// What a console sink prints for the calls a console.error spy recorded.
+// JSON.stringify cannot stand in for it: Error.message and Error.stack are
+// non-enumerable, so it renders every logged error as `{}` and a redaction
+// check built on it passes whatever the error carries.
+function loggedText(spy: jest.SpyInstance): string {
+  return spy.mock.calls.map((call) => format(...call)).join("\n");
+}
+
+describe("selectMessageView", () => {
+  test("a bullet outline routes to the parsed list", () => {
+    const outline = outlineView(OUTLINE_MESSAGE);
+
+    expect(outline.truncated).toBe(false);
+    expect(outline.topics).toHaveLength(2);
+    expect(outline.topics[0].text).toEqual([
+      { text: OUTLINE_TOPIC, code: false },
+    ]);
+    // The trailing empty segment is why the renderer skips empty text: a leaf
+    // ending in a code span always parses to one.
+    expect(outline.topics[0].details).toEqual([
+      [
+        { text: "guarded by ", code: false },
+        { text: "is_fbcode()", code: true },
+        { text: "", code: false },
+      ],
+    ]);
+    expect(outline.topics[0].detailsTruncated).toBe(false);
+    expect(outline.topics[1].details).toEqual([]);
+  });
+
+  test("reads the `message` column the panel hands it", () => {
+    const state = selectStateForSha(
+      [row({ head_sha: SHA_A, message: OUTLINE_MESSAGE })],
+      SHA_A
+    );
+    expect(selectMessageView(state?.message).kind).toBe("outline");
+  });
+
+  test("prose routes to text, which is what every pre-outline row is", () => {
+    expect(textView("looks fine to me")).toBe("looks fine to me");
+    // One bullet-shaped line in a paragraph is not an outline.
+    expect(textView("a paragraph\n- with one bullet")).toBe(
+      "a paragraph\n- with one bullet"
+    );
+  });
+
+  test("an absent, empty or blank message routes to text", () => {
+    expect(textView(undefined)).toBe("");
+    expect(textView(null)).toBe("");
+    expect(textView("")).toBe("");
+    expect(textView("   ")).toBe("   ");
+  });
+
+  test("a message that is not a string at all routes to empty text", () => {
+    // The row is a cast over an untyped saved query, so the column's declared
+    // type is an assertion. The coercion is on the type rather than on what
+    // React happens to accept: a number and an array render, a plain object is
+    // not a valid child and takes the commit page down with it, and the panel
+    // has no business telling those apart.
+    expect(textView({} as unknown as string)).toBe("");
+    expect(textView(7 as unknown as string)).toBe("");
+    expect(textView(["- one", "- two"] as unknown as string)).toBe("");
+  });
+
+  test("an outline whose every leaf flattens away routes to text", () => {
+    // Not the empty list: the panel would show an empty <ul> where the fence
+    // shows the reader the characters that are actually in the row.
+    expect(textView(BLANK_OUTLINE)).toBe(BLANK_OUTLINE);
+  });
+
+  test("the parser reads the uncapped message, so an over-cap outline marks the cut", () => {
+    expect(OVER_CAP_OUTLINE.length).toBeGreaterThan(GREENLIGHT_MESSAGE_CAP);
+    expect(outlineView(OVER_CAP_OUTLINE).topics).toHaveLength(2);
+    expect(outlineView(OVER_CAP_OUTLINE).truncated).toBe(true);
+
+    // The same message pre-cut to the cap loses the marker, which is the whole
+    // reason the cap is applied to the text branch alone.
+    expect(AT_CAP_OUTLINE.length).toBe(GREENLIGHT_MESSAGE_CAP);
+    expect(outlineView(AT_CAP_OUTLINE).truncated).toBe(false);
+  });
+
+  test("the text branch is capped, since `message` is an unbounded String", () => {
+    const long = "x".repeat(GREENLIGHT_MESSAGE_CAP + 500);
+    expect(textView(long)).toBe("x".repeat(GREENLIGHT_MESSAGE_CAP));
+
+    // Counted in code points, not UTF-16 units: a cap that split a surrogate
+    // pair would hand the panel half a character.
+    const astral = "\u{1F600}".repeat(GREENLIGHT_MESSAGE_CAP);
+    expect(Array.from(textView(astral))).toHaveLength(GREENLIGHT_MESSAGE_CAP);
+  });
+
+  test("a parse that throws routes to text without logging the message", () => {
+    const thrown = new Error("parse read a message it could not handle");
+    const parse = jest
+      .spyOn(greenlightOutline, "parseOutline")
+      .mockImplementation(() => {
+        throw thrown;
+      });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      expect(textView(OUTLINE_MESSAGE)).toBe(OUTLINE_MESSAGE);
+      expect(parse).toHaveBeenCalledWith(OUTLINE_MESSAGE);
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("outline parse threw"),
+        thrown
+      );
+      // None of the model's text: `message` is PR-influenceable, and a console
+      // is not where it gets replayed unbounded.
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
+    } finally {
+      parse.mockRestore();
+      logged.mockRestore();
+    }
+  });
+
+  test("a classifier that throws routes to text too", () => {
+    // Choosing the branch reads the same untrusted text parsing it does, so it
+    // sits inside the same guard rather than outside it.
+    const thrown = new Error("classifier read a message it could not handle");
+    const classify = jest
+      .spyOn(greenlightOutline, "isOutline")
+      .mockImplementation(() => {
+        throw thrown;
+      });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      expect(textView(OUTLINE_MESSAGE)).toBe(OUTLINE_MESSAGE);
+      expect(classify).toHaveBeenCalledWith(OUTLINE_MESSAGE);
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("outline parse threw"),
+        thrown
+      );
+      const printed = loggedText(logged);
+      for (const leaf of OUTLINE_LEAVES) {
+        expect(printed).not.toContain(leaf);
+      }
+    } finally {
+      classify.mockRestore();
+      logged.mockRestore();
+    }
   });
 });
 

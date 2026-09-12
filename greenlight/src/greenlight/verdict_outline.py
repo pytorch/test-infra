@@ -27,6 +27,14 @@ here, ``U+FEFF`` there), on ``\d`` (Unicode digits against ASCII only) and on ``
 e-acute is a word character in Python and not in JavaScript), so one shared shorthand renders two
 different comments from one row. Every character set below is a single-line literal for that
 reason: the drift test scrapes both files and compares the literals.
+
+The mirror is not symmetrical. That module also exports a parse layer with no counterpart here --
+``parseOutline`` and the ``OutlineSegment``, ``OutlineTopic`` and ``ParsedOutline`` shapes it
+returns -- feeding the HUD's Green Light panel, which builds DOM nodes rather than markup. Every
+clamp acting on structure sits in that layer there, where this module applies the topic clamp in
+``render_outline_html``, the detail clamp in ``_topic_html`` and the code-span split in
+``_leaf_html``. The gates compare finished HTML and scraped literals, so neither sees where either
+side computes it.
 """
 
 from __future__ import annotations
