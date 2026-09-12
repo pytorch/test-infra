@@ -13,7 +13,8 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
     headers[key.toLowerCase()] = headers[key];
   }
 
-  const signature = headers['x-hub-signature'] as string;
+  // Prefer the SHA-256 signature; GitHub still sends the legacy SHA-1 header alongside it.
+  const signature = (headers['x-hub-signature-256'] ?? headers['x-hub-signature']) as string;
   if (!signature) {
     console.error("Github event doesn't have signature. This webhook requires a secret to be configured.");
     return 500;
@@ -32,7 +33,15 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
   const webhooks = new Webhooks({
     secret: secret,
   });
-  if (!webhooks.verify(payload, signature)) {
+  // `verify` is async — without the await this is an always-truthy Promise and the check never rejects.
+  let verified: boolean;
+  try {
+    verified = await webhooks.verify(payload, signature);
+  } catch (e) {
+    console.error(`Unable to verify signature: ${e}`);
+    return 401;
+  }
+  if (!verified) {
     console.error('Unable to verify signature!');
     return 401;
   }
