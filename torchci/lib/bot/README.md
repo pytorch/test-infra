@@ -219,18 +219,19 @@ ciflow_push_tags:
 
 ### stripApprovalBot.ts
 
-**Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
+**Primary Purpose:** Removes PR approvals when a PR is reopened, or when new commits are pushed to it, to ensure fresh review.
 
 **Key Features:**
 
-- **Approval dismissal**: Automatically dismisses all existing approvals on PR reopening
-- **Permission-based**: Only acts on PRs from users without write permissions
+- **Approval dismissal**: Automatically dismisses all existing approvals
+- **Permission-based**: On reopen, acts only on PRs authored by users without write permissions; on push, acts only when the pusher lacks write permissions, so a mergebot rebase or a maintainer pushing to a fork branch does not dismiss anything
 - **Notification messages**: Provides clear explanation for why approvals were removed
-- **Security-focused**: Ensures that reopened PRs (potentially after reverts) get fresh review
+- **Security-focused**: Stands in for GitHub's `dismiss_stale_reviews`, which `pytorch/pytorch` cannot enable because it requires `required_pull_request_reviews`, which in turn blocks the direct push to `main` that `pytorchmergebot` performs. Without it, an author without write permissions can get an approval on a benign commit, push anything on top, and `@pytorchbot merge` (which checks only that the PR is approved, not who is asking) lands it.
 
 **GitHub Webhooks:**
 
 - `pull_request.reopened`
+- `pull_request.synchronize`
 
 **Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
 
